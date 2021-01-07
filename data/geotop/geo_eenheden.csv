@@ -1,0 +1,93 @@
+Nummer (voxelmode),Code (lagenmodel en boringen),Naam
+1000,AAOP,Antropogene afzettingen
+1010,NIGR,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen"
+1020,NASC,"Formatie van Naaldwijk, Laagpakket van Schoorl"
+1030,ONAWA,"Formatie van Naaldwijk, Laagpakket van
+Walcheren, gelegen boven Formatie van Naaldwijk, Laagpakket van Zandvoort"
+1040,NAZA,"Formatie van Naaldwijk, Laagpakket van Zandvoort"
+1050,NAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort"
+1060,BHEC,"Formatie van Echteld, gelegen buiten de
+verbreiding van de Formatie van Nieuwkoop, Hollandveen Laagpakket"
+1070,OEC,"Formatie van Echteld, gelegen boven de Formatie van Nieuwkoop, Hollandveen Laagpakket"
+1080,NAWOBE,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen"
+1090,NIHO,"Formatie van Nieuwkoop, Hollandveen Laagpakket"
+1100,NAWO,"Formatie van Naaldwijk, Laagpakket van Wormer"
+1110,NWNZ,"Formatie van Naaldwijk, Laagpakketten van
+Wormer en Zandvoort (gecombineerde eenheid in modelgebied Zeeland)"
+1120,NAWOVE,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen"
+1130,NIBA,"Formatie van Nieuwkoop, Basisveen Laag"
+2000,NA,Formatie van Naaldwijk
+2010,EC,Formatie van Echteld
+2020,NI,Formatie van Nieuwkoop
+2030,KK,Kreekrak Formatie
+3000,BXKO,"Formatie van Boxtel, Laagpakket van Kootwijk"
+3010,BXSI,"Formatie van Boxtel, Laagpakket van Singraven"
+3020,BXWI,"Formatie van Boxtel, Laagpakket van Wierden"
+3030,BXWISIKO,"Formatie van Boxtel, Laagpakketten van Wierden, Singraven en Kootwijk"
+3040,BXDE,"Formatie van Boxtel, Laagpakket van Delwijnen"
+3050,BXSC,"Formatie van Boxtel, Laagpakket van Schimmert"
+3060,BXLM,"Formatie van Boxtel, Laagpakket van Liempde"
+3090,BXBS,"Formatie van Boxtel, Laagpakket van Best"
+3100,BX,Formatie van Boxtel
+4000,KRWY,"Formatie van Kreftenheye, Laag van Wijchen"
+4010,KRBXDE,"Formatie van Kreftenheye, inclusief Formatie van Boxtel, Laagpakket van Delwijnen"
+4020,KRZU,"Formatie van Kreftenheye, Laagpakket van Zutphen"
+4030,KROE,"Formatie van Kreftenheye, gelegen onder de Eem Formatie"
+4040,KRTW,"Formatie van Kreftenheye, Laagpakket van Twello"
+4050,KR,Formatie van Kreftenheye
+4060,BEWY,"Formatie van Beegden, Laag van Wijchen"
+4070,BERO,"Formatie van Beegden, Laag van Rosmalen"
+4080,BE,Formatie van Beegden
+4090,KW,Formatie van Koewacht
+4100,WB,Formatie van Woudenberg
+4110,EE,Eem Formatie
+4120,EEWB,Formatie van Woudenberg en Eem Formatie
+5000,DR,Formatie van Drente
+5010,DRGI,"Formatie van Drente, Laagpakket van Gieten"
+5020,GE,Door landijs gestuwde eenheden
+5030,DN,Formatie van Drachten
+5040,URTY,"Formatie van Urk, Laagpakket van Tijnje"
+5050,PE,Formatie van Peelo
+5060,UR,Formatie van Urk
+5070,ST,Formatie van Sterksel
+5080,AP,Formatie van Appelscha
+5090,SY,Formatie van Stramproy
+5100,PZ,Formatie van Peize
+5110,WA,Formatie van Waalre
+5120,PZWA,Formatie van Peize en Formatie van Waalre
+5130,MS,Formatie van Maassluis
+5140,KI,Kiezeloöliet Formatie
+5150,OO,Formatie van Oosterhout
+5160,IE,Formatie van Inden
+5170,VI,Formatie van Ville
+5180,BR,Formatie van Breda
+5190,RUBO,"Rupel Formatie, Laagpakket van Boom"
+5200,RU,Rupel Formatie
+5210,TOZEWA,"Formatie van Tongeren, Laagpakket van Zelzate, Laag van Watervliet"
+5220,TOGO,"Formatie van Tongeren, Laagpakket van Goudsberg"
+5230,TO,Formatie van Tongeren
+5240,DOAS,"Formatie van Dongen, Laagpakket van Asse"
+5250,DOIE,"Formatie van Dongen, Laagpakket van Ieper"
+5260,DO,Formatie van Dongen
+5270,LA,Formatie van Landen
+5280,HT,Formatie van Heijenrath
+5290,HO,Formatie van Holset
+5300,MT,Formatie van Maastricht
+5310,GU,Formatie van Gulpen
+5320,VA,Formatie van Vaals
+5330,AK,Formatie van Aken
+6000,AEC,"Stroombaan generatie A, Formatie van Echteld"
+6010,ANAWA,"Stroombaan generatie A, Formatie van Naaldwijk, Laagpakket van Walcheren"
+6020,ANAWO,"Stroombaan generatie A, Formatie van Naaldwijk, Laagpakket van Wormer"
+6100,BEC,"Stroombaan generatie B, Formatie van Echteld"
+6110,BNAWA,"Stroombaan generatie B, Formatie van Naaldwijk, Laagpakket van Walcheren"
+6120,BNAWO,"Stroombaan generatie B, Formatie van Naaldwijk, Laagpakket van Wormer"
+6200,CEC,"Stroombaan generatie C, Formatie van Echteld"
+6210,CNAWA,"Stroombaan generatie C, Formatie van Naaldwijk, Laagpakket van Walcheren"
+6220,CNAWO,"Stroombaan generatie C, Formatie van Naaldwijk, Laagpakket van Wormer"
+6300,DEC,"Stroombaan generatie D, Formatie van Echteld"
+6310,DNAWA,"Stroombaan generatie D, Formatie van Naaldwijk, Laagpakket van Walcheren"
+6320,DNAWO,"Stroombaan generatie D, Formatie van Naaldwijk, Laagpakket van Wormer"
+6400,EEC,"Stroombaan generatie E, Formatie van Echteld"
+6410,ENAWA,"Stroombaan generatie E, Formatie van Naaldwijk, Laagpakket van Walcheren"
+6420,ENAWO,"Stroombaan generatie E, Formatie van Naaldwijk, Laagpakket van Wormer"

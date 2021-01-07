@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# nlmod specific
+flowchartnlmod.pptx

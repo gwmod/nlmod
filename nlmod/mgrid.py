@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Apr  2 13:41:57 2020
-
-@author: oebbe
+This module contains functions to:
+    - project data on different grid forms
+    - obtain various types of rec_lists from a grid that can be used as input for a mf
+    package
+    - fill, interpolate and resample grid data
+    - 
 """
 import copy
 import os
@@ -10,25 +13,60 @@ import pickle
 import tempfile
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 from scipy import interpolate
 from scipy.interpolate import griddata
 from shapely.prepared import prep
-import rasterio
-from rasterio.warp import reproject
 
-from . import util, regis, geotop
+from . import util, northsea, mfpackages
 import flopy
 from flopy.utils.gridintersect import GridIntersect
 from flopy.utils.gridgen import Gridgen
+from flopy.discretization.structuredgrid import StructuredGrid
 
 
-def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds, keep_vars=None,
+def modelgrid_from_model_ds(model_ds, gridprops=None):
+    """ obtain the flopy modelgrid from model_ds
+
+
+    Parameters
+    ----------
+    model_ds : xarray DataSet
+        model dataset.
+    gridprops : dic, optional
+        extra model properties when using unstructured grids. The default is None.
+
+    Returns
+    -------
+    modelgrid : flopy StructuredGrid or flopy VertexGrid 
+        grid information.
+
+    """
+
+    if model_ds.gridtype == 'structured':
+        modelgrid = StructuredGrid(delc=np.array([model_ds.delc] * model_ds.dims['y']),
+                                    delr=np.array([model_ds.delc] * model_ds.dims['x']),
+                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
+    elif model_ds.gridtype == 'unstructured':
+        _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
+                                                           verbose=False)
+        flopy.mf6.ModflowGwfdisv(gwf, idomain=model_ds['idomain'].data,
+                                 **gridprops)
+        modelgrid = gwf.modelgrid
+
+    return modelgrid
+
+
+def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      gridtype='structured',
+                                     gridprops=None,
+                                     keep_vars=None,
+                                     add_northsea=True,
                                      anisotropy=10,
                                      fill_value_kh=1.,
                                      fill_value_kv=0.1,
+                                     cachedir=None,
+                                     use_cache=False,
                                      verbose=False):
     """ Update a model dataset with a model layer dataset.
 
@@ -39,17 +77,34 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds, keep_vars=None,
         dataset with model data, preferably without a grid definition.
     ml_layer_ds : xarray.Dataset
         dataset with model layer data corresponding to the modelgrid
+    gridtype : str, optional
+        type of grid, default is 'structured'
+    gridprops : dictionary
+        dictionary with grid properties output from gridgen.
     keep_vars : list of str
         variables in ml_layer_ds that will be used in model_ds
-    gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'. 
-        The default is 'structured'.
+    add_northsea : bool, optional
+        if True the nan values at the northsea are filled using the 
+        bathymetry from jarkus
+    anisotropy : int or float
+        factor to calculate kv from kh or the other way around
+    fill_value_kh : int or float, optional
+        use this value for kh if there is no data in regis. The default is 1.0.
+    fill_value_kv : int or float, optional
+        use this value for kv if there is no data in regis. The default is 1.0.
+    cachedir : str, optional
+        directory to store cached values, if None a temporary directory is
+        used. default is None
+    use_cache : bool, optional
+        if True the cached resampled regis dataset is used. 
+        The default is False.
 
     Returns
     -------
     model_ds : xarray.Dataset
         dataset with model data 
     """
+    model_ds.attrs['gridtype'] = gridtype
 
     if keep_vars is None:
         raise ValueError(
@@ -60,51 +115,71 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds, keep_vars=None,
         # update attributes
         _ = [model_ds.attrs.update({key: item})
              for key, item in ml_layer_ds.attrs.items()]
-    
+
     model_ds = add_idomain_from_bottom_to_dataset(ml_layer_ds['bottom'],
                                                   model_ds)
 
     model_ds = add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                                        gridtype=gridtype)
-    
+
     model_ds = add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds,
-                                                model_ds,
-                                                anisotropy,
-                                                fill_value_kh,
-                                                fill_value_kv,
-                                                verbose=verbose)
-    
-    
+                                                  model_ds,
+                                                  anisotropy,
+                                                  fill_value_kh,
+                                                  fill_value_kv,
+                                                  verbose=verbose)
 
-    return model_ds
+    if gridtype == 'unstructured':
+        gridprops['top'] = model_ds['top'].data
+        gridprops['botm'] = model_ds['bot'].data
 
+        # add surface area of each cell
+        model_ds['area'] = ('cid', gridprops.pop('area')[:len(model_ds['cid'])])
 
-def get_model_ds_from_regis_ds(regis_ds, keep_vars=None, verbose=False):
-    """ Get a model dataset with the same coordinates and dimensions as the
-    input regis dataset.
-
-
-    Parameters
-    ----------
-    regis_ds : xarray.Dataset
-        dataset with regis data corresponding to the modelgrid
-    keep_vars : list of str
-        variables in regis_ds that will be used in model_ds
-
-    Returns
-    -------
-    model_ds : xarray.Dataset
-        dataset with model data 
-    """
-
-    if keep_vars is None:
-        # lelijke manier om een dataset te maken van een andere dataset zonder
-        # de variabelen maar wel de dimensies en coordinates
-        key = list(regis_ds.keys())[0]
-        model_ds = regis_ds[[key]].copy()
-        model_ds = model_ds.drop(key)
     else:
-        model_ds = regis_ds[keep_vars]
+        gridprops = None
+
+    if add_northsea:
+        if verbose:
+            print('nan values at the northsea are filled using the bathymetry from jarkus')
+
+        modelgrid = modelgrid_from_model_ds(model_ds, gridprops=gridprops)
+
+        # find grid cells with northsea
+        model_ds = northsea.get_modelgrid_sea(model_ds,
+                                              modelgrid=modelgrid,
+                                              cachedir=cachedir,
+                                              use_cache=use_cache,
+                                              verbose=verbose)
+
+        # fill top, bot, kh, kv at sea cells
+        fill_mask = (model_ds['first_active_layer'] == model_ds.nodata) * model_ds['northsea']
+        model_ds = fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
+                                              gridtype=gridtype,
+                                              gridprops=gridprops)
+
+        # add bathymetry noordzee
+        model_ds = northsea.get_modelgrid_bathymetry(model_ds,
+                                                     gridprops=gridprops,
+                                                     cachedir=cachedir,
+                                                     use_cache=use_cache,
+                                                     verbose=verbose)
+
+        model_ds = northsea.add_bathymetry_to_top_bot_kh_kv(model_ds,
+                                                            model_ds['bathymetry'],
+                                                            fill_mask)
+
+        # update idomain on adjusted tops and bots
+        model_ds['thickness'] = get_thickness_from_topbot(model_ds['top'],
+                                                          model_ds['bot'])
+        model_ds['idomain'] = update_idomain_from_thickness(model_ds['idomain'],
+                                                            model_ds['thickness'],
+                                                            model_ds['northsea'])
+        model_ds['first_active_layer'] = get_first_active_layer_from_idomain(model_ds['idomain'])
+
+        if gridtype == 'unstructured':
+            gridprops['top'] = model_ds['top'].data
+            gridprops['botm'] = model_ds['bot'].data
 
     return model_ds
 
@@ -168,8 +243,8 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999,
     # if the top cell is inactive idomain is 0, otherwise it is -1
     idomain[0] = xr.where(idomain[0] == -1, 0, idomain[0])
     for i in range(1, bottom.shape[0]):
-        idomain[i] = xr.where((idomain[i - 1] == 0) &
-                              (idomain[i] == -1), 0, idomain[i])
+        idomain[i] = xr.where((idomain[i - 1] == 0)
+                              & (idomain[i] == -1), 0, idomain[i])
 
     model_ds['idomain'] = idomain
     model_ds['first_active_layer'] = get_first_active_layer_from_idomain(idomain,
@@ -212,65 +287,6 @@ def get_lay_from_ml_layers(raw_layer_mod, verbose=False):
     return nlay, lay_sel
 
 
-def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
-                        verbose=False):
-    """
-    redifine extent and calculate the number of rows and columns.
-
-    The extent will be redefined so that the borders os the grid (xmin, xmax, 
-    ymin, ymax) correspond with the borders of the regis grid.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        original extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
-    cs_regis : int or float, optional
-        cell size of regis grid. The default is 100..
-
-    Returns
-    -------
-    extent : list, tuple or np.array
-        adjusted extent
-    nrow : int
-        number of rows.
-    ncol : int
-        number of columns.
-
-    """
-    if verbose:
-        print(f'redefining current extent: {extent}, fit to regis raster')
-
-    for d in [delr, delc]:
-        if float(d) not in [10., 20., 25., 50., 100., 200., 400., 500., 800.]:
-            print(f'you probably cannot run the model with this '
-                  f'cellsize -> {delc, delr}')
-
-    # if extents ends with 50 do nothing, otherwise rescale extent to fit regis
-    if extent[0] % cs_regis == 0 or not extent[0] % (0.5 * cs_regis) == 0:
-        extent[0] -= extent[0] % 100
-        extent[0] = extent[0] - 0.5 * cs_regis
-    # get number of columns
-    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
-    extent[1] = extent[0] + (ncol * delr)  # round x1 up to close grid
-
-    # round y0 down to next 50 necessary for regis
-    if extent[2] % cs_regis == 0 or not extent[2] % (0.5 * cs_regis) == 0:
-        extent[2] -= extent[2] % 100
-        extent[2] = extent[2] - 0.5 * cs_regis
-    nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
-    extent[3] = extent[2] + (nrow * delc)  # round y1 up to close grid
-
-    if verbose:
-        print(
-            f'new extent is {extent} model has {nrow} rows and {ncol} columns')
-
-    return extent, nrow, ncol
-
-
 def get_xy_mid_structured(extent, delr, delc):
     """
     calculates the x and y coordinates of the cell centers of a structured
@@ -309,17 +325,25 @@ def get_xy_mid_structured(extent, delr, delc):
 
 
 def fillnan_dataarray_structured_grid(xar_in):
-    """ can be slow if the xar_in is a large raster
+    """ fill not-a-number values in a structured grid, DataArray.
+
+    The fill values are determined using the 'nearest' method of the 
+    scipy.interpolate.griddata function    
+
 
     Parameters
     ----------
-    xar_in : TYPE
-        DESCRIPTION.
+    xar_in : xarray DataArray
+        DataArray with nan values.
 
     Returns
     -------
-    xar_out : TYPE
-        DESCRIPTION.
+    xar_out : xarray DataArray
+        DataArray without nan values.
+
+    Notes
+    -----
+    can be slow if the xar_in is a large raster
 
     """
 
@@ -574,7 +598,7 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
 
 
 def create_unstructured_grid(gridgen_ws, model_name, gwf,
-                             shp_fname, level, extent,
+                             shp_fname, levels, extent,
                              nlay, nrow, ncol, delr,
                              delc, cachedir=None,
                              use_cache=False,
@@ -592,8 +616,8 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
         groundwater flow model.
     shp_fname : str
         path to shapefiles that is used to refine grid.
-    level : int
-        DESCRIPTION.
+    levels : int
+        the number of refine levels.
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid.
     nlay : int
@@ -615,8 +639,8 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
 
     Returns
     -------
-    g : flopy.utils.gridgen.Gridgen
-        gridgen object used to generate an unstructured grid.
+    gridprops : dictionary
+        gridprops with the unstructured grid information.
 
     """
 
@@ -626,18 +650,18 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
     if cachedir is None:
         cachedir = tempfile.gettempdir()
 
-    fname_g_pickle = os.path.join(cachedir, 'grid.pklz')
-    if os.path.isfile(fname_g_pickle) and use_cache:
+    fname_gridprops_pickle = os.path.join(cachedir, 'gridprops.pklz')
+    if os.path.isfile(fname_gridprops_pickle) and use_cache:
         if verbose:
-            print(f'using cached griddata from file {fname_g_pickle}')
+            print(f'using cached griddata from file {fname_gridprops_pickle}')
 
-        with open(fname_g_pickle, 'rb') as fo:
-            g = pickle.load(fo)
+        with open(fname_gridprops_pickle, 'rb') as fo:
+            gridprops = pickle.load(fo)
 
-        return g
+        return gridprops
 
     if verbose:
-        print(f'create unstructured grid using gridgen')
+        print('create unstructured grid using gridgen')
 
     # create temporary groundwaterflow model with dis package
     _gwf_temp = copy.deepcopy(gwf)
@@ -650,19 +674,23 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
                                         filename='{}.dis'.format(model_name))
 
     exe_name = os.path.join(os.path.dirname(__file__),
-                            '..', 'tools', 'gridgen.exe')
+                            '..', 'executables', 'gridgen.exe')
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
 
-    g.add_refinement_features(shp_fname, 'line', level, range(nlay))
+    g.add_refinement_features(shp_fname, 'line', levels, range(nlay))
     g.build()
+    
+    gridprops = g.get_gridprops_disv()
+    gridprops['area'] = g.get_area()
+    gridprops['levels'] = levels
 
     if verbose:
-        print(f'write cache for griddata data to {fname_g_pickle}')
+        print(f'write cache for griddata data to {fname_gridprops_pickle}')
 
-    with open(fname_g_pickle, 'wb') as fo:
-        pickle.dump(g, fo)
+    with open(fname_gridprops_pickle, 'wb') as fo:
+        pickle.dump(gridprops, fo)
 
-    return g
+    return gridprops
 
 
 def get_xyi_cid(gridprops):
@@ -1436,100 +1464,6 @@ def update_idomain_from_thickness(idomain, thickness, mask):
     return idomain
 
 
-def get_surface_area(gwf):
-    if isinstance(gwf.modelgrid, flopy.discretization.StructuredGrid):
-        delr, delc = np.meshgrid(gwf.modelgrid.delr, gwf.modelgrid.delc)
-        return delr * delc
-    else:
-        msg = 'Calculation of area for {} not yet supported'
-        raise(Exception(msg.format(type(gwf.modelgrid))))
-
-
-def get_rasterio_src(fname):
-    if isinstance(fname, str):
-        src = rasterio.open(fname)
-    elif isinstance(fname, rasterio.DatasetReader):
-        src = fname
-    else:
-        raise(Exception('Unknown file: {}'.format(fname)))
-    return src
-
-
-def get_xy_mid(fname, transform=None):
-    if isinstance(fname, str) or isinstance(fname, rasterio.DatasetReader):
-        src = get_rasterio_src(fname)
-        extent = rasterio.plot.plotting_extent(src)
-        transform = src.transform
-    else:
-        if transform is None:
-            raise('When supplying extent, also supply transform')
-        if len(fname) == 2:
-            # first argument is the shape
-            shape = fname
-            extent = [transform[2], transform[2] + transform[0] * shape[1],
-                      transform[5] + transform[4] * shape[0], transform[5]]
-        else:
-            # first argument is the extent
-            extent = fname
-    x = np.arange(extent[0] + transform[0] / 2, extent[1], transform[0])
-    y = np.arange(extent[3] + transform[4] / 2, extent[2], transform[4])
-    return x, y
-
-
-def raster_to_quadtree_grid(fname, model_ds, dst_crs=None,
-                            resampling=rasterio.enums.Resampling.average,
-                            return_data_array=True):
-    """Resample a raster-file to a quadtree-grid, using different advanced
-    resample algoritms"""
-    area = model_ds['area'].values
-    x = model_ds.x.values
-    y = model_ds.y.values
-    z = np.full(area.shape, np.NaN)
-
-    for ar in np.unique(area):
-        mask = area == ar
-        extent = model_ds.attrs['extent']
-        dx = dy = np.sqrt(ar)
-        dst_transform = rasterio.transform.from_origin(extent[0], extent[3],
-                                                       dx, dy)
-        width = int((extent[1] - extent[0]) / dx)
-        height = int((extent[3] - extent[2]) / dy)
-        dst_shape = (height, width)
-        zt = np.zeros(dst_shape)
-        with rasterio.open(fname) as src:
-            reproject(
-                source=rasterio.band(src, 1),
-                destination=zt,
-                src_transform=src.transform,
-                src_crs=src.crs,
-                dst_transform=dst_transform,
-                dst_crs=src.crs if dst_crs is None else dst_crs,
-                resampling=resampling,
-                dst_nodata=np.NaN)
-        # use an xarray to get the right values using .sel()
-        xt, yt = get_xy_mid(extent, dst_transform)
-        da = xr.DataArray(zt, coords=(yt, xt), dims=['y', 'x'])
-        if len(mask.shape) == 2:
-            x, y = np.meshgrid(x, y)
-        z[mask] = da.sel(y=xr.DataArray(y[mask]),
-                         x=xr.DataArray(x[mask])).values
-    if return_data_array:
-        z_da = xr.full_like(model_ds['top'], np.NaN)
-        z_da.data = z
-        return z_da
-
-    return z
-
-
-
-
-
-
-
-
-
-
-
 def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
                                        fill_value_kh, fill_value_kv,
                                        verbose=False):
@@ -1948,134 +1882,6 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     return model_ds
 
 
-def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
-                               gridtype='structured',
-                               gridprops=None):
-    """ fill values in top, bot, kh and kv where:
-        1. the cell is True in mask
-        2. the cell thickness is greater than 0
-
-    fill values:
-        top: 0
-        bot: minimum of bottom_filled or top
-        kh: kh_filled if thickness is greater than 0
-        kv: kv_filled if thickness is greater than 0
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        model dataset, should contain 'first_active_layer'
-    fill_mask : xr.DataArray
-        1 where a cell should be replaced by masked value.
-    gridtype : str, optional
-        type of grid.        
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Default is None
-
-    Returns
-    -------
-    model_ds : xr.DataSet
-        model dataset with adjusted data variables:
-            'top', 'bot', 'kh', 'kv'
-    """
-
-    # zee cellen hebben altijd een top gelijk aan 0
-    model_ds['top'] = xr.where(fill_mask, 0, model_ds['top'])
-
-    if gridtype == 'structured':
-        fill_function = fillnan_dataarray_structured_grid
-        fill_function_kwargs = {}
-    elif gridtype == 'unstructured':
-        fill_function = fillnan_dataarray_unstructured_grid
-        fill_function_kwargs = {'gridprops': gridprops}
-
-    for lay in range(model_ds.dims['layer']):
-        bottom_nan = xr.where(fill_mask, np.nan, model_ds['bot'][lay])
-        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)[0]
-
-        kh_nan = xr.where(fill_mask, np.nan, model_ds['kh'][lay])
-        kh_filled = fill_function(kh_nan, **fill_function_kwargs)[0]
-
-        kv_nan = xr.where(fill_mask, np.nan, model_ds['kv'][lay])
-        kv_filled = fill_function(kv_nan, **fill_function_kwargs)[0]
-
-        if lay == 0:
-            # top ligt onder bottom_filled -> laagdikte wordt 0
-            # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
-            mask_top = model_ds['top'] < bottom_filled
-            model_ds['bot'][lay] = xr.where(fill_mask * mask_top,
-                                            model_ds['top'],
-                                            bottom_filled)
-            model_ds['kh'][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds['kh'][lay],
-                                           kh_filled)
-            model_ds['kv'][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds['kv'][lay],
-                                           kv_filled)
-
-        else:
-            # top ligt onder bottom_filled -> laagdikte wordt 0
-            # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
-            mask_top = model_ds['bot'][lay - 1] < bottom_filled
-            model_ds['bot'][lay] = xr.where(fill_mask * mask_top,
-                                            model_ds['bot'][lay - 1],
-                                            bottom_filled)
-            model_ds['kh'][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds['kh'][lay],
-                                           kh_filled)
-            model_ds['kv'][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds['kv'][lay],
-                                           kv_filled)
-
-    return model_ds
-
-
-def add_bathymetry_to_top_bot_kh_kv(model_ds, bathymetry,
-                                    fill_mask,
-                                    kh_sea=10,
-                                    kv_sea=10):
-    """ add bathymetry to the top and bot of each layer for all cells with
-    fill_mask.
-
-    Parameters
-    ----------
-    model_ds : xarray.Dataset
-        dataset with model data, should 
-    fill_mask : xr.DataArray
-        cell value is 1 if you want to add bathymetry
-
-    Returns
-    -------
-    model_ds : xarray.Dataset
-        dataset with model data where the top, bot, kh and kv are changed
-
-    """
-    model_ds['top'] = xr.where(fill_mask,
-                               0.0,
-                               model_ds['top'])
-
-    lay = 0
-    model_ds['bot'][lay] = xr.where(fill_mask,
-                                    bathymetry,
-                                    model_ds['bot'][lay])
-
-    model_ds['kh'][lay] = xr.where(fill_mask,
-                                   kh_sea,
-                                   model_ds['kh'][lay])
-
-    model_ds['kv'][lay] = xr.where(fill_mask,
-                                   kv_sea,
-                                   model_ds['kv'][lay])
-
-    # reset bot for all layers based on bathymetrie
-    for lay in range(1, model_ds.dims['layer']):
-        model_ds['bot'][lay] = np.where(model_ds['bot'][lay] > model_ds['bot'][lay - 1],
-                                        model_ds['bot'][lay - 1],
-                                        model_ds['bot'][lay])
-
-    return model_ds
-
-
 def get_ml_layer_dataset_struc(raw_ds=None,
                                extent=None,
                                delr=None,
@@ -2121,8 +1927,8 @@ def get_ml_layer_dataset_struc(raw_ds=None,
 
     Returns
     -------
-    regis_ds : xarray.Dataset
-        dataset with regis data corresponding to the modelgrid
+    ml_layer_ds : xarray.Dataset
+        dataset with data corresponding to the modelgrid
 
     """
 
@@ -2283,73 +2089,91 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
                                     dims=('cid'),
                                     coords={'cid': ml_layer_ds.cid.data})
     ml_layer_ds.attrs['gridtype'] = 'unstructured'
+    ml_layer_ds.attrs['delr'] = raw_ds.delr
+    ml_layer_ds.attrs['delc'] = raw_ds.delc
+    ml_layer_ds.attrs['levels'] = gridprops.pop('levels')
     ml_layer_ds.attrs['extent'] = extent
 
     return ml_layer_ds
 
 
-def get_regis_ds_from_raw_ds(regis_ds_raw=None,
-                             extent=None, delr=None, delc=None,
-                             gridtype='structured',
-                             gridprops=None,
-                             verbose=False,
-                             kind='linear'):
-    """ project regis data on to the modelgrid.
+def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
+                               gridtype='structured',
+                               gridprops=None):
+    """ fill values in top, bot, kh and kv where:
+        1. the cell is True in fill_mask
+        2. the cell thickness is greater than 0
 
+    fill values:
+        top: 0
+        bot: minimum of bottom_filled or top
+        kh: kh_filled if thickness is greater than 0
+        kv: kv_filled if thickness is greater than 0
 
     Parameters
     ----------
-    regis_ds_raw : xr.Dataset, optional
-        regis dataset. If the gridtype is structured this should be the
-        original regis netcdf dataset. If gridtype is unstructured this should
-        be a regis dataset that is already projected on a structured modelgrid. 
-        The default is None.
-    extent : list, tuple or np.array
-        extent (xmin, xmax, ymin, ymax) of the desired grid.
-    delr : int or float
-        cell size along rows of the desired grid (dx).
-    delc : int or float
-        cell size along columns of the desired grid (dy).
+    model_ds : xr.DataSet
+        model dataset, should contain 'first_active_layer'
+    fill_mask : xr.DataArray
+        1 where a cell should be replaced by masked value.
     gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'. 
-        The default is 'structured'.
+        type of grid.        
     gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'unstructured'
-    verbose : bool, optional
-        print additional information. default is False
-    kind : str, optional
-        kind of interpolation to use. default is 'linear'
+        dictionary with grid properties output from gridgen. Default is None
 
     Returns
     -------
-    regis_ds : xr.dataset
-        regis dataset projected onto the modelgrid.
-
+    model_ds : xr.DataSet
+        model dataset with adjusted data variables:
+            'top', 'bot', 'kh', 'kv'
     """
 
+    # zee cellen hebben altijd een top gelijk aan 0
+    model_ds['top'] = xr.where(fill_mask, 0, model_ds['top'])
+
     if gridtype == 'structured':
-        if verbose:
-            print('resample regis data to structured modelgrid')
-        regis_ds = resample_dataset_to_structured_grid(regis_ds_raw, extent,
-                                                             delr, delc, kind=kind)
-        regis_ds.attrs['extent'] = extent
-        regis_ds.attrs['delr'] = delr
-        regis_ds.attrs['delc'] = delc
-        regis_ds.attrs['gridtype'] = gridtype
+        fill_function = fillnan_dataarray_structured_grid
+        fill_function_kwargs = {}
     elif gridtype == 'unstructured':
-        if verbose:
-            print('resample regis data to unstructured modelgrid')
-        regis_ds = resample_dataset_to_unstructured_grid(
-            regis_ds_raw, gridprops)
-        regis_ds['x'] = xr.DataArray([r[1] for r in gridprops['cell2d']],
-                                     dims=('cid'),
-                                     coords={'cid': regis_ds.cid.data})
+        fill_function = fillnan_dataarray_unstructured_grid
+        fill_function_kwargs = {'gridprops': gridprops}
 
-        regis_ds['y'] = xr.DataArray([r[2] for r in gridprops['cell2d']],
-                                     dims=('cid'),
-                                     coords={'cid': regis_ds.cid.data})
-        regis_ds.attrs['gridtype'] = gridtype
-        regis_ds.attrs['extent'] = extent
+    for lay in range(model_ds.dims['layer']):
+        bottom_nan = xr.where(fill_mask, np.nan, model_ds['bot'][lay])
+        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)[0]
 
-    return regis_ds
+        kh_nan = xr.where(fill_mask, np.nan, model_ds['kh'][lay])
+        kh_filled = fill_function(kh_nan, **fill_function_kwargs)[0]
+
+        kv_nan = xr.where(fill_mask, np.nan, model_ds['kv'][lay])
+        kv_filled = fill_function(kv_nan, **fill_function_kwargs)[0]
+
+        if lay == 0:
+            # top ligt onder bottom_filled -> laagdikte wordt 0
+            # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
+            mask_top = model_ds['top'] < bottom_filled
+            model_ds['bot'][lay] = xr.where(fill_mask * mask_top,
+                                            model_ds['top'],
+                                            bottom_filled)
+            model_ds['kh'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kh'][lay],
+                                           kh_filled)
+            model_ds['kv'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kv'][lay],
+                                           kv_filled)
+
+        else:
+            # top ligt onder bottom_filled -> laagdikte wordt 0
+            # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
+            mask_top = model_ds['bot'][lay - 1] < bottom_filled
+            model_ds['bot'][lay] = xr.where(fill_mask * mask_top,
+                                            model_ds['bot'][lay - 1],
+                                            bottom_filled)
+            model_ds['kh'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kh'][lay],
+                                           kh_filled)
+            model_ds['kv'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kv'][lay],
+                                           kv_filled)
+
+    return model_ds

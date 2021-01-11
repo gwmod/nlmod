@@ -5,7 +5,7 @@ Created on Thu Jan  7 12:13:44 2021
 @author: oebbe
 """
 
-from . import (create_model, mtime, mgrid, recharge, surface_water, util, well,
+from . import (create_model, mtime, mgrid, recharge, surface_water, util,
                mfpackages, regis, geotop, northsea)
 import os
 

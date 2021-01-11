@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan  7 17:27:24 2021
-
-@author: oebbe
+function to project regis, or a combination of regis and geotop, data on a 
+modelgrid.
 """
 import numpy as np
 import xarray as xr
@@ -15,13 +14,49 @@ def get_layer_models(extent, delr, delc,
                      cachedir=None,
                      fname_netcdf='combined_layer_ds.nc',
                      use_cache=False, verbose=False):
+    """ get a layer model from regis and/or geotop
+
+    Possibilities so far include:
+        - use_regis -> full model based on regis
+        - use_regis and use_geotop -> holoceen of REGIS is filled with geotop
+
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+    use_regis : bool, optional
+        True if part of the layer model should be REGIS. The default is True.
+    use_geotop : bool, optional
+        True if part of the layer model should be geotop. The default is True.
+    cachedir : str
+        directory to store cached values, if None a temporary directory is
+        used. default is None
+    fname_netcdf : str, optional
+        name of the cached netcdf file. The default is 'combined_layer_ds.nc'.
+    use_cache : bool, optional
+        if True the cached resampled regis dataset is used.
+        The default is False.
+    verbose : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    combined_ds : xarary dataset
+        layer model dataset.
+
+    """
 
     combined_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
                                         get_combined_layer_models,
                                         verbose=verbose,
                                         extent=extent,
                                         delr=delr, delc=delc,
-                                        use_regis=use_regis, 
+                                        use_regis=use_regis,
                                         use_geotop=use_geotop)
 
     return combined_ds
@@ -79,7 +114,7 @@ def get_combined_layer_models(extent, delr, delc,
 
     if use_geotop:
         geotop_ds = geotop.get_geotop_dataset(extent, delr, delc, regis_ds,
-                                              cachedir=cachedir, 
+                                              cachedir=cachedir,
                                               use_cache=use_cache,
                                               verbose=verbose)
 
@@ -98,6 +133,32 @@ def get_combined_layer_models(extent, delr, delc,
 
 def get_regis_dataset(extent, delr, delc, cachedir, use_cache=False,
                       verbose=False):
+    """ get a regis dataset projected on the modelgrid
+
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+    cachedir : str
+        directory to store cached values, if None a temporary directory is
+        used. default is None
+    use_cache : bool, optional
+        if True the cached resampled regis dataset is used.
+        The default is False.
+    verbose : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    regis_ds : xarray dataset
+        dataset with regis data projected on the modelgrid.
+
+    """
     # get local regis dataset
     regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
     regis_ds_raw = xr.open_dataset(regis_url).sel(x=slice(extent[0], extent[1]),
@@ -120,7 +181,7 @@ def get_regis_dataset(extent, delr, delc, cachedir, use_cache=False,
     return regis_ds
 
 
-def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correctie=0.001,
+def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001,
                             verbose=False):
     """ Combine geotop and regis in such a way that the holoceen in Regis is
     replaced by the geo_eenheden of geotop.
@@ -131,7 +192,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correctie=0.001,
         regis dataset
     geotop_ds: xarray.DataSet
         regis dataset
-    float_correctie: float
+    float_correction: float
         due to floating point precision some floating point numbers that are
         the same are not recognised as the same. Therefore this correction is
         used.
@@ -167,7 +228,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correctie=0.001,
         print('cut geotop layer based on regis holoceen')
     for lay in range(geotop_ds.dims['layer']):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
-        mask1 = geotop_ds['top'][lay] <= (regis_ds['bottom'][0] - float_correctie)
+        mask1 = geotop_ds['top'][lay] <= (regis_ds['bottom'][0] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask1, np.nan, geotop_ds['top'][lay])
         geotop_ds['bottom'][lay] = xr.where(mask1, np.nan, geotop_ds['bottom'][lay])
 
@@ -176,7 +237,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correctie=0.001,
         geotop_ds['bottom'][lay] = xr.where(mask2 * (~mask1), regis_ds['bottom'][0], geotop_ds['bottom'][lay])
 
         # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
-        mask3 = geotop_ds['bottom'][lay] >= (regis_ds['top'][0] - float_correctie)
+        mask3 = geotop_ds['bottom'][lay] >= (regis_ds['top'][0] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask3, np.nan, geotop_ds['top'][lay])
         geotop_ds['bottom'][lay] = xr.where(mask3, np.nan, geotop_ds['bottom'][lay])
 
@@ -213,8 +274,67 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correctie=0.001,
                  for key, item in regis_ds.attrs.items()]
 
     # maak bottom nan waar de laagdikte 0 is
-    regis_geotop_ds['bottom'] = xr.where((regis_geotop_ds['top'] - regis_geotop_ds['bottom']) < float_correctie,
+    regis_geotop_ds['bottom'] = xr.where((regis_geotop_ds['top'] - regis_geotop_ds['bottom']) < float_correction,
                                           np.nan,
                                           regis_geotop_ds['bottom'])
 
     return regis_geotop_ds
+
+
+def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
+                        verbose=False):
+    """
+    redifine extent and calculate the number of rows and columns.
+
+    The extent will be redefined so that the borders os the grid (xmin, xmax, 
+    ymin, ymax) correspond with the borders of the regis grid.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        original extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+    cs_regis : int or float, optional
+        cell size of regis grid. The default is 100..
+
+    Returns
+    -------
+    extent : list, tuple or np.array
+        adjusted extent
+    nrow : int
+        number of rows.
+    ncol : int
+        number of columns.
+
+    """
+    if verbose:
+        print(f'redefining current extent: {extent}, fit to regis raster')
+
+    for d in [delr, delc]:
+        if float(d) not in [10., 20., 25., 50., 100., 200., 400., 500., 800.]:
+            print(f'you probably cannot run the model with this '
+                  f'cellsize -> {delc, delr}')
+
+    # if extents ends with 50 do nothing, otherwise rescale extent to fit regis
+    if extent[0] % cs_regis == 0 or not extent[0] % (0.5 * cs_regis) == 0:
+        extent[0] -= extent[0] % 100
+        extent[0] = extent[0] - 0.5 * cs_regis
+    # get number of columns
+    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
+    extent[1] = extent[0] + (ncol * delr)  # round x1 up to close grid
+
+    # round y0 down to next 50 necessary for regis
+    if extent[2] % cs_regis == 0 or not extent[2] % (0.5 * cs_regis) == 0:
+        extent[2] -= extent[2] % 100
+        extent[2] = extent[2] - 0.5 * cs_regis
+    nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
+    extent[3] = extent[2] + (nrow * delc)  # round y1 up to close grid
+
+    if verbose:
+        print(
+            f'new extent is {extent} model has {nrow} rows and {ncol} columns')
+
+    return extent, nrow, ncol

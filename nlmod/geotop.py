@@ -13,6 +13,41 @@ def get_geotop_dataset(extent, delr, delc,
                        cachedir=None,
                        use_cache=False,
                        verbose=False):
+    """ get a model layer dataset for modflow from geotop within a certain 
+    extent and grid. 
+
+    if regis_ds and regis_layer are defined the geotop model is only created
+    to replace this regis_layer in a regis layer model.
+
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+    regis_ds: xarray.DataSet
+        regis dataset used to cut geotop to the same x and y coördinates    
+    regis_layer: str, optional
+        layer of regis dataset that will be filled with geotop. The default is 
+        'HLc'.
+    cachedir : str
+        directory to store cached values, if None a temporary directory is
+        used. default is None
+    use_cache : bool, optional
+        if True the cached resampled regis dataset is used.
+        The default is False.
+    verbose : bool, optional
+        print additional information. The default is False.
+
+    Returns
+    -------
+    geotop_ds: xr.DataSet
+        geotop dataset with top, bot, kh and kv per geo_eenheid
+
+    """
 
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent)
 
@@ -44,13 +79,29 @@ def get_geotop_dataset(extent, delr, delc,
 
     return geotop_ds
 
+
 def get_geotop_raw_within_extent(extent):
-    
+    """ Get a slice of the geotop netcdf url within the extent and only the
+    strat and lithok data variables.
+
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+
+    Returns
+    -------
+    geotop_ds_raw : xarray Dataset
+        slices geotop netcdf.
+
+    """
+
     url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
     geotop_ds_raw = xr.open_dataset(url).sel(x=slice(extent[0], extent[1]),
                                               y=slice(extent[2], extent[3]))
     geotop_ds_raw = geotop_ds_raw[['strat', 'lithok']]
-    
+
     return geotop_ds_raw
 
 
@@ -59,10 +110,9 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
                                 geo_eenheid_translate_df=None,
                                 verbose=False):
     """ does the following steps to obtain model layers based on geotop:
-        1. get geotop from url (or local file)
-        2. slice by regis layer (if not None)
-        3. compute kh from lithoklasse
-        4. create a layer model based on geo-eenheden
+        1. slice by regis layer (if not None)
+        2. compute kh from lithoklasse
+        3. create a layer model based on geo-eenheden
 
     Parameters
     ----------
@@ -86,7 +136,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
 
     """
 
-    # stap 1 and 2
+    # stap 1
     if (regis_ds is not None) and (regis_layer is not None):
         if verbose:
             print(f'slice geotop with regis layer {regis_layer}')
@@ -96,7 +146,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
         geotop_ds_raw = geotop_ds_raw1.sel(z=slice(np.floor(bot_rl.min().data),
                                                    np.ceil(top_rl.max().data)))
 
-    # stap 3 maak kh matrix a.d.v. lithoklasse
+    # stap 2 maak kh matrix a.d.v. lithoklasse
     if verbose:
         print('create kh matrix from lithoklasse and csv file')
     kh_from_litho = xr.zeros_like(geotop_ds_raw.lithok)
@@ -106,7 +156,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
                                  kh_from_litho)
     geotop_ds_raw['kh_from_litho'] = kh_from_litho
 
-    # stap 4 maak een laag per geo-eenheid
+    # stap 3 maak een laag per geo-eenheid
     geotop_ds_mod = get_top_bot_from_geo_eenheid(geotop_ds_raw,
                                                  geo_eenheid_translate_df,
                                                  verbose=verbose)
@@ -208,8 +258,8 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, verbose=False
     thickness = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     z = xr.ones_like(geotop_ds_raw.lithok) * geotop_ds_raw.z
     if verbose:
-        print(f'adding stroombanen to top and bot of each layer')
-        print(f'get kh for each layer')
+        print('adding stroombanen to top and bot of each layer')
+        print('get kh for each layer')
 
     for lay in range(top.shape[2]):
         if verbose:

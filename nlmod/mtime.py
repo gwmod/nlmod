@@ -4,12 +4,12 @@ Created on Fri Apr 17 13:50:48 2020
 
 @author: oebbe
 """
-import numpy as np
+
 import pandas as pd
 import xarray as xr
 
 
-def get_model_ds_time(model_name, model_ws, start_time, 
+def get_model_ds_time(model_name, model_ws, start_time,
                       steady_state, steady_start=False,
                       mfversion='mf6',
                       time_units='DAYS', transient_timesteps=0,
@@ -21,32 +21,36 @@ def get_model_ds_time(model_name, model_ws, start_time,
     ----------
     model_name : str
         name of the model. Cannot have more than 16 characters (modflow)
+    model_ws : str
+        workspace of the model
     start_time : str or datetime
         start time of the model.
     steady_state : bool
         if True the model is steady state with one time step.
     steady_start : bool
         if True the model is transient with a steady state start time step.
+    mfversion : str, optional
+        modflow version, can be mf2005 of mf6. Default is mf6
     time_units : str, optional
         time unit of the model. The default is 'DAYS'.
     transient_timesteps : int, optional
         number of transient time steps. The default is 0.
-    perlen : TYPE, optional
-        DESCRIPTION. The default is 1.0.
-    nstp : TYPE, optional
+    perlen : float, optional
+        period length. The default is 1.0.
+    nstp : int, optional
         DESCRIPTION. The default is 1.
-    tsmult : TYPE, optional
+    tsmult : float, optional
         DESCRIPTION. The default is 1.0.
 
     Returns
     -------
     model_ds : xarray.Dataset
         dataset with time variant model data
-    
+
     """
-    if len(model_name)>16 and mfversion=='mf6':
+    if len(model_name) > 16 and mfversion == 'mf6':
         raise ValueError('model_name can not have more than 16 characters')
-    
+
     start_time_dt = pd.to_datetime(start_time)
 
     if steady_state:
@@ -70,7 +74,7 @@ def get_model_ds_time(model_name, model_ws, start_time,
     time_steps = list(range(nper))
 
     model_ds = xr.Dataset(coords={'time': time_dt})
-    
+
     model_ds['time_steps'] = xr.DataArray(time_steps, dims=('time'),
                                           coords={'time': model_ds.time})
     model_ds.attrs['model_name'] = model_name
@@ -88,4 +92,3 @@ def get_model_ds_time(model_name, model_ws, start_time,
     model_ds.attrs['steady_state'] = int(steady_state)
 
     return model_ds
-

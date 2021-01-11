@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Apr  7 13:11:03 2020
-
-@author: oebbe
+utility functions for nlmod. Mostly functions to cache data and manage 
+filenames and directories.
 """
 
 import os
@@ -18,9 +17,10 @@ from shapely.geometry import box
 
 from . import mgrid, mtime
 
-def get_model_dirs(model_ws):
+
+def get_model_dirs(model_ws, gridtype='structured'):
     """ creates model directories if they do not exist yet
-    
+
 
     Parameters
     ----------
@@ -45,8 +45,16 @@ def get_model_dirs(model_ws):
 
     if not os.path.exists(cachedir):
         os.mkdir(cachedir)
-        
-    return figdir, cachedir
+
+    if gridtype == 'structured':
+        return figdir, cachedir
+    elif gridtype == 'unstructured':
+        gridgen_ws = os.path.join(model_ws, 'gridgen')
+        if not os.path.isdir(gridgen_ws):
+            os.makedirs(gridgen_ws)
+
+        return figdir, cachedir, gridgen_ws
+
 
 def get_model_ds_empty(model_ds):
     """ get a copy of a model dataset with only grid and time information.
@@ -151,18 +159,18 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
     if model_ds.gridtype == 'structured':
         try:
             if check_grid:
-                #check x coordinates
+                # check x coordinates
                 len_x = model_ds['x'].shape == model_ds2['x'].shape
                 comp_x = model_ds['x'] == model_ds2['x']
-                if (len(comp_x)>0) and comp_x.all() and len_x:
+                if (len(comp_x) > 0) and comp_x.all() and len_x:
                     check_x = True
                 else:
                     check_x = False
-                
-                #check y coordinates
+
+                # check y coordinates
                 len_y = model_ds['y'].shape == model_ds2['y'].shape
                 comp_y = model_ds['y'] == model_ds2['y']
-                if (len(comp_y)>0) and comp_y.all() and len_y:
+                if (len(comp_y) > 0) and comp_y.all() and len_y:
                     check_y = True
                 else:
                     check_y = False
@@ -336,93 +344,6 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
         return model_ds
 
 
-def get_cache_gdf(use_cache, cachedir, cache_name, get_gdf_func, model_ds=None,
-                  check_grid=True, check_time=True, verbose=False,
-                  get_args=(), **get_kwargs):
-    """
-    Create or read a cached GeoDataFrame.
-
-    following steps are done:
-        1. Read cached geodataframe if all of the following conditions are met:
-            a. use_cache = True
-            b. geodataframe exists in cachedir
-            c. the grid and time discretisation of the cached dataset equals
-            the grid and time discretisation of the model dataset
-        2. if the conditions in step 1 are not met the get_gdf_func is
-        called (with the **get_kwargs arguments).
-        3. the geodatframe from step 2 is written to the cachedir, along with
-        an empty model dataset so that the cache can be checked in the future.
-
-    Parameters
-    ----------
-    use_cache : bool
-        if True an attempt is made to use the cached dataset.
-    cachedir : str
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    cache_name : str
-        named of the cached netcdf file with the dataset.
-    get_gdf_func : function
-        this function is called to obtain a new dataset (and not use the
-        cached geodataframe)..
-    model_ds : xr.Dataset
-        dataset where the cached or new dataset is added to.
-    check_grid : bool, optional
-        if True the grids of both models are compared to check if they are
-        the same
-    check_time : bool, optional
-        if True the time discretisation of both models are compared to check
-        if they are the same
-    verbose : bool, optional
-        print additional information. default is False
-    get_args : tuple
-        arguments used when calling the get_gdf_func.
-    **get_kwargs :
-        keyword arguments are used when calling the get_gdf_func.
-
-    Returns
-    -------
-    gdf : TYPE
-        DESCRIPTION.
-
-    """
-    if cachedir is None:
-        cachedir = tempfile.gettempdir()
-
-    fname_gdf = os.path.join(cachedir, cache_name)
-    fname_model_ds = os.path.join(cachedir, cache_name + '.nc')
-
-    if use_cache and os.path.exists(fname_gdf):
-        if model_ds is None or (not check_grid and not check_time):
-            # just read from cache
-            gdf = gpd.read_file(fname_gdf).set_index('index')
-            # replace None values by nan
-            gdf.fillna(value=np.nan, inplace=True)
-            return gdf
-        elif os.path.exists(fname_model_ds):
-            cache_model_ds = xr.open_dataset(fname_model_ds)
-            if check_model_ds(model_ds, cache_model_ds, check_grid, check_time,
-                              verbose=verbose):
-                cache_model_ds.close()
-                gdf = pd.read_pickle(fname_gdf)
-                # replace None values by nan
-                gdf.fillna(value=np.nan, inplace=True)
-                return gdf
-            else:
-                cache_model_ds.close()
-    gdf = get_gdf_func(*get_args, **get_kwargs)
-    # save result to cache
-    gdf.to_pickle(fname_gdf)
-    if model_ds is not None:
-        # save an empty model_ds to check future runs against the cache
-        get_model_ds_empty(model_ds).to_netcdf(fname_model_ds)
-
-    return gdf
-
-
-
-
-
 def find_most_recent_file(folder, name, extension='.pklz'):
     """ find the most recent file in a folder. File must startwith name and
     end width extension. If you want to look for the most recent folder use
@@ -551,6 +472,20 @@ def gdf_within_extent(gdf, extent):
 
 
 def get_google_drive_filename(id):
+    """ get the filename of a google drive file
+
+
+    Parameters
+    ----------
+    id : str
+        google drive id name of a file.
+
+    Returns
+    -------
+    file_name : str
+        filename.
+
+    """
     if isinstance(id, requests.Response):
         response = id
     else:
@@ -562,6 +497,18 @@ def get_google_drive_filename(id):
 
 
 def download_file_from_google_drive(id, destination=None):
+    """ download a file from google drive using it's id
+
+
+    Parameters
+    ----------
+    id : str
+        google drive id name of a file.
+    destination : str, optional
+        location to save the file to. If destination is None the file is 
+        written to the current working directory. The default is None.
+
+    """
     def get_confirm_token(response):
         for key, value in response.cookies.items():
             if key.startswith('download_warning'):

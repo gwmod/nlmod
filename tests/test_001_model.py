@@ -157,11 +157,11 @@ def test_create_small_model(tmpdir):
                                                             gridtype='structured',
                                                             verbose=True)
     
-    sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                         verbose)
+    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
+                                                               verbose=True)
     
     # Create discretization
-    mfpackages.dis_from_model_ds(model_ds, gwf)
+    nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
     
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'small_model.nc'))

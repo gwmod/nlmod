@@ -11,9 +11,9 @@ import pytest
 
 def test_get_gdf_opp_water():
     model_ds = test_001_model.test_get_model_ds_from_cache()
-    gdf_opp_water = nlmod.surface_water.get_gdf_opp_water(model_ds)
+    gdf_surface_water = nlmod.surface_water.get_gdf_surface_water(model_ds)
 
-    return gdf_opp_water
+    return gdf_surface_water
 
 
 def test_surface_water_to_dataset():
@@ -26,8 +26,7 @@ def test_surface_water_to_dataset():
     name = 'surface_water'
     model_ds_surfwat = nlmod.surface_water.surface_water_to_model_dataset(model_ds, 
                                                                           gwf.modelgrid, 
-                                                                          name, 
-                                                                          gridtype='structured')
+                                                                          name)
     
     return model_ds_surfwat
 
@@ -64,7 +63,7 @@ def test_fill_top_bot_kh_kv_seamodel():
     model_ds = nlmod.northsea.get_modelgrid_sea(model_ds, modelgrid)
 
     fill_mask = (model_ds['first_active_layer'] == model_ds.nodata) * model_ds['northsea']
-    model_ds = nlmod.northsea.fill_top_bot_kh_kv_at_mask(model_ds, fill_mask)
+    model_ds = nlmod.mgrid.fill_top_bot_kh_kv_at_mask(model_ds, fill_mask)
 
     return model_ds
 
@@ -77,7 +76,7 @@ def test_fill_top_bot_kh_kv_nosea():
     model_ds = nlmod.northsea.get_modelgrid_sea(model_ds, modelgrid)
 
     fill_mask = (model_ds['first_active_layer'] == model_ds.nodata) * model_ds['northsea']
-    model_ds = nlmod.northsea.fill_top_bot_kh_kv_at_mask(model_ds, fill_mask)
+    model_ds = nlmod.mgrid.fill_top_bot_kh_kv_at_mask(model_ds, fill_mask)
 
     return model_ds
 

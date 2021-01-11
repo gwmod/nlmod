@@ -130,3 +130,6 @@ dmypy.json
 
 # nlmod specific
 flowchartnlmod.pptx
+tests/data/
+executables/*
+examples/model/*

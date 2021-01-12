@@ -223,8 +223,6 @@ def test_create_full_sea_model(tmpdir):
                                                        steady_state=False,
                                                        transient_timesteps=10,
                                                        steady_start=True,
-                                                       constant_head_edges=True,
-                                                       surface_drn=True,
                                                        write_sim=True,
                                                        run_sim=True)
 
@@ -240,13 +238,13 @@ def test_create_unstructured_model(tmpdir):
                               'shapes', 'planetenweg_ijmuiden')
     extent=[95000., 105000., 494000., 500000.]
     
-    model_ds, gwf, gridprops = nlmod.create_model.gen_model_unstructured('model2', 
-                                                                       'IJm_planeten',
-                                                                       refine_shp_fname=refine_shp,
-                                                                       levels=2,
-                                                                       extent=extent
-                                                                       )
-    # save model_ds
+    model_ds, gwf, gridprops = nlmod.create_model.gen_model_unstructured(tmpdir, 
+                                                                         'IJm_planeten',
+                                                                         refine_shp_fname=refine_shp,
+                                                                         levels=2,
+                                                                         extent=extent
+                                                                         )
+    # save model_ds 
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'IJm_planeten.nc'))
     
     return model_ds, gwf, gridprops

@@ -258,9 +258,9 @@ def ic_from_model_ds(model_ds, gwf,
     """
 
     model_ds['starting_head'] = starting_head * xr.ones_like(model_ds['idomain'])
-    model_ds['starting_head'][0] = xr.where(model_ds['surface_water_cond'] != 0,
-                                            model_ds['surface_water_peil'],
-                                            model_ds['starting_head'][0])
+    # model_ds['starting_head'][0] = xr.where(model_ds['surface_water_cond'] != 0,
+    #                                         model_ds['surface_water_peil'],
+    #                                         model_ds['starting_head'][0])
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
                                 strt=model_ds['starting_head'].data)

@@ -64,7 +64,8 @@ def get_layer_models(extent, delr, delc,
 
 def get_combined_layer_models(extent, delr, delc,
                               use_regis=True, use_geotop=True,
-                              cachedir=None, use_cache=False, verbose=True):
+                              cachedir=None, use_cache=False, 
+                              verbose=False):
     """ combine layer models into a single layer model. 
 
     Possibilities so far include:
@@ -181,7 +182,8 @@ def get_regis_dataset(extent, delr, delc, cachedir, use_cache=False,
     return regis_ds
 
 
-def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001,
+def add_geotop_to_regis_hlc(regis_ds, geotop_ds, 
+                            float_correction=0.001,
                             verbose=False):
     """ Combine geotop and regis in such a way that the holoceen in Regis is
     replaced by the geo_eenheden of geotop.

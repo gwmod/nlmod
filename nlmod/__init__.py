@@ -6,7 +6,10 @@ Created on Thu Jan  7 12:13:44 2021
 """
 
 from . import (create_model, mtime, mgrid, recharge, surface_water, util,
-               mfpackages, regis, geotop, northsea)
+               mfpackages, regis, geotop, northsea, plots)
+
+from .version import __version__
+
 import os
 
 nlmod_datadir = os.path.join(os.path.dirname(os.path.realpath(__file__)),

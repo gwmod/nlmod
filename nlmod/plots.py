@@ -7,11 +7,146 @@ Created on Thu Jan  7 21:32:49 2021
 
 from nlmod import surface_water
 import matplotlib.pyplot as plt
+import os
+import numpy as np
+import flopy
 
-def model_ds_surface_water(model_ds):
-    model_ds['extent'] = [95000., 105000., 494000., 500000.]
-    opp_water = surface_water.get_gdf_opp_water(model_ds)
+def plot_surface_water(model_ds, ax=None):
+    surf_water = surface_water.get_gdf_surface_water(model_ds)
     
-    fig, ax = plt.subplots()
-    opp_water.plot(ax=ax)
+    if ax is None:
+        fig, ax = plt.subplots()
+    surf_water.plot(ax=ax)
     
+    return ax
+
+
+def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
+    
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10,10))
+        
+    gwf.modelgrid.plot(ax=ax)
+    ax.axis('scaled')
+    if add_surface_water:
+        plot_surface_water(model_ds, ax=ax)
+        ax.set_title('modelgrid with surface water')
+    else:
+        ax.set_title('modelgrid')
+    ax.set_ylabel('y [m RD]')
+    ax.set_xlabel('x [m RD]')
+    
+    return ax
+
+
+def facet_plot(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
+               plot_bc=['CHD'],
+               plot_bc_kwargs=[{'color':'k'}], grid=False,
+               xlim=None, ylim=None):
+    """ make a 2d plot of every modellayer, store them in a grid
+    
+
+    Parameters
+    ----------
+    gwf : Groundwater flow
+        Groundwaterflow model.
+    model_ds : xr.DataSet
+        model data.
+    figdir : str
+        file path figures.
+    plot_var : str, optional
+        variable in model_ds. The default is 'bot'.
+    plot_time : int, optional
+        time step if plot_var is time variant. The default is None.
+    plot_bc : list of str, optional
+        name of packages of which boundary conditions are plot. The default 
+        is ['CHD'].
+    plot_bc_kwargs : list of dictionaries, optional
+        kwargs per boundary conditions. The default is [{'color':'k'}].
+    grid : bool, optional
+        if True a grid is plotted. The default is False.
+    xlim : tuple, optional
+        xlimits. The default is None.
+    ylim : tuple, optional
+        ylimits. The default is None.
+
+    Returns
+    -------
+    fig : TYPE
+        DESCRIPTION.
+    axes : TYPE
+        DESCRIPTION.
+
+    """
+    
+    nlay = len(model_ds.layer)
+
+    plots_per_row = int(np.ceil(np.sqrt(nlay)))
+    plots_per_col = nlay // plots_per_row + 1
+    
+    fig, axes = plt.subplots(
+        plots_per_col, plots_per_row, figsize=(11, 10),
+        sharex=True, sharey=True, dpi=150
+    )
+    if plot_time is None:
+        plot_arr = model_ds[plot_var]
+    else:
+        plot_arr = model_ds[plot_var][plot_time]
+        
+    vmin = plot_arr.min()
+    vmax = plot_arr.max()
+    for ilay in range(nlay):
+        iax = axes.ravel()[ilay]
+        mp = flopy.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
+        # mp.plot_grid()
+        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis" , 
+                           vmin=vmin, vmax=vmax)
+        # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
+        # mp.plot_ibound()
+        # plt.colorbar(qm)
+        for ibc, bc_var in enumerate(plot_bc):
+            mp.plot_bc(bc_var, kper=0, **plot_bc_kwargs[ibc])
+        
+        iax.set_aspect("equal", adjustable="box")
+        iax.set_title(f"Layer {ilay}")
+        
+        iax.grid(grid)
+        if xlim is not None:
+            iax.set_xlim(xlim)
+        if ylim is not None:
+            iax.set_ylim(ylim)
+    
+    for iax in axes.ravel()[nlay:]:
+        iax.set_visible(False)
+        
+    
+    
+    cb = fig.colorbar(qm, use_gridspec=True)
+    cb.set_label(f'{plot_var}', rotation=270)
+    fig.suptitle(f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year")
+    fig.tight_layout()
+    fig.savefig(os.path.join(figdir, f"{plot_var}_per_layer.png"), dpi=150,
+                bbox_inches="tight")
+    
+    return fig, axes
+
+
+def plot_array(gwf, array, figsize=(8,8), colorbar=True, 
+               ax=None,
+               **kwargs):
+    if ax is None:
+        f,ax = plt.subplots(figsize=figsize)
+        
+    yticklabels = ax.yaxis.get_ticklabels()
+    plt.setp(yticklabels, rotation=90, verticalalignment='center')
+    ax.axis('scaled')
+    pmv = flopy.plot.PlotMapView(modelgrid=gwf.modelgrid, ax=ax)
+    pcm = pmv.plot_array(array, **kwargs)
+    if colorbar:
+        fig = ax.get_figure()
+        fig.colorbar(pcm, ax=ax, orientation='vertical')
+        #plt.colorbar(pcm)
+    ax.set_title(array.name)
+    # set rotation of y ticks to zero
+    plt.setp( ax.yaxis.get_majorticklabels(), rotation=0 )
+    return ax

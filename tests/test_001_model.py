@@ -233,8 +233,25 @@ def test_create_full_sea_model(tmpdir):
 
     return model_ds, gwf
 
-
 @pytest.mark.slow
+def test_create_unstructured_model(tmpdir):
+    tmpdir = _check_tmpdir(tmpdir)
+    refine_shp = os.path.join(nlmod.nlmod_datadir, 
+                              'shapes', 'planetenweg_ijmuiden')
+    extent=[95000., 105000., 494000., 500000.]
+    
+    model_ds, gwf, gridprops = nlmod.create_model.gen_model_unstructured('model2', 
+                                                                       'IJm_planeten',
+                                                                       refine_shp_fname=refine_shp,
+                                                                       levels=2,
+                                                                       extent=extent
+                                                                       )
+    # save model_ds
+    model_ds.to_netcdf(os.path.join(tst_model_dir, 'IJm_planeten.nc'))
+    
+    return model_ds, gwf, gridprops
+
+@pytest.mark.skip
 def test_create_inf_panden_model(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     extent = [100350., 106000., 500800., 508000.]

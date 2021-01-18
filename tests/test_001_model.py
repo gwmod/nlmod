@@ -147,9 +147,11 @@ def test_create_small_model(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [98700., 99000., 489500., 489700.]
     regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
+                                                   regis_botm_layer=b'KRz5',
                                                    use_regis=True,
                                                    use_geotop=True,
                                                    verbose=True)
+    assert regis_geotop_ds.dims['layer'] == 2
 
     model_ds = nlmod.mgrid.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,

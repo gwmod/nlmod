@@ -17,7 +17,10 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
                          extent=[95000., 150000., 487000., 553500.],
                          delr=100., delc=100., angrot=0,
                          length_units='METERS',
-                         use_regis=True, use_geotop=True,
+                         use_regis=True,
+                         regis_botm_layer=b'AKc',
+                         use_geotop=True,
+                         remove_nan_layers=True,
                          add_northsea=True, add_surface_water_ghb=True,
                          add_surface_drn=True, surface_drn_cond=1000,
                          add_chd_edges=True, add_recharge=True,
@@ -59,8 +62,17 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
         length unit. The default is 'METERS'.
     use_regis : bool, optional
         True if part of the layer model should be REGIS. The default is True.
+    regis_botm_layer : binary str, optional
+        regis layer that is used as the bottom of the model. This layer is
+        included in the model. the Default is b'AKc' which is the bottom
+        layer of regis. call nlmod.regis.get_layer_names() to get a list of
+        regis names.
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
+    remove_nan_layers : bool, optional
+        if True regis and geotop layers with only nans are removed from the 
+        model. if False nan layers are kept which might be usefull if you want 
+        to keep some layers that exist in other models. The default is True.
     add_northsea : bool, optional
         if True:
             - the nan values at the northsea are filled with a certain value
@@ -132,7 +144,9 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
     # layer model
     layer_model = regis.get_layer_models(extent, delr, delc,
                                          use_regis=use_regis,
+                                         regis_botm_layer=regis_botm_layer,
                                          use_geotop=use_geotop,
+                                         remove_nan_layers=remove_nan_layers,
                                          cachedir=cachedir,
                                          fname_netcdf='combined_layer_ds.nc',
                                          use_cache=use_cache,

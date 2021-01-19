@@ -10,24 +10,36 @@ from nlmod import (mtime, mgrid, recharge, surface_water, util,
                    mfpackages, regis, ahn)
 
 
-def gen_model_structured(model_ws, model_name, use_cache=False,
+def gen_model_structured(model_ws,
+                         model_name,
+                         use_cache=False,
                          verbose=False,
-                         steady_state=False, start_time='2015-1-1',
-                         transient_timesteps=5, steady_start=True,
+                         steady_state=False,
+                         start_time='2015-1-1',
+                         transient_timesteps=5,
+                         steady_start=True,
                          extent=[95000., 150000., 487000., 553500.],
-                         delr=100., delc=100., angrot=0,
+                         delr=100.,
+                         delc=100.,
+                         angrot=0,
                          length_units='METERS',
                          use_regis=True,
                          regis_botm_layer=b'AKc',
                          use_geotop=True,
                          remove_nan_layers=True,
-                         add_northsea=True, add_surface_water_ghb=True,
-                         add_surface_drn=True, surface_drn_cond=1000,
-                         add_chd_edges=True, add_recharge=True,
-                         anisotropy=10, icelltype=0,
+                         add_northsea=True, 
+                         add_surface_water_ghb=True,
+                         add_surface_drn=True, 
+                         surface_drn_cond=1000,
+                         add_chd_edges=True, 
+                         add_recharge=True,
+                         anisotropy=10, 
+                         icelltype=0,
                          fill_value_kh=1.,
-                         fill_value_kv=0.1, starting_head=1.0,
-                         write_sim=False, run_sim=False):
+                         fill_value_kv=0.1,
+                         starting_head=1.0,
+                         write_sim=False,
+                         run_sim=False):
     """ generate a model with structured grid
 
 
@@ -138,7 +150,9 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
     sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
                                                          verbose)
 
-    extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc,
+    extent, nrow, ncol = regis.fit_extent_to_regis(extent,
+                                                   delr,
+                                                   delc,
                                                    verbose=verbose)
 
     # layer model
@@ -153,22 +167,25 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
                                          verbose=verbose)
 
     # update model_ds from layer model
-    model_ds = mgrid.update_model_ds_from_ml_layer_ds(model_ds, layer_model,
-                                                      keep_vars=['x', 'y'],
-                                                      gridtype=gridtype,
-                                                      anisotropy=anisotropy,
-                                                      fill_value_kh=fill_value_kh,
-                                                      fill_value_kv=fill_value_kv,
-                                                      add_northsea=add_northsea,
-                                                      verbose=verbose)
+    model_ds = mgrid.update_model_ds_from_ml_layer_ds(
+        model_ds,
+        layer_model,
+        keep_vars=['x', 'y'],
+        gridtype=gridtype,
+        anisotropy=anisotropy,
+        fill_value_kh=fill_value_kh,
+        fill_value_kv=fill_value_kv,
+        add_northsea=add_northsea,
+        verbose=verbose)
 
     # Create discretization
-    mfpackages.dis_from_model_ds(model_ds, gwf, angrot=angrot,
+    mfpackages.dis_from_model_ds(model_ds, gwf,
+                                 angrot=angrot,
                                  length_units=length_units)
 
     # create node property flow
     mfpackages.npf_from_model_ds(model_ds, gwf, icelltype=icelltype)
-    
+
     # Create the initial conditions package
     mfpackages.ic_from_model_ds(model_ds, gwf, starting_head=starting_head)
 
@@ -179,7 +196,8 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
     if add_surface_water_ghb:
         da_name = 'surface_water'
         model_ds = surface_water.get_general_head_boundary(model_ds,
-                                                           gwf.modelgrid, da_name,
+                                                           gwf.modelgrid,
+                                                           da_name,
                                                            cachedir=cachedir,
                                                            use_cache=use_cache,
                                                            verbose=verbose)
@@ -187,13 +205,14 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
 
     # surface level drain
     if add_surface_drn:
-
         model_ds = ahn.get_ahn_dataset(model_ds, use_cache=use_cache,
                                        cachedir=cachedir, verbose=verbose)
 
-        mfpackages.surface_drain_from_model_ds(model_ds, gwf,
-                                               surface_drn_cond=surface_drn_cond
-                                               )
+        mfpackages.surface_drain_from_model_ds(
+            model_ds,
+            gwf,
+            surface_drn_cond=surface_drn_cond
+        )
 
     if add_recharge:
         # add knmi recharge to the model datasets
@@ -222,22 +241,31 @@ def gen_model_structured(model_ws, model_name, use_cache=False,
     return model_ds, gwf
 
 
-
-def gen_model_unstructured(model_ws, model_name,
+def gen_model_unstructured(model_ws,
+                           model_name,
                            refine_shp_fname='',
                            use_cache=False,
                            verbose=False,
                            levels=2,
-                           steady_state=False, start_time='2015-1-1',
-                           transient_timesteps=5, steady_start=True,
+                           steady_state=False,
+                           start_time='2015-1-1',
+                           transient_timesteps=5,
+                           steady_start=True,
                            extent=[95000., 150000., 487000., 553500.],
-                           delr=100., delc=100., angrot=0,
+                           delr=100.,
+                           delc=100.,
+                           angrot=0,
                            length_units='METERS',
-                           use_regis=True, use_geotop=True,
-                           add_northsea=True, add_surface_water_ghb=True,
-                           add_surface_drn=True, surface_drn_cond=1000,
-                           add_chd_edges=True, add_recharge=True,
-                           anisotropy=10, icelltype=0,
+                           use_regis=True,
+                           use_geotop=True,
+                           add_northsea=True,
+                           add_surface_water_ghb=True,
+                           add_surface_drn=True,
+                           surface_drn_cond=1000,
+                           add_chd_edges=True,
+                           add_recharge=True,
+                           anisotropy=10,
+                           icelltype=0,
                            fill_value_kh=1.,
                            fill_value_kv=0.1,
                            starting_head=1.0,
@@ -353,24 +381,24 @@ def gen_model_unstructured(model_ws, model_name,
     gridtype = 'unstructured'
 
     # Model directories
-    figdir, cachedir, gridgen_ws=util.get_model_dirs(model_ws,
+    figdir, cachedir, gridgen_ws = util.get_model_dirs(model_ws,
                                                        gridtype=gridtype)
 
     # create model time dataset
-    model_ds=mtime.get_model_ds_time(model_name, model_ws, start_time,
+    model_ds = mtime.get_model_ds_time(model_name, model_ws, start_time,
                                        steady_state,
                                        steady_start,
                                        transient_timesteps=transient_timesteps)
 
     # create model simulation packages
-    sim, gwf=mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
+    sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
                                                          verbose)
 
-    extent, nrow, ncol=regis.fit_extent_to_regis(extent, delr, delc,
-                                                 verbose=verbose)
+    extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc,
+                                                   verbose=verbose)
 
     # layer model
-    layer_model=regis.get_layer_models(extent, delr, delc,
+    layer_model = regis.get_layer_models(extent, delr, delc,
                                          use_regis=use_regis,
                                          use_geotop=use_geotop,
                                          cachedir=cachedir,
@@ -379,7 +407,7 @@ def gen_model_unstructured(model_ws, model_name,
                                          verbose=verbose)
 
     # use gridgen to create unstructured grid
-    gridprops=mgrid.create_unstructured_grid(gridgen_ws, model_name, gwf,
+    gridprops = mgrid.create_unstructured_grid(gridgen_ws, model_name, gwf,
                                                refine_shp_fname, levels, extent,
                                                layer_model.dims['layer'],
                                                nrow, ncol,
@@ -388,7 +416,7 @@ def gen_model_unstructured(model_ws, model_name,
                                                verbose=verbose)
 
     # add layer model to unstructured grid
-    layer_model_unstr=mgrid.get_ml_layer_dataset_unstruc(raw_ds=layer_model,
+    layer_model_unstr = mgrid.get_ml_layer_dataset_unstruc(raw_ds=layer_model,
                                                            extent=extent,
                                                            gridprops=gridprops,
                                                            cachedir=cachedir,
@@ -397,7 +425,7 @@ def gen_model_unstructured(model_ws, model_name,
                                                            verbose=verbose)
 
     # combine model time dataset with layer model dataset
-    model_ds=mgrid.update_model_ds_from_ml_layer_ds(model_ds,
+    model_ds = mgrid.update_model_ds_from_ml_layer_ds(model_ds,
                                                       layer_model_unstr,
                                                       gridtype,
                                                       keep_vars=['x', 'y'],
@@ -412,7 +440,7 @@ def gen_model_unstructured(model_ws, model_name,
 
     # create node property flow
     mfpackages.npf_from_model_ds(model_ds, gwf, icelltype=icelltype)
-    
+
     # Create the initial conditions package
     mfpackages.ic_from_model_ds(model_ds, gwf, starting_head=starting_head)
 
@@ -466,7 +494,7 @@ def gen_model_unstructured(model_ws, model_name,
         sim.write_simulation()
 
     if run_sim:
-        success, buff=sim.run_simulation()
+        success, buff = sim.run_simulation()
         print('\nSuccess is: ', success)
 
     return model_ds, gwf, gridprops

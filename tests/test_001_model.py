@@ -171,8 +171,6 @@ def test_create_small_model(tmpdir):
     return model_ds, gwf
 
 
-
-
 @pytest.mark.slow
 def test_create_basic_seamodel(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
@@ -211,6 +209,26 @@ def test_create_sea_model_grid(tmpdir):
                                                             verbose=True)
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'sea_model_grid.nc'))
+
+    return model_ds
+
+
+@pytest.mark.slow
+def test_create_sea_model_grid_delr_delc_50(tmpdir):
+    model_ds = test_model_ds_time_transient(tmpdir)
+    extent = [95000., 105000., 494000., 500000.]
+
+    regis_geotop_ds = nlmod.regis.get_layer_models(extent, 50., 50.,
+                                                   use_regis=True,
+                                                   use_geotop=True,
+                                                   verbose=True)
+    model_ds = nlmod.mgrid.update_model_ds_from_ml_layer_ds(model_ds,
+                                                            regis_geotop_ds,
+                                                            keep_vars=['x', 'y'],
+                                                            gridtype='structured',
+                                                            verbose=True)
+    # save model_ds
+    model_ds.to_netcdf(os.path.join(tst_model_dir, 'sea_model_grid_50.nc'))
 
     return model_ds
 

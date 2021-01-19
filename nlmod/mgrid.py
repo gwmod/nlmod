@@ -70,7 +70,21 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      cachedir=None,
                                      use_cache=False,
                                      verbose=False):
-    """ Update a model dataset with a model layer dataset.
+    """ Update a model dataset with a model layer dataset. Follow these steps:
+    1. add the data variables in 'keep_vars' from the model layer dataset
+    to the model dataset
+    2. add the attributes of the model layer dataset to the model dataset
+    3. compute idomain from the bot values in the model layer dataset, add
+    to model dataset
+    4. compute top and bots from model layer dataset, add to model dataset
+    5. compute kh, kv from model layer dataset, add to model dataset
+    6. if gridtype is unstructured add top, bot and area to gridprops
+    7. if add_northsea is True:
+        a. get cells from modelgrid that are within the northsea, add data
+        variable 'northsea' to model_ds
+        b. fill top, bot, kh and kv add northsea cell by extrapolation
+        c. get bathymetry (northsea depth) from jarkus. Add datavariable 
+        bathymetry to model dataset
 
 
     Parameters
@@ -118,7 +132,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         _ = [model_ds.attrs.update({key: item})
              for key, item in ml_layer_ds.attrs.items()]
 
-    model_ds = add_idomain_from_bottom_to_dataset(ml_layer_ds['bottom'],
+    model_ds = add_idomain_from_bottom_to_dataset(ml_layer_ds['bot'],
                                                   model_ds)
 
     model_ds = add_top_bot_to_model_ds(ml_layer_ds, model_ds,
@@ -260,37 +274,6 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999,
     model_ds.attrs['nodata'] = nodata
 
     return model_ds
-
-
-def get_lay_from_ml_layers(raw_layer_mod, verbose=False):
-    """ get number and name of layers based on the number of non-nan layers
-
-    Parameters
-    ----------
-    raw_layer_mod : xarray.Dataset
-        dataset with raw layer model from regis or geotop.
-
-    Returns
-    -------
-    nlay : int
-        number of active layers within regis_ds_raw.
-    lay_sel : list of str
-        names of the active layers.
-    """
-    if verbose:
-        print('find active layers in raw layer model')
-
-    bot_raw_all = raw_layer_mod['bottom']
-    lay_sel = []
-    for lay in bot_raw_all.layer.data:
-        if not bot_raw_all.sel(layer=lay).isnull().all():
-            lay_sel.append(lay)
-    nlay = len(lay_sel)
-
-    if verbose:
-        print(f'there are {nlay} active regis layers within the extent')
-
-    return nlay, lay_sel
 
 
 def get_xy_mid_structured(extent, delr, delc):
@@ -1704,7 +1687,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     # set to minimum value of all layers if there is any value in any layer
     active_domain = model_ds['first_active_layer'].data != nodata
 
-    lowest_bottom = ml_layer_ds['bottom'].data[-1].copy()
+    lowest_bottom = ml_layer_ds['bot'].data[-1].copy()
     if np.any(active_domain == False):
         percentage = 100 * (active_domain == False).sum() / \
             (active_domain.shape[0])
@@ -1721,7 +1704,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
         # set bottom in a cell to lowest bottom of all layers
         i_nan = np.where(np.isnan(lowest_bottom))
         for i in i_nan:
-            val = np.nanmin(ml_layer_ds['bottom'].data[:, i])
+            val = np.nanmin(ml_layer_ds['bot'].data[:, i])
             lowest_bottom[i] = val
             if np.isnan(val):
                 raise ValueError(
@@ -1745,7 +1728,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     nlay = model_ds.dims['layer']
     top_bot_raw = np.ones((nlay + 1, model_ds.dims['cid']))
     top_bot_raw[0] = highest_top
-    top_bot_raw[1:-1] = ml_layer_ds['bottom'].data[:-1].copy()
+    top_bot_raw[1:-1] = ml_layer_ds['bot'].data[:-1].copy()
     top_bot_raw[-1] = lowest_bottom
     top_bot = np.ones_like(top_bot_raw)
     for i_from_bot, blay in enumerate(top_bot_raw[::-1]):
@@ -1816,7 +1799,7 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     # set nan-value in bottom array
     # set to zero if value is nan in all layers
     # set to minimum value of all layers if there is any value in any layer
-    lowest_bottom = ml_layer_ds['bottom'].data[-1].copy()
+    lowest_bottom = ml_layer_ds['bot'].data[-1].copy()
     if np.any(active_domain == False):
         percentage = 100 * (active_domain == False).sum() / \
             (active_domain.shape[0] * active_domain.shape[1])
@@ -1833,7 +1816,7 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
         # set bottom in a cell to lowest bottom of all layers
         rc_nan = np.where(np.isnan(lowest_bottom))
         for row, col in zip(rc_nan[0], rc_nan[1]):
-            val = np.nanmin(ml_layer_ds['bottom'].data[:, row, col])
+            val = np.nanmin(ml_layer_ds['bot'].data[:, row, col])
             lowest_bottom[row, col] = val
             if np.isnan(val):
                 raise ValueError(
@@ -1861,7 +1844,7 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     ncol = model_ds.dims['x']
     top_bot_raw = np.ones((nlay + 1, nrow, ncol))
     top_bot_raw[0] = highest_top
-    top_bot_raw[1:-1] = ml_layer_ds['bottom'].data[:-1].copy()
+    top_bot_raw[1:-1] = ml_layer_ds['bot'].data[:-1].copy()
     top_bot_raw[-1] = lowest_bottom
     top_bot = np.ones_like(top_bot_raw)
     for i_from_bot, blay in enumerate(top_bot_raw[::-1]):

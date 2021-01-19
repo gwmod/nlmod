@@ -10,7 +10,10 @@ from nlmod import mgrid, geotop, util
 
 
 def get_layer_models(extent, delr, delc,
-                     use_regis=True, use_geotop=True,
+                     use_regis=True,
+                     regis_botm_layer=b'AKc',
+                     use_geotop=True,
+                     remove_nan_layers=True,
                      cachedir=None,
                      fname_netcdf='combined_layer_ds.nc',
                      use_cache=False, verbose=False):
@@ -31,8 +34,17 @@ def get_layer_models(extent, delr, delc,
         cell size along columns, equal to dy
     use_regis : bool, optional
         True if part of the layer model should be REGIS. The default is True.
+    regis_botm_layer : binary str, optional
+        regis layer that is used as the bottom of the model. This layer is
+        included in the model. the Default is b'AKc' which is the bottom
+        layer of regis. call nlmod.regis.get_layer_names() to get a list of
+        regis names.
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
+    remove_nan_layers : bool, optional
+        if True regis and geotop layers with only nans are removed from the 
+        model. if False nan layers are kept which might be usefull if you want 
+        to keep some layers that exist in other models. The default is True.
     cachedir : str
         directory to store cached values, if None a temporary directory is
         used. default is None
@@ -57,14 +69,18 @@ def get_layer_models(extent, delr, delc,
                                         extent=extent,
                                         delr=delr, delc=delc,
                                         use_regis=use_regis,
-                                        use_geotop=use_geotop)
+                                        regis_botm_layer=regis_botm_layer,
+                                        use_geotop=use_geotop,
+                                        remove_nan_layers=remove_nan_layers)
 
     return combined_ds
 
 
 def get_combined_layer_models(extent, delr, delc,
+                              regis_botm_layer=b'AKc',
                               use_regis=True, use_geotop=True,
-                              cachedir=None, use_cache=False, 
+                              remove_nan_layers=True,
+                              cachedir=None, use_cache=False,
                               verbose=False):
     """ combine layer models into a single layer model. 
 
@@ -81,10 +97,19 @@ def get_combined_layer_models(extent, delr, delc,
         cell size along rows, equal to dx
     delc : int or float,
         cell size along columns, equal to dy
+    regis_botm_layer : binary str, optional
+        regis layer that is used as the bottom of the model. This layer is
+        included in the model. the Default is b'AKc' which is the bottom
+        layer of regis. call nlmod.regis.get_layer_names() to get a list of
+        regis names.
     use_regis : bool, optional
         True if part of the layer model should be REGIS. The default is True.
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
+    remove_nan_layers : bool, optional
+        if True regis and geotop layers with only nans are removed from the 
+        model. if False nan layers are kept which might be usefull if you want 
+        to keep some layers that exist in other models. The default is True.
     cachedir : str
         directory to store cached values, if None a temporary directory is
         used. default is None
@@ -107,7 +132,7 @@ def get_combined_layer_models(extent, delr, delc,
     """
 
     if use_regis:
-        regis_ds = get_regis_dataset(extent, delr, delc,
+        regis_ds = get_regis_dataset(extent, delr, delc, regis_botm_layer,
                                      cachedir, use_cache=use_cache,
                                      verbose=verbose)
     else:
@@ -129,10 +154,17 @@ def get_combined_layer_models(extent, delr, delc,
     else:
         raise ValueError('combination of model layers not supported')
 
+    if remove_nan_layers:
+        nlay, lay_sel = get_non_nan_layers(combined_ds)
+        combined_ds = combined_ds.sel(layer=lay_sel)
+        if verbose:
+            print(f'removing {nlay} nan layers from the model')
+
     return combined_ds
 
 
-def get_regis_dataset(extent, delr, delc, cachedir, use_cache=False,
+def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
+                      cachedir=None, use_cache=False,
                       verbose=False):
     """ get a regis dataset projected on the modelgrid
 
@@ -145,7 +177,12 @@ def get_regis_dataset(extent, delr, delc, cachedir, use_cache=False,
         cell size along rows, equal to dx
     delc : int or float,
         cell size along columns, equal to dy
-    cachedir : str
+    botm_layer : binary str, optional
+        regis layer that is used as the bottom of the model. This layer is
+        included in the model. the Default is b'AKc' which is the bottom
+        layer of regis. call nlmod.regis.get_layer_names() to get a list of
+        regis names.
+    cachedir : str, optional
         directory to store cached values, if None a temporary directory is
         used. default is None
     use_cache : bool, optional
@@ -162,10 +199,23 @@ def get_regis_dataset(extent, delr, delc, cachedir, use_cache=False,
     """
     # get local regis dataset
     regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
+
+    # slice extent
     regis_ds_raw = xr.open_dataset(regis_url).sel(x=slice(extent[0], extent[1]),
                                                   y=slice(extent[2], extent[3]))
-    regis_ds_raw = regis_ds_raw[['top', 'bottom', 'kD', 'c', 'kh', 'kv']]
 
+    # slice layers
+    if isinstance(botm_layer, str):
+        botm_layer = botm_layer.encode('utf-8')
+
+    layer_no = np.where((regis_ds_raw.layer == botm_layer).values)[0][0]
+    regis_ds_raw = regis_ds_raw.sel(layer=regis_ds_raw.layer[:layer_no + 1])
+
+    # slice data vars
+    regis_ds_raw = regis_ds_raw[['top', 'bottom', 'kD', 'c', 'kh', 'kv']]
+    regis_ds_raw = regis_ds_raw.rename_vars({'bottom': 'bot'})
+
+    # rename layers
     regis_ds_raw = regis_ds_raw.rename({'layer': 'layer_old'})
     regis_ds_raw.coords['layer'] = regis_ds_raw.layer_old.astype(str)  # could also use assign_coords
     regis_ds_raw2 = regis_ds_raw.swap_dims({'layer_old': 'layer'})
@@ -182,7 +232,7 @@ def get_regis_dataset(extent, delr, delc, cachedir, use_cache=False,
     return regis_ds
 
 
-def add_geotop_to_regis_hlc(regis_ds, geotop_ds, 
+def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
                             float_correction=0.001,
                             verbose=False):
     """ Combine geotop and regis in such a way that the holoceen in Regis is
@@ -230,27 +280,27 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         print('cut geotop layer based on regis holoceen')
     for lay in range(geotop_ds.dims['layer']):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
-        mask1 = geotop_ds['top'][lay] <= (regis_ds['bottom'][0] - float_correction)
+        mask1 = geotop_ds['top'][lay] <= (regis_ds['bot'][0] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask1, np.nan, geotop_ds['top'][lay])
-        geotop_ds['bottom'][lay] = xr.where(mask1, np.nan, geotop_ds['bottom'][lay])
+        geotop_ds['bot'][lay] = xr.where(mask1, np.nan, geotop_ds['bot'][lay])
 
         # Alle geotop cellen waarvan de bodem onder de onderkant van het holoceen ligt, krijgen als bodem de onderkant van het holoceen
-        mask2 = geotop_ds['bottom'][lay] < regis_ds['bottom'][0]
-        geotop_ds['bottom'][lay] = xr.where(mask2 * (~mask1), regis_ds['bottom'][0], geotop_ds['bottom'][lay])
+        mask2 = geotop_ds['bot'][lay] < regis_ds['bot'][0]
+        geotop_ds['bot'][lay] = xr.where(mask2 * (~mask1), regis_ds['bot'][0], geotop_ds['bot'][lay])
 
         # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
-        mask3 = geotop_ds['bottom'][lay] >= (regis_ds['top'][0] - float_correction)
+        mask3 = geotop_ds['bot'][lay] >= (regis_ds['top'][0] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask3, np.nan, geotop_ds['top'][lay])
-        geotop_ds['bottom'][lay] = xr.where(mask3, np.nan, geotop_ds['bottom'][lay])
+        geotop_ds['bot'][lay] = xr.where(mask3, np.nan, geotop_ds['bot'][lay])
 
         # Alle geotop cellen waarvan de top boven de top van het holoceen ligt, krijgen als top het holoceen van regis
         mask4 = geotop_ds['top'][lay] >= regis_ds['top'][0]
         geotop_ds['top'][lay] = xr.where(mask4 * (~mask3), regis_ds['top'][0], geotop_ds['top'][lay])
 
         # overal waar holoceen inactief is, wordt geotop ook inactief
-        mask5 = regis_ds['bottom'][0].isnull()
+        mask5 = regis_ds['bot'][0].isnull()
         geotop_ds['top'][lay] = xr.where(mask5, np.nan, geotop_ds['top'][lay])
-        geotop_ds['bottom'][lay] = xr.where(mask5, np.nan, geotop_ds['bottom'][lay])
+        geotop_ds['bot'][lay] = xr.where(mask5, np.nan, geotop_ds['bot'][lay])
         if verbose:
             if (mask2 * (~mask1)).sum() > 0:
                 print(f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
@@ -258,8 +308,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     top[:len(geotop_ds.layer), :, :] = geotop_ds['top'].data
     top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[1:]
 
-    bot[:len(geotop_ds.layer), :, :] = geotop_ds['bottom'].data
-    bot[len(geotop_ds.layer):, :, :] = regis_ds['bottom'].data[1:]
+    bot[:len(geotop_ds.layer), :, :] = geotop_ds['bot'].data
+    bot[len(geotop_ds.layer):, :, :] = regis_ds['bot'].data[1:]
 
     kh[:len(geotop_ds.layer), :, :] = geotop_ds['kh'].data
     kh[len(geotop_ds.layer):, :, :] = regis_ds['kh'].data[1:]
@@ -268,17 +318,17 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     kv[len(geotop_ds.layer):, :, :] = regis_ds['kv'].data[1:]
 
     regis_geotop_ds['top'] = top
-    regis_geotop_ds['bottom'] = bot
+    regis_geotop_ds['bot'] = bot
     regis_geotop_ds['kh'] = kh
     regis_geotop_ds['kv'] = kv
 
     _ = [regis_geotop_ds.attrs.update({key: item})
                  for key, item in regis_ds.attrs.items()]
 
-    # maak bottom nan waar de laagdikte 0 is
-    regis_geotop_ds['bottom'] = xr.where((regis_geotop_ds['top'] - regis_geotop_ds['bottom']) < float_correction,
+    # maak bot nan waar de laagdikte 0 is
+    regis_geotop_ds['bot'] = xr.where((regis_geotop_ds['top'] - regis_geotop_ds['bot']) < float_correction,
                                           np.nan,
-                                          regis_geotop_ds['bottom'])
+                                          regis_geotop_ds['bot'])
 
     return regis_geotop_ds
 
@@ -340,3 +390,53 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
             f'new extent is {extent} model has {nrow} rows and {ncol} columns')
 
     return extent, nrow, ncol
+
+
+def get_non_nan_layers(raw_layer_mod, data_var='bot', verbose=False):
+    """ get number and name of layers based on the number of non-nan layers
+
+    Parameters
+    ----------
+    raw_layer_mod : xarray.Dataset
+        dataset with raw layer model from regis or geotop.
+    data_var : str
+        data var that is used to check if layer mod contains nan values
+
+    Returns
+    -------
+    nlay : int
+        number of active layers within regis_ds_raw.
+    lay_sel : list of str
+        names of the active layers.
+    """
+    if verbose:
+        print('find active layers in raw layer model')
+
+    bot_raw_all = raw_layer_mod[data_var]
+    lay_sel = []
+    for lay in bot_raw_all.layer.data:
+        if not bot_raw_all.sel(layer=lay).isnull().all():
+            lay_sel.append(lay)
+    nlay = len(lay_sel)
+
+    if verbose:
+        print(f'there are {nlay} active layers within the extent')
+
+    return nlay, lay_sel
+
+
+def get_layer_names():
+    """ get all the available regis layer names
+
+
+    Returns
+    -------
+    layer_names : np.array
+        array with names of all the regis layers.
+
+    """
+
+    regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
+    layer_names = xr.open_dataset(regis_url).layer.values
+
+    return layer_names

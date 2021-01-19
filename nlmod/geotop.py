@@ -140,8 +140,8 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
     if (regis_ds is not None) and (regis_layer is not None):
         if verbose:
             print(f'slice geotop with regis layer {regis_layer}')
-        top_rl = regis_ds.top.sel(layer=regis_layer)
-        bot_rl = regis_ds.bottom.sel(layer=regis_layer)
+        top_rl = regis_ds['top'].sel(layer=regis_layer)
+        bot_rl = regis_ds['bot'].sel(layer=regis_layer)
 
         geotop_ds_raw = geotop_ds_raw1.sel(z=slice(np.floor(bot_rl.min().data),
                                                    np.ceil(top_rl.max().data)))
@@ -295,7 +295,7 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, verbose=False
     geotop_ds_mod = xr.Dataset()
 
     geotop_ds_mod['top'] = da_top
-    geotop_ds_mod['bottom'] = da_bot
+    geotop_ds_mod['bot'] = da_bot
     geotop_ds_mod['kh'] = da_kh
     geotop_ds_mod['kv'] = geotop_ds_mod['kh'] * .25
     geotop_ds_mod['thickness'] = da_thick

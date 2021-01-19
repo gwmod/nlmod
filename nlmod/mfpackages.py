@@ -87,22 +87,26 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
         discretisation package.
 
     """
+    #check attributes
+    for att in ['delr', 'delc']:
+        if isinstance(model_ds.attrs[att], np.float32):
+            model_ds.attrs[att] = float(model_ds.attrs[att])
 
     dis = flopy.mf6.ModflowGwfdis(gwf,
                                   pname='dis',
                                   length_units=length_units,
                                   xorigin=model_ds.extent[0],
                                   yorigin=model_ds.extent[2],
-                                    angrot=angrot,
-                                    nlay=model_ds.dims['layer'],
-                                    nrow=model_ds.dims['y'],
-                                    ncol=model_ds.dims['x'],
-                                    delr=model_ds.delr,
-                                    delc=model_ds.delc,
-                                    top=model_ds['top'].data,
-                                    botm=model_ds['bot'].data,
-                                    idomain=model_ds['idomain'].data,
-                                    filename=f'{model_ds.model_name}.dis')
+                                  angrot=angrot,
+                                  nlay=model_ds.dims['layer'],
+                                  nrow=model_ds.dims['y'],
+                                  ncol=model_ds.dims['x'],
+                                  delr=model_ds.delr,
+                                  delc=model_ds.delc,
+                                  top=model_ds['top'].data,
+                                  botm=model_ds['bot'].data,
+                                  idomain=model_ds['idomain'].data,
+                                  filename=f'{model_ds.model_name}.dis')
 
     return dis
 
@@ -237,7 +241,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
 
 
 def ic_from_model_ds(model_ds, gwf,
-                     starting_head=1.0):
+                     starting_head='starting_head'):
     """ get initial condictions package from model dataset
 
 
@@ -247,8 +251,10 @@ def ic_from_model_ds(model_ds, gwf,
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    starting_head : float, optional
-        starting head. The default is 1.0.
+    starting_head : str, float or int, optional
+        if type is int or float this is the starting head for all cells 
+        If the type is str the data variable from model_ds is used as starting
+        head. The default is 'starting_head'.
 
     Returns
     -------
@@ -256,11 +262,10 @@ def ic_from_model_ds(model_ds, gwf,
         ic package
 
     """
-
-    model_ds['starting_head'] = starting_head * xr.ones_like(model_ds['idomain'])
-    # model_ds['starting_head'][0] = xr.where(model_ds['surface_water_cond'] != 0,
-    #                                         model_ds['surface_water_peil'],
-    #                                         model_ds['starting_head'][0])
+    if isinstance(starting_head, str):
+        pass
+    elif isinstance(starting_head, float) or isinstance(starting_head, int):
+        model_ds['starting_head']=  starting_head * xr.ones_like(model_ds['idomain'])
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
                                 strt=model_ds['starting_head'].data)

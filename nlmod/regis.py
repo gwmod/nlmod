@@ -259,8 +259,11 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
 
     """
     regis_geotop_ds = xr.Dataset()
-
-    new_layers = np.append(geotop_ds.layer.data, regis_ds.layer.data[1:].astype('<U8')).astype('O')
+    
+    # find holoceen (remove all layers above Holoceen)
+    layer_no = np.where((regis_ds.layer == 'HLc').values)[0][0] +1 
+    new_layers = np.append(geotop_ds.layer.data, 
+                           regis_ds.layer.data[layer_no:].astype('<U8')).astype('O')
 
     top = xr.DataArray(dims=('layer', 'y', 'x'),
                        coords={'y': geotop_ds.y, 'x': geotop_ds.x,
@@ -306,16 +309,16 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
                 print(f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
 
     top[:len(geotop_ds.layer), :, :] = geotop_ds['top'].data
-    top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[1:]
+    top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no:]
 
     bot[:len(geotop_ds.layer), :, :] = geotop_ds['bot'].data
-    bot[len(geotop_ds.layer):, :, :] = regis_ds['bot'].data[1:]
+    bot[len(geotop_ds.layer):, :, :] = regis_ds['bot'].data[layer_no:]
 
     kh[:len(geotop_ds.layer), :, :] = geotop_ds['kh'].data
-    kh[len(geotop_ds.layer):, :, :] = regis_ds['kh'].data[1:]
+    kh[len(geotop_ds.layer):, :, :] = regis_ds['kh'].data[layer_no:]
 
     kv[:len(geotop_ds.layer), :, :] = geotop_ds['kv'].data
-    kv[len(geotop_ds.layer):, :, :] = regis_ds['kv'].data[1:]
+    kv[len(geotop_ds.layer):, :, :] = regis_ds['kv'].data[layer_no:]
 
     regis_geotop_ds['top'] = top
     regis_geotop_ds['bot'] = bot

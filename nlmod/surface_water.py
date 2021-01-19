@@ -179,7 +179,7 @@ def aggregate_surface_water(gdf, method, model_ds=None):
 
     Returns
     -------
-    mdata : pd.DataFrame
+    celldata : pd.DataFrame
         DataFrame with aggregated surface water parameters per grid cell
     """
 
@@ -190,19 +190,19 @@ def aggregate_surface_water(gdf, method, model_ds=None):
 
     # Post process intersection result
     gr = gdf.groupby(by="cellid")
-    mdata = pd.DataFrame(index=gr.groups.keys())
+    celldata = pd.DataFrame(index=gr.groups.keys())
 
     for cid, group in tqdm(gr, desc="Aggregate surface water data"):
 
         stage, cond, rbot = get_surfacewater_params(
             group, method, cid=cid, model_ds=model_ds)
 
-        mdata.loc[cid, "stage"] = stage
-        mdata.loc[cid, "cond"] = cond
-        mdata.loc[cid, "rbot"] = rbot
-        mdata.loc[cid, "area"] = group.area.sum()
+        celldata.loc[cid, "stage"] = stage
+        celldata.loc[cid, "cond"] = cond
+        celldata.loc[cid, "rbot"] = rbot
+        celldata.loc[cid, "area"] = group.area.sum()
 
-    return mdata
+    return celldata
 
 
 def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
@@ -257,7 +257,7 @@ def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
     return np.array(lays), np.array(conds)
 
 
-def build_spd(celldata, pkg, model_ds):
+def build_spd(celldata, pkg, model_ds, verbose=False):
     """Build stress period data for package (RIV, DRN, GHB).
 
     Parameters
@@ -269,6 +269,8 @@ def build_spd(celldata, pkg, model_ds):
         Modflow package: RIV, DRN or GHB
     model_ds : xarray.DataSet
         DataSet containing model layer information
+    verbose : bool, optional
+        print warnings if True, default is False
 
     Returns
     -------
@@ -280,6 +282,7 @@ def build_spd(celldata, pkg, model_ds):
     """
 
     spd = []
+    errors = {}
 
     for cellid, row in tqdm(celldata.iterrows(),
                             total=celldata.index.size,
@@ -287,36 +290,49 @@ def build_spd(celldata, pkg, model_ds):
         # rbot
         if "rbot" in row.index:
             rbot = row["rbot"]
+            if np.isnan(rbot):
+                if verbose:
+                    print(f"WARNING!: Cell {cellid} skipped because 'rbot' "
+                          "is NaN")
+                errors[cellid] = "rbot is NaN"
+                continue
+        elif pkg == "RIV":
+            raise ValueError("Column 'rbot' required for building "
+                             "RIV package!")
         else:
             rbot = np.nan
 
         # stage
-        if model_ds.steady_state:
-            stage = row["stage"]
+        stage = row["stage"]
 
-            if np.isnan(stage):
+        if np.isnan(stage):
+            if verbose:
                 print(f"WARNING: Cell {cellid} skipped because stage is NaN!")
-                continue
+            errors[cellid] = "stage is NaN"
+            continue
 
-            if (stage < rbot) and np.isfinite(rbot):
-                print("WARNING: stage below bottom, stage reset to rbot!")
-                stage = rbot
-
-        else:
-            stage = row["stage"]
+        if (stage < rbot) and np.isfinite(rbot):
+            if verbose:
+                print(f"WARNING: stage below bottom elevation in {cellid}, "
+                      "stage reset to rbot!")
+            stage = rbot
 
         # conductance
         cond = row["cond"]
 
         # check value
         if np.isnan(cond):
-            print(f"{cellid}: Conductance is NaN! Info: area={row.area:.2f} "
-                  f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            if verbose:
+                print(f"{cellid}: Conductance is NaN! Info: area={row.area:.2f} "
+                      f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            errors[cellid] = "cond is NaN"
             continue
 
         if cond < 0:
-            print(f"{cellid}, Conductance is negative!, area={row.area:.2f}, "
-                  f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            if verbose:
+                print(f"{cellid}, Conductance is negative!, area={row.area:.2f}, "
+                      f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            errors[cellid] = "cond is negative"
             continue
 
         # if surface water penetrates multiple layers:
@@ -336,6 +352,8 @@ def build_spd(celldata, pkg, model_ds):
             elif pkg in ["DRN", "GHB"]:
                 spd.append([cid, stage, cond])
 
+    print(f"Skipped {len(errors.keys())} cells because of "
+          "missing/erroneous data!")
     return spd
 
 

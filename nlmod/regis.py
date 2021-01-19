@@ -261,9 +261,9 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     regis_geotop_ds = xr.Dataset()
     
     # find holoceen (remove all layers above Holoceen)
-    layer_no = np.where((regis_ds.layer == 'HLc').values)[0][0] +1 
+    layer_no = np.where((regis_ds.layer == 'HLc').values)[0][0]
     new_layers = np.append(geotop_ds.layer.data, 
-                           regis_ds.layer.data[layer_no:].astype('<U8')).astype('O')
+                           regis_ds.layer.data[layer_no+1:].astype('<U8')).astype('O')
 
     top = xr.DataArray(dims=('layer', 'y', 'x'),
                        coords={'y': geotop_ds.y, 'x': geotop_ds.x,
@@ -283,25 +283,25 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         print('cut geotop layer based on regis holoceen')
     for lay in range(geotop_ds.dims['layer']):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
-        mask1 = geotop_ds['top'][lay] <= (regis_ds['bot'][0] - float_correction)
+        mask1 = geotop_ds['top'][lay] <= (regis_ds['bot'][layer_no] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask1, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask1, np.nan, geotop_ds['bot'][lay])
 
         # Alle geotop cellen waarvan de bodem onder de onderkant van het holoceen ligt, krijgen als bodem de onderkant van het holoceen
-        mask2 = geotop_ds['bot'][lay] < regis_ds['bot'][0]
-        geotop_ds['bot'][lay] = xr.where(mask2 * (~mask1), regis_ds['bot'][0], geotop_ds['bot'][lay])
+        mask2 = geotop_ds['bot'][lay] < regis_ds['bot'][layer_no]
+        geotop_ds['bot'][lay] = xr.where(mask2 * (~mask1), regis_ds['bot'][layer_no], geotop_ds['bot'][lay])
 
         # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
-        mask3 = geotop_ds['bot'][lay] >= (regis_ds['top'][0] - float_correction)
+        mask3 = geotop_ds['bot'][lay] >= (regis_ds['top'][layer_no] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask3, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask3, np.nan, geotop_ds['bot'][lay])
 
         # Alle geotop cellen waarvan de top boven de top van het holoceen ligt, krijgen als top het holoceen van regis
-        mask4 = geotop_ds['top'][lay] >= regis_ds['top'][0]
-        geotop_ds['top'][lay] = xr.where(mask4 * (~mask3), regis_ds['top'][0], geotop_ds['top'][lay])
+        mask4 = geotop_ds['top'][lay] >= regis_ds['top'][layer_no]
+        geotop_ds['top'][lay] = xr.where(mask4 * (~mask3), regis_ds['top'][layer_no], geotop_ds['top'][lay])
 
         # overal waar holoceen inactief is, wordt geotop ook inactief
-        mask5 = regis_ds['bot'][0].isnull()
+        mask5 = regis_ds['bot'][layer_no].isnull()
         geotop_ds['top'][lay] = xr.where(mask5, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask5, np.nan, geotop_ds['bot'][lay])
         if verbose:
@@ -309,16 +309,16 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
                 print(f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
 
     top[:len(geotop_ds.layer), :, :] = geotop_ds['top'].data
-    top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no:]
+    top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no+1:]
 
     bot[:len(geotop_ds.layer), :, :] = geotop_ds['bot'].data
-    bot[len(geotop_ds.layer):, :, :] = regis_ds['bot'].data[layer_no:]
+    bot[len(geotop_ds.layer):, :, :] = regis_ds['bot'].data[layer_no+1:]
 
     kh[:len(geotop_ds.layer), :, :] = geotop_ds['kh'].data
-    kh[len(geotop_ds.layer):, :, :] = regis_ds['kh'].data[layer_no:]
+    kh[len(geotop_ds.layer):, :, :] = regis_ds['kh'].data[layer_no+1:]
 
     kv[:len(geotop_ds.layer), :, :] = geotop_ds['kv'].data
-    kv[len(geotop_ds.layer):, :, :] = regis_ds['kv'].data[layer_no:]
+    kv[len(geotop_ds.layer):, :, :] = regis_ds['kv'].data[layer_no+1:]
 
     regis_geotop_ds['top'] = top
     regis_geotop_ds['bot'] = bot

@@ -68,7 +68,7 @@ def test_get_regis_geotop(extent=[98700., 99000., 489500., 489700.],
                                              cachedir=None,
                                              use_cache=False, verbose=True)
     
-    assert regis_geotop_ds.dims['layer'] == 19
+    assert regis_geotop_ds.dims['layer'] == 23
     
     
     return regis_geotop_ds

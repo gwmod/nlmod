@@ -10,19 +10,20 @@ This module contains functions to:
 import copy
 import os
 import pickle
+import sys
 import tempfile
 
+import flopy
 import numpy as np
 import xarray as xr
+from flopy.discretization.structuredgrid import StructuredGrid
+from flopy.utils.gridgen import Gridgen
+from flopy.utils.gridintersect import GridIntersect
 from scipy import interpolate
 from scipy.interpolate import griddata
 from shapely.prepared import prep
 
-from . import util, northsea, mfpackages
-import flopy
-from flopy.utils.gridintersect import GridIntersect
-from flopy.utils.gridgen import Gridgen
-from flopy.discretization.structuredgrid import StructuredGrid
+from . import mfpackages, northsea, util
 
 
 def modelgrid_from_model_ds(model_ds, gridprops=None):
@@ -45,8 +46,9 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
 
     if model_ds.gridtype == 'structured':
         modelgrid = StructuredGrid(delc=np.array([model_ds.delc] * model_ds.dims['y']),
-                                    delr=np.array([model_ds.delc] * model_ds.dims['x']),
-                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
+                                   delr=np.array([model_ds.delc]
+                                                 * model_ds.dims['x']),
+                                   xoff=model_ds.extent[0], yoff=model_ds.extent[2])
     elif model_ds.gridtype == 'unstructured':
         _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
                                                            verbose=False)
@@ -134,14 +136,16 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         gridprops['botm'] = model_ds['bot'].data
 
         # add surface area of each cell
-        model_ds['area'] = ('cid', gridprops.pop('area')[:len(model_ds['cid'])])
+        model_ds['area'] = ('cid', gridprops.pop('area')
+                            [:len(model_ds['cid'])])
 
     else:
         gridprops = None
 
     if add_northsea:
         if verbose:
-            print('nan values at the northsea are filled using the bathymetry from jarkus')
+            print(
+                'nan values at the northsea are filled using the bathymetry from jarkus')
 
         modelgrid = modelgrid_from_model_ds(model_ds, gridprops=gridprops)
 
@@ -153,7 +157,8 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                               verbose=verbose)
 
         # fill top, bot, kh, kv at sea cells
-        fill_mask = (model_ds['first_active_layer'] == model_ds.nodata) * model_ds['northsea']
+        fill_mask = (model_ds['first_active_layer'] ==
+                     model_ds.nodata) * model_ds['northsea']
         model_ds = fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
                                               gridtype=gridtype,
                                               gridprops=gridprops)
@@ -175,7 +180,8 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         model_ds['idomain'] = update_idomain_from_thickness(model_ds['idomain'],
                                                             model_ds['thickness'],
                                                             model_ds['northsea'])
-        model_ds['first_active_layer'] = get_first_active_layer_from_idomain(model_ds['idomain'])
+        model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
+            model_ds['idomain'])
 
         if gridtype == 'unstructured':
             gridprops['top'] = model_ds['top'].data
@@ -288,9 +294,8 @@ def get_lay_from_ml_layers(raw_layer_mod, verbose=False):
 
 
 def get_xy_mid_structured(extent, delr, delc):
-    """
-    calculates the x and y coordinates of the cell centers of a structured
-    grid.
+    """Calculates the x and y coordinates of the cell centers of a 
+    structured grid.
 
     Parameters
     ----------
@@ -304,9 +309,9 @@ def get_xy_mid_structured(extent, delr, delc):
     Returns
     -------
     xmid : np.array
-        x coördinates of the cell centers shape(ncol)
+        x-coordinates of the cell centers shape(ncol)
     ymid : np.array
-        y coördinates of the cell centers shape(nrow)
+        y-coordinates of the cell centers shape(nrow)
 
     """
     # get cell mids
@@ -552,7 +557,7 @@ def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
 
 
 def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'):
-    """ resample a dataset (xarray) from a structured grid to a new dataset 
+    """Resample a dataset (xarray) from a structured grid to a new dataset 
     from a different structured grid.
 
     Parameters
@@ -590,7 +595,8 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
                                 'layer': ds_in.layer.data})
     for data_var in ds_in.data_vars:
         data_arr = resample_dataarray_to_structured_grid(ds_in[data_var],
-                                                         xmid=xmid, ymid=ymid,
+                                                         xmid=xmid,
+                                                         ymid=ymid,
                                                          kind=kind)
         ds_out[data_var] = data_arr
 
@@ -673,13 +679,16 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
                                         delr=delr, delc=delc,
                                         filename='{}.dis'.format(model_name))
 
-    exe_name = os.path.join(os.path.dirname(__file__),
-                            '..', 'executables', 'gridgen.exe')
+    if sys.platform == "linux":
+        exe_name = "gridgen"
+    else:
+        exe_name = os.path.join(os.path.dirname(__file__),
+                                '..', 'executables', 'gridgen.exe')
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
 
     g.add_refinement_features(shp_fname, 'line', levels, range(nlay))
     g.build()
-    
+
     gridprops = g.get_gridprops_disv()
     gridprops['area'] = g.get_area()
     gridprops['levels'] = levels
@@ -1893,7 +1902,7 @@ def get_ml_layer_dataset_struc(raw_ds=None,
                                fname_netcdf='regis.nc',
                                use_cache=False,
                                verbose=False):
-    """ Get a model layer dataset that is resampled to the modelgrid
+    """Get a model layer dataset that is resampled to the modelgrid
 
     Parameters
     ----------
@@ -1933,12 +1942,12 @@ def get_ml_layer_dataset_struc(raw_ds=None,
     """
 
     ml_layer_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
-                                       get_resampled_ml_layer_ds_struc,
-                                       verbose=verbose,
-                                       raw_ds=raw_ds, extent=extent,
-                                       gridprops=gridprops, check_time=False,
-                                       delr=delr, delc=delc,
-                                       kind=interp_method)
+                                        get_resampled_ml_layer_ds_struc,
+                                        verbose=verbose,
+                                        raw_ds=raw_ds, extent=extent,
+                                        gridprops=gridprops, check_time=False,
+                                        delr=delr, delc=delc,
+                                        kind=interp_method)
 
     return ml_layer_ds
 
@@ -1985,8 +1994,8 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
     if verbose:
         print('resample regis data to structured modelgrid')
     ml_layer_ds = resample_dataset_to_structured_grid(raw_ds, extent,
-                                                            delr, delc,
-                                                            kind=kind)
+                                                      delr, delc,
+                                                      kind=kind)
     ml_layer_ds.attrs['extent'] = extent
     ml_layer_ds.attrs['delr'] = delr
     ml_layer_ds.attrs['delc'] = delc
@@ -2040,10 +2049,10 @@ def get_ml_layer_dataset_unstruc(raw_ds=None,
     """
 
     ml_layer_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
-                                       get_resampled_ml_layer_ds_unstruc,
-                                       verbose=verbose, check_time=False,
-                                       raw_ds=raw_ds, extent=extent,
-                                       gridprops=gridprops)
+                                        get_resampled_ml_layer_ds_unstruc,
+                                        verbose=verbose, check_time=False,
+                                        raw_ds=raw_ds, extent=extent,
+                                        gridprops=gridprops)
 
     return ml_layer_ds
 

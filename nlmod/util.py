@@ -444,9 +444,37 @@ def compare_model_extents(extent1, extent2, verbose=False):
     raise NotImplementedError('other options are not yet implemented')
 
 
+def gdf_from_extent(extent, crs="EPSG:28992"):
+    """ create a geodataframe with a single polygon with the extent given
+    
+
+    Parameters
+    ----------
+    extent : tuple, list or array
+        extent.
+    crs : str, optional
+        coördinate reference system of the extent, default is EPSG:28992 
+        (RD new)
+
+    Returns
+    -------
+    gdf_extent : GeoDataFrame
+        geodataframe with extent.
+
+    """
+    
+    
+    bbox = (extent[0], extent[2], extent[1], extent[3])
+    geom_extent = box(*tuple(bbox))
+    gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent],
+                                  crs=crs)
+    
+    return gdf_extent
+
+
 def gdf_within_extent(gdf, extent):
     """ select only parts of the geodataframe within the extent.
-    Only works for polygon features.
+    Only accepts Polygon and Linestring geometry types.
 
     Parameters
     ----------
@@ -461,12 +489,20 @@ def gdf_within_extent(gdf, extent):
         dataframe with only polygon features within the extent.
 
     """
-
-    bbox = (extent[0], extent[2], extent[1], extent[3])
-    geom_extent = box(*tuple(bbox))
-    gdf_extent = gpd.GeoDataFrame(['extent'], geometry=[geom_extent],
-                                  crs=gdf.crs)
-    gdf = gpd.overlay(gdf, gdf_extent)
+    # create geodataframe from the extent
+    gdf_extent = gdf_from_extent(extent, crs=gdf.crs)
+    
+    #check type
+    geom_types = gdf.geom_type.unique()
+    if len(geom_types)>1:
+        raise TypeError('Only accepts single geometry type')
+    elif geom_types[0]=='Polygon':
+        gdf = gpd.overlay(gdf, gdf_extent)
+    elif geom_types[0]=='LineString':
+        gdf = gpd.sjoin(gdf, gdf_extent)
+    else:
+        raise TypeError('Function is not tested for geometry type: '\
+                        f'{geom_types[0]}')
 
     return gdf
 

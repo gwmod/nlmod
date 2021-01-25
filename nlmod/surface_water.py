@@ -376,7 +376,7 @@ def get_surfacewater_params(group, method, cid=None, model_ds=None,
         c0 = agg_max_area(group, "c0")
         cond = group.area.sum() / c0
         # rbot
-        rbot = group["BL"].min()
+        rbot = group["botm"].min()
 
     elif method == "de_lange":
 

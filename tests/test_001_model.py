@@ -139,11 +139,10 @@ def test_model_ds_time_transient(tmpdir, modelname='test'):
 
     return model_ds
 
-# %% creating test models and saving
-
+# %% creating model grids
 
 @pytest.mark.slow
-def test_create_small_model(tmpdir):
+def test_create_small_model_grid_only(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [98700., 99000., 489500., 489700.]
     regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
@@ -151,7 +150,7 @@ def test_create_small_model(tmpdir):
                                                    use_regis=True,
                                                    use_geotop=True,
                                                    verbose=True)
-    assert regis_geotop_ds.dims['layer'] == 2
+    assert regis_geotop_ds.dims['layer'] == 5
 
     model_ds = nlmod.mgrid.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
@@ -172,7 +171,26 @@ def test_create_small_model(tmpdir):
 
 
 @pytest.mark.slow
-def test_create_basic_seamodel(tmpdir):
+def test_create_sea_model_grid_only(tmpdir):
+    model_ds = test_model_ds_time_transient(tmpdir)
+    extent = [95000., 105000., 494000., 500000.]
+
+    regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
+                                                   use_regis=True,
+                                                   use_geotop=True,
+                                                   verbose=True)
+    model_ds = nlmod.mgrid.update_model_ds_from_ml_layer_ds(model_ds,
+                                                            regis_geotop_ds,
+                                                            keep_vars=['x', 'y'],
+                                                            gridtype='structured',
+                                                            verbose=True)
+    # save model_ds
+    model_ds.to_netcdf(os.path.join(tst_model_dir, 'sea_model_grid.nc'))
+
+    return model_ds
+
+@pytest.mark.slow
+def test_create_seamodel_grid_only_without_northsea(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
     regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
@@ -193,28 +211,11 @@ def test_create_basic_seamodel(tmpdir):
     return model_ds
 
 
-@pytest.mark.slow
-def test_create_sea_model_grid(tmpdir):
-    model_ds = test_model_ds_time_transient(tmpdir)
-    extent = [95000., 105000., 494000., 500000.]
 
-    regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
-                                                   use_regis=True,
-                                                   use_geotop=True,
-                                                   verbose=True)
-    model_ds = nlmod.mgrid.update_model_ds_from_ml_layer_ds(model_ds,
-                                                            regis_geotop_ds,
-                                                            keep_vars=['x', 'y'],
-                                                            gridtype='structured',
-                                                            verbose=True)
-    # save model_ds
-    model_ds.to_netcdf(os.path.join(tst_model_dir, 'sea_model_grid.nc'))
-
-    return model_ds
 
 
 @pytest.mark.slow
-def test_create_sea_model_grid_delr_delc_50(tmpdir):
+def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
 
@@ -232,9 +233,10 @@ def test_create_sea_model_grid_delr_delc_50(tmpdir):
 
     return model_ds
 
+#%% create models using create_model module
 
 @pytest.mark.slow
-def test_create_full_sea_model(tmpdir):
+def test_create_sea_model(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
     model_ds, gwf = nlmod.create_model.gen_model_structured(tmpdir,
@@ -252,7 +254,46 @@ def test_create_full_sea_model(tmpdir):
     return model_ds, gwf
 
 @pytest.mark.slow
-def test_create_unstructured_model(tmpdir):
+def test_create_sea_model_perlen_list(tmpdir):
+    tmpdir = _check_tmpdir(tmpdir)
+    extent = [95000., 105000., 494000., 500000.]
+    perlen = [3650, 14, 10, 11] # length of the time steps
+    model_ds, gwf = nlmod.create_model.gen_model_structured(tmpdir,
+                                                       'full_sea_model',
+                                                       extent=extent,
+                                                       steady_state=False,
+                                                       transient_timesteps=3,
+                                                       steady_start=True,
+                                                       perlen=perlen,
+                                                       write_sim=True,
+                                                       run_sim=True)
+
+    # save model_ds
+    model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
+
+    return model_ds, gwf
+
+@pytest.mark.slow
+def test_create_sea_model_perlen_14(tmpdir):
+    tmpdir = _check_tmpdir(tmpdir)
+    extent = [95000., 105000., 494000., 500000.]
+    model_ds, gwf = nlmod.create_model.gen_model_structured(tmpdir,
+                                                           'full_sea_model',
+                                                           extent=extent,
+                                                           steady_state=False,
+                                                           transient_timesteps=10,
+                                                           perlen=14,
+                                                           steady_start=True,
+                                                           write_sim=True,
+                                                           run_sim=True)
+
+    # save model_ds
+    model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
+
+    return model_ds, gwf
+
+@pytest.mark.slow
+def test_create_sea_model_unstructured(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     refine_shp = os.path.join(nlmod.nlmod_datadir, 
                               'shapes', 'planetenweg_ijmuiden')

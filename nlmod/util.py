@@ -500,6 +500,8 @@ def gdf_within_extent(gdf, extent):
         gdf = gpd.overlay(gdf, gdf_extent)
     elif geom_types[0]=='LineString':
         gdf = gpd.sjoin(gdf, gdf_extent)
+    elif geom_types[0]=='Point':
+        gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
         raise TypeError('Function is not tested for geometry type: '\
                         f'{geom_types[0]}')

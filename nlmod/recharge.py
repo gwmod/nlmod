@@ -189,9 +189,9 @@ def add_knmi_to_model_dataset(model_ds,
             model_recharge = pd.Series(index=model_ds.time.data)
             for i, ts in enumerate(model_recharge.index):
                 if i < (len(model_recharge)-1):
-                    model_recharge.loc[ts] = recharge_ts.loc[ts:model_recharge.index[i+1]].mean()
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:model_recharge.index[i+1]].iloc[:-1].mean()
                 else:
-                    model_recharge.loc[ts] = recharge_ts.loc[ts:end].mean()
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:end].iloc[:-1].mean()
 
             # add data to model_ds_out
             if model_ds.gridtype == 'structured':

@@ -107,7 +107,7 @@ def add_knmi_to_model_dataset(model_ds,
         if isinstance(perlen, float) or isinstance(perlen, int):
             end = pd.Timestamp(model_ds.time.data[-1]+pd.to_timedelta(perlen, 
                                                                       unit=model_ds.time_units))
-        elif isinstance(perlen, list) or isinstance(perlen, np.array):
+        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
             end = pd.Timestamp(model_ds.time.data[-1]+pd.to_timedelta(perlen[-1], 
                                                                       unit=model_ds.time_units))
         else:

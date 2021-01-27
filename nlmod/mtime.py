@@ -89,7 +89,7 @@ def get_model_ds_time(model_name, model_ws, start_time,
                                     unit=time_units), periods=nper)
             time_dt.values[0] = start_time_dt
             
-        elif isinstance(perlen, list) or isinstance(perlen, np.array):
+        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
             assert len(perlen)==nper
             start_tran = pd.to_datetime(start_time) 
             start_time_dt = start_tran - dt.timedelta(days=perlen[0])
@@ -107,7 +107,7 @@ def get_model_ds_time(model_name, model_ws, start_time,
             time_dt = pd.date_range(start_time_dt, 
                                     start_time_dt + pd.to_timedelta((transient_timesteps - 1) * perlen,
                                     unit=time_units), periods=nper)
-        elif isinstance(perlen, list) or isinstance(perlen, np.array):
+        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
             assert len(perlen)==nper
             start_time_dt = pd.to_datetime(start_time) 
             time_dt = [start_time_dt]

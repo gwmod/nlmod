@@ -97,14 +97,21 @@ def add_knmi_to_model_dataset(model_ds,
     if nodata is None:
         nodata = model_ds.nodata
 
-    start_ts = pd.Timestamp(model_ds.time.data[0])
-    end_ts = pd.Timestamp(model_ds.time.data[-1])
-    if model_ds.steady_state or model_ds.steady_start:
-        start = dt.datetime(start_ts.year - 10, start_ts.month, start_ts.day)
-        end = end_ts + pd.Timedelta(1, unit='D')
+    start = pd.Timestamp(model_ds.time.data[0])
+    #end_ts = pd.Timestamp(model_ds.time.data[-1])
+    perlen = model_ds.perlen
+    
+    if model_ds.steady_state:
+        end = start + pd.Timedelta(model_ds.perlen, unit=model_ds.time_units)
     else:
-        start = start_ts - pd.Timedelta(1, unit='D')
-        end = end_ts + pd.Timedelta(1, unit='D')
+        if isinstance(perlen, float) or isinstance(perlen, int):
+            end = pd.Timestamp(model_ds.time.data[-1]+pd.to_timedelta(perlen, 
+                                                                      unit=model_ds.time_units))
+        elif isinstance(perlen, list) or isinstance(perlen, np.array):
+            end = pd.Timestamp(model_ds.time.data[-1]+pd.to_timedelta(perlen[-1], 
+                                                                      unit=model_ds.time_units))
+        else:
+            raise ValueError(f'did not recognise perlen data type {perlen}')
 
     model_ds_out = util.get_model_ds_empty(model_ds)
 
@@ -179,20 +186,20 @@ def add_knmi_to_model_dataset(model_ds,
                 # add data to model_ds_out
                 model_ds_out['recharge'].loc[loc_sel.index] = rch_average
         else:
-            if model_ds.steady_start:
-                rch_average = recharge_ts.mean()
-                recharge_ts = recharge_ts.loc[model_ds.time.data]
-                recharge_ts.loc[model_ds.time.data[0]] = rch_average
-            else:
-                recharge_ts = recharge_ts.loc[model_ds.time.data]
+            model_recharge = pd.Series(index=model_ds.time.data)
+            for i, ts in enumerate(model_recharge.index):
+                if i < (len(model_recharge)-1):
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:model_recharge.index[i+1]].mean()
+                else:
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:end].mean()
 
             # add data to model_ds_out
             if model_ds.gridtype == 'structured':
                 for row, col in zip(loc_sel.row, loc_sel.col):
-                    model_ds_out['recharge'].data[row, col, :] = recharge_ts.values
+                    model_ds_out['recharge'].data[row, col, :] = model_recharge.values
 
             elif model_ds.gridtype == 'unstructured':
-                model_ds_out['recharge'].loc[loc_sel.index, :] = recharge_ts.values
+                model_ds_out['recharge'].loc[loc_sel.index, :] = model_recharge.values
 
     return model_ds_out
 

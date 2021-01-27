@@ -509,12 +509,17 @@ def get_tdis_perioddata(model_ds):
           1}{tsmult^{nstp}-1}`.
 
     """
-
-    try:
-        float(model_ds.perlen)
-        tdis_perioddata = [(model_ds.perlen, model_ds.nstp, model_ds.tsmult)] * int(model_ds.nper)
-    except:
-        raise NotImplementedError('variable time step length not yet implemented')
+    perlen = model_ds.perlen
+    if isinstance(perlen, float) or isinstance(perlen, int):
+        tdis_perioddata = [(float(perlen), model_ds.nstp, model_ds.tsmult)] * int(model_ds.nper)
+    elif isinstance(perlen, list) or isinstance(perlen, np.array):
+        if model_ds.steady_start:
+            assert len(perlen) == model_ds.dims['time']
+        else:
+            assert len(perlen) == model_ds.dims['time']
+        tdis_perioddata = [(p, model_ds.nstp, model_ds.tsmult) for p in perlen] 
+    else:
+        raise TypeError('did not recognise perlen type')
 
     # netcdf does not support multi-dimensional array attributes
     #model_ds.attrs['tdis_perioddata'] = tdis_perioddata

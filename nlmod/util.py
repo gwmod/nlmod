@@ -495,7 +495,12 @@ def gdf_within_extent(gdf, extent):
     #check type
     geom_types = gdf.geom_type.unique()
     if len(geom_types)>1:
-        raise TypeError('Only accepts single geometry type')
+        # exception if geomtypes is a combination of Polygon and Multipolygon
+        multipoly_check = ('Polygon' in geom_types) and ('MultiPolygon' in geom_types)
+        if (len(geom_types) == 2) and multipoly_check:
+            gdf = gpd.overlay(gdf, gdf_extent)
+        else:           
+            raise TypeError(f'Only accepts single geometry type not {geom_types}')
     elif geom_types[0]=='Polygon':
         gdf = gpd.overlay(gdf, gdf_extent)
     elif geom_types[0]=='LineString':

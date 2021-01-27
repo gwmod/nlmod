@@ -17,6 +17,7 @@ def gen_model_structured(model_ws,
                          steady_state=False,
                          start_time='2015-1-1',
                          transient_timesteps=5,
+                         perlen=1.,
                          steady_start=True,
                          extent=[95000., 150000., 487000., 553500.],
                          delr=100.,
@@ -57,9 +58,20 @@ def gen_model_structured(model_ws,
     steady_state : bool
         if True the model is steady state with one time step.
     start_time : str or datetime
-        start time of the model.
+        start time of the model. This is the start_time of the transient time
+        steps and the end_time of the steady_state periods (if steady_state is
+        True or steady_start is True).
     transient_timesteps : int, optional
         number of transient time steps. The default is 0.
+    perlen : float, int, list or np.array, optional
+        length of each timestep depending on the type:
+            - float or int: this is the length of all the time steps. If 
+            steady_start is True the length of the first time step is defined
+            by steady_perlen
+            - list or array: the items are the length per timestep.
+            the length of perlen should match the number of transient 
+            timesteps (or transient timesteps +1 if steady_start is True) 
+        The default is 1.0.
     steady_start : bool
         if True the model is transient with a steady state start time step.
     extent : list, tuple or np.array
@@ -135,6 +147,10 @@ def gen_model_structured(model_ws,
         groundwater flow model.
 
     """
+    
+    #checks
+    if length_units!='METERS':
+        raise NotImplementedError()
 
     gridtype = 'structured'
 
@@ -145,7 +161,8 @@ def gen_model_structured(model_ws,
     model_ds = mtime.get_model_ds_time(model_name, model_ws, start_time,
                                        steady_state,
                                        steady_start,
-                                       transient_timesteps=transient_timesteps)
+                                       transient_timesteps=transient_timesteps,
+                                       perlen=perlen)
 
     sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
                                                          verbose)

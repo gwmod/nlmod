@@ -3,6 +3,8 @@
 add knmi precipitation and evaporation to a modflow model
 
 """
+import numbers
+
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -104,10 +106,10 @@ def add_knmi_to_model_dataset(model_ds,
     if model_ds.steady_state:
         end = start + pd.Timedelta(model_ds.perlen, unit=model_ds.time_units)
     else:
-        if isinstance(perlen, float) or isinstance(perlen, int):
+        if isinstance(perlen, numbers.Number):
             end = pd.Timestamp(model_ds.time.data[-1]+pd.to_timedelta(perlen, 
                                                                       unit=model_ds.time_units))
-        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
+        elif isinstance(perlen, (list, tuple, np.ndarray)):
             end = pd.Timestamp(model_ds.time.data[-1]+pd.to_timedelta(perlen[-1], 
                                                                       unit=model_ds.time_units))
         else:

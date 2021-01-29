@@ -5,6 +5,7 @@ Created on Thu Jan  7 17:20:34 2021
 @author: oebbe
 """
 import xarray as xr
+import numbers
 import numpy as np
 import flopy
 from nlmod import mgrid, recharge
@@ -264,7 +265,7 @@ def ic_from_model_ds(model_ds, gwf,
     """
     if isinstance(starting_head, str):
         pass
-    elif isinstance(starting_head, float) or isinstance(starting_head, int):
+    elif isinstance(starting_head, numbers.Number):
         model_ds['starting_head']=  starting_head * xr.ones_like(model_ds['idomain'])
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
@@ -510,9 +511,9 @@ def get_tdis_perioddata(model_ds):
 
     """
     perlen = model_ds.perlen
-    if isinstance(perlen, float) or isinstance(perlen, int):
+    if isinstance(perlen, numbers.Number):
         tdis_perioddata = [(float(perlen), model_ds.nstp, model_ds.tsmult)] * int(model_ds.nper)
-    elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
+    elif isinstance(perlen, (list, tuple, np.ndarray)):
         if model_ds.steady_start:
             assert len(perlen) == model_ds.dims['time']
         else:

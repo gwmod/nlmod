@@ -64,9 +64,9 @@ def get_model_ds_time(model_name, model_ws, start_time,
     # checks
     if len(model_name) > 16 and mfversion == 'mf6':
         raise ValueError('model_name can not have more than 16 characters')
-    elif time_units!='DAYS':
+    elif time_units.lower()!='days':
         raise NotImplementedError()
-    elif steady_start and (transient_timesteps==0):
+    elif (not steady_state) and (steady_start and (transient_timesteps==0)):
         raise ValueError('illegal combination of steady_start and transient'\
                          'timesteps please use steady_state=True')
     

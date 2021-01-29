@@ -246,7 +246,10 @@ def test_create_sea_model(tmpdir):
                                                        transient_timesteps=10,
                                                        steady_start=True,
                                                        write_sim=True,
-                                                       run_sim=True)
+                                                       run_sim=False)
+    
+    assert gwf.simulation.run_simulation()[0]
+
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
@@ -266,10 +269,13 @@ def test_create_sea_model_perlen_list(tmpdir):
                                                        steady_start=True,
                                                        perlen=perlen,
                                                        write_sim=True,
-                                                       run_sim=True)
+                                                       run_sim=False)
+    assert gwf.simulation.run_simulation()[0]
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
+    
+    
 
     return model_ds, gwf
 
@@ -285,10 +291,15 @@ def test_create_sea_model_perlen_14(tmpdir):
                                                            perlen=14,
                                                            steady_start=True,
                                                            write_sim=True,
-                                                           run_sim=True)
+                                                           run_sim=False)
+    
+    assert gwf.simulation.run_simulation()[0]
+
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
+    
+    
 
     return model_ds, gwf
 
@@ -324,7 +335,10 @@ def test_create_inf_panden_model(tmpdir):
                                                                          constant_head_edges=True,
                                                                          surface_drn=True,
                                                                          write_sim=True,
-                                                                         run_sim=True)
+                                                                         run_sim=False)
+    
+    assert gwf.simulation.run_simulation()[0]
+
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'infpanden_model.nc'))

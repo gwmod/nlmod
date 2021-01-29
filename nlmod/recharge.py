@@ -14,6 +14,7 @@ import flopy
 import hydropandas as hpd
 from . import mgrid
 from . import util
+from . import mfpackages
 
 
 def get_recharge(model_ds,
@@ -298,7 +299,14 @@ def model_datasets_to_rch(gwf, model_ds):
     for i, key in enumerate(rch_unique_dic.keys()):
         # add extra time step to the time series object (otherwise flopy fails)
         recharge_val = list(rch_unique_dic[key]) + [0.0]
-        time_steps_rch = list(model_ds['time_steps'].data) + [model_ds.nper]
+        
+        # get timesteps
+        tdis_perioddata = mfpackages.get_tdis_perioddata(model_ds)
+        perlen_arr = [t[0] for t in tdis_perioddata]
+        time_steps_rch = [0.0] + np.array(perlen_arr).cumsum().tolist()
+        # add last time step
+        #time_steps_rch = time_steps_rch + [time_steps_rch[-1]+perlen_arr[-1]]
+        
         recharge = list(zip(time_steps_rch, recharge_val))
         if i == 0:
             rch.ts.initialize(filename=f'{key}.ts',

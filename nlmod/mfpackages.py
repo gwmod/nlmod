@@ -512,7 +512,7 @@ def get_tdis_perioddata(model_ds):
     perlen = model_ds.perlen
     if isinstance(perlen, float) or isinstance(perlen, int):
         tdis_perioddata = [(float(perlen), model_ds.nstp, model_ds.tsmult)] * int(model_ds.nper)
-    elif isinstance(perlen, list) or isinstance(perlen, np.array):
+    elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
         if model_ds.steady_start:
             assert len(perlen) == model_ds.dims['time']
         else:

@@ -78,6 +78,10 @@ def facet_plot(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         DESCRIPTION.
 
     """
+    for key in plot_bc:
+        if not key in gwf.get_package_list():
+            raise ValueError(f'cannot plot boundary condition {key} because it is not in the package list')
+
     
     nlay = len(model_ds.layer)
 

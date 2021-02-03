@@ -29,8 +29,19 @@ setup(
     ],
     platforms='Windows, Mac OS-X',
     install_requires=['flopy>=3.3.2',
-                      'xarray>=0.16.1'
-                      ],
+                      'xarray>=0.16.1',
+					  'numpy>=1.15',
+					  'scipy>=1.2',
+					  'matplotlib>=3.0',
+				      'pandas>=1.0,<1.2.0',
+					  'shapely',
+					  'pyproj',
+				 	  'geopandas',
+					  'tqdm',
+					  'flopy',
+					  'xarray',
+					  'netCDF4'
+					  ],
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*"]},
     include_package_data=True

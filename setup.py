@@ -40,7 +40,8 @@ setup(
 					  'tqdm',
 					  'flopy',
 					  'xarray',
-					  'netCDF4'
+					  'netCDF4',
+					  'hydropandas'
 					  ],
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*"]},

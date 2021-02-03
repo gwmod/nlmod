@@ -189,10 +189,10 @@ def add_knmi_to_model_dataset(model_ds,
                 # add data to model_ds_out
                 model_ds_out['recharge'].loc[loc_sel.index] = rch_average
         else:
-            model_recharge = pd.Series(index=model_ds.time.data)
-            for i, ts in enumerate(model_recharge.index):
-                if i < (len(model_recharge)-1):
-                    model_recharge.loc[ts] = recharge_ts.loc[ts:model_recharge.index[i+1]].iloc[:-1].mean()
+            model_recharge = pd.Series(index=model_ds.time.data, dtype=float)
+            for j, ts in enumerate(model_recharge.index):
+                if j < (len(model_recharge)-1):
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:model_recharge.index[j+1]].iloc[:-1].mean()
                 else:
                     model_recharge.loc[ts] = recharge_ts.loc[ts:end].iloc[:-1].mean()
 

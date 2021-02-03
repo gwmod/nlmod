@@ -39,7 +39,7 @@ jobs:
           pip install codacy-coverage
           pip install -e .
           pip install wheel
-          pip install GDAL==2.4.2
+          pip install gdal --install-option="--include-dirs=/usr/include/gdal/"
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names

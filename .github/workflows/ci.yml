@@ -38,8 +38,7 @@ jobs:
           pip install pytest-dependency
           pip install codacy-coverage
           pip install -e .
-          pip install wheel
-          pip install gdal --install-option="--include-dirs=/usr/include/gdal/"
+          pip install GDAL==2.4.2
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names

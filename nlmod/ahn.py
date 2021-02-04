@@ -8,7 +8,6 @@ Created on Fri Jun 12 15:33:03 2020
 import os
 import tempfile
 
-import gdal
 import numpy as np
 import rasterio
 from rasterio import merge
@@ -73,14 +72,13 @@ def get_ahn_at_grid(model_ds, gridprops=None):
         dataset with the ahn variable.
 
     """
-    
-    if model_ds.gridtype=='structured':
+
+    if model_ds.gridtype == 'structured':
         resolution = min(model_ds.delr, model_ds.delc)
-    elif model_ds.gridtype=='unstructured':
-        resolution = min(model_ds.delr, model_ds.delc)/model_ds.levels
-    
-    
-    fname_ahn = get_ahn_within_extent(extent=model_ds.extent, 
+    elif model_ds.gridtype == 'unstructured':
+        resolution = min(model_ds.delr, model_ds.delc) / model_ds.levels
+
+    fname_ahn = get_ahn_within_extent(extent=model_ds.extent,
                                       res=resolution,
                                       return_fname=True,
                                       cache=True)
@@ -111,7 +109,7 @@ def get_ahn_at_grid(model_ds, gridprops=None):
 
 
 def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
-                     return_fname=False, fname=None, **kwargs):
+                     fname=None, **kwargs):
     """There is a max height and width limit of 4000 meters for the wcs server.
     This function splits your extent in chunks smaller than the limit. It
     returns a list of gdal Datasets.
@@ -135,7 +133,7 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
     -------
     ds : osgeo.gdal.dataset
         merged ahn dataset
-        
+
     Notes
     -----
     1. The resolution is used to obtain the ahn from the wcs server. Not sure
@@ -178,13 +176,7 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
     with rasterio.open(fname, "w", **out_meta) as dest1:
         dest1.write(dest)
 
-    if return_fname:
-        return fname
-
-    # load new tif
-    ds = load_ahn_tif(fname)
-
-    return ds
+    return fname
 
 
 def get_ahn_within_extent(extent=None, url='ahn3', identifier='ahn3_5m_dtm',
@@ -310,45 +302,4 @@ def get_ahn_within_extent(extent=None, url='ahn3', identifier='ahn3_5m_dtm',
         if verbose:
             print(f"- from cache {fname}")
 
-    if return_fname:
-        return fname
-    else:
-        # load ahn
-        ds = load_ahn_tif(fname)
-
-        return ds
-
-
-def load_ahn_tif(filename):
-    """check if a rasterband can be obtained and set nodata value for data
-    smaller than -100.
-
-    Parameters
-    ----------
-    ds : osgeo.gdal.dataset
-
-
-    Returns
-    -------
-    ds : osgeo.gdal.dataset
-        set nodata value for data smaller than -100.
-    """
-    ds = gdal.Open(filename)
-
-    try:
-        band = ds.GetRasterBand(1)
-    except AttributeError as e:
-        print(e)
-        raise (Exception("there's probably something wrong with your ahn "
-                         "download. Please check if your area is within the "
-                         "Netherlands"))
-
-    if band.GetNoDataValue() is None:
-        # change NoDataValue, as this is incorrect
-        H = ds.ReadAsArray()
-        Hmin = float(H.min())
-        if Hmin < -100:
-            band.SetNoDataValue(Hmin)
-        else:
-            band.SetNoDataValue(0.0)
-    return ds
+    return fname

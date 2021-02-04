@@ -301,7 +301,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     return model_ds, gwf
 
 
-@pytest.mark.slow
+@pytest.mark.skip #requires gridgen
 def test_create_sea_model_unstructured(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     refine_shp = os.path.join(nlmod.nlmod_datadir,
@@ -320,7 +320,7 @@ def test_create_sea_model_unstructured(tmpdir):
     return model_ds, gwf, gridprops
 
 
-@pytest.mark.skip
+@pytest.mark.skip #requires gridgen
 def test_create_inf_panden_model(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     extent = [100350., 106000., 500800., 508000.]

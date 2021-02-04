@@ -14,3 +14,4 @@ rasterio
 owslib
 gdown
 rtree
+pyshp

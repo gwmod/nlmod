@@ -449,7 +449,7 @@ def compare_model_extents(extent1, extent2, verbose=False):
 
 def gdf_from_extent(extent, crs="EPSG:28992"):
     """ create a geodataframe with a single polygon with the extent given
-    
+
 
     Parameters
     ----------
@@ -465,13 +465,12 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
         geodataframe with extent.
 
     """
-    
-    
+
     bbox = (extent[0], extent[2], extent[1], extent[3])
     geom_extent = box(*tuple(bbox))
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent],
                                   crs=crs)
-    
+
     return gdf_extent
 
 
@@ -494,21 +493,21 @@ def gdf_within_extent(gdf, extent):
     """
     # create geodataframe from the extent
     gdf_extent = gdf_from_extent(extent, crs=gdf.crs)
-    
-    #check type
+
+    # check type
     geom_types = gdf.geom_type.unique()
-    if len(geom_types)>1:
+    if len(geom_types) > 1:
         # exception if geomtypes is a combination of Polygon and Multipolygon
         multipoly_check = ('Polygon' in geom_types) and ('MultiPolygon' in geom_types)
         if (len(geom_types) == 2) and multipoly_check:
             gdf = gpd.overlay(gdf, gdf_extent)
-        else:           
+        else:
             raise TypeError(f'Only accepts single geometry type not {geom_types}')
-    elif geom_types[0]=='Polygon':
+    elif geom_types[0] == 'Polygon':
         gdf = gpd.overlay(gdf, gdf_extent)
-    elif geom_types[0]=='LineString':
+    elif geom_types[0] == 'LineString':
         gdf = gpd.sjoin(gdf, gdf_extent)
-    elif geom_types[0]=='Point':
+    elif geom_types[0] == 'Point':
         gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
         raise TypeError('Function is not tested for geometry type: '\
@@ -532,6 +531,8 @@ def get_google_drive_filename(id):
         filename.
 
     """
+    raise DeprecationWarning('this function is no longer supported use the gdown package instead')
+
     if isinstance(id, requests.Response):
         response = id
     else:
@@ -555,6 +556,8 @@ def download_file_from_google_drive(id, destination=None):
         written to the current working directory. The default is None.
 
     """
+    raise DeprecationWarning('this function is no longer supported use the gdown package instead')
+
     def get_confirm_token(response):
         for key, value in response.cookies.items():
             if key.startswith('download_warning'):

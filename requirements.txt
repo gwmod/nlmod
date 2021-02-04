@@ -12,3 +12,4 @@ netCDF4
 hydropandas
 rasterio
 owslib
+gdown

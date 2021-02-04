@@ -13,3 +13,4 @@ hydropandas
 rasterio
 owslib
 gdown
+rtree

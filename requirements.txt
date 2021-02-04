@@ -10,3 +10,4 @@ flopy
 xarray
 netCDF4
 hydropandas
+rasterio

@@ -45,36 +45,36 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
           
       - name: Install pymake, xmipy, and flopy
-      shell: bash -l {0}
-          run: |
-            pip install https://github.com/modflowpy/pymake/zipball/master
-            pip install xmipy
-            pip install .
+        shell: bash -l {0}
+        run: |
+          pip install https://github.com/modflowpy/pymake/zipball/master
+          pip install xmipy
+          pip install .
             
       - name: Setup symbolic link to gfortran on Linux
-          if: runner.os == 'Linux'
-          run: |
-            sudo ln -fs /usr/bin/gfortran-10 /usr/local/bin/gfortran
-            sudo ln -fs /usr/bin/gcc-10 /usr/local/bin/gcc
-            sudo ln -fs /usr/bin/g++-10 /usr/local/bin/g++
+        if: runner.os == 'Linux'
+        run: |
+          sudo ln -fs /usr/bin/gfortran-10 /usr/local/bin/gfortran
+          sudo ln -fs /usr/bin/gcc-10 /usr/local/bin/gcc
+          sudo ln -fs /usr/bin/g++-10 /usr/local/bin/g++
             
       - name: Print GNU compiler versions
-          run: |
-            gfortran --version
-            gcc --version
-            g++ --version
+        run: |
+          gfortran --version
+          gcc --version
+          g++ --version
             
       - name: Download executables needed for tests
-          shell: bash -l {0}
-          run: |
-            cd autotest
-            python get_exes.py
-            cd ..
+        shell: bash -l {0}
+        run: |
+          cd autotest
+          python get_exes.py
+          cd ..
             
       - name: Add executables directory to path
-          shell: bash
-          run: |
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
+        shell: bash
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
             
       - name: Run pytest
         run: |

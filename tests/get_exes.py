@@ -24,20 +24,11 @@ if not os.path.isdir(exe_pth):
 
 
 
-bindir = "."
-dotlocal = False
-
-if not dotlocal:
-    for idx, arg in enumerate(sys.argv):
-        if "--ci" in arg.lower():
-            dotlocal = True
-            break
-if dotlocal:
-    bindir = os.path.join(os.path.expanduser("~"), ".local", "bin")
-    bindir = os.path.abspath(bindir)
-    print("bindir: {}".format(bindir))
-    if not os.path.isdir(bindir):
-        os.makedirs(bindir)
+bindir = os.path.join(os.path.expanduser("~"), ".local", "bin")
+bindir = os.path.abspath(bindir)
+print("bindir: {}".format(bindir))
+if not os.path.isdir(bindir):
+    os.makedirs(bindir)
 
 # write where the executables will be downloaded
 print('modflow executables will be downloaded to:\n\n    "{}"'.format(bindir))

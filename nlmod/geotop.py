@@ -6,6 +6,7 @@ import numpy as np
 import nlmod
 
 from . import mgrid
+from . import regis
 
 
 def get_geotop_dataset(extent, delr, delc,
@@ -48,6 +49,11 @@ def get_geotop_dataset(extent, delr, delc,
         geotop dataset with top, bot, kh and kv per geo_eenheid
 
     """
+    # check extent
+    extent2, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
+    for coord1, coord2 in zip(extent, extent2):
+        if coord1 != coord2:
+            raise ValueError('extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function')
 
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent)
 

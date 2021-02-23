@@ -197,6 +197,12 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
         dataset with regis data projected on the modelgrid.
 
     """
+    # check extent
+    extent2, nrow, ncol = fit_extent_to_regis(extent, delr, delc)
+    for coord1, coord2 in zip(extent, extent2):
+        if coord1 != coord2:
+            raise ValueError('extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function')
+
     # get local regis dataset
     regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
 
@@ -259,11 +265,11 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
 
     """
     regis_geotop_ds = xr.Dataset()
-    
+
     # find holoceen (remove all layers above Holoceen)
     layer_no = np.where((regis_ds.layer == 'HLc').values)[0][0]
-    new_layers = np.append(geotop_ds.layer.data, 
-                           regis_ds.layer.data[layer_no+1:].astype('<U8')).astype('O')
+    new_layers = np.append(geotop_ds.layer.data,
+                           regis_ds.layer.data[layer_no + 1:].astype('<U8')).astype('O')
 
     top = xr.DataArray(dims=('layer', 'y', 'x'),
                        coords={'y': geotop_ds.y, 'x': geotop_ds.x,
@@ -286,6 +292,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         mask1 = geotop_ds['top'][lay] <= (regis_ds['bot'][layer_no] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask1, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask1, np.nan, geotop_ds['bot'][lay])
+        geotop_ds['kh'][lay] = xr.where(mask1, np.nan, geotop_ds['kh'][lay])
+        geotop_ds['kv'][lay] = xr.where(mask1, np.nan, geotop_ds['kv'][lay])
 
         # Alle geotop cellen waarvan de bodem onder de onderkant van het holoceen ligt, krijgen als bodem de onderkant van het holoceen
         mask2 = geotop_ds['bot'][lay] < regis_ds['bot'][layer_no]
@@ -295,6 +303,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         mask3 = geotop_ds['bot'][lay] >= (regis_ds['top'][layer_no] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask3, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask3, np.nan, geotop_ds['bot'][lay])
+        geotop_ds['kh'][lay] = xr.where(mask3, np.nan, geotop_ds['kh'][lay])
+        geotop_ds['kv'][lay] = xr.where(mask3, np.nan, geotop_ds['kv'][lay])
 
         # Alle geotop cellen waarvan de top boven de top van het holoceen ligt, krijgen als top het holoceen van regis
         mask4 = geotop_ds['top'][lay] >= regis_ds['top'][layer_no]
@@ -304,21 +314,23 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         mask5 = regis_ds['bot'][layer_no].isnull()
         geotop_ds['top'][lay] = xr.where(mask5, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask5, np.nan, geotop_ds['bot'][lay])
+        geotop_ds['kh'][lay] = xr.where(mask5, np.nan, geotop_ds['kh'][lay])
+        geotop_ds['kv'][lay] = xr.where(mask5, np.nan, geotop_ds['kv'][lay])
         if verbose:
             if (mask2 * (~mask1)).sum() > 0:
                 print(f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
 
     top[:len(geotop_ds.layer), :, :] = geotop_ds['top'].data
-    top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no+1:]
+    top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no + 1:]
 
     bot[:len(geotop_ds.layer), :, :] = geotop_ds['bot'].data
-    bot[len(geotop_ds.layer):, :, :] = regis_ds['bot'].data[layer_no+1:]
+    bot[len(geotop_ds.layer):, :, :] = regis_ds['bot'].data[layer_no + 1:]
 
     kh[:len(geotop_ds.layer), :, :] = geotop_ds['kh'].data
-    kh[len(geotop_ds.layer):, :, :] = regis_ds['kh'].data[layer_no+1:]
+    kh[len(geotop_ds.layer):, :, :] = regis_ds['kh'].data[layer_no + 1:]
 
     kv[:len(geotop_ds.layer), :, :] = geotop_ds['kv'].data
-    kv[len(geotop_ds.layer):, :, :] = regis_ds['kv'].data[layer_no+1:]
+    kv[len(geotop_ds.layer):, :, :] = regis_ds['kv'].data[layer_no + 1:]
 
     regis_geotop_ds['top'] = top
     regis_geotop_ds['bot'] = bot
@@ -331,8 +343,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     # maak top, bot, kh en kv nan waar de laagdikte 0 is
     mask = (regis_geotop_ds['top'] - regis_geotop_ds['bot']) < float_correction
     for key in ['top', 'bot', 'kh', 'kv']:
-        regis_geotop_ds[key] = xr.where(mask,np.nan,regis_geotop_ds[key])
-    
+        regis_geotop_ds[key] = xr.where(mask, np.nan, regis_geotop_ds[key])
 
     return regis_geotop_ds
 
@@ -366,6 +377,8 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
         number of columns.
 
     """
+    extent = extent.copy()
+    
     if verbose:
         print(f'redefining current extent: {extent}, fit to regis raster')
 

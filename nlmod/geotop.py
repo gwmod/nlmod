@@ -99,7 +99,7 @@ def get_geotop_raw_within_extent(extent):
 
     url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
     geotop_ds_raw = xr.open_dataset(url).sel(x=slice(extent[0], extent[1]),
-                                              y=slice(extent[2], extent[3]))
+                                             y=slice(extent[2], extent[3]))
     geotop_ds_raw = geotop_ds_raw[['strat', 'lithok']]
 
     return geotop_ds_raw

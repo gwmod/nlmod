@@ -243,7 +243,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     regis_ds: xarray.DataSet
         regis dataset
     geotop_ds: xarray.DataSet
-        regis dataset
+        geotop dataset
     float_correction: float
         due to floating point precision some floating point numbers that are
         the same are not recognised as the same. Therefore this correction is
@@ -328,10 +328,11 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     _ = [regis_geotop_ds.attrs.update({key: item})
                  for key, item in regis_ds.attrs.items()]
 
-    # maak bot nan waar de laagdikte 0 is
-    regis_geotop_ds['bot'] = xr.where((regis_geotop_ds['top'] - regis_geotop_ds['bot']) < float_correction,
-                                          np.nan,
-                                          regis_geotop_ds['bot'])
+    # maak top, bot, kh en kv nan waar de laagdikte 0 is
+    mask = (regis_geotop_ds['top'] - regis_geotop_ds['bot']) < float_correction
+    for key in ['top', 'bot', 'kh', 'kv']:
+        regis_geotop_ds[key] = xr.where(mask,np.nan,regis_geotop_ds[key])
+    
 
     return regis_geotop_ds
 

@@ -10,6 +10,8 @@ import pandas as pd
 import xarray as xr
 import datetime as dt
 
+from tqdm import tqdm
+
 import flopy
 import hydropandas as hpd
 from . import mgrid
@@ -134,7 +136,7 @@ def add_knmi_to_model_dataset(model_ds,
                                                 dims=('y', 'x', 'time'),
                                                 coords={'time': model_ds.time,
                                                         'x': model_ds.x,
-                                                        'y': model_ds_out.y})
+                                                        'y': model_ds.y})
     elif (model_ds.gridtype == 'unstructured') and model_ds.steady_state:
         empty_time_array = np.zeros((model_ds.dims['cid']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
@@ -256,11 +258,33 @@ def model_datasets_to_rch(gwf, model_ds):
                                             coords={'y': model_ds.y,
                                                     'x': model_ds.x})
         model_ds['rch_name'] = model_ds['rch_name'].astype(str)
-        rch_2d_arr = model_ds['recharge'].data.reshape((model_ds.dims['x'] * model_ds.dims['y'], model_ds.dims['time']))
+        #dimension check
+        if model_ds['recharge'].dims == ('time', 'y', 'x'):
+            axis = 0
+            rch_2d_arr = model_ds['recharge'].data.reshape((model_ds.dims['time'], model_ds.dims['x'] * model_ds.dims['y'])).T
+            
+            #check if reshaping is correct
+            if not (model_ds['recharge'].values[:,0,0] == rch_2d_arr[0]).all():
+                raise ValueError('reshaping recharge to calculate unique time series did not work out as expected')
+            
+            
+            
+        elif model_ds['recharge'].dims == ('y', 'x', 'time'):
+            axis = 2
+            rch_2d_arr = model_ds['recharge'].data.reshape((model_ds.dims['x'] * model_ds.dims['y'], model_ds.dims['time']))
+            
+            #check if reshaping is correct
+            if not (model_ds['recharge'].values[0,0,:] == rch_2d_arr[0]).all():
+                raise ValueError('reshaping recharge to calculate unique time series did not work out as expected')
+            
+        else:
+            raise ValueError('expected dataarray with 3 dimensions'\
+                             f'(time, y and x) or (y, x and time), not {model_ds["recharge"].dims}')
+
         rch_unique_arr = np.unique(rch_2d_arr, axis=0)
         rch_unique_dic = {}
         for i, unique_rch in enumerate(rch_unique_arr):
-            model_ds['rch_name'].data[(model_ds['recharge'].data == unique_rch).all(axis=2)] = f'rch_{i}'
+            model_ds['rch_name'].data[np.isin(model_ds['recharge'].values, unique_rch).all(axis=axis)] = f'rch_{i}'
             rch_unique_dic[f'rch_{i}'] = unique_rch
 
         mask = model_ds['rch_name'] != ''
@@ -270,12 +294,18 @@ def model_datasets_to_rch(gwf, model_ds):
                                                        only_active_cells=False)
 
     elif model_ds.gridtype == 'unstructured':
+        #dimension check
+        if model_ds['recharge'].dims != ('time', 'cid'):
+            raise ValueError('expected dataarray with 2 dimensions'\
+                             f'(time and cid), not {model_ds["recharge"].dims}')
+                
         empty_str_array = np.zeros_like(model_ds['idomain'][0], dtype="S13")
         model_ds['rch_name'] = xr.DataArray(empty_str_array,
                                             dims=('cid'),
                                             coords={'cid': model_ds.cid})
         model_ds['rch_name'] = model_ds['rch_name'].astype(str)
         rch_unique_arr = np.unique(model_ds['recharge'].data, axis=0)
+        
         rch_unique_dic = {}
         for i, unique_rch in enumerate(rch_unique_arr):
             model_ds['rch_name'][(model_ds['recharge'].data == unique_rch).all(axis=1)] = f'rch_{i}'
@@ -289,23 +319,23 @@ def model_datasets_to_rch(gwf, model_ds):
 
     # create rch package
     rch = flopy.mf6.ModflowGwfrch(gwf, filename=f'{gwf.name}.rch',
-                                  pname=f'{gwf.name}',
+                                  pname='rch',
                                   fixed_cell=False,
                                   maxbound=len(rch_spd_data),
                                   print_input=True,
                                   stress_period_data={0: rch_spd_data})
-
-    # create timseries packages
-    for i, key in enumerate(rch_unique_dic.keys()):
+    
+    # get timesteps
+    tdis_perioddata = mfpackages.get_tdis_perioddata(model_ds)
+    perlen_arr = [t[0] for t in tdis_perioddata]
+    time_steps_rch = [0.0] + np.array(perlen_arr).cumsum().tolist()
+    
+    # create timeseries packages
+    for i, key in tqdm(enumerate(rch_unique_dic.keys()),
+                       total=len(rch_unique_dic.keys()),
+                       desc="Building ts packages rch:"):
         # add extra time step to the time series object (otherwise flopy fails)
         recharge_val = list(rch_unique_dic[key]) + [0.0]
-        
-        # get timesteps
-        tdis_perioddata = mfpackages.get_tdis_perioddata(model_ds)
-        perlen_arr = [t[0] for t in tdis_perioddata]
-        time_steps_rch = [0.0] + np.array(perlen_arr).cumsum().tolist()
-        # add last time step
-        #time_steps_rch = time_steps_rch + [time_steps_rch[-1]+perlen_arr[-1]]
         
         recharge = list(zip(time_steps_rch, recharge_val))
         if i == 0:

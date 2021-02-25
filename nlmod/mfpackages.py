@@ -425,7 +425,7 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
     return drn
 
 
-def recharge_from_model_ds(model_ds, gwf):
+def rch_from_model_ds(model_ds, gwf):
     """ get recharge package from model dataset
 
 

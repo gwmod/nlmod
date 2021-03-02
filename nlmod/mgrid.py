@@ -322,18 +322,23 @@ def fillnan_dataarray_structured_grid(xar_in):
     Parameters
     ----------
     xar_in : xarray DataArray
-        DataArray with nan values.
+        DataArray with nan values. DataArray should have 2 dimensions 
+        (y and x).
 
     Returns
     -------
     xar_out : xarray DataArray
-        DataArray without nan values.
+        DataArray without nan values. DataArray has 3 dimensions 
+        (layer, y and x)
 
     Notes
     -----
     can be slow if the xar_in is a large raster
 
     """
+    # check dimensions
+    if xar_in.dims != ('y', 'x'):
+        raise ValueError(f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}")
 
     # get list of coordinates from all points in raster
     mg = np.meshgrid(xar_in.x.data, xar_in.y.data)

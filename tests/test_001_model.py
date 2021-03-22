@@ -238,7 +238,8 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
 # %% create models using create_model module
 
 
-@pytest.mark.slow
+#@pytest.mark.slow
+@pytest.mark.skip(reason="knmi api offline")
 def test_create_sea_model(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
@@ -260,7 +261,8 @@ def test_create_sea_model(tmpdir):
     return model_ds, gwf
 
 
-@pytest.mark.slow
+# @pytest.mark.slow
+@pytest.mark.skip(reason="knmi api offline")
 def test_create_sea_model_perlen_list(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
@@ -282,7 +284,8 @@ def test_create_sea_model_perlen_list(tmpdir):
     return model_ds, gwf
 
 
-@pytest.mark.slow
+# @pytest.mark.slow
+@pytest.mark.skip(reason="knmi api offline")
 def test_create_sea_model_perlen_14(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     extent = [95000., 105000., 494000., 500000.]

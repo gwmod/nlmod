@@ -15,7 +15,7 @@ import xarray as xr
 from owslib.wcs import WebCoverageService
 
 from .mgrid import (get_xyi_cid, resample_dataarray_to_structured_grid,
-                    resample_dataarray_to_unstructured_grid)
+                    resample_dataarray3d_to_unstructured_grid)
 from .util import get_cache_netcdf, get_model_ds_empty
 
 
@@ -111,9 +111,9 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
                                                        ymid=ymid)
     elif model_ds.gridtype == 'unstructured':
         xyi, cid = get_xyi_cid(gridprops)
-        ahn_ds = resample_dataarray_to_unstructured_grid(ahn_ds_raw,
-                                                         gridprops,
-                                                         xyi, cid)
+        ahn_ds = resample_dataarray3d_to_unstructured_grid(ahn_ds_raw,
+                                                           gridprops,
+                                                           xyi, cid)
 
     model_ds_out = get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]

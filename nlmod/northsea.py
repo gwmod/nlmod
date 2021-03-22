@@ -185,8 +185,8 @@ def bathymetry_to_model_dataset(model_ds,
                                                                     xmid=model_ds.x.data,
                                                                     ymid=model_ds.y.data[::-1])[0]
     elif model_ds.gridtype == 'unstructured':
-        da_bathymetry = mgrid.resample_dataarray_to_unstructured_grid(da_bathymetry_filled,
-                                                                      gridprops=gridprops)[0]
+        da_bathymetry = mgrid.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
+                                                                        gridprops=gridprops)[0]
 
     model_ds_out = util.get_model_ds_empty(model_ds)
 

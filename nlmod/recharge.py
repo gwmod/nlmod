@@ -209,7 +209,7 @@ def add_knmi_to_model_dataset(model_ds,
     return model_ds_out
 
 
-def model_datasets_to_rch(gwf, model_ds):
+def model_datasets_to_rch(gwf, model_ds, print_input=False):
     """ convert the recharge data in the model dataset to a recharge package 
     with time series.
 
@@ -219,6 +219,9 @@ def model_datasets_to_rch(gwf, model_ds):
         groundwater flow model.
     model_ds : xr.DataSet
         dataset containing relevant model grid information
+    print_input : bool, optional
+        value is passed to flopy.mf6.ModflowGwfrch() to determine if input
+        should be printed to the lst file. Default is False
 
     Returns
     -------
@@ -236,10 +239,10 @@ def model_datasets_to_rch(gwf, model_ds):
                                                            first_active_layer=True,
                                                            only_active_cells=False)
         elif model_ds.gridtype == 'unstructured':
-            rch_spd_data = mgrid.data_array_unstructured_to_rec_list(model_ds, mask,
-                                                                     col1='recharge',
-                                                                     first_active_layer=True,
-                                                                     only_active_cells=False)
+            rch_spd_data = mgrid.data_array_1d_unstr_to_rec_list(model_ds, mask,
+                                                                 col1='recharge',
+                                                                 first_active_layer=True,
+                                                                 only_active_cells=False)
         # create rch package
         rch = flopy.mf6.ModflowGwfrch(gwf, filename=f'{gwf.name}.rch',
                                       pname=f'{gwf.name}',
@@ -294,35 +297,40 @@ def model_datasets_to_rch(gwf, model_ds):
                                                        only_active_cells=False)
 
     elif model_ds.gridtype == 'unstructured':
-        #dimension check
-        if model_ds['recharge'].dims != ('time', 'cid'):
-            raise ValueError('expected dataarray with 2 dimensions'\
-                             f'(time and cid), not {model_ds["recharge"].dims}')
-                
         empty_str_array = np.zeros_like(model_ds['idomain'][0], dtype="S13")
         model_ds['rch_name'] = xr.DataArray(empty_str_array,
                                             dims=('cid'),
                                             coords={'cid': model_ds.cid})
         model_ds['rch_name'] = model_ds['rch_name'].astype(str)
-        rch_unique_arr = np.unique(model_ds['recharge'].data, axis=0)
         
+        #dimension check
+        if model_ds['recharge'].dims == ('cid', 'time'):
+            rch_2d_arr = model_ds['recharge'].values
+        elif model_ds['recharge'].dims == ('time', 'cid'):
+            rch_2d_arr = model_ds['recharge'].values.T
+        else:
+            raise ValueError('expected dataarray with 2 dimensions'\
+                             f'(time, cid) or (cid, time), not {model_ds["recharge"].dims}')
+        
+        
+        rch_unique_arr = np.unique(rch_2d_arr, axis=0)
         rch_unique_dic = {}
         for i, unique_rch in enumerate(rch_unique_arr):
-            model_ds['rch_name'][(model_ds['recharge'].data == unique_rch).all(axis=1)] = f'rch_{i}'
+            model_ds['rch_name'][(rch_2d_arr == unique_rch).all(axis=1)] = f'rch_{i}'
             rch_unique_dic[f'rch_{i}'] = unique_rch
 
         mask = model_ds['rch_name'] != ''
-        rch_spd_data = mgrid.data_array_unstructured_to_rec_list(model_ds, mask,
-                                                                 col1='rch_name',
-                                                                 first_active_layer=True,
-                                                                 only_active_cells=False)
+        rch_spd_data = mgrid.data_array_1d_unstr_to_rec_list(model_ds, mask,
+                                                             col1='rch_name',
+                                                             first_active_layer=True,
+                                                             only_active_cells=False)
 
     # create rch package
     rch = flopy.mf6.ModflowGwfrch(gwf, filename=f'{gwf.name}.rch',
                                   pname='rch',
                                   fixed_cell=False,
                                   maxbound=len(rch_spd_data),
-                                  print_input=True,
+                                  print_input=print_input,
                                   stress_period_data={0: rch_spd_data})
     
     # get timesteps

@@ -147,6 +147,7 @@ def test_create_small_model_grid_only(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
 
     extent = [98700., 99000., 489500., 489700.]
+    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
                                                    regis_botm_layer=b'KRz5',
                                                    use_regis=True,
@@ -176,7 +177,7 @@ def test_create_small_model_grid_only(tmpdir):
 def test_create_sea_model_grid_only(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
-
+    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
                                                    use_regis=True,
                                                    use_geotop=True,
@@ -196,6 +197,7 @@ def test_create_sea_model_grid_only(tmpdir):
 def test_create_seamodel_grid_only_without_northsea(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
+    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.regis.get_layer_models(extent, 100., 100.,
                                                    use_regis=True,
                                                    use_geotop=True,
@@ -218,7 +220,7 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir):
 def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
-
+    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent, 50., 50.)
     regis_geotop_ds = nlmod.regis.get_layer_models(extent, 50., 50.,
                                                    use_regis=True,
                                                    use_geotop=True,
@@ -240,6 +242,7 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
 def test_create_sea_model(tmpdir):
     tmpdir = _check_tmpdir(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
+    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent, 100, 100)
     model_ds, gwf = nlmod.create_model.gen_model_structured(tmpdir,
                                                        'full_sea_model',
                                                        extent=extent,

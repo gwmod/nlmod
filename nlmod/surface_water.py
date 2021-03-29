@@ -344,13 +344,16 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
                                                 model_ds.idomain,
                                                 model_ds.kh,
                                                 stage)
+        if "aux" in row:
+            auxlist = [row["aux"]]
+
         # write SPD
         for lay, cond in zip(lays, conds):
             cid = (lay,) + cellid
             if pkg == "RIV":
-                spd.append([cid, stage, cond, rbot])
+                spd.append([cid, stage, cond, rbot] + auxlist)
             elif pkg in ["DRN", "GHB"]:
-                spd.append([cid, stage, cond])
+                spd.append([cid, stage, cond] + auxlist)
 
     print(f"Skipped {len(errors.keys())} cells because of "
           "missing/erroneous data!")

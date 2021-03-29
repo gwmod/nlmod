@@ -377,7 +377,13 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
         number of columns.
 
     """
-    extent = extent.copy()
+    if isinstance(extent, list):
+        extent = extent.copy()
+    elif isinstance(extent, (tuple, np.ndarray)):
+        extent = list(extent)
+    else:
+        raise TypeError(f'expected extent of type list, tuple or np.ndarray, got {type(extent)}')
+
     
     if verbose:
         print(f'redefining current extent: {extent}, fit to regis raster')

@@ -229,8 +229,13 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
                         print('cached data grid differs from current model')
                     return False
             if check_time:
-                check_time = (model_ds['time'].data ==
-                              model_ds2['time'].data).all()
+                # check length time series
+                if model_ds.dims['time'] == model_ds2.dims['time']:
+                    # check times time series
+                    check_time = (model_ds['time'].data ==
+                                  model_ds2['time'].data).all()
+                else:
+                    check_time = False
                 if check_time:
                     if verbose:
                         print(

@@ -165,7 +165,7 @@ def gen_model_structured(model_ws,
                                        perlen=perlen)
 
     sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                         verbose)
+                                                         verbose=verbose)
 
     extent, nrow, ncol = regis.fit_extent_to_regis(extent,
                                                    delr,
@@ -420,7 +420,7 @@ def gen_model_unstructured(model_ws,
 
     # create model simulation packages
     sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                         verbose)
+                                                         verbose=verbose)
 
     extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc,
                                                    verbose=verbose)

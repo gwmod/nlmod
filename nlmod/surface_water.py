@@ -287,6 +287,7 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
     for cellid, row in tqdm(celldata.iterrows(),
                             total=celldata.index.size,
                             desc=f"Building stress period data {pkg}:"):
+
         # rbot
         if "rbot" in row.index:
             rbot = row["rbot"]
@@ -346,6 +347,9 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
                                                 stage)
         if "aux" in row:
             auxlist = [row["aux"]]
+
+        if model_ds.gridtype == 'unstructured':
+            cellid = (cellid,)
 
         # write SPD
         for lay, cond in zip(lays, conds):

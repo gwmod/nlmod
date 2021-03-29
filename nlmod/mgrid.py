@@ -338,7 +338,8 @@ def fillnan_dataarray_structured_grid(xar_in):
     """
     # check dimensions
     if xar_in.dims != ('y', 'x'):
-        raise ValueError(f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}")
+        raise ValueError(
+            f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}")
 
     # get list of coordinates from all points in raster
     mg = np.meshgrid(xar_in.x.data, xar_in.y.data)

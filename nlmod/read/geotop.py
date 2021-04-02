@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import nlmod
 
-from . import mgrid
+from .. import mgrid
 from . import regis
 
 

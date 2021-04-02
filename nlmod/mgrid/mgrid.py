@@ -23,7 +23,8 @@ from scipy import interpolate
 from scipy.interpolate import griddata
 from shapely.prepared import prep
 
-from . import mfpackages, northsea, util
+from .. import mfpackages, util
+from ..read import jarkus
 
 
 def modelgrid_from_model_ds(model_ds, gridprops=None):
@@ -164,7 +165,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         modelgrid = modelgrid_from_model_ds(model_ds, gridprops=gridprops)
 
         # find grid cells with northsea
-        model_ds = northsea.get_modelgrid_sea(model_ds,
+        model_ds = jarkus.get_modelgrid_sea(model_ds,
                                               modelgrid=modelgrid,
                                               cachedir=cachedir,
                                               use_cache=use_cache,
@@ -178,15 +179,15 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                               gridprops=gridprops)
 
         # add bathymetry noordzee
-        model_ds = northsea.get_modelgrid_bathymetry(model_ds,
+        model_ds = jarkus.get_modelgrid_bathymetry(model_ds,
                                                      gridprops=gridprops,
                                                      cachedir=cachedir,
                                                      use_cache=use_cache,
                                                      verbose=verbose)
 
-        model_ds = northsea.add_bathymetry_to_top_bot_kh_kv(model_ds,
-                                                            model_ds['bathymetry'],
-                                                            fill_mask)
+        model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(model_ds,
+                                                          model_ds['bathymetry'],
+                                                          fill_mask)
 
         # update idomain on adjusted tops and bots
         model_ds['thickness'] = get_thickness_from_topbot(model_ds['top'],
@@ -668,7 +669,7 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
         exe_name = "gridgen"
     else:
         exe_name = os.path.join(os.path.dirname(__file__),
-                                '..', 'executables', 'gridgen.exe')
+                                '.', ' .', 'executables', 'gridgen.exe')
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
 
     g.add_refinement_features(shp_fname, shp_type, levels, range(nlay))

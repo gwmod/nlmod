@@ -6,7 +6,8 @@ modelgrid.
 import numpy as np
 import xarray as xr
 
-from nlmod import mgrid, geotop, util
+from .. import mgrid, util
+from . import geotop
 
 
 def get_layer_models(extent, delr, delc,

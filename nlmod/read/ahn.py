@@ -14,9 +14,8 @@ from rasterio import merge
 import xarray as xr
 from owslib.wcs import WebCoverageService
 
-from .mgrid import (get_xyi_cid, resample_dataarray_to_structured_grid,
-                    resample_dataarray3d_to_unstructured_grid)
-from .util import get_cache_netcdf, get_model_ds_empty
+from .. import mgrid
+from .. import util
 
 
 def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
@@ -47,9 +46,9 @@ def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
     cachedir of the model I think.
 
     """
-    ahn_ds = get_cache_netcdf(use_cache, cachedir, fname_netcdf,
-                              get_ahn_at_grid, model_ds, check_time=False,
-                              verbose=verbose, gridprops=gridprops)
+    ahn_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
+                                   get_ahn_at_grid, model_ds, check_time=False,
+                                   verbose=verbose, gridprops=gridprops)
 
     return ahn_ds
 
@@ -103,19 +102,19 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
 
     if model_ds.gridtype == 'structured':
         ymid = model_ds.y.data[::-1]
-        ahn_ds = resample_dataarray_to_structured_grid(ahn_ds_raw,
+        ahn_ds = mgrid.resample_dataarray_to_structured_grid(ahn_ds_raw,
                                                        extent=model_ds.extent,
                                                        delr=model_ds.delr,
                                                        delc=model_ds.delc,
                                                        xmid=model_ds.x.data,
                                                        ymid=ymid)
     elif model_ds.gridtype == 'unstructured':
-        xyi, cid = get_xyi_cid(gridprops)
-        ahn_ds = resample_dataarray3d_to_unstructured_grid(ahn_ds_raw,
+        xyi, cid = mgrid.get_xyi_cid(gridprops)
+        ahn_ds = mgrid.resample_dataarray3d_to_unstructured_grid(ahn_ds_raw,
                                                            gridprops,
                                                            xyi, cid)
 
-    model_ds_out = get_model_ds_empty(model_ds)
+    model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]
 
     return model_ds_out

@@ -17,7 +17,8 @@ import gdown
 
 
 import nlmod
-from . import util, mgrid, surface_water
+from .. import util, mgrid
+from ..mfpackages import surface_water
 
 
 def get_modelgrid_sea(model_ds,

@@ -8,7 +8,7 @@ import xarray as xr
 import numbers
 import numpy as np
 import flopy
-from nlmod import mgrid, recharge
+from .. import mgrid, read
 
 
 def sim_tdis_gwf_ims_from_model_ds(model_ds, 
@@ -445,7 +445,7 @@ def rch_from_model_ds(model_ds, gwf):
     """
 
     # create recharge package
-    rch = recharge.model_datasets_to_rch(gwf, model_ds)
+    rch = read.recharge.model_datasets_to_rch(gwf, model_ds)
 
     return rch
 

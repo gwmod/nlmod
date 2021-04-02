@@ -5,7 +5,7 @@ Created on Thu Jan  7 21:32:49 2021
 @author: oebbe
 """
 
-from nlmod import surface_water
+from .mfpackages import surface_water
 import matplotlib.pyplot as plt
 import os
 import numpy as np

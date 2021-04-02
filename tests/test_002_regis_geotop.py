@@ -5,7 +5,7 @@ Created on Thu Jan  7 16:23:35 2021
 @author: oebbe
 """
 
-from nlmod import regis, geotop
+from nlmod.read import regis, geotop
 import test_001_model
 import pandas as pd
 import os

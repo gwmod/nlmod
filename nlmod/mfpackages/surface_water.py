@@ -13,7 +13,7 @@ from flopy.utils import GridIntersect
 from tqdm import tqdm
 
 import nlmod
-from . import mgrid, util
+from .. import mgrid, util
 
 
 def get_gdf_surface_water(model_ds):

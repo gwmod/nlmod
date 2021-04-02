@@ -5,8 +5,12 @@ Created on Thu Jan  7 12:13:44 2021
 @author: oebbe
 """
 
-from . import (create_model, mtime, mgrid, recharge, surface_water, util,
-               mfpackages, regis, geotop, northsea, plots)
+from . import (create_model, mtime, util, plots)
+
+
+from . import mfpackages
+from . import mgrid
+from . import read
 
 from .version import __version__
 

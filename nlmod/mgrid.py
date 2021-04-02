@@ -453,11 +453,6 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
         value. The value in the interpolated raster is set to nan. 
         See also: https://stackoverflow.com/questions/51474792/2d-interpolation-with-nan-values-in-python
 
-    Raises
-    ------
-    NotImplementedError
-        Not many interpolation methods are available (yet).
-
     Returns
     -------
     ds_out : xarray.DataArray
@@ -562,11 +557,6 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
     kind : str, optional
         type of interpolation used to resample. The default is 'linear'.
 
-    Raises
-    ------
-    NotImplementedError
-        Not many interpolation methods are available (yet).
-
     Returns
     -------
     ds_out : xarray.Dataset
@@ -594,7 +584,8 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
 def create_unstructured_grid(gridgen_ws, model_name, gwf,
                              shp_fname, levels, extent,
                              nlay, nrow, ncol, delr,
-                             delc, cachedir=None,
+                             delc, shp_type='line',
+                             cachedir=None,
                              use_cache=False,
                              verbose=False):
     """ created unstructured grid. Refine grid using a shapefile and
@@ -609,7 +600,8 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
     gwf : flopy.mf6.modflow.mfgwf.ModflowGwf
         groundwater flow model.
     shp_fname : str
-        path to shapefiles that is used to refine grid.
+        path to shapefiles that is used to refine grid. It seems like this
+        shape should be in the gridgen directory
     levels : int
         the number of refine levels.
     extent : list, tuple or np.array
@@ -624,6 +616,9 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
         cell size along rows of the desired grid (dx).
     delc : int or float
         cell size along columns of the desired grid (dy).
+    shp_type : str
+        type of the shp_fname file. Options are 'point', 'line', or 'polygon'.
+        Default is 'line'
     cachedir : str, optional
         directory to store cached values, if None a temporary directory is
         used. default is None
@@ -674,7 +669,7 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
                                 '..', 'executables', 'gridgen.exe')
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
 
-    g.add_refinement_features(shp_fname, 'line', levels, range(nlay))
+    g.add_refinement_features(shp_fname, shp_type, levels, range(nlay))
     g.build()
 
     gridprops = g.get_gridprops_disv()
@@ -738,11 +733,6 @@ def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
 
-    Raises
-    ------
-    NotImplementedError
-        Not many interpolation methods are available (yet).
-
     Returns
     -------
     da_out : xarray.DataArray
@@ -789,11 +779,6 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
 
-    Raises
-    ------
-    NotImplementedError
-        Not many interpolation methods are available (yet).
-
     Returns
     -------
     da_out : xarray.DataArray
@@ -816,6 +801,7 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
         # regrid
         arr_out[i] = griddata(
             points, ds_lay.data.flatten(), xyi, method=method)
+    
 
     # new dataset
     da_out = xr.DataArray(arr_out, dims=('layer', 'cid'),
@@ -840,11 +826,6 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
         dictionary with grid properties output from gridgen.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
-
-    Raises
-    ------
-    NotImplementedError
-        Not many interpolation methods are available (yet).
 
     Returns
     -------

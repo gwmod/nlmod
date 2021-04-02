@@ -345,7 +345,6 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
                                                 model_ds.idomain,
                                                 model_ds.kh,
                                                 stage)
-
         if "aux" in row:
             auxlist = [row["aux"]]
 

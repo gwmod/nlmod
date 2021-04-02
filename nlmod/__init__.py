@@ -5,11 +5,11 @@ Created on Thu Jan  7 12:13:44 2021
 @author: oebbe
 """
 
-from . import (create_model, mtime, util, plots)
+from . import (util, plots)
 
 
 from . import mfpackages
-from . import mgrid
+from . import mdims
 from . import read
 
 from .version import __version__

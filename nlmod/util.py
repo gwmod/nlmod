@@ -10,12 +10,9 @@ import requests
 import re
 
 import numpy as np
-import pandas as pd
 import geopandas as gpd
 import xarray as xr
 from shapely.geometry import box
-
-from . import mgrid, mtime
 
 
 def get_model_dirs(model_ws, gridtype='structured'):

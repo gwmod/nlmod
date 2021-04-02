@@ -82,13 +82,13 @@ def test_model_ds_check_grid_false():
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
     model_ds2 = test_001_model.test_model_ds_time_transient(tmpdir)
     extent = [99100., 99400., 489100., 489400.]
-    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent,75., 75.)
-    regis_ds = nlmod.regis.get_layer_models(extent, 75., 75.,
-                                            use_regis=True,
-                                            use_geotop=False,
-                                            verbose=True)
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent,75., 75.)
+    regis_ds = nlmod.read.regis.get_layer_models(extent, 75., 75.,
+                                                 use_regis=True,
+                                                 use_geotop=False,
+                                                 verbose=True)
 
-    model_ds2 = nlmod.mgrid.update_model_ds_from_ml_layer_ds(model_ds2,
+    model_ds2 = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds2,
                                                              regis_ds,
                                                              keep_vars=['x', 'y'],
                                                              gridtype='structured',
@@ -105,12 +105,12 @@ def test_use_cached_regis(tmpdir):
     extent = [98700., 99000., 489500., 489700.]
     delr = 100.
     delc = 100.
-    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent,delr, delc)
-    regis_ds1 = nlmod.regis.get_regis_dataset(extent, delr, delc,
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent,delr, delc)
+    regis_ds1 = nlmod.read.regis.get_regis_dataset(extent, delr, delc,
                                              cachedir=tmpdir,
                                              verbose=True)
 
-    regis_ds2 = nlmod.regis.get_regis_dataset(extent, delr, delc,
+    regis_ds2 = nlmod.read.regis.get_regis_dataset(extent, delr, delc,
                                               cachedir=tmpdir,
                                               use_cache=True,
                                               verbose=True)
@@ -125,8 +125,8 @@ def test_do_not_use_cached_regis(tmpdir):
     extent = [98700., 99000., 489500., 489700.]
     delr = 100.
     delc = 100.
-    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent,delr, delc)
-    regis_ds1 = nlmod.regis.get_regis_dataset(extent, delr, delc,
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent,delr, delc)
+    regis_ds1 = nlmod.read.regis.get_regis_dataset(extent, delr, delc,
                                               cachedir=tmpdir,
                                               verbose=True)
 
@@ -134,8 +134,8 @@ def test_do_not_use_cached_regis(tmpdir):
     extent = [99100., 99400., 489100., 489400.]
     delr = 100.
     delc = 100.
-    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent,delr, delc)
-    regis_ds2 = nlmod.regis.get_regis_dataset(extent, delr, delc,
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent,delr, delc)
+    regis_ds2 = nlmod.read.regis.get_regis_dataset(extent, delr, delc,
                                               cachedir=tmpdir,
                                               use_cache=True,
                                               verbose=True)
@@ -146,8 +146,8 @@ def test_do_not_use_cached_regis(tmpdir):
     extent = [99100., 99400., 489100., 489400.]
     delr = 75.
     delc = 100.
-    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent,delr, delc)
-    regis_ds3 = nlmod.regis.get_regis_dataset(extent, delr, delc,
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent,delr, delc)
+    regis_ds3 = nlmod.read.regis.get_regis_dataset(extent, delr, delc,
                                               cachedir=tmpdir,
                                               use_cache=True,
                                               verbose=True)
@@ -158,8 +158,8 @@ def test_do_not_use_cached_regis(tmpdir):
     extent = [99100., 99400., 489100., 489400.]
     delr = 75.
     delc = 75.
-    extent, nrow, ncol = nlmod.regis.fit_extent_to_regis(extent,delr, delc)
-    regis_ds4 = nlmod.regis.get_regis_dataset(extent, delr, delc,
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent,delr, delc)
+    regis_ds4 = nlmod.read.regis.get_regis_dataset(extent, delr, delc,
                                               cachedir=tmpdir,
                                               use_cache=True,
                                               verbose=True)

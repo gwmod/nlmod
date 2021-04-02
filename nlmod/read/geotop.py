@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import nlmod
 
-from .. import mgrid
+from .. import mdims
 from . import regis
 
 
@@ -75,7 +75,7 @@ def get_geotop_dataset(extent, delr, delc,
                                                 geo_eenheid_translate_df=geo_eenheid_translate_df,
                                                 verbose=verbose)
 
-    geotop_ds = mgrid.get_ml_layer_dataset_struc(raw_ds=geotop_ds_raw,
+    geotop_ds = mdims.get_ml_layer_dataset_struc(raw_ds=geotop_ds_raw,
                                                  extent=extent,
                                                  delr=delr, delc=delc,
                                                  cachedir=cachedir,

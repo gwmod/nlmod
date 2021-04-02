@@ -11,7 +11,7 @@ import xarray as xr
 from tqdm import tqdm
 
 import flopy
-from .. import mgrid
+from .. import mdims
 from . import mfpackages
 
 
@@ -41,12 +41,12 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     if model_ds.steady_state:
         mask = model_ds['recharge'] != 0
         if model_ds.gridtype == 'structured':
-            rch_spd_data = mgrid.data_array_2d_to_rec_list(model_ds, mask,
+            rch_spd_data = mdims.data_array_2d_to_rec_list(model_ds, mask,
                                                            col1='recharge',
                                                            first_active_layer=True,
                                                            only_active_cells=False)
         elif model_ds.gridtype == 'unstructured':
-            rch_spd_data = mgrid.data_array_1d_unstr_to_rec_list(model_ds, mask,
+            rch_spd_data = mdims.data_array_1d_unstr_to_rec_list(model_ds, mask,
                                                                  col1='recharge',
                                                                  first_active_layer=True,
                                                                  only_active_cells=False)
@@ -98,7 +98,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
             rch_unique_dic[f'rch_{i}'] = unique_rch
 
         mask = model_ds['rch_name'] != ''
-        rch_spd_data = mgrid.data_array_2d_to_rec_list(model_ds, mask,
+        rch_spd_data = mdims.data_array_2d_to_rec_list(model_ds, mask,
                                                        col1='rch_name',
                                                        first_active_layer=True,
                                                        only_active_cells=False)
@@ -127,7 +127,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
             rch_unique_dic[f'rch_{i}'] = unique_rch
 
         mask = model_ds['rch_name'] != ''
-        rch_spd_data = mgrid.data_array_1d_unstr_to_rec_list(model_ds, mask,
+        rch_spd_data = mdims.data_array_1d_unstr_to_rec_list(model_ds, mask,
                                                              col1='rch_name',
                                                              first_active_layer=True,
                                                              only_active_cells=False)

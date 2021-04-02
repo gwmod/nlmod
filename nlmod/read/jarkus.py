@@ -17,7 +17,7 @@ import gdown
 
 
 import nlmod
-from .. import util, mgrid
+from .. import util, mdims
 from ..mfpackages import surface_water
 
 
@@ -93,7 +93,7 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
                                                                  'Hollandse kust (kustwater)',
                                                                  'Waddenkust (kustwater)'])]
 
-    model_ds_out = mgrid.gdf_to_bool_dataset(model_ds, swater_zee,
+    model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee,
                                              modelgrid, da_name)
 
     return model_ds_out
@@ -157,7 +157,7 @@ def bathymetry_to_model_dataset(model_ds,
     changing the order in which operations are executed.
     """
     try:
-        jarkus = get_dataset_jarkus(model_ds.extent)
+        jarkus_ds = get_dataset_jarkus(model_ds.extent)
     except OSError:
         print('cannot access Jarkus netCDF link, copy file from google drive instead')
         fname_jarkus = os.path.join(model_ds.model_ws,
@@ -165,12 +165,12 @@ def bathymetry_to_model_dataset(model_ds,
         url = 'https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo'
         gdown.download(url, fname_jarkus,
                        quiet=False)
-        jarkus = xr.open_dataset(fname_jarkus)
+        jarkus_ds = xr.open_dataset(fname_jarkus)
 
-    da_bathymetry_raw = jarkus['z']
+    da_bathymetry_raw = jarkus_ds['z']
 
     # fill nan values in bathymetry
-    da_bathymetry_filled = mgrid.fillnan_dataarray_structured_grid(
+    da_bathymetry_filled = mdims.fillnan_dataarray_structured_grid(
         da_bathymetry_raw)
 
     # bathymetrie mag nooit groter zijn dan NAP 0.0
@@ -179,14 +179,14 @@ def bathymetry_to_model_dataset(model_ds,
 
     # bathymetry projected on model grid
     if model_ds.gridtype == 'structured':
-        da_bathymetry = mgrid.resample_dataarray_to_structured_grid(da_bathymetry_filled,
+        da_bathymetry = mdims.resample_dataarray_to_structured_grid(da_bathymetry_filled,
                                                                     extent=model_ds.extent,
                                                                     delr=model_ds.delr,
                                                                     delc=model_ds.delc,
                                                                     xmid=model_ds.x.data,
                                                                     ymid=model_ds.y.data[::-1])[0]
     elif model_ds.gridtype == 'unstructured':
-        da_bathymetry = mgrid.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
+        da_bathymetry = mdims.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
                                                                         gridprops=gridprops)[0]
 
     model_ds_out = util.get_model_ds_empty(model_ds)

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from nlmod import recharge, ahn, surface_water
 import test_001_model
 import test_002_regis_geotop
 import pandas as pd
@@ -16,8 +15,8 @@ def test_get_recharge():
     model_ds = test_001_model.test_get_model_ds_from_cache('sea_model_grid')
 
     # add knmi recharge to the model datasets
-    model_ds = recharge.add_knmi_to_model_dataset(model_ds,
-                                                  verbose=True)
+    model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds,
+                                                         verbose=True)
 
     return model_ds
 
@@ -46,8 +45,8 @@ def test_get_recharge_perlen14():
              for key, item in model_ds_time.attrs.items()]
 
     # add knmi recharge to the model datasets
-    model_ds = recharge.add_knmi_to_model_dataset(model_ds,
-                                                  verbose=True)
+    model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds,
+                                                         verbose=True)
 
     return model_ds
 
@@ -78,7 +77,7 @@ def test_get_recharge_perlen_list():
              for key, item in model_ds_time.attrs.items()]
 
     # add knmi recharge to the model datasets
-    model_ds = recharge.add_knmi_to_model_dataset(model_ds,
+    model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds,
                                                   verbose=True)
 
     return model_ds
@@ -108,7 +107,7 @@ def test_get_recharge_steady_state():
              for key, item in model_ds_time.attrs.items()]
 
     # add knmi recharge to the model datasets
-    model_ds = recharge.add_knmi_to_model_dataset(model_ds,
+    model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds,
                                                   verbose=True)
 
     return model_ds
@@ -120,7 +119,7 @@ def test_get_ahn():
     model_ds = test_001_model.test_get_model_ds_from_cache('sea_model_grid')
 
     # add ahn data to the model datasets
-    model_ds = ahn.get_ahn_at_grid(model_ds)
+    model_ds = nlmod.read.ahn.get_ahn_at_grid(model_ds)
 
     return model_ds
 
@@ -133,8 +132,8 @@ def test_get_surface_water_ghb():
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
     # add knmi recharge to the model datasets
-    model_ds = surface_water.surface_water_to_model_dataset(model_ds,
-                                                            gwf.modelgrid,
-                                                            'surface_water')
+    model_ds = nlmod.mfpackages.surface_water.surface_water_to_model_dataset(model_ds,
+                                                                             gwf.modelgrid,
+                                                                             'surface_water')
 
     return model_ds

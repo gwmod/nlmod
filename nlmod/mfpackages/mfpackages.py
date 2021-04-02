@@ -8,7 +8,7 @@ import xarray as xr
 import numbers
 import numpy as np
 import flopy
-from .. import mgrid, read
+from .. import mdims, read
 
 
 def sim_tdis_gwf_ims_from_model_ds(model_ds, 
@@ -216,7 +216,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
     """
 
     if model_ds.gridtype == 'structured':
-        ghb_rec = mgrid.data_array_2d_to_rec_list(model_ds,
+        ghb_rec = mdims.data_array_2d_to_rec_list(model_ds,
                                                   model_ds[f'{da_name}_cond'] != 0,
                                                   col1=f'{da_name}_peil',
                                                   col2=f'{da_name}_cond',
@@ -224,7 +224,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
                                                   only_active_cells=False,
                                                   layer=0)
     elif model_ds.gridtype == 'unstructured':
-        ghb_rec = mgrid.data_array_1d_unstr_to_rec_list(model_ds,
+        ghb_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds,
                                                         model_ds[f'{da_name}_cond'] != 0,
                                                         col1=f'{da_name}_peil',
                                                         col2=f'{da_name}_cond',
@@ -357,7 +357,7 @@ def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
             model_ds['chd'].loc[lay] = np.where(mask2d & (model_ds['idomain'].loc[lay] == 1), 1, 0)
 
         # get the stress_period_data
-        chd_rec = mgrid.data_array_3d_to_rec_list(model_ds,
+        chd_rec = mdims.data_array_3d_to_rec_list(model_ds,
                                                   model_ds['chd'] != 0,
                                                   col1=head)
     elif model_ds.gridtype == 'unstructured':
@@ -407,12 +407,12 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
     model_ds.attrs['surface_drn_cond'] = surface_drn_cond
     mask = model_ds['ahn'].notnull()
     if model_ds.gridtype == 'structured':
-        drn_rec = mgrid.data_array_2d_to_rec_list(model_ds, mask, col1='ahn',
+        drn_rec = mdims.data_array_2d_to_rec_list(model_ds, mask, col1='ahn',
                                                   first_active_layer=True,
                                                   only_active_cells=False,
                                                   col2=model_ds.surface_drn_cond)
     elif model_ds.gridtype == 'unstructured':
-        drn_rec = mgrid.data_array_1d_unstr_to_rec_list(model_ds, mask,
+        drn_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds, mask,
                                                         col1='ahn',
                                                         col2=model_ds.surface_drn_cond,
                                                         first_active_layer=True,

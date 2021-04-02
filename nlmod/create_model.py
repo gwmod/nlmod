@@ -165,7 +165,7 @@ def gen_model_structured(model_ws,
                                        perlen=perlen)
 
     sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                         verbose)
+                                                         verbose=verbose)
 
     extent, nrow, ncol = regis.fit_extent_to_regis(extent,
                                                    delr,
@@ -238,7 +238,7 @@ def gen_model_structured(model_ws,
                                          cachedir=cachedir,
                                          use_cache=use_cache)
         # create recharge package
-        mfpackages.recharge_from_model_ds(model_ds, gwf)
+        mfpackages.rch_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
     if add_chd_edges:
@@ -420,7 +420,7 @@ def gen_model_unstructured(model_ws,
 
     # create model simulation packages
     sim, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                         verbose)
+                                                         verbose=verbose)
 
     extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc,
                                                    verbose=verbose)
@@ -513,7 +513,7 @@ def gen_model_unstructured(model_ws,
                                          cachedir=cachedir,
                                          use_cache=use_cache)
         # create recharge package
-        mfpackages.recharge_from_model_ds(model_ds, gwf)
+        mfpackages.rch_from_model_ds(model_ds, gwf)
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(cachedir, 'full_model_ds.nc'))

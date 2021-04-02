@@ -322,18 +322,24 @@ def fillnan_dataarray_structured_grid(xar_in):
     Parameters
     ----------
     xar_in : xarray DataArray
-        DataArray with nan values.
+        DataArray with nan values. DataArray should have 2 dimensions 
+        (y and x).
 
     Returns
     -------
     xar_out : xarray DataArray
-        DataArray without nan values.
+        DataArray without nan values. DataArray has 3 dimensions 
+        (layer, y and x)
 
     Notes
     -----
     can be slow if the xar_in is a large raster
 
     """
+    # check dimensions
+    if xar_in.dims != ('y', 'x'):
+        raise ValueError(
+            f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}")
 
     # get list of coordinates from all points in raster
     mg = np.meshgrid(xar_in.x.data, xar_in.y.data)
@@ -711,9 +717,60 @@ def get_xyi_cid(gridprops):
     return xyi, cid
 
 
-def resample_dataarray_to_unstructured_grid(da_in, gridprops=None,
-                                            xyi=None, cid=None,
-                                            method='nearest'):
+def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
+                                              xyi=None, cid=None,
+                                              method='nearest'):
+    """resample a 2d dataarray (xarray) from a structured grid to a new 
+    dataaraay of an unstructured grid.
+
+    Parameters
+    ----------
+    da_in : xarray.DataArray
+        data array with dimensions (y, x). y and x are from the original
+        grid
+    gridprops : dictionary, optional
+        dictionary with grid properties output from gridgen.
+    xyi : numpy.ndarray, optional
+        array with x and y coördinates of cell centers, shape(len(cid), 2). If 
+        xyi is None xyi is calculated from the gridproperties.
+    cid : list or numpy.ndarray, optional
+        list with cellids. If  cid is None cid is calculated from the 
+        gridproperties.
+    method : str, optional
+        type of interpolation used to resample. The default is 'nearest'.
+
+    Raises
+    ------
+    NotImplementedError
+        Not many interpolation methods are available (yet).
+
+    Returns
+    -------
+    da_out : xarray.DataArray
+        data array with dimension (cid).
+
+    """
+    if (xyi is None) or (cid is None):
+        xyi, cid = get_xyi_cid(gridprops)
+
+    # get x and y values of all cells in dataarray
+    mg = np.meshgrid(da_in.x.data, da_in.y.data)
+    points = np.vstack((mg[0].ravel(), mg[1].ravel())).T
+
+    # regrid
+    arr_out = griddata(points, da_in.data.flatten(), xyi, method=method)
+
+    # new dataset
+    da_out = xr.DataArray(arr_out, dims=('cid'),
+                          coords={'cid': cid})
+
+    return da_out
+
+
+
+def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
+                                              xyi=None, cid=None,
+                                              method='nearest'):
     """resample a dataarray (xarray) from a structured grid to a new dataaraay 
     of an unstructured grid.
 
@@ -741,8 +798,7 @@ def resample_dataarray_to_unstructured_grid(da_in, gridprops=None,
     Returns
     -------
     da_out : xarray.DataArray
-        data array with dimensions (layer, y, x). y and x are from the new
-        grid.
+        data array with dimensions (layer,cid).
 
     """
     if (xyi is None) or (cid is None):
@@ -771,7 +827,8 @@ def resample_dataarray_to_unstructured_grid(da_in, gridprops=None,
 
 
 def resample_dataset_to_unstructured_grid(ds_in, gridprops,
-                                          method='nearest'):
+                                          method='nearest',
+                                          verbose=False):
     """ resample a dataset (xarray) from an structured grid to a new dataset 
     from an unstructured grid.
 
@@ -812,9 +869,23 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
 
     # add other variables
     for data_var in ds_in.data_vars:
-        data_arr = resample_dataarray_to_unstructured_grid(ds_in[data_var],
-                                                           xyi=xyi, cid=cid,
-                                                           method=method)
+        if ds_in[data_var].dims == ('layer', 'y', 'x'):
+            data_arr = resample_dataarray3d_to_unstructured_grid(ds_in[data_var],
+                                                                 xyi=xyi, cid=cid,
+                                                                 method=method)
+        elif ds_in[data_var].dims == ('y', 'x'):
+            data_arr = resample_dataarray2d_to_unstructured_grid(ds_in[data_var],
+                                                                 xyi=xyi, cid=cid,
+                                                                 method=method)
+            
+        elif ds_in[data_var].dims == ('layer'):
+            data_arr = ds_in[data_var]
+        
+        else:
+            if verbose:
+                print(f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
+            continue
+            
         ds_out[data_var] = data_arr
 
     return ds_out
@@ -1119,14 +1190,15 @@ def lcid_to_rec_list(layers, cellids, model_ds,
     layers : list or numpy.ndarray
         list with the layer for each cell in the rec_list.
     cellids : tuple of numpy arrays
-        tuple with cell ids of the cells that will be used to create the list
-        with values.
+        tuple with indices of the cells that will be used to create the list
+        with values for a column. There are 2 options:
+            1. cellids contains (layers, cids)
+            2. cellids contains (cids)
     model_ds : xarray.Dataset
-        dataset with model data. Can have dimension (layer, y, x) or 
-        (layer, cid).
+        dataset with model data. Should have dimensions (layer, cid).
     col1 : str, int or float, optional
         1st column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column)) for each row.
+        ((layer,cid)) for each row.
 
         col1 should be the following value for each package (can also be the
             name of a timeseries):
@@ -1138,7 +1210,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
 
     col2 : str, int or float, optional
         2nd column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column), col1) for each row.
+        ((layer,cid), col1) for each row.
 
         col2 should be the following value for each package (can also be the
             name of a timeseries):
@@ -1148,7 +1220,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
 
     col3 : str, int or float, optional
         3th column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column), col1, col2) for each row.
+        ((layer,cid), col1, col2) for each row.
 
         col3 should be the following value for each package (can also be the
             name of a timeseries):
@@ -1167,21 +1239,21 @@ def lcid_to_rec_list(layers, cellids, model_ds,
 
     """
     if col1 is None:
-        rec_list = list(zip(zip(layers, cellids[0])))
+        rec_list = list(zip(zip(layers, cellids[-1])))
     elif (col1 is not None) and col2 is None:
         col1_lst = col_to_list(col1, model_ds, cellids)
-        rec_list = list(zip(zip(layers, cellids[0]),
+        rec_list = list(zip(zip(layers, cellids[-1]),
                             col1_lst))
     elif (col2 is not None) and col3 is None:
         col1_lst = col_to_list(col1, model_ds, cellids)
         col2_lst = col_to_list(col2, model_ds, cellids)
-        rec_list = list(zip(zip(layers, cellids[0]),
+        rec_list = list(zip(zip(layers, cellids[-1]),
                             col1_lst, col2_lst))
     elif (col3 is not None):
         col1_lst = col_to_list(col1, model_ds, cellids)
         col2_lst = col_to_list(col2, model_ds, cellids)
         col3_lst = col_to_list(col3, model_ds, cellids)
-        rec_list = list(zip(zip(layers, cellids[0]),
+        rec_list = list(zip(zip(layers, cellids[-1]),
                             col1_lst, col2_lst, col3_lst))
     else:
         raise ValueError(
@@ -1190,11 +1262,74 @@ def lcid_to_rec_list(layers, cellids, model_ds,
     return rec_list
 
 
-def data_array_unstructured_to_rec_list(model_ds, mask,
-                                        col1=None, col2=None, col3=None,
-                                        layer=0,
-                                        first_active_layer=False,
-                                        only_active_cells=True):
+def data_array_2d_unstr_to_rec_list(model_ds, mask,
+                                    col1=None, col2=None, col3=None,
+                                    only_active_cells=True):
+    """ Create a rec list for stress period data from a model dataset.
+
+    Used for unstructured grids.
+
+
+    Parameters
+    ----------
+    model_ds : xarray.Dataset
+        dataset with model data and dimensions (layer, cid)
+    mask : xarray.DataArray for booleans
+        True for the cells that will be used in the rec list.
+    col1 : str, int or float, optional
+        1st column of the rec_list, if None the rec_list will be a list with
+        ((layer,cid)) for each row.
+
+        col1 should be the following value for each package (can also be the
+            name of a timeseries):
+            rch: recharge [L/T]
+            ghb: head [L]
+            drn: drain level [L]
+            chd: head [L]
+
+    col2 : str, int or float, optional
+        2nd column of the rec_list, if None the rec_list will be a list with
+        (((layer,cid), col1) for each row.
+
+        col2 should be the following value for each package (can also be the
+            name of a timeseries):
+            ghb: conductance [L^2/T]
+            drn: conductance [L^2/T]
+
+    col3 : str, int or float, optional
+        3th column of the rec_list, if None the rec_list will be a list with
+        (((layer,cid), col1, col2) for each row.
+
+        col3 should be the following value for each package (can also be the
+            name of a timeseries):
+            riv: bottom [L]
+    only_active_cells : bool, optional
+        If True an extra mask is used to only include cells with an idomain 
+        of 1. The default is True.
+
+    Returns
+    -------
+    rec_list : list of tuples
+        every row consist of ((layer,row,column), col1, col2, col3).
+
+    """
+    if only_active_cells:
+        cellids = np.where((mask) & (model_ds['idomain'] == 1))
+    else:
+        cellids = np.where(mask)
+
+    layers = cellids[0]
+
+    rec_list = lcid_to_rec_list(layers, cellids, model_ds,
+                                col1, col2, col3)
+
+    return rec_list
+
+def data_array_1d_unstr_to_rec_list(model_ds, mask,
+                                    col1=None, col2=None, col3=None,
+                                    layer=0,
+                                    first_active_layer=False,
+                                    only_active_cells=True):
     """ Create a rec list for stress period data from a model dataset.
 
     Used for unstructured grids.
@@ -1231,6 +1366,8 @@ def data_array_unstructured_to_rec_list(model_ds, mask,
 
         col3 should be the following value for each package (can also be the
             name of a timeseries):
+            riv: bottom [L]
+            
     layer : int, optional
         layer used in the rec_list. Not used if first_active_layer is True.
         default is 0

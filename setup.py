@@ -29,8 +29,8 @@ setup(
     ],
     platforms='Windows, Mac OS-X',
     install_requires=['flopy>=3.3.2',
-                      'xarray>=0.16.1'
-                      ],
+                      'xarray>=0.16.1',
+					  ],
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*"]},
     include_package_data=True

@@ -9,7 +9,9 @@ import datetime as dt
 import nlmod
 import pytest
 
+
 import test_001_model
+
 
 
 def test_sim_tdis_gwf_ims_from_model_ds(tmpdir):
@@ -70,17 +72,17 @@ def ghb_from_model_ds(tmpdir):
     
     model_ds = test_001_model.test_get_model_ds_from_cache('full_sea_model')
     sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
-    nlmod.mfpackages.dis_from_model_ds(model_ds)
+    nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
     
     ghb = nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf,
                                              'surface_water')
     
     return ghb
 
-def rch_from_model_ds(tmpdir):
+def rch_from_model_ds():
     model_ds = test_001_model.test_get_model_ds_from_cache('full_sea_model')
     sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
-    nlmod.mfpackages.dis_from_model_ds(model_ds)
+    nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
     
     rch = nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
     
@@ -89,7 +91,7 @@ def rch_from_model_ds(tmpdir):
 def drn_from_model_ds(tmpdir):
     model_ds = test_001_model.test_get_model_ds_from_cache('full_sea_model')
     sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
-    nlmod.mfpackages.dis_from_model_ds(model_ds)
+    nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
     
     
     
@@ -100,7 +102,7 @@ def drn_from_model_ds(tmpdir):
 def chd_from_model_ds(tmpdir):
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
     sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
-    nlmod.mfpackages.dis_from_model_ds(model_ds)
+    nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
     
     nlmod.mfpackages.ic_from_model_ds(model_ds, gwf,
                      starting_head=1.0)

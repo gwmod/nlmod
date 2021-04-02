@@ -13,6 +13,7 @@ import numpy as np
 import xarray as xr
 import geopandas as gpd
 import requests
+import gdown
 
 
 import nlmod
@@ -159,10 +160,10 @@ def bathymetry_to_model_dataset(model_ds,
     except OSError:
         print('cannot access Jarkus netCDF link, copy file from google drive instead')
         fname_jarkus = os.path.join(model_ds.model_ws,
-                                    'bathymetry',
                                     'jarkus_nhflopy.nc')
-        util.download_file_from_google_drive('1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo',
-                                             fname_jarkus)
+        url = 'https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo'
+        gdown.download(url, fname_jarkus,
+                       quiet=False)
         jarkus = xr.open_dataset(fname_jarkus)
 
     da_bathymetry_raw = jarkus['z']
@@ -184,8 +185,8 @@ def bathymetry_to_model_dataset(model_ds,
                                                                     xmid=model_ds.x.data,
                                                                     ymid=model_ds.y.data[::-1])[0]
     elif model_ds.gridtype == 'unstructured':
-        da_bathymetry = mgrid.resample_dataarray_to_unstructured_grid(da_bathymetry_filled,
-                                                                      gridprops=gridprops)[0]
+        da_bathymetry = mgrid.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
+                                                                        gridprops=gridprops)[0]
 
     model_ds_out = util.get_model_ds_empty(model_ds)
 

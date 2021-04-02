@@ -341,7 +341,11 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     # create timeseries packages
     for i, key in tqdm(enumerate(rch_unique_dic.keys()),
                        total=len(rch_unique_dic.keys()),
+<<<<<<< HEAD
                        desc="Building ts packages rch"):
+=======
+                       desc="Building ts packages rch:"):
+>>>>>>> main
         # add extra time step to the time series object (otherwise flopy fails)
         recharge_val = list(rch_unique_dic[key]) + [0.0]
         

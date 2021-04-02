@@ -338,7 +338,9 @@ def fillnan_dataarray_structured_grid(xar_in):
     """
     # check dimensions
     if xar_in.dims != ('y', 'x'):
-        raise ValueError(f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}")
+        raise ValueError(
+            f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}")
+
 
     # get list of coordinates from all points in raster
     mg = np.meshgrid(xar_in.x.data, xar_in.y.data)
@@ -1314,6 +1316,7 @@ def data_array_1d_unstr_to_rec_list(model_ds, mask,
 
     Used for unstructured grids.
 
+
     Parameters
     ----------
     model_ds : xarray.Dataset
@@ -1347,7 +1350,6 @@ def data_array_1d_unstr_to_rec_list(model_ds, mask,
         col3 should be the following value for each package (can also be the
             name of a timeseries):
             riv: bottom [L]
-            
     layer : int, optional
         layer used in the rec_list. Not used if first_active_layer is True.
         default is 0

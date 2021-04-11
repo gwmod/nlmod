@@ -251,9 +251,9 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         file of the geotiff
 
     """
-    
-    if extent is None:
-        extent = [253000, 265000, 481000, 488000]
+
+    if isinstance(extent, xr.DataArray):
+        extent = tuple(extent.values)
     
     # check or infer url
     if url is None:
@@ -314,6 +314,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     # get filename
     if fname is None:
         fname = 'ahn_{:.0f}_{:.0f}_{:.0f}_{:.0f}_{:.0f}.tiff'
+        
         fname = fname.format(*extent, res*1000)
         if cache_dir is None:
             cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)

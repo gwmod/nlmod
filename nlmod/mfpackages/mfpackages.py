@@ -90,6 +90,10 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
         discretisation package.
 
     """
+    
+    if model_ds.gridtype != 'structured':
+        raise ValueError(f'cannot create dis package for gridtype -> {model_ds.gridtype}')
+    
     #check attributes
     for att in ['delr', 'delc']:
         if isinstance(model_ds.attrs[att], np.float32):
@@ -239,8 +243,13 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
                                       maxbound=len(ghb_rec),
                                       stress_period_data=ghb_rec,
                                       save_flows=True)
+        return ghb
 
-    return ghb
+    else:
+        print('no ghb cells added')
+        
+        return None
+
 
 
 def ic_from_model_ds(model_ds, gwf,
@@ -269,9 +278,10 @@ def ic_from_model_ds(model_ds, gwf,
         pass
     elif isinstance(starting_head, numbers.Number):
         model_ds['starting_head']=  starting_head * xr.ones_like(model_ds['idomain'])
+        starting_head = 'starting_head'
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
-                                strt=model_ds['starting_head'].data)
+                                strt=model_ds[starting_head].data)
 
     return ic
 

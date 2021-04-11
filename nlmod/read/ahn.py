@@ -89,11 +89,12 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     # elif model_ds.gridtype == 'unstructured':
     #     resolution = min(model_ds.delr, model_ds.delc) / model_ds.levels
         
-    
+    cachedir = os.path.join(model_ds.model_ws, 'cache')
 
     fname_ahn = get_ahn_within_extent(extent=model_ds.extent,
                                       identifier=identifier,
-                                      cache=True)
+                                      cache=True, 
+                                      cache_dir=cachedir)
 
     ahn_ds_raw = xr.open_rasterio(fname_ahn)
     ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})

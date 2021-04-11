@@ -46,7 +46,7 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
     """
     
     if model_ds.gridtype == 'structured':
-        if isinstance(model_ds.extent, xr.DataArray):
+        if not isinstance(model_ds.extent, (tuple, list, np.ndarray)):
             raise TypeError(f'extent should be a list, tuple or numpy array, not {type(model_ds.extent)}')
 
         modelgrid = StructuredGrid(delc=np.array([model_ds.delc] * model_ds.dims['y']),

@@ -5,12 +5,14 @@ filenames and directories.
 """
 
 import os
-import tempfile
-import requests
 import re
+import subprocess
+import sys
+import tempfile
 
-import numpy as np
 import geopandas as gpd
+import numpy as np
+import requests
 import xarray as xr
 from shapely.geometry import box
 
@@ -500,11 +502,13 @@ def gdf_within_extent(gdf, extent):
     geom_types = gdf.geom_type.unique()
     if len(geom_types) > 1:
         # exception if geomtypes is a combination of Polygon and Multipolygon
-        multipoly_check = ('Polygon' in geom_types) and ('MultiPolygon' in geom_types)
+        multipoly_check = ('Polygon' in geom_types) and (
+            'MultiPolygon' in geom_types)
         if (len(geom_types) == 2) and multipoly_check:
             gdf = gpd.overlay(gdf, gdf_extent)
         else:
-            raise TypeError(f'Only accepts single geometry type not {geom_types}')
+            raise TypeError(
+                f'Only accepts single geometry type not {geom_types}')
     elif geom_types[0] == 'Polygon':
         gdf = gpd.overlay(gdf, gdf_extent)
     elif geom_types[0] == 'LineString':
@@ -512,7 +516,7 @@ def gdf_within_extent(gdf, extent):
     elif geom_types[0] == 'Point':
         gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
-        raise TypeError('Function is not tested for geometry type: '\
+        raise TypeError('Function is not tested for geometry type: '
                         f'{geom_types[0]}')
 
     return gdf
@@ -533,7 +537,8 @@ def get_google_drive_filename(id):
         filename.
 
     """
-    raise DeprecationWarning('this function is no longer supported use the gdown package instead')
+    raise DeprecationWarning(
+        'this function is no longer supported use the gdown package instead')
 
     if isinstance(id, requests.Response):
         response = id
@@ -558,7 +563,8 @@ def download_file_from_google_drive(id, destination=None):
         written to the current working directory. The default is None.
 
     """
-    raise DeprecationWarning('this function is no longer supported use the gdown package instead')
+    raise DeprecationWarning(
+        'this function is no longer supported use the gdown package instead')
 
     def get_confirm_token(response):
         for key, value in response.cookies.items():
@@ -594,3 +600,108 @@ def download_file_from_google_drive(id, destination=None):
             destination = os.path.join(destination, filename)
 
     save_response_content(response, destination)
+
+
+# %% helper functions (from USGS)
+
+
+def get_platform(pltfrm):
+    """Determine the platform in order to construct the zip file name.
+
+    Source: USGS
+
+    Parameters
+    ----------
+    pltfrm : str, optional
+        check if platform string is correct for downloading binaries,
+        default is None and will determine platform string based on system
+
+    Returns
+    -------
+    pltfrm : str
+        return platform string
+
+    """
+    if pltfrm is None:
+        if sys.platform.lower() == 'darwin':
+            pltfrm = 'mac'
+        elif sys.platform.lower().startswith('linux'):
+            pltfrm = 'linux'
+        elif 'win' in sys.platform.lower():
+            is_64bits = sys.maxsize > 2 ** 32
+            if is_64bits:
+                pltfrm = 'win64'
+            else:
+                pltfrm = 'win32'
+        else:
+            errmsg = ('Could not determine platform'
+                      '.  sys.platform is {}'.format(sys.platform))
+            raise Exception(errmsg)
+    else:
+        assert pltfrm in ['mac', 'linux', 'win32', 'win64']
+    return pltfrm
+
+
+def getmfexes(pth='.', version='', pltfrm=None):
+    """
+    Get the latest MODFLOW binary executables from a github site
+    (https://github.com/MODFLOW-USGS/executables) for the specified
+    operating system and put them in the specified path.
+
+    Source: USGS
+
+    Parameters
+    ----------
+    pth : str
+        Location to put the executables (default is current working directory)
+
+    version : str
+        Version of the MODFLOW-USGS/executables release to use.
+
+    pltfrm : str
+        Platform that will run the executables.  Valid values include mac,
+        linux, win32 and win64.  If platform is None, then routine will
+        download the latest appropriate zipfile from the github repository
+        based on the platform running this script.
+
+    """
+    try:
+        import pymake
+    except ModuleNotFoundError as e:
+        print("Install pymake with "
+              "`pip install "
+              "https://github.com/modflowpy/pymake/zipball/master`")
+        raise e
+    # Determine the platform in order to construct the zip file name
+    pltfrm = get_platform(pltfrm)
+    zipname = '{}.zip'.format(pltfrm)
+
+    # Determine path for file download and then download and unzip
+    url = ('https://github.com/MODFLOW-USGS/executables/'
+           'releases/download/{}/'.format(version))
+    assets = {p: url + p for p in ['mac.zip', 'linux.zip',
+                                   'win32.zip', 'win64.zip']}
+    download_url = assets[zipname]
+    pymake.download_and_unzip(download_url, pth)
+
+    return
+
+
+def download_mfbinaries(binpath=None, version='6.0'):
+    """Download and unpack platform-specific modflow binaries.
+
+    Source: USGS
+
+    Parameters
+    ----------
+    binpath : str, optional
+        path to directory to download binaries to, if it doesnt exist it 
+        is created. Default is None which sets dir to nlmod/bin.
+    version : str, optional
+        version string, by default '6.0'
+    """
+    if binpath is None:
+        binpath = os.path.join(os.path.dirname(__file__), "..", "bin")
+    pltfrm = get_platform(None)
+    # %% Download and unpack mf6 exes
+    getmfexes(pth=binpath, version=version, pltfrm=pltfrm)

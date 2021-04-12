@@ -44,10 +44,11 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
         grid information.
 
     """
-    
+
     if model_ds.gridtype == 'structured':
         if not isinstance(model_ds.extent, (tuple, list, np.ndarray)):
-            raise TypeError(f'extent should be a list, tuple or numpy array, not {type(model_ds.extent)}')
+            raise TypeError(
+                f'extent should be a list, tuple or numpy array, not {type(model_ds.extent)}')
 
         modelgrid = StructuredGrid(delc=np.array([model_ds.delc] * model_ds.dims['y']),
                                    delr=np.array([model_ds.delc] *
@@ -169,10 +170,10 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
 
         # find grid cells with northsea
         model_ds = jarkus.get_modelgrid_sea(model_ds,
-                                              modelgrid=modelgrid,
-                                              cachedir=cachedir,
-                                              use_cache=use_cache,
-                                              verbose=verbose)
+                                            modelgrid=modelgrid,
+                                            cachedir=cachedir,
+                                            use_cache=use_cache,
+                                            verbose=verbose)
 
         # fill top, bot, kh, kv at sea cells
         fill_mask = (model_ds['first_active_layer']
@@ -183,10 +184,10 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
 
         # add bathymetry noordzee
         model_ds = jarkus.get_modelgrid_bathymetry(model_ds,
-                                                     gridprops=gridprops,
-                                                     cachedir=cachedir,
-                                                     use_cache=use_cache,
-                                                     verbose=verbose)
+                                                   gridprops=gridprops,
+                                                   cachedir=cachedir,
+                                                   use_cache=use_cache,
+                                                   verbose=verbose)
 
         model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(model_ds,
                                                           model_ds['bathymetry'],
@@ -397,11 +398,11 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
                                         delr=delr, delc=delc,
                                         filename='{}.dis'.format(model_name))
 
-    if sys.platform == "linux":
-        exe_name = "gridgen"
-    else:
-        exe_name = os.path.join(os.path.dirname(__file__),
-                                '..', '..', 'executables', 'gridgen.exe')
+    exe_name = os.path.join(os.path.dirname(__file__),
+                            '..', '..', 'bin', 'gridgen')
+    if sys.platform == "windows":
+        exe_name += ".exe"
+
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
 
     g.add_refinement_features(shp_fname, shp_type, levels, range(nlay))
@@ -724,8 +725,8 @@ def data_array_2d_to_rec_list(model_ds, mask,
         cellids = np.where(mask)
         layers = col_to_list(layer, model_ds, cellids)
 
-    rows = cellids[0]
-    columns = cellids[1]
+    rows = cellids[-2]
+    columns = cellids[-1]
 
     rec_list = lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
                                col1, col2, col3)

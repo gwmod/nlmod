@@ -137,7 +137,7 @@ def gdf2grid(gdf, ml, method="vertex", **kwargs):
         Method passed to the GridIntersect-class. The default is None, which
         makes GridIntersect choose the best method.
     **kwargs : keyword arguments
-        keyword arguments are passed to the intersect_*-methods.
+        keyword arguments are passed to the intersect-method.
 
     Returns
     -------

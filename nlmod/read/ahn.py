@@ -83,12 +83,9 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
         dataset with the ahn variable.
 
     """
-
-    # if model_ds.gridtype == 'structured':
-    #     resolution = min(model_ds.delr, model_ds.delc)
-    # elif model_ds.gridtype == 'unstructured':
-    #     resolution = min(model_ds.delr, model_ds.delc) / model_ds.levels
-        
+    if (model_ds.gridtype=='unstructured') and (gridprops is None):
+        raise ValueError('gridprops should be specified when gridtype is unstructured')
+    
     cachedir = os.path.join(model_ds.model_ws, 'cache')
 
     fname_ahn = get_ahn_within_extent(extent=model_ds.extent,

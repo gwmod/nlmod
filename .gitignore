@@ -132,9 +132,9 @@ dmypy.json
 .vscode
 
 # nlmod specific
+bin/
 flowchartnlmod.pptx
 tests/data/
-!bin/.gitkeep
 examples/*/
 data/nhflo/
 

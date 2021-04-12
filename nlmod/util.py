@@ -687,7 +687,7 @@ def getmfexes(pth='.', version='', pltfrm=None):
     return
 
 
-def download_mfbinaries(binpath="./bin", version='6.0'):
+def download_mfbinaries(binpath=None, version='6.0'):
     """Download and unpack platform-specific modflow binaries.
 
     Source: USGS
@@ -696,10 +696,12 @@ def download_mfbinaries(binpath="./bin", version='6.0'):
     ----------
     binpath : str, optional
         path to directory to download binaries to, if it doesnt exist it 
-        is created. Default is ./bin. 
+        is created. Default is None which sets dir to nlmod/bin.
     version : str, optional
         version string, by default '6.0'
     """
+    if binpath is None:
+        binpath = os.path.join(__file__, "bin")
     pltfrm = get_platform(None)
     # %% Download and unpack mf6 exes
     getmfexes(pth=binpath, version=version, pltfrm=pltfrm)

@@ -12,7 +12,8 @@ import flopy
 import numpy as np
 import xarray as xr
 
-from .. import mdims, read
+from .. import mdims
+from . import recharge
 
 
 def sim_tdis_gwf_ims_from_model_ds(model_ds,
@@ -471,7 +472,7 @@ def rch_from_model_ds(model_ds, gwf):
     """
 
     # create recharge package
-    rch = read.recharge.model_datasets_to_rch(gwf, model_ds)
+    rch = recharge.model_datasets_to_rch(gwf, model_ds)
 
     return rch
 

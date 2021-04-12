@@ -4,15 +4,20 @@ Created on Thu Jan  7 17:20:34 2021
 
 @author: oebbe
 """
-import xarray as xr
 import numbers
-import numpy as np
+import os
+import sys
+
 import flopy
+import numpy as np
+import xarray as xr
+
 from .. import mdims, read
 
 
-def sim_tdis_gwf_ims_from_model_ds(model_ds, 
+def sim_tdis_gwf_ims_from_model_ds(model_ds,
                                    complexity='MODERATE',
+                                   exe_name=None,
                                    verbose=False):
     """ create sim, tdis, gwf and ims package from the model dataset
 
@@ -21,10 +26,12 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     ----------
     model_ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: 
-            model_name, mfversion, model_ws, time_units, start_time, perlen,
-            nstp, tsmult
-
+        attributes: model_name, mfversion, model_ws, time_units, start_time, 
+        perlen, nstp, tsmult
+    exe_name: str, optional
+        path to modflow executable, default is None, which assumes binaries
+        are available in nlmod/bin directory. Binaries can be downloaded
+        using `nlmod.util.download_mfbinaries()`.
     verbose : bool, optional
         print additional information. default is False
 
@@ -41,16 +48,23 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     if verbose:
         print('creating modflow SIM, TDIS, GWF and IMS')
 
+    if exe_name is None:
+        exe_name = os.path.join(os.path.dirname(__file__),
+                                '..', '..', 'bin', model_ds.mfversion)
+        if sys.platform == "windows":
+            exe_name += ".exe"
+
      # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(sim_name=model_ds.model_name,
-                                 exe_name=model_ds.mfversion,
+                                 exe_name=exe_name,
                                  version=model_ds.mfversion,
                                  sim_ws=model_ds.model_ws)
 
     tdis_perioddata = get_tdis_perioddata(model_ds)
 
     # Create the Flopy temporal discretization object
-    flopy.mf6.modflow.mftdis.ModflowTdis(sim, pname='tdis',
+    flopy.mf6.modflow.mftdis.ModflowTdis(sim,
+                                         pname='tdis',
                                          time_units=model_ds.time_units,
                                          nper=len(model_ds.time),
                                          start_date_time=model_ds.start_time,
@@ -90,11 +104,12 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
         discretisation package.
 
     """
-    
+
     if model_ds.gridtype != 'structured':
-        raise ValueError(f'cannot create dis package for gridtype -> {model_ds.gridtype}')
-    
-    #check attributes
+        raise ValueError(
+            f'cannot create dis package for gridtype -> {model_ds.gridtype}')
+
+    # check attributes
     for att in ['delr', 'delc']:
         if isinstance(model_ds.attrs[att], np.float32):
             model_ds.attrs[att] = float(model_ds.attrs[att])
@@ -247,9 +262,8 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
 
     else:
         print('no ghb cells added')
-        
-        return None
 
+        return None
 
 
 def ic_from_model_ds(model_ds, gwf,
@@ -277,7 +291,8 @@ def ic_from_model_ds(model_ds, gwf,
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
-        model_ds['starting_head']=  starting_head * xr.ones_like(model_ds['idomain'])
+        model_ds['starting_head'] = starting_head * \
+            xr.ones_like(model_ds['idomain'])
         starting_head = 'starting_head'
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
@@ -364,7 +379,8 @@ def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
         # assign 1 to cells that are on the edge and have an active idomain
         model_ds['chd'] = xr.zeros_like(model_ds['idomain'])
         for lay in model_ds.layer:
-            model_ds['chd'].loc[lay] = np.where(mask2d & (model_ds['idomain'].loc[lay] == 1), 1, 0)
+            model_ds['chd'].loc[lay] = np.where(
+                mask2d & (model_ds['idomain'].loc[lay] == 1), 1, 0)
 
         # get the stress_period_data
         chd_rec = mdims.data_array_3d_to_rec_list(model_ds,
@@ -486,7 +502,7 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True,
     saverecord = [('HEAD', 'ALL')]
     if save_budget:
         saverecord.append(('BUDGET', 'ALL'))
-    
+
     if print_head:
         printrecord = [('HEAD', 'LAST')]
     else:
@@ -529,13 +545,14 @@ def get_tdis_perioddata(model_ds):
     """
     perlen = model_ds.perlen
     if isinstance(perlen, numbers.Number):
-        tdis_perioddata = [(float(perlen), model_ds.nstp, model_ds.tsmult)] * int(model_ds.nper)
+        tdis_perioddata = [(float(perlen), model_ds.nstp,
+                            model_ds.tsmult)] * int(model_ds.nper)
     elif isinstance(perlen, (list, tuple, np.ndarray)):
         if model_ds.steady_start:
             assert len(perlen) == model_ds.dims['time']
         else:
             assert len(perlen) == model_ds.dims['time']
-        tdis_perioddata = [(p, model_ds.nstp, model_ds.tsmult) for p in perlen] 
+        tdis_perioddata = [(p, model_ds.nstp, model_ds.tsmult) for p in perlen]
     else:
         raise TypeError('did not recognise perlen type')
 

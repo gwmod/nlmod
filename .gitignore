@@ -131,7 +131,7 @@ dmypy.json
 # nlmod specific
 flowchartnlmod.pptx
 tests/data/
-executables/*
+!bin/.gitkeep
 examples/*/
 data/nhflo/
 

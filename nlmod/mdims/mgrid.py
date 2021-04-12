@@ -721,8 +721,8 @@ def data_array_2d_to_rec_list(model_ds, mask,
         cellids = np.where(mask)
         layers = col_to_list(layer, model_ds, cellids)
 
-    rows = cellids[0]
-    columns = cellids[1]
+    rows = cellids[-2]
+    columns = cellids[-1]
 
     rec_list = lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
                                col1, col2, col3)

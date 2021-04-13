@@ -9,15 +9,12 @@ module with functions to deal with the northsea by:
 Note: if you like jazz please check this out: https://www.northseajazz.com
 """
 import os
+
 import numpy as np
-import xarray as xr
-import geopandas as gpd
 import requests
-import gdown
+import xarray as xr
 
-
-import nlmod
-from .. import util, mdims
+from .. import mdims, util
 from ..mfpackages import surface_water
 
 
@@ -159,6 +156,7 @@ def bathymetry_to_model_dataset(model_ds,
     try:
         jarkus_ds = get_dataset_jarkus(model_ds.extent)
     except OSError:
+        import gdown
         print('cannot access Jarkus netCDF link, copy file from google drive instead')
         fname_jarkus = os.path.join(model_ds.model_ws,
                                     'jarkus_nhflopy.nc')

@@ -41,7 +41,8 @@ def get_gdf_surface_water(model_ds):
 
 
 def get_general_head_boundary(model_ds,
-                              modelgrid, da_name,
+                              modelgrid, 
+                              da_name,
                               cachedir=None,
                               use_cache=False,
                               verbose=False):
@@ -347,6 +348,8 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
                                                 stage)
         if "aux" in row:
             auxlist = [row["aux"]]
+        else:
+            auxlist = []
 
         if model_ds.gridtype == 'unstructured':
             cellid = (cellid,)

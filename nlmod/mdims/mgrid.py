@@ -318,14 +318,13 @@ def get_xy_mid_structured(extent, delr, delc):
 
 
 def create_unstructured_grid(gridgen_ws, model_name, gwf,
-                             shp_fname, levels, extent,
-                             nlay, nrow, ncol, delr,
-                             delc, shp_type='line',
+                             refine_features=None, extent=None,
+                             nlay=None, nrow=None, ncol=None,
+                             delr=None, delc=None,
                              cachedir=None,
                              use_cache=False,
                              verbose=False):
-    """ created unstructured grid. Refine grid using a shapefile and
-    refinement levels.     
+    """Create unstructured grid. Refine grid using refinement features.     
 
     Parameters
     ----------
@@ -334,27 +333,27 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
     model_name : str
         name of the model.
     gwf : flopy.mf6.modflow.mfgwf.ModflowGwf
-        groundwater flow model.
-    shp_fname : str
-        path to shapefiles that is used to refine grid. It seems like this
-        shape should be in the gridgen directory
-    levels : int
-        the number of refine levels.
+        groundwater flow model, if structured grid is already defined
+        parameters defining the grid are taken from modelgrid if not 
+        explicitly passed.
+    refine_features : list of tuples, optional
+        list of tuples containing refinement features, tuples must each 
+        contain [(geometry, shape_type, level)]. Geometry can be a path 
+        pointing to a shapefile or an object defining the geometry. 
+        For accepted types for each entry, see 
+        `flopy.utils.gridgen.Gridgen.add_refinement_features()`
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid.
-    nlay : int
-        number of model layers.
-    nrow : int
+    nlay : int, optional
+        number of model layers. If not passed, 
+    nrow : int, optional
         number of model rows.
-    ncol : int
+    ncol : int, optional
         number of model columns
-    delr : int or float
+    delr : int or float, optional
         cell size along rows of the desired grid (dx).
-    delc : int or float
+    delc : int or float, optional
         cell size along columns of the desired grid (dy).
-    shp_type : str
-        type of the shp_fname file. Options are 'point', 'line', or 'polygon'.
-        Default is 'line'
     cachedir : str, optional
         directory to store cached values, if None a temporary directory is
         used. default is None
@@ -388,14 +387,23 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
     if verbose:
         print('create unstructured grid using gridgen')
 
+    # if existing structured grid, take parameters from grid if not
+    # explicitly passed
+    if gwf.modelgrid.grid_type == "structured":
+        nlay = gwf.modelgrid.nlay if nlay is None else nlay
+        nrow = gwf.modelgrid.nrow if nrow is None else nrow
+        ncol = gwf.modelgrid.ncol if ncol is None else ncol
+        delr = gwf.modelgrid.delr if delr is None else delr
+        delc = gwf.modelgrid.delc if delc is None else delc
+        extent = gwf.modelgrid.extent if extent is None else extent
+
     # create temporary groundwaterflow model with dis package
     _gwf_temp = copy.deepcopy(gwf)
     _dis_temp = flopy.mf6.ModflowGwfdis(_gwf_temp, pname='dis',
-                                        nlay=nlay, nrow=nrow,
-                                        ncol=ncol,
+                                        nlay=nlay, nrow=nrow, ncol=ncol,
+                                        delr=delr, delc=delc,
                                         xorigin=extent[0],
                                         yorigin=extent[2],
-                                        delr=delr, delc=delc,
                                         filename='{}.dis'.format(model_name))
 
     exe_name = os.path.join(os.path.dirname(__file__),
@@ -405,12 +413,15 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
 
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
 
-    g.add_refinement_features(shp_fname, shp_type, levels, range(nlay))
+    if refine_features is not None:
+        for shp_fname, shp_type, lvl in refine_features:
+            shp_fname = os.path.relpath(shp_fname, gridgen_ws)
+            g.add_refinement_features(shp_fname, shp_type, lvl, range(nlay))
+
     g.build()
 
     gridprops = g.get_gridprops_disv()
     gridprops['area'] = g.get_area()
-    gridprops['levels'] = levels
 
     if verbose:
         print(f'write cache for griddata data to {fname_gridprops_pickle}')

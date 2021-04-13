@@ -408,7 +408,7 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
 
     exe_name = os.path.join(os.path.dirname(__file__),
                             '..', '..', 'bin', 'gridgen')
-    if sys.platform == "windows":
+    if sys.platform.startswith('win'):
         exe_name += ".exe"
 
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)

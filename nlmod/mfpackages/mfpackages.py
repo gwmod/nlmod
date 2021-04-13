@@ -52,7 +52,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),
                                 '..', '..', 'bin', model_ds.mfversion)
-        if sys.platform == "windows":
+        if sys.platform.startswith('win'):
             exe_name += ".exe"
 
      # Create the Flopy simulation object

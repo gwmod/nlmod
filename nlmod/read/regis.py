@@ -228,14 +228,11 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
     regis_ds_raw2 = regis_ds_raw.swap_dims({'layer_old': 'layer'})
 
     # convert regis dataset to grid
-    regis_ds = mdims.get_ml_layer_dataset_struc(raw_ds=regis_ds_raw2,
-                                                extent=extent,
-                                                delr=delr, delc=delc,
-                                                cachedir=cachedir,
-                                                fname_netcdf='regis_ds.nc',
-                                                use_cache=use_cache,
-                                                verbose=verbose)
-
+    regis_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=regis_ds_raw2,
+                                                     extent=extent, 
+                                                     delr=delr, delc=delc,
+                                                     verbose=verbose)
+  
     return regis_ds
 
 

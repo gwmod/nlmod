@@ -74,14 +74,11 @@ def get_geotop_dataset(extent, delr, delc,
                                                 litho_translate_df=litho_translate_df,
                                                 geo_eenheid_translate_df=geo_eenheid_translate_df,
                                                 verbose=verbose)
-
-    geotop_ds = mdims.get_ml_layer_dataset_struc(raw_ds=geotop_ds_raw,
-                                                 extent=extent,
-                                                 delr=delr, delc=delc,
-                                                 cachedir=cachedir,
-                                                 fname_netcdf='geotop_ds.nc',
-                                                 use_cache=use_cache,
-                                                 verbose=verbose)
+    
+    geotop_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=geotop_ds_raw,
+                                                      extent=extent, 
+                                                      delr=delr, delc=delc,
+                                                      verbose=verbose)
 
     return geotop_ds
 

@@ -13,6 +13,7 @@ from scipy import interpolate
 from . import mgrid
 from .. import util
 
+
 def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
                                               xyi=None, cid=None,
                                               method='nearest'):
@@ -56,7 +57,6 @@ def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
                           coords={'cid': cid})
 
     return da_out
-
 
 
 def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
@@ -103,7 +103,6 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
         # regrid
         arr_out[i] = griddata(
             points, ds_lay.data.flatten(), xyi, method=method)
-    
 
     # new dataset
     da_out = xr.DataArray(arr_out, dims=('layer', 'cid'),
@@ -159,15 +158,16 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
             data_arr = resample_dataarray2d_to_unstructured_grid(ds_in[data_var],
                                                                  xyi=xyi, cid=cid,
                                                                  method=method)
-            
+
         elif ds_in[data_var].dims == ('layer'):
             data_arr = ds_in[data_var]
-        
+
         else:
             if verbose:
-                print(f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
+                print(
+                    f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
             continue
-            
+
         ds_out[data_var] = data_arr
 
     return ds_out
@@ -400,7 +400,7 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
                                       extent=None,
                                       gridprops=None,
                                       verbose=False):
-    """ project model layer dataset on an unstructured model grid.
+    """Project model layer dataset on an unstructured model grid.
 
 
     Parameters
@@ -439,7 +439,6 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
     ml_layer_ds.attrs['gridtype'] = 'unstructured'
     ml_layer_ds.attrs['delr'] = raw_ds.delr
     ml_layer_ds.attrs['delc'] = raw_ds.delc
-    ml_layer_ds.attrs['levels'] = gridprops.pop('levels')
     ml_layer_ds.attrs['extent'] = extent
 
     return ml_layer_ds
@@ -504,8 +503,6 @@ def get_ml_layer_dataset_struc(raw_ds=None,
                                         kind=interp_method)
 
     return ml_layer_ds
-
-
 
 
 def get_ml_layer_dataset_unstruc(raw_ds=None,
@@ -589,7 +586,6 @@ def fillnan_dataarray_structured_grid(xar_in):
     if xar_in.dims != ('y', 'x'):
         raise ValueError(
             f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}")
-
 
     # get list of coordinates from all points in raster
     mg = np.meshgrid(xar_in.x.data, xar_in.y.data)

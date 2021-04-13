@@ -206,10 +206,16 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
 
     # get local regis dataset
     regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
+    
+    regis_ds_raw = xr.open_dataset(regis_url, decode_times=False)
+    
+    # set x and y dimensions to cell center
+    regis_ds_raw['x'] = regis_ds_raw.x_bounds.mean('bounds')
+    regis_ds_raw['y'] = regis_ds_raw.y_bounds.mean('bounds')
 
     # slice extent
-    regis_ds_raw = xr.open_dataset(regis_url).sel(x=slice(extent[0], extent[1]),
-                                                  y=slice(extent[2], extent[3]))
+    regis_ds_raw = regis_ds_raw.sel(x=slice(extent[0], extent[1]),
+                                    y=slice(extent[2], extent[3]))
 
     # slice layers
     if isinstance(botm_layer, str):
@@ -351,7 +357,7 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
     """
     redifine extent and calculate the number of rows and columns.
 
-    The extent will be redefined so that the borders os the grid (xmin, xmax, 
+    The extent will be redefined so that the borders of the grid (xmin, xmax, 
     ymin, ymax) correspond with the borders of the regis grid.
 
     Parameters
@@ -388,23 +394,23 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
 
     for d in [delr, delc]:
         if float(d) not in [10., 20., 25., 50., 100., 200., 400., 500., 800.]:
-            print(f'you probably cannot run the model with this '
-                  f'cellsize -> {delc, delr}')
+            raise NotImplementedError(f'you probably cannot run the model with this '
+                                      f'cellsize -> {delc, delr}')
 
-    # if extents ends with 50 do nothing, otherwise rescale extent to fit regis
-    if extent[0] % cs_regis == 0 or not extent[0] % (0.5 * cs_regis) == 0:
-        extent[0] -= extent[0] % 100
-        extent[0] = extent[0] - 0.5 * cs_regis
+    # if xmin ends with 100 do nothing, otherwise fit xmin to regis cell border
+    if extent[0] % cs_regis != 0:
+        extent[0] -= extent[0] % cs_regis
+    
     # get number of columns
     ncol = int(np.ceil((extent[1] - extent[0]) / delr))
-    extent[1] = extent[0] + (ncol * delr)  # round x1 up to close grid
+    extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
 
-    # round y0 down to next 50 necessary for regis
-    if extent[2] % cs_regis == 0 or not extent[2] % (0.5 * cs_regis) == 0:
-        extent[2] -= extent[2] % 100
-        extent[2] = extent[2] - 0.5 * cs_regis
+    # if ymin ends with 100 do nothing, otherwise fit ymin to regis cell border
+    if extent[2] % cs_regis != 0:
+        extent[2] -= extent[2] % cs_regis
+        
     nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
-    extent[3] = extent[2] + (nrow * delc)  # round y1 up to close grid
+    extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
 
     if verbose:
         print(

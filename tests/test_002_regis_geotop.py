@@ -13,7 +13,7 @@ import nlmod
 import pytest
 
 #@pytest.mark.skip(reason="too slow")
-def test_get_regis(extent=[98650.0, 99050.0, 489450.0, 489750.0],
+def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                     delr=100., delc=100.):
 
     regis_ds = regis.get_regis_dataset(extent, delr, delc, 
@@ -27,7 +27,7 @@ def test_get_regis(extent=[98650.0, 99050.0, 489450.0, 489750.0],
 
 
 #@pytest.mark.skip(reason="too slow")
-def test_fit_regis_extent(extent = [128000. , 141400., 468500., 481400. ],
+def test_fit_regis_extent(extent = [128050. , 141450., 468550., 481450. ],
                           delr=100., delc=100.):
     
     
@@ -65,7 +65,7 @@ def test_get_regis_botm_layer_BEk1(extent=[98700., 99000., 489500., 489700.],
 
 
 #@pytest.mark.skip(reason="too slow")
-def test_get_geotop(extent=[98650.0, 99050.0, 489450.0, 489750.0],
+def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                     delr=100., delc=100.):
 
     
@@ -82,7 +82,7 @@ def test_get_geotop(extent=[98650.0, 99050.0, 489450.0, 489750.0],
     return geotop_ds
 
 #@pytest.mark.skip(reason="too slow")
-def test_get_regis_geotop(extent=[98650.0, 99050.0, 489450.0, 489750.0],
+def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                           delr=100., delc=100.):
     
     
@@ -91,13 +91,13 @@ def test_get_regis_geotop(extent=[98650.0, 99050.0, 489450.0, 489750.0],
                                              cachedir=None,
                                              use_cache=False, verbose=True)
     
-    assert regis_geotop_ds.dims['layer'] == 23
+    assert regis_geotop_ds.dims['layer'] == 24
     
     
     return regis_geotop_ds
 
 #@pytest.mark.skip(reason="too slow")
-def test_get_regis_geotop_keep_all_layers(extent=[98650.0, 99050.0, 489450.0, 489750.0],
+def test_get_regis_geotop_keep_all_layers(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                                           delr=100., delc=100.):
     
     

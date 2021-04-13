@@ -84,8 +84,9 @@ def get_geotop_dataset(extent, delr, delc,
 
 
 def get_geotop_raw_within_extent(extent):
-    """ Get a slice of the geotop netcdf url within the extent and only the
-    strat and lithok data variables.
+    """ Get a slice of the geotop netcdf url within the extent, set the x and
+    y coordinates to match the cell centers and keep only the strat and lithok 
+    data variables.
 
 
     Parameters
@@ -101,8 +102,17 @@ def get_geotop_raw_within_extent(extent):
     """
 
     url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
-    geotop_ds_raw = xr.open_dataset(url).sel(x=slice(extent[0], extent[1]),
-                                             y=slice(extent[2], extent[3]))
+    
+    geotop_ds_raw = xr.open_dataset(url)
+    
+    # set x and y dimensions to cell center
+    for dim in ['x', 'y']:
+        old_dim = geotop_ds_raw[dim].values 
+        geotop_ds_raw[dim] = old_dim+(old_dim[1]-old_dim[0])/2
+
+    # slice extent
+    geotop_ds_raw = geotop_ds_raw.sel(x=slice(extent[0], extent[1]),
+                                      y=slice(extent[2], extent[3]))
     geotop_ds_raw = geotop_ds_raw[['strat', 'lithok']]
 
     return geotop_ds_raw

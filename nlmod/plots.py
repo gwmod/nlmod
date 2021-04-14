@@ -40,14 +40,22 @@ def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
     return ax
 
 
-def facet_plot(gwf, arr, lbl="", cmap="viridis", scale_cbar=True,
-               vmin=None, vmax=None, norm=None, xlim=None, ylim=None,
-               grid=False, figdir=None, figsize=(10, 8),
-               plot_bc={}):
-    nlay = arr.shape[0]
+def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
+               cmap="viridis", scale_cbar=True, vmin=None, vmax=None,
+               norm=None, xlim=None, ylim=None, grid=False, figdir=None,
+               figsize=(10, 8), plot_bc={}):
 
-    plots_per_row = int(np.ceil(np.sqrt(nlay)))
-    plots_per_col = nlay // plots_per_row + 1
+    if arr.ndim == 4 and plot_dim == "layer":
+        nplots = arr.shape[1]
+    elif arr.ndim == 4 and plot_dim == "time":
+        nplots = arr.shape[0]
+    elif arr.ndim == 3:
+        nplots = arr.shape[0]
+    else:
+        raise ValueError("Array must have at least 3 dimensions.")
+
+    plots_per_row = int(np.ceil(np.sqrt(nplots)))
+    plots_per_col = nplots // plots_per_row + 1
 
     fig, axes = plt.subplots(
         plots_per_col, plots_per_row, figsize=figsize,
@@ -57,12 +65,30 @@ def facet_plot(gwf, arr, lbl="", cmap="viridis", scale_cbar=True,
         vmin = np.nanmin(arr)
         vmax = np.nanmax(arr)
 
-    for ilay in range(nlay):
-        iax = axes.flat[ilay]
+    for i in range(nplots):
+        iax = axes.flat[i]
         iax.set_aspect("equal")
+        if plot_dim == "layer":
+            ilay = i
+            iper = period
+            if arr.ndim == 4:
+                if iper is None:
+                    raise ValueError("Pass 'period' to select "
+                                     "timestep to plot.")
+                a = arr[iper]
+        elif plot_dim == "time":
+            ilay = layer
+            iper = i
+            if arr.ndim == 4:
+                if ilay is None:
+                    raise ValueError("Pass 'layer' to select "
+                                     "layer to plot.")
+                a = arr[iper]
+        else:
+            raise ValueError("'plot_dim' must be one of ['layer', 'time']")
+
         mp = flopy.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
-        qm = mp.plot_array(arr[ilay], cmap=cmap, vmin=vmin, vmax=vmax,
-                           norm=norm)
+        qm = mp.plot_array(a, cmap=cmap, vmin=vmin, vmax=vmax, norm=norm)
 
         mp.plot_ibound(color_vpt="darkgray")
 
@@ -72,21 +98,25 @@ def facet_plot(gwf, arr, lbl="", cmap="viridis", scale_cbar=True,
         iax.grid(grid)
         iax.set_xticklabels([])
         iax.set_yticklabels([])
-        iax.set_title(f"Layer {ilay}", fontsize=6)
+
+        if plot_dim == "layer":
+            iax.set_title(f"Layer {ilay}", fontsize=6)
+        elif plot_dim == "time":
+            iax.set_title(f"Timestep {iper}", fontsize=6)
 
         if xlim is not None:
             iax.set_xlim(xlim)
         if ylim is not None:
             iax.set_ylim(ylim)
 
-    for iax in axes.ravel()[nlay:]:
+    for iax in axes.ravel()[nplots:]:
         iax.set_visible(False)
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(lbl)
 
     if figdir:
-        fig.savefig(os.path.join(figdir, f"{lbl}_per_layer.png"),
+        fig.savefig(os.path.join(figdir, f"{lbl}_per_{plot_dim}.png"),
                     dpi=150, bbox_inches="tight")
 
     return fig, axes

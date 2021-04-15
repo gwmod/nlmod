@@ -43,7 +43,7 @@ def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
 def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
                cmap="viridis", scale_cbar=True, vmin=None, vmax=None,
                norm=None, xlim=None, ylim=None, grid=False, figdir=None,
-               figsize=(10, 8), plot_bc={}):
+               figsize=(10, 8), plot_bc={}, plot_grid=False):
 
     if arr.ndim == 4 and plot_dim == "layer":
         nplots = arr.shape[1]
@@ -91,6 +91,9 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
         qm = mp.plot_array(a, cmap=cmap, vmin=vmin, vmax=vmax, norm=norm)
 
         mp.plot_ibound(color_vpt="darkgray")
+
+        if plot_grid:
+            mp.plot_grid(ls=0.25, color="k")
 
         for bc, bc_kwargs in plot_bc.items():
             mp.plot_bc(bc, **bc_kwargs)

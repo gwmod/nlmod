@@ -415,7 +415,10 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
 
     if refine_features is not None:
         for shp_fname, shp_type, lvl in refine_features:
-            shp_fname = os.path.relpath(shp_fname, gridgen_ws)
+            if isinstance(shp_fname, str):
+                shp_fname = os.path.relpath(shp_fname, gridgen_ws)
+                if shp_fname.endswith('.shp'):
+                    shp_fname = shp_fname[:-4]
             g.add_refinement_features(shp_fname, shp_type, lvl, range(nlay))
 
     g.build()

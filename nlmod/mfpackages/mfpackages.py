@@ -205,7 +205,8 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0):
                                   icelltype=icelltype,
                                   k=model_ds['kh'].data,
                                   k33=model_ds['kv'].data,
-                                  save_flows=True)
+                                  save_flows=True,
+                                  save_specific_discharge=True)
 
     return npf
 

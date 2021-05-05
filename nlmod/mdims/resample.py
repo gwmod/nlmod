@@ -88,7 +88,7 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
 
     """
     if (xyi is None) or (cid is None):
-        xyi, cid = mgrid.get_xyi_cid(gridprops)
+        xyi, cid = mgrid.get_xyi_cid(gridprops=gridprops)
 
     # get x and y values of all cells in dataarray
     mg = np.meshgrid(da_in.x.data, da_in.y.data)

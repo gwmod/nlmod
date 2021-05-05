@@ -220,6 +220,11 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
             'ahn3_5m_dtm'
 
         The default is 'ahn3_5m_dtm'.
+        
+        the identifier also contains resolution and type info:
+        - 5m or 05m is a resolution of 5x5 or 0.5x0.5 meter.
+        - 'dtm' is only surface level (maaiveld), 'dsm' has other surfaces
+        such as building.
     url : str or None, optional
         possible values None, 'ahn2' and 'ahn3'. If None the url is inferred
         from the identifier. The default is None.

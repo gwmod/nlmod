@@ -83,14 +83,15 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
         dataset with the ahn variable.
 
     """
-    if (model_ds.gridtype=='unstructured') and (gridprops is None):
-        raise ValueError('gridprops should be specified when gridtype is unstructured')
-    
+    if (model_ds.gridtype == 'unstructured') and (gridprops is None):
+        raise ValueError(
+            'gridprops should be specified when gridtype is unstructured')
+
     cachedir = os.path.join(model_ds.model_ws, 'cache')
 
     fname_ahn = get_ahn_within_extent(extent=model_ds.extent,
                                       identifier=identifier,
-                                      cache=True, 
+                                      cache=True,
                                       cache_dir=cachedir)
 
     ahn_ds_raw = xr.open_rasterio(fname_ahn)
@@ -101,16 +102,16 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     if model_ds.gridtype == 'structured':
         ymid = model_ds.y.data[::-1]
         ahn_ds = mdims.resample_dataarray_to_structured_grid(ahn_ds_raw,
-                                                       extent=model_ds.extent,
-                                                       delr=model_ds.delr,
-                                                       delc=model_ds.delc,
-                                                       xmid=model_ds.x.data,
-                                                       ymid=ymid)
+                                                             extent=model_ds.extent,
+                                                             delr=model_ds.delr,
+                                                             delc=model_ds.delc,
+                                                             xmid=model_ds.x.data,
+                                                             ymid=ymid)
     elif model_ds.gridtype == 'unstructured':
         xyi, cid = mdims.get_xyi_cid(gridprops)
         ahn_ds = mdims.resample_dataarray3d_to_unstructured_grid(ahn_ds_raw,
-                                                           gridprops,
-                                                           xyi, cid)
+                                                                 gridprops,
+                                                                 xyi, cid)
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]
@@ -171,8 +172,8 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
             subextent = [start_x, end_x, start_y, end_y]
             if verbose:
                 print(f'downloading subextent {subextent}')
-                print(f'x_segement {tx}, y_segement{ty}')
-            
+                print(f'x_segment-{tx}, y_segment-{ty}')
+
             fname_chunk = get_ahn_within_extent(subextent, res=res,
                                                 **kwargs)
             dataset.append(rasterio.open(fname_chunk))
@@ -197,7 +198,7 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
     return fname
 
 
-def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None, 
+def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', format='GEOTIFF_FLOAT32',
                           crs='EPSG:28992', cache=True, cache_dir=None,
                           maxsize=800,
@@ -241,7 +242,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     cache : boolean, optional
         used cached data if available. The default is True.
     cache_dir : str or None, optional
-        
+
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
         800.
@@ -257,13 +258,13 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
 
     if isinstance(extent, xr.DataArray):
         extent = tuple(extent.values)
-    
+
     # check or infer url
     if url is None:
-        #infer url from identifier
+        # infer url from identifier
         if 'ahn2' in identifier:
             url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
-               'request=GetCapabilities&service=WCS')
+                   'request=GetCapabilities&service=WCS')
         elif 'ahn3' in identifier:
             url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
                    'request=GetCapabilities&service=WCS')
@@ -276,13 +277,13 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
                'request=GetCapabilities&service=WCS')
     else:
-        raise ValueError(f'unknown url -> {url}')    
-    
+        raise ValueError(f'unknown url -> {url}')
+
     # check resolution
     if res is None:
         if '05m' in identifier.split('_')[1]:
             res = 0.5
-        elif '5m'in identifier.split('_')[1]:
+        elif '5m' in identifier.split('_')[1]:
             res = 5.0
         else:
             raise ValueError('could not infer resolution from identifier')
@@ -292,12 +293,12 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     dy = extent[3] - extent[2]
 
     # check if size exceeds maxsize
-    if (dx/res) > maxsize:
+    if (dx / res) > maxsize:
         x_segments = int(np.ceil((dx / res) / maxsize))
     else:
         x_segments = 1
-    
-    if (dy/res) > maxsize:
+
+    if (dy / res) > maxsize:
         y_segments = int(np.ceil((dy / res) / maxsize))
     else:
         y_segments = 1
@@ -313,12 +314,12 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                                 cache=cache, cache_dir=cache_dir,
                                 fname=fname,
                                 verbose=verbose)
-    
+
     # get filename
     if fname is None:
         fname = 'ahn_{:.0f}_{:.0f}_{:.0f}_{:.0f}_{:.0f}.tiff'
-        
-        fname = fname.format(*extent, res*1000)
+
+        fname = fname.format(*extent, res * 1000)
         if cache_dir is None:
             cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
         if not os.path.isdir(cache_dir):
@@ -326,7 +327,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         fname = os.path.join(cache_dir, fname)
     else:
         cache = False
-        
+
     if not cache or not os.path.exists(fname):
         # download file
         wcs = WebCoverageService(url, version=version)

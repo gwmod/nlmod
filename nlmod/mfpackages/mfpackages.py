@@ -55,7 +55,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
         if sys.platform.startswith('win'):
             exe_name += ".exe"
 
-     # Create the Flopy simulation object
+    # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(sim_name=model_ds.model_name,
                                  exe_name=exe_name,
                                  version=model_ds.mfversion,
@@ -172,7 +172,9 @@ def disv_from_model_ds(model_ds, gwf, gridprops,
     return disv
 
 
-def npf_from_model_ds(model_ds, gwf, icelltype=0):
+def npf_from_model_ds(model_ds, gwf, icelltype=0,
+                      save_flows=False,
+                      **kwargs):
     """ get node property flow package from model dataset
 
 
@@ -184,6 +186,9 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0):
         groundwaterflow object.
     icelltype : int, optional
         celltype. The default is 0.
+    save_flows : bool, optional
+        value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by 
+        cell flows should be saved to the cbb file. Default is False
 
     Raises
     ------
@@ -205,7 +210,8 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0):
                                   icelltype=icelltype,
                                   k=model_ds['kh'].data,
                                   k33=model_ds['kv'].data,
-                                  save_flows=True)
+                                  save_flows=save_flows,
+                                  **kwargs)
 
     return npf
 
@@ -304,7 +310,7 @@ def ic_from_model_ds(model_ds, gwf,
 
 def sto_from_model_ds(model_ds, gwf,
                       sy=0.2, ss=0.000001,
-                      iconvert=1):
+                      iconvert=1, save_flows=False):
     """ get storage package from model dataset
 
 
@@ -320,6 +326,9 @@ def sto_from_model_ds(model_ds, gwf,
         specific storage. The default is 0.000001.
     iconvert : int, optional
         DESCRIPTION. The default is 1.
+    save_flows : bool, optional
+        value is passed to flopy.mf6.ModflowGwfsto() to determine if flows 
+        should be saved to the cbb file. Default is False
 
     Returns
     -------
@@ -339,7 +348,7 @@ def sto_from_model_ds(model_ds, gwf,
             trn_spd = {0: True}
 
         sto = flopy.mf6.ModflowGwfsto(gwf, pname='sto',
-                                      save_flows=True,
+                                      save_flows=save_flows,
                                       iconvert=iconvert,
                                       ss=ss, sy=sy, steady_state=sts_spd,
                                       transient=trn_spd)
@@ -503,7 +512,6 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True,
     saverecord = [('HEAD', 'ALL')]
     if save_budget:
         saverecord.append(('BUDGET', 'ALL'))
-
     if print_head:
         printrecord = [('HEAD', 'LAST')]
     else:

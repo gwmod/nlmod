@@ -15,11 +15,13 @@ import tempfile
 
 import flopy
 import numpy as np
+import geopandas as gpd
 import xarray as xr
 from flopy.discretization.structuredgrid import StructuredGrid
 from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 
+import shapely
 from shapely.prepared import prep
 
 from . import resample
@@ -435,28 +437,36 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
     return gridprops
 
 
-def get_xyi_cid(gridprops):
+def get_xyi_cid(gridprops=None, model_ds=None):
     """ Get x and y coördinates of the cell mids from the cellids in the grid
     properties.
 
 
     Parameters
     ----------
-    gridprops : dictionary
-        dictionary with grid properties output from gridgen.
+    gridprops : dictionary, optional
+        dictionary with grid properties output from gridgen. If gridprops is
+        None xyi and cid will be obtained from model_ds.
+    model_ds : xarray.Dataset
+        dataset with model data. Should have dimension (layer, cid).
 
     Returns
     -------
     xyi : numpy.ndarray
         array with x and y coördinates of cell centers, shape(len(cid), 2).
-    cid : list
-        list with cellids.
+    cid : numpy.ndarray
+        array with cellids, shape(len(cid))
     """
-
-    xc_gwf = [cell2d[1] for cell2d in gridprops['cell2d']]
-    yc_gwf = [cell2d[2] for cell2d in gridprops['cell2d']]
-    xyi = np.vstack((xc_gwf, yc_gwf)).T
-    cid = [c[0] for c in gridprops['cell2d']]
+    if not gridprops is None:
+        xc_gwf = [cell2d[1] for cell2d in gridprops['cell2d']]
+        yc_gwf = [cell2d[2] for cell2d in gridprops['cell2d']]
+        xyi = np.vstack((xc_gwf, yc_gwf)).T
+        cid = np.array([c[0] for c in gridprops['cell2d']])
+    elif not model_ds is None:
+        xyi = np.array(list(zip(model_ds.x.values,model_ds.y.values)))
+        cid = model_ds.cid.values
+    else:
+        raise ValueError('either gridprops or model_ds should be specified')
 
     return xyi, cid
 
@@ -992,6 +1002,8 @@ def polygon_to_area(modelgrid, polygon, da,
         area of polygon within each modelgrid cell
 
     """
+    if polygon.type != 'Polygon':
+        raise TypeError(f'input geometry should by of type "Polygon" not {polygon.type}')
 
     ix = GridIntersect(modelgrid)
     opp_cells = ix.intersect(polygon)
@@ -1017,8 +1029,8 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
 
     Parameters
     ----------
-    gdf : geopandas.GeoDataFrame
-        polygon shapes with surface water.
+    gdf : geopandas.GeoDataFrame or shapely.geometry
+        shapes that will be rasterised.
     mfgrid : flopy grid
         model grid.
     model_ds : xr.DataSet
@@ -1036,7 +1048,13 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
     ix = GridIntersect(mfgrid, method="vertex")
 
     da = xr.zeros_like(model_ds['top'])
-    for geom in gdf.geometry.values:
+        
+    if isinstance(gdf, gpd.GeoDataFrame):
+        geoms = gdf.geometry.values
+    elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
+        geoms = [gdf]
+        
+    for geom in geoms:
         # prepare shape for efficient batch intersection check
         prepshp = prep(geom)
 
@@ -1054,7 +1072,7 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
         else:
             raise ValueError(
                 'function only support structured or unstructured gridtypes')
-
+    
     return da
 
 

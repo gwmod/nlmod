@@ -16,3 +16,4 @@ gdown
 rtree
 pyshp
 nbconvert
+nbformat

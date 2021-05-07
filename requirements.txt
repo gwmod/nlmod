@@ -15,4 +15,4 @@ owslib
 gdown
 rtree
 pyshp
-nbformat
+nbconvert

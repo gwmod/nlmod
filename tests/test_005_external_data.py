@@ -8,7 +8,7 @@ import os
 import nlmod
 import pytest
 
-@pytest.mark.skip(reason="knmi api offline")
+
 def test_get_recharge():
 
     # model with sea
@@ -20,7 +20,7 @@ def test_get_recharge():
 
     return model_ds
 
-@pytest.mark.skip(reason="knmi api offline")
+
 def test_get_recharge_perlen14():
 
     # model with sea
@@ -31,7 +31,7 @@ def test_get_recharge_perlen14():
     for model_ds_key in ['perlen', 'start_time', 'nper', 'nstp', 'tsmult',
                          'steady_start', 'steady_state']:
         model_ds.attrs.pop(model_ds_key)
-    model_ds_time = nlmod.mtime.get_model_ds_time(model_ds.model_name,
+    model_ds_time = nlmod.mdims.get_model_ds_time(model_ds.model_name,
                                                   model_ds.model_ws,
                                                   '2015-1-1',
                                                   False,
@@ -50,7 +50,7 @@ def test_get_recharge_perlen14():
 
     return model_ds
 
-@pytest.mark.skip(reason="knmi api offline")
+
 def test_get_recharge_perlen_list():
 
     perlen = [3650, 12, 15, 14, 16, 20]
@@ -63,7 +63,7 @@ def test_get_recharge_perlen_list():
     for model_ds_key in ['perlen', 'start_time', 'nper', 'nstp', 'tsmult',
                          'steady_start', 'steady_state']:
         model_ds.attrs.pop(model_ds_key)
-    model_ds_time = nlmod.mtime.get_model_ds_time(model_ds.model_name,
+    model_ds_time = nlmod.mdims.get_model_ds_time(model_ds.model_name,
                                                   model_ds.model_ws,
                                                   '2015-1-1',
                                                   False,
@@ -82,7 +82,7 @@ def test_get_recharge_perlen_list():
 
     return model_ds
 
-@pytest.mark.skip(reason="knmi api offline")
+
 def test_get_recharge_steady_state():
 
     # model with sea
@@ -93,7 +93,7 @@ def test_get_recharge_steady_state():
     for model_ds_key in ['perlen', 'start_time', 'nper', 'nstp', 'tsmult',
                          'steady_start', 'steady_state']:
         model_ds.attrs.pop(model_ds_key)
-    model_ds_time = nlmod.mtime.get_model_ds_time(model_ds.model_name,
+    model_ds_time = nlmod.mdims.get_model_ds_time(model_ds.model_name,
                                                   model_ds.model_ws,
                                                   '2000-1-1',
                                                   True,

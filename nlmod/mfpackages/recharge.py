@@ -35,6 +35,9 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
         recharge package
 
     """
+    # check for nan values
+    if model_ds['recharge'].isnull().any():
+        raise ValueError('please remove nan values in recharge data array')
 
     # get stress period data
     if model_ds.steady_state:

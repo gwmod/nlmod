@@ -111,6 +111,9 @@ def add_knmi_to_model_dataset(model_ds,
                                                                       unit=model_ds.time_units))
         else:
             raise ValueError(f'did not recognise perlen data type {perlen}')
+            
+        # include the end day in the time series.
+        end = end + pd.Timedelta(1, 'D')
 
     model_ds_out = util.get_model_ds_empty(model_ds)
 
@@ -170,7 +173,8 @@ def add_knmi_to_model_dataset(model_ds,
         prec = oc_knmi_prec.loc[prec_evap[0], 'obs']['RD']
         evap = oc_knmi_evap.loc[prec_evap[1], 'obs']['EV24']
         recharge_ts = (prec - evap).dropna()
-        if recharge_ts.index[-1] < end - pd.Timedelta(1, unit='D'):
+
+        if recharge_ts.index[-1] < (end - pd.Timedelta(1, unit='D')):
             raise ValueError(
                 f'no recharge available at precipitation stations {prec_evap[0]} and evaporation station {prec_evap[1]} for date {end}')
 

@@ -232,7 +232,8 @@ def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
         fig = ax.get_figure()
         fig.colorbar(pcm, ax=ax, orientation='vertical')
         # plt.colorbar(pcm)
-    ax.set_title(array.name)
+    if hasattr(array, 'name'):
+        ax.set_title(array.name)
     # set rotation of y ticks to zero
     plt.setp(ax.yaxis.get_majorticklabels(), rotation=0)
     return ax

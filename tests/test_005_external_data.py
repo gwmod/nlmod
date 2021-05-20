@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
+import os
+
+import nlmod
+import pandas as pd
+import pytest
+
 import test_001_model
 import test_002_regis_geotop
-import pandas as pd
-
-import os
-import nlmod
-import pytest
 
 
 def test_get_recharge():
@@ -42,7 +43,7 @@ def test_get_recharge_perlen14():
     # merge new mtime with model_ds
     model_ds.update(model_ds_time)
     _ = [model_ds.attrs.update({key: item})
-             for key, item in model_ds_time.attrs.items()]
+         for key, item in model_ds_time.attrs.items()]
 
     # add knmi recharge to the model datasets
     model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds,
@@ -74,11 +75,11 @@ def test_get_recharge_perlen_list():
     # merge new mtime with model_ds
     model_ds.update(model_ds_time)
     _ = [model_ds.attrs.update({key: item})
-             for key, item in model_ds_time.attrs.items()]
+         for key, item in model_ds_time.attrs.items()]
 
     # add knmi recharge to the model datasets
     model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds,
-                                                  verbose=True)
+                                                         verbose=True)
 
     return model_ds
 
@@ -104,11 +105,11 @@ def test_get_recharge_steady_state():
     # merge new mtime with model_ds
     model_ds.update(model_ds_time)
     _ = [model_ds.attrs.update({key: item})
-             for key, item in model_ds_time.attrs.items()]
+         for key, item in model_ds_time.attrs.items()]
 
     # add knmi recharge to the model datasets
     model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds,
-                                                  verbose=True)
+                                                         verbose=True)
 
     return model_ds
 

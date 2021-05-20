@@ -103,6 +103,7 @@ def test_model_ds_check_grid_false():
                                       verbose=False)
     assert check == False
 
+
 @pytest.mark.skip("too slow")
 def test_use_cached_regis(tmpdir):
 
@@ -123,6 +124,7 @@ def test_use_cached_regis(tmpdir):
     assert regis_ds1.equals(regis_ds2)
 
     return regis_ds2
+
 
 @pytest.mark.skip("too slow")
 def test_do_not_use_cached_regis(tmpdir):

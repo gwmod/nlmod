@@ -18,13 +18,20 @@ from shapely.geometry import box
 
 
 def get_model_dirs(model_ws, gridtype='structured'):
-    """ creates model directories if they do not exist yet
-
+    """ Creates a new model workspace directory, if it does not 
+    exists yet. Within the model workspace directory a
+    few subdirectories are created (if they don't exist yet):
+    - figure
+    - cache
+    - gridgen (if gridtype = 'unstructured')
 
     Parameters
     ----------
     model_ws : str
         model workspace.
+    gridtype : str, optional
+        gridtype of the model can be either 'structured'  or 'unstructured'.
+        Default is 'structured'.
 
     Returns
     -------
@@ -32,6 +39,8 @@ def get_model_dirs(model_ws, gridtype='structured'):
         figure directory inside model workspace.
     cachedir : str
         cache directory inside model workspace.
+    (gridgen_ws) : str
+        only if gridtype = 'unstructured'
 
     """
     figdir = os.path.join(model_ws, 'figure')

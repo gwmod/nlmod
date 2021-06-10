@@ -64,55 +64,54 @@ def get_model_ds_time(model_name, model_ws, start_time,
     # checks
     if len(model_name) > 16 and mfversion == 'mf6':
         raise ValueError('model_name can not have more than 16 characters')
-    elif time_units.lower()!='days':
+    elif time_units.lower() != 'days':
         raise NotImplementedError()
-    elif (not steady_state) and (steady_start and (transient_timesteps==0)):
-        raise ValueError('illegal combination of steady_start and transient'\
+    elif (not steady_state) and (steady_start and (transient_timesteps == 0)):
+        raise ValueError('illegal combination of steady_start and transient'
                          'timesteps please use steady_state=True')
-    
 
     start_time_dt = pd.to_datetime(start_time)
 
     if steady_state:
         nper = 1
         start_time_dt = pd.to_datetime(start_time)
-        time_dt =[start_time_dt]
-    elif steady_start:   
+        time_dt = [start_time_dt]
+    elif steady_start:
         nper = 1 + transient_timesteps
 
         if isinstance(perlen, float) or isinstance(perlen, int):
-            start_tran = pd.to_datetime(start_time) 
+            start_tran = pd.to_datetime(start_time)
             start_time_dt = start_tran - dt.timedelta(days=steady_perlen)
-            
-            time_dt = pd.date_range(start_tran - pd.to_timedelta(perlen, unit=time_units), 
+
+            time_dt = pd.date_range(start_tran - pd.to_timedelta(perlen, unit=time_units),
                                     start_tran + pd.to_timedelta((transient_timesteps - 1) * perlen,
-                                    unit=time_units), periods=nper)
+                                                                 unit=time_units), periods=nper)
             time_dt.values[0] = start_time_dt
-            
+
         elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
-            assert len(perlen)==nper
-            start_tran = pd.to_datetime(start_time) 
+            assert len(perlen) == nper
+            start_tran = pd.to_datetime(start_time)
             start_time_dt = start_tran - dt.timedelta(days=perlen[0])
-            
+
             time_dt = [start_time_dt]
             for i, p in enumerate(perlen[:-1]):
-                time_dt += [time_dt[i] + pd.to_timedelta(p, unit=time_units)] 
+                time_dt += [time_dt[i] + pd.to_timedelta(p, unit=time_units)]
         else:
             raise ValueError(f'did not recognise perlen data type {perlen}')
-            
+
     else:
         nper = transient_timesteps
         if isinstance(perlen, float) or isinstance(perlen, int):
-            start_time_dt = pd.to_datetime(start_time) 
-            time_dt = pd.date_range(start_time_dt, 
+            start_time_dt = pd.to_datetime(start_time)
+            time_dt = pd.date_range(start_time_dt,
                                     start_time_dt + pd.to_timedelta((transient_timesteps - 1) * perlen,
-                                    unit=time_units), periods=nper)
+                                                                    unit=time_units), periods=nper)
         elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
-            assert len(perlen)==nper
-            start_time_dt = pd.to_datetime(start_time) 
+            assert len(perlen) == nper
+            start_time_dt = pd.to_datetime(start_time)
             time_dt = [start_time_dt]
             for i, p in enumerate(perlen[:-1]):
-                time_dt += [time_dt[i] + pd.to_timedelta(p, unit=time_units)]  
+                time_dt += [time_dt[i] + pd.to_timedelta(p, unit=time_units)]
         else:
             raise ValueError(f'did not recognise perlen data type {perlen}')
 
@@ -131,6 +130,122 @@ def get_model_ds_time(model_name, model_ws, start_time,
     model_ds.attrs['nstp'] = nstp
     model_ds.attrs['tsmult'] = tsmult
     model_ds.attrs['mfversion'] = mfversion
+
+    # netcdf files cannot handle booleans
+    model_ds.attrs['steady_start'] = int(steady_start)
+    model_ds.attrs['steady_state'] = int(steady_state)
+
+    return model_ds
+
+
+def set_model_ds_time(model_ds, start_time, steady_state,
+                      steady_start=False, time_units='DAYS',
+                      transient_timesteps=0,
+                      steady_perlen=3650, perlen=1.0,
+                      nstp=1, tsmult=1.0):
+    """ Get a model dataset with the time variant data
+
+    Parameters
+    ----------
+    model_ds : xarray.Dataset
+        Dataset to add time information to
+    steady_state : bool
+        if True the model is steady state with one time step.
+    steady_start : bool
+        if True the model is transient with a steady state start time step.
+    time_units : str, optional
+        time unit of the model. The default is 'DAYS'.
+    transient_timesteps : int, optional
+        number of transient time steps. The default is 0.
+    perlen : float, int, list or np.array, optional
+        length of each timestep depending on the type:
+            - float or int: this is the length of all the time steps. If 
+            steady_start is True the length of the first time step is defined
+            by steady_perlen
+            - list or array: the items are the length per timestep.
+            the length of perlen should match the number of transient 
+            timesteps (or transient timesteps +1 if steady_start is True) 
+        The default is 1.0.
+    steady_perlen : float, optional
+        time step length of the first steady state timestep, this is used to 
+        Only used if steady_start is True. Default is 3650 (~10 years)
+    nstp : int, optional
+        DESCRIPTION. The default is 1.
+    tsmult : float, optional
+        DESCRIPTION. The default is 1.0.
+
+    Returns
+    -------
+    model_ds : xarray.Dataset
+        dataset with time variant model data
+
+    """
+    # checks
+    if len(model_ds.model_name) > 16 and model_ds.mfversion == 'mf6':
+        raise ValueError('model_name can not have more than 16 characters')
+    elif time_units.lower() != 'days':
+        raise NotImplementedError()
+    elif (not steady_state) and (steady_start and (transient_timesteps == 0)):
+        raise ValueError('illegal combination of steady_start and transient'
+                         'timesteps please use steady_state=True')
+
+    start_time_dt = pd.to_datetime(start_time)
+
+    if steady_state:
+        nper = 1
+        start_time_dt = pd.to_datetime(start_time)
+        time_dt = [start_time_dt]
+    elif steady_start:
+        nper = 1 + transient_timesteps
+
+        if isinstance(perlen, float) or isinstance(perlen, int):
+            start_tran = pd.to_datetime(start_time)
+            start_time_dt = start_tran - dt.timedelta(days=steady_perlen)
+
+            time_dt = pd.date_range(start_tran - pd.to_timedelta(perlen, unit=time_units),
+                                    start_tran + pd.to_timedelta((transient_timesteps - 1) * perlen,
+                                                                 unit=time_units), periods=nper)
+            time_dt.values[0] = start_time_dt
+
+        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
+            assert len(perlen) == nper
+            start_tran = pd.to_datetime(start_time)
+            start_time_dt = start_tran - dt.timedelta(days=perlen[0])
+
+            time_dt = [start_time_dt]
+            for i, p in enumerate(perlen[:-1]):
+                time_dt += [time_dt[i] + pd.to_timedelta(p, unit=time_units)]
+        else:
+            raise ValueError(f'did not recognise perlen data type {perlen}')
+
+    else:
+        nper = transient_timesteps
+        if isinstance(perlen, float) or isinstance(perlen, int):
+            start_time_dt = pd.to_datetime(start_time)
+            time_dt = pd.date_range(start_time_dt,
+                                    start_time_dt + pd.to_timedelta((transient_timesteps - 1) * perlen,
+                                                                    unit=time_units), periods=nper)
+        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
+            assert len(perlen) == nper
+            start_time_dt = pd.to_datetime(start_time)
+            time_dt = [start_time_dt]
+            for i, p in enumerate(perlen[:-1]):
+                time_dt += [time_dt[i] + pd.to_timedelta(p, unit=time_units)]
+        else:
+            raise ValueError(f'did not recognise perlen data type {perlen}')
+
+    time_steps = list(range(nper))
+
+    model_ds = model_ds.assign_coords(coords={'time': time_dt})
+
+    model_ds['time_steps'] = xr.DataArray(time_steps, dims=('time'),
+                                          coords={'time': model_ds.time})
+    model_ds.attrs['time_units'] = time_units
+    model_ds.attrs['start_time'] = str(start_time_dt)
+    model_ds.attrs['nper'] = nper
+    model_ds.attrs['perlen'] = perlen
+    model_ds.attrs['nstp'] = nstp
+    model_ds.attrs['tsmult'] = tsmult
 
     # netcdf files cannot handle booleans
     model_ds.attrs['steady_start'] = int(steady_start)

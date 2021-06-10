@@ -202,9 +202,6 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0,
 
     """
 
-    if icelltype != 0:
-        raise NotImplementedError()
-
     npf = flopy.mf6.ModflowGwfnpf(gwf,
                                   pname='npf',
                                   icelltype=icelltype,

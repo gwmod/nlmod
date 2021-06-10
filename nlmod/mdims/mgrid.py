@@ -994,7 +994,7 @@ def polygon_to_area(modelgrid, polygon, da,
     polygon : shapely.geometry.polygon.Polygon
         polygon feature.
     da : xarray.DataArray
-        data array that is use to fill output 
+        data array that is filled with polygon data
 
     Returns
     -------

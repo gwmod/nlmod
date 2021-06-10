@@ -211,7 +211,6 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0,
                                   k=model_ds['kh'].data,
                                   k33=model_ds['kv'].data,
                                   save_flows=save_flows,
-                                  save_specific_discharge=True,
                                   **kwargs)
 
     return npf
@@ -510,7 +509,7 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True,
     head_filerecord = [headfile]
     budgetfile = '{}.cbb'.format(model_ds.model_name)
     budget_filerecord = [budgetfile]
-    saverecord = [('HEAD', 'ALL')]
+    saverecord = [('HEAD', 'LAST')]
     if save_budget:
         saverecord.append(('BUDGET', 'ALL'))
     if print_head:

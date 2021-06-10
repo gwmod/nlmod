@@ -9,15 +9,13 @@ module with functions to deal with the northsea by:
 Note: if you like jazz please check this out: https://www.northseajazz.com
 """
 import os
+
 import numpy as np
-import xarray as xr
-import geopandas as gpd
 import requests
-import gdown
+import xarray as xr
 
-
-import nlmod
-from . import util, mgrid, surface_water
+from .. import mdims, util
+from ..mfpackages import surface_water
 
 
 def get_modelgrid_sea(model_ds,
@@ -92,7 +90,7 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
                                                                  'Hollandse kust (kustwater)',
                                                                  'Waddenkust (kustwater)'])]
 
-    model_ds_out = mgrid.gdf_to_bool_dataset(model_ds, swater_zee,
+    model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee,
                                              modelgrid, da_name)
 
     return model_ds_out
@@ -156,20 +154,21 @@ def bathymetry_to_model_dataset(model_ds,
     changing the order in which operations are executed.
     """
     try:
-        jarkus = get_dataset_jarkus(model_ds.extent)
+        jarkus_ds = get_dataset_jarkus(model_ds.extent)
     except OSError:
+        import gdown
         print('cannot access Jarkus netCDF link, copy file from google drive instead')
         fname_jarkus = os.path.join(model_ds.model_ws,
                                     'jarkus_nhflopy.nc')
         url = 'https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo'
         gdown.download(url, fname_jarkus,
                        quiet=False)
-        jarkus = xr.open_dataset(fname_jarkus)
+        jarkus_ds = xr.open_dataset(fname_jarkus)
 
-    da_bathymetry_raw = jarkus['z']
+    da_bathymetry_raw = jarkus_ds['z']
 
     # fill nan values in bathymetry
-    da_bathymetry_filled = mgrid.fillnan_dataarray_structured_grid(
+    da_bathymetry_filled = mdims.fillnan_dataarray_structured_grid(
         da_bathymetry_raw)
 
     # bathymetrie mag nooit groter zijn dan NAP 0.0
@@ -178,14 +177,14 @@ def bathymetry_to_model_dataset(model_ds,
 
     # bathymetry projected on model grid
     if model_ds.gridtype == 'structured':
-        da_bathymetry = mgrid.resample_dataarray_to_structured_grid(da_bathymetry_filled,
+        da_bathymetry = mdims.resample_dataarray_to_structured_grid(da_bathymetry_filled,
                                                                     extent=model_ds.extent,
                                                                     delr=model_ds.delr,
                                                                     delc=model_ds.delc,
                                                                     xmid=model_ds.x.data,
                                                                     ymid=model_ds.y.data[::-1])[0]
     elif model_ds.gridtype == 'unstructured':
-        da_bathymetry = mgrid.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
+        da_bathymetry = mdims.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
                                                                         gridprops=gridprops)[0]
 
     model_ds_out = util.get_model_ds_empty(model_ds)

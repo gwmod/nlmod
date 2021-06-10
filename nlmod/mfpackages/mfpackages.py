@@ -4,15 +4,21 @@ Created on Thu Jan  7 17:20:34 2021
 
 @author: oebbe
 """
-import xarray as xr
 import numbers
-import numpy as np
+import os
+import sys
+
 import flopy
-from nlmod import mgrid, recharge
+import numpy as np
+import xarray as xr
+
+from .. import mdims
+from . import recharge
 
 
-def sim_tdis_gwf_ims_from_model_ds(model_ds, 
+def sim_tdis_gwf_ims_from_model_ds(model_ds,
                                    complexity='MODERATE',
+                                   exe_name=None,
                                    verbose=False):
     """ create sim, tdis, gwf and ims package from the model dataset
 
@@ -21,10 +27,12 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     ----------
     model_ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: 
-            model_name, mfversion, model_ws, time_units, start_time, perlen,
-            nstp, tsmult
-
+        attributes: model_name, mfversion, model_ws, time_units, start_time, 
+        perlen, nstp, tsmult
+    exe_name: str, optional
+        path to modflow executable, default is None, which assumes binaries
+        are available in nlmod/bin directory. Binaries can be downloaded
+        using `nlmod.util.download_mfbinaries()`.
     verbose : bool, optional
         print additional information. default is False
 
@@ -41,16 +49,23 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     if verbose:
         print('creating modflow SIM, TDIS, GWF and IMS')
 
-     # Create the Flopy simulation object
+    if exe_name is None:
+        exe_name = os.path.join(os.path.dirname(__file__),
+                                '..', '..', 'bin', model_ds.mfversion)
+        if sys.platform.startswith('win'):
+            exe_name += ".exe"
+
+    # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(sim_name=model_ds.model_name,
-                                 exe_name=model_ds.mfversion,
+                                 exe_name=exe_name,
                                  version=model_ds.mfversion,
                                  sim_ws=model_ds.model_ws)
 
     tdis_perioddata = get_tdis_perioddata(model_ds)
 
     # Create the Flopy temporal discretization object
-    flopy.mf6.modflow.mftdis.ModflowTdis(sim, pname='tdis',
+    flopy.mf6.modflow.mftdis.ModflowTdis(sim,
+                                         pname='tdis',
                                          time_units=model_ds.time_units,
                                          nper=len(model_ds.time),
                                          start_date_time=model_ds.start_time,
@@ -90,7 +105,12 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
         discretisation package.
 
     """
-    #check attributes
+
+    if model_ds.gridtype != 'structured':
+        raise ValueError(
+            f'cannot create dis package for gridtype -> {model_ds.gridtype}')
+
+    # check attributes
     for att in ['delr', 'delc']:
         if isinstance(model_ds.attrs[att], np.float32):
             model_ds.attrs[att] = float(model_ds.attrs[att])
@@ -152,7 +172,9 @@ def disv_from_model_ds(model_ds, gwf, gridprops,
     return disv
 
 
-def npf_from_model_ds(model_ds, gwf, icelltype=0):
+def npf_from_model_ds(model_ds, gwf, icelltype=0,
+                      save_flows=False,
+                      **kwargs):
     """ get node property flow package from model dataset
 
 
@@ -164,6 +186,9 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0):
         groundwaterflow object.
     icelltype : int, optional
         celltype. The default is 0.
+    save_flows : bool, optional
+        value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by 
+        cell flows should be saved to the cbb file. Default is False
 
     Raises
     ------
@@ -177,15 +202,13 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0):
 
     """
 
-    if icelltype != 0:
-        raise NotImplementedError()
-
     npf = flopy.mf6.ModflowGwfnpf(gwf,
                                   pname='npf',
                                   icelltype=icelltype,
                                   k=model_ds['kh'].data,
                                   k33=model_ds['kv'].data,
-                                  save_flows=True)
+                                  save_flows=save_flows,
+                                  **kwargs)
 
     return npf
 
@@ -216,7 +239,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
     """
 
     if model_ds.gridtype == 'structured':
-        ghb_rec = mgrid.data_array_2d_to_rec_list(model_ds,
+        ghb_rec = mdims.data_array_2d_to_rec_list(model_ds,
                                                   model_ds[f'{da_name}_cond'] != 0,
                                                   col1=f'{da_name}_peil',
                                                   col2=f'{da_name}_cond',
@@ -224,7 +247,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
                                                   only_active_cells=False,
                                                   layer=0)
     elif model_ds.gridtype == 'unstructured':
-        ghb_rec = mgrid.data_array_1d_unstr_to_rec_list(model_ds,
+        ghb_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds,
                                                         model_ds[f'{da_name}_cond'] != 0,
                                                         col1=f'{da_name}_peil',
                                                         col2=f'{da_name}_cond',
@@ -239,8 +262,12 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
                                       maxbound=len(ghb_rec),
                                       stress_period_data=ghb_rec,
                                       save_flows=True)
+        return ghb
 
-    return ghb
+    else:
+        print('no ghb cells added')
+
+        return None
 
 
 def ic_from_model_ds(model_ds, gwf,
@@ -268,17 +295,19 @@ def ic_from_model_ds(model_ds, gwf,
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
-        model_ds['starting_head']=  starting_head * xr.ones_like(model_ds['idomain'])
+        model_ds['starting_head'] = starting_head * \
+            xr.ones_like(model_ds['idomain'])
+        starting_head = 'starting_head'
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
-                                strt=model_ds['starting_head'].data)
+                                strt=model_ds[starting_head].data)
 
     return ic
 
 
 def sto_from_model_ds(model_ds, gwf,
                       sy=0.2, ss=0.000001,
-                      iconvert=1):
+                      iconvert=1, save_flows=False):
     """ get storage package from model dataset
 
 
@@ -294,6 +323,9 @@ def sto_from_model_ds(model_ds, gwf,
         specific storage. The default is 0.000001.
     iconvert : int, optional
         DESCRIPTION. The default is 1.
+    save_flows : bool, optional
+        value is passed to flopy.mf6.ModflowGwfsto() to determine if flows 
+        should be saved to the cbb file. Default is False
 
     Returns
     -------
@@ -313,7 +345,7 @@ def sto_from_model_ds(model_ds, gwf,
             trn_spd = {0: True}
 
         sto = flopy.mf6.ModflowGwfsto(gwf, pname='sto',
-                                      save_flows=True,
+                                      save_flows=save_flows,
                                       iconvert=iconvert,
                                       ss=ss, sy=sy, steady_state=sts_spd,
                                       transient=trn_spd)
@@ -354,10 +386,11 @@ def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
         # assign 1 to cells that are on the edge and have an active idomain
         model_ds['chd'] = xr.zeros_like(model_ds['idomain'])
         for lay in model_ds.layer:
-            model_ds['chd'].loc[lay] = np.where(mask2d & (model_ds['idomain'].loc[lay] == 1), 1, 0)
+            model_ds['chd'].loc[lay] = np.where(
+                mask2d & (model_ds['idomain'].loc[lay] == 1), 1, 0)
 
         # get the stress_period_data
-        chd_rec = mgrid.data_array_3d_to_rec_list(model_ds,
+        chd_rec = mdims.data_array_3d_to_rec_list(model_ds,
                                                   model_ds['chd'] != 0,
                                                   col1=head)
     elif model_ds.gridtype == 'unstructured':
@@ -407,12 +440,12 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
     model_ds.attrs['surface_drn_cond'] = surface_drn_cond
     mask = model_ds['ahn'].notnull()
     if model_ds.gridtype == 'structured':
-        drn_rec = mgrid.data_array_2d_to_rec_list(model_ds, mask, col1='ahn',
+        drn_rec = mdims.data_array_2d_to_rec_list(model_ds, mask, col1='ahn',
                                                   first_active_layer=True,
                                                   only_active_cells=False,
                                                   col2=model_ds.surface_drn_cond)
     elif model_ds.gridtype == 'unstructured':
-        drn_rec = mgrid.data_array_1d_unstr_to_rec_list(model_ds, mask,
+        drn_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds, mask,
                                                         col1='ahn',
                                                         col2=model_ds.surface_drn_cond,
                                                         first_active_layer=True,
@@ -473,10 +506,9 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True,
     head_filerecord = [headfile]
     budgetfile = '{}.cbb'.format(model_ds.model_name)
     budget_filerecord = [budgetfile]
-    saverecord = [('HEAD', 'ALL')]
+    saverecord = [('HEAD', 'LAST')]
     if save_budget:
         saverecord.append(('BUDGET', 'ALL'))
-    
     if print_head:
         printrecord = [('HEAD', 'LAST')]
     else:
@@ -519,13 +551,14 @@ def get_tdis_perioddata(model_ds):
     """
     perlen = model_ds.perlen
     if isinstance(perlen, numbers.Number):
-        tdis_perioddata = [(float(perlen), model_ds.nstp, model_ds.tsmult)] * int(model_ds.nper)
+        tdis_perioddata = [(float(perlen), model_ds.nstp,
+                            model_ds.tsmult)] * int(model_ds.nper)
     elif isinstance(perlen, (list, tuple, np.ndarray)):
         if model_ds.steady_start:
             assert len(perlen) == model_ds.dims['time']
         else:
             assert len(perlen) == model_ds.dims['time']
-        tdis_perioddata = [(p, model_ds.nstp, model_ds.tsmult) for p in perlen] 
+        tdis_perioddata = [(p, model_ds.nstp, model_ds.tsmult) for p in perlen]
     else:
         raise TypeError('did not recognise perlen type')
 

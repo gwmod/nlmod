@@ -128,10 +128,13 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# vscode
+.vscode
+
 # nlmod specific
+bin/
 flowchartnlmod.pptx
 tests/data/
-executables/*
 examples/*/
 data/nhflo/
 

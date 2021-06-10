@@ -13,7 +13,7 @@ from flopy.utils import GridIntersect
 from tqdm import tqdm
 
 import nlmod
-from . import mgrid, util
+from .. import mdims, util
 
 
 def get_gdf_surface_water(model_ds):
@@ -41,7 +41,8 @@ def get_gdf_surface_water(model_ds):
 
 
 def get_general_head_boundary(model_ds,
-                              modelgrid, da_name,
+                              modelgrid, 
+                              da_name,
                               cachedir=None,
                               use_cache=False,
                               verbose=False):
@@ -106,7 +107,7 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     cond = xr.zeros_like(model_ds['top'])
     peil = xr.zeros_like(model_ds['top'])
     for i, row in gdf.iterrows():
-        area_pol = mgrid.polygon_to_area(modelgrid, row['geometry'],
+        area_pol = mdims.polygon_to_area(modelgrid, row['geometry'],
                                          xr.ones_like(model_ds['top']),
                                          model_ds.gridtype)
         cond = xr.where(area_pol > area, area_pol / row['bweerstand'], cond)
@@ -137,7 +138,7 @@ def gdf2grid(gdf, ml, method="vertex", **kwargs):
         Method passed to the GridIntersect-class. The default is None, which
         makes GridIntersect choose the best method.
     **kwargs : keyword arguments
-        keyword arguments are passed to the intersect_*-methods.
+        keyword arguments are passed to the intersect-method.
 
     Returns
     -------
@@ -347,6 +348,8 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
                                                 stage)
         if "aux" in row:
             auxlist = [row["aux"]]
+        else:
+            auxlist = []
 
         if model_ds.gridtype == 'unstructured':
             cellid = (cellid,)

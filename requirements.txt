@@ -9,9 +9,12 @@ tqdm
 flopy
 xarray
 netCDF4
-hydropandas
 rasterio
 owslib
 gdown
 rtree
 pyshp
+jupyter
+nbconvert
+nbformat
+hydropandas

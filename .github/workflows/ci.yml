@@ -54,10 +54,10 @@ jobs:
         run: |
           python -c "import nlmod; nlmod.util.download_mfbinaries()"
             
-      - name: Run tests and notebooks
+      - name: Run notebooks
         if: ${{ github.event_name == 'pull_request' }}
         run: |
-          py.test ./tests
+          py.test ./tests -m "notebooks"
       
       - name: Run tests only
         if: ${{ github.event_name == 'push' }}

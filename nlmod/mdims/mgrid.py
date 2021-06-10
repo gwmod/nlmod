@@ -319,7 +319,7 @@ def get_xy_mid_structured(extent, delr, delc):
     return xmid, ymid
 
 
-def create_unstructured_grid(gridgen_ws, model_name, gwf,
+def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
                              refine_features=None, extent=None,
                              nlay=None, nrow=None, ncol=None,
                              delr=None, delc=None,
@@ -334,7 +334,7 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
         directory to save gridgen files.
     model_name : str
         name of the model.
-    gwf : flopy.mf6.modflow.mfgwf.ModflowGwf
+    gwf : flopy.mf6.ModflowGwf
         groundwater flow model, if structured grid is already defined
         parameters defining the grid are taken from modelgrid if not 
         explicitly passed.
@@ -391,16 +391,21 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf,
 
     # if existing structured grid, take parameters from grid if not
     # explicitly passed
-    if gwf.modelgrid.grid_type == "structured":
-        nlay = gwf.modelgrid.nlay if nlay is None else nlay
-        nrow = gwf.modelgrid.nrow if nrow is None else nrow
-        ncol = gwf.modelgrid.ncol if ncol is None else ncol
-        delr = gwf.modelgrid.delr if delr is None else delr
-        delc = gwf.modelgrid.delc if delc is None else delc
-        extent = gwf.modelgrid.extent if extent is None else extent
+    if gwf is not None:
+        if gwf.modelgrid.grid_type == "structured":
+            nlay = gwf.modelgrid.nlay if nlay is None else nlay
+            nrow = gwf.modelgrid.nrow if nrow is None else nrow
+            ncol = gwf.modelgrid.ncol if ncol is None else ncol
+            delr = gwf.modelgrid.delr if delr is None else delr
+            delc = gwf.modelgrid.delc if delc is None else delc
+            extent = gwf.modelgrid.extent if extent is None else extent
 
     # create temporary groundwaterflow model with dis package
-    _gwf_temp = copy.deepcopy(gwf)
+    if gwf is not None:
+        _gwf_temp = copy.deepcopy(gwf)
+    else:
+        _sim_temp = flopy.mf6.MFSimulation()
+        _gwf_temp = flopy.mf6.MFModel(_sim_temp)
     _dis_temp = flopy.mf6.ModflowGwfdis(_gwf_temp, pname='dis',
                                         nlay=nlay, nrow=nrow, ncol=ncol,
                                         delr=delr, delc=delc,
@@ -463,7 +468,7 @@ def get_xyi_cid(gridprops=None, model_ds=None):
         xyi = np.vstack((xc_gwf, yc_gwf)).T
         cid = np.array([c[0] for c in gridprops['cell2d']])
     elif not model_ds is None:
-        xyi = np.array(list(zip(model_ds.x.values,model_ds.y.values)))
+        xyi = np.array(list(zip(model_ds.x.values, model_ds.y.values)))
         cid = model_ds.cid.values
     else:
         raise ValueError('either gridprops or model_ds should be specified')
@@ -1003,7 +1008,8 @@ def polygon_to_area(modelgrid, polygon, da,
 
     """
     if polygon.type != 'Polygon':
-        raise TypeError(f'input geometry should by of type "Polygon" not {polygon.type}')
+        raise TypeError(
+            f'input geometry should by of type "Polygon" not {polygon.type}')
 
     ix = GridIntersect(modelgrid)
     opp_cells = ix.intersect(polygon)
@@ -1048,12 +1054,12 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
     ix = GridIntersect(mfgrid, method="vertex")
 
     da = xr.zeros_like(model_ds['top'])
-        
+
     if isinstance(gdf, gpd.GeoDataFrame):
         geoms = gdf.geometry.values
     elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
         geoms = [gdf]
-        
+
     for geom in geoms:
         # prepare shape for efficient batch intersection check
         prepshp = prep(geom)
@@ -1072,7 +1078,7 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
         else:
             raise ValueError(
                 'function only support structured or unstructured gridtypes')
-    
+
     return da
 
 

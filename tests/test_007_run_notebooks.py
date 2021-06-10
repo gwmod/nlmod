@@ -39,5 +39,6 @@ def test_run_notebook_03_local_grid_refinement():
 
 
 @pytest.mark.notebooks
+@pytest.mark.skip("requires art_tools")
 def test_run_notebook_04_modifying_layermodels():
     _run_notebook(nbdir, '04_modifying_layermodels.ipynb')

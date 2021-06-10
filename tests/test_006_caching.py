@@ -104,6 +104,7 @@ def test_model_ds_check_grid_false():
     assert check == False
 
 
+@pytest.mark.skip("too slow")
 def test_use_cached_regis(tmpdir):
 
     extent = [98700., 99000., 489500., 489700.]
@@ -125,6 +126,7 @@ def test_use_cached_regis(tmpdir):
     return regis_ds2
 
 
+@pytest.mark.skip("too slow")
 def test_do_not_use_cached_regis(tmpdir):
     # cache regis
     extent = [98700., 99000., 489500., 489700.]

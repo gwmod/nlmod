@@ -5,6 +5,7 @@ modelgrid.
 """
 import numpy as np
 import xarray as xr
+from scipy.interpolate import griddata
 
 from .. import mdims, util
 from . import geotop
@@ -202,13 +203,14 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
     extent2, nrow, ncol = fit_extent_to_regis(extent, delr, delc)
     for coord1, coord2 in zip(extent, extent2):
         if coord1 != coord2:
-            raise ValueError('extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function')
+            raise ValueError(
+                'extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function')
 
     # get local regis dataset
     regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
-    
+
     regis_ds_raw = xr.open_dataset(regis_url, decode_times=False)
-    
+
     # set x and y dimensions to cell center
     regis_ds_raw['x'] = regis_ds_raw.x_bounds.mean('bounds')
     regis_ds_raw['y'] = regis_ds_raw.y_bounds.mean('bounds')
@@ -230,15 +232,16 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
 
     # rename layers
     regis_ds_raw = regis_ds_raw.rename({'layer': 'layer_old'})
-    regis_ds_raw.coords['layer'] = regis_ds_raw.layer_old.astype(str)  # could also use assign_coords
+    regis_ds_raw.coords['layer'] = regis_ds_raw.layer_old.astype(
+        str)  # could also use assign_coords
     regis_ds_raw2 = regis_ds_raw.swap_dims({'layer_old': 'layer'})
 
     # convert regis dataset to grid
     regis_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=regis_ds_raw2,
-                                                     extent=extent, 
+                                                     extent=extent,
                                                      delr=delr, delc=delc,
                                                      verbose=verbose)
-  
+
     return regis_ds
 
 
@@ -293,7 +296,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         print('cut geotop layer based on regis holoceen')
     for lay in range(geotop_ds.dims['layer']):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
-        mask1 = geotop_ds['top'][lay] <= (regis_ds['bot'][layer_no] - float_correction)
+        mask1 = geotop_ds['top'][lay] <= (
+            regis_ds['bot'][layer_no] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask1, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask1, np.nan, geotop_ds['bot'][lay])
         geotop_ds['kh'][lay] = xr.where(mask1, np.nan, geotop_ds['kh'][lay])
@@ -301,10 +305,12 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
 
         # Alle geotop cellen waarvan de bodem onder de onderkant van het holoceen ligt, krijgen als bodem de onderkant van het holoceen
         mask2 = geotop_ds['bot'][lay] < regis_ds['bot'][layer_no]
-        geotop_ds['bot'][lay] = xr.where(mask2 * (~mask1), regis_ds['bot'][layer_no], geotop_ds['bot'][lay])
+        geotop_ds['bot'][lay] = xr.where(
+            mask2 * (~mask1), regis_ds['bot'][layer_no], geotop_ds['bot'][lay])
 
         # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
-        mask3 = geotop_ds['bot'][lay] >= (regis_ds['top'][layer_no] - float_correction)
+        mask3 = geotop_ds['bot'][lay] >= (
+            regis_ds['top'][layer_no] - float_correction)
         geotop_ds['top'][lay] = xr.where(mask3, np.nan, geotop_ds['top'][lay])
         geotop_ds['bot'][lay] = xr.where(mask3, np.nan, geotop_ds['bot'][lay])
         geotop_ds['kh'][lay] = xr.where(mask3, np.nan, geotop_ds['kh'][lay])
@@ -312,7 +318,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
 
         # Alle geotop cellen waarvan de top boven de top van het holoceen ligt, krijgen als top het holoceen van regis
         mask4 = geotop_ds['top'][lay] >= regis_ds['top'][layer_no]
-        geotop_ds['top'][lay] = xr.where(mask4 * (~mask3), regis_ds['top'][layer_no], geotop_ds['top'][lay])
+        geotop_ds['top'][lay] = xr.where(
+            mask4 * (~mask3), regis_ds['top'][layer_no], geotop_ds['top'][lay])
 
         # overal waar holoceen inactief is, wordt geotop ook inactief
         mask5 = regis_ds['bot'][layer_no].isnull()
@@ -322,7 +329,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         geotop_ds['kv'][lay] = xr.where(mask5, np.nan, geotop_ds['kv'][lay])
         if verbose:
             if (mask2 * (~mask1)).sum() > 0:
-                print(f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
+                print(
+                    f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
 
     top[:len(geotop_ds.layer), :, :] = geotop_ds['top'].data
     top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no + 1:]
@@ -342,7 +350,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     regis_geotop_ds['kv'] = kv
 
     _ = [regis_geotop_ds.attrs.update({key: item})
-                 for key, item in regis_ds.attrs.items()]
+         for key, item in regis_ds.attrs.items()]
 
     # maak top, bot, kh en kv nan waar de laagdikte 0 is
     mask = (regis_geotop_ds['top'] - regis_geotop_ds['bot']) < float_correction
@@ -386,9 +394,9 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
     elif isinstance(extent, (tuple, np.ndarray)):
         extent = list(extent)
     else:
-        raise TypeError(f'expected extent of type list, tuple or np.ndarray, got {type(extent)}')
+        raise TypeError(
+            f'expected extent of type list, tuple or np.ndarray, got {type(extent)}')
 
-    
     if verbose:
         print(f'redefining current extent: {extent}, fit to regis raster')
 
@@ -400,7 +408,7 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
     # if xmin ends with 100 do nothing, otherwise fit xmin to regis cell border
     if extent[0] % cs_regis != 0:
         extent[0] -= extent[0] % cs_regis
-    
+
     # get number of columns
     ncol = int(np.ceil((extent[1] - extent[0]) / delr))
     extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
@@ -408,7 +416,7 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
     # if ymin ends with 100 do nothing, otherwise fit ymin to regis cell border
     if extent[2] % cs_regis != 0:
         extent[2] -= extent[2] % cs_regis
-        
+
     nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
     extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
 
@@ -467,3 +475,40 @@ def get_layer_names():
     layer_names = xr.open_dataset(regis_url).layer.values
 
     return layer_names
+
+
+def extrapolate_regis(regis_ds, verbose=False):
+    """Fill missing data in layermodel based on nearest interpolation.
+
+    Used for ensuring layer model contains data everywhere. Useful for 
+    filling in data beneath the sea for coastal groundwater models.
+
+    Parameters
+    ----------
+    regis_ds : xarray.DataSet
+        REGIS DataSet
+    verbose : bool, optional
+        print messages
+
+    Returns
+    -------
+    regis_ds : xarray.DataSet
+        filled REGIS layermodel with nearest interpolation
+    """
+    # fill layermodel with nearest interpolation (usually for filling in data
+    # under the North Sea)
+    mask = np.isnan(regis_ds['top']).all('layer')
+    if not np.any(mask):
+        # all of the model are is inside
+        if verbose:
+            print("No missing data")
+        return regis_ds
+    x, y = np.meshgrid(regis_ds.x, regis_ds.y)
+    points = (x[~mask], y[~mask])
+    xi = (x[mask], y[mask])
+    for key in list(regis_ds.keys()):
+        data = regis_ds[key].data
+        for lay in range(len(regis_ds.layer)):
+            values = data[lay][~mask]
+            data[lay][mask] = griddata(points, values, xi, method='nearest')
+    return regis_ds

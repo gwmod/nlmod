@@ -1007,7 +1007,11 @@ def polygon_to_area(modelgrid, polygon, da,
         area of polygon within each modelgrid cell
 
     """
-    if polygon.type != 'Polygon':
+    if polygon.type == 'Polygon':
+        pass
+    elif polygon.type == 'MultiPolygon':
+        Warning('function not tested for MultiPolygon type, can have unexpected results')
+    else:
         raise TypeError(
             f'input geometry should by of type "Polygon" not {polygon.type}')
 

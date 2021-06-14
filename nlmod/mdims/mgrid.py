@@ -80,7 +80,8 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     """ Update a model dataset with a model layer dataset. Follow these steps:
     1. add the data variables in 'keep_vars' from the model layer dataset
     to the model dataset
-    2. add the attributes of the model layer dataset to the model dataset
+    2. add the attributes of the model layer dataset to the model dataset if
+    they don't exist yet.
     3. compute idomain from the bot values in the model layer dataset, add
     to model dataset
     4. compute top and bots from model layer dataset, add to model dataset
@@ -136,8 +137,9 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         # update variables
         model_ds.update(ml_layer_ds[keep_vars])
         # update attributes
-        _ = [model_ds.attrs.update({key: item})
-             for key, item in ml_layer_ds.attrs.items()]
+        for key, item in ml_layer_ds.attrs.items():
+            if key not in model_ds.attrs.keys():
+                model_ds.attrs.update({key: item})
 
     model_ds = add_idomain_from_bottom_to_dataset(ml_layer_ds['bot'],
                                                   model_ds)
@@ -1007,7 +1009,11 @@ def polygon_to_area(modelgrid, polygon, da,
         area of polygon within each modelgrid cell
 
     """
-    if polygon.type != 'Polygon':
+    if polygon.type == 'Polygon':
+        pass
+    elif polygon.type == 'MultiPolygon':
+        Warning('function not tested for MultiPolygon type, can have unexpected results')
+    else:
         raise TypeError(
             f'input geometry should by of type "Polygon" not {polygon.type}')
 

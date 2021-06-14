@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import flopy
 
 import geopandas as gpd
 import numpy as np
@@ -695,6 +696,103 @@ def getmfexes(pth='.', version='', pltfrm=None):
 
     return
 
+def add_heads_to_model_ds(model_ds, fname_hds=None):
+    """ reads the heads from a modflow .hds file and returns an xarray 
+    DataArray
+
+
+    Parameters
+    ----------
+    model_ds : TYPE
+        DESCRIPTION.
+    fname_hds : TYPE, optional
+        DESCRIPTION. The default is None.
+        
+    Returns
+    -------
+    head_ar : TYPE
+        DESCRIPTION.
+
+    """
+
+    if fname_hds is None:
+        fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + '.hds')
+    
+    head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype)
+    
+    
+
+    if model_ds.gridtype == 'unstructured':
+        head_ar = xr.DataArray(data=head_filled[:, :, :],
+                               dims=('time', 'layer', 'cid'),
+                               coords={'cid': model_ds.cid,
+                                       'layer': model_ds.layer,
+                                       'time': model_ds.time})
+    elif model_ds.gridtype =='structured':
+        head_ar = xr.DataArray(data=head_filled,
+                           dims=('time', 'layer', 'y', 'x'),
+                           coords={'x': model_ds.x,
+                                   'y': model_ds.y,
+                                   'layer': model_ds.layer,
+                                   'time': model_ds.time})
+
+    return head_ar
+
+def get_heads_array(fname_hds, gridtype='structured',
+                    fill_nans=True):
+    """ reads the heads from a modflow .hds file and returns a numpy array
+    
+    assumes the dimensions of the heads file are:
+        structured: time, layer, cid
+        unstructured: time, layer, nrow, ncol
+
+
+    Parameters
+    ----------
+    fname_hds : TYPE, optional
+        DESCRIPTION. The default is None.
+    gridtype : str, optional
+        DESCRIPTION. The default is 'structured'.
+    fill_nans : bool, optional
+        if True the nan values are filled with the heads in the cells below
+
+    Returns
+    -------
+    head_ar : np.ndarray
+        heads array.
+
+    """
+    hdobj = flopy.utils.HeadFile(fname_hds)
+    head = hdobj.get_alldata()
+    head[head == head.max()] = np.nan
+
+    if gridtype == 'unstructured':
+        head_filled = np.ones((head.shape[0], head.shape[1], head.shape[3])) * np.nan
+        
+        for t in range(head.shape[0]):
+            for lay in range(head.shape[1] - 1, -1, -1):
+                head_filled[t][lay] = head[t][lay][0]
+                if lay < (head.shape[1] - 1):
+                    if fill_nans:
+                        head_filled[t][lay] = np.where(np.isnan(head_filled[t][lay]),
+                                                       head_filled[t][lay + 1],
+                                                       head_filled[t][lay])
+
+    elif gridtype =='structured':
+        head_filled = np.zeros_like(head)
+        for t in range(head.shape[0]):
+            for lay in range(head.shape[1] - 1, -1, -1):
+                head_filled[t][lay] = head[t][lay]
+                if lay < (head.shape[1] - 1):
+                    if fill_nans:
+                        head_filled[t][lay] = np.where(np.isnan(head_filled[t][lay]),
+                                                       head_filled[t][lay + 1],
+                                                       head_filled[t][lay])
+    else:
+        raise ValueError('wrong gridtype')
+        
+    return head_filled
+
 
 def download_mfbinaries(binpath=None, version='6.0'):
     """Download and unpack platform-specific modflow binaries.
@@ -712,5 +810,7 @@ def download_mfbinaries(binpath=None, version='6.0'):
     if binpath is None:
         binpath = os.path.join(os.path.dirname(__file__), "..", "bin")
     pltfrm = get_platform(None)
-    # %% Download and unpack mf6 exes
+    # Download and unpack mf6 exes
     getmfexes(pth=binpath, version=version, pltfrm=pltfrm)
+    
+    

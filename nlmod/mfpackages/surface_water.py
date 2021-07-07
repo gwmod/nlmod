@@ -41,7 +41,7 @@ def get_gdf_surface_water(model_ds):
 
 
 def get_general_head_boundary(model_ds,
-                              modelgrid, 
+                              modelgrid,
                               da_name,
                               cachedir=None,
                               use_cache=False,
@@ -249,7 +249,12 @@ def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
         # when for some reason the kd is 0 in all layers (for example when the
         # river bottom is above all the layers), add to the first active layer
         if idomain is not None:
-            first_active = np.where(idomain == 1)[0][0]
+            try:
+                first_active = np.where(idomain == 1)[0][0]
+            except IndexError:
+                warnings.warn(f"No active layers in {cellid}, "
+                              "returning NaNs.")
+                return np.nan, np.nan
         else:
             first_active = 0
         lays = [first_active]
@@ -288,6 +293,9 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
     for cellid, row in tqdm(celldata.iterrows(),
                             total=celldata.index.size,
                             desc=f"Building stress period data {pkg}:"):
+
+        if (model_ds["idomain"].sel(cid=cellid) == 0).all():
+            continue
 
         # rbot
         if "rbot" in row.index:

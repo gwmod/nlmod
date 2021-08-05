@@ -32,7 +32,7 @@ setup(
                       'xarray>=0.16.1',
 					  'geopandas>=0.9.0',
 					  'scipy>=1.7.1',
-					  'rasterio>=1.2.6',
+					  'rasterio>=1.1.0',
 					  'owslib>=0.24.1',
 					  'tqdm>=4.62.0',
 					  'hydropandas>=0.3.0',

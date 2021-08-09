@@ -57,12 +57,12 @@ def get_geotop_dataset(extent, delr, delc,
 
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent)
 
-    litho_translate_df = pd.read_csv(os.path.join(nlmod.nlmod_datadir,
+    litho_translate_df = pd.read_csv(os.path.join(nlmod.NLMOD_DATADIR,
                                                   'geotop',
                                                   'litho_eenheden.csv'),
                                      index_col=0)
 
-    geo_eenheid_translate_df = pd.read_csv(os.path.join(nlmod.nlmod_datadir,
+    geo_eenheid_translate_df = pd.read_csv(os.path.join(nlmod.NLMOD_DATADIR,
                                                         'geotop',
                                                         'geo_eenheden.csv'),
                                            index_col=0,

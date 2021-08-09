@@ -16,5 +16,5 @@ from .version import __version__
 
 import os
 
-nlmod_datadir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+NLMOD_DATADIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                              '..','data')

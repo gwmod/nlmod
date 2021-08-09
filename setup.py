@@ -30,6 +30,7 @@ setup(
     platforms='Windows, Mac OS-X',
     install_requires=['flopy>=3.3.2',
                       'xarray>=0.16.1',
+					  'rasterio>=1.1.0',
 					  'owslib>=0.24.1',
 					  'hydropandas>=0.3.0',
 					  'netcdf4>=1.5.7',

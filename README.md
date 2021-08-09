@@ -1,3 +1,4 @@
+
 [![nlmod](https://github.com/ArtesiaWater/nlmod/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ArtesiaWater/nlmod/actions/workflows/ci.yml)
 
 # nlmod
@@ -27,5 +28,9 @@ When using pip the dependencies are automatically installed. Some dependencies a
 
 
 ## Getting started
-In the examples folder you find some Jupyter Notebooks which illustrate how you to use the nlmod package. 
+If you are using nlmod for the first time you need to download the MODFLOW executables. You can easily download these executables by running this Python code:
 
+	import nlmod
+	nlmod.util.download_mfbinaries()
+
+After you've downloaded the executables you can run the Jupyter Notebooks in the examples folder. These notebooks illustrate how you to use the nlmod package. 

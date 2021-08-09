@@ -3,6 +3,7 @@
 functions to add surface water to a mf model using the ghb package.
 """
 
+import warnings
 import os
 import numpy as np
 import pandas as pd
@@ -293,10 +294,15 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
     for cellid, row in tqdm(celldata.iterrows(),
                             total=celldata.index.size,
                             desc=f"Building stress period data {pkg}:"):
-
-        if (model_ds["idomain"].sel(cid=cellid) == 0).all():
-            continue
-
+        
+        # check if there is an active layer for this cell
+        if model_ds.gridtype=='unstructured':
+            if (model_ds["idomain"].sel(cid=cellid) == 0).all():
+                continue
+        elif model_ds.gridtype=='structured':
+            if (model_ds["idomain"].isel(y=cellid[0], x=cellid[1]) == 0).all():
+                continue
+        
         # rbot
         if "rbot" in row.index:
             rbot = row["rbot"]

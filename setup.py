@@ -30,15 +30,12 @@ setup(
     platforms='Windows, Mac OS-X',
     install_requires=['flopy>=3.3.2',
                       'xarray>=0.16.1',
-					  'geopandas>=0.9.0',
-					  'scipy>=1.7.1',
-					  'rasterio>=1.2.6',
 					  'owslib>=0.24.1',
-					  'tqdm>=4.62.0',
 					  'hydropandas>=0.3.0',
 					  'netcdf4>=1.5.7',
 					  'pyshp>=2.1.3',
-					  'rtree>=0.9.7'
+					  'rtree>=0.9.7',
+					  'openpyxl>=3.0.7'
                       ],
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*"]},

@@ -17,6 +17,9 @@ import requests
 import xarray as xr
 from shapely.geometry import box
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def get_model_dirs(model_ws, gridtype='structured'):
     """ Creates a new model workspace directory, if it does not 
@@ -89,7 +92,7 @@ def get_model_ds_empty(model_ds):
         raise ValueError('no gridtype defined cannot compare model datasets')
 
 
-def check_delr_delc_extent(dic, model_ds, verbose=False):
+def check_delr_delc_extent(dic, model_ds):
     """ checks if the delr, delc and extent in a dictionary equals the
     delr, delc and extent in a model dataset.
 
@@ -111,28 +114,26 @@ def check_delr_delc_extent(dic, model_ds, verbose=False):
     for key in ['delr', 'delc']:
         if key in dic.keys():
             key_check = dic[key] == model_ds.attrs[key]
-            if verbose:
-                if key_check:
-                    print(f'{key} of current grid is the same as cached grid')
-                else:
-                    print(f'{key} of current grid differs from cached grid')
+            if key_check:
+                logger.info(f'{key} of current grid is the same as cached grid')
+            else:
+                logger.info(f'{key} of current grid differs from cached grid')
             check = check and key_check
 
     if 'extent' in dic.keys():
         key_check = (np.array(dic['extent']) == np.array(
             model_ds.attrs['extent'])).all()
-        if verbose:
-            if key_check:
-                print('extent of current grid is the same as cached grid')
-            else:
-                print('extent of current grid differs from cached grid')
-            check = check and key_check
+        
+        if key_check:
+            logger.info('extent of current grid is the same as cached grid')
+        else:
+            logger.info('extent of current grid differs from cached grid')
+        check = check and key_check
 
     return check
 
 
-def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
-                   verbose=False):
+def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True):
     """ check if two model datasets have the same grid and time discretization.
     e.g. the same dimensions and coordinates.
 
@@ -150,8 +151,6 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
     check_time : bool, optional
         if True the time discretisation of both models are compared to check 
         if they are the same
-    verbose : bool, optional
-        print additional information. default is False
 
     Raises
     ------
@@ -195,11 +194,9 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
                 check_layer = check_layer and (
                     model_ds['layer'].dtype == model_ds2['layer'].dtype)
                 if (check_x and check_y and check_layer):
-                    if verbose:
-                        print('cached data has same grid as current model')
+                    logger.info('cached data has same grid as current model')
                 else:
-                    if verbose:
-                        print('cached data grid differs from current model')
+                    logger.info('cached data grid differs from current model')
                     return False
             if check_time:
                 if len(model_ds['time']) != len(model_ds2['time']):
@@ -208,13 +205,9 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
                     check_time = (model_ds['time'].data ==
                                   model_ds2['time'].data).all()
                 if check_time:
-                    if verbose:
-                        print(
-                            'cached data has same time discretisation as current model')
+                    logger.info('cached data has same time discretisation as current model')
                 else:
-                    if verbose:
-                        print(
-                            'cached data time discretisation differs from current model')
+                    logger.info('cached data time discretisation differs from current model')
                     return False
             return True
         except KeyError:
@@ -231,11 +224,9 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
                 check_layer = check_layer and (
                     model_ds['layer'].dtype == model_ds2['layer'].dtype)
                 if (check_cid and check_x and check_y and check_layer):
-                    if verbose:
-                        print('cached data has same grid as current model')
+                    logger.info('cached data has same grid as current model')
                 else:
-                    if verbose:
-                        print('cached data grid differs from current model')
+                    logger.info('cached data grid differs from current model')
                     return False
             if check_time:
                 # check length time series
@@ -246,12 +237,10 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
                 else:
                     check_time = False
                 if check_time:
-                    if verbose:
-                        print(
+                    logger.info(
                             'cached data has same time discretisation as current model')
                 else:
-                    if verbose:
-                        print(
+                    logger.info(
                             'cached data time discretisation differs from current model')
                     return False
             return True
@@ -263,7 +252,7 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True,
 
 def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
                      model_ds=None, check_grid=True,
-                     check_time=True, verbose=False, **get_kwargs):
+                     check_time=True, **get_kwargs):
     """ reate, read or modify cached netcdf files of a model dataset.
 
     following steps are done:
@@ -300,8 +289,6 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
     check_time : bool, optional
         if True the time discretisation of both models are compared to check 
         if they are the same
-    verbose : bool, optional
-        print additional information. default is False
     **get_kwargs : 
         keyword arguments are used when calling the get_dataset_func.
 
@@ -319,8 +306,7 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
 
     if use_cache:
         if os.path.exists(fname_model_ds):
-            if verbose:
-                print(f'found cached {cache_name}, loading cached dataset')
+            logger.info(f'found cached {cache_name}, loading cached dataset')
 
             cache_model_ds = xr.open_dataset(fname_model_ds)
 
@@ -330,8 +316,7 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
                 pos_kwargs_check = len(set(get_kwargs.keys()).intersection(
                     ['delr', 'delc', 'extent'])) == 3
                 if pos_kwargs_check:
-                    if check_delr_delc_extent(get_kwargs, cache_model_ds,
-                                              verbose=verbose):
+                    if check_delr_delc_extent(get_kwargs, cache_model_ds):
                         return cache_model_ds
                     else:
                         cache_model_ds.close()
@@ -341,15 +326,13 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
 
             # check coordinates of model dataset
             elif check_model_ds(model_ds, cache_model_ds,
-                                check_grid, check_time,
-                                verbose=verbose):
+                                check_grid, check_time):
                 model_ds.update(cache_model_ds)
                 cache_model_ds.close()
                 return model_ds
             else:
                 cache_model_ds.close()
-    if verbose:
-        print(f'creating and caching dataset {cache_name}\n')
+    logger.info(f'creating and caching dataset {cache_name}\n')
     if model_ds is None:
         ds = get_dataset_func(**get_kwargs)
         ds.to_netcdf(fname_model_ds)
@@ -400,7 +383,7 @@ def find_most_recent_file(folder, name, extension='.pklz'):
     return newest_file
 
 
-def compare_model_extents(extent1, extent2, verbose=False):
+def compare_model_extents(extent1, extent2):
     """ check overlap between two model extents
 
 
@@ -410,8 +393,6 @@ def compare_model_extents(extent1, extent2, verbose=False):
         first extent [xmin, xmax, ymin, ymax]
     extent2 : xr.DataSet
         second extent
-    verbose : bool, optional
-        if True additional information is printed. The default is False.
 
     Returns
     -------
@@ -429,33 +410,28 @@ def compare_model_extents(extent1, extent2, verbose=False):
     check_ymax = extent1[3] <= extent2[3]
 
     if check_xmin and check_xmax and check_ymin and check_ymax:
-        if verbose:
-            print('extent1 is completely within extent2 ')
+        logger.info('extent1 is completely within extent2 ')
         return 1
 
     # option2 extent2 is completely within extent1
     if (not check_xmin) and (not check_xmax) and (not check_ymin) and (not check_ymax):
-        if verbose:
-            print('extent2 is completely within extent1')
+        logger.info('extent2 is completely within extent1')
         return 2
 
     # option 3 left bound
     if (not check_xmin) and check_xmax and check_ymin and check_ymax:
-        if verbose:
-            print('extent1 is completely within extent2 except for the left bound (xmin)')
+        logger.info('extent1 is completely within extent2 except for the left bound (xmin)')
         return 3
 
     # option 4 right bound
     if check_xmin and (not check_xmax) and check_ymin and check_ymax:
-        if verbose:
-            print(
+        logger.info(
                 'extent1 is completely within extent2 except for the right bound (xmax)')
         return 4
 
     # option 10
     if check_xmin and (not check_xmax) and (not check_ymin) and (not check_ymax):
-        if verbose:
-            print('only the left bound of extent 1 is within extent 2')
+        logger.info('only the left bound of extent 1 is within extent 2')
         return 10
 
     raise NotImplementedError('other options are not yet implemented')

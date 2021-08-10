@@ -136,9 +136,7 @@ def get_combined_layer_models(extent, delr, delc,
         raise ValueError('layer models without REGIS not supported')
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop_dataset(extent, delr, delc, regis_ds,
-                                              cachedir=cachedir,
-                                              use_cache=use_cache)
+        geotop_ds = geotop.get_geotop_dataset(extent, delr, delc, regis_ds)
 
     if use_regis and use_geotop:
         regis_geotop_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)

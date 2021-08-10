@@ -119,12 +119,12 @@ def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot'):
             if np.sum(sf) != 1.0:
                 raise ValueError(
                     "Sum of split factors for layer must equal 1.0!")
-            logger.info(f"{i}: Split layer {i} into {len(sf)} layers "
+            logger.debug(f"{i}: Split layer {i} into {len(sf)} layers "
                         f"with fractions: {sf}")
 
             # loop over split factors
             for isf, factor in enumerate(sf):
-                logger.info(f"  - {isf}: Calculate new top/bot for "
+                logger.debug(f"  - {isf}: Calculate new top/bot for "
                             f"new layer index {j}")
 
                 # calculate new bot and new top
@@ -142,8 +142,8 @@ def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot'):
 
         # no split, remap old layer to new layer index
         else:
-            logger.info(f"{i:2d}: No split: map layer {i} to "
-                        f"new layer index {j}")
+            logger.debug(f"{i:2d}: No split: map layer {i} to "
+                         f"new layer index {j}")
             if top3d:
                 new_top.data[j] = ds[top].data[i]
             else:
@@ -347,8 +347,8 @@ def layer_combine_top_bot(ds, combine_layers, layer='layer',
             reindexer[j] = c
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
-                logger.info(f"{j:2d}: Merge layers {c} as layer {j}, "
-                            "calculate new top/bot.")
+                logger.debug(f"{j:2d}: Merge layers {c} as layer {j}, "
+                             "calculate new top/bot.")
                 tops = ds[top].data[c, :, :]
                 bots = ds[bot].data[c, :, :]
                 new_top.data[j] = np.nanmax(tops, axis=0)
@@ -365,8 +365,8 @@ def layer_combine_top_bot(ds, combine_layers, layer='layer',
                 continue
         else:
             # do not merge, only map old layer index to new layer index
-            logger.info(f"{j:2d}: Do not merge, map old layer index "
-                        "to new layer index.")
+            logger.debug(f"{j:2d}: Do not merge, map old layer index "
+                         "to new layer index.")
             new_top.data[j] = ds[top].data[i]
             new_bot.data[j] = ds[bot].data[i]
             reindexer[j] = i

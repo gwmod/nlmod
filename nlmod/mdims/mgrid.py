@@ -12,6 +12,7 @@ import os
 import pickle
 import sys
 import tempfile
+from tqdm import tqdm
 
 import flopy
 import numpy as np
@@ -1101,6 +1102,46 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
     model_ds_out[da_name] = gdf_to_bool_data_array(gdf, mfgrid, model_ds)
 
     return model_ds_out
+
+
+def gdf2grid(gdf, ml, method="vertex", **kwargs):
+    """
+    Intersect a geodataframe with a model grid.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can
+        consist of multiple types (Point, LineString, Polygon and the Multi-
+        variants).
+    ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf
+        The flopy model that defines the grid.
+    method : string, optional
+        Method passed to the GridIntersect-class. The default is None, which
+        makes GridIntersect choose the best method.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect-method.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        The GeoDataFrame with the geometries per grid-cell.
+
+    """
+    ix = GridIntersect(ml.modelgrid, method=method)
+    shps = []
+    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0],
+                       desc="Intersecting with grid"):
+
+        r = ix.intersect(shp.geometry, **kwargs)
+
+        for i in range(r.shape[0]):
+            shpn = shp.copy()
+            shpn['cellid'] = r['cellids'][i]
+            shpn.geometry = r['ixshapes'][i]
+            shps.append(shpn)
+    return gpd.GeoDataFrame(shps)
+
 
 
 def get_thickness_from_topbot(top, bot):

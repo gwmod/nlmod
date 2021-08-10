@@ -3,3 +3,4 @@ from . import geotop
 from . import jarkus
 from . import regis
 from . import knmi
+from . import rws

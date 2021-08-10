@@ -1,165 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-functions to add surface water to a mf model using the ghb package.
-"""
-
-import warnings
-import os
 import numpy as np
-import pandas as pd
-import geopandas as gpd
 import xarray as xr
-from flopy.utils import GridIntersect
+import pandas as pd
 
 from tqdm import tqdm
-
-import nlmod
-from .. import mdims, util
+import warnings
 
 import logging
 logger = logging.getLogger(__name__)
-
-
-def get_gdf_surface_water(model_ds):
-    """ read a shapefile with surface water as a geodataframe, cut by the 
-    extent of the model.
-
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        dataset containing relevant model information
-
-    Returns
-    -------
-    gdf_opp_water : GeoDataframe
-        surface water geodataframe.
-
-    """
-    # laad bestanden in
-    fname = os.path.join(nlmod.NLMOD_DATADIR, r'opp_water.shp')
-    gdf_swater = gpd.read_file(fname)
-    gdf_swater = util.gdf_within_extent(gdf_swater, model_ds.extent)
-
-    return gdf_swater
-
-
-def get_general_head_boundary(model_ds,
-                              modelgrid,
-                              da_name,
-                              cachedir=None,
-                              use_cache=False):
-    """ Get general head boundary from surface water geodataframe
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        dataset containing relevant model grid information
-    modelgrid : flopy grid
-        model grid.
-    da_name : str
-        name of the polygon shapes, name is used to store data arrays in 
-        model_ds
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached ghb data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xr.DataSet
-        dataset with spatial model data including the ghb rasters
-
-    """
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'ghb_model_ds.nc',
-                                     surface_water_to_model_dataset,
-                                     model_ds,
-                                     modelgrid=modelgrid, da_name=da_name)
-
-    return model_ds
-
-
-def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
-    """ create 3 data-arrays from the shapefile with surface water:
-    - area: with the area of the shape in the cell
-    - cond: with the conductance based on the area and bweerstand column in shapefile
-    - peil: with the surface water lvl based on the peil column in the shapefile
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        xarray with model data
-    modelgrid : flopy grid
-        model grid.
-    da_name : str
-        name of the polygon shapes, name is used to store data arrays in 
-        model_ds
-
-    Returns
-    -------
-    model_ds : xarray.Dataset
-        dataset with modelgrid data. Has 
-
-    """
-    gdf = get_gdf_surface_water(model_ds)
-
-    area = xr.zeros_like(model_ds['top'])
-    cond = xr.zeros_like(model_ds['top'])
-    peil = xr.zeros_like(model_ds['top'])
-    for i, row in gdf.iterrows():
-        area_pol = mdims.polygon_to_area(modelgrid, row['geometry'],
-                                         xr.ones_like(model_ds['top']),
-                                         model_ds.gridtype)
-        cond = xr.where(area_pol > area, area_pol / row['bweerstand'], cond)
-        peil = xr.where(area_pol > area, row['peil'], peil)
-        area = xr.where(area_pol > area, area_pol, area)
-
-    model_ds_out = util.get_model_ds_empty(model_ds)
-    model_ds_out[f'{da_name}_area'] = area
-    model_ds_out[f'{da_name}_cond'] = cond
-    model_ds_out[f'{da_name}_peil'] = peil
-
-    return model_ds_out
-
-
-def gdf2grid(gdf, ml, method="vertex", **kwargs):
-    """
-    Intersect a geodataframe with a model grid.
-
-    Parameters
-    ----------
-    gdf : geopandas.GeoDataFrame
-        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can
-        consist of multiple types (Point, LineString, Polygon and the Multi-
-        variants).
-    ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf
-        The flopy model that defines the grid.
-    method : string, optional
-        Method passed to the GridIntersect-class. The default is None, which
-        makes GridIntersect choose the best method.
-    **kwargs : keyword arguments
-        keyword arguments are passed to the intersect-method.
-
-    Returns
-    -------
-    geopandas.GeoDataFrame
-        The GeoDataFrame with the geometries per grid-cell.
-
-    """
-    ix = GridIntersect(ml.modelgrid, method=method)
-    shps = []
-    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0],
-                       desc="Intersecting with grid"):
-
-        r = ix.intersect(shp.geometry, **kwargs)
-
-        for i in range(r.shape[0]):
-            shpn = shp.copy()
-            shpn['cellid'] = r['cellids'][i]
-            shpn.geometry = r['ixshapes'][i]
-            shps.append(shpn)
-    return gpd.GeoDataFrame(shps)
 
 
 def aggregate_surface_water(gdf, method, model_ds=None):
@@ -207,173 +54,6 @@ def aggregate_surface_water(gdf, method, model_ds=None):
     return celldata
 
 
-def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
-                              idomain=None, kh=None, stage=None):
-
-    if isinstance(rivbot, np.ndarray) or isinstance(rivbot, xr.DataArray):
-        rivbot = float(rivbot[cellid])
-    if len(laybot.shape) == 3:
-        # the grid is structured grid
-        laytop = laytop[cellid[0], cellid[1]]
-        laybot = laybot[:, cellid[0], cellid[1]]
-        if idomain is not None:
-            idomain = idomain[:, cellid[0], cellid[1]]
-        if kh is not None:
-            kh = kh[:, cellid[0], cellid[1]]
-    elif len(laybot.shape) == 2:
-        # the grid is a vertex grid
-        laytop = laytop[cellid]
-        laybot = laybot[:, cellid]
-        if idomain is not None:
-            idomain = idomain[:, cellid]
-        if kh is not None:
-            kh = kh[:, cellid]
-
-    if stage is None or isinstance(stage, str):
-        lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
-    elif np.isfinite(stage):
-        lays = np.arange(int(np.sum(stage < laybot)),
-                         int(np.sum(rivbot < laybot)) + 1)
-    else:
-        lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
-    if idomain is not None:
-        # only distribute conductance over active layers
-        lays = lays[idomain.values[lays] > 0]
-    topbot = np.hstack((laytop, laybot))
-    topbot[topbot < rivbot] = rivbot
-    d = -1 * np.diff(topbot)
-    if kh is not None:
-        kd = kh * d
-    else:
-        kd = d
-    if np.all(kd <= 0):
-        # when for some reason the kd is 0 in all layers (for example when the
-        # river bottom is above all the layers), add to the first active layer
-        if idomain is not None:
-            try:
-                first_active = np.where(idomain == 1)[0][0]
-            except IndexError:
-                warnings.warn(f"No active layers in {cellid}, "
-                              "returning NaNs.")
-                return np.nan, np.nan
-        else:
-            first_active = 0
-        lays = [first_active]
-        kd[first_active] = 1.
-    conds = cond * kd[lays] / np.sum(kd[lays])
-    return np.array(lays), np.array(conds)
-
-
-def build_spd(celldata, pkg, model_ds):
-    """Build stress period data for package (RIV, DRN, GHB).
-
-    Parameters
-    ----------
-    celldata : geopandas.GeoDataFrame
-        GeoDataFrame containing data. Cellid must be the index,
-        and must have columns  
-    pkg : str
-        Modflow package: RIV, DRN or GHB
-    model_ds : xarray.DataSet
-        DataSet containing model layer information
-
-    Returns
-    -------
-    spd : list
-        list containing stress period data: 
-        - RIV: [(cellid), stage, cond, rbot]
-        - DRN: [(cellid), elev, cond]
-        - GHB: [(cellid), elev, cond]
-    """
-
-    spd = []
-    errors = {}
-
-    for cellid, row in tqdm(celldata.iterrows(),
-                            total=celldata.index.size,
-                            desc=f"Building stress period data {pkg}:"):
-        
-        # check if there is an active layer for this cell
-        if model_ds.gridtype=='unstructured':
-            if (model_ds["idomain"].sel(cid=cellid) == 0).all():
-                continue
-        elif model_ds.gridtype=='structured':
-            if (model_ds["idomain"].isel(y=cellid[0], x=cellid[1]) == 0).all():
-                continue
-        
-        # rbot
-        if "rbot" in row.index:
-            rbot = row["rbot"]
-            if np.isnan(rbot):
-                logger.warning(f"WARNING!: Cell {cellid} skipped because 'rbot' "
-                               "is NaN")
-                errors[cellid] = "rbot is NaN"
-                continue
-        elif pkg == "RIV":
-            raise ValueError("Column 'rbot' required for building "
-                             "RIV package!")
-        else:
-            rbot = np.nan
-
-        # stage
-        stage = row["stage"]
-
-        if np.isnan(stage):
-            logger.warning(f"WARNING: Cell {cellid} skipped because stage is NaN!")
-            errors[cellid] = "stage is NaN"
-            continue
-
-        if (stage < rbot) and np.isfinite(rbot):
-            logger.warning(f"WARNING: stage below bottom elevation in {cellid}, "
-                      "stage reset to rbot!")
-            stage = rbot
-
-        # conductance
-        cond = row["cond"]
-
-        # check value
-        if np.isnan(cond):
-            logger.warning(f"{cellid}: Conductance is NaN! Info: area={row.area:.2f} "
-                      f"len={row.len_estimate:.2f}, BL={row['rbot']}")
-            errors[cellid] = "cond is NaN"
-            continue
-
-        if cond < 0:
-            logger.warning(f"{cellid}, Conductance is negative!, area={row.area:.2f}, "
-                           f"len={row.len_estimate:.2f}, BL={row['rbot']}")
-            errors[cellid] = "cond is negative"
-            continue
-
-        # if surface water penetrates multiple layers:
-        lays, conds = distribute_cond_over_lays(cond,
-                                                cellid,
-                                                rbot,
-                                                model_ds.top,
-                                                model_ds.bot,
-                                                model_ds.idomain,
-                                                model_ds.kh,
-                                                stage)
-        if "aux" in row:
-            auxlist = [row["aux"]]
-        else:
-            auxlist = []
-
-        if model_ds.gridtype == 'unstructured':
-            cellid = (cellid,)
-
-        # write SPD
-        for lay, cond in zip(lays, conds):
-            cid = (lay,) + cellid
-            if pkg == "RIV":
-                spd.append([cid, stage, cond, rbot] + auxlist)
-            elif pkg in ["DRN", "GHB"]:
-                spd.append([cid, stage, cond] + auxlist)
-
-    print(f"Skipped {len(errors.keys())} cells because of "
-          "missing/erroneous data!")
-    return spd
-
-
 def get_surfacewater_params(group, method, cid=None, model_ds=None,
                             delange_params=None):
 
@@ -419,17 +99,6 @@ def get_surfacewater_params(group, method, cid=None, model_ds=None,
         raise ValueError(f"Method '{method}' not recognized!")
 
     return stage, cond, rbot
-
-
-def get_subsurface_params_by_cellid(model_ds, cid):
-    r, c = cid
-    A = model_ds.delr * model_ds.delc  # cell area
-    laytop = model_ds['top'].isel(x=c, y=r).data
-    laybot = model_ds['bot'].isel(x=c, y=r).data
-    kv = model_ds['kv'].isel(x=c, y=r).data
-    kh = model_ds['kh'].isel(x=c, y=r).data
-    thickness = model_ds["thickness"].isel(x=c, y=r).data
-    return A, laytop, laybot, kh, kv, thickness
 
 
 def agg_max_area(gdf, col):
@@ -489,6 +158,17 @@ def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3,
         A, H0, kveq, kheq, c1, li, B, c0, p, N, crad_positive=crad_positive)
 
     return pstar, cstar, cond
+
+
+def get_subsurface_params_by_cellid(model_ds, cid):
+    r, c = cid
+    A = model_ds.delr * model_ds.delc  # cell area
+    laytop = model_ds['top'].isel(x=c, y=r).data
+    laybot = model_ds['bot'].isel(x=c, y=r).data
+    kv = model_ds['kv'].isel(x=c, y=r).data
+    kh = model_ds['kh'].isel(x=c, y=r).data
+    thickness = model_ds["thickness"].isel(x=c, y=r).data
+    return A, laytop, laybot, kh, kv, thickness
 
 
 def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):
@@ -603,3 +283,170 @@ def estimate_polygon_length(gdf):
     len_est.loc[shape_factor < 4] = len_est3.loc[shape_factor < 4]
 
     return len_est
+
+
+def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
+                              idomain=None, kh=None, stage=None):
+
+    if isinstance(rivbot, np.ndarray) or isinstance(rivbot, xr.DataArray):
+        rivbot = float(rivbot[cellid])
+    if len(laybot.shape) == 3:
+        # the grid is structured grid
+        laytop = laytop[cellid[0], cellid[1]]
+        laybot = laybot[:, cellid[0], cellid[1]]
+        if idomain is not None:
+            idomain = idomain[:, cellid[0], cellid[1]]
+        if kh is not None:
+            kh = kh[:, cellid[0], cellid[1]]
+    elif len(laybot.shape) == 2:
+        # the grid is a vertex grid
+        laytop = laytop[cellid]
+        laybot = laybot[:, cellid]
+        if idomain is not None:
+            idomain = idomain[:, cellid]
+        if kh is not None:
+            kh = kh[:, cellid]
+
+    if stage is None or isinstance(stage, str):
+        lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
+    elif np.isfinite(stage):
+        lays = np.arange(int(np.sum(stage < laybot)),
+                         int(np.sum(rivbot < laybot)) + 1)
+    else:
+        lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
+    if idomain is not None:
+        # only distribute conductance over active layers
+        lays = lays[idomain.values[lays] > 0]
+    topbot = np.hstack((laytop, laybot))
+    topbot[topbot < rivbot] = rivbot
+    d = -1 * np.diff(topbot)
+    if kh is not None:
+        kd = kh * d
+    else:
+        kd = d
+    if np.all(kd <= 0):
+        # when for some reason the kd is 0 in all layers (for example when the
+        # river bottom is above all the layers), add to the first active layer
+        if idomain is not None:
+            try:
+                first_active = np.where(idomain == 1)[0][0]
+            except IndexError:
+                warnings.warn(f"No active layers in {cellid}, "
+                              "returning NaNs.")
+                return np.nan, np.nan
+        else:
+            first_active = 0
+        lays = [first_active]
+        kd[first_active] = 1.
+    conds = cond * kd[lays] / np.sum(kd[lays])
+    return np.array(lays), np.array(conds)
+
+
+def build_spd(celldata, pkg, model_ds):
+    """Build stress period data for package (RIV, DRN, GHB).
+
+    Parameters
+    ----------
+    celldata : geopandas.GeoDataFrame
+        GeoDataFrame containing data. Cellid must be the index,
+        and must have columns  
+    pkg : str
+        Modflow package: RIV, DRN or GHB
+    model_ds : xarray.DataSet
+        DataSet containing model layer information
+
+    Returns
+    -------
+    spd : list
+        list containing stress period data: 
+        - RIV: [(cellid), stage, cond, rbot]
+        - DRN: [(cellid), elev, cond]
+        - GHB: [(cellid), elev, cond]
+    """
+
+    spd = []
+    errors = {}
+
+    for cellid, row in tqdm(celldata.iterrows(),
+                            total=celldata.index.size,
+                            desc=f"Building stress period data {pkg}:"):
+
+        # check if there is an active layer for this cell
+        if model_ds.gridtype == 'unstructured':
+            if (model_ds["idomain"].sel(cid=cellid) == 0).all():
+                continue
+        elif model_ds.gridtype == 'structured':
+            if (model_ds["idomain"].isel(y=cellid[0], x=cellid[1]) == 0).all():
+                continue
+
+        # rbot
+        if "rbot" in row.index:
+            rbot = row["rbot"]
+            if np.isnan(rbot):
+                logger.warning(f"WARNING!: Cell {cellid} skipped because 'rbot' "
+                               "is NaN")
+                errors[cellid] = "rbot is NaN"
+                continue
+        elif pkg == "RIV":
+            raise ValueError("Column 'rbot' required for building "
+                             "RIV package!")
+        else:
+            rbot = np.nan
+
+        # stage
+        stage = row["stage"]
+
+        if np.isnan(stage):
+            logger.warning(f"WARNING: Cell {cellid} skipped because stage is NaN!")
+            errors[cellid] = "stage is NaN"
+            continue
+
+        if (stage < rbot) and np.isfinite(rbot):
+            logger.warning(f"WARNING: stage below bottom elevation in {cellid}, "
+                      "stage reset to rbot!")
+            stage = rbot
+
+        # conductance
+        cond = row["cond"]
+
+        # check value
+        if np.isnan(cond):
+            logger.warning(f"{cellid}: Conductance is NaN! Info: area={row.area:.2f} "
+                      f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            errors[cellid] = "cond is NaN"
+            continue
+
+        if cond < 0:
+            logger.warning(f"{cellid}, Conductance is negative!, area={row.area:.2f}, "
+                           f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            errors[cellid] = "cond is negative"
+            continue
+
+        # if surface water penetrates multiple layers:
+        lays, conds = distribute_cond_over_lays(cond,
+                                                cellid,
+                                                rbot,
+                                                model_ds.top,
+                                                model_ds.bot,
+                                                model_ds.idomain,
+                                                model_ds.kh,
+                                                stage)
+        if "aux" in row:
+            auxlist = [row["aux"]]
+        else:
+            auxlist = []
+
+        if model_ds.gridtype == 'unstructured':
+            cellid = (cellid,)
+
+        # write SPD
+        for lay, cond in zip(lays, conds):
+            cid = (lay,) + cellid
+            if pkg == "RIV":
+                spd.append([cid, stage, cond, rbot] + auxlist)
+            elif pkg in ["DRN", "GHB"]:
+                spd.append([cid, stage, cond] + auxlist)
+
+    print(f"Skipped {len(errors.keys())} cells because of "
+          "missing/erroneous data!")
+    return spd

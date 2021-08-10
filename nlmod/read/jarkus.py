@@ -15,7 +15,7 @@ import requests
 import xarray as xr
 
 from .. import mdims, util
-from ..mfpackages import surface_water
+from . import rws
 
 import logging
 logger = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
 
     """
 
-    gdf_surf_water = surface_water.get_gdf_surface_water(model_ds)
+    gdf_surf_water = rws.get_gdf_surface_water(model_ds)
 
     # find grid cells with sea
     swater_zee = gdf_surf_water[gdf_surf_water['OWMNAAM'].isin(['Rijn territoriaal water',

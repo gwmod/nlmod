@@ -5,7 +5,7 @@ Created on Thu Jan  7 21:32:49 2021
 @author: oebbe
 """
 
-from .mfpackages import surface_water
+from .read import rws
 import matplotlib.pyplot as plt
 import os
 import numpy as np
@@ -14,7 +14,7 @@ import flopy
 
 
 def plot_surface_water(model_ds, ax=None):
-    surf_water = surface_water.get_gdf_surface_water(model_ds)
+    surf_water = rws.get_gdf_surface_water(model_ds)
 
     if ax is None:
         fig, ax = plt.subplots()

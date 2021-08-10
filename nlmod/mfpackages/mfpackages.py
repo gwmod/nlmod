@@ -15,11 +15,13 @@ import xarray as xr
 from .. import mdims
 from . import recharge
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def sim_tdis_gwf_ims_from_model_ds(model_ds,
                                    complexity='MODERATE',
-                                   exe_name=None,
-                                   verbose=False):
+                                   exe_name=None):
     """ create sim, tdis, gwf and ims package from the model dataset
 
 
@@ -33,8 +35,6 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
         path to modflow executable, default is None, which assumes binaries
         are available in nlmod/bin directory. Binaries can be downloaded
         using `nlmod.util.download_mfbinaries()`.
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
@@ -46,8 +46,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     """
 
     # start creating model
-    if verbose:
-        print('creating modflow SIM, TDIS, GWF and IMS')
+    logger.info('creating modflow SIM, TDIS, GWF and IMS')
 
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),

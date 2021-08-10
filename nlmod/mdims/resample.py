@@ -13,6 +13,9 @@ from scipy import interpolate
 from . import mgrid
 from .. import util
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
                                               xyi=None, cid=None,
@@ -113,8 +116,7 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
 
 
 def resample_dataset_to_unstructured_grid(ds_in, gridprops,
-                                          method='nearest',
-                                          verbose=False):
+                                          method='nearest'):
     """ resample a dataset (xarray) from an structured grid to a new dataset 
     from an unstructured grid.
 
@@ -163,9 +165,7 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
             data_arr = ds_in[data_var]
 
         else:
-            if verbose:
-                print(
-                    f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
+            logger.warning(f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
             continue
 
         ds_out[data_var] = data_arr
@@ -347,7 +347,6 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
 def get_resampled_ml_layer_ds_struc(raw_ds=None,
                                     extent=None, delr=None, delc=None,
                                     gridprops=None,
-                                    verbose=False,
                                     kind='linear'):
     """ project regis data on to the modelgrid.
 
@@ -371,8 +370,6 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Only used if
         gridtype = 'unstructured'
-    verbose : bool, optional
-        print additional information. default is False
     kind : str, optional
         kind of interpolation to use. default is 'linear'
 
@@ -383,8 +380,7 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
 
     """
 
-    if verbose:
-        print('resample regis data to structured modelgrid')
+    logger.info('resample regis data to structured modelgrid')
     ml_layer_ds = resample_dataset_to_structured_grid(raw_ds, extent,
                                                       delr, delc,
                                                       kind=kind)
@@ -398,8 +394,7 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
 
 def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
                                       extent=None,
-                                      gridprops=None,
-                                      verbose=False):
+                                      gridprops=None):
     """Project model layer dataset on an unstructured model grid.
 
 
@@ -415,9 +410,7 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Only used if
         gridtype = 'unstructured'
-    verbose : bool, optional
-        print additional information. default is False
-
+    
     Returns
     -------
     ml_layer_ds : xr.dataset
@@ -425,8 +418,7 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
 
     """
 
-    if verbose:
-        print('resample regis data to unstructured modelgrid')
+    logger.info('resample regis data to unstructured modelgrid')
     ml_layer_ds = resample_dataset_to_unstructured_grid(
         raw_ds, gridprops)
     ml_layer_ds['x'] = xr.DataArray([r[1] for r in gridprops['cell2d']],
@@ -453,8 +445,7 @@ def get_ml_layer_dataset_struc(raw_ds=None,
                                interp_method="linear",
                                cachedir=None,
                                fname_netcdf='regis.nc',
-                               use_cache=False,
-                               verbose=False):
+                               use_cache=False):
     """Get a model layer dataset that is resampled to the modelgrid
 
     Parameters
@@ -496,7 +487,6 @@ def get_ml_layer_dataset_struc(raw_ds=None,
 
     ml_layer_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
                                         get_resampled_ml_layer_ds_struc,
-                                        verbose=verbose,
                                         raw_ds=raw_ds, extent=extent,
                                         gridprops=gridprops, check_time=False,
                                         delr=delr, delc=delc,
@@ -512,8 +502,7 @@ def get_ml_layer_dataset_unstruc(raw_ds=None,
                                  interp_method="linear",
                                  cachedir=None,
                                  fname_netcdf='regis.nc',
-                                 use_cache=False,
-                                 verbose=False):
+                                 use_cache=False):
     """ Get a model layer dataset that is resampled to the modelgrid
 
     Parameters
@@ -551,7 +540,7 @@ def get_ml_layer_dataset_unstruc(raw_ds=None,
 
     ml_layer_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
                                         get_resampled_ml_layer_ds_unstruc,
-                                        verbose=verbose, check_time=False,
+                                        check_time=False,
                                         raw_ds=raw_ds, extent=extent,
                                         gridprops=gridprops)
 

@@ -14,6 +14,8 @@ import flopy
 from .. import mdims
 from . import mfpackages
 
+import logging
+logger = logging.getLogger(__name__)
 
 def model_datasets_to_rch(gwf, model_ds, print_input=False):
     """ convert the recharge data in the model dataset to a recharge package 

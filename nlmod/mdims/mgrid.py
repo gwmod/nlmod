@@ -28,6 +28,9 @@ from . import resample
 from .. import mfpackages, util
 from ..read import jarkus
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def modelgrid_from_model_ds(model_ds, gridprops=None):
     """ obtain the flopy modelgrid from model_ds
@@ -57,8 +60,7 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
                                                  model_ds.dims['x']),
                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
     elif model_ds.gridtype == 'unstructured':
-        _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                           verbose=False)
+        _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
         flopy.mf6.ModflowGwfdisv(gwf, idomain=model_ds['idomain'].data,
                                  **gridprops)
         modelgrid = gwf.modelgrid
@@ -75,8 +77,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      fill_value_kh=1.,
                                      fill_value_kv=0.1,
                                      cachedir=None,
-                                     use_cache=False,
-                                     verbose=False):
+                                     use_cache=False):
     """ Update a model dataset with a model layer dataset. Follow these steps:
     1. add the data variables in 'keep_vars' from the model layer dataset
     to the model dataset
@@ -151,8 +152,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                                   model_ds,
                                                   anisotropy,
                                                   fill_value_kh,
-                                                  fill_value_kv,
-                                                  verbose=verbose)
+                                                  fill_value_kv)
 
     if gridtype == 'unstructured':
         gridprops['top'] = model_ds['top'].data
@@ -166,9 +166,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         gridprops = None
 
     if add_northsea:
-        if verbose:
-            print(
-                'nan values at the northsea are filled using the bathymetry from jarkus')
+        logger.info('nan values at the northsea are filled using the bathymetry from jarkus')
 
         modelgrid = modelgrid_from_model_ds(model_ds, gridprops=gridprops)
 
@@ -176,8 +174,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         model_ds = jarkus.get_modelgrid_sea(model_ds,
                                             modelgrid=modelgrid,
                                             cachedir=cachedir,
-                                            use_cache=use_cache,
-                                            verbose=verbose)
+                                            use_cache=use_cache)
 
         # fill top, bot, kh, kv at sea cells
         fill_mask = (model_ds['first_active_layer']
@@ -190,8 +187,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         model_ds = jarkus.get_modelgrid_bathymetry(model_ds,
                                                    gridprops=gridprops,
                                                    cachedir=cachedir,
-                                                   use_cache=use_cache,
-                                                   verbose=verbose)
+                                                   use_cache=use_cache)
 
         model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(model_ds,
                                                           model_ds['bathymetry'],
@@ -213,7 +209,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     return model_ds
 
 
-def get_first_active_layer_from_idomain(idomain, nodata=-999, verbose=False):
+def get_first_active_layer_from_idomain(idomain, nodata=-999):
     """ get the first active layer in each cell from the idomain
 
     Parameters
@@ -230,8 +226,7 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999, verbose=False):
         raster in which each cell has the zero based number of the first
         active layer. Shape can be (y, x) or (cid)
     """
-    if verbose:
-        print('get first active modellayer for each cell in idomain')
+    logger.info('get first active modellayer for each cell in idomain')
 
     first_active_layer = xr.where(idomain[0] == 1, 0, nodata)
     for i in range(1, idomain.shape[0]):
@@ -242,8 +237,7 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999, verbose=False):
     return first_active_layer
 
 
-def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999,
-                                       verbose=False):
+def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
     """ add idomain and first_active_layer to model_ds
     The active layers are defined as the layers where the bottom is not nan
 
@@ -264,8 +258,7 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999,
     model_ds : xarray.Dataset
         dataset with model data including idomain and first_active_layer
     """
-    if verbose:
-        print('get active cells (idomain) from bottom DataArray')
+    logger.info('get active cells (idomain) from bottom DataArray')
 
     idomain = xr.where(bottom.isnull(), -1, 1)
 
@@ -277,8 +270,7 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999,
 
     model_ds['idomain'] = idomain
     model_ds['first_active_layer'] = get_first_active_layer_from_idomain(idomain,
-                                                                         nodata=nodata,
-                                                                         verbose=verbose)
+                                                                         nodata=nodata)
 
     model_ds.attrs['nodata'] = nodata
 
@@ -326,8 +318,7 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
                              nlay=None, nrow=None, ncol=None,
                              delr=None, delc=None,
                              cachedir=None,
-                             use_cache=False,
-                             verbose=False):
+                             use_cache=False):
     """Create unstructured grid. Refine grid using refinement features.     
 
     Parameters
@@ -380,16 +371,14 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
 
     fname_gridprops_pickle = os.path.join(cachedir, 'gridprops.pklz')
     if os.path.isfile(fname_gridprops_pickle) and use_cache:
-        if verbose:
-            print(f'using cached griddata from file {fname_gridprops_pickle}')
+        logger.info(f'using cached griddata from file {fname_gridprops_pickle}')
 
         with open(fname_gridprops_pickle, 'rb') as fo:
             gridprops = pickle.load(fo)
 
         return gridprops
 
-    if verbose:
-        print('create unstructured grid using gridgen')
+    logger.info('create unstructured grid using gridgen')
 
     # if existing structured grid, take parameters from grid if not
     # explicitly passed
@@ -435,8 +424,7 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
     gridprops = g.get_gridprops_disv()
     gridprops['area'] = g.get_area()
 
-    if verbose:
-        print(f'write cache for griddata data to {fname_gridprops_pickle}')
+    logger.info(f'write cache for griddata data to {fname_gridprops_pickle}')
 
     with open(fname_gridprops_pickle, 'wb') as fo:
         pickle.dump(gridprops, fo)
@@ -1195,8 +1183,7 @@ def update_idomain_from_thickness(idomain, thickness, mask):
 
 
 def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
-                                       fill_value_kh, fill_value_kv,
-                                       verbose=False):
+                                       fill_value_kh, fill_value_kv):
     """ add kh and kv from a model layer dataset to THE model dataset.
 
     Supports structured and unstructured grids.
@@ -1213,8 +1200,6 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
         use this value for kh if there is no data in regis. The default is 1.0.
     fill_value_kv : int or float, optional
         use this value for kv if there is no data in regis. The default is 1.0.
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
@@ -1232,13 +1217,11 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
     kh_arr = ml_layer_ds['kh'].data
     kv_arr = ml_layer_ds['kv'].data
 
-    if verbose:
-        print('add kh and kv from model layer dataset to modflow model')
+    logger.info('add kh and kv from model layer dataset to modflow model')
 
     kh, kv = get_kh_kv(kh_arr, kv_arr, anisotropy,
                        fill_value_kh=fill_value_kh,
-                       fill_value_kv=fill_value_kv,
-                       verbose=verbose)
+                       fill_value_kv=fill_value_kv)
 
     model_ds['kh'] = xr.ones_like(model_ds['idomain']) * kh
 
@@ -1248,8 +1231,7 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
 
 
 def get_kh_kv(kh_in, kv_in, anisotropy,
-              fill_value_kh=1.0, fill_value_kv=1.0,
-              verbose=False):
+              fill_value_kh=1.0, fill_value_kv=1.0):
     """maak kh en kv rasters voor flopy vanuit een regis raster met nan
     waardes.
 
@@ -1279,8 +1261,6 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
         use this value for kh if there is no data in regis. The default is 1.0.
     fill_value_kv : int or float, optional
         use this value for kv if there is no data in regis. The default is 1.0.
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
@@ -1294,18 +1274,15 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
         kh_new = kh_lay.copy()
         kv_new = kv_in[i].copy()
         if ~np.all(np.isnan(kh_new)):
-            if verbose:
-                print(f'layer {i} has a kh')
+            logger.debug(f'layer {i} has a kh')
             kh_out[i] = np.where(np.isnan(kh_new), kv_new * anisotropy, kh_new)
             kh_out[i] = np.where(np.isnan(kh_out[i]), fill_value_kh, kh_out[i])
         elif ~np.all(np.isnan(kv_new)):
-            if verbose:
-                print(f'layer {i} has a kv')
+            logger.debug(f'layer {i} has a kv')
             kh_out[i] = np.where(
                 np.isnan(kv_new), fill_value_kh, kv_new * anisotropy)
         else:
-            if verbose:
-                print(f'kv and kh both undefined in layer {i}')
+            logger.info(f'kv and kh both undefined in layer {i}')
             kh_out[i] = fill_value_kh
 
     kv_out = np.zeros_like(kv_in)
@@ -1313,18 +1290,15 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
         kv_new = kv_lay.copy()
         kh_new = kh_in[i].copy()
         if ~np.all(np.isnan(kv_new)):
-            if verbose:
-                print(f'layer {i} has a kv')
+            logger.debug(f'layer {i} has a kv')
             kv_out[i] = np.where(np.isnan(kv_new), kh_new / anisotropy, kv_new)
             kv_out[i] = np.where(np.isnan(kv_out[i]), fill_value_kv, kv_out[i])
         elif ~np.all(np.isnan(kh_new)):
-            if verbose:
-                print(f'layer {i} has a kh')
+            logger.debug(f'layer {i} has a kh')
             kv_out[i] = np.where(
                 np.isnan(kh_new), fill_value_kv, kh_new / anisotropy)
         else:
-            if verbose:
-                print(f'kv and kh both undefined in layer {i}')
+            logger.info(f'kv and kh both undefined in layer {i}')
             kv_out[i] = fill_value_kv
 
     return kh_out, kv_out
@@ -1333,8 +1307,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
 def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                             nodata=None,
                             max_per_nan_bot=50,
-                            gridtype='structured',
-                            verbose=False):
+                            gridtype='structured'):
     """ add top and bot from a model layer dataset to THE model dataset.
 
     Supports structured and unstructured grids.
@@ -1366,9 +1339,8 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
     if nodata is None:
         nodata = model_ds.attrs['nodata']
 
-    if verbose:
-        print('using top and bottom from model layers dataset for modflow model')
-        print('replace nan values for inactive layers with dummy value')
+    logger.info('using top and bottom from model layers dataset for modflow model')
+    logger.info('replace nan values for inactive layers with dummy value')
 
     if gridtype == 'structured':
 

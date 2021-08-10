@@ -16,6 +16,9 @@ from tqdm import tqdm
 import nlmod
 from .. import mdims, util
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def get_gdf_surface_water(model_ds):
     """ read a shapefile with surface water as a geodataframe, cut by the 
@@ -45,8 +48,7 @@ def get_general_head_boundary(model_ds,
                               modelgrid,
                               da_name,
                               cachedir=None,
-                              use_cache=False,
-                              verbose=False):
+                              use_cache=False):
     """ Get general head boundary from surface water geodataframe
 
     Parameters
@@ -63,8 +65,6 @@ def get_general_head_boundary(model_ds,
         used. default is None
     use_cache : bool, optional
         if True the cached ghb data is used. The default is False.
-    verbose : bool, optional
-        print additional information to the screen. The default is False.
 
     Returns
     -------
@@ -74,7 +74,7 @@ def get_general_head_boundary(model_ds,
     """
     model_ds = util.get_cache_netcdf(use_cache, cachedir, 'ghb_model_ds.nc',
                                      surface_water_to_model_dataset,
-                                     model_ds, verbose=verbose,
+                                     model_ds,
                                      modelgrid=modelgrid, da_name=da_name)
 
     return model_ds
@@ -264,7 +264,7 @@ def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
     return np.array(lays), np.array(conds)
 
 
-def build_spd(celldata, pkg, model_ds, verbose=False):
+def build_spd(celldata, pkg, model_ds):
     """Build stress period data for package (RIV, DRN, GHB).
 
     Parameters
@@ -276,8 +276,6 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
         Modflow package: RIV, DRN or GHB
     model_ds : xarray.DataSet
         DataSet containing model layer information
-    verbose : bool, optional
-        print warnings if True, default is False
 
     Returns
     -------
@@ -307,9 +305,8 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
         if "rbot" in row.index:
             rbot = row["rbot"]
             if np.isnan(rbot):
-                if verbose:
-                    print(f"WARNING!: Cell {cellid} skipped because 'rbot' "
-                          "is NaN")
+                logger.warning(f"WARNING!: Cell {cellid} skipped because 'rbot' "
+                               "is NaN")
                 errors[cellid] = "rbot is NaN"
                 continue
         elif pkg == "RIV":
@@ -322,14 +319,12 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
         stage = row["stage"]
 
         if np.isnan(stage):
-            if verbose:
-                print(f"WARNING: Cell {cellid} skipped because stage is NaN!")
+            logger.warning(f"WARNING: Cell {cellid} skipped because stage is NaN!")
             errors[cellid] = "stage is NaN"
             continue
 
         if (stage < rbot) and np.isfinite(rbot):
-            if verbose:
-                print(f"WARNING: stage below bottom elevation in {cellid}, "
+            logger.warning(f"WARNING: stage below bottom elevation in {cellid}, "
                       "stage reset to rbot!")
             stage = rbot
 
@@ -338,16 +333,14 @@ def build_spd(celldata, pkg, model_ds, verbose=False):
 
         # check value
         if np.isnan(cond):
-            if verbose:
-                print(f"{cellid}: Conductance is NaN! Info: area={row.area:.2f} "
+            logger.warning(f"{cellid}: Conductance is NaN! Info: area={row.area:.2f} "
                       f"len={row.len_estimate:.2f}, BL={row['rbot']}")
             errors[cellid] = "cond is NaN"
             continue
 
         if cond < 0:
-            if verbose:
-                print(f"{cellid}, Conductance is negative!, area={row.area:.2f}, "
-                      f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            logger.warning(f"{cellid}, Conductance is negative!, area={row.area:.2f}, "
+                           f"len={row.len_estimate:.2f}, BL={row['rbot']}")
             errors[cellid] = "cond is negative"
             continue
 

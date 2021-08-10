@@ -12,6 +12,10 @@ import numpy as np
 import flopy
 
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 def plot_surface_water(model_ds, ax=None):
     surf_water = surface_water.get_gdf_surface_water(model_ds)
 

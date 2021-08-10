@@ -17,12 +17,14 @@ import xarray as xr
 from .. import mdims, util
 from ..mfpackages import surface_water
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def get_modelgrid_sea(model_ds,
                       modelgrid,
                       da_name='northsea',
-                      cachedir=None, use_cache=False,
-                      verbose=False):
+                      cachedir=None, use_cache=False):
     """ Get DataArray which is 1 at sea and 0 overywhere else.
     Sea is defined by the geometries in gdf_sea
     grid is defined by mfgrid and model_ds
@@ -40,8 +42,6 @@ def get_modelgrid_sea(model_ds,
         used. default is None
     use_cache : bool, optional
         if True the cached sea data is used. The default is False.
-    verbose : bool, optional
-        print additional information to the screen. The default is False.
 
     Returns
     -------
@@ -53,8 +53,7 @@ def get_modelgrid_sea(model_ds,
                                      find_sea_cells, model_ds,
                                      modelgrid=modelgrid,
                                      da_name=da_name,
-                                     check_time=False,
-                                     verbose=verbose)
+                                     check_time=False)
 
     return model_ds
 
@@ -98,8 +97,7 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
 
 def get_modelgrid_bathymetry(model_ds,
                              gridprops=None,
-                             cachedir=None, use_cache=False,
-                             verbose=False):
+                             cachedir=None, use_cache=False):
     """ get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
@@ -113,8 +111,6 @@ def get_modelgrid_bathymetry(model_ds,
         used. default is None
     use_cache : bool, optional
         if True the cached jarkus data is used. The default is False.
-    verbose : bool, optional
-        print additional information to the screen. The default is False.
 
     Returns
     -------
@@ -124,7 +120,6 @@ def get_modelgrid_bathymetry(model_ds,
 
     model_ds = util.get_cache_netcdf(use_cache, cachedir, 'bathymetry_model_ds.nc',
                                      bathymetry_to_model_dataset, model_ds,
-                                     verbose=verbose,
                                      gridprops=gridprops,
                                      check_time=False,
                                      )
@@ -195,7 +190,7 @@ def bathymetry_to_model_dataset(model_ds,
     return model_ds_out
 
 
-def get_dataset_jarkus(extent, verbose=True):
+def get_dataset_jarkus(extent):
     """ Get bathymetry from Jarkus within a certain extent. The following 
     steps are used:
     1. find Jarkus tiles within the extent
@@ -208,8 +203,6 @@ def get_dataset_jarkus(extent, verbose=True):
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid. Should be RD-new
         coördinates (EPSG:28992)
-    verbose : bool, optional
-        print additional information to the screen. The default is False.
 
     Returns
     -------

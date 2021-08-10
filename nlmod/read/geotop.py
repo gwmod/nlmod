@@ -9,11 +9,12 @@ from .. import mdims
 from . import regis
 
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 def get_geotop_dataset(extent, delr, delc,
-                       regis_ds, regis_layer='HLc',
-                       cachedir=None,
-                       use_cache=False,
-                       verbose=False):
+                       regis_ds, regis_layer='HLc'):
     """ get a model layer dataset for modflow from geotop within a certain 
     extent and grid. 
 
@@ -34,14 +35,6 @@ def get_geotop_dataset(extent, delr, delc,
     regis_layer: str, optional
         layer of regis dataset that will be filled with geotop. The default is 
         'HLc'.
-    cachedir : str
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
-    verbose : bool, optional
-        print additional information. The default is False.
 
     Returns
     -------
@@ -72,13 +65,11 @@ def get_geotop_dataset(extent, delr, delc,
                                                 regis_ds=regis_ds,
                                                 regis_layer=regis_layer,
                                                 litho_translate_df=litho_translate_df,
-                                                geo_eenheid_translate_df=geo_eenheid_translate_df,
-                                                verbose=verbose)
-    
+                                                geo_eenheid_translate_df=geo_eenheid_translate_df)
+
     geotop_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=geotop_ds_raw,
-                                                      extent=extent, 
-                                                      delr=delr, delc=delc,
-                                                      verbose=verbose)
+                                                      extent=extent,
+                                                      delr=delr, delc=delc)
 
     return geotop_ds
 
@@ -102,13 +93,13 @@ def get_geotop_raw_within_extent(extent):
     """
 
     url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
-    
+
     geotop_ds_raw = xr.open_dataset(url)
-    
+
     # set x and y dimensions to cell center
     for dim in ['x', 'y']:
-        old_dim = geotop_ds_raw[dim].values 
-        geotop_ds_raw[dim] = old_dim+(old_dim[1]-old_dim[0])/2
+        old_dim = geotop_ds_raw[dim].values
+        geotop_ds_raw[dim] = old_dim + (old_dim[1] - old_dim[0]) / 2
 
     # slice extent
     geotop_ds_raw = geotop_ds_raw.sel(x=slice(extent[0], extent[1]),
@@ -120,8 +111,7 @@ def get_geotop_raw_within_extent(extent):
 
 def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
                                 litho_translate_df=None,
-                                geo_eenheid_translate_df=None,
-                                verbose=False):
+                                geo_eenheid_translate_df=None):
     """ does the following steps to obtain model layers based on geotop:
         1. slice by regis layer (if not None)
         2. compute kh from lithoklasse
@@ -138,9 +128,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
     litho_translate_df: pandas.DataFrame
         horizontal conductance (kh)
     geo_eenheid_translate_df: pandas.DataFrame
-        dictionary to translate geo_eenheid to a geo name    
-    verbose : bool, optional
-        print additional information. default is False
+        dictionary to translate geo_eenheid to a geo name   
 
     Returns
     -------
@@ -151,8 +139,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
 
     # stap 1
     if (regis_ds is not None) and (regis_layer is not None):
-        if verbose:
-            print(f'slice geotop with regis layer {regis_layer}')
+        logger.info(f'slice geotop with regis layer {regis_layer}')
         top_rl = regis_ds['top'].sel(layer=regis_layer)
         bot_rl = regis_ds['bot'].sel(layer=regis_layer)
 
@@ -160,8 +147,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
                                                    np.ceil(top_rl.max().data)))
 
     # stap 2 maak kh matrix a.d.v. lithoklasse
-    if verbose:
-        print('create kh matrix from lithoklasse and csv file')
+    logger.info('create kh matrix from lithoklasse and csv file')
     kh_from_litho = xr.zeros_like(geotop_ds_raw.lithok)
     for i, row in litho_translate_df.iterrows():
         kh_from_litho = xr.where(geotop_ds_raw.lithok == i,
@@ -171,14 +157,12 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
 
     # stap 3 maak een laag per geo-eenheid
     geotop_ds_mod = get_top_bot_from_geo_eenheid(geotop_ds_raw,
-                                                 geo_eenheid_translate_df,
-                                                 verbose=verbose)
+                                                 geo_eenheid_translate_df)
 
     return geotop_ds_mod
 
 
-def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df,
-                                 verbose=False):
+def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
     """ get top, bottom and kh of each geo-eenheid in geotop dataset.
 
     Parameters
@@ -187,8 +171,6 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df,
         geotop dataset with added horizontal conductance
     geo_eenheid_translate_df: pandas.DataFrame
         dictionary to translate geo_eenheid to a geo name
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
@@ -219,11 +201,9 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df,
     top = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     bot = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     lay = 0
-    if verbose:
-        print('creating top and bot per geo eenheid')
+    logger.info('creating top and bot per geo eenheid')
     for geo_eenheid in geo_eenheden:
-        if verbose:
-            print(geo_eenheid)
+        logger.info(geo_eenheid)
 
         mask = geotop_ds_raw.strat == geo_eenheid
         geo_z = xr.where(mask, geotop_ds_raw.z, np.nan)
@@ -234,15 +214,14 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df,
         lay += 1
 
     geotop_ds_mod = add_stroombanen_and_get_kh(geotop_ds_raw, top, bot,
-                                               geo_names,
-                                               verbose=verbose)
+                                               geo_names)
 
     geotop_ds_mod.attrs['stroombanen'] = stroombaan_eenheden
 
     return geotop_ds_mod
 
 
-def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, verbose=False):
+def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
     """ add stroombanen to tops and bots of geo_eenheden, also computes kh per 
     geo_eenheid. Kh is computed by taking the average of all kh's of a geo_eenheid
     within a cell (e.g. if one geo_eenheid has a thickness of 1,5m in a certain
@@ -258,8 +237,6 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, verbose=False
         raster with bottom of each geo_eenheid, shape(nlay,nrow,ncol)
     geo_names: list of str
         names of each geo_eenheid
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
@@ -270,13 +247,11 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, verbose=False
     kh = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     thickness = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     z = xr.ones_like(geotop_ds_raw.lithok) * geotop_ds_raw.z
-    if verbose:
-        print('adding stroombanen to top and bot of each layer')
-        print('get kh for each layer')
+    logger.info('adding stroombanen to top and bot of each layer')
+    logger.info('get kh for each layer')
 
     for lay in range(top.shape[2]):
-        if verbose:
-            print(geo_names[lay])
+        logger.info(geo_names[lay])
         if lay == 0:
             top[:, :, 0] = np.nanmax(top, axis=2)
         else:

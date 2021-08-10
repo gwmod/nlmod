@@ -10,6 +10,9 @@ from scipy.interpolate import griddata
 from .. import mdims, util
 from . import geotop
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def get_layer_models(extent, delr, delc,
                      use_regis=True,
@@ -18,7 +21,7 @@ def get_layer_models(extent, delr, delc,
                      remove_nan_layers=True,
                      cachedir=None,
                      fname_netcdf='combined_layer_ds.nc',
-                     use_cache=False, verbose=False):
+                     use_cache=False):
     """ get a layer model from regis and/or geotop
 
     Possibilities so far include:
@@ -55,8 +58,6 @@ def get_layer_models(extent, delr, delc,
     use_cache : bool, optional
         if True the cached resampled regis dataset is used.
         The default is False.
-    verbose : TYPE, optional
-        DESCRIPTION. The default is False.
 
     Returns
     -------
@@ -67,7 +68,6 @@ def get_layer_models(extent, delr, delc,
 
     combined_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
                                         get_combined_layer_models,
-                                        verbose=verbose,
                                         extent=extent,
                                         delr=delr, delc=delc,
                                         use_regis=use_regis,
@@ -82,8 +82,7 @@ def get_combined_layer_models(extent, delr, delc,
                               regis_botm_layer=b'AKc',
                               use_regis=True, use_geotop=True,
                               remove_nan_layers=True,
-                              cachedir=None, use_cache=False,
-                              verbose=False):
+                              cachedir=None, use_cache=False):
     """ combine layer models into a single layer model. 
 
     Possibilities so far include:
@@ -118,8 +117,6 @@ def get_combined_layer_models(extent, delr, delc,
     use_cache : bool, optional
         if True the cached resampled regis dataset is used.
         The default is False.
-    verbose : TYPE, optional
-        DESCRIPTION. The default is False.
 
     Raises
     ------
@@ -134,21 +131,17 @@ def get_combined_layer_models(extent, delr, delc,
     """
 
     if use_regis:
-        regis_ds = get_regis_dataset(extent, delr, delc, regis_botm_layer,
-                                     cachedir, use_cache=use_cache,
-                                     verbose=verbose)
+        regis_ds = get_regis_dataset(extent, delr, delc, regis_botm_layer)
     else:
         raise ValueError('layer models without REGIS not supported')
 
     if use_geotop:
         geotop_ds = geotop.get_geotop_dataset(extent, delr, delc, regis_ds,
                                               cachedir=cachedir,
-                                              use_cache=use_cache,
-                                              verbose=verbose)
+                                              use_cache=use_cache)
 
     if use_regis and use_geotop:
-        regis_geotop_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds,
-                                                  verbose=verbose)
+        regis_geotop_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)
 
         combined_ds = regis_geotop_ds
     elif use_regis:
@@ -159,15 +152,12 @@ def get_combined_layer_models(extent, delr, delc,
     if remove_nan_layers:
         nlay, lay_sel = get_non_nan_layers(combined_ds)
         combined_ds = combined_ds.sel(layer=lay_sel)
-        if verbose:
-            print(f'removing {nlay} nan layers from the model')
+        logger.info(f'removing {nlay} nan layers from the model')
 
     return combined_ds
 
 
-def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
-                      cachedir=None, use_cache=False,
-                      verbose=False):
+def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
     """ get a regis dataset projected on the modelgrid
 
 
@@ -184,14 +174,6 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
         included in the model. the Default is b'AKc' which is the bottom
         layer of regis. call nlmod.regis.get_layer_names() to get a list of
         regis names.
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
-    verbose : TYPE, optional
-        DESCRIPTION. The default is False.
 
     Returns
     -------
@@ -239,15 +221,13 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc',
     # convert regis dataset to grid
     regis_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=regis_ds_raw2,
                                                      extent=extent,
-                                                     delr=delr, delc=delc,
-                                                     verbose=verbose)
+                                                     delr=delr, delc=delc)
 
     return regis_ds
 
 
 def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
-                            float_correction=0.001,
-                            verbose=False):
+                            float_correction=0.001):
     """ Combine geotop and regis in such a way that the holoceen in Regis is
     replaced by the geo_eenheden of geotop.
 
@@ -261,8 +241,6 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         due to floating point precision some floating point numbers that are
         the same are not recognised as the same. Therefore this correction is
         used.
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
@@ -292,8 +270,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
                               'layer': new_layers})
 
     # haal overlap tussen geotop en regis weg
-    if verbose:
-        print('cut geotop layer based on regis holoceen')
+    logger.info('cut geotop layer based on regis holoceen')
     for lay in range(geotop_ds.dims['layer']):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
         mask1 = geotop_ds['top'][lay] <= (
@@ -327,10 +304,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         geotop_ds['bot'][lay] = xr.where(mask5, np.nan, geotop_ds['bot'][lay])
         geotop_ds['kh'][lay] = xr.where(mask5, np.nan, geotop_ds['kh'][lay])
         geotop_ds['kv'][lay] = xr.where(mask5, np.nan, geotop_ds['kv'][lay])
-        if verbose:
-            if (mask2 * (~mask1)).sum() > 0:
-                print(
-                    f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
+        if (mask2 * (~mask1)).sum() > 0:
+            logger.info(f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
 
     top[:len(geotop_ds.layer), :, :] = geotop_ds['top'].data
     top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no + 1:]
@@ -360,8 +335,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     return regis_geotop_ds
 
 
-def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
-                        verbose=False):
+def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
     """
     redifine extent and calculate the number of rows and columns.
 
@@ -397,8 +371,7 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
         raise TypeError(
             f'expected extent of type list, tuple or np.ndarray, got {type(extent)}')
 
-    if verbose:
-        print(f'redefining current extent: {extent}, fit to regis raster')
+    logger.info(f'redefining current extent: {extent}, fit to regis raster')
 
     for d in [delr, delc]:
         if float(d) not in [10., 20., 25., 50., 100., 200., 400., 500., 800.]:
@@ -420,14 +393,12 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.,
     nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
     extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
 
-    if verbose:
-        print(
-            f'new extent is {extent} model has {nrow} rows and {ncol} columns')
+    logger.info(f'new extent is {extent} model has {nrow} rows and {ncol} columns')
 
     return extent, nrow, ncol
 
 
-def get_non_nan_layers(raw_layer_mod, data_var='bot', verbose=False):
+def get_non_nan_layers(raw_layer_mod, data_var='bot'):
     """ get number and name of layers based on the number of non-nan layers
 
     Parameters
@@ -444,8 +415,7 @@ def get_non_nan_layers(raw_layer_mod, data_var='bot', verbose=False):
     lay_sel : list of str
         names of the active layers.
     """
-    if verbose:
-        print('find active layers in raw layer model')
+    logger.info('find active layers in raw layer model')
 
     bot_raw_all = raw_layer_mod[data_var]
     lay_sel = []
@@ -454,8 +424,7 @@ def get_non_nan_layers(raw_layer_mod, data_var='bot', verbose=False):
             lay_sel.append(lay)
     nlay = len(lay_sel)
 
-    if verbose:
-        print(f'there are {nlay} active layers within the extent')
+    logger.info(f'there are {nlay} active layers within the extent')
 
     return nlay, lay_sel
 
@@ -477,7 +446,7 @@ def get_layer_names():
     return layer_names
 
 
-def extrapolate_regis(regis_ds, verbose=False):
+def extrapolate_regis(regis_ds):
     """Fill missing data in layermodel based on nearest interpolation.
 
     Used for ensuring layer model contains data everywhere. Useful for 
@@ -487,8 +456,6 @@ def extrapolate_regis(regis_ds, verbose=False):
     ----------
     regis_ds : xarray.DataSet
         REGIS DataSet
-    verbose : bool, optional
-        print messages
 
     Returns
     -------
@@ -500,8 +467,7 @@ def extrapolate_regis(regis_ds, verbose=False):
     mask = np.isnan(regis_ds['top']).all('layer')
     if not np.any(mask):
         # all of the model are is inside
-        if verbose:
-            print("No missing data")
+        logger.info("No missing data to extrapolate")
         return regis_ds
     x, y = np.meshgrid(regis_ds.x, regis_ds.y)
     points = (x[~mask], y[~mask])

@@ -365,7 +365,6 @@ def build_spd(celldata, pkg, model_ds):
     """
 
     spd = []
-    errors = {}
 
     for cellid, row in tqdm(celldata.iterrows(),
                             total=celldata.index.size,
@@ -383,10 +382,7 @@ def build_spd(celldata, pkg, model_ds):
         if "rbot" in row.index:
             rbot = row["rbot"]
             if np.isnan(rbot):
-                logger.warning(f"WARNING!: Cell {cellid} skipped because 'rbot' "
-                               "is NaN")
-                errors[cellid] = "rbot is NaN"
-                continue
+                raise ValueError(f"rbot is NaN in cell {cellid}")
         elif pkg == "RIV":
             raise ValueError("Column 'rbot' required for building "
                              "RIV package!")
@@ -397,13 +393,11 @@ def build_spd(celldata, pkg, model_ds):
         stage = row["stage"]
 
         if np.isnan(stage):
-            logger.warning(f"WARNING: Cell {cellid} skipped because stage is NaN!")
-            errors[cellid] = "stage is NaN"
-            continue
+            raise ValueError(f"stage is NaN in cell {cellid}")
 
         if (stage < rbot) and np.isfinite(rbot):
             logger.warning(f"WARNING: stage below bottom elevation in {cellid}, "
-                      "stage reset to rbot!")
+                           "stage reset to rbot!")
             stage = rbot
 
         # conductance
@@ -411,16 +405,12 @@ def build_spd(celldata, pkg, model_ds):
 
         # check value
         if np.isnan(cond):
-            logger.warning(f"{cellid}: Conductance is NaN! Info: area={row.area:.2f} "
-                      f"len={row.len_estimate:.2f}, BL={row['rbot']}")
-            errors[cellid] = "cond is NaN"
-            continue
+            raise ValueError(f"Conductance is NaN in cell {cellid}. Info: area={row.area:.2f} "
+                             f"len={row.len_estimate:.2f}, BL={row['rbot']}")
 
         if cond < 0:
-            logger.warning(f"{cellid}, Conductance is negative!, area={row.area:.2f}, "
-                           f"len={row.len_estimate:.2f}, BL={row['rbot']}")
-            errors[cellid] = "cond is negative"
-            continue
+            raise ValueError(f"Conductance is negative in cell {cellid}. Info: area={row.area:.2f} "
+                             f"len={row.len_estimate:.2f}, BL={row['rbot']}")
 
         # if surface water penetrates multiple layers:
         lays, conds = distribute_cond_over_lays(cond,
@@ -446,7 +436,5 @@ def build_spd(celldata, pkg, model_ds):
                 spd.append([cid, stage, cond, rbot] + auxlist)
             elif pkg in ["DRN", "GHB"]:
                 spd.append([cid, stage, cond] + auxlist)
-
-    print(f"Skipped {len(errors.keys())} cells because of "
-          "missing/erroneous data!")
+            
     return spd

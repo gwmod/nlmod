@@ -506,17 +506,12 @@ def get_tdis_perioddata(model_ds):
     model_ds : xarray.Dataset
         dataset with time variant model data
 
-    Raises
-    ------
-    NotImplementedError
-        cannot handle timesteps with variable step length.
-
     Returns
     -------
     tdis_perioddata : [perlen, nstp, tsmult]
-        * perlen (double) is the length of a stress period.
-        * nstp (integer) is the number of time steps in a stress period.
-        * tsmult (double) is the multiplier for the length of successive time
+        - perlen (double) is the length of a stress period.
+        - nstp (integer) is the number of time steps in a stress period.
+        - tsmult (double) is the multiplier for the length of successive time
           steps. The length of a time step is calculated by multiplying the
           length of the previous time step by TSMULT. The length of the first
           time step, :math:`\Delta t_1`, is related to PERLEN, NSTP, and

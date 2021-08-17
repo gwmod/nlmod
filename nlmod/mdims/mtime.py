@@ -16,7 +16,7 @@ def set_model_ds_time(model_ds, start_time, steady_state,
                       transient_timesteps=0,
                       perlen=1.0, steady_perlen=3650, 
                       nstp=1, tsmult=1.0):
-    """Get a model dataset with the time variant data.
+    """Set timing for a model dataset.
 
     Parameters
     ----------
@@ -34,21 +34,20 @@ def set_model_ds_time(model_ds, start_time, steady_state,
     transient_timesteps : int, optional
         number of transient time steps. The default is 0.
     perlen : float, int, list or np.array, optional
-        length of each timestep depending on the type:
-            - float or int: this is the length of all the time steps. If
-            steady_start is True the length of the first time step is defined
-            by steady_perlen
-            - list or array: the items are the length per timestep.
-            the length of perlen should match the number of transient
-            timesteps (or transient timesteps +1 if steady_start is True)
-        The default is 1.0.
+        length of each timestep depending on the type, the default is 1.0:
+        - float or int: this is the length of all the time steps. If
+          steady_start is True the length of the first time step is defined
+          by steady_perlen
+        - list or array: the items are the length per timestep.
+          the length of perlen should match the number of transient
+          timesteps (or transient timesteps +1 if steady_start is True)
     steady_perlen : float, optional
         time step length of the first steady state timestep.
         Only used if steady_start is True. Default is 3650 (~10 years)
     nstp : int, optional
-        DESCRIPTION. The default is 1.
+        number of steps. The default is 1.
     tsmult : float, optional
-        DESCRIPTION. The default is 1.0.
+        timestep multiplier. The default is 1.0.
 
     Returns
     -------

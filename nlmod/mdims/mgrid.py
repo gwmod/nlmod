@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""This module contains functions to:
+"""Module containing model grid functions.
 
-- project data on different grid forms
-- obtain various types of rec_lists from a grid that can be used as input for a mf
-package
-- fill, interpolate and resample grid data
--
+-   project data on different grid types
+-   obtain various types of rec_lists from a grid that 
+    can be used as input for a MODFLOW package
+-   fill, interpolate and resample grid data
+
 """
 import copy
 import logging
@@ -33,18 +33,19 @@ logger = logging.getLogger(__name__)
 
 
 def modelgrid_from_model_ds(model_ds, gridprops=None):
-    """obtain the flopy modelgrid from model_ds.
+    """Get flopy modelgrid from model_ds.
 
     Parameters
     ----------
     model_ds : xarray DataSet
         model dataset.
-    gridprops : dic, optional
-        extra model properties when using unstructured grids. The default is None.
+    gridprops : dict, optional
+        extra model properties when using unstructured grids. 
+        The default is None.
 
     Returns
     -------
-    modelgrid : flopy StructuredGrid or flopy VertexGrid
+    modelgrid : StructuredGrid, VertexGrid
         grid information.
     """
 
@@ -76,8 +77,11 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      fill_value_kv=0.1,
                                      cachedir=None,
                                      use_cache=False):
-    """ Update a model dataset with a model layer dataset. Follow these steps:
-    1. add the data variables in 'keep_vars' from the model layer dataset
+    """Update a model dataset with a model layer dataset. 
+    
+    Steps:
+
+    1. Add the data variables in 'keep_vars' from the model layer dataset
     to the model dataset
     2. add the attributes of the model layer dataset to the model dataset if
     they don't exist yet.
@@ -87,10 +91,10 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     5. compute kh, kv from model layer dataset, add to model dataset
     6. if gridtype is unstructured add top, bot and area to gridprops
     7. if add_northsea is True:
-        a. get cells from modelgrid that are within the northsea, add data
+        a) get cells from modelgrid that are within the northsea, add data
         variable 'northsea' to model_ds
-        b. fill top, bot, kh and kv add northsea cell by extrapolation
-        c. get bathymetry (northsea depth) from jarkus. Add datavariable 
+        b) fill top, bot, kh and kv add northsea cell by extrapolation
+        c) get bathymetry (northsea depth) from jarkus. Add datavariable 
         bathymetry to model dataset
 
 
@@ -464,11 +468,11 @@ def get_xyi_cid(gridprops=None, model_ds=None):
 
 
 def col_to_list(col_in, model_ds, cellids):
-    """convert array data in model_ds to a list of values for specific cells.
-    This function is typically used to create a rec_array with stress period
-    data for the modflow packages.
+    """Convert array data in model_ds to a list of values for specific cells.
 
-    Can be used for structured and unstructured grids.
+    This function is typically used to create a rec_array with stress period
+    data for the modflow packages. Can be used for structured and 
+    unstructured grids.
 
     Parameters
     ----------
@@ -482,9 +486,9 @@ def col_to_list(col_in, model_ds, cellids):
     cellids : tuple of numpy arrays
         tuple with indices of the cells that will be used to create the list
         with values. There are 3 options:
-            1. cellids contains (layers, rows, columns)
-            2. cellids contains (rows, columns) or (layers, cids)
-            3. cellids contains (cids)
+            1.   cellids contains (layers, rows, columns)
+            2.   cellids contains (rows, columns) or (layers, cids)
+            3.   cellids contains (cids)
 
     Raises
     ------
@@ -767,33 +771,27 @@ def lcid_to_rec_list(layers, cellids, model_ds,
         dataset with model data. Should have dimensions (layer, cid).
     col1 : str, int or float, optional
         1st column of the rec_list, if None the rec_list will be a list with
-        ((layer,cid)) for each row.
-
-        col1 should be the following value for each package (can also be the
-            name of a timeseries):
-            rch: recharge [L/T]
-            ghb: head [L]
-            drn: drain level [L]
-            chd: head [L]
-            riv: stage [L]
+        ((layer,cid)) for each row. col1 should be the following value for 
+        each package (can also be the name of a timeseries):
+        -   rch: recharge [L/T]
+        -   ghb: head [L]
+        -   drn: drain level [L]
+        -   chd: head [L]
+        -   riv: stage [L]
 
     col2 : str, int or float, optional
         2nd column of the rec_list, if None the rec_list will be a list with
-        ((layer,cid), col1) for each row.
-
-        col2 should be the following value for each package (can also be the
-            name of a timeseries):
-            ghb: conductance [L^2/T]
-            drn: conductance [L^2/T]
-            riv: conductacnt [L^2/T]
+        ((layer,cid), col1) for each row. col2 should be the following 
+        value for each package (can also be the name of a timeseries):
+        -   ghb: conductance [L^2/T]
+        -   drn: conductance [L^2/T]
+        -   riv: conductacnt [L^2/T]
 
     col3 : str, int or float, optional
         3th column of the rec_list, if None the rec_list will be a list with
-        ((layer,cid), col1, col2) for each row.
-
-        col3 should be the following value for each package (can also be the
-            name of a timeseries):
-            riv: bottom [L]
+        ((layer,cid), col1, col2) for each row. col3 should be the following 
+        value for each package (can also be the name of a timeseries):
+        -   riv: bottom [L]
 
     Raises
     ------
@@ -1382,20 +1380,20 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
 
 def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
                              max_per_nan_bot=50):
-    """voeg top en bottom vanuit model layer dataset toe aan de model dataset.
+    """Voeg top en bottom vanuit layer dataset toe aan de model dataset.
 
-    Deze functie is bedoeld voor unstructured arrays in modflow 6
+    Deze functie is bedoeld voor unstructured arrays in modflow 6. Supports 
+    only unstructured grids.
 
-    stappen:
+    Stappen:
+
     1. Zorg dat de onderste laag altijd een bodemhoogte heeft, als de bodem
-    van alle bovenliggende lagen nan is, pak dan 0.
+       van alle bovenliggende lagen nan is, pak dan 0.
     2. Zorg dat de top van de bovenste laag altijd een waarde heeft, als de
-    top van alle onderligende lagen nan is, pak dan 0.
+       top van alle onderligende lagen nan is, pak dan 0.
     3. Vul de nan waarden in alle andere lagen door:
-        a. pak bodem uit regis, tenzij nan dan:
-        b. gebruik bodem van de laag erboven (of de top voor de bovenste laag)
-
-    Supports only unstructured grids.
+        a) pak bodem uit regis, tenzij nan dan:
+        b) gebruik bodem van de laag erboven (of de top voor de bovenste laag)
 
     Parameters
     ----------
@@ -1491,21 +1489,20 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
 
 def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
                            max_per_nan_bot=50):
-    """voeg top en bottom vanuit een model layer dataset toe aan DE model
-    dataset.
+    """Voeg top en bottom vanuit een layer dataset toe aan de model dataset.
 
-    Deze functie is bedoeld voor structured arrays in modflow 6
+    Deze functie is bedoeld voor structured arrays in modflow 6. Supports 
+    only structured grids.
 
-    stappen:
+    Stappen:
+
     1. Zorg dat de onderste laag altijd een bodemhoogte heeft, als de bodem
-    van alle bovenliggende lagen nan is, pak dan 0.
+       van alle bovenliggende lagen nan is, pak dan 0.
     2. Zorg dat de top van de bovenste laag altijd een waarde heeft, als de
-    top van alle onderligende lagen nan is, pak dan 0.
+       top van alle onderligende lagen nan is, pak dan 0.
     3. Vul de nan waarden in alle andere lagen door:
-        a. pak bodem uit de model layer dataset, tenzij nan dan:
-        b. gebruik bodem van de laag erboven (of de top voor de bovenste laag)
-
-    Supports only structured grids.
+        a) pak bodem uit de model layer dataset, tenzij nan dan:
+        b) gebruik bodem van de laag erboven (of de top voor de bovenste laag)  
 
     Parameters
     ----------
@@ -1610,15 +1607,17 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
 def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
                                gridtype='structured',
                                gridprops=None):
-    """ fill values in top, bot, kh and kv where:
-        1. the cell is True in fill_mask
-        2. the cell thickness is greater than 0
+    """Fill values in top, bot, kh and kv.
 
-    fill values:
-        top: 0
-        bot: minimum of bottom_filled or top
-        kh: kh_filled if thickness is greater than 0
-        kv: kv_filled if thickness is greater than 0
+    Fill where:
+    1. the cell is True in fill_mask
+    2. the cell thickness is greater than 0
+
+    Fill values:
+    - top: 0
+    - bot: minimum of bottom_filled or top
+    - kh: kh_filled if thickness is greater than 0
+    - kv: kv_filled if thickness is greater than 0
 
     Parameters
     ----------
@@ -1634,8 +1633,7 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
     Returns
     -------
     model_ds : xr.DataSet
-        model dataset with adjusted data variables:
-            'top', 'bot', 'kh', 'kv'
+        model dataset with adjusted data variables: 'top', 'bot', 'kh', 'kv'
     """
 
     # zee cellen hebben altijd een top gelijk aan 0

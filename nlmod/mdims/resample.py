@@ -178,7 +178,8 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
 
     Also flips the y-coordinates to make them descending instead of ascending.
     This makes it easier to export array to flopy. In other words, make sure
-    that both lines of code create the same plot:
+    that both lines of code create the same plot::
+    
         da_in['top'].sel(layer=b'Hlc').plot()
         plt.imshow(da_in['top'].sel(layer=b'Hlc').data)
 

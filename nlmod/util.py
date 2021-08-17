@@ -248,20 +248,24 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True):
 def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
                      model_ds=None, check_grid=True,
                      check_time=True, **get_kwargs):
-    """reate, read or modify cached netcdf files of a model dataset.
+    """Create, read or modify cached netcdf files of a model dataset.
 
-    following steps are done:
-        1. Read cached dataset and merge this with the current model_ds if all
-        of the following conditions are satisfied:
-            a. use_cache = True
-            b. dataset exists in cachedir
-            c. a model_ds is defined or delr, delc and the extent are defined.
-            d. the grid and time discretisation of the cached dataset equals
-            the grid and time discretisation of the model dataset
-        2. if any of the conditions in step 1 is false the get_dataset_func is
-        called (with the **get_kwargs arguments).
-        3. the dataset from step 2 is written to the cachedir.
-        4. the dataset from step 2 is merged with the current model_ds.
+    Steps:
+
+    1. Read cached dataset and merge this with the current model_ds if all
+    of the following conditions are satisfied:
+
+       a) use_cache = True
+       b) dataset exists in cachedir
+       c) a model_ds is defined or delr, delc and the extent are defined.
+       d) the grid and time discretisation of the cached dataset equals
+          the grid and time discretisation of the model dataset
+
+    2. if any of the conditions in step 1 is false the get_dataset_func is
+    called (with the `**get_kwargs` arguments).
+
+    3. the dataset from step 2 is written to the cachedir.
+    4. the dataset from step 2 is merged with the current model_ds.
 
 
     Parameters
@@ -284,7 +288,7 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
     check_time : bool, optional
         if True the time discretisation of both models are compared to check
         if they are the same
-    **get_kwargs :
+    **get_kwargs : dict, optional
         keyword arguments are used when calling the get_dataset_func.
 
     Returns

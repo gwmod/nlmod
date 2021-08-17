@@ -36,7 +36,7 @@ setup(
 					  'netcdf4>=1.5.7',
 					  'pyshp>=2.1.3',
 					  'rtree>=0.9.7',
-					  'openpyxl>=3.0.7'
+					  'openpyxl>=3.0.7',
                       'matplotlib'
                       ],
     packages=find_packages(exclude=[]),

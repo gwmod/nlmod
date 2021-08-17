@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
-module with functions to deal with the northsea by:
+"""module with functions to deal with the northsea by:
+
     - identifying model cells with the north sea
     - add bathymetry of the northsea to the layer model
     - extrpolate the layer model below the northsea bed.
@@ -8,6 +8,7 @@ module with functions to deal with the northsea by:
 
 Note: if you like jazz please check this out: https://www.northseajazz.com
 """
+import logging
 import os
 
 import numpy as np
@@ -17,7 +18,6 @@ import xarray as xr
 from .. import mdims, util
 from . import rws
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -25,15 +25,14 @@ def get_modelgrid_sea(model_ds,
                       modelgrid,
                       da_name='northsea',
                       cachedir=None, use_cache=False):
-    """ Get DataArray which is 1 at sea and 0 overywhere else.
-    Sea is defined by the geometries in gdf_sea
-    grid is defined by mfgrid and model_ds
+    """Get DataArray which is 1 at sea and 0 overywhere else. Sea is defined by
+    the geometries in gdf_sea grid is defined by mfgrid and model_ds.
 
     Parameters
     ----------
     model_ds : xr.DataSet
         xarray with model data
-    modelgrid : flopy StructuredGrid or flopy VertexGrid 
+    modelgrid : flopy StructuredGrid or flopy VertexGrid
         grid information.
     da_name : str, optional
         name e is used to store the sea data array in model_ds
@@ -47,7 +46,6 @@ def get_modelgrid_sea(model_ds,
     -------
     model_ds : xr.DataSet
         dataset with 'sea' DataVariable.
-
     """
     model_ds = util.get_cache_netcdf(use_cache, cachedir, 'sea_model_ds.nc',
                                      find_sea_cells, model_ds,
@@ -59,15 +57,14 @@ def get_modelgrid_sea(model_ds,
 
 
 def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
-    """ Get Dataset which is 1 at sea and 0 everywhere else.
-    Sea is defined by opp_water shapefile
-    grid is defined in model_ds
+    """Get Dataset which is 1 at sea and 0 everywhere else. Sea is defined by
+    opp_water shapefile grid is defined in model_ds.
 
     Parameters
     ----------
     model_ds : xr.DataSet
         xarray with model data
-    modelgrid : flopy StructuredGrid or flopy VertexGrid 
+    modelgrid : flopy StructuredGrid or flopy VertexGrid
         grid information.
     da_name : str, optional
         name of the datavar that identifies sea cells
@@ -75,9 +72,8 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
     Returns
     -------
     model_ds_out : xr.DataSet
-        Dataset with a single DataArray, this DataArray is 1 at sea and 0 
+        Dataset with a single DataArray, this DataArray is 1 at sea and 0
         everywhere else. Grid dimensions according to model_ds.
-
     """
 
     gdf_surf_water = rws.get_gdf_surface_water(model_ds)
@@ -98,7 +94,7 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
 def get_modelgrid_bathymetry(model_ds,
                              gridprops=None,
                              cachedir=None, use_cache=False):
-    """ get bathymetry of the Northsea from the jarkus dataset.
+    """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
@@ -128,7 +124,7 @@ def get_modelgrid_bathymetry(model_ds,
 
 def bathymetry_to_model_dataset(model_ds,
                                 gridprops=None):
-    """ get bathymetry of the Northsea from the jarkus dataset.
+    """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
@@ -144,7 +140,7 @@ def bathymetry_to_model_dataset(model_ds,
 
     Notes
     -----
-    The nan values in the original bathymetry are filled and then the 
+    The nan values in the original bathymetry are filled and then the
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
@@ -222,7 +218,7 @@ def get_dataset_jarkus(extent):
 
 
 def get_jarkus_tilenames(extent):
-    """ Find all Jarkus tilenames within a certain extent
+    """Find all Jarkus tilenames within a certain extent.
 
     Parameters
     ----------
@@ -234,7 +230,6 @@ def get_jarkus_tilenames(extent):
     -------
     netcdf_urls : list of str
         list of the urls of all netcdf files of the tiles with Jarkus data.
-
     """
     ds_jarkus_catalog = xr.open_dataset(
         'http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc')
@@ -253,8 +248,7 @@ def get_jarkus_tilenames(extent):
 
 
 def get_netcdf_tiles():
-    """ Find all Jarkus netcdf tile names. 
-
+    """Find all Jarkus netcdf tile names.
 
     Returns
     -------
@@ -263,7 +257,7 @@ def get_netcdf_tiles():
 
     Notes
     -----
-    This function would be redundant if the jarkus catalog 
+    This function would be redundant if the jarkus catalog
     (http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc)
     had a proper way of displaying the url's of each tile. It seems like an
     attempt was made to do this because there is a data variable
@@ -283,15 +277,15 @@ def add_bathymetry_to_top_bot_kh_kv(model_ds, bathymetry,
                                     fill_mask,
                                     kh_sea=10,
                                     kv_sea=10):
-    """ add bathymetry to the top and bot of each layer for all cells with
+    """add bathymetry to the top and bot of each layer for all cells with
     fill_mask.
 
     Parameters
     ----------
     model_ds : xarray.Dataset
-        dataset with model data, should 
+        dataset with model data, should
     bathymetry : xarray DataArray
-        bathymetry data        
+        bathymetry data
     kh_sea : int or float, optional
         the horizontal conductance in sea s
     fill_mask : xr.DataArray
@@ -301,7 +295,6 @@ def add_bathymetry_to_top_bot_kh_kv(model_ds, bathymetry,
     -------
     model_ds : xarray.Dataset
         dataset with model data where the top, bot, kh and kv are changed
-
     """
     model_ds['top'] = xr.where(fill_mask,
                                0.0,

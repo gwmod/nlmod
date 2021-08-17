@@ -1,30 +1,28 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 12 15:33:03 2020
+"""Created on Fri Jun 12 15:33:03 2020.
 
 @author: ruben
 """
 
+import logging
 import os
 import tempfile
 
 import numpy as np
 import rasterio
-from rasterio import merge
 import xarray as xr
 from owslib.wcs import WebCoverageService
+from rasterio import merge
 
-from .. import mdims
-from .. import util
+from .. import mdims, util
 
-import logging
 logger = logging.getLogger(__name__)
 
 
 def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
                     cachedir=None,
                     fname_netcdf='ahn_model_ds.nc'):
-    """ get an xarray dataset from the ahn values within an extent.
+    """get an xarray dataset from the ahn values within an extent.
 
     Parameters
     ----------
@@ -47,7 +45,6 @@ def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
 
     1. The ahn raster is now cached in a tempdir. Should be changed to the
     cachedir of the model I think.
-
     """
     ahn_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
                                    get_ahn_at_grid, model_ds, check_time=False,
@@ -57,8 +54,7 @@ def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
 
 
 def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
-    """ Get a model dataset with ahn variable.
-
+    """Get a model dataset with ahn variable.
 
     Parameters
     ----------
@@ -84,7 +80,6 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     -------
     model_ds_out : xr.Dataset
         dataset with the ahn variable.
-
     """
     if (model_ds.gridtype == 'unstructured') and (gridprops is None):
         raise ValueError(

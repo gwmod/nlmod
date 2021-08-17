@@ -1,22 +1,22 @@
 
-import xarray as xr
+import logging
 import os
-import pandas as pd
-import numpy as np
+
 import nlmod
+import numpy as np
+import pandas as pd
+import xarray as xr
 
 from .. import mdims
 from . import regis
 
-
-import logging
 logger = logging.getLogger(__name__)
 
 
 def get_geotop_dataset(extent, delr, delc,
                        regis_ds, regis_layer='HLc'):
-    """ get a model layer dataset for modflow from geotop within a certain 
-    extent and grid. 
+    """get a model layer dataset for modflow from geotop within a certain
+    extent and grid.
 
     if regis_ds and regis_layer are defined the geotop model is only created
     to replace this regis_layer in a regis layer model.
@@ -31,16 +31,15 @@ def get_geotop_dataset(extent, delr, delc,
     delc : int or float,
         cell size along columns, equal to dy
     regis_ds: xarray.DataSet
-        regis dataset used to cut geotop to the same x and y coördinates    
+        regis dataset used to cut geotop to the same x and y coördinates
     regis_layer: str, optional
-        layer of regis dataset that will be filled with geotop. The default is 
+        layer of regis dataset that will be filled with geotop. The default is
         'HLc'.
 
     Returns
     -------
     geotop_ds: xr.DataSet
         geotop dataset with top, bot, kh and kv per geo_eenheid
-
     """
     # check extent
     extent2, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
@@ -75,10 +74,9 @@ def get_geotop_dataset(extent, delr, delc,
 
 
 def get_geotop_raw_within_extent(extent):
-    """ Get a slice of the geotop netcdf url within the extent, set the x and
-    y coordinates to match the cell centers and keep only the strat and lithok 
+    """Get a slice of the geotop netcdf url within the extent, set the x and y
+    coordinates to match the cell centers and keep only the strat and lithok
     data variables.
-
 
     Parameters
     ----------
@@ -89,7 +87,6 @@ def get_geotop_raw_within_extent(extent):
     -------
     geotop_ds_raw : xarray Dataset
         slices geotop netcdf.
-
     """
 
     url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
@@ -163,7 +160,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
 
 
 def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
-    """ get top, bottom and kh of each geo-eenheid in geotop dataset.
+    """get top, bottom and kh of each geo-eenheid in geotop dataset.
 
     Parameters
     ----------
@@ -182,7 +179,6 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
     the 'geo_eenheid' >6000 are 'stroombanen' these are difficult to add because
     they can occur above and below any other 'geo_eenheid' therefore they are
     added to the geo_eenheid below the stroombaan.
-
     """
 
     # vindt alle geo-eenheden in model_extent
@@ -222,10 +218,11 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
 
 
 def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
-    """ add stroombanen to tops and bots of geo_eenheden, also computes kh per 
-    geo_eenheid. Kh is computed by taking the average of all kh's of a geo_eenheid
-    within a cell (e.g. if one geo_eenheid has a thickness of 1,5m in a certain
-    cell the kh of the cell is calculated as the mean of the 3 cells in geotop)
+    """add stroombanen to tops and bots of geo_eenheden, also computes kh per
+    geo_eenheid. Kh is computed by taking the average of all kh's of a
+    geo_eenheid within a cell (e.g. if one geo_eenheid has a thickness of 1,5m
+    in a certain cell the kh of the cell is calculated as the mean of the 3
+    cells in geotop)
 
     Parameters
     ----------
@@ -242,7 +239,6 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
     -------
     geotop_ds_mod: xr.DataSet
         geotop dataset with top, bot, kh and kv per geo_eenheid
-
     """
     kh = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     thickness = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan

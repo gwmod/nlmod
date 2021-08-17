@@ -1,9 +1,11 @@
-import sys
-import xarray as xr
 import os
+import sys
+
+import xarray as xr
+
 
 def get_empty_model_ds(model_name, model_ws, mfversion="mf6", exe_name=None):
-    """ get an empty model dataset
+    """get an empty model dataset.
 
     Parameters
     ----------
@@ -22,7 +24,6 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6", exe_name=None):
     -------
     model_ds : xarray dataset
         model dataset.
-
     """
 
     model_ds = xr.Dataset()
@@ -30,7 +31,7 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6", exe_name=None):
     model_ds.attrs['model_name'] = model_name
     model_ds.attrs['model_ws'] = model_ws
     model_ds.attrs['mfversion'] = mfversion
-    
+
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),
                                 '..', '..', 'bin', model_ds.mfversion)

@@ -1,41 +1,39 @@
 # -*- coding: utf-8 -*-
-"""
-This module contains functions to:
-    - project data on different grid forms
-    - obtain various types of rec_lists from a grid that can be used as input for a mf
-    package
-    - fill, interpolate and resample grid data
-    - 
+"""This module contains functions to:
+
+- project data on different grid forms
+- obtain various types of rec_lists from a grid that can be used as input for a mf
+package
+- fill, interpolate and resample grid data
+-
 """
 import copy
+import logging
 import os
 import pickle
 import sys
 import tempfile
-from tqdm import tqdm
 
 import flopy
-import numpy as np
 import geopandas as gpd
+import numpy as np
+import shapely
 import xarray as xr
 from flopy.discretization.structuredgrid import StructuredGrid
 from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
-
-import shapely
 from shapely.prepared import prep
+from tqdm import tqdm
 
-from . import resample
 from .. import mfpackages, util
 from ..read import jarkus
+from . import resample
 
-import logging
 logger = logging.getLogger(__name__)
 
 
 def modelgrid_from_model_ds(model_ds, gridprops=None):
-    """ obtain the flopy modelgrid from model_ds
-
+    """obtain the flopy modelgrid from model_ds.
 
     Parameters
     ----------
@@ -46,9 +44,8 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
 
     Returns
     -------
-    modelgrid : flopy StructuredGrid or flopy VertexGrid 
+    modelgrid : flopy StructuredGrid or flopy VertexGrid
         grid information.
-
     """
 
     if model_ds.gridtype == 'structured':
@@ -167,7 +164,8 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         gridprops = None
 
     if add_northsea:
-        logger.info('nan values at the northsea are filled using the bathymetry from jarkus')
+        logger.info(
+            'nan values at the northsea are filled using the bathymetry from jarkus')
 
         modelgrid = modelgrid_from_model_ds(model_ds, gridprops=gridprops)
 
@@ -211,14 +209,14 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
 
 
 def get_first_active_layer_from_idomain(idomain, nodata=-999):
-    """ get the first active layer in each cell from the idomain
+    """get the first active layer in each cell from the idomain.
 
     Parameters
     ----------
     idomain : xr.DataArray
         idomain. Shape can be (layer, y, x) or (layer, cid)
     nodata : int, optional
-        nodata value. used for cells that are inactive in all layers. 
+        nodata value. used for cells that are inactive in all layers.
         The default is -999.
 
     Returns
@@ -239,13 +237,13 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
 
 
 def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
-    """ add idomain and first_active_layer to model_ds
-    The active layers are defined as the layers where the bottom is not nan
+    """add idomain and first_active_layer to model_ds The active layers are
+    defined as the layers where the bottom is not nan.
 
     Parameters
     ----------
     bottom : xarray.DataArray
-        DataArray with bottom values of each layer. Nan values indicate 
+        DataArray with bottom values of each layer. Nan values indicate
         inactive cells.
     model_ds : xarray.Dataset
         dataset with model data where idomain and first_active_layer
@@ -279,8 +277,8 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
 
 
 def get_xy_mid_structured(extent, delr, delc):
-    """Calculates the x and y coordinates of the cell centers of a 
-    structured grid.
+    """Calculates the x and y coordinates of the cell centers of a structured
+    grid.
 
     Parameters
     ----------
@@ -297,7 +295,6 @@ def get_xy_mid_structured(extent, delr, delc):
         x-coordinates of the cell centers shape(ncol)
     ymid : np.array
         y-coordinates of the cell centers shape(nrow)
-
     """
     # get cell mids
     x_mid_start = extent[0] + 0.5 * delr
@@ -320,7 +317,7 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
                              delr=None, delc=None,
                              cachedir=None,
                              use_cache=False):
-    """Create unstructured grid. Refine grid using refinement features.     
+    """Create unstructured grid. Refine grid using refinement features.
 
     Parameters
     ----------
@@ -330,18 +327,18 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
         name of the model.
     gwf : flopy.mf6.ModflowGwf
         groundwater flow model, if structured grid is already defined
-        parameters defining the grid are taken from modelgrid if not 
+        parameters defining the grid are taken from modelgrid if not
         explicitly passed.
     refine_features : list of tuples, optional
-        list of tuples containing refinement features, tuples must each 
-        contain [(geometry, shape_type, level)]. Geometry can be a path 
-        pointing to a shapefile or an object defining the geometry. 
-        For accepted types for each entry, see 
+        list of tuples containing refinement features, tuples must each
+        contain [(geometry, shape_type, level)]. Geometry can be a path
+        pointing to a shapefile or an object defining the geometry.
+        For accepted types for each entry, see
         `flopy.utils.gridgen.Gridgen.add_refinement_features()`
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid.
     nlay : int, optional
-        number of model layers. If not passed, 
+        number of model layers. If not passed,
     nrow : int, optional
         number of model rows.
     ncol : int, optional
@@ -354,14 +351,13 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
         directory to store cached values, if None a temporary directory is
         used. default is None
     use_cache : bool, optional
-        if True the cached resampled regis dataset is used. 
+        if True the cached resampled regis dataset is used.
         The default is False.
 
     Returns
     -------
     gridprops : dictionary
         gridprops with the unstructured grid information.
-
     """
 
     if not os.path.isdir(gridgen_ws):
@@ -372,7 +368,8 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
 
     fname_gridprops_pickle = os.path.join(cachedir, 'gridprops.pklz')
     if os.path.isfile(fname_gridprops_pickle) and use_cache:
-        logger.info(f'using cached griddata from file {fname_gridprops_pickle}')
+        logger.info(
+            f'using cached griddata from file {fname_gridprops_pickle}')
 
         with open(fname_gridprops_pickle, 'rb') as fo:
             gridprops = pickle.load(fo)
@@ -434,9 +431,8 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
 
 
 def get_xyi_cid(gridprops=None, model_ds=None):
-    """ Get x and y coördinates of the cell mids from the cellids in the grid
+    """Get x and y coördinates of the cell mids from the cellids in the grid
     properties.
-
 
     Parameters
     ----------
@@ -468,7 +464,7 @@ def get_xyi_cid(gridprops=None, model_ds=None):
 
 
 def col_to_list(col_in, model_ds, cellids):
-    """ convert array data in model_ds to a list of values for specific cells.
+    """convert array data in model_ds to a list of values for specific cells.
     This function is typically used to create a rec_array with stress period
     data for the modflow packages.
 
@@ -481,7 +477,7 @@ def col_to_list(col_in, model_ds, cellids):
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
     model_ds : xarray.Dataset
-        dataset with model data. Can have dimension (layer, y, x) or 
+        dataset with model data. Can have dimension (layer, y, x) or
         (layer, cid).
     cellids : tuple of numpy arrays
         tuple with indices of the cells that will be used to create the list
@@ -499,7 +495,6 @@ def col_to_list(col_in, model_ds, cellids):
     -------
     col_lst : list
         raster values from model_ds presented in a list per cell.
-
     """
 
     if isinstance(col_in, str):
@@ -525,7 +520,7 @@ def col_to_list(col_in, model_ds, cellids):
 
 def lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
                     col1=None, col2=None, col3=None):
-    """ Create a rec list for stress period data from a set of cellids.
+    """Create a rec list for stress period data from a set of cellids.
 
     Used for structured grids.
 
@@ -542,7 +537,7 @@ def lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
         tuple with indices of the cells that will be used to create the list
         with values.
     model_ds : xarray.Dataset
-        dataset with model data. Can have dimension (layer, y, x) or 
+        dataset with model data. Can have dimension (layer, y, x) or
         (layer, cid).
     col1 : str, int or float, optional
         1st column of the rec_list, if None the rec_list will be a list with
@@ -580,7 +575,6 @@ def lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
     -------
     rec_list : list of tuples
         every row consist of ((layer,row,column), col1, col2, col3).
-
     """
 
     if col1 is None:
@@ -610,7 +604,7 @@ def lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
 def data_array_3d_to_rec_list(model_ds, mask,
                               col1=None, col2=None, col3=None,
                               only_active_cells=True):
-    """ Create a rec list for stress period data from a model dataset.
+    """Create a rec list for stress period data from a model dataset.
 
     Used for structured grids.
 
@@ -652,14 +646,13 @@ def data_array_3d_to_rec_list(model_ds, mask,
             riv: river bottom [L]
 
     only_active_cells : bool, optional
-        If True an extra mask is used to only include cells with an idomain 
+        If True an extra mask is used to only include cells with an idomain
         of 1. The default is True.
 
     Returns
     -------
     rec_list : list of tuples
         every row consist of ((layer,row,column), col1, col2, col3).
-
     """
     if only_active_cells:
         cellids = np.where((mask) & (model_ds['idomain'] == 1))
@@ -681,7 +674,7 @@ def data_array_2d_to_rec_list(model_ds, mask,
                               layer=0,
                               first_active_layer=False,
                               only_active_cells=True):
-    """ Create a rec list for stress period data from a model dataset.
+    """Create a rec list for stress period data from a model dataset.
 
     Used for structured grids.
 
@@ -722,10 +715,10 @@ def data_array_2d_to_rec_list(model_ds, mask,
         layer used in the rec_list. Not used if first_active_layer is True.
         default is 0
     first_active_layer : bool, optional
-        If True an extra mask is applied to use the first active layer of each 
+        If True an extra mask is applied to use the first active layer of each
         cell in the grid. The default is False.
     only_active_cells : bool, optional
-        If True an extra mask is used to only include cells with an idomain 
+        If True an extra mask is used to only include cells with an idomain
         of 1. The default is True.
 
     Returns
@@ -756,7 +749,7 @@ def data_array_2d_to_rec_list(model_ds, mask,
 
 def lcid_to_rec_list(layers, cellids, model_ds,
                      col1=None, col2=None, col3=None):
-    """ Create a rec list for stress period data from a set of cellids.
+    """Create a rec list for stress period data from a set of cellids.
 
     Used for unstructured grids.
 
@@ -812,7 +805,6 @@ def lcid_to_rec_list(layers, cellids, model_ds,
     rec_list : list of tuples
         every row consist of ((layer, cid), col1, col2, col3)
         grids.
-
     """
     if col1 is None:
         rec_list = list(zip(zip(layers, cellids[-1])))
@@ -841,7 +833,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
 def data_array_2d_unstr_to_rec_list(model_ds, mask,
                                     col1=None, col2=None, col3=None,
                                     only_active_cells=True):
-    """ Create a rec list for stress period data from a model dataset.
+    """Create a rec list for stress period data from a model dataset.
 
     Used for unstructured grids.
 
@@ -880,14 +872,13 @@ def data_array_2d_unstr_to_rec_list(model_ds, mask,
             name of a timeseries):
             riv: bottom [L]
     only_active_cells : bool, optional
-        If True an extra mask is used to only include cells with an idomain 
+        If True an extra mask is used to only include cells with an idomain
         of 1. The default is True.
 
     Returns
     -------
     rec_list : list of tuples
         every row consist of ((layer,row,column), col1, col2, col3).
-
     """
     if only_active_cells:
         cellids = np.where((mask) & (model_ds['idomain'] == 1))
@@ -907,7 +898,7 @@ def data_array_1d_unstr_to_rec_list(model_ds, mask,
                                     layer=0,
                                     first_active_layer=False,
                                     only_active_cells=True):
-    """ Create a rec list for stress period data from a model dataset.
+    """Create a rec list for stress period data from a model dataset.
 
     Used for unstructured grids.
 
@@ -949,17 +940,16 @@ def data_array_1d_unstr_to_rec_list(model_ds, mask,
         layer used in the rec_list. Not used if first_active_layer is True.
         default is 0
     first_active_layer : bool, optional
-        If True an extra mask is applied to use the first active layer of each 
+        If True an extra mask is applied to use the first active layer of each
         cell in the grid. The default is False.
     only_active_cells : bool, optional
-        If True an extra mask is used to only include cells with an idomain 
+        If True an extra mask is used to only include cells with an idomain
         of 1. The default is True.
 
     Returns
     -------
     rec_list : list of tuples
         every row consist of ((layer,cid), col1, col2, col3).
-
     """
     if first_active_layer:
         cellids = np.where(
@@ -979,9 +969,8 @@ def data_array_1d_unstr_to_rec_list(model_ds, mask,
 
 def polygon_to_area(modelgrid, polygon, da,
                     gridtype='structured'):
-    """ create a grid with the surface area in each cell based on a 
-    polygon value.
-
+    """create a grid with the surface area in each cell based on a polygon
+    value.
 
     Parameters
     ----------
@@ -996,12 +985,12 @@ def polygon_to_area(modelgrid, polygon, da,
     -------
     area_array : xarray.DataArray
         area of polygon within each modelgrid cell
-
     """
     if polygon.type == 'Polygon':
         pass
     elif polygon.type == 'MultiPolygon':
-        Warning('function not tested for MultiPolygon type, can have unexpected results')
+        Warning(
+            'function not tested for MultiPolygon type, can have unexpected results')
     else:
         raise TypeError(
             f'input geometry should by of type "Polygon" not {polygon.type}')
@@ -1024,7 +1013,7 @@ def polygon_to_area(modelgrid, polygon, da,
 
 
 def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
-    """ convert a GeoDataFrame with polygon geometries into a data array
+    """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
 
@@ -1042,7 +1031,6 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
     da : xr.DataArray
         1 if polygon is in cell, 0 otherwise. Grid dimensions according to
         model_ds and mfgrid.
-
     """
 
     # build list of gridcells
@@ -1078,9 +1066,9 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
 
 
 def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
-    """ convert a GeoDataFrame with polygon geometries into a model dataset
-    with a data_array named 'da_name' in which each cell is 1 (True) if one or
-    more geometries are (partly) in that cell.
+    """convert a GeoDataFrame with polygon geometries into a model dataset with
+    a data_array named 'da_name' in which each cell is 1 (True) if one or more
+    geometries are (partly) in that cell.
 
     Parameters
     ----------
@@ -1096,7 +1084,6 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
     model_ds_out : xr.Dataset
         Dataset with a single DataArray, this DataArray is 1 if polygon is in
         cell, 0 otherwise. Grid dimensions according to model_ds and mfgrid.
-
     """
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out[da_name] = gdf_to_bool_data_array(gdf, mfgrid, model_ds)
@@ -1105,8 +1092,7 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
 
 
 def gdf2grid(gdf, ml, method="vertex", **kwargs):
-    """
-    Intersect a geodataframe with a model grid.
+    """Intersect a geodataframe with a model grid.
 
     Parameters
     ----------
@@ -1126,7 +1112,6 @@ def gdf2grid(gdf, ml, method="vertex", **kwargs):
     -------
     geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
-
     """
     ix = GridIntersect(ml.modelgrid, method=method)
     shps = []
@@ -1143,24 +1128,22 @@ def gdf2grid(gdf, ml, method="vertex", **kwargs):
     return gpd.GeoDataFrame(shps)
 
 
-
 def get_thickness_from_topbot(top, bot):
-    """get thickness from data arrays with top and bots
+    """get thickness from data arrays with top and bots.
 
     Parameters
     ----------
     top : xr.DataArray
         raster with top of each cell. dimensions should be (y,x) or (cid).
     bot : xr.DataArray
-        raster with bottom of each cell. dimensions should be (layer, y,x) or 
+        raster with bottom of each cell. dimensions should be (layer, y,x) or
         (layer, cid).
 
     Returns
     -------
     thickness : xr.DataArray
-        raster with thickness of each cell. dimensions should be (layer, y,x) 
+        raster with thickness of each cell. dimensions should be (layer, y,x)
         or (layer, cid).
-
     """
     if np.ndim(top) > 2:
         raise NotImplementedError('function works only for 2d top')
@@ -1225,7 +1208,7 @@ def update_idomain_from_thickness(idomain, thickness, mask):
 
 def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
                                        fill_value_kh, fill_value_kv):
-    """ add kh and kv from a model layer dataset to THE model dataset.
+    """add kh and kv from a model layer dataset to THE model dataset.
 
     Supports structured and unstructured grids.
 
@@ -1249,7 +1232,7 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
 
     Notes
     -----
-    some model dataset, such as regis, also have 'c' and 'kd' values. These 
+    some model dataset, such as regis, also have 'c' and 'kd' values. These
     are ignored at the moment
     """
     model_ds.attrs['anisotropy'] = anisotropy
@@ -1291,10 +1274,10 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
     Parameters
     ----------
     kh_in : np.ndarray
-        kh from regis with nan values shape(nlay, nrow, ncol) or 
+        kh from regis with nan values shape(nlay, nrow, ncol) or
         shape(nlay, len(cid))
     kv_in : np.ndarray
-        kv from regis with nan values shape(nlay, nrow, ncol) or 
+        kv from regis with nan values shape(nlay, nrow, ncol) or
         shape(nlay, len(cid))
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
@@ -1349,7 +1332,7 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                             nodata=None,
                             max_per_nan_bot=50,
                             gridtype='structured'):
-    """ add top and bot from a model layer dataset to THE model dataset.
+    """add top and bot from a model layer dataset to THE model dataset.
 
     Supports structured and unstructured grids.
 
@@ -1368,19 +1351,19 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
         if the percentage of cells that have nan values in all layers is
         higher than this an error is raised. The default is 50.
     gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'. 
+        type of grid, options are 'structured' and 'unstructured'.
         The default is 'structured'.
 
     Returns
     -------
     model_ds : xarray.Dataset
         dataset with model data including top and bottom
-
     """
     if nodata is None:
         nodata = model_ds.attrs['nodata']
 
-    logger.info('using top and bottom from model layers dataset for modflow model')
+    logger.info(
+        'using top and bottom from model layers dataset for modflow model')
     logger.info('replace nan values for inactive layers with dummy value')
 
     if gridtype == 'structured':
@@ -1399,7 +1382,7 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
 
 def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
                              max_per_nan_bot=50):
-    """ voeg top en bottom vanuit model layer dataset toe aan de model dataset
+    """voeg top en bottom vanuit model layer dataset toe aan de model dataset.
 
     Deze functie is bedoeld voor unstructured arrays in modflow 6
 
@@ -1422,9 +1405,9 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
         dataset with model data where top and bottom are added to
     nodata : int, optional
         if the first_active_layer data array in model_ds has this value,
-        it means this cell is inactive in all layers 
+        it means this cell is inactive in all layers
     max_per_nan_bot : int or float, optional
-        if the percentage of cells that have nan values in all layers. 
+        if the percentage of cells that have nan values in all layers.
         The default is 50.
 
     Returns
@@ -1508,8 +1491,8 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
 
 def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
                            max_per_nan_bot=50):
-    """ voeg top en bottom vanuit een model layer dataset toe aan DE model 
-    dataset
+    """voeg top en bottom vanuit een model layer dataset toe aan DE model
+    dataset.
 
     Deze functie is bedoeld voor structured arrays in modflow 6
 
@@ -1532,16 +1515,15 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
         dataset with model data where top and bottom are added to
     nodata : int, optional
         if the first_active_layer data array in model_ds has this value,
-        it means this cell is inactive in all layers 
+        it means this cell is inactive in all layers
     max_per_nan_bot : int or float, optional
-        if the percentage of cells that have nan values in all layers. 
+        if the percentage of cells that have nan values in all layers.
         The default is 50.
 
     Returns
     -------
     model_ds : xarray.Dataset
         dataset with model data including top and bottom
-
     """
 
     active_domain = model_ds['first_active_layer'].data != nodata

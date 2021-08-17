@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-function to project regis, or a combination of regis and geotop, data on a 
-modelgrid.
-"""
+"""function to project regis, or a combination of regis and geotop, data on a
+modelgrid."""
+import logging
+
 import numpy as np
 import xarray as xr
 from scipy.interpolate import griddata
@@ -10,7 +10,6 @@ from scipy.interpolate import griddata
 from .. import mdims, util
 from . import geotop
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +21,7 @@ def get_layer_models(extent, delr, delc,
                      cachedir=None,
                      fname_netcdf='combined_layer_ds.nc',
                      use_cache=False):
-    """ get a layer model from regis and/or geotop
+    """get a layer model from regis and/or geotop.
 
     Possibilities so far include:
         - use_regis -> full model based on regis
@@ -47,8 +46,8 @@ def get_layer_models(extent, delr, delc,
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
     remove_nan_layers : bool, optional
-        if True regis and geotop layers with only nans are removed from the 
-        model. if False nan layers are kept which might be usefull if you want 
+        if True regis and geotop layers with only nans are removed from the
+        model. if False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
     cachedir : str
         directory to store cached values, if None a temporary directory is
@@ -63,7 +62,6 @@ def get_layer_models(extent, delr, delc,
     -------
     combined_ds : xarary dataset
         layer model dataset.
-
     """
 
     combined_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
@@ -83,7 +81,7 @@ def get_combined_layer_models(extent, delr, delc,
                               use_regis=True, use_geotop=True,
                               remove_nan_layers=True,
                               cachedir=None, use_cache=False):
-    """ combine layer models into a single layer model. 
+    """combine layer models into a single layer model.
 
     Possibilities so far include:
         - use_regis -> full model based on regis
@@ -108,8 +106,8 @@ def get_combined_layer_models(extent, delr, delc,
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
     remove_nan_layers : bool, optional
-        if True regis and geotop layers with only nans are removed from the 
-        model. if False nan layers are kept which might be usefull if you want 
+        if True regis and geotop layers with only nans are removed from the
+        model. if False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
     cachedir : str
         directory to store cached values, if None a temporary directory is
@@ -127,7 +125,6 @@ def get_combined_layer_models(extent, delr, delc,
     -------
     combined_ds : xarray dataset
         combination of layer models.
-
     """
 
     if use_regis:
@@ -156,8 +153,7 @@ def get_combined_layer_models(extent, delr, delc,
 
 
 def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
-    """ get a regis dataset projected on the modelgrid
-
+    """get a regis dataset projected on the modelgrid.
 
     Parameters
     ----------
@@ -177,7 +173,6 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
     -------
     regis_ds : xarray dataset
         dataset with regis data projected on the modelgrid.
-
     """
     # check extent
     extent2, nrow, ncol = fit_extent_to_regis(extent, delr, delc)
@@ -226,7 +221,7 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
 
 def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
                             float_correction=0.001):
-    """ Combine geotop and regis in such a way that the holoceen in Regis is
+    """Combine geotop and regis in such a way that the holoceen in Regis is
     replaced by the geo_eenheden of geotop.
 
     Parameters
@@ -243,9 +238,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     Returns
     -------
     regis_geotop_ds: xr.DataSet
-        combined dataset  
-
-
+        combined dataset
     """
     regis_geotop_ds = xr.Dataset()
 
@@ -334,10 +327,9 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
 
 
 def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
-    """
-    redifine extent and calculate the number of rows and columns.
+    """redifine extent and calculate the number of rows and columns.
 
-    The extent will be redefined so that the borders of the grid (xmin, xmax, 
+    The extent will be redefined so that the borders of the grid (xmin, xmax,
     ymin, ymax) correspond with the borders of the regis grid.
 
     Parameters
@@ -359,7 +351,6 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
         number of rows.
     ncol : int
         number of columns.
-
     """
     if isinstance(extent, list):
         extent = extent.copy()
@@ -397,7 +388,7 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
 
 
 def get_non_nan_layers(raw_layer_mod, data_var='bot'):
-    """ get number and name of layers based on the number of non-nan layers
+    """get number and name of layers based on the number of non-nan layers.
 
     Parameters
     ----------
@@ -428,14 +419,12 @@ def get_non_nan_layers(raw_layer_mod, data_var='bot'):
 
 
 def get_layer_names():
-    """ get all the available regis layer names
-
+    """get all the available regis layer names.
 
     Returns
     -------
     layer_names : np.array
         array with names of all the regis layers.
-
     """
 
     regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
@@ -447,7 +436,7 @@ def get_layer_names():
 def extrapolate_regis(regis_ds):
     """Fill missing data in layermodel based on nearest interpolation.
 
-    Used for ensuring layer model contains data everywhere. Useful for 
+    Used for ensuring layer model contains data everywhere. Useful for
     filling in data beneath the sea for coastal groundwater models.
 
     Parameters

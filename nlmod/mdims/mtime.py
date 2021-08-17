@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 17 13:50:48 2020
+"""Created on Fri Apr 17 13:50:48 2020.
 
 @author: oebbe
 """
 
-import pandas as pd
-import numpy as np
 import datetime as dt
+
+import numpy as np
+import pandas as pd
 import xarray as xr
 
 
@@ -16,7 +16,7 @@ def set_model_ds_time(model_ds, start_time, steady_state,
                       transient_timesteps=0,
                       perlen=1.0, steady_perlen=3650, 
                       nstp=1, tsmult=1.0):
-    """ Get a model dataset with the time variant data
+    """Get a model dataset with the time variant data.
 
     Parameters
     ----------
@@ -24,7 +24,7 @@ def set_model_ds_time(model_ds, start_time, steady_state,
         Dataset to add time information to
     start_time : str or datetime
         start time of the model. This is the start_time of the transient time
-        steps. 
+        steps.
     steady_state : bool
         if True the model is steady state with one time step.
     steady_start : bool
@@ -35,15 +35,15 @@ def set_model_ds_time(model_ds, start_time, steady_state,
         number of transient time steps. The default is 0.
     perlen : float, int, list or np.array, optional
         length of each timestep depending on the type:
-            - float or int: this is the length of all the time steps. If 
+            - float or int: this is the length of all the time steps. If
             steady_start is True the length of the first time step is defined
             by steady_perlen
             - list or array: the items are the length per timestep.
-            the length of perlen should match the number of transient 
-            timesteps (or transient timesteps +1 if steady_start is True) 
+            the length of perlen should match the number of transient
+            timesteps (or transient timesteps +1 if steady_start is True)
         The default is 1.0.
     steady_perlen : float, optional
-        time step length of the first steady state timestep. 
+        time step length of the first steady state timestep.
         Only used if steady_start is True. Default is 3650 (~10 years)
     nstp : int, optional
         DESCRIPTION. The default is 1.
@@ -54,7 +54,6 @@ def set_model_ds_time(model_ds, start_time, steady_state,
     -------
     model_ds : xarray.Dataset
         dataset with time variant model data
-
     """
     # checks
     if len(model_ds.model_name) > 16 and model_ds.mfversion == 'mf6':

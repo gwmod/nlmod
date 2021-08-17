@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jan  7 21:32:49 2021
+"""Created on Thu Jan  7 21:32:49 2021.
 
 @author: oebbe
 """
 
-from .read import rws
-import matplotlib.pyplot as plt
 import os
-import numpy as np
-import flopy
 
+import flopy
+import matplotlib.pyplot as plt
+import numpy as np
+
+from .read import rws
 
 
 def plot_surface_water(model_ds, ax=None):
@@ -129,8 +129,7 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
 def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
                   plot_bc=['CHD'], plot_bc_kwargs=[{'color': 'k'}], grid=False,
                   xlim=None, ylim=None):
-    """ make a 2d plot of every modellayer, store them in a grid
-
+    """make a 2d plot of every modellayer, store them in a grid.
 
     Parameters
     ----------
@@ -145,7 +144,7 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
     plot_time : int, optional
         time step if plot_var is time variant. The default is None.
     plot_bc : list of str, optional
-        name of packages of which boundary conditions are plot. The default 
+        name of packages of which boundary conditions are plot. The default
         is ['CHD'].
     plot_bc_kwargs : list of dictionaries, optional
         kwargs per boundary conditions. The default is [{'color':'k'}].
@@ -162,7 +161,6 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         DESCRIPTION.
     axes : TYPE
         DESCRIPTION.
-
     """
     for key in plot_bc:
         if not key in gwf.get_package_list():

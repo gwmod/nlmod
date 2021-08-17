@@ -1,24 +1,21 @@
 # -*- coding: utf-8 -*-
-"""
-add knmi precipitation and evaporation to a modflow model
-
-"""
+"""add knmi precipitation and evaporation to a modflow model."""
 
 
-import numpy as np
-import xarray as xr
-
-from tqdm import tqdm
+import logging
 
 import flopy
+import numpy as np
+import xarray as xr
+from tqdm import tqdm
+
 from .. import mdims
 from . import mfpackages
 
-import logging
 logger = logging.getLogger(__name__)
 
 def model_datasets_to_rch(gwf, model_ds, print_input=False):
-    """ convert the recharge data in the model dataset to a recharge package 
+    """convert the recharge data in the model dataset to a recharge package
     with time series.
 
     Parameters
@@ -35,7 +32,6 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     -------
     rch : flopy.mf6.modflow.mfgwfrch.ModflowGwfrch
         recharge package
-
     """
     # check for nan values
     if model_ds['recharge'].isnull().any():

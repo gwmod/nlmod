@@ -1,7 +1,7 @@
-import sys
-import xarray as xr
 import os
+import sys
 
+import xarray as xr
 import datetime as dt
 
 from .. import util
@@ -27,7 +27,6 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
     -------
     model_ds : xarray dataset
         model dataset.
-
     """
 
     model_ds = xr.Dataset()

@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-"""
-utility functions for nlmod. Mostly functions to cache data and manage 
-filenames and directories.
+"""utility functions for nlmod.
+
+Mostly functions to cache data and manage filenames and directories.
 """
 
+import logging
 import os
 import re
 import sys
 import tempfile
-import flopy
 
+import flopy
 import geopandas as gpd
 import numpy as np
 import datetime as dt
@@ -21,8 +22,8 @@ from shutil import copyfile
 import __main__
 
 
-import logging
 logger = logging.getLogger(__name__)
+
 
 
 def write_and_run_model(gwf, model_ds, write_model_ds=True,
@@ -91,8 +92,6 @@ def get_model_dirs(model_ws):
         figure directory inside model workspace.
     cachedir : str
         cache directory inside model workspace.
-
-
     """
     figdir = os.path.join(model_ws, 'figure')
     cachedir = os.path.join(model_ws, 'cache')
@@ -110,7 +109,7 @@ def get_model_dirs(model_ws):
 
 
 def get_model_ds_empty(model_ds):
-    """ get a copy of a model dataset with only grid and time information.
+    """get a copy of a model dataset with only grid and time information.
 
     Parameters
     ----------
@@ -121,7 +120,6 @@ def get_model_ds_empty(model_ds):
     -------
     model_ds_out : xr.Dataset
         dataset with only model grid and time information
-
     """
     if model_ds.gridtype == 'structured':
         model_ds_out = model_ds[['layer', 'x', 'y', 'time']].copy()
@@ -134,9 +132,8 @@ def get_model_ds_empty(model_ds):
 
 
 def check_delr_delc_extent(dic, model_ds):
-    """ checks if the delr, delc and extent in a dictionary equals the
-    delr, delc and extent in a model dataset.
-
+    """checks if the delr, delc and extent in a dictionary equals the delr,
+    delc and extent in a model dataset.
 
     Parameters
     ----------
@@ -149,7 +146,6 @@ def check_delr_delc_extent(dic, model_ds):
     -------
     check : bool
         True of the delr, delc and extent are the same.
-
     """
     check = True
     for key in ['delr', 'delc']:
@@ -175,9 +171,8 @@ def check_delr_delc_extent(dic, model_ds):
 
 
 def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True):
-    """ check if two model datasets have the same grid and time discretization.
+    """check if two model datasets have the same grid and time discretization.
     e.g. the same dimensions and coordinates.
-
 
     Parameters
     ----------
@@ -190,7 +185,7 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True):
         if True the grids of both models are compared to check if they are
         the same
     check_time : bool, optional
-        if True the time discretisation of both models are compared to check 
+        if True the time discretisation of both models are compared to check
         if they are the same
 
     Raises
@@ -202,7 +197,6 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True):
     -------
     bool
         True if the two datasets have the same grid and time discretization.
-
     """
 
     if model_ds.gridtype == 'structured':
@@ -294,20 +288,24 @@ def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True):
 def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
                      model_ds=None, check_grid=True,
                      check_time=True, **get_kwargs):
-    """ reate, read or modify cached netcdf files of a model dataset.
+    """Create, read or modify cached netcdf files of a model dataset.
 
-    following steps are done:
-        1. Read cached dataset and merge this with the current model_ds if all 
-        of the following conditions are satisfied:
-            a. use_cache = True
-            b. dataset exists in cachedir
-            c. a model_ds is defined or delr, delc and the extent are defined.
-            d. the grid and time discretisation of the cached dataset equals
-            the grid and time discretisation of the model dataset
-        2. if any of the conditions in step 1 is false the get_dataset_func is
-        called (with the **get_kwargs arguments).
-        3. the dataset from step 2 is written to the cachedir.
-        4. the dataset from step 2 is merged with the current model_ds.
+    Steps:
+
+    1. Read cached dataset and merge this with the current model_ds if all
+    of the following conditions are satisfied:
+
+       a) use_cache = True
+       b) dataset exists in cachedir
+       c) a model_ds is defined or delr, delc and the extent are defined.
+       d) the grid and time discretisation of the cached dataset equals
+          the grid and time discretisation of the model dataset
+
+    2. if any of the conditions in step 1 is false the get_dataset_func is
+    called (with the `**get_kwargs` arguments).
+
+    3. the dataset from step 2 is written to the cachedir.
+    4. the dataset from step 2 is merged with the current model_ds.
 
 
     Parameters
@@ -320,7 +318,7 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
     cache_name : str
         named of the cached netcdf file with the dataset.
     get_dataset_func : function
-        this function is called to obtain a new dataset (and not use the 
+        this function is called to obtain a new dataset (and not use the
         cached dataset).
     model_ds : xr.Dataset
         dataset where the cached or new dataset is added to.
@@ -328,16 +326,15 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
         if True the grids of both models are compared to check if they are
         the same
     check_time : bool, optional
-        if True the time discretisation of both models are compared to check 
+        if True the time discretisation of both models are compared to check
         if they are the same
-    **get_kwargs : 
+    **get_kwargs : dict, optional
         keyword arguments are used when calling the get_dataset_func.
 
     Returns
     -------
     model_ds
         dataset with the cached or new dataset.
-
     """
 
     if cachedir is None:
@@ -425,8 +422,7 @@ def find_most_recent_file(folder, name, extension='.pklz'):
 
 
 def compare_model_extents(extent1, extent2):
-    """ check overlap between two model extents
-
+    """check overlap between two model extents.
 
     Parameters
     ----------
@@ -441,7 +437,6 @@ def compare_model_extents(extent1, extent2):
         several outcomes:
             1: extent1 is completely within extent2
             2: extent2 is completely within extent1
-
     """
 
     # option1 extent1 is completely within extent2
@@ -479,22 +474,20 @@ def compare_model_extents(extent1, extent2):
 
 
 def gdf_from_extent(extent, crs="EPSG:28992"):
-    """ create a geodataframe with a single polygon with the extent given
-
+    """create a geodataframe with a single polygon with the extent given.
 
     Parameters
     ----------
     extent : tuple, list or array
         extent.
     crs : str, optional
-        coördinate reference system of the extent, default is EPSG:28992 
+        coördinate reference system of the extent, default is EPSG:28992
         (RD new)
 
     Returns
     -------
     gdf_extent : GeoDataFrame
         geodataframe with extent.
-
     """
 
     bbox = (extent[0], extent[2], extent[1], extent[3])
@@ -506,8 +499,8 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
 
 
 def gdf_within_extent(gdf, extent):
-    """ select only parts of the geodataframe within the extent.
-    Only accepts Polygon and Linestring geometry types.
+    """select only parts of the geodataframe within the extent. Only accepts
+    Polygon and Linestring geometry types.
 
     Parameters
     ----------
@@ -520,7 +513,6 @@ def gdf_within_extent(gdf, extent):
     -------
     gdf : geopandas GeoDataFrame
         dataframe with only polygon features within the extent.
-
     """
     # create geodataframe from the extent
     gdf_extent = gdf_from_extent(extent, crs=gdf.crs)
@@ -550,8 +542,7 @@ def gdf_within_extent(gdf, extent):
 
 
 def get_google_drive_filename(id):
-    """ get the filename of a google drive file
-
+    """get the filename of a google drive file.
 
     Parameters
     ----------
@@ -562,7 +553,6 @@ def get_google_drive_filename(id):
     -------
     file_name : str
         filename.
-
     """
     raise DeprecationWarning(
         'this function is no longer supported use the gdown package instead')
@@ -578,17 +568,15 @@ def get_google_drive_filename(id):
 
 
 def download_file_from_google_drive(id, destination=None):
-    """ download a file from google drive using it's id
-
+    """download a file from google drive using it's id.
 
     Parameters
     ----------
     id : str
         google drive id name of a file.
     destination : str, optional
-        location to save the file to. If destination is None the file is 
+        location to save the file to. If destination is None the file is
         written to the current working directory. The default is None.
-
     """
     raise DeprecationWarning(
         'this function is no longer supported use the gdown package instead')
@@ -647,7 +635,6 @@ def get_platform(pltfrm):
     -------
     pltfrm : str
         return platform string
-
     """
     if pltfrm is None:
         if sys.platform.lower() == 'darwin':
@@ -670,10 +657,9 @@ def get_platform(pltfrm):
 
 
 def getmfexes(pth='.', version='', pltfrm=None):
-    """
-    Get the latest MODFLOW binary executables from a github site
-    (https://github.com/MODFLOW-USGS/executables) for the specified
-    operating system and put them in the specified path.
+    """Get the latest MODFLOW binary executables from a github site
+    (https://github.com/MODFLOW-USGS/executables) for the specified operating
+    system and put them in the specified path.
 
     Source: USGS
 
@@ -690,7 +676,6 @@ def getmfexes(pth='.', version='', pltfrm=None):
         linux, win32 and win64.  If platform is None, then routine will
         download the latest appropriate zipfile from the github repository
         based on the platform running this script.
-
     """
     try:
         import pymake
@@ -714,9 +699,8 @@ def getmfexes(pth='.', version='', pltfrm=None):
     return
 
 def add_heads_to_model_ds(model_ds, fname_hds=None):
-    """ reads the heads from a modflow .hds file and returns an xarray 
-    DataArray
-
+    """reads the heads from a modflow .hds file and returns an xarray
+    DataArray.
 
     Parameters
     ----------
@@ -724,12 +708,11 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
         DESCRIPTION.
     fname_hds : TYPE, optional
         DESCRIPTION. The default is None.
-        
+
     Returns
     -------
     head_ar : TYPE
         DESCRIPTION.
-
     """
 
     if fname_hds is None:
@@ -757,8 +740,8 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
 
 def get_heads_array(fname_hds, gridtype='structured',
                     fill_nans=True):
-    """ reads the heads from a modflow .hds file and returns a numpy array
-    
+    """reads the heads from a modflow .hds file and returns a numpy array.
+
     assumes the dimensions of the heads file are:
         structured: time, layer, cid
         unstructured: time, layer, nrow, ncol
@@ -777,7 +760,6 @@ def get_heads_array(fname_hds, gridtype='structured',
     -------
     head_ar : np.ndarray
         heads array.
-
     """
     hdobj = flopy.utils.HeadFile(fname_hds)
     head = hdobj.get_alldata()
@@ -819,7 +801,7 @@ def download_mfbinaries(binpath=None, version='6.0'):
     Parameters
     ----------
     binpath : str, optional
-        path to directory to download binaries to, if it doesnt exist it 
+        path to directory to download binaries to, if it doesnt exist it
         is created. Default is None which sets dir to nlmod/bin.
     version : str, optional
         version string, by default '6.0'

@@ -1,11 +1,6 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr  2 14:13:03 2021
-
-@author: oebbe
-"""
-
+import logging
 import numbers
+
 import hydropandas as hpd
 import numpy as np
 import pandas as pd
@@ -13,14 +8,13 @@ import xarray as xr
 
 from .. import util
 
-import logging
 logger = logging.getLogger(__name__)
 
 
 def get_recharge(model_ds,
                  nodata=None,
                  use_cache=False):
-    """ Get recharge datasets from knmi data.
+    """Get recharge datasets from knmi data.
 
     Parameters
     ----------
@@ -38,7 +32,6 @@ def get_recharge(model_ds,
     -------
     model_ds : xr.DataSet
         dataset with spatial model data including the rch raster
-
     """
 
     model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rch_model_ds.nc',
@@ -219,7 +212,6 @@ def get_locations_unstructured(model_ds, nodata=-999):
     locations : pandas DataFrame
         DataFrame with the locations of all active grid cells.
         includes the columns: x, y and layer
-
     """
     # get active locations
     cids_active = np.where(model_ds['first_active_layer'] != nodata)[0]
@@ -236,8 +228,7 @@ def get_locations_unstructured(model_ds, nodata=-999):
 
 
 def get_locations_structured(model_ds, nodata=-999):
-    """get dataframe with the locations of the grid cells of a structured
-    grid.
+    """get dataframe with the locations of the grid cells of a structured grid.
 
     Parameters
     ----------
@@ -254,7 +245,6 @@ def get_locations_structured(model_ds, nodata=-999):
     locations : pandas DataFrame
         DataFrame with the locations of all active grid cells.
         includes the columns: x, y, row, col and layer
-
     """
 
     # store x and y mids in locations of active cells
@@ -277,7 +267,7 @@ def get_knmi_at_locations(model_ds,
                           start='2010', end=None,
                           nodata=-999,
                           use_cache=False):
-    """ get knmi data at the locations of the active grid cells in model_ds.
+    """get knmi data at the locations of the active grid cells in model_ds.
 
     Parameters
     ----------
@@ -308,7 +298,6 @@ def get_knmi_at_locations(model_ds,
         ObsCollection with knmi data of the precipitation stations.
     oc_knmi_evap : hydropandas.ObsCollection
         ObsCollection with knmi data of the evaporation stations.
-
     """
     # get locations
     if model_ds.gridtype == 'structured':

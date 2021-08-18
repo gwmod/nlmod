@@ -1,11 +1,11 @@
-import numpy as np
-import xarray as xr
-import pandas as pd
-
-from tqdm import tqdm
+import logging
 import warnings
 
-import logging
+import numpy as np
+import pandas as pd
+import xarray as xr
+from tqdm import tqdm
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,14 +16,14 @@ def aggregate_surface_water(gdf, method, model_ds=None):
     ----------
     gdf : geopandas.GeoDataFrame
         GeoDataFrame containing surfacewater polygons per grid cell.
-        Must contain columns 'stage' (waterlevel), 
+        Must contain columns 'stage' (waterlevel),
         'c0' (bottom resistance), and 'botm' (bottom elevation)
     method : str, optional
-        "area_weighted" for area-weighted params, 
+        "area_weighted" for area-weighted params,
         "max_area" for max area params
         "de_lange" for De Lange formula for conductance
     model_ds : xarray.DataSet, optional
-        DataSet containing model layer information (only required for 
+        DataSet containing model layer information (only required for
         method='de_lange')
 
     Returns
@@ -172,7 +172,7 @@ def get_subsurface_params_by_cellid(model_ds, cid):
 
 
 def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):
-    """Calculates the conductance according to De Lange
+    """Calculates the conductance according to De Lange.
 
     Parameters
     ----------
@@ -204,7 +204,6 @@ def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):
     -------
     float
         Conductance (m2/d)
-
     """
     if li > 1e-3 and Bin > 1e-3 and A > 1e-3:
         Bcor = max(Bin, 1e-3)  # has no effect
@@ -349,7 +348,7 @@ def build_spd(celldata, pkg, model_ds):
     ----------
     celldata : geopandas.GeoDataFrame
         GeoDataFrame containing data. Cellid must be the index,
-        and must have columns  
+        and must have columns
     pkg : str
         Modflow package: RIV, DRN or GHB
     model_ds : xarray.DataSet
@@ -358,7 +357,7 @@ def build_spd(celldata, pkg, model_ds):
     Returns
     -------
     spd : list
-        list containing stress period data: 
+        list containing stress period data:
         - RIV: [(cellid), stage, cond, rbot]
         - DRN: [(cellid), elev, cond]
         - GHB: [(cellid), elev, cond]

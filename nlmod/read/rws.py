@@ -1,27 +1,25 @@
 # -*- coding: utf-8 -*-
-"""
-functions to add surface water to a mf model using the ghb package.
-"""
+"""functions to add surface water to a mf model using the ghb package."""
 
-import warnings
+import logging
 import os
+import warnings
+
+import geopandas as gpd
+import nlmod
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import xarray as xr
 from flopy.utils import GridIntersect
 
-import nlmod
 from .. import mdims, util
 
-import logging
 logger = logging.getLogger(__name__)
 
 
 def get_gdf_surface_water(model_ds):
-    """ read a shapefile with surface water as a geodataframe, cut by the 
-    extent of the model.
-
+    """read a shapefile with surface water as a geodataframe, cut by the extent
+    of the model.
 
     Parameters
     ----------
@@ -32,10 +30,9 @@ def get_gdf_surface_water(model_ds):
     -------
     gdf_opp_water : GeoDataframe
         surface water geodataframe.
-
     """
     # laad bestanden in
-    fname = os.path.join(nlmod.NLMOD_DATADIR, r'opp_water.shp')
+    fname = os.path.join(nlmod.NLMOD_DATADIR, 'opp_water.shp')
     gdf_swater = gpd.read_file(fname)
     gdf_swater = util.gdf_within_extent(gdf_swater, model_ds.extent)
 
@@ -46,8 +43,8 @@ def get_sea_and_lakes(model_ds,
                       modelgrid,
                       da_name,
                       use_cache=False):
-    """ Get data arrays with area, cond en peil from the Northsea and big 
-    lakes in the Netherlands.
+    """Get data arrays with area, cond en peil from the Northsea and big lakes
+    in the Netherlands.
 
     Parameters
     ----------
@@ -56,7 +53,7 @@ def get_sea_and_lakes(model_ds,
     modelgrid : flopy grid
         model grid.
     da_name : str
-        name of the polygon shapes, name is used to store data arrays in 
+        name of the polygon shapes, name is used to store data arrays in
         model_ds
     use_cache : bool, optional
         if True the cached ghb data is used. The default is False.
@@ -65,7 +62,6 @@ def get_sea_and_lakes(model_ds,
     -------
     model_ds : xr.DataSet
         dataset with spatial model data including the ghb rasters
-
     """
     model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rws_oppwater.nc',
                                      surface_water_to_model_dataset,
@@ -76,7 +72,8 @@ def get_sea_and_lakes(model_ds,
 
 
 def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
-    """ create 3 data-arrays from the shapefile with surface water:
+    """create 3 data-arrays from the shapefile with surface water:
+
     - area: with the area of the shape in the cell
     - cond: with the conductance based on the area and bweerstand column in shapefile
     - peil: with the surface water lvl based on the peil column in the shapefile
@@ -88,14 +85,13 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     modelgrid : flopy grid
         model grid.
     da_name : str
-        name of the polygon shapes, name is used to store data arrays in 
+        name of the polygon shapes, name is used to store data arrays in
         model_ds
 
     Returns
     -------
     model_ds : xarray.Dataset
-        dataset with modelgrid data. Has 
-
+        dataset with modelgrid data. Has
     """
     gdf = get_gdf_surface_water(model_ds)
 

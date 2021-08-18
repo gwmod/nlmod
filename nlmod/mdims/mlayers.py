@@ -1,9 +1,9 @@
+import logging
 from collections import OrderedDict
 
 import numpy as np
 import xarray as xr
 
-import logging
 logger = logging.getLogger(__name__)
 
 

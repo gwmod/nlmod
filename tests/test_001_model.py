@@ -125,8 +125,9 @@ def test_model_directories(tmpdir):
 
 def test_model_ds_time_steady(tmpdir, modelname='test'):
     model_ws = os.path.join(tmpdir, 'test_model')
-    model_ds = nlmod.mdims.get_model_ds_time(modelname, model_ws,
-                                             '2015-1-1',
+    model_ds = nlmod.mdims.get_empty_model_ds(modelname, model_ws)
+    model_ds = nlmod.mdims.set_model_ds_time(model_ds,
+                                             start_time='2015-1-1',
                                              steady_state=True)
 
     return model_ds
@@ -134,12 +135,12 @@ def test_model_ds_time_steady(tmpdir, modelname='test'):
 
 def test_model_ds_time_transient(tmpdir, modelname='test'):
     model_ws = os.path.join(tmpdir, 'test_model')
-    model_ds = nlmod.mdims.get_model_ds_time(modelname, model_ws,
-                                             '2015-1-1',
+    model_ds = nlmod.mdims.get_empty_model_ds(modelname, model_ws)
+    model_ds = nlmod.mdims.set_model_ds_time(model_ds,
+                                             start_time='2015-1-1',
                                              steady_state=False,
                                              steady_start=True,
                                              transient_timesteps=10)
-    nlmod.util.get_model_dirs(model_ds.model_ws)
     return model_ds
 
 # %% creating model grids
@@ -154,19 +155,16 @@ def test_create_small_model_grid_only(tmpdir):
     regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
                                                         regis_botm_layer=b'KRz5',
                                                         use_regis=True,
-                                                        use_geotop=True,
-                                                        verbose=True)
+                                                        use_geotop=True)
     assert regis_geotop_ds.dims['layer'] == 5
 
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
                                                             keep_vars=[
                                                                 'x', 'y'],
-                                                            gridtype='structured',
-                                                            verbose=True)
+                                                            gridtype='structured')
 
-    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                               verbose=True)
+    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
 
     # Create discretization
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
@@ -184,14 +182,12 @@ def test_create_sea_model_grid_only(tmpdir):
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
                                                         use_regis=True,
-                                                        use_geotop=True,
-                                                        verbose=True)
+                                                        use_geotop=True)
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
                                                             keep_vars=[
                                                                 'x', 'y'],
-                                                            gridtype='structured',
-                                                            verbose=True)
+                                                            gridtype='structured')
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'sea_model_grid.nc'))
 
@@ -205,16 +201,14 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir):
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
                                                         use_regis=True,
-                                                        use_geotop=True,
-                                                        verbose=True)
+                                                        use_geotop=True)
 
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
                                                             keep_vars=[
                                                                 'x', 'y'],
                                                             gridtype='structured',
-                                                            add_northsea=False,
-                                                            verbose=True)
+                                                            add_northsea=False)
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'basic_sea_model.nc'))
@@ -229,14 +223,12 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50., 50.)
     regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 50., 50.,
                                                         use_regis=True,
-                                                        use_geotop=True,
-                                                        verbose=True)
+                                                        use_geotop=True)
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
                                                             keep_vars=[
                                                                 'x', 'y'],
-                                                            gridtype='structured',
-                                                            verbose=True)
+                                                            gridtype='structured')
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'sea_model_grid_50.nc'))
 
@@ -250,8 +242,7 @@ def test_create_sea_model(tmpdir):
     model_ds = xr.open_dataset(os.path.join(tst_model_dir,
                                             'basic_sea_model.nc'))
     # create modflow packages
-    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                               verbose=True)
+    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
     # Create discretization
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
@@ -267,9 +258,9 @@ def test_create_sea_model(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.mfpackages.surface_water.get_general_head_boundary(model_ds,
-                                                                        gwf.modelgrid,
-                                                                        da_name)
+    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
+                                                             gwf.modelgrid,
+                                                             da_name)
     ghb = nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
@@ -285,12 +276,14 @@ def test_create_sea_model(tmpdir):
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 
-    gwf.simulation.write_simulation()
+    nlmod.util.write_and_run_model(gwf, model_ds)
 
-    assert gwf.simulation.run_simulation()[0]
+    # gwf.simulation.write_simulation()
+
+    # assert gwf.simulation.run_simulation()[0]
 
     # save model_ds
-    model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
+    # model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
 
     return model_ds, gwf
 
@@ -304,22 +297,24 @@ def test_create_sea_model_perlen_list(tmpdir):
     perlen = [3650, 14, 10, 11]  # length of the time steps
     transient_timesteps = 3
 
-    model_ds_time = nlmod.mdims.get_model_ds_time(model_ds.model_name,
-                                                  model_ds.model_ws,
-                                                  model_ds.start_time,
-                                                  steady_state=False,
-                                                  steady_start=True,
-                                                  perlen=perlen,
-                                                  transient_timesteps=transient_timesteps)
+    # update current model_ds with new time dicretisation
+    model_ws = os.path.join(tmpdir, 'test_model')
+    new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
+    new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
+                                                 start_time=model_ds.start_time,
+                                                 steady_state=False,
+                                                 steady_start=True,
+                                                 perlen=perlen,
+                                                 transient_timesteps=transient_timesteps)
 
+    # modfiy time
     model_ds = model_ds.drop_dims('time')
-    model_ds.update(model_ds_time)
-    model_ds.attrs['nper'] = model_ds_time.nper
-    model_ds.attrs['perlen'] = model_ds_time.perlen
+    model_ds.update(new_model_ds)
+    model_ds.attrs['nper'] = new_model_ds.nper
+    model_ds.attrs['perlen'] = new_model_ds.perlen
 
     # create modflow packages
-    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                               verbose=True)
+    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
     # Create discretization
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
@@ -335,9 +330,9 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.mfpackages.surface_water.get_general_head_boundary(model_ds,
-                                                                        gwf.modelgrid,
-                                                                        da_name)
+    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
+                                                             gwf.modelgrid,
+                                                             da_name)
     ghb = nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
@@ -353,12 +348,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 
-    gwf.simulation.write_simulation()
-
-    assert gwf.simulation.run_simulation()[0]
-
-    # save model_ds
-    model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
+    nlmod.util.write_and_run_model(gwf, model_ds)
 
     return model_ds, gwf
 
@@ -372,22 +362,23 @@ def test_create_sea_model_perlen_14(tmpdir):
     perlen = 14  # length of the time steps
     transient_timesteps = 3
 
-    model_ds_time = nlmod.mdims.get_model_ds_time(model_ds.model_name,
-                                                  model_ds.model_ws,
-                                                  model_ds.start_time,
-                                                  steady_state=False,
-                                                  steady_start=True,
-                                                  perlen=perlen,
-                                                  transient_timesteps=transient_timesteps)
+    # update current model_ds with new time dicretisation
+    model_ws = os.path.join(tmpdir, 'test_model')
+    new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
+    new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
+                                                 start_time=model_ds.start_time,
+                                                 steady_state=False,
+                                                 steady_start=True,
+                                                 perlen=perlen,
+                                                 transient_timesteps=transient_timesteps)
 
     model_ds = model_ds.drop_dims('time')
-    model_ds.update(model_ds_time)
-    model_ds.attrs['nper'] = model_ds_time.nper
-    model_ds.attrs['perlen'] = model_ds_time.perlen
+    model_ds.update(new_model_ds)
+    model_ds.attrs['nper'] = new_model_ds.nper
+    model_ds.attrs['perlen'] = new_model_ds.perlen
 
     # create modflow packages
-    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                                               verbose=True)
+    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
     # Create discretization
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
@@ -403,9 +394,9 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.mfpackages.surface_water.get_general_head_boundary(model_ds,
-                                                                        gwf.modelgrid,
-                                                                        da_name)
+    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
+                                                             gwf.modelgrid,
+                                                             da_name)
     ghb = nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
@@ -421,12 +412,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 
-    gwf.simulation.write_simulation()
-
-    assert gwf.simulation.run_simulation()[0]
-
-    # save model_ds
-    model_ds.to_netcdf(os.path.join(tst_model_dir, 'full_sea_model.nc'))
+    nlmod.util.write_and_run_model(gwf, model_ds)
 
     return model_ds, gwf
 

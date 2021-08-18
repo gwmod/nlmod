@@ -206,6 +206,10 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         if gridtype == 'unstructured':
             gridprops['top'] = model_ds['top'].data
             gridprops['botm'] = model_ds['bot'].data
+    
+    else:
+        model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
+                model_ds['idomain'])
 
     return model_ds
 
@@ -314,7 +318,7 @@ def get_xy_mid_structured(extent, delr, delc):
     return xmid, ymid
 
 
-def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
+def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
                              refine_features=None, extent=None,
                              nlay=None, nrow=None, ncol=None,
                              delr=None, delc=None,
@@ -363,7 +367,6 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
         gridprops with the unstructured grid information.
 
     """
-
     if not os.path.isdir(gridgen_ws):
         os.makedirs(gridgen_ws)
 
@@ -985,7 +988,7 @@ def polygon_to_area(modelgrid, polygon, da,
 
     Parameters
     ----------
-    gwf : flopy.discretization.structuredgrid.StructuredGrid
+    modelgrid : flopy.discretization.structuredgrid.StructuredGrid
         grid.
     polygon : shapely.geometry.polygon.Polygon
         polygon feature.

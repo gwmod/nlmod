@@ -6,36 +6,84 @@ filenames and directories.
 
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import flopy
 
 import geopandas as gpd
 import numpy as np
+import datetime as dt
 import requests
 import xarray as xr
 from shapely.geometry import box
+from shutil import copyfile
+
+import __main__
+
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-def get_model_dirs(model_ws, gridtype='structured'):
+def write_and_run_model(gwf, model_ds, write_model_ds=True,
+                        nb_path=None):
+    """ write modflow files and run the model. 2 extra options:
+        1. write the model dataset to cache
+        2. copy the modelscript (typically a Jupyter Notebook) to the model
+        workspace with a timestamp.
+    
+
+    Parameters
+    ----------
+    gwf : flopy.mf6.ModflowGwf
+        groundwater flow model.
+    model_ds : xarray.Dataset
+        dataset with model data.
+    write_model_ds : bool, optional
+        if True the model dataset is cached. The default is True.
+    nb_path : str or None, optional
+        full path of the Jupyter Notebook (.ipynb) with the modelscript. The 
+        default is None. Preferably this path does not have to be given
+        manually but there is currently no good option to obtain the filename
+        of a Jupyter Notebook from within the notebook itself.
+
+    """
+    
+    if not nb_path is None:
+        new_nb_fname = f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+        dst = os.path.join(model_ds.model_ws,  new_nb_fname)
+        logger.info(f'write script {new_nb_fname} to model workspace')
+        copyfile(nb_path, dst)
+            
+    
+    if write_model_ds:
+        logger.info('write model dataset to cache')
+        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'], 
+                                        'full_model_ds.nc'))
+        model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    
+    logger.info('write modflow files to model workspace')
+    gwf.simulation.write_simulation()
+    model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    
+    logger.info('run model')
+    assert gwf.simulation.run_simulation()[0]
+    model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    
+
+
+
+def get_model_dirs(model_ws):
     """ Creates a new model workspace directory, if it does not 
     exists yet. Within the model workspace directory a
     few subdirectories are created (if they don't exist yet):
     - figure
     - cache
-    - gridgen (if gridtype = 'unstructured')
 
     Parameters
     ----------
     model_ws : str
         model workspace.
-    gridtype : str, optional
-        gridtype of the model can be either 'structured'  or 'unstructured'.
-        Default is 'structured'.
 
     Returns
     -------
@@ -43,8 +91,7 @@ def get_model_dirs(model_ws, gridtype='structured'):
         figure directory inside model workspace.
     cachedir : str
         cache directory inside model workspace.
-    (gridgen_ws) : str
-        only if gridtype = 'unstructured'
+
 
     """
     figdir = os.path.join(model_ws, 'figure')
@@ -58,14 +105,8 @@ def get_model_dirs(model_ws, gridtype='structured'):
     if not os.path.exists(cachedir):
         os.mkdir(cachedir)
 
-    if gridtype == 'structured':
-        return figdir, cachedir
-    elif gridtype == 'unstructured':
-        gridgen_ws = os.path.join(model_ws, 'gridgen')
-        if not os.path.isdir(gridgen_ws):
-            os.makedirs(gridgen_ws)
-
-        return figdir, cachedir, gridgen_ws
+    return figdir, cachedir
+    
 
 
 def get_model_ds_empty(model_ds):

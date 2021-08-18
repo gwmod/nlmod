@@ -45,7 +45,6 @@ def get_gdf_surface_water(model_ds):
 def get_sea_and_lakes(model_ds,
                       modelgrid,
                       da_name,
-                      cachedir=None,
                       use_cache=False):
     """ Get data arrays with area, cond en peil from the Northsea and big 
     lakes in the Netherlands.
@@ -59,9 +58,6 @@ def get_sea_and_lakes(model_ds,
     da_name : str
         name of the polygon shapes, name is used to store data arrays in 
         model_ds
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
     use_cache : bool, optional
         if True the cached ghb data is used. The default is False.
 
@@ -71,7 +67,7 @@ def get_sea_and_lakes(model_ds,
         dataset with spatial model data including the ghb rasters
 
     """
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'rws_oppwater.nc',
+    model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rws_oppwater.nc',
                                      surface_water_to_model_dataset,
                                      model_ds,
                                      modelgrid=modelgrid, da_name=da_name)

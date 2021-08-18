@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 def get_recharge(model_ds,
                  nodata=None,
-                 cachedir=None,
                  use_cache=False):
     """ Get recharge datasets from knmi data.
 
@@ -32,9 +31,6 @@ def get_recharge(model_ds,
         it means this cell is inactive in all layers. If nodata is None the
         nodata value in model_ds is used.
         the default is None
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
     use_cache : bool, optional
         if True the cached recharge data is used. The default is False.
 
@@ -45,7 +41,7 @@ def get_recharge(model_ds,
 
     """
 
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'rch_model_ds.nc',
+    model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rch_model_ds.nc',
                                      add_knmi_to_model_dataset,
                                      model_ds)
 

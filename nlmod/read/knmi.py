@@ -3,6 +3,7 @@ import numbers
 
 import hydropandas as hpd
 import numpy as np
+import datetime as dt
 import pandas as pd
 import xarray as xr
 
@@ -189,6 +190,10 @@ def add_knmi_to_model_dataset(model_ds,
 
             elif model_ds.gridtype == 'unstructured':
                 model_ds_out['recharge'].loc[loc_sel.index, :] = model_recharge.values
+                
+    for datavar in model_ds_out:
+        model_ds_out[datavar].attrs['source'] = 'KNMI'
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
 
     return model_ds_out
 

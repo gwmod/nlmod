@@ -632,3 +632,47 @@ def fillnan_dataarray_unstructured_grid(xar_in, gridprops=None,
                                    'layer': [0]})
 
     return xar_out
+
+
+def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds, cellsize=25,
+                                        method ='nearest'):
+    """resample a 2d dataarray (xarray) from an unstructured grid to a new 
+    dataaraay from a structured grid.   
+
+    Parameters
+    ----------
+    da_in : xarray.DataArray
+        data array with dimensions ('cid'). 
+    model_ds : xarray.DataArray
+        model dataset with 'x' and 'y' data variables.
+    cellsize : int or float, optional
+        required cell size of structured grid. The default is 25.
+    method : str, optional
+        method used for resampling. The default is 'nearest'.
+
+    Returns
+    -------
+    da_out : xarray.DataArray
+        data array with dimensions ('y', 'x').
+
+    """
+    points_unstr = np.array([model_ds.x.values, model_ds.y.values]).T
+    modelgrid_x = np.arange(model_ds.x.values.min(), 
+                            model_ds.x.values.max(), 
+                            cellsize)
+    modelgrid_y = np.arange(model_ds.y.values.max(), 
+                            model_ds.y.values.min(), 
+                            -cellsize)
+    mg = np.meshgrid(modelgrid_x, modelgrid_y)
+    points = np.vstack((mg[0].ravel(), mg[1].ravel())).T  
+    
+    arr_out_1d = griddata(points_unstr, da_in.values, points, method=method)
+    arr_out2d = arr_out_1d.reshape(len(modelgrid_y), 
+                                   len(modelgrid_x))
+    
+    da_out = xr.DataArray(arr_out2d,
+                      dims=('y','x'),
+                      coords={'y': modelgrid_y,
+                              'x': modelgrid_x})
+    
+    return da_out

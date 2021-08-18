@@ -8,6 +8,7 @@ import warnings
 import geopandas as gpd
 import nlmod
 import numpy as np
+import datetime as dt
 import pandas as pd
 import xarray as xr
 from flopy.utils import GridIntersect
@@ -110,5 +111,9 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     model_ds_out[f'{da_name}_area'] = area
     model_ds_out[f'{da_name}_cond'] = cond
     model_ds_out[f'{da_name}_peil'] = peil
+    
+    for datavar in model_ds_out:
+        model_ds_out[datavar].attrs['source'] = 'RWS'
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
 
     return model_ds_out

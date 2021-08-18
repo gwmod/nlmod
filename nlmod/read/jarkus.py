@@ -12,6 +12,7 @@ import logging
 import os
 
 import numpy as np
+import datetime as dt
 import requests
 import xarray as xr
 
@@ -145,7 +146,8 @@ def bathymetry_to_model_dataset(model_ds,
     changing the order in which operations are executed.
     """
     try:
-        jarkus_ds = get_dataset_jarkus(model_ds.extent)
+        url = 'http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'
+        jarkus_ds = get_dataset_jarkus(model_ds.extent, url)
     except OSError:
         import gdown
         print('cannot access Jarkus netCDF link, copy file from google drive instead')
@@ -182,11 +184,17 @@ def bathymetry_to_model_dataset(model_ds,
 
     model_ds_out['bathymetry'] = xr.where(
         model_ds['northsea'], da_bathymetry, np.nan)
+    
+    for datavar in model_ds_out:
+        model_ds_out[datavar].attrs['source'] = 'Jarkus'
+        model_ds_out[datavar].attrs['url'] = url
+        model_ds_out[datavar].attrs['source'] = dt.datetime.now().strftime('%Y%m%d')
+        
 
     return model_ds_out
 
 
-def get_dataset_jarkus(extent):
+def get_dataset_jarkus(extent, url='http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'):
     """ Get bathymetry from Jarkus within a certain extent. The following 
     steps are used:
     1. find Jarkus tiles within the extent
@@ -208,7 +216,7 @@ def get_dataset_jarkus(extent):
     """
 
     extent = [int(x) for x in extent]
-    netcdf_tile_names = get_jarkus_tilenames(extent)
+    netcdf_tile_names = get_jarkus_tilenames(extent, url=url)
     tiles = [xr.open_dataset(name) for name in netcdf_tile_names]
     # only use the last timestep
     tiles = [tile.isel(time=-1) for tile in tiles]
@@ -217,7 +225,7 @@ def get_dataset_jarkus(extent):
     return z_dataset
 
 
-def get_jarkus_tilenames(extent):
+def get_jarkus_tilenames(extent, url='http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'):
     """Find all Jarkus tilenames within a certain extent.
 
     Parameters
@@ -231,8 +239,7 @@ def get_jarkus_tilenames(extent):
     netcdf_urls : list of str
         list of the urls of all netcdf files of the tiles with Jarkus data.
     """
-    ds_jarkus_catalog = xr.open_dataset(
-        'http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc')
+    ds_jarkus_catalog = xr.open_dataset(url)
     ew_x = ds_jarkus_catalog['projectionCoverage_x']
     sn_y = ds_jarkus_catalog['projectionCoverage_y']
 

@@ -1251,6 +1251,11 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
     model_ds['kh'] = xr.ones_like(model_ds['idomain']) * kh
 
     model_ds['kv'] = xr.ones_like(model_ds['idomain']) * kv
+    
+    # keep attributes for bot en top
+    for datavar in ['kh', 'kv']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
 
     return model_ds
 
@@ -1486,6 +1491,11 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
                                            'layer': model_ds.layer.data})
     model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid'),
                                    coords={'cid': model_ds.cid.data})
+    
+    # keep attributes for bot en top
+    for datavar in ['top', 'bot']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
 
     return model_ds
 
@@ -1603,6 +1613,11 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     model_ds['top'] = xr.DataArray(top_bot[0], dims=('y', 'x'),
                                    coords={'x': model_ds.x.data,
                                            'y': model_ds.y.data})
+    
+    # keep attributes for bot en top
+    for datavar in ['top', 'bot']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
 
     return model_ds
 

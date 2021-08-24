@@ -78,7 +78,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      cachedir=None,
                                      use_cache=False):
     """Update a model dataset with a model layer dataset. 
-    
+
     Steps:
 
     1. Add the data variables in 'keep_vars' from the model layer dataset
@@ -208,7 +208,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         if gridtype == 'unstructured':
             gridprops['top'] = model_ds['top'].data
             gridprops['botm'] = model_ds['bot'].data
-    
+
     else:
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
                 model_ds['idomain'])
@@ -735,6 +735,9 @@ def data_array_2d_to_rec_list(model_ds, mask,
     """
 
     if first_active_layer:
+        if not 'first_active_layer' in model_ds:
+            model_ds['first_active_layer'] = get_first_active_layer_from_idomain(model_ds['idomain'])
+
         cellids = np.where(
             (mask) & (model_ds['first_active_layer'] != model_ds.nodata))
         layers = col_to_list('first_active_layer', model_ds, cellids)
@@ -1251,7 +1254,7 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
     model_ds['kh'] = xr.ones_like(model_ds['idomain']) * kh
 
     model_ds['kv'] = xr.ones_like(model_ds['idomain']) * kv
-    
+
     # keep attributes for bot en top
     for datavar in ['kh', 'kv']:
         for key, att in ml_layer_ds[datavar].attrs.items():
@@ -1491,7 +1494,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
                                            'layer': model_ds.layer.data})
     model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid'),
                                    coords={'cid': model_ds.cid.data})
-    
+
     # keep attributes for bot en top
     for datavar in ['top', 'bot']:
         for key, att in ml_layer_ds[datavar].attrs.items():
@@ -1613,7 +1616,7 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     model_ds['top'] = xr.DataArray(top_bot[0], dims=('y', 'x'),
                                    coords={'x': model_ds.x.data,
                                            'y': model_ds.y.data})
-    
+
     # keep attributes for bot en top
     for datavar in ['top', 'bot']:
         for key, att in ml_layer_ds[datavar].attrs.items():

@@ -50,17 +50,6 @@ jobs:
           python -c "import nlmod; nlmod.util.download_mfbinaries()"
             
       - name: Run notebooks
-        uses: yaananth/run-notebook@v1
-        env:
-            RUNNER: ${{ toJson(runner) }}
-            SECRETS: ${{ toJson(secrets) }}
-            GITHUB: ${{ toJson(github) }}
-        with:
-            notebook: "examples\01_basic_model.ipynb"
-            isReport: False
-            poll: False        
-            
-      - name: Run notebooks
         if: ${{ github.event_name == 'pull_request' }}
         run: |
           py.test ./tests -m "notebooks"

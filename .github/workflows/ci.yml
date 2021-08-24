@@ -55,6 +55,6 @@ jobs:
           py.test ./tests -m "notebooks"
       
       - name: Run tests only
-        if: ${{ github.event_name == 'pull request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           py.test ./tests -m "not notebooks"

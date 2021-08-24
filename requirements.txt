@@ -8,7 +8,6 @@ click-plugins==1.1.1
 cycler==0.10.0
 Fiona==1.8.20
 flopy==3.3.3
-GDAL==3.3.1
 geopandas==0.9.0
 hydropandas==0.3.7
 ipython-genutils==0.2.0

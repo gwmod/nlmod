@@ -1,27 +1,28 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 12 15:33:03 2020
+"""Created on Fri Jun 12 15:33:03 2020.
 
 @author: ruben
 """
 
+import logging
 import os
 import tempfile
 
 import numpy as np
 import rasterio
-from rasterio import merge
 import xarray as xr
 from owslib.wcs import WebCoverageService
+from rasterio import merge
 
-from .. import mdims
-from .. import util
+from .. import mdims, util
+
+logger = logging.getLogger(__name__)
 
 
 def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
                     cachedir=None,
-                    fname_netcdf='ahn_model_ds.nc', verbose=False):
-    """ get an xarray dataset from the ahn values within an extent.
+                    fname_netcdf='ahn_model_ds.nc'):
+    """get an xarray dataset from the ahn values within an extent.
 
     Parameters
     ----------
@@ -44,18 +45,16 @@ def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
 
     1. The ahn raster is now cached in a tempdir. Should be changed to the
     cachedir of the model I think.
-
     """
-    ahn_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
+    ahn_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, fname_netcdf,
                                    get_ahn_at_grid, model_ds, check_time=False,
-                                   verbose=verbose, gridprops=gridprops)
+                                   gridprops=gridprops)
 
     return ahn_ds
 
 
 def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
-    """ Get a model dataset with ahn variable.
-
+    """Get a model dataset with ahn variable.
 
     Parameters
     ----------
@@ -81,7 +80,6 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     -------
     model_ds_out : xr.Dataset
         dataset with the ahn variable.
-
     """
     if (model_ds.gridtype == 'unstructured') and (gridprops is None):
         raise ValueError(
@@ -120,7 +118,7 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
 
 
 def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
-                     fname=None, verbose=False, **kwargs):
+                     fname=None, **kwargs):
     """There is a max height and width limit of 800 * res for the wcs server.
     This function splits your extent in chunks smaller than the limit. It
     returns a list of gdal Datasets.
@@ -139,8 +137,6 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
         maximum widht or height of ahn tile
     fname : str, optional
         path name of the ahn tif output file
-    verbose : boolean, optional
-        additional information is printed to the terminal. The default is True.
     **kwargs :
         keyword arguments of the get_ahn_extent function.
 
@@ -170,9 +166,8 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
             else:
                 end_y = start_y + maxsize * res
             subextent = [start_x, end_x, start_y, end_y]
-            if verbose:
-                print(f'downloading subextent {subextent}')
-                print(f'x_segment-{tx}, y_segment-{ty}')
+            logger.info(f'downloading subextent {subextent}')
+            logger.info(f'x_segment-{tx}, y_segment-{ty}')
 
             fname_chunk = get_ahn_within_extent(subextent, res=res,
                                                 **kwargs)
@@ -201,8 +196,7 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', format='GEOTIFF_FLOAT32',
                           crs='EPSG:28992', cache=True, cache_dir=None,
-                          maxsize=800,
-                          verbose=True, fname=None):
+                          maxsize=800, fname=None):
     """
 
     Parameters
@@ -246,9 +240,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
         800.
-    verbose : boolean, optional
-        additional information is printed to the terminal. The default is True.
-
+        
     Returns
     -------
     fname : str
@@ -304,16 +296,14 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         y_segments = 1
 
     if (x_segments * y_segments) > 1:
-        if verbose:
-            st = f'''requested ahn raster width or height bigger than {maxsize*res}
+        st = f'''requested ahn raster width or height bigger than {maxsize*res}
             -> splitting extent into {x_segments} * {y_segments} tiles'''
-            print(st)
+        logger.info(st)
         return split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                                 identifier=identifier,
                                 version=version, format=format, crs=crs,
                                 cache=cache, cache_dir=cache_dir,
-                                fname=fname,
-                                verbose=verbose)
+                                fname=fname)
 
     # get filename
     if fname is None:
@@ -348,10 +338,8 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         f = open(fname, 'wb')
         f.write(output.read())
         f.close()
-        if verbose:
-            print(f"- download {fname}")
+        logger.info(f"- download {fname}")
     else:
-        if verbose:
-            print(f"- from cache {fname}")
+        logger.info(f"- from cache {fname}")
 
     return fname

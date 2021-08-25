@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Apr  2 15:08:50 2021
+"""Created on Fri Apr  2 15:08:50 2021.
 
 @author: oebbe
 """
+import logging
+
 import numpy as np
 import xarray as xr
-
-from scipy.interpolate import griddata
 from scipy import interpolate
+from scipy.interpolate import griddata
 
-from . import mgrid
 from .. import util
+from . import mgrid
+
+logger = logging.getLogger(__name__)
 
 
 def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
                                               xyi=None, cid=None,
                                               method='nearest'):
-    """resample a 2d dataarray (xarray) from a structured grid to a new 
+    """resample a 2d dataarray (xarray) from a structured grid to a new
     dataaraay of an unstructured grid.
 
     Parameters
@@ -28,10 +30,10 @@ def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen.
     xyi : numpy.ndarray, optional
-        array with x and y coördinates of cell centers, shape(len(cid), 2). If 
+        array with x and y coördinates of cell centers, shape(len(cid), 2). If
         xyi is None xyi is calculated from the gridproperties.
     cid : list or numpy.ndarray, optional
-        list with cellids. If  cid is None cid is calculated from the 
+        list with cellids. If  cid is None cid is calculated from the
         gridproperties.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
@@ -40,7 +42,6 @@ def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
     -------
     da_out : xarray.DataArray
         data array with dimension (cid).
-
     """
     if (xyi is None) or (cid is None):
         xyi, cid = mgrid.get_xyi_cid(gridprops)
@@ -62,7 +63,7 @@ def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
 def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
                                               xyi=None, cid=None,
                                               method='nearest'):
-    """resample a dataarray (xarray) from a structured grid to a new dataaraay 
+    """resample a dataarray (xarray) from a structured grid to a new dataaraay
     of an unstructured grid.
 
     Parameters
@@ -73,10 +74,10 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen.
     xyi : numpy.ndarray, optional
-        array with x and y coördinates of cell centers, shape(len(cid), 2). If 
+        array with x and y coördinates of cell centers, shape(len(cid), 2). If
         xyi is None xyi is calculated from the gridproperties.
     cid : list or numpy.ndarray, optional
-        list with cellids. If  cid is None cid is calculated from the 
+        list with cellids. If  cid is None cid is calculated from the
         gridproperties.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
@@ -85,7 +86,6 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
     -------
     da_out : xarray.DataArray
         data array with dimensions (layer,cid).
-
     """
     if (xyi is None) or (cid is None):
         xyi, cid = mgrid.get_xyi_cid(gridprops=gridprops)
@@ -113,9 +113,8 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
 
 
 def resample_dataset_to_unstructured_grid(ds_in, gridprops,
-                                          method='nearest',
-                                          verbose=False):
-    """ resample a dataset (xarray) from an structured grid to a new dataset 
+                                          method='nearest'):
+    """resample a dataset (xarray) from an structured grid to a new dataset
     from an unstructured grid.
 
     Parameters
@@ -163,9 +162,7 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
             data_arr = ds_in[data_var]
 
         else:
-            if verbose:
-                print(
-                    f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
+            logger.warning(f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
             continue
 
         ds_out[data_var] = data_arr
@@ -176,12 +173,13 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
 def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=None,
                                           xmid=None, ymid=None,
                                           kind='linear', nan_factor=0.01):
-    """ resample a dataarray (xarray) from a structured grid to a new dataaraay 
+    """resample a dataarray (xarray) from a structured grid to a new dataaraay
     from a different structured grid.
 
     Also flips the y-coordinates to make them descending instead of ascending.
-    This makes it easier to export array to flopy. In other words, make sure 
-    that both lines of code create the same plot:
+    This makes it easier to export array to flopy. In other words, make sure
+    that both lines of code create the same plot::
+
         da_in['top'].sel(layer=b'Hlc').plot()
         plt.imshow(da_in['top'].sel(layer=b'Hlc').data)
 
@@ -191,29 +189,29 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
         data array with dimensions (layer, y, x). y and x are from the original
         grid
     extent : list, tuple or np.array, optional
-        extent (xmin, xmax, ymin, ymax) of the desired grid, if not defined 
+        extent (xmin, xmax, ymin, ymax) of the desired grid, if not defined
         xmid and ymid are used
     delr : int or float, optional
-        cell size along rows of the desired grid, if not defined xmid and 
+        cell size along rows of the desired grid, if not defined xmid and
         ymid are used
     delc : int or float, optional
-        cell size along columns of the desired grid, if not defined xmid and 
+        cell size along columns of the desired grid, if not defined xmid and
         ymid are used
     xmid : np.array, optional
-        x coördinates of the cell centers of the desired grid shape(ncol), if 
+        x coördinates of the cell centers of the desired grid shape(ncol), if
         not defined xmid and ymid are calculated from the extent, delr and delc.
     ymid : np.array, optional
-        y coördinates of the cell centers of the desired grid shape(nrow), if 
+        y coördinates of the cell centers of the desired grid shape(nrow), if
         not defined xmid and ymid are calculated from the extent, delr and delc.
     kind : str, optional
         type of interpolation used to resample. The default is 'linear'.
     nan_factor : float, optional
-        the nan values in the original raster are filled with zeros before 
-        interpolation because the interp2d function cannot handle nan values 
-        very well. Therefore an extra interpolation is done to determine how 
-        much these nan values have influenced the new raster values. If the 
+        the nan values in the original raster are filled with zeros before
+        interpolation because the interp2d function cannot handle nan values
+        very well. Therefore an extra interpolation is done to determine how
+        much these nan values have influenced the new raster values. If the
         the interpolated value is influenced more than this factor by a nan
-        value. The value in the interpolated raster is set to nan. 
+        value. The value in the interpolated raster is set to nan.
         See also: https://stackoverflow.com/questions/51474792/2d-interpolation-with-nan-values-in-python
 
     Returns
@@ -221,7 +219,6 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
     ds_out : xarray.DataArray
         data array with dimensions (layer, y, x). y and x are from the new
         grid.
-
     """
 
     assert isinstance(da_in, xr.core.dataarray.DataArray)
@@ -263,7 +260,7 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
 
 def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
                                     nan_factor=0.01):
-    """ resample a structured, 2d data-array with nan values onto a new grid
+    """resample a structured, 2d data-array with nan values onto a new grid.
 
     Parameters
     ----------
@@ -274,19 +271,18 @@ def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
     new_y : numpy array
         y coördaintes of the new grid
     nan_factor : float, optional
-        the nan values in the original raster are filled with zeros before 
-        interpolation because the interp2d function cannot handle nan values 
-        very well. Therefore an extra interpolation is done to determine how 
-        much these nan values have influenced the new raster values. If the 
+        the nan values in the original raster are filled with zeros before
+        interpolation because the interp2d function cannot handle nan values
+        very well. Therefore an extra interpolation is done to determine how
+        much these nan values have influenced the new raster values. If the
         the interpolated value is influenced more than this factor by a nan
-        value. The value in the interpolated raster is set to nan. 
+        value. The value in the interpolated raster is set to nan.
         See also: https://stackoverflow.com/questions/51474792/2d-interpolation-with-nan-values-in-python
 
     Returns
     -------
     arr_out : numpy array
         resampled array
-
     """
     nan_map = np.where(da_in.isnull().data, 1, 0)
     fill_map = np.where(da_in.isnull().data, 0, da_in.data)
@@ -303,8 +299,8 @@ def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
 
 
 def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'):
-    """Resample a dataset (xarray) from a structured grid to a new dataset 
-    from a different structured grid.
+    """Resample a dataset (xarray) from a structured grid to a new dataset from
+    a different structured grid.
 
     Parameters
     ----------
@@ -347,17 +343,15 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
 def get_resampled_ml_layer_ds_struc(raw_ds=None,
                                     extent=None, delr=None, delc=None,
                                     gridprops=None,
-                                    verbose=False,
                                     kind='linear'):
-    """ project regis data on to the modelgrid.
-
+    """project regis data on to the modelgrid.
 
     Parameters
     ----------
     raw_ds : xr.Dataset, optional
         regis dataset. If the gridtype is structured this should be the
         original regis netcdf dataset. If gridtype is unstructured this should
-        be a regis dataset that is already projected on a structured modelgrid. 
+        be a regis dataset that is already projected on a structured modelgrid.
         The default is None.
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid.
@@ -366,13 +360,11 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
     delc : int or float
         cell size along columns of the desired grid (dy).
     gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'. 
+        type of grid, options are 'structured' and 'unstructured'.
         The default is 'structured'.
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Only used if
         gridtype = 'unstructured'
-    verbose : bool, optional
-        print additional information. default is False
     kind : str, optional
         kind of interpolation to use. default is 'linear'
 
@@ -380,11 +372,9 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
     -------
     ml_layer_ds : xr.dataset
         model layer dataset projected onto the modelgrid.
-
     """
 
-    if verbose:
-        print('resample regis data to structured modelgrid')
+    logger.info('resample regis data to structured modelgrid')
     ml_layer_ds = resample_dataset_to_structured_grid(raw_ds, extent,
                                                       delr, delc,
                                                       kind=kind)
@@ -398,35 +388,29 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
 
 def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
                                       extent=None,
-                                      gridprops=None,
-                                      verbose=False):
+                                      gridprops=None):
     """Project model layer dataset on an unstructured model grid.
-
 
     Parameters
     ----------
     raw_ds : xr.Dataset, optional
         regis dataset. If the gridtype is structured this should be the
         original regis netcdf dataset. If gridtype is unstructured this should
-        be a regis dataset that is already projected on a structured modelgrid. 
+        be a regis dataset that is already projected on a structured modelgrid.
         The default is None.
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid.
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Only used if
         gridtype = 'unstructured'
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
     ml_layer_ds : xr.dataset
         model layer dataset projected onto the modelgrid.
-
     """
 
-    if verbose:
-        print('resample regis data to unstructured modelgrid')
+    logger.info('resample regis data to unstructured modelgrid')
     ml_layer_ds = resample_dataset_to_unstructured_grid(
         raw_ds, gridprops)
     ml_layer_ds['x'] = xr.DataArray([r[1] for r in gridprops['cell2d']],
@@ -453,16 +437,15 @@ def get_ml_layer_dataset_struc(raw_ds=None,
                                interp_method="linear",
                                cachedir=None,
                                fname_netcdf='regis.nc',
-                               use_cache=False,
-                               verbose=False):
-    """Get a model layer dataset that is resampled to the modelgrid
+                               use_cache=False):
+    """Get a model layer dataset that is resampled to the modelgrid.
 
     Parameters
     ----------
     raw_ds : xarray.Dataset, optional
-        raw model layer dataset. If the gridtype is structured this should be 
-        the original regis netcdf dataset. If gridtype is unstructured this 
-        should be a regis dataset that is already projected on a structured 
+        raw model layer dataset. If the gridtype is structured this should be
+        the original regis netcdf dataset. If gridtype is unstructured this
+        should be a regis dataset that is already projected on a structured
         modelgrid. The default is None.
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid.
@@ -491,12 +474,10 @@ def get_ml_layer_dataset_struc(raw_ds=None,
     -------
     ml_layer_ds : xarray.Dataset
         dataset with data corresponding to the modelgrid
-
     """
 
     ml_layer_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
                                         get_resampled_ml_layer_ds_struc,
-                                        verbose=verbose,
                                         raw_ds=raw_ds, extent=extent,
                                         gridprops=gridprops, check_time=False,
                                         delr=delr, delc=delc,
@@ -512,16 +493,15 @@ def get_ml_layer_dataset_unstruc(raw_ds=None,
                                  interp_method="linear",
                                  cachedir=None,
                                  fname_netcdf='regis.nc',
-                                 use_cache=False,
-                                 verbose=False):
-    """ Get a model layer dataset that is resampled to the modelgrid
+                                 use_cache=False):
+    """Get a model layer dataset that is resampled to the modelgrid.
 
     Parameters
     ----------
     raw_ds : xarray.Dataset, optional
-        raw model layer dataset. If the gridtype is structured this should be 
-        the original regis netcdf dataset. If gridtype is unstructured this 
-        should be a regis dataset that is already projected on a structured 
+        raw model layer dataset. If the gridtype is structured this should be
+        the original regis netcdf dataset. If gridtype is unstructured this
+        should be a regis dataset that is already projected on a structured
         modelgrid. The default is None.
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid.
@@ -546,12 +526,11 @@ def get_ml_layer_dataset_unstruc(raw_ds=None,
     -------
     regis_ds : xarray.Dataset
         dataset with regis data corresponding to the modelgrid
-
     """
 
     ml_layer_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
                                         get_resampled_ml_layer_ds_unstruc,
-                                        verbose=verbose, check_time=False,
+                                        check_time=False,
                                         raw_ds=raw_ds, extent=extent,
                                         gridprops=gridprops)
 
@@ -559,28 +538,27 @@ def get_ml_layer_dataset_unstruc(raw_ds=None,
 
 
 def fillnan_dataarray_structured_grid(xar_in):
-    """ fill not-a-number values in a structured grid, DataArray.
+    """fill not-a-number values in a structured grid, DataArray.
 
-    The fill values are determined using the 'nearest' method of the 
-    scipy.interpolate.griddata function    
+    The fill values are determined using the 'nearest' method of the
+    scipy.interpolate.griddata function
 
 
     Parameters
     ----------
     xar_in : xarray DataArray
-        DataArray with nan values. DataArray should have 2 dimensions 
+        DataArray with nan values. DataArray should have 2 dimensions
         (y and x).
 
     Returns
     -------
     xar_out : xarray DataArray
-        DataArray without nan values. DataArray has 3 dimensions 
+        DataArray without nan values. DataArray has 3 dimensions
         (layer, y and x)
 
     Notes
     -----
     can be slow if the xar_in is a large raster
-
     """
     # check dimensions
     if xar_in.dims != ('y', 'x'):
@@ -614,7 +592,7 @@ def fillnan_dataarray_structured_grid(xar_in):
 
 def fillnan_dataarray_unstructured_grid(xar_in, gridprops=None,
                                         xyi=None, cid=None):
-    """ can be slow if the xar_in is a large raster
+    """can be slow if the xar_in is a large raster.
 
     Parameters
     ----------
@@ -631,7 +609,6 @@ def fillnan_dataarray_unstructured_grid(xar_in, gridprops=None,
     -------
     xar_out : xr.DataArray
         data array with nan values. Shape is (cid)
-
     """
 
     # get list of coordinates from all points in raster
@@ -655,3 +632,47 @@ def fillnan_dataarray_unstructured_grid(xar_in, gridprops=None,
                                    'layer': [0]})
 
     return xar_out
+
+
+def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds, cellsize=25,
+                                        method='nearest'):
+    """resample a 2d dataarray (xarray) from an unstructured grid to a new 
+    dataaraay from a structured grid.   
+
+    Parameters
+    ----------
+    da_in : xarray.DataArray
+        data array with dimensions ('cid'). 
+    model_ds : xarray.DataArray
+        model dataset with 'x' and 'y' data variables.
+    cellsize : int or float, optional
+        required cell size of structured grid. The default is 25.
+    method : str, optional
+        method used for resampling. The default is 'nearest'.
+
+    Returns
+    -------
+    da_out : xarray.DataArray
+        data array with dimensions ('y', 'x').
+
+    """
+    points_unstr = np.array([model_ds.x.values, model_ds.y.values]).T
+    modelgrid_x = np.arange(model_ds.x.values.min(),
+                            model_ds.x.values.max(),
+                            cellsize)
+    modelgrid_y = np.arange(model_ds.y.values.max(),
+                            model_ds.y.values.min(),
+                            -cellsize)
+    mg = np.meshgrid(modelgrid_x, modelgrid_y)
+    points = np.vstack((mg[0].ravel(), mg[1].ravel())).T
+
+    arr_out_1d = griddata(points_unstr, da_in.values, points, method=method)
+    arr_out2d = arr_out_1d.reshape(len(modelgrid_y),
+                                   len(modelgrid_x))
+
+    da_out = xr.DataArray(arr_out2d,
+                      dims=('y', 'x'),
+                      coords={'y': modelgrid_y,
+                              'x': modelgrid_x})
+
+    return da_out

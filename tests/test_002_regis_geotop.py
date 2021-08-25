@@ -20,10 +20,7 @@ import test_001_model
 def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                    delr=100., delc=100.):
 
-    regis_ds = regis.get_regis_dataset(extent, delr, delc,
-                                       cachedir=None,
-                                       use_cache=False,
-                                       verbose=True)
+    regis_ds = regis.get_regis_dataset(extent, delr, delc)
 
     assert regis_ds.dims['layer'] == 132
 
@@ -35,10 +32,7 @@ def test_fit_regis_extent(extent=[128050., 141450., 468550., 481450.],
                           delr=100., delc=100.):
 
     try:
-        regis_ds = regis.get_regis_dataset(extent, delr, delc,
-                                           cachedir=None,
-                                           use_cache=False,
-                                           verbose=True)
+        regis_ds = regis.get_regis_dataset(extent, delr, delc)
     except ValueError:
         return True
 
@@ -54,10 +48,7 @@ def test_get_regis_botm_layer_BEk1(extent=[98700., 99000., 489500., 489700.],
     extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
 
     regis_ds = regis.get_regis_dataset(extent, delr, delc,
-                                       botm_layer,
-                                       cachedir=None,
-                                       use_cache=False,
-                                       verbose=True)
+                                       botm_layer)
 
     assert regis_ds.dims['layer'] == 18
 
@@ -74,10 +65,7 @@ def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                               delr=delr, delc=delc)
 
     geotop_ds = geotop.get_geotop_dataset(extent, delr, delc,
-                                          regis_ds,
-                                          cachedir=None,
-                                          use_cache=False,
-                                          verbose=True)
+                                          regis_ds)
 
     return geotop_ds
 
@@ -90,7 +78,7 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
     regis_geotop_ds = regis.get_layer_models(extent, delr, delc,
                                              use_regis=True, use_geotop=True,
                                              cachedir=None,
-                                             use_cache=False, verbose=True)
+                                             use_cache=False)
 
     assert regis_geotop_ds.dims['layer'] == 24
 
@@ -106,7 +94,7 @@ def test_get_regis_geotop_keep_all_layers(extent=[98600.0, 99000.0, 489400.0, 48
                                              use_regis=True, use_geotop=True,
                                              remove_nan_layers=False,
                                              cachedir=None,
-                                             use_cache=False, verbose=True)
+                                             use_cache=False)
 
     assert regis_geotop_ds.dims['layer'] == 135
 

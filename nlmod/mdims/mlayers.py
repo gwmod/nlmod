@@ -1,7 +1,10 @@
+import logging
 from collections import OrderedDict
 
 import numpy as np
 import xarray as xr
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_thickness(ds, top="top", bot="bot"):
@@ -40,8 +43,7 @@ def calculate_thickness(ds, top="top", bot="bot"):
     return thickness, top3d
 
 
-def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot',
-                        verbose=True):
+def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot'):
     """Calculate new tops and bottoms for split layers.
 
     Parameters
@@ -61,8 +63,6 @@ def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot',
         name of data variable containing top of layers, by default 'top'
     bot : str, optional
         name of data variable containing bottom of layers, by default 'bot'
-    verbose : bool, optional
-        if True print information to console, by default True
 
     Returns
     -------
@@ -119,15 +119,13 @@ def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot',
             if np.sum(sf) != 1.0:
                 raise ValueError(
                     "Sum of split factors for layer must equal 1.0!")
-            if verbose:
-                print(f"{i}: Split layer {i} into {len(sf)} layers "
-                      f"with fractions: {sf}")
+            logger.debug(f"{i}: Split layer {i} into {len(sf)} layers "
+                        f"with fractions: {sf}")
 
             # loop over split factors
             for isf, factor in enumerate(sf):
-                if verbose:
-                    print(f"  - {isf}: Calculate new top/bot for "
-                          f"new layer index {j}")
+                logger.debug(f"  - {isf}: Calculate new top/bot for "
+                            f"new layer index {j}")
 
                 # calculate new bot and new top
                 new_bot.data[j] = new_top.data[j] - (factor * thickness[i])
@@ -144,9 +142,8 @@ def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot',
 
         # no split, remap old layer to new layer index
         else:
-            if verbose:
-                print(f"{i:2d}: No split: map layer {i} to "
-                      f"new layer index {j}")
+            logger.debug(f"{i:2d}: No split: map layer {i} to "
+                         f"new layer index {j}")
             if top3d:
                 new_top.data[j] = ds[top].data[i]
             else:
@@ -197,8 +194,7 @@ def fill_data_split_layers(da, reindexer):
 
 
 def split_layers_ds(ds, split_dict, layer='layer',
-                    top='top', bot='bot', kh='kh', kv='kv',
-                    verbose=True):
+                    top='top', bot='bot', kh='kh', kv='kv'):
     """Split layers based in Dataset.
 
     Parameters
@@ -224,8 +220,6 @@ def split_layers_ds(ds, split_dict, layer='layer',
     kv : str, optional
         name of data variable containg vertical hydraulic conductivity,
         by default 'kv'
-    verbose : bool, optional
-        if True print information to console, by default True
 
     Returns
     -------
@@ -236,27 +230,23 @@ def split_layers_ds(ds, split_dict, layer='layer',
 
     parsed_dv = set([top, bot, kh, kv])
 
-    if verbose:
-        dropped_dv = set(ds.data_vars.keys()) - parsed_dv
-        if len(dropped_dv) > 0:
-            print("Warning! Following data variables "
-                  f"will be dropped: {dropped_dv}")
+    dropped_dv = set(ds.data_vars.keys()) - parsed_dv
+    if len(dropped_dv) > 0:
+        logger.warning("Warning! Following data variables "
+                       f"will be dropped: {dropped_dv}")
 
     # calculate new tops/bots
-    if verbose:
-        print("Calculating new layer tops and bottoms...")
+    logger.info("Calculating new layer tops and bottoms...")
 
     new_top, new_bot, reindexer = layer_split_top_bot(
-        ds, split_dict, layer=layer, top=top, bot=bot, verbose=verbose)
+        ds, split_dict, layer=layer, top=top, bot=bot)
 
     # fill kh/kv
-    if verbose:
-        print(f"Fill value '{kh}' for split layers with "
-              "value original layer.")
+    logger.info(f"Fill value '{kh}' for split layers with "
+                "value original layer.")
     da_kh = fill_data_split_layers(ds["kh"], reindexer)
-    if verbose:
-        print(f"Fill value '{kv}' for split layers with "
-              "value original layer.")
+    logger.info(f"Fill value '{kv}' for split layers with "
+                "value original layer.")
     da_kv = fill_data_split_layers(ds["kv"], reindexer)
 
     # get new layer names
@@ -285,8 +275,7 @@ def split_layers_ds(ds, split_dict, layer='layer',
     attrs["split_reindexer"] = reindexer
 
     # create new dataset
-    if verbose:
-        print("Done! Created new dataset with split layers!")
+    logger.info("Done! Created new dataset with split layers!")
     ds_split = xr.Dataset({"top": new_top,
                            "bot": new_bot,
                            "kh": da_kh,
@@ -297,7 +286,7 @@ def split_layers_ds(ds, split_dict, layer='layer',
 
 
 def layer_combine_top_bot(ds, combine_layers, layer='layer',
-                          top='top', bot='bot', verbose=True):
+                          top='top', bot='bot'):
     """Calculate new tops and bottoms for combined layers.
 
     Parameters
@@ -316,8 +305,6 @@ def layer_combine_top_bot(ds, combine_layers, layer='layer',
         name of data variable containing top of layers, by default 'top'
     bot : str, optional
         name of data variable containing bottom of layers, by default 'bot'
-    verbose : bool, optional
-        if True print information to console, by default True
 
     Returns
     -------
@@ -327,9 +314,9 @@ def layer_combine_top_bot(ds, combine_layers, layer='layer',
         dictionary mapping new to old layer indices.
     """
     # calculate new number of layers
-    new_nlay = (ds[layer].size -
-                sum([len(c) for c in combine_layers]) +
-                len(combine_layers))
+    new_nlay = (ds[layer].size
+                - sum([len(c) for c in combine_layers])
+                + len(combine_layers))
 
     # create new DataArrays for storing new top/bot
     new_bot = xr.DataArray(data=np.nan,
@@ -360,9 +347,8 @@ def layer_combine_top_bot(ds, combine_layers, layer='layer',
             reindexer[j] = c
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
-                if verbose:
-                    print(f"{j:2d}: Merge layers {c} as layer {j}, "
-                          "calculate new top/bot.")
+                logger.debug(f"{j:2d}: Merge layers {c} as layer {j}, "
+                             "calculate new top/bot.")
                 tops = ds[top].data[c, :, :]
                 bots = ds[bot].data[c, :, :]
                 new_top.data[j] = np.nanmax(tops, axis=0)
@@ -379,9 +365,8 @@ def layer_combine_top_bot(ds, combine_layers, layer='layer',
                 continue
         else:
             # do not merge, only map old layer index to new layer index
-            if verbose:
-                print(f"{j:2d}: Do not merge, map old layer index "
-                      "to new layer index.")
+            logger.debug(f"{j:2d}: Do not merge, map old layer index "
+                         "to new layer index.")
             new_top.data[j] = ds[top].data[i]
             new_bot.data[j] = ds[bot].data[i]
             reindexer[j] = i
@@ -496,8 +481,7 @@ def kveq_combined_layers(kv, thickness, reindexer):
 
 def combine_layers_ds(ds, combine_layers, layer='layer',
                       top='top', bot='bot',
-                      kh="kh", kv="kv", kD="kD", c="c",
-                      verbose=True):
+                      kh="kh", kv="kv", kD="kD", c="c"):
     """Combine layers in Dataset.
 
     Parameters
@@ -528,8 +512,6 @@ def combine_layers_ds(ds, combine_layers, layer='layer',
     c : str, optional
         name of data variable containg resistance or c,
         by default 'c'. Not parsed if set to None.
-    verbose : bool, optional
-        if True print information to console, by default True
 
     Returns
     -------
@@ -544,20 +526,18 @@ def combine_layers_ds(ds, combine_layers, layer='layer',
             data_vars.append(dv)
     parsed_dv = set([top, bot] + data_vars)
 
-    if verbose:
-        dropped_dv = set(ds.data_vars.keys()) - parsed_dv
-        if len(dropped_dv) > 0:
-            print("Warning! Following data variables "
-                  f"will be dropped: {dropped_dv}")
+    dropped_dv = set(ds.data_vars.keys()) - parsed_dv
+    if len(dropped_dv) > 0:
+        logger.warning("Warning! Following data variables "
+                       f"will be dropped: {dropped_dv}")
 
     # calculate new tops/bots
-    if verbose:
-        print("Calculating new layer tops and bottoms...")
+    logger.info("Calculating new layer tops and bottoms...")
 
     da_dict = {}
 
     new_top, new_bot, reindexer = layer_combine_top_bot(
-        ds, combine_layers, layer=layer, top=top, bot=bot, verbose=verbose)
+        ds, combine_layers, layer=layer, top=top, bot=bot)
     da_dict[top] = new_top
     da_dict[bot] = new_bot
 
@@ -566,20 +546,16 @@ def combine_layers_ds(ds, combine_layers, layer='layer',
 
     # calculate equivalent kh/kv
     if kh is not None:
-        if verbose:
-            print(f"Calculate equivalent '{kh}' for combined layers.")
+        logger.info(f"Calculate equivalent '{kh}' for combined layers.")
         da_dict[kh] = kheq_combined_layers(ds[kh], thickness, reindexer)
     if kv is not None:
-        if verbose:
-            print(f"Calculate equivalent '{kv}' for combined layers.")
+        logger.info(f"Calculate equivalent '{kv}' for combined layers.")
         da_dict[kv] = kveq_combined_layers(ds[kv], thickness, reindexer)
     if kD is not None:
-        if verbose:
-            print(f"Calculate value '{kD}' for combined layers with sum.")
+        logger.info(f"Calculate value '{kD}' for combined layers with sum.")
         da_dict[kD] = sum_param_combined_layers(ds[kD], reindexer)
     if c is not None:
-        if verbose:
-            print(f"Calculate value '{c}' for combined layers with sum.")
+        logger.info(f"Calculate value '{c}' for combined layers with sum.")
         da_dict[c] = sum_param_combined_layers(ds[c], reindexer)
 
     # get new layer names, based on first sub-layer from each combined layer
@@ -599,8 +575,7 @@ def combine_layers_ds(ds, combine_layers, layer='layer',
     attrs["combine_reindexer"] = reindexer
 
     # create new dataset
-    if verbose:
-        print("Done! Created new dataset with combined layers!")
+    logger.info("Done! Created new dataset with combined layers!")
     ds_combine = xr.Dataset(da_dict,
                             attrs=attrs)
 

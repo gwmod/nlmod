@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jan  7 17:20:34 2021
+"""Created on Thu Jan  7 17:20:34 2021.
 
 @author: oebbe
 """
+import logging
 import numbers
 import os
 import sys
@@ -15,26 +15,24 @@ import xarray as xr
 from .. import mdims
 from . import recharge
 
+logger = logging.getLogger(__name__)
+
 
 def sim_tdis_gwf_ims_from_model_ds(model_ds,
                                    complexity='MODERATE',
-                                   exe_name=None,
-                                   verbose=False):
-    """ create sim, tdis, gwf and ims package from the model dataset
-
+                                   exe_name=None):
+    """create sim, tdis, gwf and ims package from the model dataset.
 
     Parameters
     ----------
     model_ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: model_name, mfversion, model_ws, time_units, start_time, 
+        attributes: model_name, mfversion, model_ws, time_units, start_time,
         perlen, nstp, tsmult
     exe_name: str, optional
         path to modflow executable, default is None, which assumes binaries
         are available in nlmod/bin directory. Binaries can be downloaded
         using `nlmod.util.download_mfbinaries()`.
-    verbose : bool, optional
-        print additional information. default is False
 
     Returns
     -------
@@ -42,12 +40,10 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
         simulation object.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-
     """
 
     # start creating model
-    if verbose:
-        print('creating modflow SIM, TDIS, GWF and IMS')
+    logger.info('creating modflow SIM, TDIS, GWF and IMS')
 
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),
@@ -85,8 +81,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
 
 def dis_from_model_ds(model_ds, gwf, length_units='METERS',
                       angrot=0):
-    """ get discretisation package from the model dataset
-
+    """get discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -103,7 +98,6 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
     -------
     dis : TYPE
         discretisation package.
-
     """
 
     if model_ds.gridtype != 'structured':
@@ -137,9 +131,7 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
 def disv_from_model_ds(model_ds, gwf, gridprops,
                        length_units='METERS',
                        angrot=0):
-    """ get discretisation vertices package from the model dataset
-
-
+    """get discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -158,7 +150,6 @@ def disv_from_model_ds(model_ds, gwf, gridprops,
     -------
     disv : flopy ModflowGwfdisv
         disv package
-
     """
 
     disv = flopy.mf6.ModflowGwfdisv(gwf,
@@ -175,8 +166,7 @@ def disv_from_model_ds(model_ds, gwf, gridprops,
 def npf_from_model_ds(model_ds, gwf, icelltype=0,
                       save_flows=False,
                       **kwargs):
-    """ get node property flow package from model dataset
-
+    """get node property flow package from model dataset.
 
     Parameters
     ----------
@@ -187,7 +177,7 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0,
     icelltype : int, optional
         celltype. The default is 0.
     save_flows : bool, optional
-        value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by 
+        value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by
         cell flows should be saved to the cbb file. Default is False
 
     Raises
@@ -199,7 +189,6 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0,
     -------
     npf : flopy ModflowGwfnpf
         npf package.
-
     """
 
     npf = flopy.mf6.ModflowGwfnpf(gwf,
@@ -214,8 +203,7 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0,
 
 
 def ghb_from_model_ds(model_ds, gwf, da_name):
-    """ get general head boundary from model dataset
-
+    """get general head boundary from model dataset.
 
     Parameters
     ----------
@@ -235,7 +223,6 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
     -------
     ghb : flopy ModflowGwfghb
         ghb package
-
     """
 
     if model_ds.gridtype == 'structured':
@@ -272,8 +259,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
 
 def ic_from_model_ds(model_ds, gwf,
                      starting_head='starting_head'):
-    """ get initial condictions package from model dataset
-
+    """get initial condictions package from model dataset.
 
     Parameters
     ----------
@@ -282,7 +268,7 @@ def ic_from_model_ds(model_ds, gwf,
     gwf : flopy ModflowGwf
         groundwaterflow object.
     starting_head : str, float or int, optional
-        if type is int or float this is the starting head for all cells 
+        if type is int or float this is the starting head for all cells
         If the type is str the data variable from model_ds is used as starting
         head. The default is 'starting_head'.
 
@@ -290,7 +276,6 @@ def ic_from_model_ds(model_ds, gwf,
     -------
     ic : flopy ModflowGwfic
         ic package
-
     """
     if isinstance(starting_head, str):
         pass
@@ -308,8 +293,7 @@ def ic_from_model_ds(model_ds, gwf,
 def sto_from_model_ds(model_ds, gwf,
                       sy=0.2, ss=0.000001,
                       iconvert=1, save_flows=False):
-    """ get storage package from model dataset
-
+    """get storage package from model dataset.
 
     Parameters
     ----------
@@ -324,14 +308,13 @@ def sto_from_model_ds(model_ds, gwf,
     iconvert : int, optional
         DESCRIPTION. The default is 1.
     save_flows : bool, optional
-        value is passed to flopy.mf6.ModflowGwfsto() to determine if flows 
+        value is passed to flopy.mf6.ModflowGwfsto() to determine if flows
         should be saved to the cbb file. Default is False
 
     Returns
     -------
     sto : flopy ModflowGwfsto
         sto package
-
     """
 
     if model_ds.steady_state:
@@ -353,8 +336,7 @@ def sto_from_model_ds(model_ds, gwf,
 
 
 def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
-    """ get constant head boundary at the model's edges from the model dataset
-
+    """get constant head boundary at the model's edges from the model dataset.
 
     Parameters
     ----------
@@ -370,7 +352,6 @@ def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
     -------
     chd : flopy ModflowGwfchd
         chd package
-
     """
     # add constant head cells at model boundaries
 
@@ -417,9 +398,8 @@ def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
 
 
 def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
-    """ get surface level drain (maaivelddrainage in Dutch) from the model 
+    """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
-
 
     Parameters
     ----------
@@ -434,7 +414,6 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
     -------
     drn : flopy ModflowGwfdrn
         drn package
-
     """
 
     model_ds.attrs['surface_drn_cond'] = surface_drn_cond
@@ -460,8 +439,7 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
 
 
 def rch_from_model_ds(model_ds, gwf):
-    """ get recharge package from model dataset
-
+    """get recharge package from model dataset.
 
     Parameters
     ----------
@@ -474,7 +452,6 @@ def rch_from_model_ds(model_ds, gwf):
     -------
     rch : flopy ModflowGwfrch
         rch package
-
     """
 
     # create recharge package
@@ -485,8 +462,7 @@ def rch_from_model_ds(model_ds, gwf):
 
 def oc_from_model_ds(model_ds, gwf, save_budget=True,
                      print_head=True):
-    """ get output control package from model dataset
-
+    """get output control package from model dataset.
 
     Parameters
     ----------
@@ -499,7 +475,6 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True,
     -------
     oc : flopy ModflowGwfoc
         oc package
-
     """
     # Create the output control package
     headfile = '{}.hds'.format(model_ds.model_name)
@@ -524,30 +499,24 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True,
 
 
 def get_tdis_perioddata(model_ds):
-    """ Get tdis_perioddata from model_ds
+    """Get tdis_perioddata from model_ds.
 
     Parameters
     ----------
     model_ds : xarray.Dataset
         dataset with time variant model data
 
-    Raises
-    ------
-    NotImplementedError
-        cannot handle timesteps with variable step length.
-
     Returns
     -------
     tdis_perioddata : [perlen, nstp, tsmult]
-        * perlen (double) is the length of a stress period.
-        * nstp (integer) is the number of time steps in a stress period.
-        * tsmult (double) is the multiplier for the length of successive time
+        - perlen (double) is the length of a stress period.
+        - nstp (integer) is the number of time steps in a stress period.
+        - tsmult (double) is the multiplier for the length of successive time
           steps. The length of a time step is calculated by multiplying the
           length of the previous time step by TSMULT. The length of the first
           time step, :math:`\Delta t_1`, is related to PERLEN, NSTP, and
           TSMULT by the relation :math:`\Delta t_1= perlen \frac{tsmult -
           1}{tsmult^{nstp}-1}`.
-
     """
     perlen = model_ds.perlen
     if isinstance(perlen, numbers.Number):

@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: [3.9]
 
     steps:
       - uses: actions/checkout@v2
@@ -43,11 +43,6 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings.
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
-          
-      - name: Install pymake
-        shell: bash -l {0}
-        run: |
-          pip install https://github.com/modflowpy/pymake/zipball/master
             
       - name: Download executables needed for tests
         shell: bash -l {0}
@@ -55,11 +50,18 @@ jobs:
           python -c "import nlmod; nlmod.util.download_mfbinaries()"
             
       - name: Run notebooks
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'push' }}
         run: |
           py.test ./tests -m "notebooks"
       
       - name: Run tests only
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           py.test ./tests -m "not notebooks"
+    
+    
+      - name: Run codacy-coverage-reporter
+        uses: codacy/codacy-coverage-reporter-action@master
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage.xml

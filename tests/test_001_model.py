@@ -145,6 +145,26 @@ def test_model_ds_time_transient(tmpdir, modelname='test'):
 
 # %% creating model grids
 
+@pytest.mark.slow
+def test_create_seamodel_grid_only_without_northsea(tmpdir):
+    model_ds = test_model_ds_time_transient(tmpdir)
+    extent = [95000., 105000., 494000., 500000.]
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
+                                                        use_regis=True,
+                                                        use_geotop=True)
+
+    model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
+                                                            regis_geotop_ds,
+                                                            keep_vars=['x', 'y'],
+                                                            gridtype='structured',
+                                                            add_northsea=False)
+
+    # save model_ds
+    model_ds.to_netcdf(os.path.join(tst_model_dir, 'basic_sea_model.nc'))
+
+    return model_ds
+
 
 @pytest.mark.slow
 def test_create_small_model_grid_only(tmpdir):
@@ -193,27 +213,6 @@ def test_create_sea_model_grid_only(tmpdir):
 
     return model_ds
 
-
-@pytest.mark.slow
-def test_create_seamodel_grid_only_without_northsea(tmpdir):
-    model_ds = test_model_ds_time_transient(tmpdir)
-    extent = [95000., 105000., 494000., 500000.]
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
-                                                        use_regis=True,
-                                                        use_geotop=True)
-
-    model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
-                                                            regis_geotop_ds,
-                                                            keep_vars=[
-                                                                'x', 'y'],
-                                                            gridtype='structured',
-                                                            add_northsea=False)
-
-    # save model_ds
-    model_ds.to_netcdf(os.path.join(tst_model_dir, 'basic_sea_model.nc'))
-
-    return model_ds
 
 
 @pytest.mark.slow

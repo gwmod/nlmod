@@ -19,12 +19,14 @@ External data sources that can be read are:
 
 ## Installation
 
-The package is not (yet) available on PyPi. 
+Install the module with pip:
 
-You can install the package by cloning the repository and
-typing `pip install -e .` from the package root directory.
+`pip install nlmod`
 
-When using pip the dependencies are automatically installed. Some dependencies are notoriously hard to install on certain platforms. Please see the [dependencies](https://github.com/ArtesiaWater/hydropandas#dependencies) section of the `hydropandas` package for more information on how to install these packages manually. 
+Hydropandas requires `scipy`, `pandas`, `geopandas`, `tqdm`, `requests` and `zeep`. 
+
+When using pip the dependencies are automatically installed. Some dependencies are notoriously hard to install on certain platforms. 
+Please see the [dependencies](https://github.com/ArtesiaWater/hydropandas#dependencies) section of the `hydropandas` package for more information on how to install these packages manually. 
 
 
 ## Getting started

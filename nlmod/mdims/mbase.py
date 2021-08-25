@@ -6,7 +6,8 @@ import datetime as dt
 
 from .. import util
 
-def get_empty_model_ds(model_name, model_ws, mfversion="mf6", 
+
+def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
                        exe_name=None):
     """ get an empty model dataset
 
@@ -34,7 +35,7 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
     model_ds.attrs['model_name'] = model_name
     model_ds.attrs['mfversion'] = mfversion
     model_ds.attrs['model_dataset_created_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-    
+
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),
                                 '..', '..', 'bin', model_ds.mfversion)
@@ -42,16 +43,14 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
     # if working on Windows add .exe extension
     if sys.platform.startswith('win'):
         exe_name += ".exe"
-        
+
     model_ds.attrs["exe_name"] = exe_name
-    
-    # add some directories        
+
+    # add some directories
     if model_ws is not None:
         figdir, cachedir = util.get_model_dirs(model_ws)
         model_ds.attrs['model_ws'] = model_ws
         model_ds.attrs['figdir'] = figdir
         model_ds.attrs['cachedir'] = cachedir
-
-    
 
     return model_ds

@@ -43,10 +43,12 @@ def test_run_notebook_03_local_grid_refinement():
 def test_run_notebook_04_modifying_layermodels():
     _run_notebook(nbdir, '04_modifying_layermodels.ipynb')
 
+
 @pytest.mark.notebooks
 def test_run_notebook_05_caching():
     _run_notebook(nbdir, '05_caching.ipynb')
-    
+
+
 @pytest.mark.notebooks
 def test_run_notebook_06_compare_layermodels():
     _run_notebook(nbdir, '06_compare_layermodels.ipynb')

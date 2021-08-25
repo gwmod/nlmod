@@ -184,12 +184,11 @@ def bathymetry_to_model_dataset(model_ds,
 
     model_ds_out['bathymetry'] = xr.where(
         model_ds['northsea'], da_bathymetry, np.nan)
-    
+
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'Jarkus'
         model_ds_out[datavar].attrs['url'] = url
         model_ds_out[datavar].attrs['source'] = dt.datetime.now().strftime('%Y%m%d')
-        
 
     return model_ds_out
 

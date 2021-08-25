@@ -97,20 +97,13 @@ test modellen hebben volgende eigenschappen:
     
 """
 
-import datetime as dt
 import os
 import tempfile
-
-import flopy
-import geopandas as gpd
 import nlmod
 import pytest
 import xarray as xr
 
-import test_002_regis_geotop
-
 tmpdir = tempfile.gettempdir()
-
 
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                              'data')
@@ -149,7 +142,7 @@ def test_model_ds_time_transient(tmpdir, modelname='test'):
 def test_create_seamodel_grid_only_without_northsea(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
                                                         use_regis=True,
                                                         use_geotop=True)
@@ -184,7 +177,7 @@ def test_create_small_model_grid_only(tmpdir):
                                                                 'x', 'y'],
                                                             gridtype='structured')
 
-    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
+    _, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
 
     # Create discretization
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
@@ -241,7 +234,7 @@ def test_create_sea_model(tmpdir):
     model_ds = xr.open_dataset(os.path.join(tst_model_dir,
                                             'basic_sea_model.nc'))
     # create modflow packages
-    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
+    _, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
     # Create discretization
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
@@ -260,14 +253,14 @@ def test_create_sea_model(tmpdir):
     model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
                                                              gwf.modelgrid,
                                                              da_name)
-    ghb = nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
+    nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
     model_ds = nlmod.read.ahn.get_ahn_dataset(model_ds)
-    drn = nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
+    nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
-    chd = nlmod.mfpackages.chd_at_model_edge_from_model_ds(
+    nlmod.mfpackages.chd_at_model_edge_from_model_ds(
         model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
@@ -332,14 +325,14 @@ def test_create_sea_model_perlen_list(tmpdir):
     model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
                                                              gwf.modelgrid,
                                                              da_name)
-    ghb = nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
+    nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
     model_ds = nlmod.read.ahn.get_ahn_dataset(model_ds)
-    drn = nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
+    nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
-    chd = nlmod.mfpackages.chd_at_model_edge_from_model_ds(
+    nlmod.mfpackages.chd_at_model_edge_from_model_ds(
         model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
@@ -396,14 +389,14 @@ def test_create_sea_model_perlen_14(tmpdir):
     model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
                                                              gwf.modelgrid,
                                                              da_name)
-    ghb = nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
+    nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
     model_ds = nlmod.read.ahn.get_ahn_dataset(model_ds)
-    drn = nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
+    nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
-    chd = nlmod.mfpackages.chd_at_model_edge_from_model_ds(
+    nlmod.mfpackages.chd_at_model_edge_from_model_ds(
         model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets

@@ -19,11 +19,7 @@ import xarray as xr
 from shapely.geometry import box
 from shutil import copyfile
 
-import __main__
-
-
 logger = logging.getLogger(__name__)
-
 
 
 def write_and_run_model(gwf, model_ds, write_model_ds=True,
@@ -32,7 +28,7 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
         1. write the model dataset to cache
         2. copy the modelscript (typically a Jupyter Notebook) to the model
         workspace with a timestamp.
-    
+
 
     Parameters
     ----------
@@ -49,29 +45,26 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
         of a Jupyter Notebook from within the notebook itself.
 
     """
-    
-    if not nb_path is None:
+
+    if nb_path is not None:
         new_nb_fname = f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
-        dst = os.path.join(model_ds.model_ws,  new_nb_fname)
+        dst = os.path.join(model_ds.model_ws, new_nb_fname)
         logger.info(f'write script {new_nb_fname} to model workspace')
         copyfile(nb_path, dst)
-            
-    
+
     if write_model_ds:
         logger.info('write model dataset to cache')
-        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'], 
+        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
                                         'full_model_ds.nc'))
         model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-    
+
     logger.info('write modflow files to model workspace')
     gwf.simulation.write_simulation()
     model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-    
+
     logger.info('run model')
     assert gwf.simulation.run_simulation()[0]
     model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-    
-
 
 
 def get_model_dirs(model_ws):
@@ -105,7 +98,6 @@ def get_model_dirs(model_ws):
         os.mkdir(cachedir)
 
     return figdir, cachedir
-    
 
 
 def get_model_ds_empty(model_ds):
@@ -160,7 +152,7 @@ def check_delr_delc_extent(dic, model_ds):
     if 'extent' in dic.keys():
         key_check = (np.array(dic['extent']) == np.array(
             model_ds.attrs['extent'])).all()
-        
+
         if key_check:
             logger.info('extent of current grid is the same as cached grid')
         else:
@@ -698,6 +690,7 @@ def getmfexes(pth='.', version='', pltfrm=None):
 
     return
 
+
 def add_heads_to_model_ds(model_ds, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
     DataArray.
@@ -717,10 +710,8 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
 
     if fname_hds is None:
         fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + '.hds')
-    
+
     head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype)
-    
-    
 
     if model_ds.gridtype == 'unstructured':
         head_ar = xr.DataArray(data=head_filled[:, :, :],
@@ -728,7 +719,7 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
                                coords={'cid': model_ds.cid,
                                        'layer': model_ds.layer,
                                        'time': model_ds.time})
-    elif model_ds.gridtype =='structured':
+    elif model_ds.gridtype == 'structured':
         head_ar = xr.DataArray(data=head_filled,
                            dims=('time', 'layer', 'y', 'x'),
                            coords={'x': model_ds.x,
@@ -737,6 +728,7 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
                                    'time': model_ds.time})
 
     return head_ar
+
 
 def get_heads_array(fname_hds, gridtype='structured',
                     fill_nans=True):
@@ -767,7 +759,7 @@ def get_heads_array(fname_hds, gridtype='structured',
 
     if gridtype == 'unstructured':
         head_filled = np.ones((head.shape[0], head.shape[1], head.shape[3])) * np.nan
-        
+
         for t in range(head.shape[0]):
             for lay in range(head.shape[1] - 1, -1, -1):
                 head_filled[t][lay] = head[t][lay][0]
@@ -777,7 +769,7 @@ def get_heads_array(fname_hds, gridtype='structured',
                                                        head_filled[t][lay + 1],
                                                        head_filled[t][lay])
 
-    elif gridtype =='structured':
+    elif gridtype == 'structured':
         head_filled = np.zeros_like(head)
         for t in range(head.shape[0]):
             for lay in range(head.shape[1] - 1, -1, -1):
@@ -789,7 +781,7 @@ def get_heads_array(fname_hds, gridtype='structured',
                                                        head_filled[t][lay])
     else:
         raise ValueError('wrong gridtype')
-        
+
     return head_filled
 
 
@@ -811,5 +803,3 @@ def download_mfbinaries(binpath=None, version='6.0'):
     pltfrm = get_platform(None)
     # Download and unpack mf6 exes
     getmfexes(pth=binpath, version=version, pltfrm=pltfrm)
-    
-    

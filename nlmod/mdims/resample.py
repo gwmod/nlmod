@@ -179,7 +179,7 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
     Also flips the y-coordinates to make them descending instead of ascending.
     This makes it easier to export array to flopy. In other words, make sure
     that both lines of code create the same plot::
-    
+
         da_in['top'].sel(layer=b'Hlc').plot()
         plt.imshow(da_in['top'].sel(layer=b'Hlc').data)
 
@@ -635,7 +635,7 @@ def fillnan_dataarray_unstructured_grid(xar_in, gridprops=None,
 
 
 def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds, cellsize=25,
-                                        method ='nearest'):
+                                        method='nearest'):
     """resample a 2d dataarray (xarray) from an unstructured grid to a new 
     dataaraay from a structured grid.   
 
@@ -657,22 +657,22 @@ def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds, cellsize=25,
 
     """
     points_unstr = np.array([model_ds.x.values, model_ds.y.values]).T
-    modelgrid_x = np.arange(model_ds.x.values.min(), 
-                            model_ds.x.values.max(), 
+    modelgrid_x = np.arange(model_ds.x.values.min(),
+                            model_ds.x.values.max(),
                             cellsize)
-    modelgrid_y = np.arange(model_ds.y.values.max(), 
-                            model_ds.y.values.min(), 
+    modelgrid_y = np.arange(model_ds.y.values.max(),
+                            model_ds.y.values.min(),
                             -cellsize)
     mg = np.meshgrid(modelgrid_x, modelgrid_y)
-    points = np.vstack((mg[0].ravel(), mg[1].ravel())).T  
-    
+    points = np.vstack((mg[0].ravel(), mg[1].ravel())).T
+
     arr_out_1d = griddata(points_unstr, da_in.values, points, method=method)
-    arr_out2d = arr_out_1d.reshape(len(modelgrid_y), 
+    arr_out2d = arr_out_1d.reshape(len(modelgrid_y),
                                    len(modelgrid_x))
-    
+
     da_out = xr.DataArray(arr_out2d,
-                      dims=('y','x'),
+                      dims=('y', 'x'),
                       coords={'y': modelgrid_y,
                               'x': modelgrid_x})
-    
+
     return da_out

@@ -94,7 +94,7 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     area = xr.zeros_like(model_ds['top'])
     cond = xr.zeros_like(model_ds['top'])
     peil = xr.zeros_like(model_ds['top'])
-    for i, row in gdf.iterrows():
+    for _, row in gdf.iterrows():
         area_pol = mdims.polygon_to_area(modelgrid, row['geometry'],
                                          xr.ones_like(model_ds['top']),
                                          model_ds.gridtype)
@@ -106,7 +106,7 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     model_ds_out[f'{da_name}_area'] = area
     model_ds_out[f'{da_name}_cond'] = cond
     model_ds_out[f'{da_name}_peil'] = peil
-    
+
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'RWS'
         model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')

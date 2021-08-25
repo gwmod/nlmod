@@ -71,7 +71,7 @@ def get_geotop_dataset(extent, delr, delc,
     geotop_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=geotop_ds_raw,
                                                       extent=extent,
                                                       delr=delr, delc=delc)
-    
+
     for datavar in geotop_ds:
         geotop_ds[datavar].attrs['source'] = 'Geotop'
         geotop_ds[datavar].attrs['url'] = geotop_url
@@ -97,8 +97,6 @@ def get_geotop_raw_within_extent(extent, url):
     geotop_ds_raw : xarray Dataset
         slices geotop netcdf.
     """
-
-    
 
     geotop_ds_raw = xr.open_dataset(url)
 

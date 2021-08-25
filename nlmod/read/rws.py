@@ -3,15 +3,10 @@
 
 import logging
 import os
-import warnings
-
 import geopandas as gpd
 import nlmod
-import numpy as np
 import datetime as dt
-import pandas as pd
 import xarray as xr
-from flopy.utils import GridIntersect
 
 from .. import mdims, util
 

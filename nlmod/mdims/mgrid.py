@@ -735,7 +735,7 @@ def data_array_2d_to_rec_list(model_ds, mask,
     """
 
     if first_active_layer:
-        if not 'first_active_layer' in model_ds:
+        if 'first_active_layer' not in model_ds:
             model_ds['first_active_layer'] = get_first_active_layer_from_idomain(model_ds['idomain'])
 
         cellids = np.where(

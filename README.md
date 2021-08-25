@@ -11,11 +11,11 @@ The functions in nlmod have three main objectives:
 3. Use data in an xarray Dataset to build modflow packages using flopy.  These functions are contained in `nlmod.mfpackages`
 
 External data sources that can be read are:
-- regis
-- geotop
-- knmi
-- jarkus
-- jarkus
+- REGIS, subsurface model
+- Geotop, subsurface model
+- KNMI, precipitation and evaporation
+- Jarkus, bathymetry
+- Rijkswaterstaat, surface water polygons
 
 ## Installation
 
@@ -23,7 +23,7 @@ Install the module with pip:
 
 `pip install nlmod`
 
-Hydropandas requires `scipy`, `pandas`, `geopandas`, `tqdm`, `requests` and `zeep`. 
+`nlmod` has many dependencies `xarray`, `flopy`, `rasterio`, `owslib`, `hydropandas`, `netcdf4`, `pyshp`, `rtree`, `openpyxl` and `matplotlib`.
 
 When using pip the dependencies are automatically installed. Some dependencies are notoriously hard to install on certain platforms. 
 Please see the [dependencies](https://github.com/ArtesiaWater/hydropandas#dependencies) section of the `hydropandas` package for more information on how to install these packages manually. 

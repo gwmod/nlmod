@@ -18,7 +18,6 @@ extent = [100350., 106000. ,500800., 508000.]
 # zelfde als koster doorsneden
 extent = [100000., 109000. ,497000., 515000.] 
 
-
 # extent pwn model
 extent = [ 95800., 109000., 496700., 515100.]
 
@@ -76,7 +75,11 @@ test modellen hebben volgende eigenschappen:
         
     small_model_grid:
         transient
-        3x3 cellen, delr=delc=100, geen zee, geotop+regis, noordzee opgevuld
+        3x3 cellen, 
+        delr=delc=100, 
+        geen zee, 
+        geotop+regis, 
+        noordzee opgevuld
         [98700., 99000., 489500., 489700.]
         
     infpanden_model:

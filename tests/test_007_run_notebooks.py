@@ -17,7 +17,7 @@ def _run_notebook(nbdir, fname):
     fname_nb = os.path.join(nbdir, fname)
     with open(fname_nb) as f:
         nb = nbformat.read(f, as_version=4)
-    ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+    ep = ExecutePreprocessor(timeout=6000)
     out = ep.preprocess(nb, {'metadata': {'path': nbdir}})
 
     return out
@@ -42,3 +42,13 @@ def test_run_notebook_03_local_grid_refinement():
 @pytest.mark.skip("requires art_tools")
 def test_run_notebook_04_modifying_layermodels():
     _run_notebook(nbdir, '04_modifying_layermodels.ipynb')
+
+
+@pytest.mark.notebooks
+def test_run_notebook_05_caching():
+    _run_notebook(nbdir, '05_caching.ipynb')
+
+
+@pytest.mark.notebooks
+def test_run_notebook_06_compare_layermodels():
+    _run_notebook(nbdir, '06_compare_layermodels.ipynb')

@@ -4,6 +4,7 @@ import os
 
 import nlmod
 import numpy as np
+import datetime as dt
 import pandas as pd
 import xarray as xr
 
@@ -47,7 +48,8 @@ def get_geotop_dataset(extent, delr, delc,
         if coord1 != coord2:
             raise ValueError('extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function')
 
-    geotop_ds_raw1 = get_geotop_raw_within_extent(extent)
+    geotop_url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
+    geotop_ds_raw1 = get_geotop_raw_within_extent(extent, geotop_url)
 
     litho_translate_df = pd.read_csv(os.path.join(nlmod.NLMOD_DATADIR,
                                                   'geotop',
@@ -70,10 +72,15 @@ def get_geotop_dataset(extent, delr, delc,
                                                       extent=extent,
                                                       delr=delr, delc=delc)
 
+    for datavar in geotop_ds:
+        geotop_ds[datavar].attrs['source'] = 'Geotop'
+        geotop_ds[datavar].attrs['url'] = geotop_url
+        geotop_ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+
     return geotop_ds
 
 
-def get_geotop_raw_within_extent(extent):
+def get_geotop_raw_within_extent(extent, url):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok
     data variables.
@@ -82,14 +89,14 @@ def get_geotop_raw_within_extent(extent):
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
+    url : str
+        url of geotop netcdf file
 
     Returns
     -------
     geotop_ds_raw : xarray Dataset
         slices geotop netcdf.
     """
-
-    url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
 
     geotop_ds_raw = xr.open_dataset(url)
 

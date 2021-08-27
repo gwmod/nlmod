@@ -3,14 +3,10 @@
 
 import logging
 import os
-import warnings
-
 import geopandas as gpd
 import nlmod
-import numpy as np
-import pandas as pd
+import datetime as dt
 import xarray as xr
-from flopy.utils import GridIntersect
 
 from .. import mdims, util
 
@@ -42,7 +38,6 @@ def get_gdf_surface_water(model_ds):
 def get_sea_and_lakes(model_ds,
                       modelgrid,
                       da_name,
-                      cachedir=None,
                       use_cache=False):
     """Get data arrays with area, cond en peil from the Northsea and big lakes
     in the Netherlands.
@@ -56,9 +51,6 @@ def get_sea_and_lakes(model_ds,
     da_name : str
         name of the polygon shapes, name is used to store data arrays in
         model_ds
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
     use_cache : bool, optional
         if True the cached ghb data is used. The default is False.
 
@@ -67,7 +59,7 @@ def get_sea_and_lakes(model_ds,
     model_ds : xr.DataSet
         dataset with spatial model data including the ghb rasters
     """
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'rws_oppwater.nc',
+    model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rws_oppwater.nc',
                                      surface_water_to_model_dataset,
                                      model_ds,
                                      modelgrid=modelgrid, da_name=da_name)
@@ -102,7 +94,7 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     area = xr.zeros_like(model_ds['top'])
     cond = xr.zeros_like(model_ds['top'])
     peil = xr.zeros_like(model_ds['top'])
-    for i, row in gdf.iterrows():
+    for _, row in gdf.iterrows():
         area_pol = mdims.polygon_to_area(modelgrid, row['geometry'],
                                          xr.ones_like(model_ds['top']),
                                          model_ds.gridtype)
@@ -114,5 +106,9 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     model_ds_out[f'{da_name}_area'] = area
     model_ds_out[f'{da_name}_cond'] = cond
     model_ds_out[f'{da_name}_peil'] = peil
+
+    for datavar in model_ds_out:
+        model_ds_out[datavar].attrs['source'] = 'RWS'
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
 
     return model_ds_out

@@ -287,7 +287,7 @@ def estimate_polygon_length(gdf):
 def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
                               idomain=None, kh=None, stage=None):
 
-    if isinstance(rivbot, np.ndarray) or isinstance(rivbot, xr.DataArray):
+    if isinstance(rivbot, (np.ndarray, xr.DataArray)):
         rivbot = float(rivbot[cellid])
     if len(laybot.shape) == 3:
         # the grid is structured grid
@@ -435,5 +435,5 @@ def build_spd(celldata, pkg, model_ds):
                 spd.append([cid, stage, cond, rbot] + auxlist)
             elif pkg in ["DRN", "GHB"]:
                 spd.append([cid, stage, cond] + auxlist)
-            
+
     return spd

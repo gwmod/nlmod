@@ -46,7 +46,7 @@ def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
     1. The ahn raster is now cached in a tempdir. Should be changed to the
     cachedir of the model I think.
     """
-    ahn_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
+    ahn_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, fname_netcdf,
                                    get_ahn_at_grid, model_ds, check_time=False,
                                    gridprops=gridprops)
 

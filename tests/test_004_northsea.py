@@ -13,7 +13,7 @@ import test_002_regis_geotop
 
 def test_get_gdf_opp_water():
     model_ds = test_001_model.test_get_model_ds_from_cache()
-    gdf_surface_water = nlmod.mfpackages.surface_water.get_gdf_surface_water(
+    gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(
         model_ds)
 
     return gdf_surface_water
@@ -27,8 +27,7 @@ def test_surface_water_to_dataset():
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
     name = 'surface_water'
-    model_ds_surfwat = \
-        nlmod.mfpackages.surface_water.surface_water_to_model_dataset(
+    model_ds_surfwat = nlmod.read.rws.surface_water_to_model_dataset(
             model_ds,
             gwf.modelgrid,
             name)

@@ -78,7 +78,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      cachedir=None,
                                      use_cache=False):
     """Update a model dataset with a model layer dataset. 
-    
+
     Steps:
 
     1. Add the data variables in 'keep_vars' from the model layer dataset
@@ -209,6 +209,10 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
             gridprops['top'] = model_ds['top'].data
             gridprops['botm'] = model_ds['bot'].data
 
+    else:
+        model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
+                model_ds['idomain'])
+
     return model_ds
 
 
@@ -315,7 +319,7 @@ def get_xy_mid_structured(extent, delr, delc):
     return xmid, ymid
 
 
-def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
+def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
                              refine_features=None, extent=None,
                              nlay=None, nrow=None, ncol=None,
                              delr=None, delc=None,
@@ -363,7 +367,6 @@ def create_unstructured_grid(gridgen_ws, model_name, gwf=None,
     gridprops : dictionary
         gridprops with the unstructured grid information.
     """
-
     if not os.path.isdir(gridgen_ws):
         os.makedirs(gridgen_ws)
 
@@ -732,6 +735,9 @@ def data_array_2d_to_rec_list(model_ds, mask,
     """
 
     if first_active_layer:
+        if 'first_active_layer' not in model_ds:
+            model_ds['first_active_layer'] = get_first_active_layer_from_idomain(model_ds['idomain'])
+
         cellids = np.where(
             (mask) & (model_ds['first_active_layer'] != model_ds.nodata))
         layers = col_to_list('first_active_layer', model_ds, cellids)
@@ -972,7 +978,7 @@ def polygon_to_area(modelgrid, polygon, da,
 
     Parameters
     ----------
-    gwf : flopy.discretization.structuredgrid.StructuredGrid
+    modelgrid : flopy.discretization.structuredgrid.StructuredGrid
         grid.
     polygon : shapely.geometry.polygon.Polygon
         polygon feature.
@@ -1249,6 +1255,11 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
 
     model_ds['kv'] = xr.ones_like(model_ds['idomain']) * kv
 
+    # keep attributes for bot en top
+    for datavar in ['kh', 'kv']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
+
     return model_ds
 
 
@@ -1484,6 +1495,11 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid'),
                                    coords={'cid': model_ds.cid.data})
 
+    # keep attributes for bot en top
+    for datavar in ['top', 'bot']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
+
     return model_ds
 
 
@@ -1600,6 +1616,11 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     model_ds['top'] = xr.DataArray(top_bot[0], dims=('y', 'x'),
                                    coords={'x': model_ds.x.data,
                                            'y': model_ds.y.data})
+
+    # keep attributes for bot en top
+    for datavar in ['top', 'bot']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
 
     return model_ds
 

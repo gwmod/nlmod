@@ -14,7 +14,7 @@ import xarray as xr
 def set_model_ds_time(model_ds, start_time, steady_state,
                       steady_start=False, time_units='DAYS',
                       transient_timesteps=0,
-                      perlen=1.0, steady_perlen=3650, 
+                      perlen=1.0, steady_perlen=3650,
                       nstp=1, tsmult=1.0):
     """Set timing for a model dataset.
 

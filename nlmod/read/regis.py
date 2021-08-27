@@ -4,6 +4,7 @@ modelgrid."""
 import logging
 
 import numpy as np
+import datetime as dt
 import xarray as xr
 from scipy.interpolate import griddata
 
@@ -79,8 +80,7 @@ def get_layer_models(extent, delr, delc,
 def get_combined_layer_models(extent, delr, delc,
                               regis_botm_layer=b'AKc',
                               use_regis=True, use_geotop=True,
-                              remove_nan_layers=True,
-                              cachedir=None, use_cache=False):
+                              remove_nan_layers=True):
     """combine layer models into a single layer model.
 
     Possibilities so far include:
@@ -109,12 +109,6 @@ def get_combined_layer_models(extent, delr, delc,
         if True regis and geotop layers with only nans are removed from the
         model. if False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
-    cachedir : str
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
 
     Raises
     ------
@@ -215,6 +209,11 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
     regis_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=regis_ds_raw2,
                                                      extent=extent,
                                                      delr=delr, delc=delc)
+
+    for datavar in regis_ds:
+        regis_ds[datavar].attrs['source'] = 'REGIS'
+        regis_ds[datavar].attrs['url'] = regis_url
+        regis_ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
 
     return regis_ds
 
@@ -322,6 +321,10 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
     mask = (regis_geotop_ds['top'] - regis_geotop_ds['bot']) < float_correction
     for key in ['top', 'bot', 'kh', 'kv']:
         regis_geotop_ds[key] = xr.where(mask, np.nan, regis_geotop_ds[key])
+        regis_geotop_ds[key].attrs['source'] = 'REGIS/geotop'
+        regis_geotop_ds[key].attrs['regis_url'] = regis_ds[key].url
+        regis_geotop_ds[key].attrs['geotop_url'] = geotop_ds[key].url
+        regis_geotop_ds[key].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
 
     return regis_geotop_ds
 

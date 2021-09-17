@@ -367,7 +367,7 @@ def build_spd(celldata, pkg, model_ds):
 
     for cellid, row in tqdm(celldata.iterrows(),
                             total=celldata.index.size,
-                            desc=f"Building stress period data {pkg}:"):
+                            desc=f"Building stress period data {pkg}"):
 
         # check if there is an active layer for this cell
         if model_ds.gridtype == 'unstructured':

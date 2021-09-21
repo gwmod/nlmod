@@ -351,7 +351,7 @@ def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
                     else:
                         cache_model_ds.close()
                 else:
-                    print('could not check if cached grid corresponds to current grid')
+                    logger.info('could not check if cached grid corresponds to current grid')
                     cache_model_ds.close()
 
             # check coordinates of model dataset

@@ -134,8 +134,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     model_ds.attrs['gridtype'] = gridtype
 
     if keep_vars is None:
-        raise ValueError(
-            'please select variables that will be used to update model_ds')
+        keep_vars = []
     else:
         # update variables
         model_ds.update(ml_layer_ds[keep_vars])

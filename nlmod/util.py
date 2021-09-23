@@ -691,7 +691,7 @@ def getmfexes(pth='.', version='', pltfrm=None):
     return
 
 
-def add_heads_to_model_ds(model_ds, fname_hds=None):
+def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
     DataArray.
 
@@ -699,6 +699,8 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
     ----------
     model_ds : TYPE
         DESCRIPTION.
+    fill_nans : bool, optional
+        if True the nan values are filled with the heads in the cells below
     fname_hds : TYPE, optional
         DESCRIPTION. The default is None.
 
@@ -711,7 +713,8 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
     if fname_hds is None:
         fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + '.hds')
 
-    head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype)
+    head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype,
+                                  fill_nans=fill_nans)
 
     if model_ds.gridtype == 'unstructured':
         head_ar = xr.DataArray(data=head_filled[:, :, :],
@@ -731,7 +734,7 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
 
 
 def get_heads_array(fname_hds, gridtype='structured',
-                    fill_nans=True):
+                    fill_nans=False):
     """reads the heads from a modflow .hds file and returns a numpy array.
 
     assumes the dimensions of the heads file are:

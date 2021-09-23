@@ -150,7 +150,7 @@ def bathymetry_to_model_dataset(model_ds,
         jarkus_ds = get_dataset_jarkus(model_ds.extent, url)
     except OSError:
         import gdown
-        print('cannot access Jarkus netCDF link, copy file from google drive instead')
+        logger.warning('cannot access Jarkus netCDF link, copy file from google drive instead')
         fname_jarkus = os.path.join(model_ds.model_ws,
                                     'jarkus_nhflopy.nc')
         url = 'https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo'

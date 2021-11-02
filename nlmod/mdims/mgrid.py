@@ -1338,7 +1338,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
 
 def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                             nodata=None,
-                            max_per_nan_bot=50,
+                            max_percentage=80,
                             gridtype='structured'):
     """add top and bot from a model layer dataset to THE model dataset.
 
@@ -1355,9 +1355,9 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
         it means this cell is inactive in all layers. If nodata is None the
         nodata value in model_ds is used.
         the default is None
-    max_per_nan_bot : int or float, optional
+    max_percentage : int or float, optional
         if the percentage of cells that have nan values in all layers is
-        higher than this an error is raised. The default is 50.
+        higher than this an error is raised. The default is 80.
     gridtype : str, optional
         type of grid, options are 'structured' and 'unstructured'.
         The default is 'structured'.
@@ -1378,18 +1378,18 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
 
         model_ds = add_top_bot_structured(ml_layer_ds, model_ds,
                                           nodata=nodata,
-                                          max_per_nan_bot=max_per_nan_bot)
+                                          max_percentage=max_percentage)
 
     elif gridtype == 'unstructured':
         model_ds = add_top_bot_unstructured(ml_layer_ds, model_ds,
                                             nodata=nodata,
-                                            max_per_nan_bot=max_per_nan_bot)
+                                            max_percentage=max_percentage)
 
     return model_ds
 
 
 def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
-                             max_per_nan_bot=50):
+                             max_percentage=80):
     """Voeg top en bottom vanuit layer dataset toe aan de model dataset.
 
     Deze functie is bedoeld voor unstructured arrays in modflow 6. Supports 
@@ -1414,9 +1414,9 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     nodata : int, optional
         if the first_active_layer data array in model_ds has this value,
         it means this cell is inactive in all layers
-    max_per_nan_bot : int or float, optional
-        if the percentage of cells that have nan values in all layers.
-        The default is 50.
+    max_percentage : int or float, optional
+        if the percentage of cells that have nan values in all layers an
+        error will be raised. The default is 80.
 
     Returns
     -------
@@ -1433,11 +1433,12 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     if np.any(active_domain == False):
         percentage = 100 * (active_domain == False).sum() / \
             (active_domain.shape[0])
-        if percentage > max_per_nan_bot:
-            print(f"{percentage:0.1f}% cells with nan values in every layer"
-                  " check your extent")
-            raise MemoryError('if you want to'
-                              ' ignore this error set max_per_nan_bot higher')
+        if percentage > max_percentage:
+            raise MemoryError(f'{percentage:0.1f}% of all cells have nan '
+                              'values in every layer there is probably a '
+                              'problem with your extent if you want to '
+                              'ignore this error set max_percentage higher '
+                              f'than {max_percentage}')
 
         # set bottom to zero if bottom in a cell is nan in all layers
         lowest_bottom = np.where(active_domain, lowest_bottom, 0)
@@ -1503,7 +1504,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
 
 
 def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
-                           max_per_nan_bot=50):
+                           max_percentage=80):
     """Voeg top en bottom vanuit een layer dataset toe aan de model dataset.
 
     Deze functie is bedoeld voor structured arrays in modflow 6. Supports 
@@ -1528,9 +1529,9 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     nodata : int, optional
         if the first_active_layer data array in model_ds has this value,
         it means this cell is inactive in all layers
-    max_per_nan_bot : int or float, optional
-        if the percentage of cells that have nan values in all layers.
-        The default is 50.
+    max_percentage : int or float, optional
+        if the percentage of cells that have nan values in all layers an
+        error will be raised. The default is 80.
 
     Returns
     -------
@@ -1548,11 +1549,12 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     if np.any(active_domain == False):
         percentage = 100 * (active_domain == False).sum() / \
             (active_domain.shape[0] * active_domain.shape[1])
-        if percentage > max_per_nan_bot:
-            print(f"{percentage:0.1f}% cells with nan values in every layer"
-                  " check your extent")
-            raise MemoryError('if you want to'
-                              ' ignore this error set max_per_nan_bot higher')
+        if percentage > max_percentage:
+            raise MemoryError(f'{percentage:0.1f}% of all cells have nan '
+                              'values in every layer there is probably a '
+                              'problem with your extent if you want to '
+                              'ignore this error set max_percentage higher '
+                              f'than {max_percentage}%')
 
         # set bottom to zero if bottom in a cell is nan in all layers
         lowest_bottom = np.where(active_domain, lowest_bottom, 0)

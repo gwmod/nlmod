@@ -5,10 +5,16 @@
 """
 
 import os
+import warnings
 
 import flopy
-import matplotlib.pyplot as plt
 import numpy as np
+import xarray as xr
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
+
 
 from .read import rws
 
@@ -219,6 +225,10 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
 
 
 def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
+    
+    warnings.warn("The 'plot_array' functions is deprecated please use"
+                  "'plot_vertex_array' instead", DeprecationWarning )
+    
     if ax is None:
         f, ax = plt.subplots(figsize=figsize)
 
@@ -235,4 +245,67 @@ def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
         ax.set_title(array.name)
     # set rotation of y ticks to zero
     plt.setp(ax.yaxis.get_majorticklabels(), rotation=0)
+    return ax
+
+
+def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
+    """ plot dataarray with gridtype vertex
+
+    Parameters
+    ----------
+    da : xarray.Datarray
+        plot data with dimension(cid).
+    vertices : xarray.Datarray or numpy.ndarray
+        Vertex coördinates per cell with dimensions(cid, 4, 2)
+    ax : TYPE, optional
+        DESCRIPTION. The default is None.
+    gridkwargs : dict or None, optional
+        layout parameters to plot the cells. For example 
+        {'edgecolor':'k'} to create black cell lines. The default is None.
+    **kwargs : 
+        passed to quadmesh.set().
+
+    Returns
+    -------
+    ax : TYPE
+        DESCRIPTION.
+
+    """
+    
+    if isinstance(vertices, xr.DataArray):
+        vertices = vertices.values
+    
+    if ax is None:
+        fig, ax = plt.subplots()
+        
+    patches = [Polygon(vert) for vert in vertices]
+    if gridkwargs is None:
+        quadmesh = PatchCollection(patches)
+    else:
+        quadmesh = PatchCollection(patches, **gridkwargs)
+    quadmesh.set_array(da)
+    
+    # set max and min
+    if "vmin" in kwargs:
+        vmin = kwargs.pop("vmin")
+    else:
+        vmin = None
+
+    if "vmax" in kwargs:
+        vmax = kwargs.pop("vmax")
+    else:
+        vmax = None
+
+    # limit the color range
+    quadmesh.set_clim(vmin=vmin, vmax=vmax)
+    quadmesh.set(**kwargs)
+
+    ax.add_collection(quadmesh)
+    ax.set_xlim(vertices[:,:,0].min(), vertices[:,:,0].max())
+    ax.set_ylim(vertices[:,:,1].min(), vertices[:,:,1].max())
+    ax.set_aspect('equal')
+    ax.get_figure().colorbar(quadmesh, ax=ax, orientation='vertical')
+    if hasattr(da, 'name'):
+        ax.set_title(da.name)
+    
     return ax

@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
                                               xyi=None, cid=None,
-                                              method='nearest'):
+                                              method='nearest',
+                                              **kwargs):
     """resample a 2d dataarray (xarray) from a structured grid to a new
     dataaraay of an unstructured grid.
 
@@ -51,7 +52,8 @@ def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
     points = np.vstack((mg[0].ravel(), mg[1].ravel())).T
 
     # regrid
-    arr_out = griddata(points, da_in.data.flatten(), xyi, method=method)
+    arr_out = griddata(points, da_in.data.flatten(), xyi, method=method,
+                       **kwargs)
 
     # new dataset
     da_out = xr.DataArray(arr_out, dims=('cid'),
@@ -170,9 +172,11 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
     return ds_out
 
 
-def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=None,
+def resample_dataarray_to_structured_grid(da_in, extent=None, 
+                                          delr=None, delc=None,
                                           xmid=None, ymid=None,
-                                          kind='linear', nan_factor=0.01):
+                                          kind='linear', nan_factor=0.01,
+                                          **kwargs):
     """resample a dataarray (xarray) from a structured grid to a new dataaraay
     from a different structured grid.
 
@@ -221,7 +225,10 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
         grid.
     """
 
-    assert isinstance(da_in, xr.core.dataarray.DataArray)
+    assert isinstance(da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
+    
+    # check if ymid is in descending order
+    assert np.array_equal(ymid,np.sort(ymid)[::-1]), 'ymid should be in descending order'
 
     if xmid is None:
         xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
@@ -234,32 +241,34 @@ def resample_dataarray_to_structured_grid(da_in, extent=None, delr=None, delc=No
         # check for nan values
         if (ds_lay.isnull().sum() > 0) and (kind == "linear"):
             arr_out[i] = resample_2d_struc_da_nan_linear(ds_lay, xmid, ymid,
-                                                         nan_factor)
-        elif kind == "linear":
+                                                         nan_factor, **kwargs)
+        # faster for linear
+        elif kind == "linear" or kind=='cubic':
             # no need to fill nan values
             f = interpolate.interp2d(ds_lay.x.data, ds_lay.y.data,
-                                     ds_lay.data, kind='linear')
+                                     ds_lay.data, kind='linear', **kwargs)
             arr_out[i] = f(xmid, ymid)[::-1]
         elif kind == 'nearest':
             xydata = np.vstack([v.ravel() for v in
                                 np.meshgrid(ds_lay.x.data, ds_lay.y.data)]).T
             xyi = np.vstack([v.ravel() for v in np.meshgrid(xmid, ymid)]).T
-            fi = griddata(xydata, ds_lay.data.ravel(), xyi, method=kind)
-            arr_out[i] = fi.reshape(ymid.shape[0], xmid.shape[0])[::-1]
+            fi = griddata(xydata, ds_lay.data.ravel(), xyi, method=kind,
+                          **kwargs)
+            arr_out[i] = fi.reshape(ymid.shape[0], xmid.shape[0])
         else:
             raise ValueError(f'unexpected value for "kind": {kind}')
 
     # new dataset
     da_out = xr.DataArray(arr_out, dims=('layer', 'y', 'x'),
                           coords={'x': xmid,
-                                  'y': ymid[::-1],
+                                  'y': ymid,
                                   'layer': layers})
 
     return da_out
 
 
 def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
-                                    nan_factor=0.01):
+                                    nan_factor=0.01, **kwargs):
     """resample a structured, 2d data-array with nan values onto a new grid.
 
     Parameters
@@ -287,7 +296,7 @@ def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
     nan_map = np.where(da_in.isnull().data, 1, 0)
     fill_map = np.where(da_in.isnull().data, 0, da_in.data)
     f = interpolate.interp2d(da_in.x.data, da_in.y.data,
-                             fill_map, kind='linear')
+                             fill_map, kind='linear', **kwargs)
     f_nan = interpolate.interp2d(da_in.x.data, da_in.y.data,
                                  nan_map, kind='linear')
     arr_out_raw = f(new_x, new_y)
@@ -327,6 +336,7 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
 
     xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
 
+    # flip y-axis, in modflow the default is a descending y-axis.
     ds_out = xr.Dataset(coords={'y': ymid[::-1],
                                 'x': xmid,
                                 'layer': ds_in.layer.data})
@@ -373,7 +383,6 @@ def get_resampled_ml_layer_ds_struc(raw_ds=None,
     ml_layer_ds : xr.dataset
         model layer dataset projected onto the modelgrid.
     """
-
     logger.info('resample regis data to structured modelgrid')
     ml_layer_ds = resample_dataset_to_structured_grid(raw_ds, extent,
                                                       delr, delc,

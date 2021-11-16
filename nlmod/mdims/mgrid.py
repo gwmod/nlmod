@@ -162,6 +162,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         # add surface area of each cell
         model_ds['area'] = ('cid', gridprops.pop('area')
                             [:len(model_ds['cid'])])
+        model_ds['vertices'] = get_vertices(model_ds, gridprops=gridprops)
 
     else:
         gridprops = None
@@ -283,7 +284,7 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
     return model_ds
 
 
-def get_xy_mid_structured(extent, delr, delc):
+def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     """Calculates the x and y coordinates of the cell centers of a structured
     grid.
 
@@ -295,6 +296,9 @@ def get_xy_mid_structured(extent, delr, delc):
         cell size along rows, equal to dx
     delc : int or float,
         cell size along columns, equal to dy
+    descending_y : bool, optional
+        if True the resulting ymid array is in descending order. This is the
+        default for MODFLOW models. default is True.
 
     Returns
     -------
@@ -303,6 +307,14 @@ def get_xy_mid_structured(extent, delr, delc):
     ymid : np.array
         y-coordinates of the cell centers shape(nrow)
     """
+    # check if extent is valid
+    if (extent[1] - extent[0])%delr!=0.0:
+        raise ValueError('invalid extent, the extent should contain an integer'
+                         ' number of cells in the x-direction')
+    if (extent[3] - extent[2])%delc!=0.0:
+        raise ValueError('invalid extent, the extent should contain an integer'
+                         ' number of cells in the y-direction')
+    
     # get cell mids
     x_mid_start = extent[0] + 0.5 * delr
     x_mid_end = extent[1] - 0.5 * delr
@@ -313,7 +325,10 @@ def get_xy_mid_structured(extent, delr, delc):
     nrow = int((extent[3] - extent[2]) / delc)
 
     xmid = np.linspace(x_mid_start, x_mid_end, ncol)
-    ymid = np.linspace(y_mid_start, y_mid_end, nrow)
+    if descending_y:
+        ymid = np.linspace(y_mid_end, y_mid_start, nrow)
+    else:
+        ymid = np.linspace(y_mid_start, y_mid_end, nrow)
 
     return xmid, ymid
 
@@ -1624,6 +1639,86 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
             model_ds[datavar].attrs[key] = att
 
     return model_ds
+
+
+def get_vertices(model_ds, modelgrid=None,
+                 gridprops=None, vert_per_cid=4):
+    """ get vertices of a vertex modelgrid from the modelgrid or from the 
+    gridprops. Only return the 4 corners of each cell and not the corners of
+    adjacent cells thus limiting the vertices per cell to 4 points.
+    
+    If the modelgrid is given the xvertices and yvertices attributes of the 
+    modelgrid are used. If the gridprops are given the cell2d and vertices are
+    obtained from the gridprops.
+    
+    Parameters
+    ----------
+    model_ds : xr.DataSet
+        model dataset, attribute grid_type should be 'unstructured'
+    modelgrid : flopy.discretization.vertexgrid.VertexGrid
+        vertex grid with attributes xvertices and yvertices.
+    gridprops : dictionary
+        gridproperties obtained from gridgen
+    vert_per_cid : int or None:
+        number of vertices per cell:
+        - 4 return the 4 vertices of each cell
+        - 5 return the 4 vertices of each cell + one duplicate verex 
+        (sometimes useful if you want to create polygons)
+        - anything else, the maximum number of vertices. For locally refined
+        cells this includes all the vertices adjacent to the cell.
+        
+        if vert_per_cid is 4 or 5 vertices are removed using the 
+        Ramer-Douglas-Peucker Algorithm -> https://github.com/fhirschmann/rdp.
+
+    Returns
+    -------
+    vertices_da : xarray DataArray
+         Vertex coördinates per cell with dimensions(cid, no_vert, 2).
+    """
+    
+    # obtain 
+    if modelgrid is not None:
+        xvert = modelgrid.xvertices
+        yvert = modelgrid.yvertices
+        if vert_per_cid == 4:
+            from rdp import rdp
+            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i])))[:-1] for i in range(len(xvert))])
+        elif vert_per_cid == 5:
+            from rdp import rdp
+            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))])
+        else:
+            raise NotImplementedError()
+    
+    elif gridprops is not None:
+        all_vertices = np.ones((len(gridprops['cell2d']), len(gridprops['cell2d'][0]), 2)) * np.nan
+        for i, cell in enumerate(gridprops['cell2d']):
+            for j in range(cell[3]):
+                all_vertices[i, j] = gridprops['vertices'][cell[4+j]][1:]
+
+        if vert_per_cid in [4,5]:
+            from rdp import rdp
+            clean_vertices = np.ones((len(gridprops['cell2d']), 5, 2)) * np.nan
+            for i in range(len(all_vertices)):
+                clean_vertices[i] = rdp(all_vertices[i][~np.isnan(all_vertices[i]).any(axis=1)])
+            if vert_per_cid == 4:
+                vertices_arr = clean_vertices[:,:4, :]
+            else:
+                vertices_arr = clean_vertices
+                
+        else:
+            vertices_arr = all_vertices
+    
+    else:
+        return ValueError('Specify gridprops or modelgrid')
+            
+    
+    vertices_da = xr.DataArray(vertices_arr, 
+                               dims=('cid', 'vert_per_cid', 'xy'),
+                               coords={'cid': model_ds.cid.values,
+                                       'vert_per_cid': range(vertices_arr.shape[1]),
+                                        'xy': ['x','y']})
+    
+    return vertices_da
 
 
 def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,

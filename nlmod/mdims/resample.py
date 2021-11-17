@@ -350,51 +350,6 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
     return ds_out
 
 
-def get_resampled_ml_layer_ds_struc(raw_ds=None,
-                                    extent=None, delr=None, delc=None,
-                                    gridprops=None,
-                                    kind='linear'):
-    """project regis data on to the modelgrid.
-
-    Parameters
-    ----------
-    raw_ds : xr.Dataset, optional
-        regis dataset. If the gridtype is structured this should be the
-        original regis netcdf dataset. If gridtype is unstructured this should
-        be a regis dataset that is already projected on a structured modelgrid.
-        The default is None.
-    extent : list, tuple or np.array
-        extent (xmin, xmax, ymin, ymax) of the desired grid.
-    delr : int or float
-        cell size along rows of the desired grid (dx).
-    delc : int or float
-        cell size along columns of the desired grid (dy).
-    gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'.
-        The default is 'structured'.
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'unstructured'
-    kind : str, optional
-        kind of interpolation to use. default is 'linear'
-
-    Returns
-    -------
-    ml_layer_ds : xr.dataset
-        model layer dataset projected onto the modelgrid.
-    """
-    logger.info('resample regis data to structured modelgrid')
-    ml_layer_ds = resample_dataset_to_structured_grid(raw_ds, extent,
-                                                      delr, delc,
-                                                      kind=kind)
-    ml_layer_ds.attrs['extent'] = extent
-    ml_layer_ds.attrs['delr'] = delr
-    ml_layer_ds.attrs['delc'] = delc
-    ml_layer_ds.attrs['gridtype'] = 'structured'
-
-    return ml_layer_ds
-
-
 def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
                                       extent=None,
                                       gridprops=None):

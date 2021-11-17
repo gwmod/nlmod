@@ -67,11 +67,16 @@ def get_geotop_dataset(extent, delr, delc,
                                                 regis_layer=regis_layer,
                                                 litho_translate_df=litho_translate_df,
                                                 geo_eenheid_translate_df=geo_eenheid_translate_df)
-
-    geotop_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=geotop_ds_raw,
-                                                      extent=extent,
-                                                      delr=delr, delc=delc)
-
+    
+    logger.info('resample geotop data to structured modelgrid')
+    geotop_ds = mdims.resample_dataset_to_structured_grid(geotop_ds_raw, 
+                                                         extent,
+                                                         delr, delc)
+    geotop_ds.attrs['extent'] = extent
+    geotop_ds.attrs['delr'] = delr
+    geotop_ds.attrs['delc'] = delc
+    geotop_ds.attrs['gridtype'] = 'structured'
+    
     for datavar in geotop_ds:
         geotop_ds[datavar].attrs['source'] = 'Geotop'
         geotop_ds[datavar].attrs['url'] = geotop_url

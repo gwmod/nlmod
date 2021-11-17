@@ -176,8 +176,7 @@ def test_create_small_model_grid_only(tmpdir):
 
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
-                                                            keep_vars=[
-                                                                'x', 'y'],
+                                                            keep_vars=['x', 'y'],
                                                             gridtype='structured')
 
     _, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
@@ -231,7 +230,7 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
 
 # %% create models using create_model module
 
-@pytest.mark.skip(reason="somehow failing")
+
 @pytest.mark.slow
 def test_create_sea_model(tmpdir):
     model_ds = xr.open_dataset(os.path.join(tst_model_dir,
@@ -253,9 +252,9 @@ def test_create_sea_model(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
-                                                             gwf.modelgrid,
-                                                             da_name)
+    model_ds = nlmod.read.rws.get_sea_and_lakes(model_ds,
+                                                gwf.modelgrid,
+                                                da_name)
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
@@ -282,7 +281,7 @@ def test_create_sea_model(tmpdir):
 
     return model_ds, gwf
 
-@pytest.mark.skip(reason="somehow failing")
+
 @pytest.mark.slow
 def test_create_sea_model_perlen_list(tmpdir):
     model_ds = xr.open_dataset(os.path.join(tst_model_dir,
@@ -325,9 +324,9 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
-                                                             gwf.modelgrid,
-                                                             da_name)
+    model_ds = nlmod.read.rws.get_sea_and_lakes(model_ds,
+                                                gwf.modelgrid,
+                                                da_name)
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
@@ -347,7 +346,7 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     return model_ds, gwf
 
-@pytest.mark.skip(reason="somehow failing")
+
 @pytest.mark.slow
 def test_create_sea_model_perlen_14(tmpdir):
     model_ds = xr.open_dataset(os.path.join(tst_model_dir,
@@ -389,9 +388,9 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
-                                                             gwf.modelgrid,
-                                                             da_name)
+    model_ds = nlmod.read.rws.get_sea_and_lakes(model_ds,
+                                                gwf.modelgrid,
+                                                da_name)
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain

@@ -268,8 +268,7 @@ def model_dataset_to_vector_file(model_ds,
     if combine_dic is None:
         combine_dic = {'idomain': {'first_active_layer', 'idomain'},
                        'topbot': {'top', 'bot', 'thickness'},
-                       'sea': {'northsea', 'bathymetry'},
-                       'rws_oppwater': {'rws_oppwater_area', 'rws_oppwater_cond', 'rws_oppwater_peil'}}
+                       'sea': {'northsea', 'bathymetry'}}
 
     # create gis directory and filenames
     if gisdir is None:

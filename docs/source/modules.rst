@@ -86,14 +86,18 @@ mfpackages
    :private-members:
 
 
-plots
-^^^^^
+visualise
+^^^^^^^^^
 
-.. automodule:: nlmod.plots
+.. automodule:: nlmod.visualise.plots
    :members:
    :undoc-members:
    :private-members:
 
+.. automodule:: nlmod.visualise.gis
+   :members:
+   :undoc-members:
+   :private-members:
 
 util
 ^^^^

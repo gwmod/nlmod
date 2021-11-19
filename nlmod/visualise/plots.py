@@ -16,7 +16,7 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
 
-from .read import rws
+from ..read import rws
 
 
 def plot_surface_water(model_ds, ax=None):
@@ -302,8 +302,11 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
 
     ax.add_collection(quadmesh)
     ax.set_xlim(vertices[:,:,0].min(), vertices[:,:,0].max())
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
     ax.set_ylim(vertices[:,:,1].min(), vertices[:,:,1].max())
     ax.set_aspect('equal')
+    
     ax.get_figure().colorbar(quadmesh, ax=ax, orientation='vertical')
     if hasattr(da, 'name'):
         ax.set_title(da.name)

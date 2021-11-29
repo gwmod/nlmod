@@ -118,7 +118,7 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
             else:
                 raise ValueError(f"expected dimensions ('layer', 'cid'), got {da.dims}")
         else:
-            raise NotImplementedError(f'expected one or two dimensions got {no_dims}')
+            raise NotImplementedError(f'expected one or two dimensions got {no_dims} for data variable {da_name}')
 
     # create geometries
     if polygons is None:
@@ -184,7 +184,7 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
             else:
                 raise ValueError(f"expected dimensions ('layer', 'y', 'x'), got {da.dims}")
         else:
-            raise NotImplementedError(f'expected two or three dimensions got {no_dims}')
+            raise NotImplementedError(f'expected two or three dimensions got {no_dims} for data variable {da_name}')
     
     # create geometries
     if polygons is None:

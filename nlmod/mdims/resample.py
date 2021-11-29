@@ -10,7 +10,6 @@ import xarray as xr
 from scipy import interpolate
 from scipy.interpolate import griddata
 
-from .. import util
 from . import mgrid
 
 logger = logging.getLogger(__name__)
@@ -172,7 +171,7 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
     return ds_out
 
 
-def resample_dataarray_to_structured_grid(da_in, extent=None, 
+def resample_dataarray_to_structured_grid(da_in, extent=None,
                                           delr=None, delc=None,
                                           xmid=None, ymid=None,
                                           kind='linear', nan_factor=0.01,
@@ -226,9 +225,9 @@ def resample_dataarray_to_structured_grid(da_in, extent=None,
     """
 
     assert isinstance(da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
-    
+
     # check if ymid is in descending order
-    assert np.array_equal(ymid,np.sort(ymid)[::-1]), 'ymid should be in descending order'
+    assert np.array_equal(ymid, np.sort(ymid)[::-1]), 'ymid should be in descending order'
 
     if xmid is None:
         xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
@@ -243,7 +242,7 @@ def resample_dataarray_to_structured_grid(da_in, extent=None,
             arr_out[i] = resample_2d_struc_da_nan_linear(ds_lay, xmid, ymid,
                                                          nan_factor, **kwargs)
         # faster for linear
-        elif kind == "linear" or kind=='cubic':
+        elif kind == "linear" or kind == 'cubic':
             # no need to fill nan values
             f = interpolate.interp2d(ds_lay.x.data, ds_lay.y.data,
                                      ds_lay.data, kind='linear', **kwargs)
@@ -303,7 +302,7 @@ def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
     arr_out_raw = f(new_x, new_y)
     nan_new = f_nan(new_x, new_y)
     arr_out_raw[nan_new > nan_factor] = np.nan
-    
+
     # for some reason interp2d flips the y-values
     arr_out = arr_out_raw[::-1]
 
@@ -336,7 +335,6 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
     """
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
-    
 
     xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
 
@@ -390,7 +388,6 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
     ml_layer_ds.attrs['extent'] = extent
 
     return ml_layer_ds
-
 
 
 def fillnan_dataarray_structured_grid(xar_in):
@@ -517,13 +514,13 @@ def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds=None,
     if xmid is None or ymid is None:
         xmid = model_ds.x.values
         ymid = model_ds.y.values
-    
+
     points_unstr = np.array([xmid, ymid]).T
     modelgrid_x = np.arange(xmid.min(),
                             xmid.max(),
                             cellsize)
     modelgrid_y = np.arange(ymid.max(),
-                            ymid.min()-cellsize,
+                            ymid.min() - cellsize,
                             -cellsize)
     mg = np.meshgrid(modelgrid_x, modelgrid_y)
     points = np.vstack((mg[0].ravel(), mg[1].ravel())).T

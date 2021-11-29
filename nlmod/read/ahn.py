@@ -181,7 +181,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
             'ahn3_5m_dtm'
 
         The default is 'ahn3_5m_dtm'.
-        
+
         the identifier also contains resolution and type info:
         - 5m or 05m is a resolution of 5x5 or 0.5x0.5 meter.
         - 'dtm' is only surface level (maaiveld), 'dsm' has other surfaces
@@ -206,7 +206,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
         800.
-        
+
     Returns
     -------
     fname : str

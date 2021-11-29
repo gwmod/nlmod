@@ -59,7 +59,7 @@ def surface_water_to_model_dataset(model_ds, da_name, gridprops=None):
     model_ds : xarray.Dataset
         dataset with modelgrid data. Has
     """
-    
+
     modelgrid = mdims.modelgrid_from_model_ds(model_ds, gridprops=gridprops)
     gdf = get_gdf_surface_water(model_ds)
 

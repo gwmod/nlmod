@@ -14,6 +14,7 @@ import numbers
 import logging
 logger = logging.getLogger(__name__)
 
+
 def _check_model_ds(model_ds, model_ds2, check_grid=True):
     """check if two model datasets have the same grid and time discretization.
     e.g. the same dimensions and coordinates.
@@ -80,8 +81,8 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
                 if len(model_ds['time']) != len(model_ds2['time']):
                     check_time = False
                 else:
-                    check_time = (model_ds['time'].data ==
-                                  model_ds2['time'].data).all()
+                    check_time = (model_ds['time'].data
+                                  == model_ds2['time'].data).all()
                 if check_time:
                     logger.info('cached data has same time discretisation as current model')
                 else:
@@ -110,8 +111,8 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
                 # check length time series
                 if model_ds.dims['time'] == model_ds2.dims['time']:
                     # check times time series
-                    check_time = (model_ds['time'].data ==
-                                  model_ds2['time'].data).all()
+                    check_time = (model_ds['time'].data
+                                  == model_ds2['time'].data).all()
                 else:
                     check_time = False
                 if check_time:
@@ -126,6 +127,7 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
             return False
     else:
         raise ValueError('no gridtype defined cannot compare model datasets')
+
 
 def _is_valid_cache(func_args_dic, func_args_dic_cache):
     """ checks if two dictionaries with function arguments are identical by
@@ -165,7 +167,7 @@ def _is_valid_cache(func_args_dic, func_args_dic_cache):
 
         # check if cache and function call have same argument values
         if item is None:
-            #Value of None type is always None so the check happened in previous if statement
+            # Value of None type is always None so the check happened in previous if statement
             pass
         elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple)):
             if item != func_args_dic_cache[key]:
@@ -192,7 +194,7 @@ def _is_valid_cache(func_args_dic, func_args_dic_cache):
 
 
 def cache_netcdf(func):
-    
+
     @functools.wraps(func)
     def decorator(*args, cachedir=None, cachename=None, **kwargs):
 
@@ -208,7 +210,7 @@ def cache_netcdf(func):
         fname_pickle_cache = fname_cache.replace('.nc', '.pklz')
         func_args_dic = {f'arg{i}': args[i] for i in range(len(args))}
         func_args_dic.update(kwargs)
-        
+
         # remove xarray dataset from function arguments
         dataset = None
         for key in list(func_args_dic.keys()):
@@ -220,7 +222,7 @@ def cache_netcdf(func):
         if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
             with open(fname_pickle_cache, "rb") as f:
                 func_args_dic_cache = pickle.load(f)
-                
+
             valid_cache = _is_valid_cache(func_args_dic, func_args_dic_cache)
 
             if valid_cache:
@@ -228,20 +230,20 @@ def cache_netcdf(func):
                 if dataset is None:
                     logger.info(f'using cached data -> {cachename}')
                     return cached_ds
-                
-                #check dataset
+
+                # check dataset
                 if _check_model_ds(dataset, cached_ds):
                     logger.info(f'using cached data -> {cachename}')
                     return cached_ds
 
         # create cache if cache is invalid
         result = func(*args, **kwargs)
-        
+
         logger.info(f'caching data -> {cachename}')
-        
+
         if isinstance(result, xr.Dataset):
             result.to_netcdf(fname_cache)
-            
+
             with open(fname_pickle_cache, 'wb') as fpklz:
                 pickle.dump(func_args_dic, fpklz)
         else:

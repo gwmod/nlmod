@@ -392,56 +392,6 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
     return ml_layer_ds
 
 
-def get_ml_layer_dataset_unstruc(raw_ds=None,
-                                 extent=None,
-                                 gridtype='structured',
-                                 gridprops=None,
-                                 interp_method="linear",
-                                 cachedir=None,
-                                 fname_netcdf='regis.nc',
-                                 use_cache=False):
-    """Get a model layer dataset that is resampled to the modelgrid.
-
-    Parameters
-    ----------
-    raw_ds : xarray.Dataset, optional
-        raw model layer dataset. If the gridtype is structured this should be
-        the original regis netcdf dataset. If gridtype is unstructured this
-        should be a regis dataset that is already projected on a structured
-        modelgrid. The default is None.
-    extent : list, tuple or np.array
-        extent (xmin, xmax, ymin, ymax) of the desired grid.
-    gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'.
-        The default is 'structured'.
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'unstructured'
-    interp_method : str, optional
-        interpolation method, default is 'linear'
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    fname_netcdf : str
-        name of the netcdf file that is stored in the cachedir.
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
-
-    Returns
-    -------
-    regis_ds : xarray.Dataset
-        dataset with regis data corresponding to the modelgrid
-    """
-
-    ml_layer_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
-                                        get_resampled_ml_layer_ds_unstruc,
-                                        check_time=False,
-                                        raw_ds=raw_ds, extent=extent,
-                                        gridprops=gridprops)
-
-    return ml_layer_ds
-
 
 def fillnan_dataarray_structured_grid(xar_in):
     """fill not-a-number values in a structured grid, DataArray.

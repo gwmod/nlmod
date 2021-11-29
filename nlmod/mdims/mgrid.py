@@ -24,6 +24,7 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from shapely.prepared import prep
 from tqdm import tqdm
+import copy
 
 from .. import mfpackages, util
 from ..read import jarkus
@@ -60,8 +61,11 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
     elif model_ds.gridtype == 'unstructured':
         _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
+        # somehow this function modifies gridprops['vertices'] from a list of
+        # lists into a list of tuples, for type checking later on I don't 
+        # want this, therefore I make a deepcopy here
         flopy.mf6.ModflowGwfdisv(gwf, idomain=model_ds['idomain'].data,
-                                 **gridprops)
+                                 **copy.deepcopy(gridprops))
         modelgrid = gwf.modelgrid
 
     return modelgrid
@@ -75,8 +79,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      anisotropy=10,
                                      fill_value_kh=1.,
                                      fill_value_kv=0.1,
-                                     cachedir=None,
-                                     use_cache=False):
+                                     cachedir=None):
     """Update a model dataset with a model layer dataset. 
 
     Steps:
@@ -163,21 +166,18 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         model_ds['area'] = ('cid', gridprops.pop('area')
                             [:len(model_ds['cid'])])
         model_ds['vertices'] = get_vertices(model_ds, gridprops=gridprops)
-
     else:
         gridprops = None
 
     if add_northsea:
         logger.info(
             'nan values at the northsea are filled using the bathymetry from jarkus')
-
-        modelgrid = modelgrid_from_model_ds(model_ds, gridprops=gridprops)
-
+        
         # find grid cells with northsea
-        model_ds = jarkus.get_modelgrid_sea(model_ds,
-                                            modelgrid=modelgrid,
-                                            cachedir=cachedir,
-                                            use_cache=use_cache)
+        model_ds.update(jarkus.find_sea_cells(model_ds,
+                                              gridprops=gridprops,
+                                              cachedir=cachedir,
+                                              cachename='sea_model_ds.nc'))
 
         # fill top, bot, kh, kv at sea cells
         fill_mask = (model_ds['first_active_layer']
@@ -187,10 +187,11 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                               gridprops=gridprops)
 
         # add bathymetry noordzee
-        model_ds = jarkus.get_modelgrid_bathymetry(model_ds,
-                                                   gridprops=gridprops,
-                                                   cachedir=cachedir,
-                                                   use_cache=use_cache)
+        model_ds.update(jarkus.bathymetry_to_model_dataset(model_ds,
+                                                           model_ds['northsea'],
+                                                           gridprops=gridprops,
+                                                           cachedir=cachedir,
+                                                           cachename='bathymetry_model_ds.nc'))
 
         model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(model_ds,
                                                           model_ds['bathymetry'],
@@ -269,7 +270,7 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
 
     idomain = xr.where(bottom.isnull(), -1, 1)
 
-    # if the top cell is inactive idomain is 0, otherwise it is -1
+    # if the top cell is inactive idomain is 0, otheupdate_model_ds_from_ml_layer_dsise it is -1
     idomain[0] = xr.where(idomain[0] == -1, 0, idomain[0])
     for i in range(1, bottom.shape[0]):
         idomain[i] = xr.where((idomain[i - 1] == 0) &

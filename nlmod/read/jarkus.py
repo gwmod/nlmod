@@ -16,48 +16,14 @@ import datetime as dt
 import requests
 import xarray as xr
 
-from .. import mdims, util
+from .. import mdims, util, cache
 from . import rws
 
 logger = logging.getLogger(__name__)
 
 
-def get_modelgrid_sea(model_ds,
-                      modelgrid,
-                      da_name='northsea',
-                      cachedir=None, use_cache=False):
-    """Get DataArray which is 1 at sea and 0 overywhere else. Sea is defined by
-    the geometries in gdf_sea grid is defined by mfgrid and model_ds.
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        xarray with model data
-    modelgrid : flopy StructuredGrid or flopy VertexGrid
-        grid information.
-    da_name : str, optional
-        name e is used to store the sea data array in model_ds
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached sea data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xr.DataSet
-        dataset with 'sea' DataVariable.
-    """
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'sea_model_ds.nc',
-                                     find_sea_cells, model_ds,
-                                     modelgrid=modelgrid,
-                                     da_name=da_name,
-                                     check_time=False)
-
-    return model_ds
-
-
-def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
+@cache.cache_netcdf
+def find_sea_cells(model_ds, gridprops=None, da_name='northsea'):
     """Get Dataset which is 1 at sea and 0 everywhere else. Sea is defined by
     opp_water shapefile grid is defined in model_ds.
 
@@ -65,8 +31,8 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
     ----------
     model_ds : xr.DataSet
         xarray with model data
-    modelgrid : flopy StructuredGrid or flopy VertexGrid
-        grid information.
+    gridprops : dictionary
+        dictionary with grid properties output from gridgen.
     da_name : str, optional
         name of the datavar that identifies sea cells
 
@@ -81,49 +47,20 @@ def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
 
     # find grid cells with sea
     swater_zee = gdf_surf_water[gdf_surf_water['OWMNAAM'].isin(['Rijn territoriaal water',
-                                                                 'Waddenzee',
-                                                                 'Waddenzee vastelandskust',
-                                                                 'Hollandse kust (kustwater)',
-                                                                 'Waddenkust (kustwater)'])]
+                                                                'Waddenzee',
+                                                                'Waddenzee vastelandskust',
+                                                                'Hollandse kust (kustwater)',
+                                                                'Waddenkust (kustwater)'])]
 
+    modelgrid = mdims.modelgrid_from_model_ds(model_ds, gridprops=gridprops)
     model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee,
                                              modelgrid, da_name)
 
     return model_ds_out
 
 
-def get_modelgrid_bathymetry(model_ds,
-                             gridprops=None,
-                             cachedir=None, use_cache=False):
-    """get bathymetry of the Northsea from the jarkus dataset.
-
-    Parameters
-    ----------
-    model_ds : xarray.Dataset
-        dataset with model data where bathymetry is added to
-    gridprops : dic, optional
-        model properties when using unstructured grids. The default is None.
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached jarkus data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xarray.Dataset
-        dataset with bathymetry
-    """
-
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'bathymetry_model_ds.nc',
-                                     bathymetry_to_model_dataset, model_ds,
-                                     gridprops=gridprops,
-                                     check_time=False,
-                                     )
-    return model_ds
-
-
-def bathymetry_to_model_dataset(model_ds,
+@cache.cache_netcdf
+def bathymetry_to_model_dataset(model_ds, northsea,
                                 gridprops=None):
     """get bathymetry of the Northsea from the jarkus dataset.
 
@@ -182,8 +119,7 @@ def bathymetry_to_model_dataset(model_ds,
 
     model_ds_out = util.get_model_ds_empty(model_ds)
 
-    model_ds_out['bathymetry'] = xr.where(
-        model_ds['northsea'], da_bathymetry, np.nan)
+    model_ds_out['bathymetry'] = xr.where(northsea, da_bathymetry, np.nan)
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'Jarkus'

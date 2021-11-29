@@ -8,75 +8,13 @@ import datetime as dt
 import xarray as xr
 from scipy.interpolate import griddata
 
-from .. import mdims, util
+from .. import mdims, cache
 from . import geotop
 
 logger = logging.getLogger(__name__)
 
 
-def get_layer_models(extent, delr, delc,
-                     use_regis=True,
-                     regis_botm_layer=b'AKc',
-                     use_geotop=True,
-                     remove_nan_layers=True,
-                     cachedir=None,
-                     fname_netcdf='combined_layer_ds.nc',
-                     use_cache=False):
-    """get a layer model from regis and/or geotop.
-
-    Possibilities so far include:
-        - use_regis -> full model based on regis
-        - use_regis and use_geotop -> holoceen of REGIS is filled with geotop
-
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
-    use_regis : bool, optional
-        True if part of the layer model should be REGIS. The default is True.
-    regis_botm_layer : binary str, optional
-        regis layer that is used as the bottom of the model. This layer is
-        included in the model. the Default is b'AKc' which is the bottom
-        layer of regis. call nlmod.regis.get_layer_names() to get a list of
-        regis names.
-    use_geotop : bool, optional
-        True if part of the layer model should be geotop. The default is True.
-    remove_nan_layers : bool, optional
-        if True regis and geotop layers with only nans are removed from the
-        model. if False nan layers are kept which might be usefull if you want
-        to keep some layers that exist in other models. The default is True.
-    cachedir : str
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    fname_netcdf : str, optional
-        name of the cached netcdf file. The default is 'combined_layer_ds.nc'.
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
-
-    Returns
-    -------
-    combined_ds : xarary dataset
-        layer model dataset.
-    """
-
-    combined_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
-                                        get_combined_layer_models,
-                                        extent=extent,
-                                        delr=delr, delc=delc,
-                                        use_regis=use_regis,
-                                        regis_botm_layer=regis_botm_layer,
-                                        use_geotop=use_geotop,
-                                        remove_nan_layers=remove_nan_layers)
-
-    return combined_ds
-
-
+@cache.cache_netcdf
 def get_combined_layer_models(extent, delr, delc,
                               regis_botm_layer=b'AKc',
                               use_regis=True, use_geotop=True,
@@ -207,7 +145,7 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
 
     # convert regis dataset to grid
     logger.info('resample regis data to structured modelgrid')
-    regis_ds = mdims.resample_dataset_to_structured_grid(regis_ds_raw2, 
+    regis_ds = mdims.resample_dataset_to_structured_grid(regis_ds_raw2,
                                                             extent,
                                                             delr, delc)
     regis_ds.attrs['extent'] = extent

@@ -7,41 +7,13 @@ import datetime as dt
 import pandas as pd
 import xarray as xr
 
-from .. import util
+from .. import util, cache
 
 logger = logging.getLogger(__name__)
 
 
-def get_recharge(model_ds,
-                 nodata=None,
-                 use_cache=False):
-    """Get recharge datasets from knmi data.
 
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        dataset containing relevant model information
-    nodata : int, optional
-        if the first_active_layer data array in model_ds has this value,
-        it means this cell is inactive in all layers. If nodata is None the
-        nodata value in model_ds is used.
-        the default is None
-    use_cache : bool, optional
-        if True the cached recharge data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xr.DataSet
-        dataset with spatial model data including the rch raster
-    """
-
-    model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rch_model_ds.nc',
-                                     add_knmi_to_model_dataset,
-                                     model_ds)
-
-    return model_ds
-
-
+@cache.cache_netcdf
 def add_knmi_to_model_dataset(model_ds,
                               nodata=None,
                               use_cache=False):

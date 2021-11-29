@@ -14,45 +14,12 @@ import xarray as xr
 from owslib.wcs import WebCoverageService
 from rasterio import merge
 
-from .. import mdims, util
+from .. import mdims, cache, util
 
 logger = logging.getLogger(__name__)
 
 
-def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
-                    cachedir=None,
-                    fname_netcdf='ahn_model_ds.nc'):
-    """get an xarray dataset from the ahn values within an extent.
-
-    Parameters
-    ----------
-    model_ds : xr.Dataset
-        dataset with the model information.
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'unstructured'
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
-
-    Returns
-    -------
-    ahn_ds : xarray.Dataset
-        dataset with ahn data (not yet corresponding to the modelgrid)
-
-    Notes
-    -----
-
-    1. The ahn raster is now cached in a tempdir. Should be changed to the
-    cachedir of the model I think.
-    """
-    ahn_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, fname_netcdf,
-                                   get_ahn_at_grid, model_ds, check_time=False,
-                                   gridprops=gridprops)
-
-    return ahn_ds
-
-
+@cache.cache_netcdf
 def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     """Get a model dataset with ahn variable.
 

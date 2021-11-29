@@ -8,7 +8,7 @@ import nlmod
 import datetime as dt
 import xarray as xr
 
-from .. import mdims, util
+from .. import mdims, cache, util
 
 logger = logging.getLogger(__name__)
 
@@ -35,39 +35,8 @@ def get_gdf_surface_water(model_ds):
     return gdf_swater
 
 
-def get_sea_and_lakes(model_ds,
-                      modelgrid,
-                      da_name,
-                      use_cache=False):
-    """Get data arrays with area, cond en peil from the Northsea and big lakes
-    in the Netherlands.
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        dataset containing relevant model grid information
-    modelgrid : flopy grid
-        model grid.
-    da_name : str
-        name of the polygon shapes, name is used to store data arrays in
-        model_ds
-    use_cache : bool, optional
-        if True the cached ghb data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xr.DataSet
-        dataset with spatial model data including the ghb rasters
-    """
-    model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rws_oppwater.nc',
-                                     surface_water_to_model_dataset,
-                                     model_ds,
-                                     modelgrid=modelgrid, da_name=da_name)
-
-    return model_ds
-
-
-def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
+@cache.cache_netcdf
+def surface_water_to_model_dataset(model_ds, da_name, gridprops=None):
     """create 3 data-arrays from the shapefile with surface water:
 
     - area: with the area of the shape in the cell
@@ -78,17 +47,20 @@ def surface_water_to_model_dataset(model_ds, modelgrid, da_name):
     ----------
     model_ds : xr.DataSet
         xarray with model data
-    modelgrid : flopy grid
-        model grid.
     da_name : str
         name of the polygon shapes, name is used to store data arrays in
         model_ds
+    gridprops : dict, optional
+        extra model properties when using unstructured grids. 
+        The default is None. 
 
     Returns
     -------
     model_ds : xarray.Dataset
         dataset with modelgrid data. Has
     """
+    
+    modelgrid = mdims.modelgrid_from_model_ds(model_ds, gridprops=gridprops)
     gdf = get_gdf_surface_water(model_ds)
 
     area = xr.zeros_like(model_ds['top'])

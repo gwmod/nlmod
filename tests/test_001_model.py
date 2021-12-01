@@ -146,9 +146,9 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
     extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
-                                                        use_regis=True,
-                                                        use_geotop=True)
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent, 100., 100.,
+                                                                 use_regis=True,
+                                                                 use_geotop=True)
 
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
@@ -168,10 +168,10 @@ def test_create_small_model_grid_only(tmpdir):
 
     extent = [98700., 99000., 489500., 489700.]
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
-                                                        regis_botm_layer=b'KRz5',
-                                                        use_regis=True,
-                                                        use_geotop=True)
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent, 100., 100.,
+                                                                 regis_botm_layer=b'KRz5',
+                                                                 use_regis=True,
+                                                                 use_geotop=True)
     assert regis_geotop_ds.dims['layer'] == 5
 
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
@@ -195,9 +195,9 @@ def test_create_sea_model_grid_only(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 100., 100.,
-                                                        use_regis=True,
-                                                        use_geotop=True)
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent, 100., 100.,
+                                                                 use_regis=True,
+                                                                 use_geotop=True)
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
                                                             keep_vars=[
@@ -215,9 +215,9 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000., 105000., 494000., 500000.]
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50., 50.)
-    regis_geotop_ds = nlmod.read.regis.get_layer_models(extent, 50., 50.,
-                                                        use_regis=True,
-                                                        use_geotop=True)
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent, 50., 50.,
+                                                                 use_regis=True,
+                                                                 use_geotop=True)
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
                                                             keep_vars=[
@@ -324,13 +324,13 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.read.rws.get_sea_and_lakes(model_ds,
-                                                gwf.modelgrid,
-                                                da_name)
+    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
+                                                             gwf.modelgrid,
+                                                             da_name)
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
-    model_ds = nlmod.read.ahn.get_ahn_dataset(model_ds)
+    model_ds = nlmod.read.ahn.get_ahn_at_grid(model_ds)
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
@@ -338,7 +338,7 @@ def test_create_sea_model_perlen_list(tmpdir):
         model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
-    model_ds = nlmod.read.knmi.get_recharge(model_ds)
+    model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds)
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 
@@ -388,13 +388,13 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds = nlmod.read.rws.get_sea_and_lakes(model_ds,
-                                                gwf.modelgrid,
-                                                da_name)
+    model_ds = nlmod.read.rws.surface_water_to_model_dataset(model_ds,
+                                                             gwf.modelgrid,
+                                                             da_name)
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
-    model_ds = nlmod.read.ahn.get_ahn_dataset(model_ds)
+    model_ds = nlmod.read.ahn.get_ahn_at_grid(model_ds)
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
@@ -402,7 +402,7 @@ def test_create_sea_model_perlen_14(tmpdir):
         model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
-    model_ds = nlmod.read.knmi.get_recharge(model_ds)
+    model_ds = nlmod.read.knmi.add_knmi_to_model_dataset(model_ds)
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 

@@ -75,10 +75,11 @@ def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
 def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                           delr=100., delc=100.):
 
-    regis_geotop_ds = regis.get_layer_models(extent, delr, delc,
-                                             use_regis=True, use_geotop=True,
-                                             cachedir=None,
-                                             use_cache=False)
+    regis_geotop_ds = regis.get_combined_layer_models(extent, delr, delc,
+                                                     use_regis=True, 
+                                                     use_geotop=True,
+                                                     cachedir=None,
+                                                     use_cache=False)
 
     assert regis_geotop_ds.dims['layer'] == 24
 
@@ -90,11 +91,12 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
 def test_get_regis_geotop_keep_all_layers(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                                           delr=100., delc=100.):
 
-    regis_geotop_ds = regis.get_layer_models(extent, delr, delc,
-                                             use_regis=True, use_geotop=True,
-                                             remove_nan_layers=False,
-                                             cachedir=None,
-                                             use_cache=False)
+    regis_geotop_ds = regis.get_combined_layer_models(extent, delr, delc,
+                                                     use_regis=True, 
+                                                     use_geotop=True,
+                                                     remove_nan_layers=False,
+                                                     cachedir=None,
+                                                     use_cache=False)
 
     assert regis_geotop_ds.dims['layer'] == 135
 

@@ -10,9 +10,37 @@ import numpy as np
 import xarray as xr
 import pickle
 import numbers
+import importlib
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def clear_cache(cachedir):
+    """ clears the cache in a given cache directory by removing all .pklz and
+    corresponding .nc files.
+
+    Parameters
+    ----------
+    cachedir : str
+        path to cache directory.
+
+    Returns
+    -------
+    None.
+
+    """
+    ans = input('this will remove all cached files in {cachedir} are you sure [Y/N]')
+    if ans.lower() != 'y':
+        return
+
+    for fname in os.listdir(cachedir):
+        # assuming all pklz files belong to a cached netcdf file
+        if fname.endswith('.pklz'):
+            fname_nc = fname.replace('.pklz', '.nc')
+            os.remove(os.path.join(cachedir, fname))
+            os.remove(os.path.join(cachedir, fname_nc))
+            logger.info(f'removing {fname} and {fname_nc}')
 
 
 def _check_model_ds(model_ds, model_ds2, check_grid=True):
@@ -129,14 +157,15 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
         raise ValueError('no gridtype defined cannot compare model datasets')
 
 
-def _is_valid_cache(func_args_dic, func_args_dic_cache):
+def _same_function_arguments(func_args_dic, func_args_dic_cache):
     """ checks if two dictionaries with function arguments are identical by
     checking:
         1. if they have the same keys
-        2. if the items have the same dtype
-        3. if the items have the same values (only if they have the type int, 
+        2. if the items have the same type
+        3. if the items have the same values (only possible for the types: int, 
                                               float, bool, str, bytes, list, 
-                                              tuple or np.ndarray)
+                                              tuple, dict, np.ndarray, 
+                                              xr.DataArray)
 
     Parameters
     ----------
@@ -182,7 +211,8 @@ def _is_valid_cache(func_args_dic, func_args_dic_cache):
                 logger.info('cache was created using different DataArrays, do not use cached data')
                 return False
         elif isinstance(item, dict):
-            if not _is_valid_cache(item, func_args_dic_cache[key]):
+            # recursive checking
+            if not _same_function_arguments(item, func_args_dic_cache[key]):
                 logger.info('cache was created using different dictionaries, do not use cached data')
                 return False
         else:
@@ -193,7 +223,52 @@ def _is_valid_cache(func_args_dic, func_args_dic_cache):
     return True
 
 
+def _get_modification_time(func):
+    """ return the modification time of the module where func is defined.
+
+    Parameters
+    ----------
+    func : function
+        function.
+
+    Returns
+    -------
+    float
+        modification time of module.
+
+    """
+    mod = func.__module__
+    active_mod = importlib.import_module(mod.split('.')[0])
+    if '.' in mod:
+        for submod in mod.split('.')[1:]:
+            active_mod = getattr(active_mod, submod)
+
+    return os.path.getmtime(active_mod.__file__)
+
+
 def cache_netcdf(func):
+    """ decorator to read/write the result of a function from/to a file to
+    speed up function calls with the same arguments. Should only be applied to
+    functions that:
+        - return an Xarray Dataset
+        - have no more than one xarray dataset as function argument
+        - have functions arguments of types that can be checked using the
+        _is_valid_cache functions
+
+    1. The directory and filename of the cache should be defined by the person
+    calling a function with this decorator. If not defined no cache is
+    created nor used.
+    2. Create a new cached file if it is impossible to check if the function 
+    arguments used to create the cached file are the same as the current
+    function arguments. This can happen if one of the function arguments has a 
+    type that cannot be checked using the _is_valid_cache function.
+    3. Function arguments are pickled together with the cache to check later
+    if the cache is valid.
+    4. If one of the function arguments is an xarray Dataset it is not pickled.
+    Therefore we cannot check if this function argument is identical for the
+    cached data and the new function call. We do check if the xarray Dataset
+    coördinates correspond to the coördinates of the cached netcdf file. 
+    """
 
     @functools.wraps(func)
     def decorator(*args, cachedir=None, cachename=None, **kwargs):
@@ -204,10 +279,10 @@ def cache_netcdf(func):
         if not cachename.endswith('.nc'):
             cachename += '.nc'
 
-        fname_cache = os.path.join(cachedir, cachename)
+        fname_cache = os.path.join(cachedir, cachename)  # netcdf file
+        fname_pickle_cache = fname_cache.replace('.nc', '.pklz')  # pickle with function arguments
 
-        # check if cache is valid
-        fname_pickle_cache = fname_cache.replace('.nc', '.pklz')
+        # create dictionary with function arguments
         func_args_dic = {f'arg{i}': args[i] for i in range(len(args))}
         func_args_dic.update(kwargs)
 
@@ -219,31 +294,42 @@ def cache_netcdf(func):
                     raise TypeError('function was called with multiple xarray dataset arguments')
                 dataset = func_args_dic.pop(key)
 
+        # only use cache if the cache file and the pickled function arguments exist
         if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
             with open(fname_pickle_cache, "rb") as f:
                 func_args_dic_cache = pickle.load(f)
 
-            valid_cache = _is_valid_cache(func_args_dic, func_args_dic_cache)
+            # check if the module where the function is defined was changed
+            # after the cache was created
+            time_mod_func = _get_modification_time(func)
+            time_mod_cache = os.path.getmtime(fname_cache)
+            modification_check = time_mod_cache < time_mod_func
 
-            if valid_cache:
+            # check if cache was created with same function arguments as
+            # function call
+            argument_check = _same_function_arguments(func_args_dic,
+                                                      func_args_dic_cache)
+
+            if modification_check and argument_check:
                 cached_ds = xr.open_dataset(fname_cache)
                 if dataset is None:
                     logger.info(f'using cached data -> {cachename}')
                     return cached_ds
 
-                # check dataset
+                # check if cached dataset has same grid and time discretisation
+                # as current dataset
                 if _check_model_ds(dataset, cached_ds):
                     logger.info(f'using cached data -> {cachename}')
                     return cached_ds
 
-        # create cache if cache is invalid
+        # create cache
         result = func(*args, **kwargs)
-
         logger.info(f'caching data -> {cachename}')
 
         if isinstance(result, xr.Dataset):
+            # write netcdf cache
             result.to_netcdf(fname_cache)
-
+            # pickle function arguments
             with open(fname_pickle_cache, 'wb') as fpklz:
                 pickle.dump(func_args_dic, fpklz)
         else:

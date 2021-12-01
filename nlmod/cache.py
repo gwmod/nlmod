@@ -303,7 +303,10 @@ def cache_netcdf(func):
             # after the cache was created
             time_mod_func = _get_modification_time(func)
             time_mod_cache = os.path.getmtime(fname_cache)
-            modification_check = time_mod_cache < time_mod_func
+            modification_check = time_mod_cache > time_mod_func
+            
+            if not modification_check:
+                logger.info(f'module of function {func.__name__} recently modified, not using cache')
 
             # check if cache was created with same function arguments as
             # function call

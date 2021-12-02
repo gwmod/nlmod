@@ -282,6 +282,7 @@ def ic_from_model_ds(model_ds, gwf,
     elif isinstance(starting_head, numbers.Number):
         model_ds['starting_head'] = starting_head * \
             xr.ones_like(model_ds['idomain'])
+        model_ds['starting_head'].attrs['units'] = 'mNAP'    
         starting_head = 'starting_head'
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',

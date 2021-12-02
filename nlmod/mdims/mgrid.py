@@ -28,7 +28,7 @@ import copy
 
 from .. import mfpackages, util
 from ..read import jarkus
-from . import resample
+from . import resample, mlayers
 
 logger = logging.getLogger(__name__)
 
@@ -195,8 +195,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                                           fill_mask)
 
         # update idomain on adjusted tops and bots
-        model_ds['thickness'] = get_thickness_from_topbot(model_ds['top'],
-                                                          model_ds['bot'])
+        model_ds['thickness'], top3d = mlayers.calculate_thickness(model_ds)
         model_ds['idomain'] = update_idomain_from_thickness(model_ds['idomain'],
                                                             model_ds['thickness'],
                                                             model_ds['northsea'])
@@ -1161,6 +1160,8 @@ def get_thickness_from_topbot(top, bot):
         raster with thickness of each cell. dimensions should be (layer, y,x)
         or (layer, cid).
     """
+    DeprecationWarning('function is deprecated please use calculate_thickness function instead')
+    
     if np.ndim(top) > 2:
         raise NotImplementedError('function works only for 2d top')
 
@@ -1388,7 +1389,6 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
     logger.info('replace nan values for inactive layers with dummy value')
 
     if gridtype == 'structured':
-
         model_ds = add_top_bot_structured(ml_layer_ds, model_ds,
                                           nodata=nodata,
                                           max_percentage=max_percentage)

@@ -15,45 +15,14 @@ import test_001_model
 tmpdir = tempfile.gettempdir()
 
 
-def test_delr_delc_extent_check():
-
-    model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
-    dic = {}
-    dic['delr'] = model_ds.delr
-    dic['delc'] = model_ds.delc
-    dic['extent'] = model_ds.extent
-
-    check = nlmod.util.check_delr_delc_extent(dic, model_ds)
-
-    assert check
-
-    dic['delr'] = 1.
-
-    check = nlmod.util.check_delr_delc_extent(dic, model_ds)
-
-    assert check == False
-
-    dic['delc'] = 1.
-
-    check = nlmod.util.check_delr_delc_extent(dic, model_ds)
-
-    assert check == False
-
-    dic['extent'][0] = 10000.0
-
-    check = nlmod.util.check_delr_delc_extent(dic, model_ds)
-
-    assert check == False
-
-
 def test_model_ds_check_true():
 
     # two models with the same grid and time dicretisation
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
     model_ds2 = model_ds.copy()
 
-    check = nlmod.util.check_model_ds(model_ds, model_ds2,
-                                      check_grid=True, check_time=True)
+    check = nlmod.cache._check_model_ds(model_ds, model_ds2,
+                                        check_grid=True)
 
     assert check
 
@@ -64,13 +33,11 @@ def test_model_ds_check_time_false():
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
     model_ds2 = test_001_model.test_model_ds_time_steady(tmpdir)
 
-    check = nlmod.util.check_model_ds(model_ds, model_ds2,
-                                      check_grid=True, check_time=True)
+    check = nlmod.cache._check_model_ds(model_ds, model_ds2)
 
     assert check == False
 
-    check = nlmod.util.check_model_ds(model_ds, model_ds2,
-                                      check_grid=False, check_time=True)
+    
 
 
 @pytest.mark.slow
@@ -83,10 +50,11 @@ def test_model_ds_check_grid_false():
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent,
                                                               50.,
                                                               50.)
-    regis_ds = nlmod.read.regis.get_layer_models(extent, 50., 50.,
-                                                 use_regis=True,
-                                                 use_geotop=False,
-                                                 )
+    regis_ds = nlmod.read.regis.get_combined_layer_models(extent, 
+                                                          50., 50.,
+                                                          use_regis=True,
+                                                          use_geotop=False,
+                                                          )
 
     model_ds2 = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds2,
                                                              regis_ds,
@@ -95,8 +63,8 @@ def test_model_ds_check_grid_false():
                                                              gridtype='structured',
                                                              )
 
-    check = nlmod.util.check_model_ds(model_ds, model_ds2,
-                                      check_grid=True, check_time=False)
+    check = nlmod.cache._check_model_ds(model_ds, model_ds2)
+    
     assert check == False
 
 

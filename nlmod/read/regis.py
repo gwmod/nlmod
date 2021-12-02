@@ -84,6 +84,7 @@ def get_combined_layer_models(extent, delr, delc,
     return combined_ds
 
 
+@cache.cache_netcdf
 def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
     """get a regis dataset projected on the modelgrid.
 

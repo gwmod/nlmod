@@ -125,9 +125,6 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     cachedir : str, optional
         directory to store cached values, if None a temporary directory is
         used. default is None
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used. 
-        The default is False.
 
     Returns
     -------

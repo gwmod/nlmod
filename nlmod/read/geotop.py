@@ -8,12 +8,12 @@ import datetime as dt
 import pandas as pd
 import xarray as xr
 
-from .. import mdims
+from .. import mdims, cache
 from . import regis
 
 logger = logging.getLogger(__name__)
 
-
+@cache.cache_netcdf
 def get_geotop_dataset(extent, delr, delc,
                        regis_ds, regis_layer='HLc'):
     """get a model layer dataset for modflow from geotop within a certain

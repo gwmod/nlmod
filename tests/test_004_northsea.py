@@ -61,7 +61,7 @@ def test_fill_top_bot_kh_kv_seamodel():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('basic_sea_model')
-    model_ds = nlmod.read.jarkus.find_sea_cells(model_ds)
+    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
 
     fill_mask = (model_ds['first_active_layer'] ==
                  model_ds.nodata) * model_ds['northsea']
@@ -74,7 +74,7 @@ def test_fill_top_bot_kh_kv_nosea():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
-    model_ds = nlmod.read.jarkus.find_sea_cells(model_ds)
+    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
 
     fill_mask = (model_ds['first_active_layer'] ==
                  model_ds.nodata) * model_ds['northsea']
@@ -87,7 +87,7 @@ def test_get_bathymetrie_seamodel():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('basic_sea_model')
-    model_ds = nlmod.read.jarkus.find_sea_cells(model_ds)
+    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
     model_ds_bathymetry = nlmod.read.jarkus.bathymetry_to_model_dataset(
         model_ds, model_ds['northsea'])
 
@@ -100,7 +100,7 @@ def test_get_bathymetrie_nosea():
 
     # model without sea
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
-    model_ds = nlmod.read.jarkus.find_sea_cells(model_ds)
+    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
     model_ds_bathymetry = nlmod.read.jarkus.bathymetry_to_model_dataset(
         model_ds, model_ds['northsea'])
 
@@ -113,7 +113,7 @@ def test_add_bathymetrie_to_top_bot_kh_kv_seamodel():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('basic_sea_model')
-    model_ds = nlmod.read.jarkus.find_sea_cells(model_ds)
+    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
     model_ds.update(nlmod.read.jarkus.bathymetry_to_model_dataset(
         model_ds, model_ds['northsea']))
 

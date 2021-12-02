@@ -336,8 +336,9 @@ def cache_netcdf(func):
 
         if isinstance(result, xr.Dataset):
             # close cached netcdf (otherwise it is impossible to overwrite)
-            cached_ds = xr.open_dataset(fname_cache)
-            cached_ds.close()
+            if os.path.exists(fname_cache):
+                cached_ds = xr.open_dataset(fname_cache)
+                cached_ds.close()
 		
             # write netcdf cache
             result.to_netcdf(fname_cache)

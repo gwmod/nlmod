@@ -158,7 +158,11 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
         regis_ds[datavar].attrs['source'] = 'REGIS'
         regis_ds[datavar].attrs['url'] = regis_url
         regis_ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
-
+        if datavar in ['top', 'bot']:
+            regis_ds[datavar].attrs['units'] = 'mNAP'
+        elif datavar in ['kh', 'kv']:
+            regis_ds[datavar].attrs['units'] = 'm/day'
+            
     return regis_ds
 
 
@@ -269,6 +273,11 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         regis_geotop_ds[key].attrs['regis_url'] = regis_ds[key].url
         regis_geotop_ds[key].attrs['geotop_url'] = geotop_ds[key].url
         regis_geotop_ds[key].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        if key in ['top', 'bot']:
+            regis_geotop_ds[key].attrs['units'] = 'mNAP'
+        elif key in ['kh', 'kv']:
+            regis_geotop_ds[key].attrs['units'] = 'm/day'
+            
 
     return regis_geotop_ds
 

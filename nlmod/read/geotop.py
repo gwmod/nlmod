@@ -81,6 +81,10 @@ def get_geotop_dataset(extent, delr, delc,
         geotop_ds[datavar].attrs['source'] = 'Geotop'
         geotop_ds[datavar].attrs['url'] = geotop_url
         geotop_ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        if datavar in ['top', 'bot']:
+            geotop_ds[datavar].attrs['units'] = 'mNAP'
+        elif datavar in ['kh', 'kv']:
+            geotop_ds[datavar].attrs['units'] = 'm/day'
 
     return geotop_ds
 

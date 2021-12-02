@@ -165,6 +165,7 @@ def add_knmi_to_model_dataset(model_ds,
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'KNMI'
         model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        model_ds_out[datavar].attrs['units'] = 'm/day'
 
     return model_ds_out
 

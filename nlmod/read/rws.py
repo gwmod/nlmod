@@ -76,11 +76,15 @@ def surface_water_to_model_dataset(model_ds, da_name, gridprops=None):
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out[f'{da_name}_area'] = area
+    model_ds_out[f'{da_name}_area'].attrs['units'] = 'm2'
     model_ds_out[f'{da_name}_cond'] = cond
+    model_ds_out[f'{da_name}_cond'].attrs['units'] = 'm2/day'
     model_ds_out[f'{da_name}_peil'] = peil
+    model_ds_out[f'{da_name}_peil'].attrs['units'] = 'mNAP'
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'RWS'
         model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        
 
     return model_ds_out

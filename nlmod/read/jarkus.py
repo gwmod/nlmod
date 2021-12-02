@@ -125,6 +125,8 @@ def bathymetry_to_model_dataset(model_ds, northsea,
         model_ds_out[datavar].attrs['source'] = 'Jarkus'
         model_ds_out[datavar].attrs['url'] = url
         model_ds_out[datavar].attrs['source'] = dt.datetime.now().strftime('%Y%m%d')
+        if datavar == 'bathymetry':
+            model_ds_out[datavar].attrs['units'] = 'mNAP'
 
     return model_ds_out
 

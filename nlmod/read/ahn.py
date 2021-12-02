@@ -9,6 +9,7 @@ import os
 import tempfile
 
 import numpy as np
+import datetime as dt
 import rasterio
 import xarray as xr
 from owslib.wcs import WebCoverageService
@@ -53,8 +54,11 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
             'gridprops should be specified when gridtype is unstructured')
 
     cachedir = os.path.join(model_ds.model_ws, 'cache')
+    
+    url = _infer_url(identifier)
 
     fname_ahn = get_ahn_within_extent(extent=model_ds.extent,
+                                      url=url,
                                       identifier=identifier,
                                       cache=True,
                                       cache_dir=cachedir)
@@ -79,6 +83,14 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]
+    
+    for datavar in model_ds_out:
+        model_ds_out[datavar].attrs['source'] = identifier
+        model_ds_out[datavar].attrs['url'] = url
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        if datavar == 'ahn':
+            model_ds_out[datavar].attrs['units'] = 'mNAP'
+        
 
     return model_ds_out
 
@@ -159,6 +171,41 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
     return fname
 
 
+def _infer_url(identifier=None):
+    """ infer the url from the identifier
+    
+
+    Parameters
+    ----------
+    url : TYPE, optional
+        DESCRIPTION. The default is None.
+    identifier : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    url : TYPE
+        DESCRIPTION.
+
+    """
+    
+    # infer url from identifier
+    if 'ahn2' in identifier:
+        url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
+               'request=GetCapabilities&service=WCS')
+    elif 'ahn3' in identifier:
+        url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
+               'request=GetCapabilities&service=WCS')
+    else:
+        ValueError(f'unknown identifier -> {identifier}')
+        
+    return url
+
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', format='GEOTIFF_FLOAT32',
                           crs='EPSG:28992', cache=True, cache_dir=None,
@@ -217,24 +264,16 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     if isinstance(extent, xr.DataArray):
         extent = tuple(extent.values)
 
-    # check or infer url
+    # get url
     if url is None:
-        # infer url from identifier
-        if 'ahn2' in identifier:
-            url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
-                   'request=GetCapabilities&service=WCS')
-        elif 'ahn3' in identifier:
-            url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
-                   'request=GetCapabilities&service=WCS')
-        else:
-            ValueError(f'unknown identifier -> {identifier}')
+        url = _infer_url(identifier)
     elif url == 'ahn2':
         url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
                'request=GetCapabilities&service=WCS')
     elif url == 'ahn3':
         url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
                'request=GetCapabilities&service=WCS')
-    else:
+    elif not url.startswith("https://geodata.nationaalgeoregister.nl"):
         raise ValueError(f'unknown url -> {url}')
 
     # check resolution

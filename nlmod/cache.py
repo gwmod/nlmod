@@ -30,7 +30,7 @@ def clear_cache(cachedir):
     None.
 
     """
-    ans = input('this will remove all cached files in {cachedir} are you sure [Y/N]')
+    ans = input(f'this will remove all cached files in {cachedir} are you sure [Y/N]')
     if ans.lower() != 'y':
         return
 
@@ -39,6 +39,11 @@ def clear_cache(cachedir):
         if fname.endswith('.pklz'):
             fname_nc = fname.replace('.pklz', '.nc')
             os.remove(os.path.join(cachedir, fname))
+            
+            # make sure cached netcdf is closed
+            cached_ds = xr.open_dataset(fname_nc)
+            cached_ds.close()
+            
             os.remove(os.path.join(cachedir, fname_nc))
             logger.info(f'removing {fname} and {fname_nc}')
 
@@ -324,12 +329,16 @@ def cache_netcdf(func):
                 if _check_model_ds(dataset, cached_ds):
                     logger.info(f'using cached data -> {cachename}')
                     return cached_ds
-
+					
         # create cache
         result = func(*args, **kwargs)
         logger.info(f'caching data -> {cachename}')
 
         if isinstance(result, xr.Dataset):
+            # close cached netcdf (otherwise it is impossible to overwrite)
+            cached_ds = xr.open_dataset(fname_cache)
+            cached_ds.close()
+		
             # write netcdf cache
             result.to_netcdf(fname_cache)
             # pickle function arguments

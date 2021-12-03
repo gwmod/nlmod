@@ -240,9 +240,9 @@ def add_bathymetry_to_top_bot_kh_kv(model_ds, bathymetry,
     model_ds : xarray.Dataset
         dataset with model data where the top, bot, kh and kv are changed
     """
-    model_ds['top'] = xr.where(fill_mask,
-                               0.0,
-                               model_ds['top'])
+    model_ds['top'].values = np.where(fill_mask,
+                                      0.0,
+                                      model_ds['top'])
 
     lay = 0
     model_ds['bot'][lay] = xr.where(fill_mask,

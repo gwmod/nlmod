@@ -121,6 +121,30 @@ def get_model_ds_empty(model_ds):
         return model_ds_out
     else:
         raise ValueError('no gridtype defined cannot compare model datasets')
+    
+def get_da_from_da_ds(da_ds, dims=('y','x'), data=None):
+    """get a dataarray from model_ds with certain dimensions.
+
+    Parameters
+    ----------
+    da_ds : xr.Dataset or xr.DataArray
+        Dataset or DataArray with at least the dimensions defined in dims
+    dims : tuple of string, optional
+        dimensions of the desired data array. Default is 'y', 'x'
+    data : None, int, float, array_like, optional
+        data to fill data array with. if None DataArray is filled with nans.
+        Default is None.
+
+    Returns
+    -------
+    da : xr.DataArray
+        DataArray with coordinates from model_ds
+    """
+    coords = {dim:da_ds[dim] for dim in dims}
+    da = xr.DataArray(data, dims=dims,
+                      coords=coords)
+            
+    return da
 
 
 def find_most_recent_file(folder, name, extension='.pklz'):

@@ -148,7 +148,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
 
     model_ds = add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                                        gridtype=gridtype)
-
+    
     model_ds = add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds,
                                                   model_ds,
                                                   anisotropy,
@@ -182,7 +182,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         model_ds = fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
                                               gridtype=gridtype,
                                               gridprops=gridprops)
-
+        
         # add bathymetry noordzee
         model_ds.update(jarkus.bathymetry_to_model_dataset(model_ds,
                                                            model_ds['northsea'],
@@ -201,7 +201,6 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                                             model_ds['northsea'])
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
             model_ds['idomain'])
-
         if gridtype == 'vertex':
             gridprops['top'] = model_ds['top'].data
             gridprops['botm'] = model_ds['bot'].data
@@ -209,7 +208,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     else:
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
                 model_ds['idomain'])
-
+    
     return model_ds
 
 
@@ -1013,13 +1012,13 @@ def polygon_to_area(modelgrid, polygon, da,
     ix = GridIntersect(modelgrid)
     opp_cells = ix.intersect(polygon)
 
-    area_array = xr.zeros_like(da)
-
     if gridtype == 'structured':
+        area_array = util.get_da_from_da_ds(da, dims=('y','x'))
         for opp_row in opp_cells:
             area = opp_row[-2]
             area_array[opp_row[0][0], opp_row[0][1]] = area
     elif gridtype == 'vertex':
+        area_array = util.get_da_from_da_ds(da, dims=('cid'))
         cids = opp_cells.cellids
         area = opp_cells.areas
         area_array[cids.astype(int)] = area
@@ -1050,8 +1049,15 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
 
     # build list of gridcells
     ix = GridIntersect(mfgrid, method="vertex")
+    
+    if model_ds.gridtype == 'structured':
+        da = util.get_da_from_da_ds(model_ds, dims=('y','x'), data=0)
+    elif model_ds.gridtype == 'vertex':
+        da = util.get_da_from_da_ds(model_ds, dims=('cid'), data=0)
+    else:
+        raise ValueError('function only support structured or vertex gridtypes')
 
-    da = xr.zeros_like(model_ds['top'])
+    
 
     if isinstance(gdf, gpd.GeoDataFrame):
         geoms = gdf.geometry.values
@@ -1073,9 +1079,7 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
                 da[cid[0], cid[1]] = 1
         elif model_ds.gridtype == 'vertex':
             da[cids] = 1
-        else:
-            raise ValueError(
-                'function only support structured or vertex gridtypes')
+            
 
     return da
 
@@ -1166,7 +1170,13 @@ def get_thickness_from_topbot(top, bot):
         raise NotImplementedError('function works only for 2d top')
 
     # get thickness
-    thickness = xr.zeros_like(bot)
+    if bot.ndim == 3:
+        thickness = util.get_da_from_da_ds(bot, dims=('layer','y','x'))
+    elif bot.ndim == 2:
+        thickness = util.get_da_from_da_ds(bot, dims=('layer','cid'))
+    else:
+        raise ValueError('function only support structured or vertex gridtypes')
+        
     for lay in range(len(bot)):
         if lay == 0:
             thickness[lay] = top - bot[lay]
@@ -1225,7 +1235,7 @@ def update_idomain_from_thickness(idomain, thickness, mask):
 
 def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
                                        fill_value_kh, fill_value_kv):
-    """add kh and kv from a model layer dataset to THE model dataset.
+    """add kh and kv from a model layer dataset to the model dataset.
 
     Supports structured and vertex grids.
 
@@ -1263,10 +1273,17 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
     kh, kv = get_kh_kv(kh_arr, kv_arr, anisotropy,
                        fill_value_kh=fill_value_kh,
                        fill_value_kv=fill_value_kv)
+    
+    if model_ds.gridtype=='structured':
+        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer','y','x' ),
+                                         data=1)
+    elif model_ds.gridtype=='vertex':
+        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer','cid'),
+                                         data=1)
+        
+    model_ds['kh'] = da_ones * kh
 
-    model_ds['kh'] = xr.ones_like(model_ds['idomain']) * kh
-
-    model_ds['kv'] = xr.ones_like(model_ds['idomain']) * kv
+    model_ds['kv'] = da_ones * kv
 
     # keep attributes for bot en top
     for datavar in ['kh', 'kv']:
@@ -1752,7 +1769,7 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
     """
 
     # zee cellen hebben altijd een top gelijk aan 0
-    model_ds['top'] = xr.where(fill_mask, 0, model_ds['top'])
+    model_ds['top'].values = np.where(fill_mask, 0, model_ds['top'])
 
     if gridtype == 'structured':
         fill_function = resample.fillnan_dataarray_structured_grid
@@ -1799,4 +1816,5 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
                                            model_ds['kv'][lay],
                                            kv_filled)
 
+    
     return model_ds

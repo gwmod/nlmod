@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def add_knmi_to_model_dataset(model_ds,
-                              nodata=None,
-                              use_cache=False):
+def get_recharge(model_ds,
+                 nodata=None,
+                 use_cache=False):
     """ add multiple recharge packages to the groundwater flow model with
     knmi data by following these steps:
     1. check for each cell (structured or vertex) which knmi measurement

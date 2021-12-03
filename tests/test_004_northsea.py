@@ -27,7 +27,7 @@ def test_surface_water_to_dataset():
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
     name = 'surface_water'
-    model_ds_surfwat = nlmod.read.rws.surface_water_to_model_dataset(
+    model_ds_surfwat = nlmod.read.rws.get_surface_water(
             model_ds,
             gwf.modelgrid,
             name)
@@ -39,7 +39,7 @@ def test_get_northsea_seamodel():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('basic_sea_model')
-    model_ds_sea = nlmod.read.jarkus.find_sea_cells(model_ds)
+    model_ds_sea = nlmod.read.rws.get_northsea(model_ds)
 
     assert (model_ds_sea.northsea == 1).sum() > 0
 
@@ -50,7 +50,7 @@ def test_get_northsea_nosea():
 
     # model without sea
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
-    model_ds_sea = nlmod.read.jarkus.find_sea_cells(model_ds)
+    model_ds_sea = nlmod.read.rws.get_northsea(model_ds)
 
     assert (model_ds_sea.northsea == 1).sum() == 0
 
@@ -61,7 +61,7 @@ def test_fill_top_bot_kh_kv_seamodel():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('basic_sea_model')
-    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
+    model_ds.update(nlmod.read.rws.get_northsea(model_ds))
 
     fill_mask = (model_ds['first_active_layer'] ==
                  model_ds.nodata) * model_ds['northsea']
@@ -74,7 +74,7 @@ def test_fill_top_bot_kh_kv_nosea():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
-    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
+    model_ds.update(nlmod.read.rws.get_northsea(model_ds))
 
     fill_mask = (model_ds['first_active_layer'] ==
                  model_ds.nodata) * model_ds['northsea']
@@ -87,9 +87,9 @@ def test_get_bathymetrie_seamodel():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('basic_sea_model')
-    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
-    model_ds_bathymetry = nlmod.read.jarkus.bathymetry_to_model_dataset(
-        model_ds, model_ds['northsea'])
+    model_ds.update(nlmod.read.rws.get_northsea(model_ds))
+    model_ds_bathymetry = nlmod.read.jarkus.get_bathymetry(model_ds, 
+                                                           model_ds['northsea'])
 
     assert (~model_ds_bathymetry.bathymetry.isnull()).sum() > 0
 
@@ -100,9 +100,9 @@ def test_get_bathymetrie_nosea():
 
     # model without sea
     model_ds = test_001_model.test_get_model_ds_from_cache('small_model')
-    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
-    model_ds_bathymetry = nlmod.read.jarkus.bathymetry_to_model_dataset(
-        model_ds, model_ds['northsea'])
+    model_ds.update(nlmod.read.rws.get_northsea(model_ds))
+    model_ds_bathymetry = nlmod.read.jarkus.get_bathymetry(model_ds, 
+                                                           model_ds['northsea'])
 
     assert (~model_ds_bathymetry.bathymetry.isnull()).sum() == 0
 
@@ -113,9 +113,9 @@ def test_add_bathymetrie_to_top_bot_kh_kv_seamodel():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache('basic_sea_model')
-    model_ds.update(nlmod.read.jarkus.find_sea_cells(model_ds))
-    model_ds.update(nlmod.read.jarkus.bathymetry_to_model_dataset(
-        model_ds, model_ds['northsea']))
+    model_ds.update(nlmod.read.rws.get_northsea(model_ds))
+    model_ds.update(nlmod.read.jarkus.get_bathymetry(model_ds, 
+                                                     model_ds['northsea']))
 
     fill_mask = (model_ds['first_active_layer'] ==
                  model_ds.nodata) * model_ds['northsea']

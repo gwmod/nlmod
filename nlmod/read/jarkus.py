@@ -23,45 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def find_sea_cells(model_ds, gridprops=None, da_name='northsea'):
-    """Get Dataset which is 1 at sea and 0 everywhere else. Sea is defined by
-    opp_water shapefile grid is defined in model_ds.
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        xarray with model data
-    gridprops : dictionary
-        dictionary with grid properties output from gridgen.
-    da_name : str, optional
-        name of the datavar that identifies sea cells
-
-    Returns
-    -------
-    model_ds_out : xr.DataSet
-        Dataset with a single DataArray, this DataArray is 1 at sea and 0
-        everywhere else. Grid dimensions according to model_ds.
-    """
-
-    gdf_surf_water = rws.get_gdf_surface_water(model_ds)
-
-    # find grid cells with sea
-    swater_zee = gdf_surf_water[gdf_surf_water['OWMNAAM'].isin(['Rijn territoriaal water',
-                                                                'Waddenzee',
-                                                                'Waddenzee vastelandskust',
-                                                                'Hollandse kust (kustwater)',
-                                                                'Waddenkust (kustwater)'])]
-
-    modelgrid = mdims.modelgrid_from_model_ds(model_ds, gridprops=gridprops)
-    model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee,
-                                             modelgrid, da_name)
-
-    return model_ds_out
-
-
-@cache.cache_netcdf
-def bathymetry_to_model_dataset(model_ds, northsea,
-                                gridprops=None):
+def get_bathymetry(model_ds, northsea,
+                   gridprops=None):
     """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters

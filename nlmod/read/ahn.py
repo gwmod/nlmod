@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
+def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     """Get a model dataset with ahn variable.
 
     Parameters

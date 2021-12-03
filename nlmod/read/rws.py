@@ -36,7 +36,7 @@ def get_gdf_surface_water(model_ds):
 
 
 @cache.cache_netcdf
-def surface_water_to_model_dataset(model_ds, da_name, gridprops=None):
+def get_surface_water(model_ds, da_name, gridprops=None):
     """create 3 data-arrays from the shapefile with surface water:
 
     - area: with the area of the shape in the cell
@@ -85,6 +85,42 @@ def surface_water_to_model_dataset(model_ds, da_name, gridprops=None):
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'RWS'
         model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
-        
+
+    return model_ds_out
+
+
+@cache.cache_netcdf
+def get_northsea(model_ds, gridprops=None, da_name='northsea'):
+    """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is 
+    defined by rws surface water shapefile.
+
+    Parameters
+    ----------
+    model_ds : xr.DataSet
+        xarray with model data
+    gridprops : dictionary
+        dictionary with grid properties output from gridgen.
+    da_name : str, optional
+        name of the datavar that identifies sea cells
+
+    Returns
+    -------
+    model_ds_out : xr.DataSet
+        Dataset with a single DataArray, this DataArray is 1 at sea and 0
+        everywhere else. Grid dimensions according to model_ds.
+    """
+
+    gdf_surf_water = get_gdf_surface_water(model_ds)
+
+    # find grid cells with sea
+    swater_zee = gdf_surf_water[gdf_surf_water['OWMNAAM'].isin(['Rijn territoriaal water',
+                                                                'Waddenzee',
+                                                                'Waddenzee vastelandskust',
+                                                                'Hollandse kust (kustwater)',
+                                                                'Waddenkust (kustwater)'])]
+
+    modelgrid = mdims.modelgrid_from_model_ds(model_ds, gridprops=gridprops)
+    model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee,
+                                             modelgrid, da_name)
 
     return model_ds_out

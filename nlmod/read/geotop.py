@@ -14,8 +14,8 @@ from . import regis
 logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf
-def get_geotop_dataset(extent, delr, delc,
-                       regis_ds, regis_layer='HLc'):
+def get_geotop(extent, delr, delc,
+               regis_ds, regis_layer='HLc'):
     """get a model layer dataset for modflow from geotop within a certain
     extent and grid.
 

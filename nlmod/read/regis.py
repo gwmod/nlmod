@@ -60,12 +60,12 @@ def get_combined_layer_models(extent, delr, delc,
     """
 
     if use_regis:
-        regis_ds = get_regis_dataset(extent, delr, delc, regis_botm_layer)
+        regis_ds = get_regis(extent, delr, delc, regis_botm_layer)
     else:
         raise ValueError('layer models without REGIS not supported')
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop_dataset(extent, delr, delc, regis_ds)
+        geotop_ds = geotop.get_geotop(extent, delr, delc, regis_ds)
 
     if use_regis and use_geotop:
         regis_geotop_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)
@@ -85,7 +85,7 @@ def get_combined_layer_models(extent, delr, delc,
 
 
 @cache.cache_netcdf
-def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
+def get_regis(extent, delr, delc, botm_layer=b'AKc'):
     """get a regis dataset projected on the modelgrid.
 
     Parameters

@@ -27,7 +27,7 @@ from tqdm import tqdm
 import copy
 
 from .. import mfpackages, util
-from ..read import jarkus
+from ..read import jarkus, rws
 from . import resample, mlayers
 
 logger = logging.getLogger(__name__)
@@ -171,10 +171,10 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
             'nan values at the northsea are filled using the bathymetry from jarkus')
         
         # find grid cells with northsea
-        model_ds.update(jarkus.find_sea_cells(model_ds,
-                                              gridprops=gridprops,
-                                              cachedir=cachedir,
-                                              cachename='sea_model_ds.nc'))
+        model_ds.update(rws.find_sea_cells(model_ds,
+                                           gridprops=gridprops,
+                                           cachedir=cachedir,
+                                           cachename='sea_model_ds.nc'))
 
         # fill top, bot, kh, kv at sea cells
         fill_mask = (model_ds['first_active_layer']

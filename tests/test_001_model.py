@@ -182,12 +182,11 @@ def test_create_sea_model(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds.update(nlmod.read.rws.surface_water_to_model_dataset(model_ds,
-                                                                  da_name))
+    model_ds.update(nlmod.read.rws.get_surface_water(model_ds, da_name))
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
-    model_ds.update(nlmod.read.ahn.get_ahn_at_grid(model_ds))
+    model_ds.update(nlmod.read.ahn.get_ahn(model_ds))
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
@@ -195,7 +194,7 @@ def test_create_sea_model(tmpdir):
     nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
-    model_ds.update(nlmod.read.knmi.add_knmi_to_model_dataset(model_ds))
+    model_ds.update(nlmod.read.knmi.get_recharge(model_ds))
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 
@@ -253,12 +252,11 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds.update(nlmod.read.rws.surface_water_to_model_dataset(model_ds,
-                                                                  da_name))
+    model_ds.update(nlmod.read.rws.get_surface_water(model_ds, da_name))
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
-    model_ds.update(nlmod.read.ahn.get_ahn_at_grid(model_ds))
+    model_ds.update(nlmod.read.ahn.get_ahn(model_ds))
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
@@ -266,7 +264,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
-    model_ds.update(nlmod.read.knmi.add_knmi_to_model_dataset(model_ds))
+    model_ds.update(nlmod.read.knmi.get_recharge(model_ds))
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 
@@ -316,12 +314,11 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = 'surface_water'
-    model_ds.update(nlmod.read.rws.surface_water_to_model_dataset(model_ds,
-                                                                  da_name))
+    model_ds.update(nlmod.read.rws.get_surface_water(model_ds, da_name))
     nlmod.mfpackages.ghb_from_model_ds(model_ds, gwf, da_name)
 
     # surface level drain
-    model_ds.update(nlmod.read.ahn.get_ahn_at_grid(model_ds))
+    model_ds.update(nlmod.read.ahn.get_ahn(model_ds))
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
@@ -329,7 +326,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
-    model_ds.update(nlmod.read.knmi.add_knmi_to_model_dataset(model_ds))
+    model_ds.update(nlmod.read.knmi.get_recharge(model_ds))
     # create recharge package
     nlmod.mfpackages.rch_from_model_ds(model_ds, gwf)
 

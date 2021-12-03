@@ -39,13 +39,16 @@ def clear_cache(cachedir):
         # assuming all pklz files belong to a cached netcdf file
         if fname.endswith('.pklz'):
             fname_nc = fname.replace('.pklz', '.nc')
+            
+            # remove pklz file
             os.remove(os.path.join(cachedir, fname))
 
-            # make sure cached netcdf is closed
-            cached_ds = xr.open_dataset(fname_nc)
+            # remove netcdf file (make sure cached netcdf is closed)
+            fpath_nc = os.path.join(cachedir, fname_nc)
+            cached_ds = xr.open_dataset(fpath_nc)
             cached_ds.close()
 
-            os.remove(os.path.join(cachedir, fname_nc))
+            os.remove(fpath_nc)
             logger.info(f'removing {fname} and {fname_nc}')
 
 

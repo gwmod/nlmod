@@ -1013,12 +1013,12 @@ def polygon_to_area(modelgrid, polygon, da,
     opp_cells = ix.intersect(polygon)
 
     if gridtype == 'structured':
-        area_array = util.get_da_from_da_ds(da, dims=('y','x'))
+        area_array = util.get_da_from_da_ds(da, dims=('y','x'), data=0)
         for opp_row in opp_cells:
             area = opp_row[-2]
             area_array[opp_row[0][0], opp_row[0][1]] = area
     elif gridtype == 'vertex':
-        area_array = util.get_da_from_da_ds(da, dims=('cid'))
+        area_array = util.get_da_from_da_ds(da, dims=('cid',), data=0)
         cids = opp_cells.cellids
         area = opp_cells.areas
         area_array[cids.astype(int)] = area
@@ -1053,7 +1053,7 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
     if model_ds.gridtype == 'structured':
         da = util.get_da_from_da_ds(model_ds, dims=('y','x'), data=0)
     elif model_ds.gridtype == 'vertex':
-        da = util.get_da_from_da_ds(model_ds, dims=('cid'), data=0)
+        da = util.get_da_from_da_ds(model_ds, dims=('cid',), data=0)
     else:
         raise ValueError('function only support structured or vertex gridtypes')
 
@@ -1522,7 +1522,7 @@ def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999,
     model_ds['bot'] = xr.DataArray(top_bot[1:], dims=('layer', 'cid'),
                                    coords={'cid': model_ds.cid.data,
                                            'layer': model_ds.layer.data})
-    model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid'),
+    model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid',),
                                    coords={'cid': model_ds.cid.data})
 
     # keep attributes for bot en top

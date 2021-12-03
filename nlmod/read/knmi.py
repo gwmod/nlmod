@@ -64,7 +64,7 @@ def get_recharge(model_ds,
     else:
         if isinstance(perlen, numbers.Number):
             end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen,
-                                                                      unit=model_ds.time_units))
+                                                                        unit=model_ds.time_units))
         elif isinstance(perlen, (list, tuple, np.ndarray)):
             end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen[-1],
                                                                       unit=model_ds.time_units))

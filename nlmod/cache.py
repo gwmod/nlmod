@@ -11,6 +11,7 @@ import xarray as xr
 import pickle
 import numbers
 import importlib
+import inspect
 
 import logging
 logger = logging.getLogger(__name__)
@@ -39,11 +40,11 @@ def clear_cache(cachedir):
         if fname.endswith('.pklz'):
             fname_nc = fname.replace('.pklz', '.nc')
             os.remove(os.path.join(cachedir, fname))
-            
+
             # make sure cached netcdf is closed
             cached_ds = xr.open_dataset(fname_nc)
             cached_ds.close()
-            
+
             os.remove(os.path.join(cachedir, fname_nc))
             logger.info(f'removing {fname} and {fname_nc}')
 
@@ -275,6 +276,27 @@ def cache_netcdf(func):
     coördinates correspond to the coördinates of the cached netcdf file. 
     """
 
+    # add cachedir and cachename to docstring
+    original_doc = func.__doc__
+    if not 'Returns' in original_doc:
+        raise ValueError(f'Function "{func.__name__}" has no "Returns" header in docstring')
+    before, after = original_doc.split('Returns')
+    mod_before = before.strip() + '\n    cachedir : str or None, optional\n        directory to save cache. If None no cache is used. Default is None.\n    cachename : str or None, optional\n        filename of netcdf cache. If None no cache is used. Default is None.\n\n    Returns'
+    new_doc = ''.join((mod_before, after))
+    func.__doc__ = new_doc
+    
+    # add cachedir and cachename to signature
+    sig = inspect.signature(func)
+    cur_param = tuple(sig.parameters.values())
+    new_param = cur_param + (inspect.Parameter('cachedir', 
+                                               inspect.Parameter.POSITIONAL_OR_KEYWORD, 
+                                               default=None),
+                             inspect.Parameter('cachename', 
+                                               inspect.Parameter.POSITIONAL_OR_KEYWORD, 
+                                               default=None))
+    sig = sig.replace(parameters=new_param)
+    func.__signature__ = sig
+
     @functools.wraps(func)
     def decorator(*args, cachedir=None, cachename=None, **kwargs):
 
@@ -309,7 +331,7 @@ def cache_netcdf(func):
             time_mod_func = _get_modification_time(func)
             time_mod_cache = os.path.getmtime(fname_cache)
             modification_check = time_mod_cache > time_mod_func
-            
+
             if not modification_check:
                 logger.info(f'module of function {func.__name__} recently modified, not using cache')
 
@@ -329,7 +351,7 @@ def cache_netcdf(func):
                 if _check_model_ds(dataset, cached_ds):
                     logger.info(f'using cached data -> {cachename}')
                     return cached_ds
-					
+
         # create cache
         result = func(*args, **kwargs)
         logger.info(f'caching data -> {cachename}')
@@ -339,7 +361,7 @@ def cache_netcdf(func):
             if os.path.exists(fname_cache):
                 cached_ds = xr.open_dataset(fname_cache)
                 cached_ds.close()
-		
+
             # write netcdf cache
             result.to_netcdf(fname_cache)
             # pickle function arguments

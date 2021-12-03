@@ -52,10 +52,10 @@ def _polygons_from_model_ds(model_ds):
         ymins = model_ds.y - (model_ds.delc*0.5)
         ymaxs = model_ds.y + (model_ds.delc*0.5)
         polygons = [Polygon([(xmins[i], ymins[j]), (xmins[i], ymaxs[j]), (xmaxs[i], ymaxs[j]), (xmaxs[i], ymins[j])]) for i in range(len(xmins)) for j in range(len(ymins))]
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         polygons = [Polygon(vertices) for vertices in model_ds['vertices'].values]
     else:
-        raise ValueError(f"gridtype must be 'structured' or 'unstructured', not f{model_ds.gridtype}")
+        raise ValueError(f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}")
         
     return polygons
 
@@ -96,7 +96,7 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
         geodataframe of one or more DataArrays.
 
     """
-    assert model_ds.gridtype == 'unstructured', f'expected model dataset with gridtype unstructured, got {model_ds.gridtype}'
+    assert model_ds.gridtype == 'vertex', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
 
     # create dictionary with column names and values of the geodataframe
     dv_dic = {}
@@ -162,7 +162,7 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
         geodataframe of one or more DataArrays.
 
     """
-    assert model_ds.gridtype == 'structured', f'expected model dataset with gridtype unstructured, got {model_ds.gridtype}'
+    assert model_ds.gridtype == 'structured', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
 
     # create dictionary with column names and values of the geodataframe
     dv_dic = {}
@@ -220,7 +220,7 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
     None.
 
     """
-    if model_ds.gridtype == 'unstructured':
+    if model_ds.gridtype == 'vertex':
         gdf = vertex_dataarray_to_gdf(model_ds, data_variables, 
                                       polygons=polygons)
     else:
@@ -297,7 +297,7 @@ def model_dataset_to_vector_file(model_ds,
         if set(item).issubset(da_names):
             if model_ds.gridtype =='structured':
                 gdf = struc_dataarray_to_gdf(model_ds, item, polygons=polygons)
-            elif model_ds.gridtype =='unstructured':
+            elif model_ds.gridtype =='vertex':
                 gdf = vertex_dataarray_to_gdf(model_ds, item, polygons=polygons)
             if driver == 'GPKG':
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
@@ -313,7 +313,7 @@ def model_dataset_to_vector_file(model_ds,
     for da_name in da_names:
         if model_ds.gridtype =='structured':
             gdf = struc_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
-        elif model_ds.gridtype =='unstructured':
+        elif model_ds.gridtype =='vertex':
             gdf = vertex_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
         if driver == 'GPKG':
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)

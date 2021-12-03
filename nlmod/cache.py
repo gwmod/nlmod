@@ -115,8 +115,8 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
                 if len(model_ds['time']) != len(model_ds2['time']):
                     check_time = False
                 else:
-                    check_time = (model_ds['time'].data
-                                  == model_ds2['time'].data).all()
+                    check_time = (model_ds['time'].data ==
+                                  model_ds2['time'].data).all()
                 if check_time:
                     logger.info('cached data has same time discretisation as current model')
                 else:
@@ -145,8 +145,8 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
                 # check length time series
                 if model_ds.dims['time'] == model_ds2.dims['time']:
                     # check times time series
-                    check_time = (model_ds['time'].data
-                                  == model_ds2['time'].data).all()
+                    check_time = (model_ds['time'].data ==
+                                  model_ds2['time'].data).all()
                 else:
                     check_time = False
                 if check_time:
@@ -273,7 +273,12 @@ def cache_netcdf(func):
     4. If one of the function arguments is an xarray Dataset it is not pickled.
     Therefore we cannot check if this function argument is identical for the
     cached data and the new function call. We do check if the xarray Dataset
-    coördinates correspond to the coördinates of the cached netcdf file. 
+    coördinates correspond to the coördinates of the cached netcdf file.
+    5. This function uses `functools.wraps` and some home made
+    magic to add properties, such as the name and the docstring, of the
+    original function to the decorated function. This assumes that the
+    original function has a docstring with a "Returns" heading. If this is not
+    the case an error is raised when trying to decorate the function.
     """
 
     # add cachedir and cachename to docstring
@@ -284,15 +289,15 @@ def cache_netcdf(func):
     mod_before = before.strip() + '\n    cachedir : str or None, optional\n        directory to save cache. If None no cache is used. Default is None.\n    cachename : str or None, optional\n        filename of netcdf cache. If None no cache is used. Default is None.\n\n    Returns'
     new_doc = ''.join((mod_before, after))
     func.__doc__ = new_doc
-    
+
     # add cachedir and cachename to signature
     sig = inspect.signature(func)
     cur_param = tuple(sig.parameters.values())
-    new_param = cur_param + (inspect.Parameter('cachedir', 
-                                               inspect.Parameter.POSITIONAL_OR_KEYWORD, 
+    new_param = cur_param + (inspect.Parameter('cachedir',
+                                               inspect.Parameter.POSITIONAL_OR_KEYWORD,
                                                default=None),
-                             inspect.Parameter('cachename', 
-                                               inspect.Parameter.POSITIONAL_OR_KEYWORD, 
+                             inspect.Parameter('cachename',
+                                               inspect.Parameter.POSITIONAL_OR_KEYWORD,
                                                default=None))
     sig = sig.replace(parameters=new_param)
     func.__signature__ = sig

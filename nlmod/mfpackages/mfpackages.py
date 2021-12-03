@@ -217,7 +217,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
     Raises
     ------
     ValueError
-        raised if gridtype is not structured or unstructured.
+        raised if gridtype is not structured or vertex.
 
     Returns
     -------
@@ -233,8 +233,8 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
                                                   first_active_layer=True,
                                                   only_active_cells=False,
                                                   layer=0)
-    elif model_ds.gridtype == 'unstructured':
-        ghb_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds,
+    elif model_ds.gridtype == 'vertex':
+        ghb_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds,
                                                         model_ds[f'{da_name}_cond'] != 0,
                                                         col1=f'{da_name}_peil',
                                                         col2=f'{da_name}_cond',
@@ -363,7 +363,7 @@ def chd_from_model_ds(model_ds, gwf, chd='chd',
         chd_rec = mdims.data_array_3d_to_rec_list(model_ds,
                                                   model_ds[chd] != 0,
                                                   col1=head)
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         cellids = np.where(model_ds[chd])
         chd_rec = list(zip(zip(cellids[0],
                                cellids[1]),
@@ -403,8 +403,8 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
                                                   first_active_layer=True,
                                                   only_active_cells=False,
                                                   col2=model_ds.surface_drn_cond)
-    elif model_ds.gridtype == 'unstructured':
-        drn_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds, mask,
+    elif model_ds.gridtype == 'vertex':
+        drn_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds, mask,
                                                         col1='ahn',
                                                         col2=model_ds.surface_drn_cond,
                                                         first_active_layer=True,

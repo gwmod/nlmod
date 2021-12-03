@@ -18,7 +18,7 @@ def add_knmi_to_model_dataset(model_ds,
                               use_cache=False):
     """ add multiple recharge packages to the groundwater flow model with
     knmi data by following these steps:
-    1. check for each cell (structured or unstructured) which knmi measurement
+    1. check for each cell (structured or vertex) which knmi measurement
     stations (prec and evap) are the closest.
     2. download precipitation and evaporation data for all knmi stations that
     were found at 1
@@ -93,12 +93,12 @@ def add_knmi_to_model_dataset(model_ds,
                                                 coords={'time': model_ds.time,
                                                         'x': model_ds.x,
                                                         'y': model_ds.y})
-    elif (model_ds.gridtype == 'unstructured') and model_ds.steady_state:
+    elif (model_ds.gridtype == 'vertex') and model_ds.steady_state:
         empty_time_array = np.zeros((model_ds.dims['cid']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
                                                 dims=('cid'),
                                                 coords={'cid': model_ds.cid})
-    elif (model_ds.gridtype == 'unstructured') and (not model_ds.steady_state):
+    elif (model_ds.gridtype == 'vertex') and (not model_ds.steady_state):
         empty_time_array = np.zeros((model_ds.dims['cid'],
                                      model_ds.dims['time']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
@@ -143,7 +143,7 @@ def add_knmi_to_model_dataset(model_ds,
                 # add data to model_ds_out
                 for row, col in zip(loc_sel.row, loc_sel.col):
                     model_ds_out['recharge'].data[row, col] = rch_average
-            elif model_ds.gridtype == 'unstructured':
+            elif model_ds.gridtype == 'vertex':
                 # add data to model_ds_out
                 model_ds_out['recharge'].loc[loc_sel.index] = rch_average
         else:
@@ -159,7 +159,7 @@ def add_knmi_to_model_dataset(model_ds,
                 for row, col in zip(loc_sel.row, loc_sel.col):
                     model_ds_out['recharge'].data[row, col, :] = model_recharge.values
 
-            elif model_ds.gridtype == 'unstructured':
+            elif model_ds.gridtype == 'vertex':
                 model_ds_out['recharge'].loc[loc_sel.index, :] = model_recharge.values
 
     for datavar in model_ds_out:
@@ -170,8 +170,8 @@ def add_knmi_to_model_dataset(model_ds,
     return model_ds_out
 
 
-def get_locations_unstructured(model_ds, nodata=-999):
-    """get dataframe with the locations of the grid cells of an unstructured
+def get_locations_vertex(model_ds, nodata=-999):
+    """get dataframe with the locations of the grid cells of a vertex
     grid.
 
     Parameters
@@ -279,10 +279,10 @@ def get_knmi_at_locations(model_ds,
     # get locations
     if model_ds.gridtype == 'structured':
         locations = get_locations_structured(model_ds, nodata=nodata)
-    elif model_ds.gridtype == 'unstructured':
-        locations = get_locations_unstructured(model_ds, nodata=nodata)
+    elif model_ds.gridtype == 'vertex':
+        locations = get_locations_vertex(model_ds, nodata=nodata)
     else:
-        raise ValueError('gridtype should be structured or unstructured')
+        raise ValueError('gridtype should be structured or vertex')
 
     # get knmi data stations closest to any grid cell
     oc_knmi_prec = hpd.ObsCollection.from_knmi(locations=locations,

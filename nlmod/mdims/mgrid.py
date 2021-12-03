@@ -41,7 +41,7 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
     model_ds : xarray DataSet
         model dataset.
     gridprops : dict, optional
-        extra model properties when using unstructured grids. 
+        extra model properties when using vertex grids. 
         The default is None.
 
     Returns
@@ -59,7 +59,7 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
                                    delr=np.array([model_ds.delc] *
                                                  model_ds.dims['x']),
                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
         # somehow this function modifies gridprops['vertices'] from a list of
         # lists into a list of tuples, for type checking later on I don't 
@@ -92,7 +92,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     to model dataset
     4. compute top and bots from model layer dataset, add to model dataset
     5. compute kh, kv from model layer dataset, add to model dataset
-    6. if gridtype is unstructured add top, bot and area to gridprops
+    6. if gridtype is vertex add top, bot and area to gridprops
     7. if add_northsea is True:
         a) get cells from modelgrid that are within the northsea, add data
         variable 'northsea' to model_ds
@@ -155,7 +155,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                                   fill_value_kh,
                                                   fill_value_kv)
 
-    if gridtype == 'unstructured':
+    if gridtype == 'vertex':
         gridprops['top'] = model_ds['top'].data
         gridprops['botm'] = model_ds['bot'].data
 
@@ -202,7 +202,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
             model_ds['idomain'])
 
-        if gridtype == 'unstructured':
+        if gridtype == 'vertex':
             gridprops['top'] = model_ds['top'].data
             gridprops['botm'] = model_ds['bot'].data
 
@@ -330,13 +330,13 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     return xmid, ymid
 
 
-def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
+def create_vertex_grid(model_name, gridgen_ws, gwf=None,
                              refine_features=None, extent=None,
                              nlay=None, nrow=None, ncol=None,
                              delr=None, delc=None,
                              cachedir=None,
                              use_cache=False):
-    """Create unstructured grid. Refine grid using refinement features.
+    """Create vertex grid. Refine grid using refinement features.
 
     Parameters
     ----------
@@ -376,7 +376,7 @@ def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
     Returns
     -------
     gridprops : dictionary
-        gridprops with the unstructured grid information.
+        gridprops with the vertex grid information.
     """
     if not os.path.isdir(gridgen_ws):
         os.makedirs(gridgen_ws)
@@ -394,7 +394,7 @@ def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
 
         return gridprops
 
-    logger.info('create unstructured grid using gridgen')
+    logger.info('create vertex grid using gridgen')
 
     # if existing structured grid, take parameters from grid if not
     # explicitly passed
@@ -486,7 +486,7 @@ def col_to_list(col_in, model_ds, cellids):
 
     This function is typically used to create a rec_array with stress period
     data for the modflow packages. Can be used for structured and 
-    unstructured grids.
+    vertex grids.
 
     Parameters
     ----------
@@ -521,11 +521,11 @@ def col_to_list(col_in, model_ds, cellids):
             col_lst = [model_ds[col_in].data[lay, row, col]
                        for lay, row, col in zip(cellids[0], cellids[1], cellids[2])]
         elif len(cellids) == 2:
-            # 2d grid or unstructured 3d grid
+            # 2d grid or vertex 3d grid
             col_lst = [model_ds[col_in].data[row, col]
                        for row, col in zip(cellids[0], cellids[1])]
         elif len(cellids) == 1:
-            # 2d unstructured grid
+            # 2d vertex grid
             col_lst = model_ds[col_in].data[cellids[0]]
         else:
             raise ValueError(
@@ -772,7 +772,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
                      col1=None, col2=None, col3=None):
     """Create a rec list for stress period data from a set of cellids.
 
-    Used for unstructured grids.
+    Used for vertex grids.
 
 
     Parameters
@@ -845,12 +845,12 @@ def lcid_to_rec_list(layers, cellids, model_ds,
     return rec_list
 
 
-def data_array_2d_unstr_to_rec_list(model_ds, mask,
+def data_array_2d_vertex_to_rec_list(model_ds, mask,
                                     col1=None, col2=None, col3=None,
                                     only_active_cells=True):
     """Create a rec list for stress period data from a model dataset.
 
-    Used for unstructured grids.
+    Used for vertex grids.
 
 
     Parameters
@@ -908,14 +908,14 @@ def data_array_2d_unstr_to_rec_list(model_ds, mask,
     return rec_list
 
 
-def data_array_1d_unstr_to_rec_list(model_ds, mask,
+def data_array_1d_vertex_to_rec_list(model_ds, mask,
                                     col1=None, col2=None, col3=None,
                                     layer=0,
                                     first_active_layer=False,
                                     only_active_cells=True):
     """Create a rec list for stress period data from a model dataset.
 
-    Used for unstructured grids.
+    Used for vertex grids.
 
 
     Parameters
@@ -1019,7 +1019,7 @@ def polygon_to_area(modelgrid, polygon, da,
         for opp_row in opp_cells:
             area = opp_row[-2]
             area_array[opp_row[0][0], opp_row[0][1]] = area
-    elif gridtype == 'unstructured':
+    elif gridtype == 'vertex':
         cids = opp_cells.cellids
         area = opp_cells.areas
         area_array[cids.astype(int)] = area
@@ -1071,11 +1071,11 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
         if model_ds.gridtype == 'structured':
             for cid in cids:
                 da[cid[0], cid[1]] = 1
-        elif model_ds.gridtype == 'unstructured':
+        elif model_ds.gridtype == 'vertex':
             da[cids] = 1
         else:
             raise ValueError(
-                'function only support structured or unstructured gridtypes')
+                'function only support structured or vertex gridtypes')
 
     return da
 
@@ -1227,7 +1227,7 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
                                        fill_value_kh, fill_value_kv):
     """add kh and kv from a model layer dataset to THE model dataset.
 
-    Supports structured and unstructured grids.
+    Supports structured and vertex grids.
 
     Parameters
     ----------
@@ -1291,7 +1291,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
     2. pak kh uit regis deel door anisotropy, tenzij nan dan:
     3. pak fill_value_kv
 
-    Supports structured and unstructured grids.
+    Supports structured and vertex grids.
 
     Parameters
     ----------
@@ -1356,7 +1356,7 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                             gridtype='structured'):
     """add top and bot from a model layer dataset to THE model dataset.
 
-    Supports structured and unstructured grids.
+    Supports structured and vertex grids.
 
     Parameters
     ----------
@@ -1373,7 +1373,7 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
         if the percentage of cells that have nan values in all layers is
         higher than this an error is raised. The default is 80.
     gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'.
+        type of grid, options are 'structured' and 'vertex'.
         The default is 'structured'.
 
     Returns
@@ -1393,20 +1393,20 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                                           nodata=nodata,
                                           max_percentage=max_percentage)
 
-    elif gridtype == 'unstructured':
-        model_ds = add_top_bot_unstructured(ml_layer_ds, model_ds,
+    elif gridtype == 'vertex':
+        model_ds = add_top_bot_vertex(ml_layer_ds, model_ds,
                                             nodata=nodata,
                                             max_percentage=max_percentage)
 
     return model_ds
 
 
-def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
+def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999,
                              max_percentage=80):
     """Voeg top en bottom vanuit layer dataset toe aan de model dataset.
 
-    Deze functie is bedoeld voor unstructured arrays in modflow 6. Supports 
-    only unstructured grids.
+    Deze functie is bedoeld voor vertex arrays in modflow 6. Supports 
+    only vertex grids.
 
     Stappen:
 
@@ -1652,7 +1652,7 @@ def get_vertices(model_ds, modelgrid=None,
     Parameters
     ----------
     model_ds : xr.DataSet
-        model dataset, attribute grid_type should be 'unstructured'
+        model dataset, attribute grid_type should be 'vertex'
     modelgrid : flopy.discretization.vertexgrid.VertexGrid
         vertex grid with attributes xvertices and yvertices.
     gridprops : dictionary
@@ -1757,8 +1757,8 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
     if gridtype == 'structured':
         fill_function = resample.fillnan_dataarray_structured_grid
         fill_function_kwargs = {}
-    elif gridtype == 'unstructured':
-        fill_function = resample.fillnan_dataarray_unstructured_grid
+    elif gridtype == 'vertex':
+        fill_function = resample.fillnan_dataarray_vertex_grid
         fill_function_kwargs = {'gridprops': gridprops}
 
     for lay in range(model_ds.dims['layer']):

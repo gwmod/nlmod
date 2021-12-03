@@ -45,8 +45,8 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
                 model_ds, mask, col1='recharge',
                 first_active_layer=True,
                 only_active_cells=False)
-        elif model_ds.gridtype == 'unstructured':
-            rch_spd_data = mdims.data_array_1d_unstr_to_rec_list(
+        elif model_ds.gridtype == 'vertex':
+            rch_spd_data = mdims.data_array_1d_vertex_to_rec_list(
                 model_ds, mask, col1='recharge',
                 first_active_layer=True,
                 only_active_cells=False)
@@ -108,7 +108,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
                                                        first_active_layer=True,
                                                        only_active_cells=False)
 
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         empty_str_array = np.zeros_like(model_ds['idomain'][0], dtype="S13")
         model_ds['rch_name'] = xr.DataArray(empty_str_array,
                                             dims=('cid'),
@@ -132,7 +132,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
             rch_unique_dic[f'rch_{i}'] = unique_rch
 
         mask = model_ds['rch_name'] != ''
-        rch_spd_data = mdims.data_array_1d_unstr_to_rec_list(model_ds, mask,
+        rch_spd_data = mdims.data_array_1d_vertex_to_rec_list(model_ds, mask,
                                                              col1='rch_name',
                                                              first_active_layer=True,
                                                              only_active_cells=False)

@@ -69,7 +69,7 @@ def bathymetry_to_model_dataset(model_ds, northsea,
     model_ds : xarray.Dataset
         dataset with model data where bathymetry is added to
     gridprops : dic, optional
-        model properties when using unstructured grids. The default is None.
+        model properties when using vertex grids. The default is None.
 
     Returns
     -------
@@ -113,8 +113,8 @@ def bathymetry_to_model_dataset(model_ds, northsea,
                                                                     delc=model_ds.delc,
                                                                     xmid=model_ds.x.data,
                                                                     ymid=model_ds.y.data)[0]
-    elif model_ds.gridtype == 'unstructured':
-        da_bathymetry = mdims.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
+    elif model_ds.gridtype == 'vertex':
+        da_bathymetry = mdims.resample_dataarray3d_to_vertex_grid(da_bathymetry_filled,
                                                                         gridprops=gridprops)[0]
 
     model_ds_out = util.get_model_ds_empty(model_ds)

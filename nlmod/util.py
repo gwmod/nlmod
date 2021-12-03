@@ -116,7 +116,7 @@ def get_model_ds_empty(model_ds):
     if model_ds.gridtype == 'structured':
         model_ds_out = model_ds[['layer', 'x', 'y', 'time']].copy()
         return model_ds_out
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         model_ds_out = model_ds[['cid', 'layer', 'x', 'y', 'time']].copy()
         return model_ds_out
     else:
@@ -465,7 +465,7 @@ def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
     head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype,
                                   fill_nans=fill_nans)
 
-    if model_ds.gridtype == 'unstructured':
+    if model_ds.gridtype == 'vertex':
         head_ar = xr.DataArray(data=head_filled[:, :, :],
                                dims=('time', 'layer', 'cid'),
                                coords={'cid': model_ds.cid,
@@ -488,7 +488,7 @@ def get_heads_array(fname_hds, gridtype='structured',
 
     assumes the dimensions of the heads file are:
         structured: time, layer, cid
-        unstructured: time, layer, nrow, ncol
+        vertex: time, layer, nrow, ncol
 
 
     Parameters
@@ -509,7 +509,7 @@ def get_heads_array(fname_hds, gridtype='structured',
     head = hdobj.get_alldata()
     head[head == head.max()] = np.nan
 
-    if gridtype == 'unstructured':
+    if gridtype == 'vertex':
         head_filled = np.ones((head.shape[0], head.shape[1], head.shape[3])) * np.nan
 
         for t in range(head.shape[0]):

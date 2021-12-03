@@ -15,12 +15,12 @@ from . import mgrid
 logger = logging.getLogger(__name__)
 
 
-def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
+def resample_dataarray2d_to_vertex_grid(da_in, gridprops=None,
                                               xyi=None, cid=None,
                                               method='nearest',
                                               **kwargs):
     """resample a 2d dataarray (xarray) from a structured grid to a new
-    dataaraay of an unstructured grid.
+    dataaraay of a vertex grid.
 
     Parameters
     ----------
@@ -61,11 +61,11 @@ def resample_dataarray2d_to_unstructured_grid(da_in, gridprops=None,
     return da_out
 
 
-def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
+def resample_dataarray3d_to_vertex_grid(da_in, gridprops=None,
                                               xyi=None, cid=None,
                                               method='nearest'):
     """resample a dataarray (xarray) from a structured grid to a new dataaraay
-    of an unstructured grid.
+    of a vertex grid.
 
     Parameters
     ----------
@@ -113,10 +113,10 @@ def resample_dataarray3d_to_unstructured_grid(da_in, gridprops=None,
     return da_out
 
 
-def resample_dataset_to_unstructured_grid(ds_in, gridprops,
+def resample_dataset_to_vertex_grid(ds_in, gridprops,
                                           method='nearest'):
     """resample a dataset (xarray) from an structured grid to a new dataset
-    from an unstructured grid.
+    from a vertex grid.
 
     Parameters
     ----------
@@ -151,11 +151,11 @@ def resample_dataset_to_unstructured_grid(ds_in, gridprops,
     # add other variables
     for data_var in ds_in.data_vars:
         if ds_in[data_var].dims == ('layer', 'y', 'x'):
-            data_arr = resample_dataarray3d_to_unstructured_grid(ds_in[data_var],
+            data_arr = resample_dataarray3d_to_vertex_grid(ds_in[data_var],
                                                                  xyi=xyi, cid=cid,
                                                                  method=method)
         elif ds_in[data_var].dims == ('y', 'x'):
-            data_arr = resample_dataarray2d_to_unstructured_grid(ds_in[data_var],
+            data_arr = resample_dataarray2d_to_vertex_grid(ds_in[data_var],
                                                                  xyi=xyi, cid=cid,
                                                                  method=method)
 
@@ -351,10 +351,10 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
     return ds_out
 
 
-def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
+def get_resampled_ml_layer_ds_vertex(raw_ds=None,
                                       extent=None,
                                       gridprops=None):
-    """Project model layer dataset on an unstructured model grid.
+    """Project model layer dataset on a vertex model grid.
 
     Parameters
     ----------
@@ -364,7 +364,7 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
         extent (xmin, xmax, ymin, ymax) of the desired grid.
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Used as the
-        definition of the unstructured grid.
+        definition of the vertex grid.
 
     Returns
     -------
@@ -372,8 +372,8 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
         model layer dataset projected onto the modelgrid.
     """
 
-    logger.info('resample model layer data to unstructured modelgrid')
-    ml_layer_ds = resample_dataset_to_unstructured_grid(
+    logger.info('resample model layer data to vertex modelgrid')
+    ml_layer_ds = resample_dataset_to_vertex_grid(
         raw_ds, gridprops)
     ml_layer_ds['x'] = xr.DataArray([r[1] for r in gridprops['cell2d']],
                                     dims=('cid'),
@@ -382,7 +382,7 @@ def get_resampled_ml_layer_ds_unstruc(raw_ds=None,
     ml_layer_ds['y'] = xr.DataArray([r[2] for r in gridprops['cell2d']],
                                     dims=('cid'),
                                     coords={'cid': ml_layer_ds.cid.data})
-    ml_layer_ds.attrs['gridtype'] = 'unstructured'
+    ml_layer_ds.attrs['gridtype'] = 'vertex'
     ml_layer_ds.attrs['delr'] = raw_ds.delr
     ml_layer_ds.attrs['delc'] = raw_ds.delc
     ml_layer_ds.attrs['extent'] = extent
@@ -443,7 +443,7 @@ def fillnan_dataarray_structured_grid(xar_in):
     return xar_out
 
 
-def fillnan_dataarray_unstructured_grid(xar_in, gridprops=None,
+def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
                                         xyi=None, cid=None):
     """can be slow if the xar_in is a large raster.
 
@@ -487,11 +487,11 @@ def fillnan_dataarray_unstructured_grid(xar_in, gridprops=None,
     return xar_out
 
 
-def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds=None,
+def resample_vertex_2d_da_to_struc_2d_da(da_in, model_ds=None,
                                         xmid=None, ymid=None,
                                         cellsize=25,
                                         method='nearest'):
-    """resample a 2d dataarray (xarray) from an unstructured grid to a new 
+    """resample a 2d dataarray (xarray) from a vertex grid to a new 
     dataaraay from a structured grid.   
 
     Parameters
@@ -515,7 +515,7 @@ def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds=None,
         xmid = model_ds.x.values
         ymid = model_ds.y.values
 
-    points_unstr = np.array([xmid, ymid]).T
+    points_vertex = np.array([xmid, ymid]).T
     modelgrid_x = np.arange(xmid.min(),
                             xmid.max(),
                             cellsize)
@@ -525,7 +525,7 @@ def resample_unstr_2d_da_to_struc_2d_da(da_in, model_ds=None,
     mg = np.meshgrid(modelgrid_x, modelgrid_y)
     points = np.vstack((mg[0].ravel(), mg[1].ravel())).T
 
-    arr_out_1d = griddata(points_unstr, da_in.values, points, method=method)
+    arr_out_1d = griddata(points_vertex, da_in.values, points, method=method)
     arr_out2d = arr_out_1d.reshape(len(modelgrid_y),
                                    len(modelgrid_x))
 

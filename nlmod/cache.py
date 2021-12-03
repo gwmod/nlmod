@@ -67,7 +67,7 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
     Raises
     ------
     ValueError
-        if the gridtype of model_ds is not structured or unstructured.
+        if the gridtype of model_ds is not structured or vertex.
 
     Returns
     -------
@@ -126,7 +126,7 @@ def _check_model_ds(model_ds, model_ds2, check_grid=True):
         except KeyError:
             return False
 
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         try:
             if check_grid:
                 check_cid = (model_ds['cid'] == model_ds2['cid']).all()

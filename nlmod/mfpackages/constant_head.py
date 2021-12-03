@@ -47,7 +47,7 @@ def get_chd_at_model_edge(model_ds, idomain):
             model_ds_out['chd'].loc[lay] = np.where(
                 mask2d & (idomain.loc[lay] == 1), 1, 0)
         
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         mask = np.where([xmin | xmax | ymin | ymax])[1]
 
         # assign 1 to cells that are on the edge, have an active idomain

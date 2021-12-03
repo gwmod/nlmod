@@ -42,16 +42,16 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
         The default is 'ahn3_5m_dtm'.
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'unstructured'
+        gridtype = 'vertex'
 
     Returns
     -------
     model_ds_out : xr.Dataset
         dataset with the ahn variable.
     """
-    if (model_ds.gridtype == 'unstructured') and (gridprops is None):
+    if (model_ds.gridtype == 'vertex') and (gridprops is None):
         raise ValueError(
-            'gridprops should be specified when gridtype is unstructured')
+            'gridprops should be specified when gridtype is vertex')
 
     cachedir = os.path.join(model_ds.model_ws, 'cache')
     
@@ -75,9 +75,9 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
                                                              delc=model_ds.delc,
                                                              xmid=model_ds.x.data,
                                                              ymid=model_ds.y.data)
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         xyi, cid = mdims.get_xyi_cid(gridprops)
-        ahn_ds = mdims.resample_dataarray3d_to_unstructured_grid(ahn_ds_raw,
+        ahn_ds = mdims.resample_dataarray3d_to_vertex_grid(ahn_ds_raw,
                                                                  gridprops,
                                                                  xyi, cid)
 

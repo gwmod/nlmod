@@ -171,10 +171,10 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
             'nan values at the northsea are filled using the bathymetry from jarkus')
         
         # find grid cells with northsea
-        model_ds.update(rws.find_sea_cells(model_ds,
-                                           gridprops=gridprops,
-                                           cachedir=cachedir,
-                                           cachename='sea_model_ds.nc'))
+        model_ds.update(rws.get_northsea(model_ds,
+                                         gridprops=gridprops,
+                                         cachedir=cachedir,
+                                         cachename='sea_model_ds.nc'))
 
         # fill top, bot, kh, kv at sea cells
         fill_mask = (model_ds['first_active_layer']
@@ -184,11 +184,11 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                               gridprops=gridprops)
         
         # add bathymetry noordzee
-        model_ds.update(jarkus.bathymetry_to_model_dataset(model_ds,
-                                                           model_ds['northsea'],
-                                                           gridprops=gridprops,
-                                                           cachedir=cachedir,
-                                                           cachename='bathymetry_model_ds.nc'))
+        model_ds.update(jarkus.get_bathymetry(model_ds,
+                                              model_ds['northsea'],
+                                              gridprops=gridprops,
+                                              cachedir=cachedir,
+                                              cachename='bathymetry_model_ds.nc'))
 
         model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(model_ds,
                                                           model_ds['bathymetry'],

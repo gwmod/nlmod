@@ -113,14 +113,9 @@ def get_model_ds_empty(model_ds):
     model_ds_out : xr.Dataset
         dataset with only model grid and time information
     """
-    if model_ds.gridtype == 'structured':
-        model_ds_out = model_ds[['layer', 'x', 'y', 'time']].copy()
-        return model_ds_out
-    elif model_ds.gridtype == 'vertex':
-        model_ds_out = model_ds[['cid', 'layer', 'x', 'y', 'time']].copy()
-        return model_ds_out
-    else:
-        raise ValueError('no gridtype defined cannot compare model datasets')
+    
+    return model_ds[list(model_ds.coords)]
+    
     
 def get_da_from_da_ds(da_ds, dims=('y','x'), data=None):
     """get a dataarray from model_ds with certain dimensions.

@@ -1251,6 +1251,8 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
     elif model_ds.gridtype=='vertex':
         da_ones = util.get_da_from_da_ds(model_ds, dims=('layer','cid'),
                                          data=1)
+    else:
+        raise ValueError('function only support structured or vertex gridtypes')
         
     model_ds['kh'] = da_ones * kh
 

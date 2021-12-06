@@ -13,6 +13,7 @@ import numbers
 
 import flopy
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 import logging
@@ -329,7 +330,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
             if not np.array_equal(item, func_args_dic_cache[key]):
                 logger.info('cache was created using different numpy array values, do not use cached data')
                 return False
-        elif isinstance(item, xr.DataArray):
+        elif isinstance(item, (pd.DataFrame, pd.Series, xr.DataArray)):
             if not item.equals(func_args_dic_cache[key]):
                 logger.info('cache was created using different DataArrays, do not use cached data')
                 return False

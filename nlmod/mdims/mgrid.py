@@ -26,7 +26,7 @@ from shapely.prepared import prep
 from tqdm import tqdm
 import copy
 
-from .. import mfpackages, util
+from .. import mfpackages, util, cache
 from ..read import jarkus, rws
 from . import resample, mlayers
 
@@ -162,7 +162,6 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         # add surface area of each cell
         model_ds['area'] = ('cid', gridprops.pop('area')
                             [:len(model_ds['cid'])])
-        model_ds['vertices'] = get_vertices(model_ds, gridprops=gridprops)
     else:
         gridprops = None
 
@@ -328,13 +327,11 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
 
     return xmid, ymid
 
-
+@cache.cache_pklz
 def create_vertex_grid(model_name, gridgen_ws, gwf=None,
-                             refine_features=None, extent=None,
-                             nlay=None, nrow=None, ncol=None,
-                             delr=None, delc=None,
-                             cachedir=None,
-                             use_cache=False):
+                       refine_features=None, extent=None,
+                       nlay=None, nrow=None, ncol=None,
+                       delr=None, delc=None):
     """Create vertex grid. Refine grid using refinement features.
 
     Parameters
@@ -365,34 +362,13 @@ def create_vertex_grid(model_name, gridgen_ws, gwf=None,
         cell size along rows of the desired grid (dx).
     delc : int or float, optional
         cell size along columns of the desired grid (dy).
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
 
     Returns
     -------
     gridprops : dictionary
         gridprops with the vertex grid information.
     """
-    if not os.path.isdir(gridgen_ws):
-        os.makedirs(gridgen_ws)
-
-    if cachedir is None:
-        cachedir = tempfile.gettempdir()
-
-    fname_gridprops_pickle = os.path.join(cachedir, 'gridprops.pklz')
-    if os.path.isfile(fname_gridprops_pickle) and use_cache:
-        logger.info(
-            f'using cached griddata from file {fname_gridprops_pickle}')
-
-        with open(fname_gridprops_pickle, 'rb') as fo:
-            gridprops = pickle.load(fo)
-
-        return gridprops
-
+    
     logger.info('create vertex grid using gridgen')
 
     # if existing structured grid, take parameters from grid if not
@@ -438,11 +414,6 @@ def create_vertex_grid(model_name, gridgen_ws, gwf=None,
 
     gridprops = g.get_gridprops_disv()
     gridprops['area'] = g.get_area()
-
-    logger.info(f'write cache for griddata data to {fname_gridprops_pickle}')
-
-    with open(fname_gridprops_pickle, 'wb') as fo:
-        pickle.dump(gridprops, fo)
 
     return gridprops
 

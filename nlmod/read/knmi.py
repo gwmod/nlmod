@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf
 def get_recharge(model_ds,
-                 nodata=None,
-                 use_cache=False):
+                 nodata=None):
     """ add multiple recharge packages to the groundwater flow model with
     knmi data by following these steps:
     1. check for each cell (structured or vertex) which knmi measurement
@@ -42,9 +41,7 @@ def get_recharge(model_ds,
         if the first_active_layer data array in model_ds has this value,
         it means this cell is inactive in all layers. If nodata is None the
         nodata value in model_ds is used.
-        the default is None
-    use_cache : bool, optional
-        if True the cached knmi_meteo data is used. The default is False.
+        the default is None.
 
     Returns
     -------
@@ -109,8 +106,7 @@ def get_recharge(model_ds,
     locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(model_ds,
                                                                   start=start,
                                                                   end=end,
-                                                                  nodata=nodata,
-                                                                  use_cache=use_cache)
+                                                                  nodata=nodata)
 
     # add closest precipitation and evaporation measurement station to each cell
     locations[['prec_point', 'distance']
@@ -242,8 +238,7 @@ def get_locations_structured(model_ds, nodata=-999):
 
 def get_knmi_at_locations(model_ds,
                           start='2010', end=None,
-                          nodata=-999,
-                          use_cache=False):
+                          nodata=-999):
     """get knmi data at the locations of the active grid cells in model_ds.
 
     Parameters
@@ -259,8 +254,6 @@ def get_knmi_at_locations(model_ds,
         it means this cell is inactive in all layers. If nodata is None the
         nodata value in model_ds is used.
         the default is None
-    use_cache : bool, optional
-        if True the cached knmi_meteo data is used. The default is False.
 
     Raises
     ------
@@ -288,13 +281,11 @@ def get_knmi_at_locations(model_ds,
     oc_knmi_prec = hpd.ObsCollection.from_knmi(locations=locations,
                                                start=[start],
                                                end=[end],
-                                               meteo_vars=["RD"],
-                                               cache=use_cache)
+                                               meteo_vars=["RD"])
 
     oc_knmi_evap = hpd.ObsCollection.from_knmi(locations=locations,
                                                start=[start],
                                                end=[end],
-                                               meteo_vars=["EV24"],
-                                               cache=use_cache)
+                                               meteo_vars=["EV24"])
 
     return locations, oc_knmi_prec, oc_knmi_evap

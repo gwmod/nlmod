@@ -53,15 +53,11 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
         raise ValueError(
             'gridprops should be specified when gridtype is vertex')
 
-    cachedir = os.path.join(model_ds.model_ws, 'cache')
-    
     url = _infer_url(identifier)
 
     fname_ahn = get_ahn_within_extent(extent=model_ds.extent,
                                       url=url,
-                                      identifier=identifier,
-                                      cache=True,
-                                      cache_dir=cachedir)
+                                      identifier=identifier)
 
     ahn_ds_raw = xr.open_rasterio(fname_ahn)
     ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})
@@ -78,8 +74,8 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     elif model_ds.gridtype == 'vertex':
         xyi, cid = mdims.get_xyi_cid(gridprops)
         ahn_ds = mdims.resample_dataarray3d_to_vertex_grid(ahn_ds_raw,
-                                                                 gridprops,
-                                                                 xyi, cid)
+                                                           gridprops,
+                                                           xyi, cid)
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]
@@ -208,8 +204,7 @@ def _infer_url(identifier=None):
 
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', format='GEOTIFF_FLOAT32',
-                          crs='EPSG:28992', cache=True, cache_dir=None,
-                          maxsize=800, fname=None):
+                          crs='EPSG:28992', maxsize=800, fname=None):
     """
 
     Parameters
@@ -246,9 +241,6 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         geotif format . The default is 'GEOTIFF_FLOAT32'.
     crs : str, optional
         coördinate reference system. The default is 'EPSG:28992'.
-    cache : boolean, optional
-        used cached data if available. The default is True.
-    cache_dir : str or None, optional
 
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
@@ -307,44 +299,36 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         return split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                                 identifier=identifier,
                                 version=version, format=format, crs=crs,
-                                cache=cache, cache_dir=cache_dir,
                                 fname=fname)
 
     # get filename
     if fname is None:
+        cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
         fname = 'ahn_{:.0f}_{:.0f}_{:.0f}_{:.0f}_{:.0f}.tiff'
-
         fname = fname.format(*extent, res * 1000)
-        if cache_dir is None:
-            cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
         if not os.path.isdir(cache_dir):
             os.makedirs(cache_dir)
         fname = os.path.join(cache_dir, fname)
-    else:
-        cache = False
 
-    if not cache or not os.path.exists(fname):
-        # download file
-        wcs = WebCoverageService(url, version=version)
-        if version == '1.0.0':
-            bbox = (extent[0], extent[2], extent[1], extent[3])
-            output = wcs.getCoverage(identifier=identifier, bbox=bbox,
-                                     format=format, crs=crs, resx=res,
-                                     resy=res)
-        elif version == '2.0.1':
-            # bbox, resx and resy do nothing in version 2.0.1
-            subsets = [('x', extent[0], extent[1]),
-                       ('y', extent[2], extent[3])]
-            output = wcs.getCoverage(identifier=[identifier], subsets=subsets,
-                                     format=format, crs=crs)
-        else:
-            raise (Exception('Version {} not yet supported'.format(version)))
-        # write file to disk
-        f = open(fname, 'wb')
+    
+    # download file
+    wcs = WebCoverageService(url, version=version)
+    if version == '1.0.0':
+        bbox = (extent[0], extent[2], extent[1], extent[3])
+        output = wcs.getCoverage(identifier=identifier, bbox=bbox,
+                                 format=format, crs=crs, resx=res,
+                                 resy=res)
+    elif version == '2.0.1':
+        # bbox, resx and resy do nothing in version 2.0.1
+        subsets = [('x', extent[0], extent[1]),
+                   ('y', extent[2], extent[3])]
+        output = wcs.getCoverage(identifier=[identifier], subsets=subsets,
+                                 format=format, crs=crs)
+    else:
+        raise (Exception('Version {} not yet supported'.format(version)))
+    # write file to disk
+    with open(fname, 'wb') as f:
         f.write(output.read())
-        f.close()
-        logger.info(f"- download {fname}")
-    else:
-        logger.info(f"- from cache {fname}")
-
+    logger.info(f"- download {fname}")
+    
     return fname

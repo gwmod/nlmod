@@ -205,6 +205,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
             gridprops['botm'] = model_ds['bot'].data
 
     else:
+        model_ds['thickness'], top3d = mlayers.calculate_thickness(model_ds)
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
                 model_ds['idomain'])
     

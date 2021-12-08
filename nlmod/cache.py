@@ -332,7 +332,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 return False
         elif isinstance(item, (pd.DataFrame, pd.Series, xr.DataArray)):
             if not item.equals(func_args_dic_cache[key]):
-                logger.info('cache was created using different DataArrays, do not use cached data')
+                logger.info('cache was created using different DataFrame/Series/DataArray, do not use cached data')
                 return False
         elif isinstance(item, dict):
             # recursive checking

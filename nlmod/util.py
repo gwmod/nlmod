@@ -1,14 +1,7 @@
-# -*- coding: utf-8 -*-
-"""utility functions for nlmod.
-
-Mostly functions to cache data and manage filenames and directories.
-"""
-
 import logging
 import os
 import re
 import sys
-import tempfile
 
 import flopy
 import geopandas as gpd
@@ -114,7 +107,7 @@ def get_model_ds_empty(model_ds):
         dataset with only model grid and time information
     """
 
-    return model_ds[list(model_ds.coords)]
+    return model_ds[list(model_ds.coords)].copy()
 
 
 def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):

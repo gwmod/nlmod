@@ -134,7 +134,7 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
 
 
 def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
-                  plot_bc=('CHD',), plot_bc_kwargs=[{'color': 'k'}], grid=False,
+                  plot_bc=('CHD',), color='k', grid=False,
                   xlim=None, ylim=None):
     """make a 2d plot of every modellayer, store them in a grid.
 
@@ -153,8 +153,8 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
     plot_bc : list of str, optional
         name of packages of which boundary conditions are plot. The default
         is ['CHD'].
-    plot_bc_kwargs : list of dictionaries, optional
-        kwargs per boundary conditions. The default is [{'color':'k'}].
+    color : str, optional
+        color. The default is 'k'.
     grid : bool, optional
         if True a grid is plotted. The default is False.
     xlim : tuple, optional
@@ -200,7 +200,7 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         # mp.plot_ibound()
         # plt.colorbar(qm)
         for ibc, bc_var in enumerate(plot_bc):
-            mp.plot_bc(bc_var, kper=0, **plot_bc_kwargs[ibc])
+            mp.plot_bc(bc_var, kper=0, color=color)
 
         iax.set_aspect("equal", adjustable="box")
         iax.set_title(f"Layer {ilay}")

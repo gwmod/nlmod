@@ -1358,7 +1358,6 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
 
 def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                             nodata=None,
-                            max_percentage=80,
                             gridtype='structured'):
     """add top and bot from a model layer dataset to THE model dataset.
 
@@ -1375,9 +1374,6 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
         it means this cell is inactive in all layers. If nodata is None the
         nodata value in model_ds is used.
         the default is None
-    max_percentage : int or float, optional
-        if the percentage of cells that have nan values in all layers is
-        higher than this an error is raised. The default is 80.
     gridtype : str, optional
         type of grid, options are 'structured' and 'vertex'.
         The default is 'structured'.
@@ -1396,13 +1392,11 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
 
     if gridtype == 'structured':
         model_ds = add_top_bot_structured(ml_layer_ds, model_ds,
-                                          nodata=nodata,
-                                          max_percentage=max_percentage)
+                                          nodata=nodata)
 
     elif gridtype == 'vertex':
         model_ds = add_top_bot_vertex(ml_layer_ds, model_ds,
-                                            nodata=nodata,
-                                            max_percentage=max_percentage)
+                                            nodata=nodata)
 
     return model_ds
 

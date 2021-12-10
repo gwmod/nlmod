@@ -217,7 +217,7 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
     Raises
     ------
     ValueError
-        raised if gridtype is not structured or unstructured.
+        raised if gridtype is not structured or vertex.
 
     Returns
     -------
@@ -233,8 +233,8 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
                                                   first_active_layer=True,
                                                   only_active_cells=False,
                                                   layer=0)
-    elif model_ds.gridtype == 'unstructured':
-        ghb_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds,
+    elif model_ds.gridtype == 'vertex':
+        ghb_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds,
                                                         model_ds[f'{da_name}_cond'] != 0,
                                                         col1=f'{da_name}_peil',
                                                         col2=f'{da_name}_cond',
@@ -282,6 +282,7 @@ def ic_from_model_ds(model_ds, gwf,
     elif isinstance(starting_head, numbers.Number):
         model_ds['starting_head'] = starting_head * \
             xr.ones_like(model_ds['idomain'])
+        model_ds['starting_head'].attrs['units'] = 'mNAP'    
         starting_head = 'starting_head'
 
     ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
@@ -335,7 +336,8 @@ def sto_from_model_ds(model_ds, gwf,
         return sto
 
 
-def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
+def chd_from_model_ds(model_ds, gwf, chd='chd', 
+                      head='starting_head'):
     """get constant head boundary at the model's edges from the model dataset.
 
     Parameters
@@ -344,6 +346,9 @@ def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
+    chd : str, optional
+        name of data variable in model_ds that is 1 for cells with a constant
+        head and zero for all other cells. The default is 'chd'.
     head : str, optional
         name of data variable in model_ds that is used as the head in the chd
         cells. The default is 'starting_head'.
@@ -353,43 +358,18 @@ def chd_at_model_edge_from_model_ds(model_ds, gwf, head='starting_head'):
     chd : flopy ModflowGwfchd
         chd package
     """
-    # add constant head cells at model boundaries
-
-    # get mask with grid edges
-    xmin = model_ds['x'] == model_ds['x'].min()
-    xmax = model_ds['x'] == model_ds['x'].max()
-    ymin = model_ds['y'] == model_ds['y'].min()
-    ymax = model_ds['y'] == model_ds['y'].max()
-
+    # get the stress_period_data
     if model_ds.gridtype == 'structured':
-        mask2d = (ymin | ymax | xmin | xmax)
-
-        # assign 1 to cells that are on the edge and have an active idomain
-        model_ds['chd'] = xr.zeros_like(model_ds['idomain'])
-        for lay in model_ds.layer:
-            model_ds['chd'].loc[lay] = np.where(
-                mask2d & (model_ds['idomain'].loc[lay] == 1), 1, 0)
-
-        # get the stress_period_data
         chd_rec = mdims.data_array_3d_to_rec_list(model_ds,
-                                                  model_ds['chd'] != 0,
+                                                  model_ds[chd] != 0,
                                                   col1=head)
-    elif model_ds.gridtype == 'unstructured':
-        mask = np.where([xmin | xmax | ymin | ymax])[1]
-
-        # assign 1 to cells that are on the edge, have an active idomain
-        model_ds['chd'] = xr.zeros_like(model_ds['idomain'])
-        model_ds['chd'].loc[:, mask] = 1
-        model_ds['chd'] = xr.where(model_ds['idomain'] == 1,
-                                   model_ds['chd'], 0)
-
-        # get the stress_period_data
-        cellids = np.where(model_ds['chd'])
+    elif model_ds.gridtype == 'vertex':
+        cellids = np.where(model_ds[chd])
         chd_rec = list(zip(zip(cellids[0],
                                cellids[1]),
                            [1.0] * len(cellids[0])))
 
-    chd = flopy.mf6.ModflowGwfchd(gwf, pname='chd',
+    chd = flopy.mf6.ModflowGwfchd(gwf, pname=chd,
                                   maxbound=len(chd_rec),
                                   stress_period_data=chd_rec,
                                   save_flows=True)
@@ -423,8 +403,8 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
                                                   first_active_layer=True,
                                                   only_active_cells=False,
                                                   col2=model_ds.surface_drn_cond)
-    elif model_ds.gridtype == 'unstructured':
-        drn_rec = mdims.data_array_1d_unstr_to_rec_list(model_ds, mask,
+    elif model_ds.gridtype == 'vertex':
+        drn_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds, mask,
                                                         col1='ahn',
                                                         col2=model_ds.surface_drn_cond,
                                                         first_active_layer=True,

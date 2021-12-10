@@ -24,10 +24,11 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from shapely.prepared import prep
 from tqdm import tqdm
+import copy
 
-from .. import mfpackages, util
-from ..read import jarkus
-from . import resample
+from .. import mfpackages, util, cache
+from ..read import jarkus, rws
+from . import resample, mlayers
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
     model_ds : xarray DataSet
         model dataset.
     gridprops : dict, optional
-        extra model properties when using unstructured grids. 
+        extra model properties when using vertex grids. 
         The default is None.
 
     Returns
@@ -58,10 +59,13 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
                                    delr=np.array([model_ds.delc] *
                                                  model_ds.dims['x']),
                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
-    elif model_ds.gridtype == 'unstructured':
+    elif model_ds.gridtype == 'vertex':
         _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
+        # somehow this function modifies gridprops['vertices'] from a list of
+        # lists into a list of tuples, for type checking later on I don't 
+        # want this, therefore I make a deepcopy here
         flopy.mf6.ModflowGwfdisv(gwf, idomain=model_ds['idomain'].data,
-                                 **gridprops)
+                                 **copy.deepcopy(gridprops))
         modelgrid = gwf.modelgrid
 
     return modelgrid
@@ -75,8 +79,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      anisotropy=10,
                                      fill_value_kh=1.,
                                      fill_value_kv=0.1,
-                                     cachedir=None,
-                                     use_cache=False):
+                                     cachedir=None):
     """Update a model dataset with a model layer dataset. 
 
     Steps:
@@ -89,7 +92,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     to model dataset
     4. compute top and bots from model layer dataset, add to model dataset
     5. compute kh, kv from model layer dataset, add to model dataset
-    6. if gridtype is unstructured add top, bot and area to gridprops
+    6. if gridtype is vertex add top, bot and area to gridprops
     7. if add_northsea is True:
         a) get cells from modelgrid that are within the northsea, add data
         variable 'northsea' to model_ds
@@ -122,9 +125,6 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     cachedir : str, optional
         directory to store cached values, if None a temporary directory is
         used. default is None
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used. 
-        The default is False.
 
     Returns
     -------
@@ -148,35 +148,32 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
 
     model_ds = add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                                        gridtype=gridtype)
-
+    
     model_ds = add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds,
                                                   model_ds,
                                                   anisotropy,
                                                   fill_value_kh,
                                                   fill_value_kv)
 
-    if gridtype == 'unstructured':
+    if gridtype == 'vertex':
         gridprops['top'] = model_ds['top'].data
         gridprops['botm'] = model_ds['bot'].data
 
         # add surface area of each cell
         model_ds['area'] = ('cid', gridprops.pop('area')
                             [:len(model_ds['cid'])])
-
     else:
         gridprops = None
 
     if add_northsea:
         logger.info(
             'nan values at the northsea are filled using the bathymetry from jarkus')
-
-        modelgrid = modelgrid_from_model_ds(model_ds, gridprops=gridprops)
-
+        
         # find grid cells with northsea
-        model_ds = jarkus.get_modelgrid_sea(model_ds,
-                                            modelgrid=modelgrid,
-                                            cachedir=cachedir,
-                                            use_cache=use_cache)
+        model_ds.update(rws.get_northsea(model_ds,
+                                         gridprops=gridprops,
+                                         cachedir=cachedir,
+                                         cachename='sea_model_ds.nc'))
 
         # fill top, bot, kh, kv at sea cells
         fill_mask = (model_ds['first_active_layer']
@@ -184,34 +181,34 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         model_ds = fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
                                               gridtype=gridtype,
                                               gridprops=gridprops)
-
+        
         # add bathymetry noordzee
-        model_ds = jarkus.get_modelgrid_bathymetry(model_ds,
-                                                   gridprops=gridprops,
-                                                   cachedir=cachedir,
-                                                   use_cache=use_cache)
+        model_ds.update(jarkus.get_bathymetry(model_ds,
+                                              model_ds['northsea'],
+                                              gridprops=gridprops,
+                                              cachedir=cachedir,
+                                              cachename='bathymetry_model_ds.nc'))
 
         model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(model_ds,
                                                           model_ds['bathymetry'],
                                                           fill_mask)
 
         # update idomain on adjusted tops and bots
-        model_ds['thickness'] = get_thickness_from_topbot(model_ds['top'],
-                                                          model_ds['bot'])
+        model_ds['thickness'], top3d = mlayers.calculate_thickness(model_ds)
         model_ds['idomain'] = update_idomain_from_thickness(model_ds['idomain'],
                                                             model_ds['thickness'],
                                                             model_ds['northsea'])
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
             model_ds['idomain'])
-
-        if gridtype == 'unstructured':
+        if gridtype == 'vertex':
             gridprops['top'] = model_ds['top'].data
             gridprops['botm'] = model_ds['bot'].data
 
     else:
+        model_ds['thickness'], top3d = mlayers.calculate_thickness(model_ds)
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
                 model_ds['idomain'])
-
+    
     return model_ds
 
 
@@ -268,7 +265,7 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
 
     idomain = xr.where(bottom.isnull(), -1, 1)
 
-    # if the top cell is inactive idomain is 0, otherwise it is -1
+    # if the top cell is inactive idomain is 0, otheupdate_model_ds_from_ml_layer_dsise it is -1
     idomain[0] = xr.where(idomain[0] == -1, 0, idomain[0])
     for i in range(1, bottom.shape[0]):
         idomain[i] = xr.where((idomain[i - 1] == 0) &
@@ -283,7 +280,7 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
     return model_ds
 
 
-def get_xy_mid_structured(extent, delr, delc):
+def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     """Calculates the x and y coordinates of the cell centers of a structured
     grid.
 
@@ -295,6 +292,9 @@ def get_xy_mid_structured(extent, delr, delc):
         cell size along rows, equal to dx
     delc : int or float,
         cell size along columns, equal to dy
+    descending_y : bool, optional
+        if True the resulting ymid array is in descending order. This is the
+        default for MODFLOW models. default is True.
 
     Returns
     -------
@@ -303,6 +303,14 @@ def get_xy_mid_structured(extent, delr, delc):
     ymid : np.array
         y-coordinates of the cell centers shape(nrow)
     """
+    # check if extent is valid
+    if (extent[1] - extent[0])%delr!=0.0:
+        raise ValueError('invalid extent, the extent should contain an integer'
+                         ' number of cells in the x-direction')
+    if (extent[3] - extent[2])%delc!=0.0:
+        raise ValueError('invalid extent, the extent should contain an integer'
+                         ' number of cells in the y-direction')
+    
     # get cell mids
     x_mid_start = extent[0] + 0.5 * delr
     x_mid_end = extent[1] - 0.5 * delr
@@ -313,18 +321,19 @@ def get_xy_mid_structured(extent, delr, delc):
     nrow = int((extent[3] - extent[2]) / delc)
 
     xmid = np.linspace(x_mid_start, x_mid_end, ncol)
-    ymid = np.linspace(y_mid_start, y_mid_end, nrow)
+    if descending_y:
+        ymid = np.linspace(y_mid_end, y_mid_start, nrow)
+    else:
+        ymid = np.linspace(y_mid_start, y_mid_end, nrow)
 
     return xmid, ymid
 
-
-def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
-                             refine_features=None, extent=None,
-                             nlay=None, nrow=None, ncol=None,
-                             delr=None, delc=None,
-                             cachedir=None,
-                             use_cache=False):
-    """Create unstructured grid. Refine grid using refinement features.
+@cache.cache_pklz
+def create_vertex_grid(model_name, gridgen_ws, gwf=None,
+                       refine_features=None, extent=None,
+                       nlay=None, nrow=None, ncol=None,
+                       delr=None, delc=None):
+    """Create vertex grid. Refine grid using refinement features.
 
     Parameters
     ----------
@@ -354,35 +363,14 @@ def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
         cell size along rows of the desired grid (dx).
     delc : int or float, optional
         cell size along columns of the desired grid (dy).
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
 
     Returns
     -------
     gridprops : dictionary
-        gridprops with the unstructured grid information.
+        gridprops with the vertex grid information.
     """
-    if not os.path.isdir(gridgen_ws):
-        os.makedirs(gridgen_ws)
-
-    if cachedir is None:
-        cachedir = tempfile.gettempdir()
-
-    fname_gridprops_pickle = os.path.join(cachedir, 'gridprops.pklz')
-    if os.path.isfile(fname_gridprops_pickle) and use_cache:
-        logger.info(
-            f'using cached griddata from file {fname_gridprops_pickle}')
-
-        with open(fname_gridprops_pickle, 'rb') as fo:
-            gridprops = pickle.load(fo)
-
-        return gridprops
-
-    logger.info('create unstructured grid using gridgen')
+    
+    logger.info('create vertex grid using gridgen')
 
     # if existing structured grid, take parameters from grid if not
     # explicitly passed
@@ -428,11 +416,6 @@ def create_unstructured_grid(model_name, gridgen_ws, gwf=None,
     gridprops = g.get_gridprops_disv()
     gridprops['area'] = g.get_area()
 
-    logger.info(f'write cache for griddata data to {fname_gridprops_pickle}')
-
-    with open(fname_gridprops_pickle, 'wb') as fo:
-        pickle.dump(gridprops, fo)
-
     return gridprops
 
 
@@ -474,7 +457,7 @@ def col_to_list(col_in, model_ds, cellids):
 
     This function is typically used to create a rec_array with stress period
     data for the modflow packages. Can be used for structured and 
-    unstructured grids.
+    vertex grids.
 
     Parameters
     ----------
@@ -509,11 +492,11 @@ def col_to_list(col_in, model_ds, cellids):
             col_lst = [model_ds[col_in].data[lay, row, col]
                        for lay, row, col in zip(cellids[0], cellids[1], cellids[2])]
         elif len(cellids) == 2:
-            # 2d grid or unstructured 3d grid
+            # 2d grid or vertex 3d grid
             col_lst = [model_ds[col_in].data[row, col]
                        for row, col in zip(cellids[0], cellids[1])]
         elif len(cellids) == 1:
-            # 2d unstructured grid
+            # 2d vertex grid
             col_lst = model_ds[col_in].data[cellids[0]]
         else:
             raise ValueError(
@@ -760,7 +743,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
                      col1=None, col2=None, col3=None):
     """Create a rec list for stress period data from a set of cellids.
 
-    Used for unstructured grids.
+    Used for vertex grids.
 
 
     Parameters
@@ -833,12 +816,12 @@ def lcid_to_rec_list(layers, cellids, model_ds,
     return rec_list
 
 
-def data_array_2d_unstr_to_rec_list(model_ds, mask,
+def data_array_2d_vertex_to_rec_list(model_ds, mask,
                                     col1=None, col2=None, col3=None,
                                     only_active_cells=True):
     """Create a rec list for stress period data from a model dataset.
 
-    Used for unstructured grids.
+    Used for vertex grids.
 
 
     Parameters
@@ -896,14 +879,14 @@ def data_array_2d_unstr_to_rec_list(model_ds, mask,
     return rec_list
 
 
-def data_array_1d_unstr_to_rec_list(model_ds, mask,
+def data_array_1d_vertex_to_rec_list(model_ds, mask,
                                     col1=None, col2=None, col3=None,
                                     layer=0,
                                     first_active_layer=False,
                                     only_active_cells=True):
     """Create a rec list for stress period data from a model dataset.
 
-    Used for unstructured grids.
+    Used for vertex grids.
 
 
     Parameters
@@ -1001,13 +984,13 @@ def polygon_to_area(modelgrid, polygon, da,
     ix = GridIntersect(modelgrid)
     opp_cells = ix.intersect(polygon)
 
-    area_array = xr.zeros_like(da)
-
     if gridtype == 'structured':
+        area_array = util.get_da_from_da_ds(da, dims=('y','x'), data=0)
         for opp_row in opp_cells:
             area = opp_row[-2]
             area_array[opp_row[0][0], opp_row[0][1]] = area
-    elif gridtype == 'unstructured':
+    elif gridtype == 'vertex':
+        area_array = util.get_da_from_da_ds(da, dims=('cid',), data=0)
         cids = opp_cells.cellids
         area = opp_cells.areas
         area_array[cids.astype(int)] = area
@@ -1038,8 +1021,15 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
 
     # build list of gridcells
     ix = GridIntersect(mfgrid, method="vertex")
+    
+    if model_ds.gridtype == 'structured':
+        da = util.get_da_from_da_ds(model_ds, dims=('y','x'), data=0)
+    elif model_ds.gridtype == 'vertex':
+        da = util.get_da_from_da_ds(model_ds, dims=('cid',), data=0)
+    else:
+        raise ValueError('function only support structured or vertex gridtypes')
 
-    da = xr.zeros_like(model_ds['top'])
+    
 
     if isinstance(gdf, gpd.GeoDataFrame):
         geoms = gdf.geometry.values
@@ -1059,11 +1049,9 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
         if model_ds.gridtype == 'structured':
             for cid in cids:
                 da[cid[0], cid[1]] = 1
-        elif model_ds.gridtype == 'unstructured':
+        elif model_ds.gridtype == 'vertex':
             da[cids] = 1
-        else:
-            raise ValueError(
-                'function only support structured or unstructured gridtypes')
+            
 
     return da
 
@@ -1094,8 +1082,11 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
     return model_ds_out
 
 
-def gdf2grid(gdf, ml, method="vertex", **kwargs):
-    """Intersect a geodataframe with a model grid.
+def gdf2grid(gdf, ml, method=None, ix=None,
+             desc="Intersecting with grid", **kwargs):
+    """
+    Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method
+    is just a wrapper around the GridIntersect method from flopy
 
     Parameters
     ----------
@@ -1108,21 +1099,33 @@ def gdf2grid(gdf, ml, method="vertex", **kwargs):
     method : string, optional
         Method passed to the GridIntersect-class. The default is None, which
         makes GridIntersect choose the best method.
+    ix : flopy.utils.GridIntersect, optional
+        GridIntersect, if not provided the modelgrid in ml is used.
     **kwargs : keyword arguments
-        keyword arguments are passed to the intersect-method.
+        keyword arguments are passed to the intersect_*-methods.
 
     Returns
     -------
     geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
+
     """
-    ix = GridIntersect(ml.modelgrid, method=method)
+    if ix is None:
+        ix = flopy.utils.GridIntersect(ml.modelgrid, method=method)
     shps = []
-    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0],
-                       desc="Intersecting with grid"):
-
-        r = ix.intersect(shp.geometry, **kwargs)
-
+    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
+        if hasattr(ix, 'intersect'):
+            r = ix.intersect(shp.geometry, **kwargs)
+        else:
+            if shp.geometry.type in ['Point', 'MultiPoint']:
+                r = ix.intersect_point(shp.geometry, **kwargs)
+            elif shp.geometry.type in ['LineString', 'MultiLineString']:
+                r = ix.intersect_linestring(shp.geometry, **kwargs)
+            elif shp.geometry.type in ['Polygon', 'MultiPolygon']:
+                r = ix.intersect_polygon(shp.geometry, **kwargs)
+            else:
+                msg = 'Unknown geometry type: {}'.format(shp.geometry.type)
+                raise(Exception(msg))
         for i in range(r.shape[0]):
             shpn = shp.copy()
             shpn['cellid'] = r['cellids'][i]
@@ -1148,11 +1151,19 @@ def get_thickness_from_topbot(top, bot):
         raster with thickness of each cell. dimensions should be (layer, y,x)
         or (layer, cid).
     """
+    DeprecationWarning('function is deprecated please use calculate_thickness function instead')
+    
     if np.ndim(top) > 2:
         raise NotImplementedError('function works only for 2d top')
 
     # get thickness
-    thickness = xr.zeros_like(bot)
+    if bot.ndim == 3:
+        thickness = util.get_da_from_da_ds(bot, dims=('layer','y','x'))
+    elif bot.ndim == 2:
+        thickness = util.get_da_from_da_ds(bot, dims=('layer','cid'))
+    else:
+        raise ValueError('function only support structured or vertex gridtypes')
+        
     for lay in range(len(bot)):
         if lay == 0:
             thickness[lay] = top - bot[lay]
@@ -1211,9 +1222,9 @@ def update_idomain_from_thickness(idomain, thickness, mask):
 
 def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
                                        fill_value_kh, fill_value_kv):
-    """add kh and kv from a model layer dataset to THE model dataset.
+    """add kh and kv from a model layer dataset to the model dataset.
 
-    Supports structured and unstructured grids.
+    Supports structured and vertex grids.
 
     Parameters
     ----------
@@ -1249,10 +1260,19 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
     kh, kv = get_kh_kv(kh_arr, kv_arr, anisotropy,
                        fill_value_kh=fill_value_kh,
                        fill_value_kv=fill_value_kv)
+    
+    if model_ds.gridtype=='structured':
+        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer','y','x' ),
+                                         data=1)
+    elif model_ds.gridtype=='vertex':
+        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer','cid'),
+                                         data=1)
+    else:
+        raise ValueError('function only support structured or vertex gridtypes')
+        
+    model_ds['kh'] = da_ones * kh
 
-    model_ds['kh'] = xr.ones_like(model_ds['idomain']) * kh
-
-    model_ds['kv'] = xr.ones_like(model_ds['idomain']) * kv
+    model_ds['kv'] = da_ones * kv
 
     # keep attributes for bot en top
     for datavar in ['kh', 'kv']:
@@ -1277,7 +1297,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
     2. pak kh uit regis deel door anisotropy, tenzij nan dan:
     3. pak fill_value_kv
 
-    Supports structured and unstructured grids.
+    Supports structured and vertex grids.
 
     Parameters
     ----------
@@ -1342,7 +1362,7 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
                             gridtype='structured'):
     """add top and bot from a model layer dataset to THE model dataset.
 
-    Supports structured and unstructured grids.
+    Supports structured and vertex grids.
 
     Parameters
     ----------
@@ -1359,7 +1379,7 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
         if the percentage of cells that have nan values in all layers is
         higher than this an error is raised. The default is 80.
     gridtype : str, optional
-        type of grid, options are 'structured' and 'unstructured'.
+        type of grid, options are 'structured' and 'vertex'.
         The default is 'structured'.
 
     Returns
@@ -1375,25 +1395,23 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
     logger.info('replace nan values for inactive layers with dummy value')
 
     if gridtype == 'structured':
-
         model_ds = add_top_bot_structured(ml_layer_ds, model_ds,
                                           nodata=nodata,
                                           max_percentage=max_percentage)
 
-    elif gridtype == 'unstructured':
-        model_ds = add_top_bot_unstructured(ml_layer_ds, model_ds,
+    elif gridtype == 'vertex':
+        model_ds = add_top_bot_vertex(ml_layer_ds, model_ds,
                                             nodata=nodata,
                                             max_percentage=max_percentage)
 
     return model_ds
 
 
-def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
-                             max_percentage=80):
+def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
     """Voeg top en bottom vanuit layer dataset toe aan de model dataset.
 
-    Deze functie is bedoeld voor unstructured arrays in modflow 6. Supports 
-    only unstructured grids.
+    Deze functie is bedoeld voor vertex arrays in modflow 6. Supports 
+    only vertex grids.
 
     Stappen:
 
@@ -1414,10 +1432,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     nodata : int, optional
         if the first_active_layer data array in model_ds has this value,
         it means this cell is inactive in all layers
-    max_percentage : int or float, optional
-        if the percentage of cells that have nan values in all layers an
-        error will be raised. The default is 80.
-
+    
     Returns
     -------
     model_ds : xarray.Dataset
@@ -1433,12 +1448,10 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     if np.any(active_domain == False):
         percentage = 100 * (active_domain == False).sum() / \
             (active_domain.shape[0])
-        if percentage > max_percentage:
-            raise MemoryError(f'{percentage:0.1f}% of all cells have nan '
-                              'values in every layer there is probably a '
-                              'problem with your extent if you want to '
-                              'ignore this error set max_percentage higher '
-                              f'than {max_percentage}')
+        if percentage > 80:
+            logger.warning(f'{percentage:0.1f}% of all cells have nan '
+                            'values in every layer there is probably a '
+                            'problem with your extent.')
 
         # set bottom to zero if bottom in a cell is nan in all layers
         lowest_bottom = np.where(active_domain, lowest_bottom, 0)
@@ -1492,7 +1505,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     model_ds['bot'] = xr.DataArray(top_bot[1:], dims=('layer', 'cid'),
                                    coords={'cid': model_ds.cid.data,
                                            'layer': model_ds.layer.data})
-    model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid'),
+    model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid',),
                                    coords={'cid': model_ds.cid.data})
 
     # keep attributes for bot en top
@@ -1503,8 +1516,7 @@ def add_top_bot_unstructured(ml_layer_ds, model_ds, nodata=-999,
     return model_ds
 
 
-def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
-                           max_percentage=80):
+def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
     """Voeg top en bottom vanuit een layer dataset toe aan de model dataset.
 
     Deze functie is bedoeld voor structured arrays in modflow 6. Supports 
@@ -1529,9 +1541,6 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     nodata : int, optional
         if the first_active_layer data array in model_ds has this value,
         it means this cell is inactive in all layers
-    max_percentage : int or float, optional
-        if the percentage of cells that have nan values in all layers an
-        error will be raised. The default is 80.
 
     Returns
     -------
@@ -1549,13 +1558,10 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     if np.any(active_domain == False):
         percentage = 100 * (active_domain == False).sum() / \
             (active_domain.shape[0] * active_domain.shape[1])
-        if percentage > max_percentage:
-            raise MemoryError(f'{percentage:0.1f}% of all cells have nan '
-                              'values in every layer there is probably a '
-                              'problem with your extent if you want to '
-                              'ignore this error set max_percentage higher '
-                              f'than {max_percentage}%')
-
+        if percentage > 80:
+            logger.warning(f'{percentage:0.1f}% of all cells have nan '
+                            'values in every layer there is probably a '
+                            'problem with your extent.')
         # set bottom to zero if bottom in a cell is nan in all layers
         lowest_bottom = np.where(active_domain, lowest_bottom, 0)
 
@@ -1626,6 +1632,86 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999,
     return model_ds
 
 
+def get_vertices(model_ds, modelgrid=None,
+                 gridprops=None, vert_per_cid=4):
+    """ get vertices of a vertex modelgrid from the modelgrid or from the 
+    gridprops. Only return the 4 corners of each cell and not the corners of
+    adjacent cells thus limiting the vertices per cell to 4 points.
+    
+    If the modelgrid is given the xvertices and yvertices attributes of the 
+    modelgrid are used. If the gridprops are given the cell2d and vertices are
+    obtained from the gridprops.
+    
+    Parameters
+    ----------
+    model_ds : xr.DataSet
+        model dataset, attribute grid_type should be 'vertex'
+    modelgrid : flopy.discretization.vertexgrid.VertexGrid
+        vertex grid with attributes xvertices and yvertices.
+    gridprops : dictionary
+        gridproperties obtained from gridgen
+    vert_per_cid : int or None:
+        number of vertices per cell:
+        - 4 return the 4 vertices of each cell
+        - 5 return the 4 vertices of each cell + one duplicate verex 
+        (sometimes useful if you want to create polygons)
+        - anything else, the maximum number of vertices. For locally refined
+        cells this includes all the vertices adjacent to the cell.
+        
+        if vert_per_cid is 4 or 5 vertices are removed using the 
+        Ramer-Douglas-Peucker Algorithm -> https://github.com/fhirschmann/rdp.
+
+    Returns
+    -------
+    vertices_da : xarray DataArray
+         Vertex coördinates per cell with dimensions(cid, no_vert, 2).
+    """
+    
+    # obtain 
+    if modelgrid is not None:
+        xvert = modelgrid.xvertices
+        yvert = modelgrid.yvertices
+        if vert_per_cid == 4:
+            from rdp import rdp
+            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i])))[:-1] for i in range(len(xvert))])
+        elif vert_per_cid == 5:
+            from rdp import rdp
+            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))])
+        else:
+            raise NotImplementedError()
+    
+    elif gridprops is not None:
+        all_vertices = np.ones((len(gridprops['cell2d']), len(gridprops['cell2d'][0]), 2)) * np.nan
+        for i, cell in enumerate(gridprops['cell2d']):
+            for j in range(cell[3]):
+                all_vertices[i, j] = gridprops['vertices'][cell[4+j]][1:]
+
+        if vert_per_cid in [4,5]:
+            from rdp import rdp
+            clean_vertices = np.ones((len(gridprops['cell2d']), 5, 2)) * np.nan
+            for i in range(len(all_vertices)):
+                clean_vertices[i] = rdp(all_vertices[i][~np.isnan(all_vertices[i]).any(axis=1)])
+            if vert_per_cid == 4:
+                vertices_arr = clean_vertices[:,:4, :]
+            else:
+                vertices_arr = clean_vertices
+                
+        else:
+            vertices_arr = all_vertices
+    
+    else:
+        return ValueError('Specify gridprops or modelgrid')
+            
+    
+    vertices_da = xr.DataArray(vertices_arr, 
+                               dims=('cid', 'vert_per_cid', 'xy'),
+                               coords={'cid': model_ds.cid.values,
+                                       'vert_per_cid': range(vertices_arr.shape[1]),
+                                        'xy': ['x','y']})
+    
+    return vertices_da
+
+
 def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
                                gridtype='structured',
                                gridprops=None):
@@ -1659,24 +1745,24 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
     """
 
     # zee cellen hebben altijd een top gelijk aan 0
-    model_ds['top'] = xr.where(fill_mask, 0, model_ds['top'])
+    model_ds['top'].values = np.where(fill_mask, 0, model_ds['top'])
 
     if gridtype == 'structured':
         fill_function = resample.fillnan_dataarray_structured_grid
         fill_function_kwargs = {}
-    elif gridtype == 'unstructured':
-        fill_function = resample.fillnan_dataarray_unstructured_grid
+    elif gridtype == 'vertex':
+        fill_function = resample.fillnan_dataarray_vertex_grid
         fill_function_kwargs = {'gridprops': gridprops}
 
     for lay in range(model_ds.dims['layer']):
         bottom_nan = xr.where(fill_mask, np.nan, model_ds['bot'][lay])
-        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)[0]
+        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)
 
         kh_nan = xr.where(fill_mask, np.nan, model_ds['kh'][lay])
-        kh_filled = fill_function(kh_nan, **fill_function_kwargs)[0]
+        kh_filled = fill_function(kh_nan, **fill_function_kwargs)
 
         kv_nan = xr.where(fill_mask, np.nan, model_ds['kv'][lay])
-        kv_filled = fill_function(kv_nan, **fill_function_kwargs)[0]
+        kv_filled = fill_function(kv_nan, **fill_function_kwargs)
 
         if lay == 0:
             # top ligt onder bottom_filled -> laagdikte wordt 0
@@ -1706,4 +1792,5 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
                                            model_ds['kv'][lay],
                                            kv_filled)
 
+    
     return model_ds

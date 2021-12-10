@@ -370,7 +370,7 @@ def build_spd(celldata, pkg, model_ds):
                             desc=f"Building stress period data {pkg}"):
 
         # check if there is an active layer for this cell
-        if model_ds.gridtype == 'unstructured':
+        if model_ds.gridtype == 'vertex':
             if (model_ds["idomain"].sel(cid=cellid) == 0).all():
                 continue
         elif model_ds.gridtype == 'structured':
@@ -425,7 +425,7 @@ def build_spd(celldata, pkg, model_ds):
         else:
             auxlist = []
 
-        if model_ds.gridtype == 'unstructured':
+        if model_ds.gridtype == 'vertex':
             cellid = (cellid,)
 
         # write SPD

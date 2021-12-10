@@ -8,75 +8,13 @@ import datetime as dt
 import xarray as xr
 from scipy.interpolate import griddata
 
-from .. import mdims, util
+from .. import mdims, cache
 from . import geotop
 
 logger = logging.getLogger(__name__)
 
 
-def get_layer_models(extent, delr, delc,
-                     use_regis=True,
-                     regis_botm_layer=b'AKc',
-                     use_geotop=True,
-                     remove_nan_layers=True,
-                     cachedir=None,
-                     fname_netcdf='combined_layer_ds.nc',
-                     use_cache=False):
-    """get a layer model from regis and/or geotop.
-
-    Possibilities so far include:
-        - use_regis -> full model based on regis
-        - use_regis and use_geotop -> holoceen of REGIS is filled with geotop
-
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
-    use_regis : bool, optional
-        True if part of the layer model should be REGIS. The default is True.
-    regis_botm_layer : binary str, optional
-        regis layer that is used as the bottom of the model. This layer is
-        included in the model. the Default is b'AKc' which is the bottom
-        layer of regis. call nlmod.regis.get_layer_names() to get a list of
-        regis names.
-    use_geotop : bool, optional
-        True if part of the layer model should be geotop. The default is True.
-    remove_nan_layers : bool, optional
-        if True regis and geotop layers with only nans are removed from the
-        model. if False nan layers are kept which might be usefull if you want
-        to keep some layers that exist in other models. The default is True.
-    cachedir : str
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    fname_netcdf : str, optional
-        name of the cached netcdf file. The default is 'combined_layer_ds.nc'.
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
-
-    Returns
-    -------
-    combined_ds : xarary dataset
-        layer model dataset.
-    """
-
-    combined_ds = util.get_cache_netcdf(use_cache, cachedir, fname_netcdf,
-                                        get_combined_layer_models,
-                                        extent=extent,
-                                        delr=delr, delc=delc,
-                                        use_regis=use_regis,
-                                        regis_botm_layer=regis_botm_layer,
-                                        use_geotop=use_geotop,
-                                        remove_nan_layers=remove_nan_layers)
-
-    return combined_ds
-
-
+@cache.cache_netcdf
 def get_combined_layer_models(extent, delr, delc,
                               regis_botm_layer=b'AKc',
                               use_regis=True, use_geotop=True,
@@ -109,25 +47,25 @@ def get_combined_layer_models(extent, delr, delc,
         if True regis and geotop layers with only nans are removed from the
         model. if False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
+        
+    Returns
+    -------
+    combined_ds : xarray dataset
+        combination of layer models.
 
     Raises
     ------
     ValueError
         if an invalid combination of layers is used.
-
-    Returns
-    -------
-    combined_ds : xarray dataset
-        combination of layer models.
     """
 
     if use_regis:
-        regis_ds = get_regis_dataset(extent, delr, delc, regis_botm_layer)
+        regis_ds = get_regis(extent, delr, delc, regis_botm_layer)
     else:
         raise ValueError('layer models without REGIS not supported')
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop_dataset(extent, delr, delc, regis_ds)
+        geotop_ds = geotop.get_geotop(extent, delr, delc, regis_ds)
 
     if use_regis and use_geotop:
         regis_geotop_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)
@@ -146,7 +84,8 @@ def get_combined_layer_models(extent, delr, delc,
     return combined_ds
 
 
-def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
+@cache.cache_netcdf
+def get_regis(extent, delr, delc, botm_layer=b'AKc'):
     """get a regis dataset projected on the modelgrid.
 
     Parameters
@@ -206,15 +145,24 @@ def get_regis_dataset(extent, delr, delc, botm_layer=b'AKc'):
     regis_ds_raw2 = regis_ds_raw.swap_dims({'layer_old': 'layer'})
 
     # convert regis dataset to grid
-    regis_ds = mdims.get_resampled_ml_layer_ds_struc(raw_ds=regis_ds_raw2,
-                                                     extent=extent,
-                                                     delr=delr, delc=delc)
+    logger.info('resample regis data to structured modelgrid')
+    regis_ds = mdims.resample_dataset_to_structured_grid(regis_ds_raw2,
+                                                            extent,
+                                                            delr, delc)
+    regis_ds.attrs['extent'] = extent
+    regis_ds.attrs['delr'] = delr
+    regis_ds.attrs['delc'] = delc
+    regis_ds.attrs['gridtype'] = 'structured'
 
     for datavar in regis_ds:
         regis_ds[datavar].attrs['source'] = 'REGIS'
         regis_ds[datavar].attrs['url'] = regis_url
         regis_ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
-
+        if datavar in ['top', 'bot']:
+            regis_ds[datavar].attrs['units'] = 'mNAP'
+        elif datavar in ['kh', 'kv']:
+            regis_ds[datavar].attrs['units'] = 'm/day'
+            
     return regis_ds
 
 
@@ -325,6 +273,11 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         regis_geotop_ds[key].attrs['regis_url'] = regis_ds[key].url
         regis_geotop_ds[key].attrs['geotop_url'] = geotop_ds[key].url
         regis_geotop_ds[key].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        if key in ['top', 'bot']:
+            regis_geotop_ds[key].attrs['units'] = 'mNAP'
+        elif key in ['kh', 'kv']:
+            regis_geotop_ds[key].attrs['units'] = 'm/day'
+            
 
     return regis_geotop_ds
 
@@ -366,9 +319,10 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
     logger.info(f'redefining current extent: {extent}, fit to regis raster')
 
     for d in [delr, delc]:
-        if float(d) not in [10., 20., 25., 50., 100., 200., 400., 500., 800.]:
-            raise NotImplementedError(f'you probably cannot run the model with this '
-                                      f'cellsize -> {delc, delr}')
+        available_cell_sizes = [10., 20., 25., 50., 100., 200., 400., 500., 800.]
+        if float(d) not in available_cell_sizes:
+            raise NotImplementedError('only this cell sizes can be used for '
+                                      f'now -> {available_cell_sizes}')
 
     # if xmin ends with 100 do nothing, otherwise fit xmin to regis cell border
     if extent[0] % cs_regis != 0:

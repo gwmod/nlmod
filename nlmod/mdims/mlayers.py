@@ -120,12 +120,12 @@ def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot'):
                 raise ValueError(
                     "Sum of split factors for layer must equal 1.0!")
             logger.debug(f"{i}: Split layer {i} into {len(sf)} layers "
-                        f"with fractions: {sf}")
+                         f"with fractions: {sf}")
 
             # loop over split factors
             for isf, factor in enumerate(sf):
                 logger.debug(f"  - {isf}: Calculate new top/bot for "
-                            f"new layer index {j}")
+                             f"new layer index {j}")
 
                 # calculate new bot and new top
                 new_bot.data[j] = new_top.data[j] - (factor * thickness[i])
@@ -435,8 +435,8 @@ def kheq_combined_layers(kh, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kheq = np.sum(thickness[v, :, :] * kh.data[v, :, :]) / \
-                np.sum(thickness[v, :, :], axis=0)
+            kheq = np.nansum(thickness[v, :, :] * kh.data[v, :, :], axis=0) / \
+                np.nansum(thickness[v, :, :], axis=0)
         else:
             kheq = kh.data[v]
         da_kh.data[k] = kheq
@@ -471,8 +471,8 @@ def kveq_combined_layers(kv, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.sum(thickness[v, :, :], axis=0) / \
-                np.sum(thickness[v, :, :] / kv.data[v, :, :])
+            kveq = np.nansum(thickness[v, :, :], axis=0) / \
+                np.nansum(thickness[v, :, :] / kv.data[v, :, :], axis=0)
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq

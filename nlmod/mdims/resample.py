@@ -498,10 +498,10 @@ def fillnan_dataarray_structured_grid(xar_in):
     mg = np.meshgrid(xar_in.x.data, xar_in.y.data)
     points_all = np.vstack((mg[0].ravel(), mg[1].ravel())).T
 
-    # fill nan values in bathymetry
+    # get all values in DataArray
     values_all = xar_in.data.flatten()
 
-    # get 1d arrays with only values where bathymetry is not nan
+    # get 1d arrays with only values where DataArray is not nan
     mask1 = ~np.isnan(values_all)
     points_in = points_all[np.where(mask1)[0]]
     values_in = values_all[np.where(mask1)[0]]
@@ -510,7 +510,7 @@ def fillnan_dataarray_structured_grid(xar_in):
     values_out = griddata(points_in, values_in, points_all, method='nearest')
     arr_out = values_out.reshape(xar_in.shape)
 
-    # bathymetry without nan values
+    # create DataArray without nan values
     xar_out = xr.DataArray(arr_out, dims=('y', 'x'),
                            coords={'x': xar_in.x.data,
                                    'y': xar_in.y.data})
@@ -520,7 +520,10 @@ def fillnan_dataarray_structured_grid(xar_in):
 
 def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
                                   xyi=None, cid=None):
-    """can be slow if the xar_in is a large raster.
+    """fill not-a-number values in a vertex grid, DataArray.
+
+    The fill values are determined using the 'nearest' method of the
+    scipy.interpolate.griddata function
 
     Parameters
     ----------
@@ -537,16 +540,20 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
     -------
     xar_out : xr.DataArray
         data array with nan values. Shape is (cid)
+        
+    Notes
+    -----
+    can be slow if the xar_in is a large raster
     """
 
     # get list of coordinates from all points in raster
     if (xyi is None) or (cid is None):
         xyi, cid = mgrid.get_xyi_cid(gridprops)
 
-    # fill nan values in bathymetry
+    # fill nan values in DataArray
     values_all = xar_in.data
 
-    # get 1d arrays with only values where bathymetry is not nan
+    # get 1d arrays with only values where DataArray is not nan
     mask1 = ~np.isnan(values_all)
     xyi_in = xyi[mask1]
     values_in = values_all[mask1]
@@ -554,7 +561,7 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
     # get nearest value for all nan values
     values_out = griddata(xyi_in, values_in, xyi, method='nearest')
 
-    # bathymetry without nan values
+    # create DataArray without nan values
     xar_out = xr.DataArray(values_out, dims=('cid'),
                            coords={'cid': xar_in.cid.data})
 

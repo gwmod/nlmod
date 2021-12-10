@@ -262,7 +262,8 @@ def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
 
     idomain = xr.where(bottom.isnull(), -1, 1)
 
-    # if the top cell is inactive idomain is 0, otheupdate_model_ds_from_ml_layer_dsise it is -1
+    # if the top cell is inactive set idomain = 0, for other inactive cells
+    # set idomain = -1
     idomain[0] = xr.where(idomain[0] == -1, 0, idomain[0])
     for i in range(1, bottom.shape[0]):
         idomain[i] = xr.where((idomain[i - 1] == 0) &

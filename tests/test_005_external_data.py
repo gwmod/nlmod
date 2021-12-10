@@ -1,13 +1,5 @@
-# -*- coding: utf-8 -*-
-
-import os
-
 import nlmod
-import pandas as pd
-import pytest
-
 import test_001_model
-import test_002_regis_geotop
 
 
 def test_get_recharge():

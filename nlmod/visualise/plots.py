@@ -199,7 +199,7 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)
-        for ibc, bc_var in enumerate(plot_bc):
+        for bc_var in plot_bc:
             mp.plot_bc(bc_var, kper=0, color=color)
 
         iax.set_aspect("equal", adjustable="box")
@@ -276,7 +276,7 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
         vertices = vertices.values
     
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
         
     patches = [Polygon(vert) for vert in vertices]
     if gridkwargs is None:

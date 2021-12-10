@@ -319,9 +319,10 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
     logger.info(f'redefining current extent: {extent}, fit to regis raster')
 
     for d in [delr, delc]:
-        if float(d) not in [10., 20., 25., 50., 100., 200., 400., 500., 800.]:
-            raise NotImplementedError(f'you probably cannot run the model with this '
-                                      f'cellsize -> {delc, delr}')
+        available_cell_sizes = [10., 20., 25., 50., 100., 200., 400., 500., 800.]
+        if float(d) not in available_cell_sizes:
+            raise NotImplementedError('only this cell sizes can be used for '
+                                      f'now -> {available_cell_sizes}')
 
     # if xmin ends with 100 do nothing, otherwise fit xmin to regis cell border
     if extent[0] % cs_regis != 0:

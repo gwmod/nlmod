@@ -10,9 +10,7 @@
 import copy
 import logging
 import os
-import pickle
 import sys
-import tempfile
 
 import flopy
 import geopandas as gpd
@@ -24,7 +22,6 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from shapely.prepared import prep
 from tqdm import tqdm
-import copy
 
 from .. import mfpackages, util, cache
 from ..read import jarkus, rws
@@ -41,7 +38,7 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
     model_ds : xarray DataSet
         model dataset.
     gridprops : dict, optional
-        extra model properties when using vertex grids. 
+        extra model properties when using vertex grids.
         The default is None.
 
     Returns
@@ -194,7 +191,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                                           fill_mask)
 
         # update idomain on adjusted tops and bots
-        model_ds['thickness'], top3d = mlayers.calculate_thickness(model_ds)
+        model_ds['thickness'], _ = mlayers.calculate_thickness(model_ds)
         model_ds['idomain'] = update_idomain_from_thickness(model_ds['idomain'],
                                                             model_ds['thickness'],
                                                             model_ds['northsea'])
@@ -205,7 +202,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
             gridprops['botm'] = model_ds['bot'].data
 
     else:
-        model_ds['thickness'], top3d = mlayers.calculate_thickness(model_ds)
+        model_ds['thickness'], _ = mlayers.calculate_thickness(model_ds)
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
                 model_ds['idomain'])
     
@@ -1628,7 +1625,7 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
 
 def get_vertices(model_ds, modelgrid=None,
                  gridprops=None, vert_per_cid=4):
-    """ get vertices of a vertex modelgrid from the modelgrid or from the 
+    """ get vertices of a vertex modelgrid from the modelgrid or from the
     gridprops. Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
     
@@ -1647,12 +1644,12 @@ def get_vertices(model_ds, modelgrid=None,
     vert_per_cid : int or None:
         number of vertices per cell:
         - 4 return the 4 vertices of each cell
-        - 5 return the 4 vertices of each cell + one duplicate verex 
+        - 5 return the 4 vertices of each cell + one duplicate verex
         (sometimes useful if you want to create polygons)
         - anything else, the maximum number of vertices. For locally refined
         cells this includes all the vertices adjacent to the cell.
         
-        if vert_per_cid is 4 or 5 vertices are removed using the 
+        if vert_per_cid is 4 or 5 vertices are removed using the
         Ramer-Douglas-Peucker Algorithm -> https://github.com/fhirschmann/rdp.
 
     Returns
@@ -1683,8 +1680,8 @@ def get_vertices(model_ds, modelgrid=None,
         if vert_per_cid in [4,5]:
             from rdp import rdp
             clean_vertices = np.ones((len(gridprops['cell2d']), 5, 2)) * np.nan
-            for i in range(len(all_vertices)):
-                clean_vertices[i] = rdp(all_vertices[i][~np.isnan(all_vertices[i]).any(axis=1)])
+            for i, vert in enumerate(all_vertices):
+                clean_vertices[i] = rdp(vert[~np.isnan(vert).any(axis=1)])
             if vert_per_cid == 4:
                 vertices_arr = clean_vertices[:,:4, :]
             else:

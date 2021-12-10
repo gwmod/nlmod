@@ -76,7 +76,7 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0],
                           delr=100., delc=100.):
 
     regis_geotop_ds = regis.get_combined_layer_models(extent, delr, delc,
-                                                      use_regis=True, 
+                                                      use_regis=True,
                                                       use_geotop=True)
 
     assert regis_geotop_ds.dims['layer'] == 24

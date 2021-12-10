@@ -225,7 +225,7 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
 
 
 def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
-    
+
     warnings.warn("The 'plot_array' functions is deprecated please use"
                   "'plot_vertex_array' instead", DeprecationWarning )
     
@@ -260,9 +260,9 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     ax : TYPE, optional
         DESCRIPTION. The default is None.
     gridkwargs : dict or None, optional
-        layout parameters to plot the cells. For example 
+        layout parameters to plot the cells. For example
         {'edgecolor':'k'} to create black cell lines. The default is None.
-    **kwargs : 
+    **kwargs :
         passed to quadmesh.set().
 
     Returns

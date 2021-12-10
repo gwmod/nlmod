@@ -220,7 +220,7 @@ def resample_dataarray2d_to_structured_grid(da_in, extent=None,
 
     if xmid is None:
         xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
-        
+
     # check if ymid is in descending order
     assert np.array_equal(ymid, np.sort(ymid)[::-1]), 'ymid should be in descending order'
 
@@ -230,7 +230,7 @@ def resample_dataarray2d_to_structured_grid(da_in, extent=None,
         arr_out = resample_2d_struc_da_nan_linear(da_in, xmid, ymid,
                                                   nan_factor, **kwargs)
     # faster for linear
-    elif kind == "linear" or kind == 'cubic':
+    elif kind in ["linear",'cubic']:
         # no need to fill nan values
         f = interpolate.interp2d(da_in.x.data, da_in.y.data,
                                  da_in.data, kind='linear', **kwargs)
@@ -565,7 +565,7 @@ def resample_vertex_2d_da_to_struc_2d_da(da_in, model_ds=None,
                                         xmid=None, ymid=None,
                                         cellsize=25,
                                         method='nearest'):
-    """resample a 2d dataarray (xarray) from a vertex grid to a new 
+    """resample a 2d dataarray (xarray) from a vertex grid to a new
     dataaraay from a structured grid.   
 
     Parameters

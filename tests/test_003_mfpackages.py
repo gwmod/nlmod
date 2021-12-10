@@ -114,7 +114,7 @@ def chd_from_model_ds(tmpdir):
                                       starting_head=1.0)
 
     # add constant head cells at model boundaries
-    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(model_ds, model_ds['idomain']))    
+    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(model_ds, model_ds['idomain']))
     chd = nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     return chd

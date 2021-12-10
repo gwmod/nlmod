@@ -51,8 +51,8 @@ def get_surface_water(model_ds, da_name, gridprops=None):
         name of the polygon shapes, name is used to store data arrays in
         model_ds
     gridprops : dict, optional
-        extra model properties when using unstructured grids. 
-        The default is None. 
+        extra model properties when using unstructured grids.
+        The default is None.
 
     Returns
     -------
@@ -91,7 +91,7 @@ def get_surface_water(model_ds, da_name, gridprops=None):
 
 @cache.cache_netcdf
 def get_northsea(model_ds, gridprops=None, da_name='northsea'):
-    """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is 
+    """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is
     defined by rws surface water shapefile.
 
     Parameters

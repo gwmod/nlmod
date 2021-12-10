@@ -45,14 +45,14 @@ def get_bathymetry(model_ds, northsea,
     changing the order in which operations are executed.
     """
     model_ds_out = util.get_model_ds_empty(model_ds)
-    
+
     # no bathymetry if we don't have northsea
-    if (northsea==0).all():
-        model_ds_out['bathymetry'] = util.get_da_from_da_ds(northsea, 
-                                                            northsea.dims, 
+    if (northsea == 0).all():
+        model_ds_out['bathymetry'] = util.get_da_from_da_ds(northsea,
+                                                            northsea.dims,
                                                             data=np.nan)
         return model_ds_out
-    
+
     # try to get bathymetry via opendap
     try:
         url = 'http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'
@@ -88,8 +88,6 @@ def get_bathymetry(model_ds, northsea,
     elif model_ds.gridtype == 'vertex':
         da_bathymetry = mdims.resample_dataarray2d_to_vertex_grid(da_bathymetry_filled,
                                                                   gridprops=gridprops)
-
-    
 
     model_ds_out['bathymetry'] = xr.where(northsea, da_bathymetry, np.nan)
 

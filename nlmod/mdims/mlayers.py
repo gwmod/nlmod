@@ -50,7 +50,7 @@ def calculate_thickness(ds, top="top", bot="bot"):
         else:
             raise ValueError('2d top should have same last dimension as bot')
     thickness.attrs['units'] = 'm'
-    
+
     return thickness, top3d
 
 

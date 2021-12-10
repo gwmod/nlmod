@@ -228,7 +228,6 @@ def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
 
     warnings.warn("The 'plot_array' functions is deprecated please use"
                   "'plot_vertex_array' instead", DeprecationWarning )
-    
     if ax is None:
         f, ax = plt.subplots(figsize=figsize)
 

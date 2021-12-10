@@ -166,7 +166,7 @@ def cache_netcdf(func):
 
 
 def cache_pklz(func):
-    """ decorator to read/write the result of a function from/to a pklz file 
+    """ decorator to read/write the result of a function from/to a pklz file
     to speed up function calls with the same arguments. Should only be applied
     to functions that:
         - return a dictionary
@@ -176,16 +176,16 @@ def cache_pklz(func):
     1. The directory and filename of the cache should be defined by the person
     calling a function with this decorator. If not defined no cache is
     created nor used.
-    2. Create a new cached file if it is impossible to check if the function 
+    2. Create a new cached file if it is impossible to check if the function
     arguments used to create the cached file are the same as the current
-    function arguments. This can happen if one of the function arguments has a 
+    function arguments. This can happen if one of the function arguments has a
     type that cannot be checked using the _is_valid_cache function.
     3. Function arguments are pickled together with the cache to check later
     if the cache is valid.
     4. This function uses `functools.wraps` and some home made
-    magic in _update_docstring_and_signature to add arguments of the decorator 
-    to the decorated function. This assumes that the decorated function has a 
-    docstring with a "Returns" heading. If this is not the case an error is 
+    magic in _update_docstring_and_signature to add arguments of the decorator
+    to the decorated function. This assumes that the decorated function has a
+    docstring with a "Returns" heading. If this is not the case an error is
     raised when trying to decorate the function.
     """
 
@@ -375,7 +375,7 @@ def _get_modification_time(func):
 
 
 def _update_docstring_and_signature(func):
-    """ add function arguments 'cachedir' and 'cachename' to the docstring and 
+    """ add function arguments 'cachedir' and 'cachename' to the docstring and
     signature of a function.
 
 

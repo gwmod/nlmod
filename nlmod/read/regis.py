@@ -47,7 +47,7 @@ def get_combined_layer_models(extent, delr, delc,
         if True regis and geotop layers with only nans are removed from the
         model. if False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
-        
+    
     Returns
     -------
     combined_ds : xarray dataset

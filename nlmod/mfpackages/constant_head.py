@@ -27,7 +27,6 @@ def get_chd_at_model_edge(model_ds, idomain):
     model_ds_out : xarray.Dataset
         dataset with chd array
     """
-    
     # add constant head cells at model boundaries
 
     # get mask with grid edges

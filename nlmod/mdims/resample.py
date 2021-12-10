@@ -318,7 +318,7 @@ def resample_dataarray3d_to_structured_grid(da_in, extent=None,
             arr_out[i] = resample_2d_struc_da_nan_linear(ds_lay, xmid, ymid,
                                                          nan_factor, **kwargs)
         # faster for linear
-        elif kind == "linear" or kind == 'cubic':
+        elif kind in ['linear','cubic']:
             # no need to fill nan values
             f = interpolate.interp2d(ds_lay.x.data, ds_lay.y.data,
                                      ds_lay.data, kind='linear', **kwargs)
@@ -540,7 +540,7 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
     -------
     xar_out : xr.DataArray
         data array with nan values. Shape is (cid)
-        
+    
     Notes
     -----
     can be slow if the xar_in is a large raster

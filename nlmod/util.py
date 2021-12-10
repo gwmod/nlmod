@@ -56,7 +56,7 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
     model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
     logger.info('run model')
-    assert gwf.simulation.run_simulation()[0]
+    assert gwf.simulation.run_simulation()[0], 'Modflow run not succeeded'
     model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 

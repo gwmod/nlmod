@@ -376,38 +376,21 @@ def _get_modification_time(func):
 
 def _update_docstring_and_signature(func):
     """ add function arguments 'cachedir' and 'cachename' to the docstring and
-    signature of a function.
+    signature of a function. The function arguments are added before the
+    "Returns" header in the docstring. If the function has no Returns header
+    in the docstring, the function arguments are not added to the docstring.
 
 
     Parameters
     ----------
     func : function
-        function that is decorated.
-
-    Raises
-    ------
-    ValueError
-        if the function has no Returns header in the docstring.
+        function that is decorated.       
 
     Returns
     -------
     None.
 
     """
-
-    # add cachedir and cachename to docstring
-    original_doc = func.__doc__
-    if 'Returns' not in original_doc:
-        raise ValueError(f'Function "{func.__name__}" has no "Returns" header in docstring')
-    before, after = original_doc.split('Returns')
-    mod_before = before.strip() + '\n    cachedir : str or None, optional\n'\
-    '        directory to save cache. If None no cache is used.'\
-    ' Default is None.\n    cachename : str or None, optional\n'\
-    '        filename of netcdf cache. If None no cache is used.'\
-    ' Default is None.\n\n    Returns'
-    new_doc = ''.join((mod_before, after))
-    func.__doc__ = new_doc
-
     # add cachedir and cachename to signature
     sig = inspect.signature(func)
     cur_param = tuple(sig.parameters.values())
@@ -419,3 +402,22 @@ def _update_docstring_and_signature(func):
                                                default=None))
     sig = sig.replace(parameters=new_param)
     func.__signature__ = sig
+
+    # add cachedir and cachename to docstring
+    original_doc = func.__doc__
+    if original_doc is None:
+        logger.warning(f'Function "{func.__name__}" has no docstring')
+        return None
+    if 'Returns' not in original_doc:
+        logger.warning(f'Function "{func.__name__}" has no "Returns" header in docstring')
+        return None
+    before, after = original_doc.split('Returns')
+    mod_before = before.strip() + '\n    cachedir : str or None, optional\n'\
+    '        directory to save cache. If None no cache is used.'\
+    ' Default is None.\n    cachename : str or None, optional\n'\
+    '        filename of netcdf cache. If None no cache is used.'\
+    ' Default is None.\n\n    Returns'
+    new_doc = ''.join((mod_before, after))
+    func.__doc__ = new_doc
+
+    

@@ -17,7 +17,6 @@ import requests
 import xarray as xr
 
 from .. import mdims, util, cache
-from . import rws
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +79,15 @@ def get_bathymetry(model_ds, northsea,
 
     # bathymetry projected on model grid
     if model_ds.gridtype == 'structured':
-        da_bathymetry = mdims.resample_dataarray_to_structured_grid(da_bathymetry_filled,
-                                                                    extent=model_ds.extent,
-                                                                    delr=model_ds.delr,
-                                                                    delc=model_ds.delc,
-                                                                    xmid=model_ds.x.data,
-                                                                    ymid=model_ds.y.data)[0]
+        da_bathymetry = mdims.resample_dataarray2d_to_structured_grid(da_bathymetry_filled,
+                                                                      extent=model_ds.extent,
+                                                                      delr=model_ds.delr,
+                                                                      delc=model_ds.delc,
+                                                                      xmid=model_ds.x.data,
+                                                                      ymid=model_ds.y.data)
     elif model_ds.gridtype == 'vertex':
-        da_bathymetry = mdims.resample_dataarray3d_to_vertex_grid(da_bathymetry_filled,
-                                                                        gridprops=gridprops)[0]
+        da_bathymetry = mdims.resample_dataarray2d_to_vertex_grid(da_bathymetry_filled,
+                                                                  gridprops=gridprops)
 
     
 

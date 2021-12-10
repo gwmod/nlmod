@@ -1082,8 +1082,11 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
     return model_ds_out
 
 
-def gdf2grid(gdf, ml, method="vertex", **kwargs):
-    """Intersect a geodataframe with a model grid.
+def gdf2grid(gdf, ml, method=None, ix=None,
+             desc="Intersecting with grid", **kwargs):
+    """
+    Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method
+    is just a wrapper around the GridIntersect method from flopy
 
     Parameters
     ----------
@@ -1096,21 +1099,33 @@ def gdf2grid(gdf, ml, method="vertex", **kwargs):
     method : string, optional
         Method passed to the GridIntersect-class. The default is None, which
         makes GridIntersect choose the best method.
+    ix : flopy.utils.GridIntersect, optional
+        GridIntersect, if not provided the modelgrid in ml is used.
     **kwargs : keyword arguments
-        keyword arguments are passed to the intersect-method.
+        keyword arguments are passed to the intersect_*-methods.
 
     Returns
     -------
     geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
+
     """
-    ix = GridIntersect(ml.modelgrid, method=method)
+    if ix is None:
+        ix = flopy.utils.GridIntersect(ml.modelgrid, method=method)
     shps = []
-    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0],
-                       desc="Intersecting with grid"):
-
-        r = ix.intersect(shp.geometry, **kwargs)
-
+    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
+        if hasattr(ix, 'intersect'):
+            r = ix.intersect(shp.geometry, **kwargs)
+        else:
+            if shp.geometry.type in ['Point', 'MultiPoint']:
+                r = ix.intersect_point(shp.geometry, **kwargs)
+            elif shp.geometry.type in ['LineString', 'MultiLineString']:
+                r = ix.intersect_linestring(shp.geometry, **kwargs)
+            elif shp.geometry.type in ['Polygon', 'MultiPolygon']:
+                r = ix.intersect_polygon(shp.geometry, **kwargs)
+            else:
+                msg = 'Unknown geometry type: {}'.format(shp.geometry.type)
+                raise(Exception(msg))
         for i in range(r.shape[0]):
             shpn = shp.copy()
             shpn['cellid'] = r['cellids'][i]
@@ -1754,13 +1769,13 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
 
     for lay in range(model_ds.dims['layer']):
         bottom_nan = xr.where(fill_mask, np.nan, model_ds['bot'][lay])
-        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)[0]
+        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)
 
         kh_nan = xr.where(fill_mask, np.nan, model_ds['kh'][lay])
-        kh_filled = fill_function(kh_nan, **fill_function_kwargs)[0]
+        kh_filled = fill_function(kh_nan, **fill_function_kwargs)
 
         kv_nan = xr.where(fill_mask, np.nan, model_ds['kv'][lay])
-        kv_filled = fill_function(kv_nan, **fill_function_kwargs)[0]
+        kv_filled = fill_function(kv_nan, **fill_function_kwargs)
 
         if lay == 0:
             # top ligt onder bottom_filled -> laagdikte wordt 0

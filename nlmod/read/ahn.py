@@ -65,12 +65,12 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != nodata)
 
     if model_ds.gridtype == 'structured':
-        ahn_ds = mdims.resample_dataarray_to_structured_grid(ahn_ds_raw,
-                                                             extent=model_ds.extent,
-                                                             delr=model_ds.delr,
-                                                             delc=model_ds.delc,
-                                                             xmid=model_ds.x.data,
-                                                             ymid=model_ds.y.data)
+        ahn_ds = mdims.resample_dataarray3d_to_structured_grid(ahn_ds_raw,
+                                                               extent=model_ds.extent,
+                                                               delr=model_ds.delr,
+                                                               delc=model_ds.delc,
+                                                               xmid=model_ds.x.data,
+                                                               ymid=model_ds.y.data)
     elif model_ds.gridtype == 'vertex':
         xyi, cid = mdims.get_xyi_cid(gridprops)
         ahn_ds = mdims.resample_dataarray3d_to_vertex_grid(ahn_ds_raw,

@@ -171,20 +171,96 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops,
     return ds_out
 
 
-def resample_dataarray_to_structured_grid(da_in, extent=None,
-                                          delr=None, delc=None,
-                                          xmid=None, ymid=None,
-                                          kind='linear', nan_factor=0.01,
-                                          **kwargs):
+def resample_dataarray2d_to_structured_grid(da_in, extent=None,
+                                            delr=None, delc=None,
+                                            xmid=None, ymid=None,
+                                            kind='linear', nan_factor=0.01,
+                                            **kwargs):
     """resample a dataarray (xarray) from a structured grid to a new dataaraay
     from a different structured grid.
 
-    Also flips the y-coordinates to make them descending instead of ascending.
-    This makes it easier to export array to flopy. In other words, make sure
-    that both lines of code create the same plot::
+    Parameters
+    ----------
+    da_in : xarray.DataArray
+        data array with dimensions (y, x). y and x are from the original
+        grid
+    extent : list, tuple or np.array, optional
+        extent (xmin, xmax, ymin, ymax) of the desired grid, if not defined
+        xmid and ymid are used
+    delr : int or float, optional
+        cell size along rows of the desired grid, if not defined xmid and
+        ymid are used
+    delc : int or float, optional
+        cell size along columns of the desired grid, if not defined xmid and
+        ymid are used
+    xmid : np.array, optional
+        x coördinates of the cell centers of the desired grid shape(ncol), if
+        not defined xmid and ymid are calculated from the extent, delr and delc.
+    ymid : np.array, optional
+        y coördinates of the cell centers of the desired grid shape(nrow), if
+        not defined xmid and ymid are calculated from the extent, delr and delc.
+    kind : str, optional
+        type of interpolation used to resample. The default is 'linear'.
+    nan_factor : float, optional
+        the nan values in the original raster are filled with zeros before
+        interpolation because the interp2d function cannot handle nan values
+        very well. Therefore an extra interpolation is done to determine how
+        much these nan values have influenced the new raster values. If the
+        the interpolated value is influenced more than this factor by a nan
+        value. The value in the interpolated raster is set to nan.
+        See also: https://stackoverflow.com/questions/51474792/2d-interpolation-with-nan-values-in-python
 
-        da_in['top'].sel(layer=b'Hlc').plot()
-        plt.imshow(da_in['top'].sel(layer=b'Hlc').data)
+    Returns
+    -------
+    ds_out : xarray.DataArray
+        data array with dimensions (y, x). y and x are from the new grid.
+    """
+
+    assert isinstance(da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
+
+    if xmid is None:
+        xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
+        
+    # check if ymid is in descending order
+    assert np.array_equal(ymid, np.sort(ymid)[::-1]), 'ymid should be in descending order'
+
+
+    # check for nan values
+    if (da_in.isnull().sum() > 0) and (kind == "linear"):
+        arr_out = resample_2d_struc_da_nan_linear(da_in, xmid, ymid,
+                                                  nan_factor, **kwargs)
+    # faster for linear
+    elif kind == "linear" or kind == 'cubic':
+        # no need to fill nan values
+        f = interpolate.interp2d(da_in.x.data, da_in.y.data,
+                                 da_in.data, kind='linear', **kwargs)
+        # for some reason interp2d flips the y-values
+        arr_out = f(xmid, ymid)[::-1]
+    elif kind == 'nearest':
+        xydata = np.vstack([v.ravel() for v in
+                            np.meshgrid(da_in.x.data, da_in.y.data)]).T
+        xyi = np.vstack([v.ravel() for v in np.meshgrid(xmid, ymid)]).T
+        fi = griddata(xydata, da_in.data.ravel(), xyi, method=kind,
+                      **kwargs)
+        arr_out = fi.reshape(ymid.shape[0], xmid.shape[0])
+    else:
+        raise ValueError(f'unexpected value for "kind": {kind}')
+
+    # new dataset
+    da_out = xr.DataArray(arr_out, dims=('y', 'x'),
+                          coords={'x': xmid,
+                                  'y': ymid})
+
+    return da_out
+
+
+def resample_dataarray3d_to_structured_grid(da_in, extent=None,
+                                            delr=None, delc=None,
+                                            xmid=None, ymid=None,
+                                            kind='linear', nan_factor=0.01,
+                                            **kwargs):
+    """resample a dataarray (xarray) from a structured grid to a new dataaraay
+    from a different structured grid.
 
     Parameters
     ----------
@@ -342,10 +418,10 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
                                 'x': xmid,
                                 'layer': ds_in.layer.data})
     for data_var in ds_in.data_vars:
-        data_arr = resample_dataarray_to_structured_grid(ds_in[data_var],
-                                                         xmid=xmid,
-                                                         ymid=ymid,
-                                                         kind=kind)
+        data_arr = resample_dataarray3d_to_structured_grid(ds_in[data_var],
+                                                           xmid=xmid,
+                                                           ymid=ymid,
+                                                           kind=kind)
         ds_out[data_var] = data_arr
 
     return ds_out
@@ -406,8 +482,8 @@ def fillnan_dataarray_structured_grid(xar_in):
     Returns
     -------
     xar_out : xarray DataArray
-        DataArray without nan values. DataArray has 3 dimensions
-        (layer, y and x)
+        DataArray without nan values. DataArray has 2 dimensions
+        (y and x)
 
     Notes
     -----
@@ -435,16 +511,15 @@ def fillnan_dataarray_structured_grid(xar_in):
     arr_out = values_out.reshape(xar_in.shape)
 
     # bathymetry without nan values
-    xar_out = xr.DataArray([arr_out], dims=('layer', 'y', 'x'),
+    xar_out = xr.DataArray(arr_out, dims=('y', 'x'),
                            coords={'x': xar_in.x.data,
-                                   'y': xar_in.y.data,
-                                   'layer': [0]})
+                                   'y': xar_in.y.data})
 
     return xar_out
 
 
 def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
-                                        xyi=None, cid=None):
+                                  xyi=None, cid=None):
     """can be slow if the xar_in is a large raster.
 
     Parameters
@@ -480,9 +555,8 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
     values_out = griddata(xyi_in, values_in, xyi, method='nearest')
 
     # bathymetry without nan values
-    xar_out = xr.DataArray([values_out], dims=('layer', 'cid'),
-                           coords={'cid': xar_in.cid.data,
-                                   'layer': [0]})
+    xar_out = xr.DataArray(values_out, dims=('cid'),
+                           coords={'cid': xar_in.cid.data})
 
     return xar_out
 

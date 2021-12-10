@@ -113,11 +113,11 @@ def get_model_ds_empty(model_ds):
     model_ds_out : xr.Dataset
         dataset with only model grid and time information
     """
-    
+
     return model_ds[list(model_ds.coords)]
-    
-    
-def get_da_from_da_ds(da_ds, dims=('y','x'), data=None):
+
+
+def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
     """get a dataarray from model_ds with certain dimensions.
 
     Parameters
@@ -135,10 +135,10 @@ def get_da_from_da_ds(da_ds, dims=('y','x'), data=None):
     da : xr.DataArray
         DataArray with coordinates from model_ds
     """
-    coords = {dim:da_ds[dim] for dim in dims}
+    coords = {dim: da_ds[dim] for dim in dims}
     da = xr.DataArray(data, dims=dims,
                       coords=coords)
-            
+
     return da
 
 
@@ -233,6 +233,27 @@ def compare_model_extents(extent1, extent2):
     raise NotImplementedError('other options are not yet implemented')
 
 
+def polygon_from_extent(extent):
+    """create a shapely polygon from a given extent
+
+    Parameters
+    ----------
+    extent : tuple, list or array
+        extent (xmin, xmax, ymin, ymax).
+
+    Returns
+    -------
+    polygon_ext : shapely.geometry.polygon.Polygon
+        polygon of the extent.
+
+    """
+
+    bbox = (extent[0], extent[2], extent[1], extent[3])
+    polygon_ext = box(*tuple(bbox))
+
+    return polygon_ext
+
+
 def gdf_from_extent(extent, crs="EPSG:28992"):
     """create a geodataframe with a single polygon with the extent given.
 
@@ -250,8 +271,7 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
         geodataframe with extent.
     """
 
-    bbox = (extent[0], extent[2], extent[1], extent[3])
-    geom_extent = box(*tuple(bbox))
+    geom_extent = polygon_from_extent(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent],
                                   crs=crs)
 

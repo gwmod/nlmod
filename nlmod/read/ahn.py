@@ -9,51 +9,19 @@ import os
 import tempfile
 
 import numpy as np
+import datetime as dt
 import rasterio
 import xarray as xr
 from owslib.wcs import WebCoverageService
 from rasterio import merge
 
-from .. import mdims, util
+from .. import mdims, cache, util
 
 logger = logging.getLogger(__name__)
 
 
-def get_ahn_dataset(model_ds, gridprops=None, use_cache=True,
-                    cachedir=None,
-                    fname_netcdf='ahn_model_ds.nc'):
-    """get an xarray dataset from the ahn values within an extent.
-
-    Parameters
-    ----------
-    model_ds : xr.Dataset
-        dataset with the model information.
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'unstructured'
-    use_cache : bool, optional
-        if True the cached resampled regis dataset is used.
-        The default is False.
-
-    Returns
-    -------
-    ahn_ds : xarray.Dataset
-        dataset with ahn data (not yet corresponding to the modelgrid)
-
-    Notes
-    -----
-
-    1. The ahn raster is now cached in a tempdir. Should be changed to the
-    cachedir of the model I think.
-    """
-    ahn_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, fname_netcdf,
-                                   get_ahn_at_grid, model_ds, check_time=False,
-                                   gridprops=gridprops)
-
-    return ahn_ds
-
-
-def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
+@cache.cache_netcdf
+def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     """Get a model dataset with ahn variable.
 
     Parameters
@@ -74,23 +42,22 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
         The default is 'ahn3_5m_dtm'.
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'unstructured'
+        gridtype = 'vertex'
 
     Returns
     -------
     model_ds_out : xr.Dataset
         dataset with the ahn variable.
     """
-    if (model_ds.gridtype == 'unstructured') and (gridprops is None):
+    if (model_ds.gridtype == 'vertex') and (gridprops is None):
         raise ValueError(
-            'gridprops should be specified when gridtype is unstructured')
+            'gridprops should be specified when gridtype is vertex')
 
-    cachedir = os.path.join(model_ds.model_ws, 'cache')
+    url = _infer_url(identifier)
 
     fname_ahn = get_ahn_within_extent(extent=model_ds.extent,
-                                      identifier=identifier,
-                                      cache=True,
-                                      cache_dir=cachedir)
+                                      url=url,
+                                      identifier=identifier)
 
     ahn_ds_raw = xr.open_rasterio(fname_ahn)
     ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})
@@ -98,21 +65,28 @@ def get_ahn_at_grid(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
     ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != nodata)
 
     if model_ds.gridtype == 'structured':
-        ymid = model_ds.y.data[::-1]
-        ahn_ds = mdims.resample_dataarray_to_structured_grid(ahn_ds_raw,
-                                                             extent=model_ds.extent,
-                                                             delr=model_ds.delr,
-                                                             delc=model_ds.delc,
-                                                             xmid=model_ds.x.data,
-                                                             ymid=ymid)
-    elif model_ds.gridtype == 'unstructured':
+        ahn_ds = mdims.resample_dataarray3d_to_structured_grid(ahn_ds_raw,
+                                                               extent=model_ds.extent,
+                                                               delr=model_ds.delr,
+                                                               delc=model_ds.delc,
+                                                               xmid=model_ds.x.data,
+                                                               ymid=model_ds.y.data)
+    elif model_ds.gridtype == 'vertex':
         xyi, cid = mdims.get_xyi_cid(gridprops)
-        ahn_ds = mdims.resample_dataarray3d_to_unstructured_grid(ahn_ds_raw,
-                                                                 gridprops,
-                                                                 xyi, cid)
+        ahn_ds = mdims.resample_dataarray3d_to_vertex_grid(ahn_ds_raw,
+                                                           gridprops,
+                                                           xyi, cid)
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]
+    
+    for datavar in model_ds_out:
+        model_ds_out[datavar].attrs['source'] = identifier
+        model_ds_out[datavar].attrs['url'] = url
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        if datavar == 'ahn':
+            model_ds_out[datavar].attrs['units'] = 'mNAP'
+        
 
     return model_ds_out
 
@@ -193,10 +167,44 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
     return fname
 
 
+def _infer_url(identifier=None):
+    """ infer the url from the identifier
+    
+
+    Parameters
+    ----------
+    url : TYPE, optional
+        DESCRIPTION. The default is None.
+    identifier : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    url : TYPE
+        DESCRIPTION.
+
+    """
+    
+    # infer url from identifier
+    if 'ahn2' in identifier:
+        url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
+               'request=GetCapabilities&service=WCS')
+    elif 'ahn3' in identifier:
+        url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
+               'request=GetCapabilities&service=WCS')
+    else:
+        ValueError(f'unknown identifier -> {identifier}')
+        
+    return url
+
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', format='GEOTIFF_FLOAT32',
-                          crs='EPSG:28992', cache=True, cache_dir=None,
-                          maxsize=800, fname=None):
+                          crs='EPSG:28992', maxsize=800, fname=None):
     """
 
     Parameters
@@ -215,7 +223,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
             'ahn3_5m_dtm'
 
         The default is 'ahn3_5m_dtm'.
-        
+
         the identifier also contains resolution and type info:
         - 5m or 05m is a resolution of 5x5 or 0.5x0.5 meter.
         - 'dtm' is only surface level (maaiveld), 'dsm' has other surfaces
@@ -233,14 +241,11 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         geotif format . The default is 'GEOTIFF_FLOAT32'.
     crs : str, optional
         coördinate reference system. The default is 'EPSG:28992'.
-    cache : boolean, optional
-        used cached data if available. The default is True.
-    cache_dir : str or None, optional
 
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
         800.
-        
+
     Returns
     -------
     fname : str
@@ -251,24 +256,16 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     if isinstance(extent, xr.DataArray):
         extent = tuple(extent.values)
 
-    # check or infer url
+    # get url
     if url is None:
-        # infer url from identifier
-        if 'ahn2' in identifier:
-            url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
-                   'request=GetCapabilities&service=WCS')
-        elif 'ahn3' in identifier:
-            url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
-                   'request=GetCapabilities&service=WCS')
-        else:
-            ValueError(f'unknown identifier -> {identifier}')
+        url = _infer_url(identifier)
     elif url == 'ahn2':
         url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
                'request=GetCapabilities&service=WCS')
     elif url == 'ahn3':
         url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
                'request=GetCapabilities&service=WCS')
-    else:
+    elif not url.startswith("https://geodata.nationaalgeoregister.nl"):
         raise ValueError(f'unknown url -> {url}')
 
     # check resolution
@@ -302,44 +299,36 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         return split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                                 identifier=identifier,
                                 version=version, format=format, crs=crs,
-                                cache=cache, cache_dir=cache_dir,
                                 fname=fname)
 
     # get filename
     if fname is None:
+        cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
         fname = 'ahn_{:.0f}_{:.0f}_{:.0f}_{:.0f}_{:.0f}.tiff'
-
         fname = fname.format(*extent, res * 1000)
-        if cache_dir is None:
-            cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
         if not os.path.isdir(cache_dir):
             os.makedirs(cache_dir)
         fname = os.path.join(cache_dir, fname)
-    else:
-        cache = False
 
-    if not cache or not os.path.exists(fname):
-        # download file
-        wcs = WebCoverageService(url, version=version)
-        if version == '1.0.0':
-            bbox = (extent[0], extent[2], extent[1], extent[3])
-            output = wcs.getCoverage(identifier=identifier, bbox=bbox,
-                                     format=format, crs=crs, resx=res,
-                                     resy=res)
-        elif version == '2.0.1':
-            # bbox, resx and resy do nothing in version 2.0.1
-            subsets = [('x', extent[0], extent[1]),
-                       ('y', extent[2], extent[3])]
-            output = wcs.getCoverage(identifier=[identifier], subsets=subsets,
-                                     format=format, crs=crs)
-        else:
-            raise (Exception('Version {} not yet supported'.format(version)))
-        # write file to disk
-        f = open(fname, 'wb')
+    
+    # download file
+    wcs = WebCoverageService(url, version=version)
+    if version == '1.0.0':
+        bbox = (extent[0], extent[2], extent[1], extent[3])
+        output = wcs.getCoverage(identifier=identifier, bbox=bbox,
+                                 format=format, crs=crs, resx=res,
+                                 resy=res)
+    elif version == '2.0.1':
+        # bbox, resx and resy do nothing in version 2.0.1
+        subsets = [('x', extent[0], extent[1]),
+                   ('y', extent[2], extent[3])]
+        output = wcs.getCoverage(identifier=[identifier], subsets=subsets,
+                                 format=format, crs=crs)
+    else:
+        raise (Exception('Version {} not yet supported'.format(version)))
+    # write file to disk
+    with open(fname, 'wb') as f:
         f.write(output.read())
-        f.close()
-        logger.info(f"- download {fname}")
-    else:
-        logger.info(f"- from cache {fname}")
-
+    logger.info(f"- download {fname}")
+    
     return fname

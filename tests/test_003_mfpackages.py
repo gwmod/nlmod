@@ -113,6 +113,8 @@ def chd_from_model_ds(tmpdir):
     nlmod.mfpackages.ic_from_model_ds(model_ds, gwf,
                                       starting_head=1.0)
 
-    chd = nlmod.mfpackages.chd_at_model_edge_from_model_ds(model_ds, gwf)
+    # add constant head cells at model boundaries
+    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(model_ds, model_ds['idomain']))
+    chd = nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     return chd

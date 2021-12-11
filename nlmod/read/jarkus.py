@@ -16,85 +16,14 @@ import datetime as dt
 import requests
 import xarray as xr
 
-from .. import mdims, util
-from . import rws
+from .. import mdims, util, cache
 
 logger = logging.getLogger(__name__)
 
 
-def get_modelgrid_sea(model_ds,
-                      modelgrid,
-                      da_name='northsea',
-                      cachedir=None, use_cache=False):
-    """Get DataArray which is 1 at sea and 0 overywhere else. Sea is defined by
-    the geometries in gdf_sea grid is defined by mfgrid and model_ds.
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        xarray with model data
-    modelgrid : flopy StructuredGrid or flopy VertexGrid
-        grid information.
-    da_name : str, optional
-        name e is used to store the sea data array in model_ds
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached sea data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xr.DataSet
-        dataset with 'sea' DataVariable.
-    """
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'sea_model_ds.nc',
-                                     find_sea_cells, model_ds,
-                                     modelgrid=modelgrid,
-                                     da_name=da_name,
-                                     check_time=False)
-
-    return model_ds
-
-
-def find_sea_cells(model_ds, modelgrid, da_name='northsea'):
-    """Get Dataset which is 1 at sea and 0 everywhere else. Sea is defined by
-    opp_water shapefile grid is defined in model_ds.
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        xarray with model data
-    modelgrid : flopy StructuredGrid or flopy VertexGrid
-        grid information.
-    da_name : str, optional
-        name of the datavar that identifies sea cells
-
-    Returns
-    -------
-    model_ds_out : xr.DataSet
-        Dataset with a single DataArray, this DataArray is 1 at sea and 0
-        everywhere else. Grid dimensions according to model_ds.
-    """
-
-    gdf_surf_water = rws.get_gdf_surface_water(model_ds)
-
-    # find grid cells with sea
-    swater_zee = gdf_surf_water[gdf_surf_water['OWMNAAM'].isin(['Rijn territoriaal water',
-                                                                 'Waddenzee',
-                                                                 'Waddenzee vastelandskust',
-                                                                 'Hollandse kust (kustwater)',
-                                                                 'Waddenkust (kustwater)'])]
-
-    model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee,
-                                             modelgrid, da_name)
-
-    return model_ds_out
-
-
-def get_modelgrid_bathymetry(model_ds,
-                             gridprops=None,
-                             cachedir=None, use_cache=False):
+@cache.cache_netcdf
+def get_bathymetry(model_ds, northsea,
+                   gridprops=None):
     """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
@@ -102,37 +31,7 @@ def get_modelgrid_bathymetry(model_ds,
     model_ds : xarray.Dataset
         dataset with model data where bathymetry is added to
     gridprops : dic, optional
-        model properties when using unstructured grids. The default is None.
-    cachedir : str, optional
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    use_cache : bool, optional
-        if True the cached jarkus data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xarray.Dataset
-        dataset with bathymetry
-    """
-
-    model_ds = util.get_cache_netcdf(use_cache, cachedir, 'bathymetry_model_ds.nc',
-                                     bathymetry_to_model_dataset, model_ds,
-                                     gridprops=gridprops,
-                                     check_time=False,
-                                     )
-    return model_ds
-
-
-def bathymetry_to_model_dataset(model_ds,
-                                gridprops=None):
-    """get bathymetry of the Northsea from the jarkus dataset.
-
-    Parameters
-    ----------
-    model_ds : xarray.Dataset
-        dataset with model data where bathymetry is added to
-    gridprops : dic, optional
-        model properties when using unstructured grids. The default is None.
+        model properties when using vertex grids. The default is None.
 
     Returns
     -------
@@ -145,12 +44,22 @@ def bathymetry_to_model_dataset(model_ds,
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
+    model_ds_out = util.get_model_ds_empty(model_ds)
+
+    # no bathymetry if we don't have northsea
+    if (northsea == 0).all():
+        model_ds_out['bathymetry'] = util.get_da_from_da_ds(northsea,
+                                                            northsea.dims,
+                                                            data=np.nan)
+        return model_ds_out
+
+    # try to get bathymetry via opendap
     try:
         url = 'http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'
         jarkus_ds = get_dataset_jarkus(model_ds.extent, url)
     except OSError:
         import gdown
-        print('cannot access Jarkus netCDF link, copy file from google drive instead')
+        logger.warning('cannot access Jarkus netCDF link, copy file from google drive instead')
         fname_jarkus = os.path.join(model_ds.model_ws,
                                     'jarkus_nhflopy.nc')
         url = 'https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo'
@@ -170,25 +79,24 @@ def bathymetry_to_model_dataset(model_ds,
 
     # bathymetry projected on model grid
     if model_ds.gridtype == 'structured':
-        da_bathymetry = mdims.resample_dataarray_to_structured_grid(da_bathymetry_filled,
-                                                                    extent=model_ds.extent,
-                                                                    delr=model_ds.delr,
-                                                                    delc=model_ds.delc,
-                                                                    xmid=model_ds.x.data,
-                                                                    ymid=model_ds.y.data[::-1])[0]
-    elif model_ds.gridtype == 'unstructured':
-        da_bathymetry = mdims.resample_dataarray3d_to_unstructured_grid(da_bathymetry_filled,
-                                                                        gridprops=gridprops)[0]
+        da_bathymetry = mdims.resample_dataarray2d_to_structured_grid(da_bathymetry_filled,
+                                                                      extent=model_ds.extent,
+                                                                      delr=model_ds.delr,
+                                                                      delc=model_ds.delc,
+                                                                      xmid=model_ds.x.data,
+                                                                      ymid=model_ds.y.data)
+    elif model_ds.gridtype == 'vertex':
+        da_bathymetry = mdims.resample_dataarray2d_to_vertex_grid(da_bathymetry_filled,
+                                                                  gridprops=gridprops)
 
-    model_ds_out = util.get_model_ds_empty(model_ds)
-
-    model_ds_out['bathymetry'] = xr.where(
-        model_ds['northsea'], da_bathymetry, np.nan)
+    model_ds_out['bathymetry'] = xr.where(northsea, da_bathymetry, np.nan)
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'Jarkus'
         model_ds_out[datavar].attrs['url'] = url
         model_ds_out[datavar].attrs['source'] = dt.datetime.now().strftime('%Y%m%d')
+        if datavar == 'bathymetry':
+            model_ds_out[datavar].attrs['units'] = 'mNAP'
 
     return model_ds_out
 
@@ -302,9 +210,9 @@ def add_bathymetry_to_top_bot_kh_kv(model_ds, bathymetry,
     model_ds : xarray.Dataset
         dataset with model data where the top, bot, kh and kv are changed
     """
-    model_ds['top'] = xr.where(fill_mask,
-                               0.0,
-                               model_ds['top'])
+    model_ds['top'].values = np.where(fill_mask,
+                                      0.0,
+                                      model_ds['top'])
 
     lay = 0
     model_ds['bot'][lay] = xr.where(fill_mask,

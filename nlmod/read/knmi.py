@@ -7,47 +7,17 @@ import datetime as dt
 import pandas as pd
 import xarray as xr
 
-from .. import util
+from .. import util, cache
 
 logger = logging.getLogger(__name__)
 
 
+@cache.cache_netcdf
 def get_recharge(model_ds,
-                 nodata=None,
-                 use_cache=False):
-    """Get recharge datasets from knmi data.
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        dataset containing relevant model information
-    nodata : int, optional
-        if the first_active_layer data array in model_ds has this value,
-        it means this cell is inactive in all layers. If nodata is None the
-        nodata value in model_ds is used.
-        the default is None
-    use_cache : bool, optional
-        if True the cached recharge data is used. The default is False.
-
-    Returns
-    -------
-    model_ds : xr.DataSet
-        dataset with spatial model data including the rch raster
-    """
-
-    model_ds = util.get_cache_netcdf(use_cache, model_ds.cachedir, 'rch_model_ds.nc',
-                                     add_knmi_to_model_dataset,
-                                     model_ds)
-
-    return model_ds
-
-
-def add_knmi_to_model_dataset(model_ds,
-                              nodata=None,
-                              use_cache=False):
+                 nodata=None):
     """ add multiple recharge packages to the groundwater flow model with
     knmi data by following these steps:
-    1. check for each cell (structured or unstructured) which knmi measurement
+    1. check for each cell (structured or vertex) which knmi measurement
     stations (prec and evap) are the closest.
     2. download precipitation and evaporation data for all knmi stations that
     were found at 1
@@ -71,9 +41,7 @@ def add_knmi_to_model_dataset(model_ds,
         if the first_active_layer data array in model_ds has this value,
         it means this cell is inactive in all layers. If nodata is None the
         nodata value in model_ds is used.
-        the default is None
-    use_cache : bool, optional
-        if True the cached knmi_meteo data is used. The default is False.
+        the default is None.
 
     Returns
     -------
@@ -93,7 +61,7 @@ def add_knmi_to_model_dataset(model_ds,
     else:
         if isinstance(perlen, numbers.Number):
             end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen,
-                                                                      unit=model_ds.time_units))
+                                                                        unit=model_ds.time_units))
         elif isinstance(perlen, (list, tuple, np.ndarray)):
             end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen[-1],
                                                                       unit=model_ds.time_units))
@@ -122,12 +90,12 @@ def add_knmi_to_model_dataset(model_ds,
                                                 coords={'time': model_ds.time,
                                                         'x': model_ds.x,
                                                         'y': model_ds.y})
-    elif (model_ds.gridtype == 'unstructured') and model_ds.steady_state:
+    elif (model_ds.gridtype == 'vertex') and model_ds.steady_state:
         empty_time_array = np.zeros((model_ds.dims['cid']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
                                                 dims=('cid'),
                                                 coords={'cid': model_ds.cid})
-    elif (model_ds.gridtype == 'unstructured') and (not model_ds.steady_state):
+    elif (model_ds.gridtype == 'vertex') and (not model_ds.steady_state):
         empty_time_array = np.zeros((model_ds.dims['cid'],
                                      model_ds.dims['time']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
@@ -138,8 +106,7 @@ def add_knmi_to_model_dataset(model_ds,
     locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(model_ds,
                                                                   start=start,
                                                                   end=end,
-                                                                  nodata=nodata,
-                                                                  use_cache=use_cache)
+                                                                  nodata=nodata)
 
     # add closest precipitation and evaporation measurement station to each cell
     locations[['prec_point', 'distance']
@@ -172,7 +139,7 @@ def add_knmi_to_model_dataset(model_ds,
                 # add data to model_ds_out
                 for row, col in zip(loc_sel.row, loc_sel.col):
                     model_ds_out['recharge'].data[row, col] = rch_average
-            elif model_ds.gridtype == 'unstructured':
+            elif model_ds.gridtype == 'vertex':
                 # add data to model_ds_out
                 model_ds_out['recharge'].loc[loc_sel.index] = rch_average
         else:
@@ -188,18 +155,19 @@ def add_knmi_to_model_dataset(model_ds,
                 for row, col in zip(loc_sel.row, loc_sel.col):
                     model_ds_out['recharge'].data[row, col, :] = model_recharge.values
 
-            elif model_ds.gridtype == 'unstructured':
+            elif model_ds.gridtype == 'vertex':
                 model_ds_out['recharge'].loc[loc_sel.index, :] = model_recharge.values
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'KNMI'
         model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        model_ds_out[datavar].attrs['units'] = 'm/day'
 
     return model_ds_out
 
 
-def get_locations_unstructured(model_ds, nodata=-999):
-    """get dataframe with the locations of the grid cells of an unstructured
+def get_locations_vertex(model_ds, nodata=-999):
+    """get dataframe with the locations of the grid cells of a vertex
     grid.
 
     Parameters
@@ -270,8 +238,7 @@ def get_locations_structured(model_ds, nodata=-999):
 
 def get_knmi_at_locations(model_ds,
                           start='2010', end=None,
-                          nodata=-999,
-                          use_cache=False):
+                          nodata=-999):
     """get knmi data at the locations of the active grid cells in model_ds.
 
     Parameters
@@ -287,8 +254,6 @@ def get_knmi_at_locations(model_ds,
         it means this cell is inactive in all layers. If nodata is None the
         nodata value in model_ds is used.
         the default is None
-    use_cache : bool, optional
-        if True the cached knmi_meteo data is used. The default is False.
 
     Raises
     ------
@@ -307,22 +272,20 @@ def get_knmi_at_locations(model_ds,
     # get locations
     if model_ds.gridtype == 'structured':
         locations = get_locations_structured(model_ds, nodata=nodata)
-    elif model_ds.gridtype == 'unstructured':
-        locations = get_locations_unstructured(model_ds, nodata=nodata)
+    elif model_ds.gridtype == 'vertex':
+        locations = get_locations_vertex(model_ds, nodata=nodata)
     else:
-        raise ValueError('gridtype should be structured or unstructured')
+        raise ValueError('gridtype should be structured or vertex')
 
     # get knmi data stations closest to any grid cell
     oc_knmi_prec = hpd.ObsCollection.from_knmi(locations=locations,
                                                start=[start],
                                                end=[end],
-                                               meteo_vars=["RD"],
-                                               cache=use_cache)
+                                               meteo_vars=["RD"])
 
     oc_knmi_evap = hpd.ObsCollection.from_knmi(locations=locations,
                                                start=[start],
                                                end=[end],
-                                               meteo_vars=["EV24"],
-                                               cache=use_cache)
+                                               meteo_vars=["EV24"])
 
     return locations, oc_knmi_prec, oc_knmi_evap

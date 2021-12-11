@@ -9,7 +9,9 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 import xarray as xr
+import logging
 
+logger = logging.getLogger(__name__)
 
 def set_model_ds_time(model_ds, start_time, steady_state,
                       steady_start=False, time_units='DAYS',
@@ -69,6 +71,9 @@ def set_model_ds_time(model_ds, start_time, steady_state,
         nper = 1
         start_time_dt = pd.to_datetime(start_time)
         time_dt = [start_time_dt]
+        if perlen == 1.0:
+            perlen = steady_perlen
+            logger.warning(f'setting perlen to {steady_perlen}')
     elif steady_start:
         nper = 1 + transient_timesteps
 

@@ -1,14 +1,7 @@
-# -*- coding: utf-8 -*-
-"""utility functions for nlmod.
-
-Mostly functions to cache data and manage filenames and directories.
-"""
-
 import logging
 import os
 import re
 import sys
-import tempfile
 
 import flopy
 import geopandas as gpd
@@ -113,265 +106,33 @@ def get_model_ds_empty(model_ds):
     model_ds_out : xr.Dataset
         dataset with only model grid and time information
     """
-    if model_ds.gridtype == 'structured':
-        model_ds_out = model_ds[['layer', 'x', 'y', 'time']].copy()
-        return model_ds_out
-    elif model_ds.gridtype == 'unstructured':
-        model_ds_out = model_ds[['cid', 'layer', 'x', 'y', 'time']].copy()
-        return model_ds_out
-    else:
-        raise ValueError('no gridtype defined cannot compare model datasets')
+
+    return model_ds[list(model_ds.coords)].copy()
 
 
-def check_delr_delc_extent(dic, model_ds):
-    """checks if the delr, delc and extent in a dictionary equals the delr,
-    delc and extent in a model dataset.
+def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
+    """get a dataarray from model_ds with certain dimensions.
 
     Parameters
     ----------
-    dic : dictionary
-        dictionary with one or more of the keys 'delr', 'delc' or 'extent'.
-    model_ds : xr.Dataset
-        model dataset with the attributes 'delr', 'delc' or 'extent'.
+    da_ds : xr.Dataset or xr.DataArray
+        Dataset or DataArray with at least the dimensions defined in dims
+    dims : tuple of string, optional
+        dimensions of the desired data array. Default is 'y', 'x'
+    data : None, int, float, array_like, optional
+        data to fill data array with. if None DataArray is filled with nans.
+        Default is None.
 
     Returns
     -------
-    check : bool
-        True of the delr, delc and extent are the same.
+    da : xr.DataArray
+        DataArray with coordinates from model_ds
     """
-    check = True
-    for key in ['delr', 'delc']:
-        if key in dic.keys():
-            key_check = dic[key] == model_ds.attrs[key]
-            if key_check:
-                logger.info(f'{key} of current grid is the same as cached grid')
-            else:
-                logger.info(f'{key} of current grid differs from cached grid')
-            check = check and key_check
+    coords = {dim: da_ds[dim] for dim in dims}
+    da = xr.DataArray(data, dims=dims,
+                      coords=coords)
 
-    if 'extent' in dic.keys():
-        key_check = (np.array(dic['extent']) == np.array(
-            model_ds.attrs['extent'])).all()
-
-        if key_check:
-            logger.info('extent of current grid is the same as cached grid')
-        else:
-            logger.info('extent of current grid differs from cached grid')
-        check = check and key_check
-
-    return check
-
-
-def check_model_ds(model_ds, model_ds2, check_grid=True, check_time=True):
-    """check if two model datasets have the same grid and time discretization.
-    e.g. the same dimensions and coordinates.
-
-    Parameters
-    ----------
-    model_ds : xr.Dataset
-        dataset with model grid and time discretisation
-    model_ds2 : xr.Dataset
-        dataset with model grid and time discretisation. This is typically
-        a cached dataset.
-    check_grid : bool, optional
-        if True the grids of both models are compared to check if they are
-        the same
-    check_time : bool, optional
-        if True the time discretisation of both models are compared to check
-        if they are the same
-
-    Raises
-    ------
-    ValueError
-        if the gridtype of model_ds is not structured or unstructured.
-
-    Returns
-    -------
-    bool
-        True if the two datasets have the same grid and time discretization.
-    """
-
-    if model_ds.gridtype == 'structured':
-        try:
-            if check_grid:
-                # check x coordinates
-                len_x = model_ds['x'].shape == model_ds2['x'].shape
-                comp_x = model_ds['x'] == model_ds2['x']
-                if (len(comp_x) > 0) and comp_x.all() and len_x:
-                    check_x = True
-                else:
-                    check_x = False
-
-                # check y coordinates
-                len_y = model_ds['y'].shape == model_ds2['y'].shape
-                comp_y = model_ds['y'] == model_ds2['y']
-                if (len(comp_y) > 0) and comp_y.all() and len_y:
-                    check_y = True
-                else:
-                    check_y = False
-
-                # check layers
-                comp_layer = model_ds['layer'] == model_ds2['layer']
-                if (len(comp_layer) > 0) and comp_layer.all():
-                    check_layer = True
-                else:
-                    check_layer = False
-
-                # also check layer for dtype
-                check_layer = check_layer and (
-                    model_ds['layer'].dtype == model_ds2['layer'].dtype)
-                if (check_x and check_y and check_layer):
-                    logger.info('cached data has same grid as current model')
-                else:
-                    logger.info('cached data grid differs from current model')
-                    return False
-            if check_time:
-                if len(model_ds['time']) != len(model_ds2['time']):
-                    check_time = False
-                else:
-                    check_time = (model_ds['time'].data ==
-                                  model_ds2['time'].data).all()
-                if check_time:
-                    logger.info('cached data has same time discretisation as current model')
-                else:
-                    logger.info('cached data time discretisation differs from current model')
-                    return False
-            return True
-        except KeyError:
-            return False
-
-    elif model_ds.gridtype == 'unstructured':
-        try:
-            if check_grid:
-                check_cid = (model_ds['cid'] == model_ds2['cid']).all()
-                check_x = (model_ds['x'] == model_ds2['x']).all()
-                check_y = (model_ds['y'] == model_ds2['y']).all()
-                check_layer = (model_ds['layer'] == model_ds2['layer']).all()
-                # also check layer for dtype
-                check_layer = check_layer and (
-                    model_ds['layer'].dtype == model_ds2['layer'].dtype)
-                if (check_cid and check_x and check_y and check_layer):
-                    logger.info('cached data has same grid as current model')
-                else:
-                    logger.info('cached data grid differs from current model')
-                    return False
-            if check_time:
-                # check length time series
-                if model_ds.dims['time'] == model_ds2.dims['time']:
-                    # check times time series
-                    check_time = (model_ds['time'].data ==
-                                  model_ds2['time'].data).all()
-                else:
-                    check_time = False
-                if check_time:
-                    logger.info(
-                            'cached data has same time discretisation as current model')
-                else:
-                    logger.info(
-                            'cached data time discretisation differs from current model')
-                    return False
-            return True
-        except KeyError:
-            return False
-    else:
-        raise ValueError('no gridtype defined cannot compare model datasets')
-
-
-def get_cache_netcdf(use_cache, cachedir, cache_name, get_dataset_func,
-                     model_ds=None, check_grid=True,
-                     check_time=True, **get_kwargs):
-    """Create, read or modify cached netcdf files of a model dataset.
-
-    Steps:
-
-    1. Read cached dataset and merge this with the current model_ds if all
-    of the following conditions are satisfied:
-
-       a) use_cache = True
-       b) dataset exists in cachedir
-       c) a model_ds is defined or delr, delc and the extent are defined.
-       d) the grid and time discretisation of the cached dataset equals
-          the grid and time discretisation of the model dataset
-
-    2. if any of the conditions in step 1 is false the get_dataset_func is
-    called (with the `**get_kwargs` arguments).
-
-    3. the dataset from step 2 is written to the cachedir.
-    4. the dataset from step 2 is merged with the current model_ds.
-
-
-    Parameters
-    ----------
-    use_cache : bool
-        if True an attempt is made to use the cached dataset.
-    cachedir : str
-        directory to store cached values, if None a temporary directory is
-        used. default is None
-    cache_name : str
-        named of the cached netcdf file with the dataset.
-    get_dataset_func : function
-        this function is called to obtain a new dataset (and not use the
-        cached dataset).
-    model_ds : xr.Dataset
-        dataset where the cached or new dataset is added to.
-    check_grid : bool, optional
-        if True the grids of both models are compared to check if they are
-        the same
-    check_time : bool, optional
-        if True the time discretisation of both models are compared to check
-        if they are the same
-    **get_kwargs : dict, optional
-        keyword arguments are used when calling the get_dataset_func.
-
-    Returns
-    -------
-    model_ds
-        dataset with the cached or new dataset.
-    """
-
-    if cachedir is None:
-        cachedir = tempfile.gettempdir()
-
-    fname_model_ds = os.path.join(cachedir, cache_name)
-
-    if use_cache:
-        if os.path.exists(fname_model_ds):
-            logger.info(f'found cached {cache_name}, loading cached dataset')
-
-            cache_model_ds = xr.open_dataset(fname_model_ds)
-
-            # trying to compare cache model grid to current model grid
-            if (model_ds is None):
-                # check if delr, delc and extent are in the get_kwargs dic
-                pos_kwargs_check = len(set(get_kwargs.keys()).intersection(
-                    ['delr', 'delc', 'extent'])) == 3
-                if pos_kwargs_check:
-                    if check_delr_delc_extent(get_kwargs, cache_model_ds):
-                        return cache_model_ds
-                    else:
-                        cache_model_ds.close()
-                else:
-                    print('could not check if cached grid corresponds to current grid')
-                    cache_model_ds.close()
-
-            # check coordinates of model dataset
-            elif check_model_ds(model_ds, cache_model_ds,
-                                check_grid, check_time):
-                model_ds.update(cache_model_ds)
-                cache_model_ds.close()
-                return model_ds
-            else:
-                cache_model_ds.close()
-    logger.info(f'creating and caching dataset {cache_name}\n')
-    if model_ds is None:
-        ds = get_dataset_func(**get_kwargs)
-        ds.to_netcdf(fname_model_ds)
-        return ds
-    else:
-        ds = get_dataset_func(model_ds, **get_kwargs)
-        ds.to_netcdf(fname_model_ds)
-        model_ds.update(ds)
-        return model_ds
+    return da
 
 
 def find_most_recent_file(folder, name, extension='.pklz'):
@@ -465,6 +226,27 @@ def compare_model_extents(extent1, extent2):
     raise NotImplementedError('other options are not yet implemented')
 
 
+def polygon_from_extent(extent):
+    """create a shapely polygon from a given extent
+
+    Parameters
+    ----------
+    extent : tuple, list or array
+        extent (xmin, xmax, ymin, ymax).
+
+    Returns
+    -------
+    polygon_ext : shapely.geometry.polygon.Polygon
+        polygon of the extent.
+
+    """
+
+    bbox = (extent[0], extent[2], extent[1], extent[3])
+    polygon_ext = box(*tuple(bbox))
+
+    return polygon_ext
+
+
 def gdf_from_extent(extent, crs="EPSG:28992"):
     """create a geodataframe with a single polygon with the extent given.
 
@@ -482,8 +264,7 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
         geodataframe with extent.
     """
 
-    bbox = (extent[0], extent[2], extent[1], extent[3])
-    geom_extent = box(*tuple(bbox))
+    geom_extent = polygon_from_extent(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent],
                                   crs=crs)
 
@@ -691,7 +472,7 @@ def getmfexes(pth='.', version='', pltfrm=None):
     return
 
 
-def add_heads_to_model_ds(model_ds, fname_hds=None):
+def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
     DataArray.
 
@@ -699,6 +480,8 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
     ----------
     model_ds : TYPE
         DESCRIPTION.
+    fill_nans : bool, optional
+        if True the nan values are filled with the heads in the cells below
     fname_hds : TYPE, optional
         DESCRIPTION. The default is None.
 
@@ -711,9 +494,10 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
     if fname_hds is None:
         fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + '.hds')
 
-    head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype)
+    head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype,
+                                  fill_nans=fill_nans)
 
-    if model_ds.gridtype == 'unstructured':
+    if model_ds.gridtype == 'vertex':
         head_ar = xr.DataArray(data=head_filled[:, :, :],
                                dims=('time', 'layer', 'cid'),
                                coords={'cid': model_ds.cid,
@@ -731,12 +515,12 @@ def add_heads_to_model_ds(model_ds, fname_hds=None):
 
 
 def get_heads_array(fname_hds, gridtype='structured',
-                    fill_nans=True):
+                    fill_nans=False):
     """reads the heads from a modflow .hds file and returns a numpy array.
 
     assumes the dimensions of the heads file are:
         structured: time, layer, cid
-        unstructured: time, layer, nrow, ncol
+        vertex: time, layer, nrow, ncol
 
 
     Parameters
@@ -757,7 +541,7 @@ def get_heads_array(fname_hds, gridtype='structured',
     head = hdobj.get_alldata()
     head[head == head.max()] = np.nan
 
-    if gridtype == 'unstructured':
+    if gridtype == 'vertex':
         head_filled = np.ones((head.shape[0], head.shape[1], head.shape[3])) * np.nan
 
         for t in range(head.shape[0]):

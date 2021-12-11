@@ -30,16 +30,27 @@ def calculate_thickness(ds, top="top", bot="bot"):
         is top of layer i+1 (False)
     """
     # calculate thickness
-    if ds[top].ndim == 3 and ds[top].shape[0] == ds[bot].shape[0]:
-        # top is 3D, every layer has top and bot
-        thickness = ds[top].data - ds[bot].data
-        top3d = True
-    else:
-        # top is only top of first layer
-        thickness = -1 * \
-            np.diff(np.concatenate(
-                [ds[top].data, ds[bot].data], axis=0), axis=0)
-        top3d = False
+    if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2,3]:
+        if ds[top].shape[0] == ds[bot].shape[0]:
+            # top is 3D, every layer has top and bot
+            thickness = ds[top].data - ds[bot].data
+            top3d = True
+        else:
+            raise ValueError('3d top and bot should have same number of layers')
+    elif ds[top].ndim == (ds[bot].ndim -1) and ds[top].ndim in [1,2]:
+        if ds[top].shape[-1] == ds[bot].shape[-1]:
+            # top is only top of first layer
+            thickness = xr.zeros_like(ds[bot])
+            for lay in range(len(bot)):
+                if lay == 0:
+                    thickness[lay] = ds[top] - ds[bot][lay]
+                else:
+                    thickness[lay] = ds[bot][lay - 1] - ds[bot][lay]
+            top3d = False
+        else:
+            raise ValueError('2d top should have same last dimension as bot')
+    thickness.attrs['units'] = 'm'
+
     return thickness, top3d
 
 
@@ -120,12 +131,12 @@ def layer_split_top_bot(ds, split_dict, layer='layer', top='top', bot='bot'):
                 raise ValueError(
                     "Sum of split factors for layer must equal 1.0!")
             logger.debug(f"{i}: Split layer {i} into {len(sf)} layers "
-                        f"with fractions: {sf}")
+                         f"with fractions: {sf}")
 
             # loop over split factors
             for isf, factor in enumerate(sf):
                 logger.debug(f"  - {isf}: Calculate new top/bot for "
-                            f"new layer index {j}")
+                             f"new layer index {j}")
 
                 # calculate new bot and new top
                 new_bot.data[j] = new_top.data[j] - (factor * thickness[i])
@@ -435,8 +446,8 @@ def kheq_combined_layers(kh, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kheq = np.sum(thickness[v, :, :] * kh.data[v, :, :]) / \
-                np.sum(thickness[v, :, :], axis=0)
+            kheq = np.nansum(thickness[v, :, :] * kh.data[v, :, :], axis=0) / \
+                np.nansum(thickness[v, :, :], axis=0)
         else:
             kheq = kh.data[v]
         da_kh.data[k] = kheq
@@ -471,8 +482,8 @@ def kveq_combined_layers(kv, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.sum(thickness[v, :, :], axis=0) / \
-                np.sum(thickness[v, :, :] / kv.data[v, :, :])
+            kveq = np.nansum(thickness[v, :, :], axis=0) / \
+                np.nansum(thickness[v, :, :] / kv.data[v, :, :], axis=0)
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq

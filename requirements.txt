@@ -17,3 +17,4 @@ nbformat==5.1.3
 nbconvert==6.0.7
 matplotlib==3.3.4
 ipykernel==5.3.4
+rdp==0.8

@@ -33,7 +33,8 @@ def calculate_thickness(ds, top="top", bot="bot"):
     if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2,3]:
         if ds[top].shape[0] == ds[bot].shape[0]:
             # top is 3D, every layer has top and bot
-            thickness = ds[top].data - ds[bot].data
+            thickness = xr.zeros_like(ds[bot])
+            thickness.data = ds[top].data - ds[bot].data
             top3d = True
         else:
             raise ValueError('3d top and bot should have same number of layers')

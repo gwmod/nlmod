@@ -52,7 +52,7 @@ jobs:
       - name: Run notebooks
         if: ${{ github.event_name == 'push' }}
         run: |
-          py.test ./tests -m "notebooks"
+          py.test ./tests -m "not notebooks"
       
       - name: Run tests only
         if: ${{ github.event_name == 'pull_request' }}

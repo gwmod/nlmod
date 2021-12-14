@@ -5,10 +5,11 @@ Created on Fri Dec  3 11:58:49 2021
 @author: oebbe
 """
 
-import xarray as xr
 import numpy as np
+import xarray as xr
 
-from .. import util, cache
+from .. import cache, util
+
 
 @cache.cache_netcdf
 def get_chd_at_model_edge(model_ds, idomain):
@@ -34,7 +35,7 @@ def get_chd_at_model_edge(model_ds, idomain):
     xmax = model_ds['x'] == model_ds['x'].max()
     ymin = model_ds['y'] == model_ds['y'].min()
     ymax = model_ds['y'] == model_ds['y'].max()
-    
+
     model_ds_out = util.get_model_ds_empty(model_ds)
 
     if model_ds.gridtype == 'structured':
@@ -45,7 +46,7 @@ def get_chd_at_model_edge(model_ds, idomain):
         for lay in model_ds.layer:
             model_ds_out['chd'].loc[lay] = np.where(
                 mask2d & (idomain.loc[lay] == 1), 1, 0)
-        
+
     elif model_ds.gridtype == 'vertex':
         mask = np.where([xmin | xmax | ymin | ymax])[1]
 
@@ -54,6 +55,5 @@ def get_chd_at_model_edge(model_ds, idomain):
         model_ds_out['chd'].loc[:, mask] = 1
         model_ds_out['chd'] = xr.where(idomain == 1,
                                        model_ds_out['chd'], 0)
-        
 
     return model_ds_out

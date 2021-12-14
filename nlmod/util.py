@@ -1,16 +1,16 @@
+import datetime as dt
 import logging
 import os
 import re
 import sys
+from shutil import copyfile
 
 import flopy
 import geopandas as gpd
 import numpy as np
-import datetime as dt
 import requests
 import xarray as xr
 from shapely.geometry import box
-from shutil import copyfile
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,8 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
     """
 
     if nb_path is not None:
-        new_nb_fname = f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+        new_nb_fname = f'{dt.datetime.now().strftime("%Y%m%d")}' + \
+            os.path.split(nb_path)[-1]
         dst = os.path.join(model_ds.model_ws, new_nb_fname)
         logger.info(f'write script {new_nb_fname} to model workspace')
         copyfile(nb_path, dst)
@@ -49,15 +50,18 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
         logger.info('write model dataset to cache')
         model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
                                         'full_model_ds.nc'))
-        model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now(
+        ).strftime("%Y%m%d_%H:%M:%S")
 
     logger.info('write modflow files to model workspace')
     gwf.simulation.write_simulation()
-    model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S")
 
     logger.info('run model')
     assert gwf.simulation.run_simulation()[0], 'Modflow run not succeeded'
-    model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S")
 
 
 def get_model_dirs(model_ws):
@@ -210,13 +214,14 @@ def compare_model_extents(extent1, extent2):
 
     # option 3 left bound
     if (not check_xmin) and check_xmax and check_ymin and check_ymax:
-        logger.info('extent1 is completely within extent2 except for the left bound (xmin)')
+        logger.info(
+            'extent1 is completely within extent2 except for the left bound (xmin)')
         return 3
 
     # option 4 right bound
     if check_xmin and (not check_xmax) and check_ymin and check_ymax:
         logger.info(
-                'extent1 is completely within extent2 except for the right bound (xmax)')
+            'extent1 is completely within extent2 except for the right bound (xmax)')
         return 4
 
     # option 10
@@ -492,7 +497,8 @@ def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
     """
 
     if fname_hds is None:
-        fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + '.hds')
+        fname_hds = os.path.join(
+            model_ds.model_ws, model_ds.model_name + '.hds')
 
     head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype,
                                   fill_nans=fill_nans)
@@ -505,11 +511,11 @@ def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
                                        'time': model_ds.time})
     elif model_ds.gridtype == 'structured':
         head_ar = xr.DataArray(data=head_filled,
-                           dims=('time', 'layer', 'y', 'x'),
-                           coords={'x': model_ds.x,
-                                   'y': model_ds.y,
-                                   'layer': model_ds.layer,
-                                   'time': model_ds.time})
+                               dims=('time', 'layer', 'y', 'x'),
+                               coords={'x': model_ds.x,
+                                       'y': model_ds.y,
+                                       'layer': model_ds.layer,
+                                       'time': model_ds.time})
 
     return head_ar
 
@@ -542,7 +548,8 @@ def get_heads_array(fname_hds, gridtype='structured',
     head[head == head.max()] = np.nan
 
     if gridtype == 'vertex':
-        head_filled = np.ones((head.shape[0], head.shape[1], head.shape[3])) * np.nan
+        head_filled = np.ones(
+            (head.shape[0], head.shape[1], head.shape[3])) * np.nan
 
         for t in range(head.shape[0]):
             for lay in range(head.shape[1] - 1, -1, -1):

@@ -6,8 +6,8 @@
 
 import os
 
-from . import mdims, mfpackages, visualise, read, util
+from . import mdims, mfpackages, read, util, visualise
 from .version import __version__
 
 NLMOD_DATADIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                             '..','data')
+                             '..', 'data')

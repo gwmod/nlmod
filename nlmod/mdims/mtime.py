@@ -5,13 +5,14 @@
 """
 
 import datetime as dt
+import logging
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 def set_model_ds_time(model_ds, start_time, steady_state,
                       steady_start=False, time_units='DAYS',

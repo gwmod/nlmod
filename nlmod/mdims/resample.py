@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 def resample_dataarray2d_to_vertex_grid(da_in, gridprops=None,
-                                              xyi=None, cid=None,
-                                              method='nearest',
-                                              **kwargs):
+                                        xyi=None, cid=None,
+                                        method='nearest',
+                                        **kwargs):
     """resample a 2d dataarray (xarray) from a structured grid to a new
     dataaraay of a vertex grid.
 
@@ -62,8 +62,8 @@ def resample_dataarray2d_to_vertex_grid(da_in, gridprops=None,
 
 
 def resample_dataarray3d_to_vertex_grid(da_in, gridprops=None,
-                                              xyi=None, cid=None,
-                                              method='nearest'):
+                                        xyi=None, cid=None,
+                                        method='nearest'):
     """resample a dataarray (xarray) from a structured grid to a new dataaraay
     of a vertex grid.
 
@@ -114,7 +114,7 @@ def resample_dataarray3d_to_vertex_grid(da_in, gridprops=None,
 
 
 def resample_dataset_to_vertex_grid(ds_in, gridprops,
-                                          method='nearest'):
+                                    method='nearest'):
     """resample a dataset (xarray) from an structured grid to a new dataset
     from a vertex grid.
 
@@ -152,18 +152,19 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops,
     for data_var in ds_in.data_vars:
         if ds_in[data_var].dims == ('layer', 'y', 'x'):
             data_arr = resample_dataarray3d_to_vertex_grid(ds_in[data_var],
-                                                                 xyi=xyi, cid=cid,
-                                                                 method=method)
+                                                           xyi=xyi, cid=cid,
+                                                           method=method)
         elif ds_in[data_var].dims == ('y', 'x'):
             data_arr = resample_dataarray2d_to_vertex_grid(ds_in[data_var],
-                                                                 xyi=xyi, cid=cid,
-                                                                 method=method)
+                                                           xyi=xyi, cid=cid,
+                                                           method=method)
 
         elif ds_in[data_var].dims == ('layer'):
             data_arr = ds_in[data_var]
 
         else:
-            logger.warning(f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
+            logger.warning(
+                f'did not resample data array {data_var} because conversion with dimensions {ds_in[data_var].dims} is not (yet) supported')
             continue
 
         ds_out[data_var] = data_arr
@@ -216,21 +217,22 @@ def resample_dataarray2d_to_structured_grid(da_in, extent=None,
         data array with dimensions (y, x). y and x are from the new grid.
     """
 
-    assert isinstance(da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
+    assert isinstance(
+        da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
 
     if xmid is None:
         xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
 
     # check if ymid is in descending order
-    assert np.array_equal(ymid, np.sort(ymid)[::-1]), 'ymid should be in descending order'
-
+    assert np.array_equal(ymid, np.sort(
+        ymid)[::-1]), 'ymid should be in descending order'
 
     # check for nan values
     if (da_in.isnull().sum() > 0) and (kind == "linear"):
         arr_out = resample_2d_struc_da_nan_linear(da_in, xmid, ymid,
                                                   nan_factor, **kwargs)
     # faster for linear
-    elif kind in ["linear",'cubic']:
+    elif kind in ["linear", 'cubic']:
         # no need to fill nan values
         f = interpolate.interp2d(da_in.x.data, da_in.y.data,
                                  da_in.data, kind='linear', **kwargs)
@@ -300,10 +302,12 @@ def resample_dataarray3d_to_structured_grid(da_in, extent=None,
         grid.
     """
 
-    assert isinstance(da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
+    assert isinstance(
+        da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
 
     # check if ymid is in descending order
-    assert np.array_equal(ymid, np.sort(ymid)[::-1]), 'ymid should be in descending order'
+    assert np.array_equal(ymid, np.sort(
+        ymid)[::-1]), 'ymid should be in descending order'
 
     if xmid is None:
         xmid, ymid = mgrid.get_xy_mid_structured(extent, delr, delc)
@@ -318,7 +322,7 @@ def resample_dataarray3d_to_structured_grid(da_in, extent=None,
             arr_out[i] = resample_2d_struc_da_nan_linear(ds_lay, xmid, ymid,
                                                          nan_factor, **kwargs)
         # faster for linear
-        elif kind in ['linear','cubic']:
+        elif kind in ['linear', 'cubic']:
             # no need to fill nan values
             f = interpolate.interp2d(ds_lay.x.data, ds_lay.y.data,
                                      ds_lay.data, kind='linear', **kwargs)
@@ -428,8 +432,8 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
 
 
 def get_resampled_ml_layer_ds_vertex(raw_ds=None,
-                                      extent=None,
-                                      gridprops=None):
+                                     extent=None,
+                                     gridprops=None):
     """Project model layer dataset on a vertex model grid.
 
     Parameters
@@ -540,7 +544,7 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
     -------
     xar_out : xr.DataArray
         data array with nan values. Shape is (cid)
-    
+
     Notes
     -----
     can be slow if the xar_in is a large raster
@@ -569,9 +573,9 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
 
 
 def resample_vertex_2d_da_to_struc_2d_da(da_in, model_ds=None,
-                                        xmid=None, ymid=None,
-                                        cellsize=25,
-                                        method='nearest'):
+                                         xmid=None, ymid=None,
+                                         cellsize=25,
+                                         method='nearest'):
     """resample a 2d dataarray (xarray) from a vertex grid to a new
     dataaraay from a structured grid.   
 

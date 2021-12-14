@@ -1,2 +1,2 @@
-from . import recharge, surface_water, constant_head
+from . import constant_head, recharge, surface_water
 from .mfpackages import *

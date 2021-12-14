@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """function to project regis, or a combination of regis and geotop, data on a
 modelgrid."""
+import datetime as dt
 import logging
 
 import numpy as np
-import datetime as dt
 import xarray as xr
 from scipy.interpolate import griddata
 
-from .. import mdims, cache
+from .. import cache, mdims
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def get_combined_layer_models(extent, delr, delc,
         if True regis and geotop layers with only nans are removed from the
         model. if False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
-    
+
     Returns
     -------
     combined_ds : xarray dataset
@@ -147,8 +147,8 @@ def get_regis(extent, delr, delc, botm_layer=b'AKc'):
     # convert regis dataset to grid
     logger.info('resample regis data to structured modelgrid')
     regis_ds = mdims.resample_dataset_to_structured_grid(regis_ds_raw2,
-                                                            extent,
-                                                            delr, delc)
+                                                         extent,
+                                                         delr, delc)
     regis_ds.attrs['extent'] = extent
     regis_ds.attrs['delr'] = delr
     regis_ds.attrs['delc'] = delc
@@ -162,7 +162,7 @@ def get_regis(extent, delr, delc, botm_layer=b'AKc'):
             regis_ds[datavar].attrs['units'] = 'mNAP'
         elif datavar in ['kh', 'kv']:
             regis_ds[datavar].attrs['units'] = 'm/day'
-            
+
     return regis_ds
 
 
@@ -243,7 +243,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         geotop_ds['kh'][lay] = xr.where(mask5, np.nan, geotop_ds['kh'][lay])
         geotop_ds['kv'][lay] = xr.where(mask5, np.nan, geotop_ds['kv'][lay])
         if (mask2 * (~mask1)).sum() > 0:
-            logger.info(f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
+            logger.info(
+                f'regis holoceen snijdt door laag {geotop_ds.layer[lay].values}')
 
     top[:len(geotop_ds.layer), :, :] = geotop_ds['top'].data
     top[len(geotop_ds.layer):, :, :] = regis_ds['top'].data[layer_no + 1:]
@@ -272,12 +273,12 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds,
         regis_geotop_ds[key].attrs['source'] = 'REGIS/geotop'
         regis_geotop_ds[key].attrs['regis_url'] = regis_ds[key].url
         regis_geotop_ds[key].attrs['geotop_url'] = geotop_ds[key].url
-        regis_geotop_ds[key].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        regis_geotop_ds[key].attrs['date'] = dt.datetime.now().strftime(
+            '%Y%m%d')
         if key in ['top', 'bot']:
             regis_geotop_ds[key].attrs['units'] = 'mNAP'
         elif key in ['kh', 'kv']:
             regis_geotop_ds[key].attrs['units'] = 'm/day'
-            
 
     return regis_geotop_ds
 
@@ -319,7 +320,8 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
     logger.info(f'redefining current extent: {extent}, fit to regis raster')
 
     for d in [delr, delc]:
-        available_cell_sizes = [10., 20., 25., 50., 100., 200., 400., 500., 800.]
+        available_cell_sizes = [10., 20., 25.,
+                                50., 100., 200., 400., 500., 800.]
         if float(d) not in available_cell_sizes:
             raise NotImplementedError('only this cell sizes can be used for '
                                       f'now -> {available_cell_sizes}')
@@ -339,7 +341,8 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.):
     nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
     extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
 
-    logger.info(f'new extent is {extent} model has {nrow} rows and {ncol} columns')
+    logger.info(
+        f'new extent is {extent} model has {nrow} rows and {ncol} columns')
 
     return extent, nrow, ncol
 

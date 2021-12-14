@@ -30,14 +30,15 @@ def calculate_thickness(ds, top="top", bot="bot"):
         is top of layer i+1 (False)
     """
     # calculate thickness
-    if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2,3]:
+    if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2, 3]:
         if ds[top].shape[0] == ds[bot].shape[0]:
             # top is 3D, every layer has top and bot
             thickness = ds[top] - ds[bot]
             top3d = True
         else:
-            raise ValueError('3d top and bot should have same number of layers')
-    elif ds[top].ndim == (ds[bot].ndim -1) and ds[top].ndim in [1,2]:
+            raise ValueError(
+                '3d top and bot should have same number of layers')
+    elif ds[top].ndim == (ds[bot].ndim - 1) and ds[top].ndim in [1, 2]:
         if ds[top].shape[-1] == ds[bot].shape[-1]:
             # top is only top of first layer
             thickness = xr.zeros_like(ds[bot])

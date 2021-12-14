@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """functions to add surface water to a mf model using the ghb package."""
 
+import datetime as dt
 import logging
 import os
+
 import geopandas as gpd
 import nlmod
-import datetime as dt
 import xarray as xr
 
-from .. import mdims, cache, util
+from .. import cache, mdims, util
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,8 @@ def get_surface_water(model_ds, da_name, gridprops=None):
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'RWS'
-        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime(
+            '%Y%m%d')
 
     return model_ds_out
 

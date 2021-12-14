@@ -3,19 +3,19 @@
 
 @author: oebbe
 """
-import os
 import functools
 import importlib
 import inspect
-import pickle
+import logging
 import numbers
+import os
+import pickle
 
 import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +32,8 @@ def clear_cache(cachedir):
     -------
     None.
     """
-    ans = input(f'this will remove all cached files in {cachedir} are you sure [Y/N]')
+    ans = input(
+        f'this will remove all cached files in {cachedir} are you sure [Y/N]')
     if ans.lower() != 'y':
         return
 
@@ -96,7 +97,8 @@ def cache_netcdf(func):
             cachename += '.nc'
 
         fname_cache = os.path.join(cachedir, cachename)  # netcdf file
-        fname_pickle_cache = fname_cache.replace('.nc', '.pklz')  # pickle with function arguments
+        fname_pickle_cache = fname_cache.replace(
+            '.nc', '.pklz')  # pickle with function arguments
 
         # create dictionary with function arguments
         func_args_dic = {f'arg{i}': args[i] for i in range(len(args))}
@@ -107,7 +109,8 @@ def cache_netcdf(func):
         for key in list(func_args_dic.keys()):
             if isinstance(func_args_dic[key], xr.Dataset):
                 if dataset is not None:
-                    raise TypeError('function was called with multiple xarray dataset arguments')
+                    raise TypeError(
+                        'function was called with multiple xarray dataset arguments')
                 dataset = func_args_dic.pop(key)
 
         # only use cache if the cache file and the pickled function arguments exist
@@ -122,7 +125,8 @@ def cache_netcdf(func):
             modification_check = time_mod_cache > time_mod_func
 
             if not modification_check:
-                logger.info(f'module of function {func.__name__} recently modified, not using cache')
+                logger.info(
+                    f'module of function {func.__name__} recently modified, not using cache')
 
             # check if cache was created with same function arguments as
             # function call
@@ -157,7 +161,8 @@ def cache_netcdf(func):
             with open(fname_pickle_cache, 'wb') as fpklz:
                 pickle.dump(func_args_dic, fpklz)
         else:
-            raise TypeError(f'expected xarray Dataset, got {type(result)} instead')
+            raise TypeError(
+                f'expected xarray Dataset, got {type(result)} instead')
 
         return result
 
@@ -201,7 +206,8 @@ def cache_pklz(func):
             cachename += '.pklz'
 
         fname_cache = os.path.join(cachedir, cachename)  # netcdf file
-        fname_args_cache = fname_cache.replace('.pklz', '_cache.pklz')  # pickle with function arguments
+        fname_args_cache = fname_cache.replace(
+            '.pklz', '_cache.pklz')  # pickle with function arguments
 
         # create dictionary with function arguments
         func_args_dic = {f'arg{i}': args[i] for i in range(len(args))}
@@ -219,7 +225,8 @@ def cache_pklz(func):
             modification_check = time_mod_cache > time_mod_func
 
             if not modification_check:
-                logger.info(f'module of function {func.__name__} recently modified, not using cache')
+                logger.info(
+                    f'module of function {func.__name__} recently modified, not using cache')
 
             # check if cache was created with same function arguments as
             # function call
@@ -270,10 +277,12 @@ def _check_ds(ds, ds2):
     for coord in ds2.coords:
         if coord in ds.coords:
             if not ds2[coord].equals(ds[coord]):
-                logger.info(f'coordinate {coord} has different values in cached dataset, not using cache')
+                logger.info(
+                    f'coordinate {coord} has different values in cached dataset, not using cache')
                 return False
         else:
-            logger.info(f'dimension {coord} only present in cache, not using cache')
+            logger.info(
+                f'dimension {coord} only present in cache, not using cache')
             return False
 
     return True
@@ -309,12 +318,14 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
     for key, item in func_args_dic.items():
         # check if cache and function call have same argument names
         if key not in func_args_dic_cache.keys():
-            logger.info('cache was created using different function arguments, do not use cached data')
+            logger.info(
+                'cache was created using different function arguments, do not use cached data')
             return False
 
         # check if cache and function call have same argument types
         if not isinstance(item, type(func_args_dic_cache[key])):
-            logger.info('cache was created using different function argument types, do not use cached data')
+            logger.info(
+                'cache was created using different function argument types, do not use cached data')
             return False
 
         # check if cache and function call have same argument values
@@ -323,28 +334,34 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
             pass
         elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple)):
             if item != func_args_dic_cache[key]:
-                logger.info('cache was created using different function argument values, do not use cached data')
+                logger.info(
+                    'cache was created using different function argument values, do not use cached data')
                 return False
         elif isinstance(item, np.ndarray):
             if not np.array_equal(item, func_args_dic_cache[key]):
-                logger.info('cache was created using different numpy array values, do not use cached data')
+                logger.info(
+                    'cache was created using different numpy array values, do not use cached data')
                 return False
         elif isinstance(item, (pd.DataFrame, pd.Series, xr.DataArray)):
             if not item.equals(func_args_dic_cache[key]):
-                logger.info('cache was created using different DataFrame/Series/DataArray, do not use cached data')
+                logger.info(
+                    'cache was created using different DataFrame/Series/DataArray, do not use cached data')
                 return False
         elif isinstance(item, dict):
             # recursive checking
             if not _same_function_arguments(item, func_args_dic_cache[key]):
-                logger.info('cache was created using different dictionaries, do not use cached data')
+                logger.info(
+                    'cache was created using different dictionaries, do not use cached data')
                 return False
         elif isinstance(item, flopy.mf6.ModflowGwf):
             if str(item) != str(func_args_dic_cache[key]):
-                logger.info('cache was created using different groundwater flow model, do not use cached data')
+                logger.info(
+                    'cache was created using different groundwater flow model, do not use cached data')
                 return False
 
         else:
-            logger.info('cannot check if cache is valid, assuming invalid cache')
+            logger.info(
+                'cannot check if cache is valid, assuming invalid cache')
             logger.info(f'function argument of type {type(item)}')
             return False
 
@@ -406,14 +423,14 @@ def _update_docstring_and_signature(func):
         logger.warning(f'Function "{func.__name__}" has no docstring')
         return None
     if 'Returns' not in original_doc:
-        logger.warning(f'Function "{func.__name__}" has no "Returns" header in docstring')
+        logger.warning(
+            f'Function "{func.__name__}" has no "Returns" header in docstring')
         return None
     before, after = original_doc.split('Returns')
     mod_before = before.strip() + '\n    cachedir : str or None, optional\n'\
-    '        directory to save cache. If None no cache is used.'\
-    ' Default is None.\n    cachename : str or None, optional\n'\
-    '        filename of netcdf cache. If None no cache is used.'\
-    ' Default is None.\n\n    Returns'
+        '        directory to save cache. If None no cache is used.'\
+        ' Default is None.\n    cachename : str or None, optional\n'\
+        '        filename of netcdf cache. If None no cache is used.'\
+        ' Default is None.\n\n    Returns'
     new_doc = ''.join((mod_before, after))
     func.__doc__ = new_doc
-

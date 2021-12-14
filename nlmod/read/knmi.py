@@ -1,13 +1,13 @@
+import datetime as dt
 import logging
 import numbers
 
 import hydropandas as hpd
 import numpy as np
-import datetime as dt
 import pandas as pd
 import xarray as xr
 
-from .. import util, cache
+from .. import cache, util
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def get_recharge(model_ds,
                                                                         unit=model_ds.time_units))
         elif isinstance(perlen, (list, tuple, np.ndarray)):
             end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen[-1],
-                                                                      unit=model_ds.time_units))
+                                                                        unit=model_ds.time_units))
         else:
             raise ValueError(f'did not recognise perlen data type {perlen}')
 
@@ -146,21 +146,25 @@ def get_recharge(model_ds,
             model_recharge = pd.Series(index=model_ds.time.data, dtype=float)
             for j, ts in enumerate(model_recharge.index):
                 if j < (len(model_recharge) - 1):
-                    model_recharge.loc[ts] = recharge_ts.loc[ts:model_recharge.index[j + 1]].iloc[:-1].mean()
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:
+                                                             model_recharge.index[j + 1]].iloc[:-1].mean()
                 else:
                     model_recharge.loc[ts] = recharge_ts.loc[ts:end].iloc[:-1].mean()
 
             # add data to model_ds_out
             if model_ds.gridtype == 'structured':
                 for row, col in zip(loc_sel.row, loc_sel.col):
-                    model_ds_out['recharge'].data[row, col, :] = model_recharge.values
+                    model_ds_out['recharge'].data[row,
+                                                  col, :] = model_recharge.values
 
             elif model_ds.gridtype == 'vertex':
-                model_ds_out['recharge'].loc[loc_sel.index, :] = model_recharge.values
+                model_ds_out['recharge'].loc[loc_sel.index,
+                                             :] = model_recharge.values
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'KNMI'
-        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime(
+            '%Y%m%d')
         model_ds_out[datavar].attrs['units'] = 'm/day'
 
     return model_ds_out

@@ -23,9 +23,9 @@ from flopy.utils.gridintersect import GridIntersect
 from shapely.prepared import prep
 from tqdm import tqdm
 
-from .. import mfpackages, util, cache
+from .. import cache, mfpackages, util
 from ..read import jarkus, rws
-from . import resample, mlayers
+from . import mlayers, resample
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +204,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     else:
         model_ds['thickness'], _ = mlayers.calculate_thickness(model_ds)
         model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
-                model_ds['idomain'])
+            model_ds['idomain'])
 
     return model_ds
 
@@ -717,7 +717,8 @@ def data_array_2d_to_rec_list(model_ds, mask,
 
     if first_active_layer:
         if 'first_active_layer' not in model_ds:
-            model_ds['first_active_layer'] = get_first_active_layer_from_idomain(model_ds['idomain'])
+            model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
+                model_ds['idomain'])
 
         cellids = np.where(
             (mask) & (model_ds['first_active_layer'] != model_ds.nodata))
@@ -816,8 +817,8 @@ def lcid_to_rec_list(layers, cellids, model_ds,
 
 
 def data_array_2d_vertex_to_rec_list(model_ds, mask,
-                                    col1=None, col2=None, col3=None,
-                                    only_active_cells=True):
+                                     col1=None, col2=None, col3=None,
+                                     only_active_cells=True):
     """Create a rec list for stress period data from a model dataset.
 
     Used for vertex grids.
@@ -879,10 +880,10 @@ def data_array_2d_vertex_to_rec_list(model_ds, mask,
 
 
 def data_array_1d_vertex_to_rec_list(model_ds, mask,
-                                    col1=None, col2=None, col3=None,
-                                    layer=0,
-                                    first_active_layer=False,
-                                    only_active_cells=True):
+                                     col1=None, col2=None, col3=None,
+                                     layer=0,
+                                     first_active_layer=False,
+                                     only_active_cells=True):
     """Create a rec list for stress period data from a model dataset.
 
     Used for vertex grids.
@@ -1026,7 +1027,8 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
     elif model_ds.gridtype == 'vertex':
         da = util.get_da_from_da_ds(model_ds, dims=('cid',), data=0)
     else:
-        raise ValueError('function only support structured or vertex gridtypes')
+        raise ValueError(
+            'function only support structured or vertex gridtypes')
 
     if isinstance(gdf, gpd.GeoDataFrame):
         geoms = gdf.geometry.values
@@ -1147,7 +1149,8 @@ def get_thickness_from_topbot(top, bot):
         raster with thickness of each cell. dimensions should be (layer, y,x)
         or (layer, cid).
     """
-    DeprecationWarning('function is deprecated please use calculate_thickness function instead')
+    DeprecationWarning(
+        'function is deprecated please use calculate_thickness function instead')
 
     if np.ndim(top) > 2:
         raise NotImplementedError('function works only for 2d top')
@@ -1158,7 +1161,8 @@ def get_thickness_from_topbot(top, bot):
     elif bot.ndim == 2:
         thickness = util.get_da_from_da_ds(bot, dims=('layer', 'cid'))
     else:
-        raise ValueError('function only support structured or vertex gridtypes')
+        raise ValueError(
+            'function only support structured or vertex gridtypes')
 
     for lay in range(len(bot)):
         if lay == 0:
@@ -1264,7 +1268,8 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
         da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'cid'),
                                          data=1)
     else:
-        raise ValueError('function only support structured or vertex gridtypes')
+        raise ValueError(
+            'function only support structured or vertex gridtypes')
 
     model_ds['kh'] = da_ones * kh
 
@@ -1392,7 +1397,7 @@ def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
 
     elif gridtype == 'vertex':
         model_ds = add_top_bot_vertex(ml_layer_ds, model_ds,
-                                            nodata=nodata)
+                                      nodata=nodata)
 
     return model_ds
 
@@ -1440,8 +1445,8 @@ def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
             (active_domain.shape[0])
         if percentage > 80:
             logger.warning(f'{percentage:0.1f}% of all cells have nan '
-                            'values in every layer there is probably a '
-                            'problem with your extent.')
+                           'values in every layer there is probably a '
+                           'problem with your extent.')
 
         # set bottom to zero if bottom in a cell is nan in all layers
         lowest_bottom = np.where(active_domain, lowest_bottom, 0)
@@ -1550,8 +1555,8 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
             (active_domain.shape[0] * active_domain.shape[1])
         if percentage > 80:
             logger.warning(f'{percentage:0.1f}% of all cells have nan '
-                            'values in every layer there is probably a '
-                            'problem with your extent.')
+                           'values in every layer there is probably a '
+                           'problem with your extent.')
         # set bottom to zero if bottom in a cell is nan in all layers
         lowest_bottom = np.where(active_domain, lowest_bottom, 0)
 
@@ -1663,15 +1668,18 @@ def get_vertices(model_ds, modelgrid=None,
         yvert = modelgrid.yvertices
         if vert_per_cid == 4:
             from rdp import rdp
-            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i])))[:-1] for i in range(len(xvert))])
+            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i])))[
+                                    :-1] for i in range(len(xvert))])
         elif vert_per_cid == 5:
             from rdp import rdp
-            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))])
+            vertices_arr = np.array(
+                [rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))])
         else:
             raise NotImplementedError()
 
     elif gridprops is not None:
-        all_vertices = np.ones((len(gridprops['cell2d']), len(gridprops['cell2d'][0]), 2)) * np.nan
+        all_vertices = np.ones(
+            (len(gridprops['cell2d']), len(gridprops['cell2d'][0]), 2)) * np.nan
         for i, cell in enumerate(gridprops['cell2d']):
             for j in range(cell[3]):
                 all_vertices[i, j] = gridprops['vertices'][cell[4 + j]][1:]
@@ -1696,7 +1704,7 @@ def get_vertices(model_ds, modelgrid=None,
                                dims=('cid', 'vert_per_cid', 'xy'),
                                coords={'cid': model_ds.cid.values,
                                        'vert_per_cid': range(vertices_arr.shape[1]),
-                                        'xy': ['x', 'y']})
+                                       'xy': ['x', 'y']})
 
     return vertices_da
 

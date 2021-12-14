@@ -8,15 +8,15 @@
 
 Note: if you like jazz please check this out: https://www.northseajazz.com
 """
+import datetime as dt
 import logging
 import os
 
 import numpy as np
-import datetime as dt
 import requests
 import xarray as xr
 
-from .. import mdims, util, cache
+from .. import cache, mdims, util
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,8 @@ def get_bathymetry(model_ds, northsea,
         jarkus_ds = get_dataset_jarkus(model_ds.extent, url)
     except OSError:
         import gdown
-        logger.warning('cannot access Jarkus netCDF link, copy file from google drive instead')
+        logger.warning(
+            'cannot access Jarkus netCDF link, copy file from google drive instead')
         fname_jarkus = os.path.join(model_ds.model_ws,
                                     'jarkus_nhflopy.nc')
         url = 'https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo'
@@ -94,7 +95,8 @@ def get_bathymetry(model_ds, northsea,
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'Jarkus'
         model_ds_out[datavar].attrs['url'] = url
-        model_ds_out[datavar].attrs['source'] = dt.datetime.now().strftime('%Y%m%d')
+        model_ds_out[datavar].attrs['source'] = dt.datetime.now().strftime(
+            '%Y%m%d')
         if datavar == 'bathymetry':
             model_ds_out[datavar].attrs['units'] = 'mNAP'
 

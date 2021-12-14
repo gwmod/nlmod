@@ -8,13 +8,11 @@ import os
 import warnings
 
 import flopy
+import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-
-import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
-
+from matplotlib.patches import Polygon
 
 from ..read import rws
 
@@ -101,7 +99,7 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
 
         if plot_grid:
             mp.plot_grid(ls=0.25, color="k")
-            
+
         if plot_bc is not None:
             for bc, bc_kwargs in plot_bc.items():
                 mp.plot_bc(bc, **bc_kwargs)
@@ -228,7 +226,7 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
 def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
 
     warnings.warn("The 'plot_array' functions is deprecated please use"
-                  "'plot_vertex_array' instead", DeprecationWarning )
+                  "'plot_vertex_array' instead", DeprecationWarning)
     if ax is None:
         _, ax = plt.subplots(figsize=figsize)
 
@@ -271,20 +269,20 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
         DESCRIPTION.
 
     """
-    
+
     if isinstance(vertices, xr.DataArray):
         vertices = vertices.values
-    
+
     if ax is None:
         _, ax = plt.subplots()
-        
+
     patches = [Polygon(vert) for vert in vertices]
     if gridkwargs is None:
         quadmesh = PatchCollection(patches)
     else:
         quadmesh = PatchCollection(patches, **gridkwargs)
     quadmesh.set_array(da)
-    
+
     # set max and min
     if "vmin" in kwargs:
         vmin = kwargs.pop("vmin")
@@ -301,14 +299,14 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     quadmesh.set(**kwargs)
 
     ax.add_collection(quadmesh)
-    ax.set_xlim(vertices[:,:,0].min(), vertices[:,:,0].max())
+    ax.set_xlim(vertices[:, :, 0].min(), vertices[:, :, 0].max())
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    ax.set_ylim(vertices[:,:,1].min(), vertices[:,:,1].max())
+    ax.set_ylim(vertices[:, :, 1].min(), vertices[:, :, 1].max())
     ax.set_aspect('equal')
-    
+
     ax.get_figure().colorbar(quadmesh, ax=ax, orientation='vertical')
     if hasattr(da, 'name'):
         ax.set_title(da.name)
-    
+
     return ax

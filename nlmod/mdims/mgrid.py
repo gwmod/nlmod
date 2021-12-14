@@ -980,7 +980,7 @@ def polygon_to_area(modelgrid, polygon, da,
         raise TypeError(
             f'input geometry should by of type "Polygon" not {polygon.type}')
 
-    ix = GridIntersect(modelgrid)
+    ix = GridIntersect(modelgrid, method='vertex')
     opp_cells = ix.intersect(polygon)
 
     if gridtype == 'structured':

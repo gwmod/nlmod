@@ -451,8 +451,8 @@ def kheq_combined_layers(kh, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kheq = np.nansum(thickness[v, :, :] * kh.data[v, :, :], axis=0) / \
-                np.nansum(thickness[v, :, :], axis=0)
+            kheq = np.nansum(thickness.data[v, :, :] * kh.data[v, :, :], axis=0) / \
+                np.nansum(thickness.data[v, :, :], axis=0)
         else:
             kheq = kh.data[v]
         da_kh.data[k] = kheq
@@ -487,8 +487,8 @@ def kveq_combined_layers(kv, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.nansum(thickness[v, :, :], axis=0) / \
-                np.nansum(thickness[v, :, :] / kv.data[v, :, :], axis=0)
+            kveq = np.nansum(thickness.data[v, :, :], axis=0) / \
+                np.nansum(thickness.data[v, :, :] / kv.data[v, :, :], axis=0)
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq

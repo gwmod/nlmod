@@ -33,7 +33,7 @@ def calculate_thickness(ds, top="top", bot="bot"):
     if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2,3]:
         if ds[top].shape[0] == ds[bot].shape[0]:
             # top is 3D, every layer has top and bot
-            thickness = ds[top].data - ds[bot].data
+            thickness = ds[top] - ds[bot]
             top3d = True
         else:
             raise ValueError('3d top and bot should have same number of layers')
@@ -49,7 +49,10 @@ def calculate_thickness(ds, top="top", bot="bot"):
             top3d = False
         else:
             raise ValueError('2d top should have same last dimension as bot')
-    thickness.attrs['units'] = 'm'
+    if isinstance(ds[bot], xr.DataArray):
+        if hasattr(ds[bot], 'units'):
+            if ds[bot].units == 'mNAP':
+                thickness.attrs['units'] = 'm'
 
     return thickness, top3d
 
@@ -426,7 +429,7 @@ def kheq_combined_layers(kh, thickness, reindexer):
     kh : xarray.DataArray
         data array containing horizontal hydraulic conductivity
     thickness : xarray.DataArray
-        data array containing thickness per layer
+            data array containing thickness per layer
     reindexer : OrdererDict
         dictionary mapping new layer indices to old layer indices
 

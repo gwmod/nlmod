@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 run notebooks in the examples directory
 """
@@ -52,7 +51,7 @@ def test_run_notebook_05_caching():
 @pytest.mark.notebooks
 def test_run_notebook_06_compare_layermodels():
     _run_notebook(nbdir, '06_compare_layermodels.ipynb')
-    
+
 @pytest.mark.notebooks
 def test_run_notebook_07_resampling():
     _run_notebook(nbdir, '07_resampling.ipynb')

@@ -23,7 +23,7 @@ def plot_surface_water(model_ds, ax=None):
     surf_water = rws.get_gdf_surface_water(model_ds)
 
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
     surf_water.plot(ax=ax)
 
     return ax
@@ -32,7 +32,7 @@ def plot_surface_water(model_ds, ax=None):
 def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 10))
+        _, ax = plt.subplots(figsize=(10, 10))
 
     gwf.modelgrid.plot(ax=ax)
     ax.axis('scaled')
@@ -50,7 +50,7 @@ def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
 def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
                cmap="viridis", scale_cbar=True, vmin=None, vmax=None,
                norm=None, xlim=None, ylim=None, grid=False, figdir=None,
-               figsize=(10, 8), plot_bc={}, plot_grid=False):
+               figsize=(10, 8), plot_bc=None, plot_grid=False):
 
     if arr.ndim == 4 and plot_dim == "layer":
         nplots = arr.shape[1]
@@ -101,9 +101,10 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
 
         if plot_grid:
             mp.plot_grid(ls=0.25, color="k")
-
-        for bc, bc_kwargs in plot_bc.items():
-            mp.plot_bc(bc, **bc_kwargs)
+            
+        if plot_bc is not None:
+            for bc, bc_kwargs in plot_bc.items():
+                mp.plot_bc(bc, **bc_kwargs)
 
         iax.grid(grid)
         iax.set_xticklabels([])
@@ -133,7 +134,7 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
 
 
 def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
-                  plot_bc=['CHD'], plot_bc_kwargs=[{'color': 'k'}], grid=False,
+                  plot_bc=('CHD',), color='k', grid=False,
                   xlim=None, ylim=None):
     """make a 2d plot of every modellayer, store them in a grid.
 
@@ -152,8 +153,8 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
     plot_bc : list of str, optional
         name of packages of which boundary conditions are plot. The default
         is ['CHD'].
-    plot_bc_kwargs : list of dictionaries, optional
-        kwargs per boundary conditions. The default is [{'color':'k'}].
+    color : str, optional
+        color. The default is 'k'.
     grid : bool, optional
         if True a grid is plotted. The default is False.
     xlim : tuple, optional
@@ -169,7 +170,7 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         DESCRIPTION.
     """
     for key in plot_bc:
-        if not key in gwf.get_package_list():
+        if key not in gwf.get_package_list():
             raise ValueError(
                 f'cannot plot boundary condition {key} because it is not in the package list')
 
@@ -198,8 +199,8 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)
-        for ibc, bc_var in enumerate(plot_bc):
-            mp.plot_bc(bc_var, kper=0, **plot_bc_kwargs[ibc])
+        for bc_var in plot_bc:
+            mp.plot_bc(bc_var, kper=0, color=color)
 
         iax.set_aspect("equal", adjustable="box")
         iax.set_title(f"Layer {ilay}")
@@ -225,12 +226,11 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
 
 
 def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
-    
+
     warnings.warn("The 'plot_array' functions is deprecated please use"
                   "'plot_vertex_array' instead", DeprecationWarning )
-    
     if ax is None:
-        f, ax = plt.subplots(figsize=figsize)
+        _, ax = plt.subplots(figsize=figsize)
 
     yticklabels = ax.yaxis.get_ticklabels()
     plt.setp(yticklabels, rotation=90, verticalalignment='center')
@@ -260,9 +260,9 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     ax : TYPE, optional
         DESCRIPTION. The default is None.
     gridkwargs : dict or None, optional
-        layout parameters to plot the cells. For example 
+        layout parameters to plot the cells. For example
         {'edgecolor':'k'} to create black cell lines. The default is None.
-    **kwargs : 
+    **kwargs :
         passed to quadmesh.set().
 
     Returns
@@ -276,7 +276,7 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
         vertices = vertices.values
     
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
         
     patches = [Polygon(vert) for vert in vertices]
     if gridkwargs is None:

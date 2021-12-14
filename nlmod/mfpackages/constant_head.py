@@ -12,7 +12,7 @@ from .. import util, cache
 
 @cache.cache_netcdf
 def get_chd_at_model_edge(model_ds, idomain):
-    """get data array which is 1 at every active cell (defined by idomain) at 
+    """get data array which is 1 at every active cell (defined by idomain) at
     the boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
 
     Parameters
@@ -21,13 +21,12 @@ def get_chd_at_model_edge(model_ds, idomain):
         dataset with model data.
     idomain : xarray.DataArray
         idomain used to get active cells and shape of DataArray
-        
+
     Returns
     -------
     model_ds_out : xarray.Dataset
         dataset with chd array
     """
-    
     # add constant head cells at model boundaries
 
     # get mask with grid edges

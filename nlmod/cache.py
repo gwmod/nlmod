@@ -42,7 +42,7 @@ def clear_cache(cachedir):
         # assuming all pklz files belong to a cached netcdf file
         if fname.endswith('.pklz'):
             fname_nc = fname.replace('.pklz', '.nc')
-            
+
             # remove pklz file
             os.remove(os.path.join(cachedir, fname))
 
@@ -53,8 +53,8 @@ def clear_cache(cachedir):
 
             os.remove(fpath_nc)
             logger.info(f'removing {fname} and {fname_nc}')
-            
-            
+
+
 def cache_netcdf(func):
     """ decorator to read/write the result of a function from/to a file to
     speed up function calls with the same arguments. Should only be applied to
@@ -67,9 +67,9 @@ def cache_netcdf(func):
     1. The directory and filename of the cache should be defined by the person
     calling a function with this decorator. If not defined no cache is
     created nor used.
-    2. Create a new cached file if it is impossible to check if the function 
+    2. Create a new cached file if it is impossible to check if the function
     arguments used to create the cached file are the same as the current
-    function arguments. This can happen if one of the function arguments has a 
+    function arguments. This can happen if one of the function arguments has a
     type that cannot be checked using the _is_valid_cache function.
     3. Function arguments are pickled together with the cache to check later
     if the cache is valid.
@@ -78,9 +78,9 @@ def cache_netcdf(func):
     cached data and the new function call. We do check if the xarray Dataset
     coördinates correspond to the coördinates of the cached netcdf file.
     5. This function uses `functools.wraps` and some home made
-    magic in _update_docstring_and_signature to add arguments of the decorator 
-    to the decorated function. This assumes that the decorated function has a 
-    docstring with a "Returns" heading. If this is not the case an error is 
+    magic in _update_docstring_and_signature to add arguments of the decorator
+    to the decorated function. This assumes that the decorated function has a
+    docstring with a "Returns" heading. If this is not the case an error is
     raised when trying to decorate the function.
     """
 
@@ -165,28 +165,27 @@ def cache_netcdf(func):
     return decorator
 
 
-
 def cache_pklz(func):
-    """ decorator to read/write the result of a function from/to a pklz file 
-    to speed up function calls with the same arguments. Should only be applied 
+    """ decorator to read/write the result of a function from/to a pklz file
+    to speed up function calls with the same arguments. Should only be applied
     to functions that:
-        - return a dictionary 
+        - return a dictionary
         - have functions arguments of types that can be checked using the
         _is_valid_cache functions
 
     1. The directory and filename of the cache should be defined by the person
     calling a function with this decorator. If not defined no cache is
     created nor used.
-    2. Create a new cached file if it is impossible to check if the function 
+    2. Create a new cached file if it is impossible to check if the function
     arguments used to create the cached file are the same as the current
-    function arguments. This can happen if one of the function arguments has a 
+    function arguments. This can happen if one of the function arguments has a
     type that cannot be checked using the _is_valid_cache function.
     3. Function arguments are pickled together with the cache to check later
     if the cache is valid.
     4. This function uses `functools.wraps` and some home made
-    magic in _update_docstring_and_signature to add arguments of the decorator 
-    to the decorated function. This assumes that the decorated function has a 
-    docstring with a "Returns" heading. If this is not the case an error is 
+    magic in _update_docstring_and_signature to add arguments of the decorator
+    to the decorated function. This assumes that the decorated function has a
+    docstring with a "Returns" heading. If this is not the case an error is
     raised when trying to decorate the function.
     """
 
@@ -276,7 +275,7 @@ def _check_ds(ds, ds2):
         else:
             logger.info(f'dimension {coord} only present in cache, not using cache')
             return False
-        
+
     return True
 
 
@@ -285,10 +284,10 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
     checking:
         1. if they have the same keys
         2. if the items have the same type
-        3. if the items have the same values (only possible for the types: int, 
-                                              float, bool, str, bytes, list, 
-                                              tuple, dict, np.ndarray, 
-                                              xr.DataArray, 
+        3. if the items have the same values (only possible for the types: int,
+                                              float, bool, str, bytes, list,
+                                              tuple, dict, np.ndarray,
+                                              xr.DataArray,
                                               flopy.mf6.ModflowGwf)
 
     Parameters
@@ -303,18 +302,18 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
     -------
     bool
         if True the dictionaries are identical which means that the cached
-        data was created using the same function arguments as the requested 
+        data was created using the same function arguments as the requested
         data.
 
     """
     for key, item in func_args_dic.items():
         # check if cache and function call have same argument names
-        if not key in func_args_dic_cache.keys():
+        if key not in func_args_dic_cache.keys():
             logger.info('cache was created using different function arguments, do not use cached data')
             return False
 
         # check if cache and function call have same argument types
-        if type(item) != type(func_args_dic_cache[key]):
+        if not isinstance(item, type(func_args_dic_cache[key])):
             logger.info('cache was created using different function argument types, do not use cached data')
             return False
 
@@ -340,10 +339,10 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 logger.info('cache was created using different dictionaries, do not use cached data')
                 return False
         elif isinstance(item, flopy.mf6.ModflowGwf):
-            if not str(item)== str(func_args_dic_cache[key]):
+            if str(item) != str(func_args_dic_cache[key]):
                 logger.info('cache was created using different groundwater flow model, do not use cached data')
                 return False
-                
+
         else:
             logger.info('cannot check if cache is valid, assuming invalid cache')
             logger.info(f'function argument of type {type(item)}')
@@ -376,35 +375,22 @@ def _get_modification_time(func):
 
 
 def _update_docstring_and_signature(func):
-    """ add function arguments 'cachedir' and 'cachename' to the docstring and 
-    signature of a function.
-    
+    """ add function arguments 'cachedir' and 'cachename' to the docstring and
+    signature of a function. The function arguments are added before the
+    "Returns" header in the docstring. If the function has no Returns header
+    in the docstring, the function arguments are not added to the docstring.
+
 
     Parameters
     ----------
     func : function
-        function that is decorated.
-
-    Raises
-    ------
-    ValueError
-        if the function has no Returns header in the docstring.
+        function that is decorated.       
 
     Returns
     -------
     None.
 
     """
-    
-    # add cachedir and cachename to docstring
-    original_doc = func.__doc__
-    if not 'Returns' in original_doc:
-        raise ValueError(f'Function "{func.__name__}" has no "Returns" header in docstring')
-    before, after = original_doc.split('Returns')
-    mod_before = before.strip() + '\n    cachedir : str or None, optional\n        directory to save cache. If None no cache is used. Default is None.\n    cachename : str or None, optional\n        filename of netcdf cache. If None no cache is used. Default is None.\n\n    Returns'
-    new_doc = ''.join((mod_before, after))
-    func.__doc__ = new_doc
-
     # add cachedir and cachename to signature
     sig = inspect.signature(func)
     cur_param = tuple(sig.parameters.values())
@@ -416,3 +402,22 @@ def _update_docstring_and_signature(func):
                                                default=None))
     sig = sig.replace(parameters=new_param)
     func.__signature__ = sig
+
+    # add cachedir and cachename to docstring
+    original_doc = func.__doc__
+    if original_doc is None:
+        logger.warning(f'Function "{func.__name__}" has no docstring')
+        return None
+    if 'Returns' not in original_doc:
+        logger.warning(f'Function "{func.__name__}" has no "Returns" header in docstring')
+        return None
+    before, after = original_doc.split('Returns')
+    mod_before = before.strip() + '\n    cachedir : str or None, optional\n'\
+    '        directory to save cache. If None no cache is used.'\
+    ' Default is None.\n    cachename : str or None, optional\n'\
+    '        filename of netcdf cache. If None no cache is used.'\
+    ' Default is None.\n\n    Returns'
+    new_doc = ''.join((mod_before, after))
+    func.__doc__ = new_doc
+
+    

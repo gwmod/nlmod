@@ -1,16 +1,3 @@
-"""functions to create gis-exports of model_data
-
-To-do:
-    - when exporting shapefiles to gis, attributes cannot have names longer
-    than 10 characters. Now the automatic character shortening of fiona is
-    used. This is not optimal.
-    - when exporting data variables with dimension time only the mean values
-    in time are exported in the shapefile to avoid extremely large files.
-    
-
-
-"""
-
 import os
 from shapely.geometry import Polygon
 import geopandas as gpd
@@ -39,31 +26,31 @@ def _polygons_from_model_ds(model_ds):
         list with polygon of each raster cell.
 
     """
-    
+
     if model_ds.gridtype == 'structured':
         # check if coördinates are consistent with delr/delc values
         delr_x = np.unique(model_ds.x.values[1:] - model_ds.x.values[:-1])
         delc_y = np.unique(model_ds.y.values[:-1] - model_ds.y.values[1:])
         if not ((delr_x == model_ds.delr) and (delc_y == model_ds.delc)):
             raise ValueError('delr and delc attributes of model_ds inconsistent with x and y coördinates')
-            
-        xmins = model_ds.x - (model_ds.delr*0.5)
-        xmaxs = model_ds.x + (model_ds.delr*0.5)
-        ymins = model_ds.y - (model_ds.delc*0.5)
-        ymaxs = model_ds.y + (model_ds.delc*0.5)
-        polygons = [Polygon([(xmins[i], ymins[j]), (xmins[i], ymaxs[j]), (xmaxs[i], ymaxs[j]), (xmaxs[i], ymins[j])]) for i in range(len(xmins)) for j in range(len(ymins))]
+
+        xmins = model_ds.x - (model_ds.delr * 0.5)
+        xmaxs = model_ds.x + (model_ds.delr * 0.5)
+        ymins = model_ds.y - (model_ds.delc * 0.5)
+        ymaxs = model_ds.y + (model_ds.delc * 0.5)
+        polygons = [Polygon([(xmins[i], ymins[j]), (xmins[i], ymaxs[j]),
+                             (xmaxs[i], ymaxs[j]), (xmaxs[i], ymins[j])]) for i in range(len(xmins)) for j in range(len(ymins))]
     elif model_ds.gridtype == 'vertex':
         polygons = [Polygon(vertices) for vertices in model_ds['vertices'].values]
     else:
         raise ValueError(f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}")
-        
-    return polygons
 
+    return polygons
 
 
 def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                             dealing_with_time='mean'):
-    """ Convert one or more DataArrays from a vertex model dataset to a 
+    """ Convert one or more DataArrays from a vertex model dataset to a
     Geodataframe.
 
 
@@ -79,8 +66,8 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
         from the data variable 'vertices' in model_ds. The default is None.
     dealing_with_time : str, optional
         when there is time variant data in the model dataset this function
-        becomes very slow. For now only the time averaged data will be 
-        saved in the geodataframe. Later this can be extended with multiple 
+        becomes very slow. For now only the time averaged data will be
+        saved in the geodataframe. Later this can be extended with multiple
         possibilities. The default is 'mean'.
 
     Raises
@@ -130,11 +117,9 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
     return gdf
 
 
-
-
 def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                            dealing_with_time='mean'):
-    """ Convert one or more DataArrays from a structured model dataset to a 
+    """ Convert one or more DataArrays from a structured model dataset to a
     Geodataframe.
 
 
@@ -172,7 +157,7 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
         if no_dims == 2:
             dv_dic[da_name] = da.values.flatten('F')
         elif no_dims == 3:
-            if da.dims == ('layer','y','x'):
+            if da.dims == ('layer', 'y', 'x'):
                 for i, da_lay in enumerate(da):
                     dv_dic[f'{da_name}_lay{i}'] = da_lay.values.flatten('F')
             elif 'time' in da.dims:
@@ -185,11 +170,11 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                 raise ValueError(f"expected dimensions ('layer', 'y', 'x'), got {da.dims}")
         else:
             raise NotImplementedError(f'expected two or three dimensions got {no_dims} for data variable {da_name}')
-    
+
     # create geometries
     if polygons is None:
         polygons = _polygons_from_model_ds(model_ds)
-        
+
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
 
@@ -197,7 +182,7 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
 
 
 def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
-    """ Save one or more DataArrays from a model dataset as a 
+    """ Save one or more DataArrays from a model dataset as a
     shapefile.
 
 
@@ -221,10 +206,10 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
 
     """
     if model_ds.gridtype == 'vertex':
-        gdf = vertex_dataarray_to_gdf(model_ds, data_variables, 
+        gdf = vertex_dataarray_to_gdf(model_ds, data_variables,
                                       polygons=polygons)
     else:
-        gdf = struc_dataarray_to_gdf(model_ds, data_variables, 
+        gdf = struc_dataarray_to_gdf(model_ds, data_variables,
                                      polygons=polygons)
     gdf.to_file(fname)
 
@@ -242,19 +227,19 @@ def model_dataset_to_vector_file(model_ds,
     model_ds : xr.DataSet
         xarray with model data
     gisdir : str, optional
-        gis directory to save shapefiles, if None a subdirectory 'gis' of the 
+        gis directory to save shapefiles, if None a subdirectory 'gis' of the
         model_ws (which is an attribute of model_ds) is used. The default is
         None.
     driver : str, optional
-        determines if the data variables are saved as seperate "ESRI Shapefile" 
+        determines if the data variables are saved as seperate "ESRI Shapefile"
         or a single "GPKG" (geopackage). The default is geopackage.
     combine_dic : dictionary of str:set(), optional
-        The items in this dictionary are data variables in model_ds that 
+        The items in this dictionary are data variables in model_ds that
         should be combined in one shapefile. The key defines the name of the
-        shapefile. If None the default combine_dic is used. The default is 
+        shapefile. If None the default combine_dic is used. The default is
         None.
     exclude : tuple of str, optional
-        data variables that are not exported to shapefiles. The default is 
+        data variables that are not exported to shapefiles. The default is
         ('x', 'y', 'time_steps', 'area', 'vertices').
 
     Returns
@@ -295,9 +280,9 @@ def model_dataset_to_vector_file(model_ds,
     # combine some data variables in one shapefile
     for key, item in combine_dic.items():
         if set(item).issubset(da_names):
-            if model_ds.gridtype =='structured':
+            if model_ds.gridtype == 'structured':
                 gdf = struc_dataarray_to_gdf(model_ds, item, polygons=polygons)
-            elif model_ds.gridtype =='vertex':
+            elif model_ds.gridtype == 'vertex':
                 gdf = vertex_dataarray_to_gdf(model_ds, item, polygons=polygons)
             if driver == 'GPKG':
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
@@ -311,9 +296,9 @@ def model_dataset_to_vector_file(model_ds,
 
     # create unique shapefiles for the other data variables
     for da_name in da_names:
-        if model_ds.gridtype =='structured':
+        if model_ds.gridtype == 'structured':
             gdf = struc_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
-        elif model_ds.gridtype =='vertex':
+        elif model_ds.gridtype == 'vertex':
             gdf = vertex_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
         if driver == 'GPKG':
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)

@@ -1,14 +1,7 @@
-# -*- coding: utf-8 -*-
-"""utility functions for nlmod.
-
-Mostly functions to cache data and manage filenames and directories.
-"""
-
 import logging
 import os
 import re
 import sys
-import tempfile
 
 import flopy
 import geopandas as gpd
@@ -63,7 +56,7 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
     model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
     logger.info('run model')
-    assert gwf.simulation.run_simulation()[0]
+    assert gwf.simulation.run_simulation()[0], 'Modflow run not succeeded'
     model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
@@ -114,7 +107,7 @@ def get_model_ds_empty(model_ds):
         dataset with only model grid and time information
     """
 
-    return model_ds[list(model_ds.coords)]
+    return model_ds[list(model_ds.coords)].copy()
 
 
 def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):

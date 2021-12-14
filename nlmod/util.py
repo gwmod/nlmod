@@ -61,9 +61,10 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
 
 
 def get_model_dirs(model_ws):
-    """ Creates a new model workspace directory, if it does not 
-    exists yet. Within the model workspace directory a
-    few subdirectories are created (if they don't exist yet):
+    """Creates a new model workspace directory, if it does not exists yet.
+    Within the model workspace directory a few subdirectories are created (if
+    they don't exist yet):
+
     - figure
     - cache
 
@@ -227,7 +228,7 @@ def compare_model_extents(extent1, extent2):
 
 
 def polygon_from_extent(extent):
-    """create a shapely polygon from a given extent
+    """create a shapely polygon from a given extent.
 
     Parameters
     ----------
@@ -238,7 +239,6 @@ def polygon_from_extent(extent):
     -------
     polygon_ext : shapely.geometry.polygon.Polygon
         polygon of the extent.
-
     """
 
     bbox = (extent[0], extent[2], extent[1], extent[3])

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Nov 29 12:45:23 2021
+"""Created on Mon Nov 29 12:45:23 2021.
 
 @author: oebbe
 """
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def clear_cache(cachedir):
-    """ clears the cache in a given cache directory by removing all .pklz and
+    """clears the cache in a given cache directory by removing all .pklz and
     corresponding .nc files.
 
     Parameters
@@ -32,7 +31,6 @@ def clear_cache(cachedir):
     Returns
     -------
     None.
-
     """
     ans = input(f'this will remove all cached files in {cachedir} are you sure [Y/N]')
     if ans.lower() != 'y':
@@ -56,9 +54,10 @@ def clear_cache(cachedir):
 
 
 def cache_netcdf(func):
-    """ decorator to read/write the result of a function from/to a file to
-    speed up function calls with the same arguments. Should only be applied to
+    """decorator to read/write the result of a function from/to a file to speed
+    up function calls with the same arguments. Should only be applied to
     functions that:
+
         - return an Xarray Dataset
         - have no more than one xarray dataset as function argument
         - have functions arguments of types that can be checked using the
@@ -166,9 +165,10 @@ def cache_netcdf(func):
 
 
 def cache_pklz(func):
-    """ decorator to read/write the result of a function from/to a pklz file
-    to speed up function calls with the same arguments. Should only be applied
-    to functions that:
+    """decorator to read/write the result of a function from/to a pklz file to
+    speed up function calls with the same arguments. Should only be applied to
+    functions that:
+
         - return a dictionary
         - have functions arguments of types that can be checked using the
         _is_valid_cache functions
@@ -352,7 +352,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
 
 
 def _get_modification_time(func):
-    """ return the modification time of the module where func is defined.
+    """return the modification time of the module where func is defined.
 
     Parameters
     ----------
@@ -363,7 +363,6 @@ def _get_modification_time(func):
     -------
     float
         modification time of module.
-
     """
     mod = func.__module__
     active_mod = importlib.import_module(mod.split('.')[0])
@@ -375,21 +374,19 @@ def _get_modification_time(func):
 
 
 def _update_docstring_and_signature(func):
-    """ add function arguments 'cachedir' and 'cachename' to the docstring and
+    """add function arguments 'cachedir' and 'cachename' to the docstring and
     signature of a function. The function arguments are added before the
-    "Returns" header in the docstring. If the function has no Returns header
-    in the docstring, the function arguments are not added to the docstring.
-
+    "Returns" header in the docstring. If the function has no Returns header in
+    the docstring, the function arguments are not added to the docstring.
 
     Parameters
     ----------
     func : function
-        function that is decorated.       
+        function that is decorated.
 
     Returns
     -------
     None.
-
     """
     # add cachedir and cachename to signature
     sig = inspect.signature(func)
@@ -420,4 +417,3 @@ def _update_docstring_and_signature(func):
     new_doc = ''.join((mod_before, after))
     func.__doc__ = new_doc
 
-    

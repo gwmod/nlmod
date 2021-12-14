@@ -53,6 +53,8 @@ def calculate_thickness(ds, top="top", bot="bot"):
         if hasattr(ds[bot], 'units'):
             if ds[bot].units == 'mNAP':
                 thickness.attrs['units'] = 'm'
+            else:
+                thickness.attrs['units'] = ds[bot].units
 
     return thickness, top3d
 

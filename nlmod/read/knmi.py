@@ -124,7 +124,7 @@ def get_recharge(model_ds,
             locations['evap_point'] == prec_evap[1])]
 
         # calculate recharge time series
-        prec = oc_knmi_prec.loc[prec_evap[0], 'obs']['RD']
+        prec = oc_knmi_prec.loc[prec_evap[0], 'obs']['RH']
         evap = oc_knmi_evap.loc[prec_evap[1], 'obs']['EV24']
         recharge_ts = (prec - evap).dropna()
 

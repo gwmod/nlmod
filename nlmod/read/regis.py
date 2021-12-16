@@ -108,7 +108,7 @@ def get_regis(extent, delr, delc, botm_layer=b'AKc'):
         dataset with regis data projected on the modelgrid.
     """
     # check extent
-    extent2, nrow, ncol = fit_extent_to_regis(extent, delr, delc)
+    extent2, _, _ = fit_extent_to_regis(extent, delr, delc)
     for coord1, coord2 in zip(extent, extent2):
         if coord1 != coord2:
             raise ValueError(

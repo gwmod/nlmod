@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def _polygons_from_model_ds(model_ds):
-    """ create polygons of each cell in a model dataset
+    """create polygons of each cell in a model dataset.
 
     Parameters
     ----------
@@ -25,7 +25,6 @@ def _polygons_from_model_ds(model_ds):
     -------
     polygons : list of shapely Polygons
         list with polygon of each raster cell.
-
     """
 
     if model_ds.gridtype == 'structured':
@@ -57,9 +56,8 @@ def _polygons_from_model_ds(model_ds):
 
 def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                             dealing_with_time='mean'):
-    """ Convert one or more DataArrays from a vertex model dataset to a
+    """Convert one or more DataArrays from a vertex model dataset to a
     Geodataframe.
-
 
     Parameters
     ----------
@@ -88,7 +86,6 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
     -------
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
-
     """
     assert model_ds.gridtype == 'vertex', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
 
@@ -129,9 +126,8 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
 
 def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                            dealing_with_time='mean'):
-    """ Convert one or more DataArrays from a structured model dataset to a
+    """Convert one or more DataArrays from a structured model dataset to a
     Geodataframe.
-
 
     Parameters
     ----------
@@ -155,7 +151,6 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
     -------
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
-
     """
     assert model_ds.gridtype == 'structured', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
 
@@ -195,9 +190,7 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
 
 
 def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
-    """ Save one or more DataArrays from a model dataset as a
-    shapefile.
-
+    """Save one or more DataArrays from a model dataset as a shapefile.
 
     Parameters
     ----------
@@ -216,7 +209,6 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
     Returns
     -------
     None.
-
     """
     if model_ds.gridtype == 'vertex':
         gdf = vertex_dataarray_to_gdf(model_ds, data_variables,
@@ -233,7 +225,7 @@ def model_dataset_to_vector_file(model_ds,
                                  combine_dic=None,
                                  exclude=('x', 'y', 'time_steps', 'area', 'vertices',
                                           'rch_name')):
-    """ Save all data variables in a model dataset to multiple shapefiles.
+    """Save all data variables in a model dataset to multiple shapefiles.
 
     Parameters
     ----------
@@ -259,7 +251,6 @@ def model_dataset_to_vector_file(model_ds,
     -------
     fnames : str or list of str
         filename(s) of exported geopackage or shapefiles.
-
     """
 
     # get default combination dictionary

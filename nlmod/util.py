@@ -319,12 +319,12 @@ def gdf_within_extent(gdf, extent):
     return gdf
 
 
-def get_google_drive_filename(id):
+def get_google_drive_filename(fid):
     """get the filename of a google drive file.
 
     Parameters
     ----------
-    id : str
+    fid : str
         google drive id name of a file.
 
     Returns
@@ -338,19 +338,19 @@ def get_google_drive_filename(id):
     if isinstance(id, requests.Response):
         response = id
     else:
-        url = 'https://drive.google.com/uc?export=download&id=' + id
+        url = 'https://drive.google.com/uc?export=download&id=' + fid
         response = requests.get(url)
     header = response.headers['Content-Disposition']
     file_name = re.search(r'filename="(.*)"', header).group(1)
     return file_name
 
 
-def download_file_from_google_drive(id, destination=None):
+def download_file_from_google_drive(fid, destination=None):
     """download a file from google drive using it's id.
 
     Parameters
     ----------
-    id : str
+    fid : str
         google drive id name of a file.
     destination : str, optional
         location to save the file to. If destination is None the file is
@@ -378,18 +378,18 @@ def download_file_from_google_drive(id, destination=None):
 
     session = requests.Session()
 
-    response = session.get(URL, params={'id': id}, stream=True)
+    response = session.get(URL, params={'id': fid}, stream=True)
     token = get_confirm_token(response)
 
     if token:
-        params = {'id': id, 'confirm': token}
+        params = {'id': fid, 'confirm': token}
         response = session.get(URL, params=params, stream=True)
 
     if destination is None:
-        destination = get_google_drive_filename(id)
+        destination = get_google_drive_filename(fid)
     else:
         if os.path.isdir(destination):
-            filename = get_google_drive_filename(id)
+            filename = get_google_drive_filename(fid)
             destination = os.path.join(destination, filename)
 
     save_response_content(response, destination)

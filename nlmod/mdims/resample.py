@@ -576,13 +576,13 @@ def resample_vertex_2d_da_to_struc_2d_da(da_in, model_ds=None,
                                          xmid=None, ymid=None,
                                          cellsize=25,
                                          method='nearest'):
-    """resample a 2d dataarray (xarray) from a vertex grid to a new
-    dataaraay from a structured grid.   
+    """resample a 2d dataarray (xarray) from a vertex grid to a new dataaraay
+    from a structured grid.
 
     Parameters
     ----------
     da_in : xarray.DataArray
-        data array with dimensions ('cid'). 
+        data array with dimensions ('cid').
     model_ds : xarray.DataArray
         model dataset with 'x' and 'y' data variables.
     cellsize : int or float, optional
@@ -594,7 +594,6 @@ def resample_vertex_2d_da_to_struc_2d_da(da_in, model_ds=None,
     -------
     da_out : xarray.DataArray
         data array with dimensions ('y', 'x').
-
     """
     if xmid is None or ymid is None:
         xmid = model_ds.x.values

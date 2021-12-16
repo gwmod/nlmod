@@ -118,7 +118,7 @@ def get_recharge(model_ds,
     unique_combinations = locations.drop_duplicates(['prec_point', 'evap_point'])[
         ['prec_point', 'evap_point']].values
 
-    for i, prec_evap in enumerate(unique_combinations):
+    for prec_evap in unique_combinations:
         # get locations with the same prec and evap station
         loc_sel = locations.loc[(locations['prec_point'] == prec_evap[0]) & (
             locations['evap_point'] == prec_evap[1])]
@@ -171,8 +171,7 @@ def get_recharge(model_ds,
 
 
 def get_locations_vertex(model_ds, nodata=-999):
-    """get dataframe with the locations of the grid cells of a vertex
-    grid.
+    """get dataframe with the locations of the grid cells of a vertex grid.
 
     Parameters
     ----------

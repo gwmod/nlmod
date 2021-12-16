@@ -247,7 +247,7 @@ def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
 
 
 def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
-    """ plot dataarray with gridtype vertex
+    """plot dataarray with gridtype vertex.
 
     Parameters
     ----------
@@ -267,7 +267,6 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     -------
     ax : TYPE
         DESCRIPTION.
-
     """
 
     if isinstance(vertices, xr.DataArray):

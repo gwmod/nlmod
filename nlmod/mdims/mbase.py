@@ -9,7 +9,7 @@ from .. import util
 
 def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
                        exe_name=None):
-    """ get an empty model dataset
+    """get an empty model dataset.
 
     Parameters
     ----------

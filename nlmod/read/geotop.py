@@ -44,7 +44,7 @@ def get_geotop(extent, delr, delc,
         geotop dataset with top, bot, kh and kv per geo_eenheid
     """
     # check extent
-    extent2, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
+    extent2, _, _ = regis.fit_extent_to_regis(extent, delr, delc)
     for coord1, coord2 in zip(extent, extent2):
         if coord1 != coord2:
             raise ValueError(

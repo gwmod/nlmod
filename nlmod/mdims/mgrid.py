@@ -2,10 +2,9 @@
 """Module containing model grid functions.
 
 -   project data on different grid types
--   obtain various types of rec_lists from a grid that 
+-   obtain various types of rec_lists from a grid that
     can be used as input for a MODFLOW package
 -   fill, interpolate and resample grid data
-
 """
 import copy
 import logging
@@ -25,7 +24,9 @@ from tqdm import tqdm
 
 from .. import cache, mfpackages, util
 from ..read import jarkus, rws
-from . import mlayers, resample
+from . import mlayers
+from .resample import (fillnan_dataarray_structured_grid,
+                       fillnan_dataarray_vertex_grid)
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      fill_value_kh=1.,
                                      fill_value_kv=0.1,
                                      cachedir=None):
-    """Update a model dataset with a model layer dataset. 
+    """Update a model dataset with a model layer dataset.
 
     Steps:
 
@@ -94,7 +95,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         a) get cells from modelgrid that are within the northsea, add data
         variable 'northsea' to model_ds
         b) fill top, bot, kh and kv add northsea cell by extrapolation
-        c) get bathymetry (northsea depth) from jarkus. Add datavariable 
+        c) get bathymetry (northsea depth) from jarkus. Add datavariable
         bathymetry to model dataset
 
 
@@ -111,7 +112,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     keep_vars : list of str
         variables in ml_layer_ds that will be used in model_ds
     add_northsea : bool, optional
-        if True the nan values at the northsea are filled using the 
+        if True the nan values at the northsea are filled using the
         bathymetry from jarkus
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
@@ -126,7 +127,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     Returns
     -------
     model_ds : xarray.Dataset
-        dataset with model data 
+        dataset with model data
     """
     model_ds.attrs['gridtype'] = gridtype
 
@@ -437,12 +438,12 @@ def get_xyi_cid(gridprops=None, model_ds=None):
     cid : numpy.ndarray
         array with cellids, shape(len(cid))
     """
-    if not gridprops is None:
+    if gridprops is not None:
         xc_gwf = [cell2d[1] for cell2d in gridprops['cell2d']]
         yc_gwf = [cell2d[2] for cell2d in gridprops['cell2d']]
         xyi = np.vstack((xc_gwf, yc_gwf)).T
         cid = np.array([c[0] for c in gridprops['cell2d']])
-    elif not model_ds is None:
+    elif model_ds is not None:
         xyi = np.array(list(zip(model_ds.x.values, model_ds.y.values)))
         cid = model_ds.cid.values
     else:
@@ -455,7 +456,7 @@ def col_to_list(col_in, model_ds, cellids):
     """Convert array data in model_ds to a list of values for specific cells.
 
     This function is typically used to create a rec_array with stress period
-    data for the modflow packages. Can be used for structured and 
+    data for the modflow packages. Can be used for structured and
     vertex grids.
 
     Parameters
@@ -759,7 +760,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
         dataset with model data. Should have dimensions (layer, cid).
     col1 : str, int or float, optional
         1st column of the rec_list, if None the rec_list will be a list with
-        ((layer,cid)) for each row. col1 should be the following value for 
+        ((layer,cid)) for each row. col1 should be the following value for
         each package (can also be the name of a timeseries):
         -   rch: recharge [L/T]
         -   ghb: head [L]
@@ -769,7 +770,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
 
     col2 : str, int or float, optional
         2nd column of the rec_list, if None the rec_list will be a list with
-        ((layer,cid), col1) for each row. col2 should be the following 
+        ((layer,cid), col1) for each row. col2 should be the following
         value for each package (can also be the name of a timeseries):
         -   ghb: conductance [L^2/T]
         -   drn: conductance [L^2/T]
@@ -777,7 +778,7 @@ def lcid_to_rec_list(layers, cellids, model_ds,
 
     col3 : str, int or float, optional
         3th column of the rec_list, if None the rec_list will be a list with
-        ((layer,cid), col1, col2) for each row. col3 should be the following 
+        ((layer,cid), col1, col2) for each row. col3 should be the following
         value for each package (can also be the name of a timeseries):
         -   riv: bottom [L]
 
@@ -1082,9 +1083,8 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
 
 def gdf2grid(gdf, ml, method=None, ix=None,
              desc="Intersecting with grid", **kwargs):
-    """
-    Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method
-    is just a wrapper around the GridIntersect method from flopy
+    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This
+    method is just a wrapper around the GridIntersect method from flopy.
 
     Parameters
     ----------
@@ -1106,7 +1106,6 @@ def gdf2grid(gdf, ml, method=None, ix=None,
     -------
     geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
-
     """
     if ix is None:
         ix = flopy.utils.GridIntersect(ml.modelgrid, method=method)
@@ -1440,8 +1439,8 @@ def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
     active_domain = model_ds['first_active_layer'].data != nodata
 
     lowest_bottom = ml_layer_ds['bot'].data[-1].copy()
-    if np.any(active_domain == False):
-        percentage = 100 * (active_domain == False).sum() / \
+    if np.any(~active_domain):
+        percentage = 100 * (~active_domain).sum() / \
             (active_domain.shape[0])
         if percentage > 80:
             logger.warning(f'{percentage:0.1f}% of all cells have nan '
@@ -1514,7 +1513,7 @@ def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
 def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
     """Voeg top en bottom vanuit een layer dataset toe aan de model dataset.
 
-    Deze functie is bedoeld voor structured arrays in modflow 6. Supports 
+    Deze functie is bedoeld voor structured arrays in modflow 6. Supports
     only structured grids.
 
     Stappen:
@@ -1525,7 +1524,7 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
        top van alle onderligende lagen nan is, pak dan 0.
     3. Vul de nan waarden in alle andere lagen door:
         a) pak bodem uit de model layer dataset, tenzij nan dan:
-        b) gebruik bodem van de laag erboven (of de top voor de bovenste laag)  
+        b) gebruik bodem van de laag erboven (of de top voor de bovenste laag)
 
     Parameters
     ----------
@@ -1629,7 +1628,7 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
 
 def get_vertices(model_ds, modelgrid=None,
                  gridprops=None, vert_per_cid=4):
-    """ get vertices of a vertex modelgrid from the modelgrid or from the
+    """get vertices of a vertex modelgrid from the modelgrid or from the
     gridprops. Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
 
@@ -1731,7 +1730,7 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
     fill_mask : xr.DataArray
         1 where a cell should be replaced by masked value.
     gridtype : str, optional
-        type of grid.        
+        type of grid.
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. Default is None
 
@@ -1745,10 +1744,10 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
     model_ds['top'].values = np.where(fill_mask, 0, model_ds['top'])
 
     if gridtype == 'structured':
-        fill_function = resample.fillnan_dataarray_structured_grid
+        fill_function = fillnan_dataarray_structured_grid
         fill_function_kwargs = {}
     elif gridtype == 'vertex':
-        fill_function = resample.fillnan_dataarray_vertex_grid
+        fill_function = fillnan_dataarray_vertex_grid
         fill_function_kwargs = {'gridprops': gridprops}
 
     for lay in range(model_ds.dims['layer']):

@@ -78,7 +78,7 @@ def set_model_ds_time(model_ds, start_time, steady_state,
     elif steady_start:
         nper = 1 + transient_timesteps
 
-        if isinstance(perlen, float) or isinstance(perlen, int):
+        if isinstance(perlen, (float, int)):
             start_tran = pd.to_datetime(start_time)
             start_time_dt = start_tran - dt.timedelta(days=steady_perlen)
 
@@ -87,7 +87,7 @@ def set_model_ds_time(model_ds, start_time, steady_state,
                                                                  unit=time_units), periods=nper)
             time_dt.values[0] = start_time_dt
 
-        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
+        elif isinstance(perlen, (list, np.ndarray)):
             assert len(perlen) == nper
             start_tran = pd.to_datetime(start_time)
             start_time_dt = start_tran - dt.timedelta(days=perlen[0])

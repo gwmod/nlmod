@@ -1,6 +1,4 @@
-"""
-run notebooks in the examples directory
-"""
+"""run notebooks in the examples directory."""
 import os
 
 import nbformat
@@ -52,10 +50,16 @@ def test_run_notebook_05_caching():
 def test_run_notebook_06_compare_layermodels():
     _run_notebook(nbdir, '06_compare_layermodels.ipynb')
 
+
 @pytest.mark.notebooks
 def test_run_notebook_07_resampling():
     _run_notebook(nbdir, '07_resampling.ipynb')
 
+
 @pytest.mark.notebooks
 def test_run_notebook_08_gis():
     _run_notebook(nbdir, '08_gis.ipynb')
+
+
+if __name__ == "__main__":
+    test_run_notebook_01_basic_model()

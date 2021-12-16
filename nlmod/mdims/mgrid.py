@@ -1173,31 +1173,30 @@ def get_thickness_from_topbot(top, bot):
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):
-    """
-    get new idomain from thickness in the cells where mask is 1 (or True).
+    """get new idomain from thickness in the cells where mask is 1 (or True).
+
     Idomain becomes:
-    1: if cell thickness is bigger than 0
-    0: if cell thickness is 0 and it is the top layer
-    -1: if cell thickness is 0 and the layer is in between active cells
+    -    1: if cell thickness is bigger than 0
+    -    0: if cell thickness is 0 and it is the top layer
+    -   -1: if cell thickness is 0 and the layer is in between active cells
 
     Parameters
     ----------
     idomain : xr.DataArray
-        raster with idomain of each cell. dimensions should be (layer, y,x) or 
+        raster with idomain of each cell. dimensions should be (layer, y,x) or
         (layer, cid).
     thickness : xr.DataArray
-        raster with thickness of each cell. dimensions should be (layer, y,x) or 
+        raster with thickness of each cell. dimensions should be (layer, y,x) or
         (layer, cid).
     mask : xr.DataArray
-        raster with ones in cell where the ibound is adjusted. dimensions 
+        raster with ones in cell where the ibound is adjusted. dimensions
         should be (y,x) or (cid).
 
     Returns
     -------
     idomain : xr.DataArray
-        raster with adjusted idomain of each cell. dimensions should be 
+        raster with adjusted idomain of each cell. dimensions should be
         (layer, y,x) or (layer, cid).
-
     """
 
     for lay in range(len(thickness)):
@@ -1549,8 +1548,8 @@ def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
     # set to zero if value is nan in all layers
     # set to minimum value of all layers if there is any value in any layer
     lowest_bottom = ml_layer_ds['bot'].data[-1].copy()
-    if np.any(active_domain == False):
-        percentage = 100 * (active_domain == False).sum() / \
+    if np.any(~active_domain):
+        percentage = 100 * (~active_domain).sum() / \
             (active_domain.shape[0] * active_domain.shape[1])
         if percentage > 80:
             logger.warning(f'{percentage:0.1f}% of all cells have nan '

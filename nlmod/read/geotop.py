@@ -128,7 +128,8 @@ def get_geotop_raw_within_extent(extent, url):
 def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
                                 litho_translate_df=None,
                                 geo_eenheid_translate_df=None):
-    """ does the following steps to obtain model layers based on geotop:
+    """does the following steps to obtain model layers based on geotop:
+
         1. slice by regis layer (if not None)
         2. compute kh from lithoklasse
         3. create a layer model based on geo-eenheden
@@ -138,19 +139,18 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
     geotop_ds_raw1: xr.Dataset
         dataset with geotop netcdf
     regis_ds: xarray.DataSet
-        regis dataset used to cut geotop to the same x and y coördinates    
+        regis dataset used to cut geotop to the same x and y coördinates
     regis_layer: str, optional
-        layer of regis dataset that will be filled with geotop 
+        layer of regis dataset that will be filled with geotop
     litho_translate_df: pandas.DataFrame
         horizontal conductance (kh)
     geo_eenheid_translate_df: pandas.DataFrame
-        dictionary to translate geo_eenheid to a geo name   
+        dictionary to translate geo_eenheid to a geo name
 
     Returns
     -------
     geotop_ds_raw: xarray.DataSet
         geotop dataset with added horizontal conductance
-
     """
 
     # stap 1

@@ -100,7 +100,7 @@ def set_model_ds_time(model_ds, start_time, steady_state,
 
     else:
         nper = transient_timesteps
-        if isinstance(perlen, float) or isinstance(perlen, int):
+        if isinstance(perlen, (float, int)):
             start_time_dt = pd.to_datetime(start_time)
             time_dt = pd.date_range(start_time_dt,
                                     start_time_dt + pd.to_timedelta((transient_timesteps - 1) * perlen,

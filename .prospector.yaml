@@ -25,3 +25,4 @@ pylint:
     - no-else-return
     - too-many-arguments
     - too-many-locals
+    - logging-fstring-interpolation

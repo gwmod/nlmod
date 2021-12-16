@@ -104,12 +104,13 @@ def get_bathymetry(model_ds, northsea,
 
 
 def get_dataset_jarkus(extent, url='http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'):
-    """ Get bathymetry from Jarkus within a certain extent. The following 
-    steps are used:
-    1. find Jarkus tiles within the extent
-    2. combine netcdf urls of Jarkus tiles
-    3. read Jarkus tiles and combine the 'z' parameter of the last time step
-    of each tile, to a dataarray.
+    """Get bathymetry from Jarkus within a certain extent. The following steps
+    are used:
+
+       1. find Jarkus tiles within the extent
+       2. combine netcdf urls of Jarkus tiles
+       3. read Jarkus tiles and combine the 'z' parameter of the last time step
+          of each tile, to a dataarray.
 
     Parameters
     ----------
@@ -121,7 +122,6 @@ def get_dataset_jarkus(extent, url='http://opendap.deltares.nl/thredds/dodsC/ope
     -------
     z : xr.DataSet
         dataset containing bathymetry data
-
     """
 
     extent = [int(x) for x in extent]

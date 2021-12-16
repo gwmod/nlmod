@@ -15,23 +15,24 @@ logger = logging.getLogger(__name__)
 @cache.cache_netcdf
 def get_recharge(model_ds,
                  nodata=None):
-    """ add multiple recharge packages to the groundwater flow model with
-    knmi data by following these steps:
-    1. check for each cell (structured or vertex) which knmi measurement
-    stations (prec and evap) are the closest.
-    2. download precipitation and evaporation data for all knmi stations that
-    were found at 1
-    3. create a recharge package in which each cell has a reference to a 
-    timeseries. Timeseries are created for each unique combination of 
-    precipitation and evaporation. The following packages are created:
-        a. the rch package itself in which cells with the same precipitation
-        and evaporation stations are defined. This package also refers to all 
-        the time series package (see b).
-        b. the time series packages in which the recharge flux is defined for 
-        the time steps of the model. Each package contains the time series
-        for one or more cels (defined in a).
+    """add multiple recharge packages to the groundwater flow model with knmi
+    data by following these steps:
 
-    supports structured and unstructred datasets.
+       1. check for each cell (structured or vertex) which knmi measurement
+          stations (prec and evap) are the closest.
+       2. download precipitation and evaporation data for all knmi stations that
+          were found at 1
+       3. create a recharge package in which each cell has a reference to a
+          timeseries. Timeseries are created for each unique combination of
+          precipitation and evaporation. The following packages are created:
+            a. the rch package itself in which cells with the same
+               precipitation and evaporation stations are defined. This
+               package also refers to all the time series package (see b).
+            b. the time series packages in which the recharge flux is defined
+               for the time steps of the model. Each package contains the
+               time series for one or more cels (defined in a).
+
+    Supports structured and unstructred datasets.
 
     Parameters
     ----------
@@ -47,7 +48,6 @@ def get_recharge(model_ds,
     -------
     model_ds : xr.DataSet
         dataset with spatial model data including the rch raster
-
     """
     if nodata is None:
         nodata = model_ds.nodata

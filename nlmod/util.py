@@ -17,10 +17,12 @@ logger = logging.getLogger(__name__)
 
 def write_and_run_model(gwf, model_ds, write_model_ds=True,
                         nb_path=None):
-    """ write modflow files and run the model. 2 extra options:
+    """write modflow files and run the model.
+
+    2 extra options:
         1. write the model dataset to cache
         2. copy the modelscript (typically a Jupyter Notebook) to the model
-        workspace with a timestamp.
+           workspace with a timestamp.
 
 
     Parameters
@@ -32,11 +34,10 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
     write_model_ds : bool, optional
         if True the model dataset is cached. The default is True.
     nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The 
+        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
         default is None. Preferably this path does not have to be given
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
-
     """
 
     if nb_path is not None:

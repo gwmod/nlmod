@@ -54,7 +54,7 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
                 f'extent should be a list, tuple or numpy array, not {type(model_ds.extent)}')
 
         modelgrid = StructuredGrid(delc=np.array([model_ds.delc] * model_ds.dims['y']),
-                                   delr=np.array([model_ds.delc] *
+                                   delr=np.array([model_ds.delr] *
                                                  model_ds.dims['x']),
                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
     elif model_ds.gridtype == 'vertex':

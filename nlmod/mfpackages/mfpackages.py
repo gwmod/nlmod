@@ -74,6 +74,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
 
     # Create the Flopy iterative model solver (ims) Package object
     flopy.mf6.modflow.mfims.ModflowIms(sim, pname='ims',
+                                       print_option='summary',
                                        complexity=complexity)
 
     return sim, gwf

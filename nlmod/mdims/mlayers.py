@@ -4,6 +4,10 @@ from collections import OrderedDict
 import numpy as np
 import xarray as xr
 
+from . import resample, mgrid
+from ..read import jarkus, rws
+from .. import util
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,14 +34,15 @@ def calculate_thickness(ds, top="top", bot="bot"):
         is top of layer i+1 (False)
     """
     # calculate thickness
-    if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2,3]:
+    if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2, 3]:
         if ds[top].shape[0] == ds[bot].shape[0]:
             # top is 3D, every layer has top and bot
-            thickness = ds[top].data - ds[bot].data
+            thickness = ds[top] - ds[bot]
             top3d = True
         else:
-            raise ValueError('3d top and bot should have same number of layers')
-    elif ds[top].ndim == (ds[bot].ndim -1) and ds[top].ndim in [1,2]:
+            raise ValueError(
+                '3d top and bot should have same number of layers')
+    elif ds[top].ndim == (ds[bot].ndim - 1) and ds[top].ndim in [1, 2]:
         if ds[top].shape[-1] == ds[bot].shape[-1]:
             # top is only top of first layer
             thickness = xr.zeros_like(ds[bot])
@@ -49,7 +54,12 @@ def calculate_thickness(ds, top="top", bot="bot"):
             top3d = False
         else:
             raise ValueError('2d top should have same last dimension as bot')
-    thickness.attrs['units'] = 'm'
+    if isinstance(ds[bot], xr.DataArray):
+        if hasattr(ds[bot], 'units'):
+            if ds[bot].units == 'mNAP':
+                thickness.attrs['units'] = 'm'
+            else:
+                thickness.attrs['units'] = ds[bot].units
 
     return thickness, top3d
 
@@ -325,9 +335,9 @@ def layer_combine_top_bot(ds, combine_layers, layer='layer',
         dictionary mapping new to old layer indices.
     """
     # calculate new number of layers
-    new_nlay = (ds[layer].size
-                - sum([len(c) for c in combine_layers])
-                + len(combine_layers))
+    new_nlay = (ds[layer].size -
+                sum([len(c) for c in combine_layers]) +
+                len(combine_layers))
 
     # create new DataArrays for storing new top/bot
     new_bot = xr.DataArray(data=np.nan,
@@ -426,7 +436,7 @@ def kheq_combined_layers(kh, thickness, reindexer):
     kh : xarray.DataArray
         data array containing horizontal hydraulic conductivity
     thickness : xarray.DataArray
-        data array containing thickness per layer
+            data array containing thickness per layer
     reindexer : OrdererDict
         dictionary mapping new layer indices to old layer indices
 
@@ -446,8 +456,8 @@ def kheq_combined_layers(kh, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kheq = np.nansum(thickness[v, :, :] * kh.data[v, :, :], axis=0) / \
-                np.nansum(thickness[v, :, :], axis=0)
+            kheq = np.nansum(thickness.data[v, :, :] * kh.data[v, :, :], axis=0) / \
+                np.nansum(thickness.data[v, :, :], axis=0)
         else:
             kheq = kh.data[v]
         da_kh.data[k] = kheq
@@ -482,8 +492,8 @@ def kveq_combined_layers(kv, thickness, reindexer):
 
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.nansum(thickness[v, :, :], axis=0) / \
-                np.nansum(thickness[v, :, :] / kv.data[v, :, :], axis=0)
+            kveq = np.nansum(thickness.data[v, :, :], axis=0) / \
+                np.nansum(thickness.data[v, :, :] / kv.data[v, :, :], axis=0)
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq
@@ -591,3 +601,721 @@ def combine_layers_ds(ds, combine_layers, layer='layer',
                             attrs=attrs)
 
     return ds_combine
+
+
+def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
+                                       fill_value_kh, fill_value_kv):
+    """add kh and kv from a model layer dataset to the model dataset.
+
+    Supports structured and vertex grids.
+
+    Parameters
+    ----------
+    ml_layer_ds : xarray.Dataset
+        dataset with model layer data with kh and kv
+    model_ds : xarray.Dataset
+        dataset with model data where kh and kv are added to
+    anisotropy : int or float
+        factor to calculate kv from kh or the other way around
+    fill_value_kh : int or float, optional
+        use this value for kh if there is no data in regis. The default is 1.0.
+    fill_value_kv : int or float, optional
+        use this value for kv if there is no data in regis. The default is 1.0.
+
+    Returns
+    -------
+    model_ds : xarray.Dataset
+        dataset with model data with new kh and kv
+
+    Notes
+    -----
+    some model dataset, such as regis, also have 'c' and 'kd' values. These
+    are ignored at the moment
+    """
+    model_ds.attrs['anisotropy'] = anisotropy
+    model_ds.attrs['fill_value_kh'] = fill_value_kh
+    model_ds.attrs['fill_value_kv'] = fill_value_kv
+    kh_arr = ml_layer_ds['kh'].data
+    kv_arr = ml_layer_ds['kv'].data
+
+    logger.info('add kh and kv from model layer dataset to modflow model')
+
+    kh, kv = get_kh_kv(kh_arr, kv_arr, anisotropy,
+                       fill_value_kh=fill_value_kh,
+                       fill_value_kv=fill_value_kv)
+
+    if model_ds.gridtype == 'structured':
+        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'y', 'x'),
+                                         data=1)
+    elif model_ds.gridtype == 'vertex':
+        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'cid'),
+                                         data=1)
+    else:
+        raise ValueError(
+            'function only support structured or vertex gridtypes')
+
+    model_ds['kh'] = da_ones * kh
+
+    model_ds['kv'] = da_ones * kv
+
+    # keep attributes for bot en top
+    for datavar in ['kh', 'kv']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
+
+    return model_ds
+
+
+def get_kh_kv(kh_in, kv_in, anisotropy,
+              fill_value_kh=1.0, fill_value_kv=1.0):
+    """maak kh en kv rasters voor flopy vanuit een regis raster met nan
+    waardes.
+
+    vul kh raster door:
+    1. pak kh uit regis, tenzij nan dan:
+    2. pak kv uit regis vermenigvuldig met anisotropy, tenzij nan dan:
+    3. pak fill_value_kh
+
+    vul kv raster door:
+    1. pak kv uit regis, tenzij nan dan:
+    2. pak kh uit regis deel door anisotropy, tenzij nan dan:
+    3. pak fill_value_kv
+
+    Supports structured and vertex grids.
+
+    Parameters
+    ----------
+    kh_in : np.ndarray
+        kh from regis with nan values shape(nlay, nrow, ncol) or
+        shape(nlay, len(cid))
+    kv_in : np.ndarray
+        kv from regis with nan values shape(nlay, nrow, ncol) or
+        shape(nlay, len(cid))
+    anisotropy : int or float
+        factor to calculate kv from kh or the other way around
+    fill_value_kh : int or float, optional
+        use this value for kh if there is no data in regis. The default is 1.0.
+    fill_value_kv : int or float, optional
+        use this value for kv if there is no data in regis. The default is 1.0.
+
+    Returns
+    -------
+    kh_out : np.ndarray
+        kh without nan values (nlay, nrow, ncol) or shape(nlay, len(cid))
+    kv_out : np.ndarray
+        kv without nan values (nlay, nrow, ncol) or shape(nlay, len(cid))
+    """
+    kh_out = np.zeros_like(kh_in)
+    for i, kh_lay in enumerate(kh_in):
+        kh_new = kh_lay.copy()
+        kv_new = kv_in[i].copy()
+        if ~np.all(np.isnan(kh_new)):
+            logger.debug(f'layer {i} has a kh')
+            kh_out[i] = np.where(np.isnan(kh_new), kv_new * anisotropy, kh_new)
+            kh_out[i] = np.where(np.isnan(kh_out[i]), fill_value_kh, kh_out[i])
+        elif ~np.all(np.isnan(kv_new)):
+            logger.debug(f'layer {i} has a kv')
+            kh_out[i] = np.where(
+                np.isnan(kv_new), fill_value_kh, kv_new * anisotropy)
+        else:
+            logger.info(f'kv and kh both undefined in layer {i}')
+            kh_out[i] = fill_value_kh
+
+    kv_out = np.zeros_like(kv_in)
+    for i, kv_lay in enumerate(kv_in):
+        kv_new = kv_lay.copy()
+        kh_new = kh_in[i].copy()
+        if ~np.all(np.isnan(kv_new)):
+            logger.debug(f'layer {i} has a kv')
+            kv_out[i] = np.where(np.isnan(kv_new), kh_new / anisotropy, kv_new)
+            kv_out[i] = np.where(np.isnan(kv_out[i]), fill_value_kv, kv_out[i])
+        elif ~np.all(np.isnan(kh_new)):
+            logger.debug(f'layer {i} has a kh')
+            kv_out[i] = np.where(
+                np.isnan(kh_new), fill_value_kv, kh_new / anisotropy)
+        else:
+            logger.info(f'kv and kh both undefined in layer {i}')
+            kv_out[i] = fill_value_kv
+
+    return kh_out, kv_out
+
+
+def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
+                               gridtype='structured',
+                               gridprops=None):
+    """Fill values in top, bot, kh and kv.
+
+    Fill where:
+    1. the cell is True in fill_mask
+    2. the cell thickness is greater than 0
+
+    Fill values:
+    - top: 0
+    - bot: minimum of bottom_filled or top
+    - kh: kh_filled if thickness is greater than 0
+    - kv: kv_filled if thickness is greater than 0
+
+    Parameters
+    ----------
+    model_ds : xr.DataSet
+        model dataset, should contain 'first_active_layer'
+    fill_mask : xr.DataArray
+        1 where a cell should be replaced by masked value.
+    gridtype : str, optional
+        type of grid.
+    gridprops : dictionary, optional
+        dictionary with grid properties output from gridgen. Default is None
+
+    Returns
+    -------
+    model_ds : xr.DataSet
+        model dataset with adjusted data variables: 'top', 'bot', 'kh', 'kv'
+    """
+
+    # zee cellen hebben altijd een top gelijk aan 0
+    model_ds['top'].values = np.where(fill_mask, 0, model_ds['top'])
+
+    if gridtype == 'structured':
+        fill_function = resample.fillnan_dataarray_structured_grid
+        fill_function_kwargs = {}
+    elif gridtype == 'vertex':
+        fill_function = resample.fillnan_dataarray_vertex_grid
+        fill_function_kwargs = {'gridprops': gridprops}
+
+    for lay in range(model_ds.dims['layer']):
+        bottom_nan = xr.where(fill_mask, np.nan, model_ds['bot'][lay])
+        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)
+
+        kh_nan = xr.where(fill_mask, np.nan, model_ds['kh'][lay])
+        kh_filled = fill_function(kh_nan, **fill_function_kwargs)
+
+        kv_nan = xr.where(fill_mask, np.nan, model_ds['kv'][lay])
+        kv_filled = fill_function(kv_nan, **fill_function_kwargs)
+
+        if lay == 0:
+            # top ligt onder bottom_filled -> laagdikte wordt 0
+            # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
+            mask_top = model_ds['top'] < bottom_filled
+            model_ds['bot'][lay] = xr.where(fill_mask * mask_top,
+                                            model_ds['top'],
+                                            bottom_filled)
+            model_ds['kh'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kh'][lay],
+                                           kh_filled)
+            model_ds['kv'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kv'][lay],
+                                           kv_filled)
+
+        else:
+            # top ligt onder bottom_filled -> laagdikte wordt 0
+            # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
+            mask_top = model_ds['bot'][lay - 1] < bottom_filled
+            model_ds['bot'][lay] = xr.where(fill_mask * mask_top,
+                                            model_ds['bot'][lay - 1],
+                                            bottom_filled)
+            model_ds['kh'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kh'][lay],
+                                           kh_filled)
+            model_ds['kv'][lay] = xr.where(fill_mask * mask_top,
+                                           model_ds['kv'][lay],
+                                           kv_filled)
+
+    return model_ds
+
+
+def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
+                                     gridtype='structured',
+                                     gridprops=None,
+                                     keep_vars=None,
+                                     add_northsea=True,
+                                     anisotropy=10,
+                                     fill_value_kh=1.,
+                                     fill_value_kv=0.1,
+                                     cachedir=None):
+    """Update a model dataset with a model layer dataset.
+
+    Steps:
+
+    1. Add the data variables in 'keep_vars' from the model layer dataset
+    to the model dataset
+    2. add the attributes of the model layer dataset to the model dataset if
+    they don't exist yet.
+    3. compute idomain from the bot values in the model layer dataset, add
+    to model dataset
+    4. compute top and bots from model layer dataset, add to model dataset
+    5. compute kh, kv from model layer dataset, add to model dataset
+    6. if gridtype is vertex add top, bot and area to gridprops
+    7. if add_northsea is True:
+        a) get cells from modelgrid that are within the northsea, add data
+        variable 'northsea' to model_ds
+        b) fill top, bot, kh and kv add northsea cell by extrapolation
+        c) get bathymetry (northsea depth) from jarkus. Add datavariable
+        bathymetry to model dataset
+
+
+    Parameters
+    ----------
+    model_ds : xarray.Dataset
+        dataset with model data, preferably without a grid definition.
+    ml_layer_ds : xarray.Dataset
+        dataset with model layer data corresponding to the modelgrid
+    gridtype : str, optional
+        type of grid, default is 'structured'
+    gridprops : dictionary
+        dictionary with grid properties output from gridgen.
+    keep_vars : list of str
+        variables in ml_layer_ds that will be used in model_ds
+    add_northsea : bool, optional
+        if True the nan values at the northsea are filled using the
+        bathymetry from jarkus
+    anisotropy : int or float
+        factor to calculate kv from kh or the other way around
+    fill_value_kh : int or float, optional
+        use this value for kh if there is no data in regis. The default is 1.0.
+    fill_value_kv : int or float, optional
+        use this value for kv if there is no data in regis. The default is 1.0.
+    cachedir : str, optional
+        directory to store cached values, if None a temporary directory is
+        used. default is None
+
+    Returns
+    -------
+    model_ds : xarray.Dataset
+        dataset with model data
+    """
+    model_ds.attrs['gridtype'] = gridtype
+
+    if keep_vars is None:
+        keep_vars = []
+    else:
+        # update variables
+        model_ds.update(ml_layer_ds[keep_vars])
+        # update attributes
+        for key, item in ml_layer_ds.attrs.items():
+            if key not in model_ds.attrs.keys():
+                model_ds.attrs.update({key: item})
+
+    model_ds = add_idomain_from_bottom_to_dataset(ml_layer_ds['bot'],
+                                                  model_ds)
+
+    model_ds = add_top_bot_to_model_ds(ml_layer_ds, model_ds,
+                                       gridtype=gridtype)
+
+    model_ds = add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds,
+                                                  model_ds,
+                                                  anisotropy,
+                                                  fill_value_kh,
+                                                  fill_value_kv)
+
+    if gridtype == 'vertex':
+        gridprops['top'] = model_ds['top'].data
+        gridprops['botm'] = model_ds['bot'].data
+
+        # add surface area of each cell
+        model_ds['area'] = ('cid', gridprops.pop('area')
+                            [:len(model_ds['cid'])])
+    else:
+        gridprops = None
+
+    if add_northsea:
+        logger.info(
+            'nan values at the northsea are filled using the bathymetry from jarkus')
+
+        # find grid cells with northsea
+        model_ds.update(rws.get_northsea(model_ds,
+                                         gridprops=gridprops,
+                                         cachedir=cachedir,
+                                         cachename='sea_model_ds.nc'))
+
+        # fill top, bot, kh, kv at sea cells
+        fill_mask = (model_ds['first_active_layer'] ==
+                     model_ds.nodata) * model_ds['northsea']
+        model_ds = fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
+                                              gridtype=gridtype,
+                                              gridprops=gridprops)
+
+        # add bathymetry noordzee
+        model_ds.update(jarkus.get_bathymetry(model_ds,
+                                              model_ds['northsea'],
+                                              gridprops=gridprops,
+                                              cachedir=cachedir,
+                                              cachename='bathymetry_model_ds.nc'))
+
+        model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(model_ds,
+                                                          model_ds['bathymetry'],
+                                                          fill_mask)
+
+        # update idomain on adjusted tops and bots
+        model_ds['thickness'], _ = calculate_thickness(model_ds)
+        model_ds['idomain'] = update_idomain_from_thickness(model_ds['idomain'],
+                                                            model_ds['thickness'],
+                                                            model_ds['northsea'])
+        model_ds['first_active_layer'] = mgrid.get_first_active_layer_from_idomain(
+            model_ds['idomain'])
+        if gridtype == 'vertex':
+            gridprops['top'] = model_ds['top'].data
+            gridprops['botm'] = model_ds['bot'].data
+
+    else:
+        model_ds['thickness'], _ = calculate_thickness(model_ds)
+        model_ds['first_active_layer'] = mgrid.get_first_active_layer_from_idomain(
+            model_ds['idomain'])
+
+    return model_ds
+
+
+def add_idomain_from_bottom_to_dataset(bottom, model_ds, nodata=-999):
+    """add idomain and first_active_layer to model_ds The active layers are
+    defined as the layers where the bottom is not nan.
+
+    Parameters
+    ----------
+    bottom : xarray.DataArray
+        DataArray with bottom values of each layer. Nan values indicate
+        inactive cells.
+    model_ds : xarray.Dataset
+        dataset with model data where idomain and first_active_layer
+        are added to.
+    nodata : int, optional
+        nodata value used in integer arrays. For float arrays np.nan is use as
+        nodata value. The default is -999.
+
+    Returns
+    -------
+    model_ds : xarray.Dataset
+        dataset with model data including idomain and first_active_layer
+    """
+    logger.info('get active cells (idomain) from bottom DataArray')
+
+    idomain = xr.where(bottom.isnull(), -1, 1)
+
+    # if the top cell is inactive set idomain = 0, for other inactive cells
+    # set idomain = -1
+    idomain[0] = xr.where(idomain[0] == -1, 0, idomain[0])
+    for i in range(1, bottom.shape[0]):
+        idomain[i] = xr.where((idomain[i - 1] == 0)
+                              & (idomain[i] == -1), 0, idomain[i])
+
+    model_ds['idomain'] = idomain
+    model_ds['first_active_layer'] = mgrid.get_first_active_layer_from_idomain(idomain,
+                                                                               nodata=nodata)
+
+    model_ds.attrs['nodata'] = nodata
+
+    return model_ds
+
+
+def update_idomain_from_thickness(idomain, thickness, mask):
+    """get new idomain from thickness in the cells where mask is 1 (or True).
+
+    Idomain becomes:
+    -    1: if cell thickness is bigger than 0
+    -    0: if cell thickness is 0 and it is the top layer
+    -   -1: if cell thickness is 0 and the layer is in between active cells
+
+    Parameters
+    ----------
+    idomain : xr.DataArray
+        raster with idomain of each cell. dimensions should be (layer, y,x) or
+        (layer, cid).
+    thickness : xr.DataArray
+        raster with thickness of each cell. dimensions should be (layer, y,x) or
+        (layer, cid).
+    mask : xr.DataArray
+        raster with ones in cell where the ibound is adjusted. dimensions
+        should be (y,x) or (cid).
+
+    Returns
+    -------
+    idomain : xr.DataArray
+        raster with adjusted idomain of each cell. dimensions should be
+        (layer, y,x) or (layer, cid).
+    """
+
+    for ilay, thick in enumerate(thickness):
+        if ilay == 0:
+            mask1 = (thick == 0) * mask
+            idomain[ilay] = xr.where(mask1, 0, idomain[ilay])
+            mask2 = (thick > 0) * mask
+            idomain[ilay] = xr.where(mask2, 1, idomain[ilay])
+        else:
+            mask1 = (thick == 0) * mask * (idomain[ilay - 1] == 0)
+            idomain[ilay] = xr.where(mask1, 0, idomain[ilay])
+
+            mask2 = (thick == 0) * mask * (idomain[ilay - 1] != 0)
+            idomain[ilay] = xr.where(mask2, -1, idomain[ilay])
+
+            mask3 = (thick != 0) * mask
+            idomain[ilay] = xr.where(mask3, 1, idomain[ilay])
+
+    return idomain
+
+
+def add_top_bot_to_model_ds(ml_layer_ds, model_ds,
+                            nodata=None,
+                            gridtype='structured'):
+    """add top and bot from a model layer dataset to THE model dataset.
+
+    Supports structured and vertex grids.
+
+    Parameters
+    ----------
+    ml_layer_ds : xarray.Dataset
+        dataset with model layer data with a top and bottom
+    model_ds : xarray.Dataset
+        dataset with model data where top and bot are added to
+    nodata : int, optional
+        if the first_active_layer data array in model_ds has this value,
+        it means this cell is inactive in all layers. If nodata is None the
+        nodata value in model_ds is used.
+        the default is None
+    gridtype : str, optional
+        type of grid, options are 'structured' and 'vertex'.
+        The default is 'structured'.
+
+    Returns
+    -------
+    model_ds : xarray.Dataset
+        dataset with model data including top and bottom
+    """
+    if nodata is None:
+        nodata = model_ds.attrs['nodata']
+
+    logger.info(
+        'using top and bottom from model layers dataset for modflow model')
+    logger.info('replace nan values for inactive layers with dummy value')
+
+    if gridtype == 'structured':
+        model_ds = add_top_bot_structured(ml_layer_ds, model_ds,
+                                          nodata=nodata)
+
+    elif gridtype == 'vertex':
+        model_ds = add_top_bot_vertex(ml_layer_ds, model_ds,
+                                      nodata=nodata)
+
+    return model_ds
+
+
+def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
+    """Voeg top en bottom vanuit layer dataset toe aan de model dataset.
+
+    Deze functie is bedoeld voor vertex arrays in modflow 6. Supports
+    only vertex grids.
+
+    Stappen:
+
+    1. Zorg dat de onderste laag altijd een bodemhoogte heeft, als de bodem
+       van alle bovenliggende lagen nan is, pak dan 0.
+    2. Zorg dat de top van de bovenste laag altijd een waarde heeft, als de
+       top van alle onderligende lagen nan is, pak dan 0.
+    3. Vul de nan waarden in alle andere lagen door:
+        a) pak bodem uit regis, tenzij nan dan:
+        b) gebruik bodem van de laag erboven (of de top voor de bovenste laag)
+
+    Parameters
+    ----------
+    ml_layer_ds : xarray.Dataset
+        dataset with model layer data with a top and bottom
+    model_ds : xarray.Dataset
+        dataset with model data where top and bottom are added to
+    nodata : int, optional
+        if the first_active_layer data array in model_ds has this value,
+        it means this cell is inactive in all layers
+
+    Returns
+    -------
+    model_ds : xarray.Dataset
+        dataset with model data including top and bottom
+    """
+    # step 1:
+    # set nan-value in bottom array
+    # set to zero if value is nan in all layers
+    # set to minimum value of all layers if there is any value in any layer
+    active_domain = model_ds['first_active_layer'].data != nodata
+
+    lowest_bottom = ml_layer_ds['bot'].data[-1].copy()
+    if np.any(~active_domain):
+        percentage = 100 * (~active_domain).sum() / \
+            (active_domain.shape[0])
+        if percentage > 80:
+            logger.warning(f'{percentage:0.1f}% of all cells have nan '
+                           'values in every layer there is probably a '
+                           'problem with your extent.')
+
+        # set bottom to zero if bottom in a cell is nan in all layers
+        lowest_bottom = np.where(active_domain, lowest_bottom, 0)
+
+    if np.any(np.isnan(lowest_bottom)):
+        # set bottom in a cell to lowest bottom of all layers
+        i_nan = np.where(np.isnan(lowest_bottom))
+        for i in i_nan:
+            val = np.nanmin(ml_layer_ds['bot'].data[:, i])
+            lowest_bottom[i] = val
+            if np.isnan(val):
+                raise ValueError(
+                    'this should never happen please contact Artesia')
+
+    # step 2: get highest top values of all layers without nan values
+    highest_top = ml_layer_ds['top'].data[0].copy()
+    if np.any(np.isnan(highest_top)):
+        highest_top = np.where(active_domain, highest_top, 0)
+
+    if np.any(np.isnan(highest_top)):
+        i_nan = np.where(np.isnan(highest_top))
+        for i in i_nan:
+            val = np.nanmax(ml_layer_ds['top'].data[:, i])
+            highest_top[i] = val
+            if np.isnan(val):
+                raise ValueError(
+                    'this should never happen please contact Artesia')
+
+    # step 3: fill nans in all layers
+    nlay = model_ds.dims['layer']
+    top_bot_raw = np.ones((nlay + 1, model_ds.dims['cid']))
+    top_bot_raw[0] = highest_top
+    top_bot_raw[1:-1] = ml_layer_ds['bot'].data[:-1].copy()
+    top_bot_raw[-1] = lowest_bottom
+    top_bot = np.ones_like(top_bot_raw)
+    for i_from_bot, blay in enumerate(top_bot_raw[::-1]):
+        i_from_top = nlay - i_from_bot
+        new_lay = blay.copy()
+        if np.any(np.isnan(new_lay)):
+            lay_from_bot = i_from_bot
+            lay_from_top = nlay - lay_from_bot
+            while np.any(np.isnan(new_lay)):
+                new_lay = np.where(np.isnan(new_lay),
+                                   top_bot_raw[lay_from_top],
+                                   new_lay)
+                lay_from_bot += 1
+                lay_from_top = nlay - lay_from_bot
+
+        top_bot[i_from_top] = new_lay
+
+    model_ds['bot'] = xr.DataArray(top_bot[1:], dims=('layer', 'cid'),
+                                   coords={'cid': model_ds.cid.data,
+                                           'layer': model_ds.layer.data})
+    model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid',),
+                                   coords={'cid': model_ds.cid.data})
+
+    # keep attributes for bot en top
+    for datavar in ['top', 'bot']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
+
+    return model_ds
+
+
+def add_top_bot_structured(ml_layer_ds, model_ds, nodata=-999):
+    """Voeg top en bottom vanuit een layer dataset toe aan de model dataset.
+
+    Deze functie is bedoeld voor structured arrays in modflow 6. Supports
+    only structured grids.
+
+    Stappen:
+
+    1. Zorg dat de onderste laag altijd een bodemhoogte heeft, als de bodem
+       van alle bovenliggende lagen nan is, pak dan 0.
+    2. Zorg dat de top van de bovenste laag altijd een waarde heeft, als de
+       top van alle onderligende lagen nan is, pak dan 0.
+    3. Vul de nan waarden in alle andere lagen door:
+        a) pak bodem uit de model layer dataset, tenzij nan dan:
+        b) gebruik bodem van de laag erboven (of de top voor de bovenste laag)
+
+    Parameters
+    ----------
+    ml_layer_ds : xarray.Dataset
+        dataset with model layer data with a top and bottom
+    model_ds : xarray.Dataset
+        dataset with model data where top and bottom are added to
+    nodata : int, optional
+        if the first_active_layer data array in model_ds has this value,
+        it means this cell is inactive in all layers
+
+    Returns
+    -------
+    model_ds : xarray.Dataset
+        dataset with model data including top and bottom
+    """
+
+    active_domain = model_ds['first_active_layer'].data != nodata
+
+    # step 1:
+    # set nan-value in bottom array
+    # set to zero if value is nan in all layers
+    # set to minimum value of all layers if there is any value in any layer
+    lowest_bottom = ml_layer_ds['bot'].data[-1].copy()
+    if np.any(~active_domain):
+        percentage = 100 * (~active_domain).sum() / \
+            (active_domain.shape[0] * active_domain.shape[1])
+        if percentage > 80:
+            logger.warning(f'{percentage:0.1f}% of all cells have nan '
+                           'values in every layer there is probably a '
+                           'problem with your extent.')
+        # set bottom to zero if bottom in a cell is nan in all layers
+        lowest_bottom = np.where(active_domain, lowest_bottom, 0)
+
+    if np.any(np.isnan(lowest_bottom)):
+        # set bottom in a cell to lowest bottom of all layers
+        rc_nan = np.where(np.isnan(lowest_bottom))
+        for row, col in zip(rc_nan[0], rc_nan[1]):
+            val = np.nanmin(ml_layer_ds['bot'].data[:, row, col])
+            lowest_bottom[row, col] = val
+            if np.isnan(val):
+                raise ValueError(
+                    'this should never happen please contact Onno')
+
+    # step 2: get highest top values of all layers without nan values
+    highest_top = ml_layer_ds['top'].data[0].copy()
+    if np.any(np.isnan(highest_top)):
+        # set top to zero if top in a cell is nan in all layers
+        highest_top = np.where(active_domain, highest_top, 0)
+
+    if np.any(np.isnan(highest_top)):
+        # set top in a cell to highest top of all layers
+        rc_nan = np.where(np.isnan(highest_top))
+        for row, col in zip(rc_nan[0], rc_nan[1]):
+            val = np.nanmax(ml_layer_ds['top'].data[:, row, col])
+            highest_top[row, col] = val
+            if np.isnan(val):
+                raise ValueError(
+                    'this should never happen please contact Onno')
+
+    # step 3: fill nans in all layers
+    nlay = model_ds.dims['layer']
+    nrow = model_ds.dims['y']
+    ncol = model_ds.dims['x']
+    top_bot_raw = np.ones((nlay + 1, nrow, ncol))
+    top_bot_raw[0] = highest_top
+    top_bot_raw[1:-1] = ml_layer_ds['bot'].data[:-1].copy()
+    top_bot_raw[-1] = lowest_bottom
+    top_bot = np.ones_like(top_bot_raw)
+    for i_from_bot, blay in enumerate(top_bot_raw[::-1]):
+        i_from_top = nlay - i_from_bot
+        new_lay = blay.copy()
+        if np.any(np.isnan(new_lay)):
+            lay_from_bot = i_from_bot
+            lay_from_top = nlay - lay_from_bot
+            while np.any(np.isnan(new_lay)):
+                new_lay = np.where(np.isnan(new_lay),
+                                   top_bot_raw[lay_from_top],
+                                   new_lay)
+                lay_from_bot += 1
+                lay_from_top = nlay - lay_from_bot
+
+        top_bot[i_from_top] = new_lay
+
+    model_ds['bot'] = xr.DataArray(top_bot[1:], dims=('layer', 'y', 'x'),
+                                   coords={'x': model_ds.x.data,
+                                           'y': model_ds.y.data,
+                                           'layer': model_ds.layer.data})
+
+    model_ds['top'] = xr.DataArray(top_bot[0], dims=('y', 'x'),
+                                   coords={'x': model_ds.x.data,
+                                           'y': model_ds.y.data})
+
+    # keep attributes for bot en top
+    for datavar in ['top', 'bot']:
+        for key, att in ml_layer_ds[datavar].attrs.items():
+            model_ds[datavar].attrs[key] = att
+
+    return model_ds

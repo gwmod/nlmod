@@ -1,39 +1,37 @@
 # -*- coding: utf-8 -*-
-"""
-Extents uit nhflo:
+"""Extents uit nhflo:
 
 # entire model domain
 extent = [95000., 150000., 487000., 553500.]
 
 # alkmaar
-#extent = [104000.0, 121500. ,510000., 528000.] 
+#extent = [104000.0, 121500. ,510000., 528000.]
 
 # alle infiltratiepanden
-extent = [100350., 106000. ,500800., 508000.] 
+extent = [100350., 106000. ,500800., 508000.]
 
 # zelfde als koster doorsneden
-extent = [100000., 109000. ,497000., 515000.] 
+extent = [100000., 109000. ,497000., 515000.]
 
 # extent pwn model
 extent = [ 95800., 109000., 496700., 515100.]
 
 # # xmax ligt buiten pwn_model
-# extent = [100000., 115000. ,497000., 515000.] 
+# extent = [100000., 115000. ,497000., 515000.]
 
 # xmax, ymin en ymax liggen buiten pwn_model
-extent = [100000., 115000. ,496000., 516000.] 
+extent = [100000., 115000. ,496000., 516000.]
 
 # hoekje met zee
 extent = [95000., 100000., 487000., 500000.]
 
 # klein (300m x 300m)
 # extent = [102000.0, 102300.0, 505800.0, 506100.0]
-   
-    
 """
 
 import os
 import tempfile
+
 import nlmod
 import pytest
 import xarray as xr
@@ -73,6 +71,7 @@ def test_model_ds_time_transient(tmpdir, modelname='test'):
 
 # %% creating model grids
 
+
 @pytest.mark.slow
 def test_create_seamodel_grid_only_without_northsea(tmpdir):
     model_ds = test_model_ds_time_transient(tmpdir)
@@ -84,7 +83,8 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir):
 
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
-                                                            keep_vars=['x', 'y'],
+                                                            keep_vars=[
+                                                                'x', 'y'],
                                                             gridtype='structured',
                                                             add_northsea=False)
 
@@ -108,7 +108,8 @@ def test_create_small_model_grid_only(tmpdir):
 
     model_ds = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds,
                                                             regis_geotop_ds,
-                                                            keep_vars=['x', 'y'],
+                                                            keep_vars=[
+                                                                'x', 'y'],
                                                             gridtype='structured')
 
     _, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
@@ -139,7 +140,6 @@ def test_create_sea_model_grid_only(tmpdir):
     model_ds.to_netcdf(os.path.join(tst_model_dir, 'sea_model_grid.nc'))
 
     return model_ds
-
 
 
 @pytest.mark.slow
@@ -190,7 +190,8 @@ def test_create_sea_model(tmpdir):
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
-    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(model_ds, model_ds['idomain']))
+    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(
+        model_ds, model_ds['idomain']))
     nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
@@ -260,7 +261,8 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
-    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(model_ds, model_ds['idomain']))
+    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(
+        model_ds, model_ds['idomain']))
     nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets
@@ -322,7 +324,8 @@ def test_create_sea_model_perlen_14(tmpdir):
     nlmod.mfpackages.surface_drain_from_model_ds(model_ds, gwf)
 
     # add constant head cells at model boundaries
-    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(model_ds, model_ds['idomain']))    
+    model_ds.update(nlmod.mfpackages.constant_head.get_chd_at_model_edge(
+        model_ds, model_ds['idomain']))
     nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head='starting_head')
 
     # add knmi recharge to the model datasets

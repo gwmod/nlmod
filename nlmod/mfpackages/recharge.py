@@ -14,6 +14,7 @@ from . import mfpackages
 
 logger = logging.getLogger(__name__)
 
+
 def model_datasets_to_rch(gwf, model_ds, print_input=False):
     """convert the recharge data in the model dataset to a recharge package
     with time series.
@@ -133,9 +134,9 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
 
         mask = model_ds['rch_name'] != ''
         rch_spd_data = mdims.data_array_1d_vertex_to_rec_list(model_ds, mask,
-                                                             col1='rch_name',
-                                                             first_active_layer=True,
-                                                             only_active_cells=False)
+                                                              col1='rch_name',
+                                                              first_active_layer=True,
+                                                              only_active_cells=False)
 
     # create rch package
     rch = flopy.mf6.ModflowGwfrch(gwf, filename=f'{gwf.name}.rch',

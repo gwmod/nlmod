@@ -1,13 +1,13 @@
+import datetime as dt
 import logging
 import numbers
 
 import hydropandas as hpd
 import numpy as np
-import datetime as dt
 import pandas as pd
 import xarray as xr
 
-from .. import util, cache
+from .. import cache, util
 
 logger = logging.getLogger(__name__)
 
@@ -15,23 +15,24 @@ logger = logging.getLogger(__name__)
 @cache.cache_netcdf
 def get_recharge(model_ds,
                  nodata=None):
-    """ add multiple recharge packages to the groundwater flow model with
-    knmi data by following these steps:
-    1. check for each cell (structured or vertex) which knmi measurement
-    stations (prec and evap) are the closest.
-    2. download precipitation and evaporation data for all knmi stations that
-    were found at 1
-    3. create a recharge package in which each cell has a reference to a 
-    timeseries. Timeseries are created for each unique combination of 
-    precipitation and evaporation. The following packages are created:
-        a. the rch package itself in which cells with the same precipitation
-        and evaporation stations are defined. This package also refers to all 
-        the time series package (see b).
-        b. the time series packages in which the recharge flux is defined for 
-        the time steps of the model. Each package contains the time series
-        for one or more cels (defined in a).
+    """add multiple recharge packages to the groundwater flow model with knmi
+    data by following these steps:
 
-    supports structured and unstructred datasets.
+       1. check for each cell (structured or vertex) which knmi measurement
+          stations (prec and evap) are the closest.
+       2. download precipitation and evaporation data for all knmi stations that
+          were found at 1
+       3. create a recharge package in which each cell has a reference to a
+          timeseries. Timeseries are created for each unique combination of
+          precipitation and evaporation. The following packages are created:
+            a. the rch package itself in which cells with the same
+               precipitation and evaporation stations are defined. This
+               package also refers to all the time series package (see b).
+            b. the time series packages in which the recharge flux is defined
+               for the time steps of the model. Each package contains the
+               time series for one or more cels (defined in a).
+
+    Supports structured and unstructred datasets.
 
     Parameters
     ----------
@@ -47,7 +48,6 @@ def get_recharge(model_ds,
     -------
     model_ds : xr.DataSet
         dataset with spatial model data including the rch raster
-
     """
     if nodata is None:
         nodata = model_ds.nodata
@@ -64,7 +64,7 @@ def get_recharge(model_ds,
                                                                         unit=model_ds.time_units))
         elif isinstance(perlen, (list, tuple, np.ndarray)):
             end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen[-1],
-                                                                      unit=model_ds.time_units))
+                                                                        unit=model_ds.time_units))
         else:
             raise ValueError(f'did not recognise perlen data type {perlen}')
 
@@ -118,13 +118,13 @@ def get_recharge(model_ds,
     unique_combinations = locations.drop_duplicates(['prec_point', 'evap_point'])[
         ['prec_point', 'evap_point']].values
 
-    for i, prec_evap in enumerate(unique_combinations):
+    for prec_evap in unique_combinations:
         # get locations with the same prec and evap station
         loc_sel = locations.loc[(locations['prec_point'] == prec_evap[0]) & (
             locations['evap_point'] == prec_evap[1])]
 
         # calculate recharge time series
-        prec = oc_knmi_prec.loc[prec_evap[0], 'obs']['RD']
+        prec = oc_knmi_prec.loc[prec_evap[0], 'obs']['RH']
         evap = oc_knmi_evap.loc[prec_evap[1], 'obs']['EV24']
         recharge_ts = (prec - evap).dropna()
 
@@ -146,29 +146,32 @@ def get_recharge(model_ds,
             model_recharge = pd.Series(index=model_ds.time.data, dtype=float)
             for j, ts in enumerate(model_recharge.index):
                 if j < (len(model_recharge) - 1):
-                    model_recharge.loc[ts] = recharge_ts.loc[ts:model_recharge.index[j + 1]].iloc[:-1].mean()
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:
+                                                             model_recharge.index[j + 1]].iloc[:-1].mean()
                 else:
                     model_recharge.loc[ts] = recharge_ts.loc[ts:end].iloc[:-1].mean()
 
             # add data to model_ds_out
             if model_ds.gridtype == 'structured':
                 for row, col in zip(loc_sel.row, loc_sel.col):
-                    model_ds_out['recharge'].data[row, col, :] = model_recharge.values
+                    model_ds_out['recharge'].data[row,
+                                                  col, :] = model_recharge.values
 
             elif model_ds.gridtype == 'vertex':
-                model_ds_out['recharge'].loc[loc_sel.index, :] = model_recharge.values
+                model_ds_out['recharge'].loc[loc_sel.index,
+                                             :] = model_recharge.values
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = 'KNMI'
-        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime(
+            '%Y%m%d')
         model_ds_out[datavar].attrs['units'] = 'm/day'
 
     return model_ds_out
 
 
 def get_locations_vertex(model_ds, nodata=-999):
-    """get dataframe with the locations of the grid cells of a vertex
-    grid.
+    """get dataframe with the locations of the grid cells of a vertex grid.
 
     Parameters
     ----------

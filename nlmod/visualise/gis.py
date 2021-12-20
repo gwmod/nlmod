@@ -1,14 +1,15 @@
+import logging
 import os
-from shapely.geometry import Polygon
+
 import geopandas as gpd
 import numpy as np
-import logging
+from shapely.geometry import Polygon
 
 logger = logging.getLogger(__name__)
 
 
 def _polygons_from_model_ds(model_ds):
-    """ create polygons of each cell in a model dataset
+    """create polygons of each cell in a model dataset.
 
     Parameters
     ----------
@@ -24,7 +25,6 @@ def _polygons_from_model_ds(model_ds):
     -------
     polygons : list of shapely Polygons
         list with polygon of each raster cell.
-
     """
 
     if model_ds.gridtype == 'structured':
@@ -32,27 +32,32 @@ def _polygons_from_model_ds(model_ds):
         delr_x = np.unique(model_ds.x.values[1:] - model_ds.x.values[:-1])
         delc_y = np.unique(model_ds.y.values[:-1] - model_ds.y.values[1:])
         if not ((delr_x == model_ds.delr) and (delc_y == model_ds.delc)):
-            raise ValueError('delr and delc attributes of model_ds inconsistent with x and y coördinates')
+            raise ValueError(
+                'delr and delc attributes of model_ds inconsistent '
+                'with x and y coordinates')
 
         xmins = model_ds.x - (model_ds.delr * 0.5)
         xmaxs = model_ds.x + (model_ds.delr * 0.5)
         ymins = model_ds.y - (model_ds.delc * 0.5)
         ymaxs = model_ds.y + (model_ds.delc * 0.5)
         polygons = [Polygon([(xmins[i], ymins[j]), (xmins[i], ymaxs[j]),
-                             (xmaxs[i], ymaxs[j]), (xmaxs[i], ymins[j])]) for i in range(len(xmins)) for j in range(len(ymins))]
+                             (xmaxs[i], ymaxs[j]), (xmaxs[i], ymins[j])])
+                    for i in range(len(xmins)) for j in range(len(ymins))]
     elif model_ds.gridtype == 'vertex':
-        polygons = [Polygon(vertices) for vertices in model_ds['vertices'].values]
+        polygons = [Polygon(vertices)
+                    for vertices in model_ds['vertices'].values]
     else:
-        raise ValueError(f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}")
+        raise ValueError(
+            "gridtype must be 'structured' or 'vertex', "
+            f"not {model_ds.gridtype}")
 
     return polygons
 
 
 def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                             dealing_with_time='mean'):
-    """ Convert one or more DataArrays from a vertex model dataset to a
+    """Convert one or more DataArrays from a vertex model dataset to a
     Geodataframe.
-
 
     Parameters
     ----------
@@ -81,7 +86,6 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
     -------
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
-
     """
     assert model_ds.gridtype == 'vertex', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
 
@@ -101,11 +105,14 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                 if dealing_with_time == 'mean':
                     dv_dic[f'{da_name}_mean'] = da_mean.values
                 else:
-                    raise NotImplementedError("Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'")
+                    raise NotImplementedError(
+                        "Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'")
             else:
-                raise ValueError(f"expected dimensions ('layer', 'cid'), got {da.dims}")
+                raise ValueError(
+                    f"expected dimensions ('layer', 'cid'), got {da.dims}")
         else:
-            raise NotImplementedError(f'expected one or two dimensions got {no_dims} for data variable {da_name}')
+            raise NotImplementedError(
+                f'expected one or two dimensions got {no_dims} for data variable {da_name}')
 
     # create geometries
     if polygons is None:
@@ -119,9 +126,8 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
 
 def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                            dealing_with_time='mean'):
-    """ Convert one or more DataArrays from a structured model dataset to a
+    """Convert one or more DataArrays from a structured model dataset to a
     Geodataframe.
-
 
     Parameters
     ----------
@@ -145,7 +151,6 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
     -------
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
-
     """
     assert model_ds.gridtype == 'structured', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
 
@@ -165,11 +170,14 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                 if dealing_with_time == 'mean':
                     dv_dic[f'{da_name}_mean'] = da_mean.values.flatten('F')
                 else:
-                    raise NotImplementedError("Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'")
+                    raise NotImplementedError(
+                        "Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'")
             else:
-                raise ValueError(f"expected dimensions ('layer', 'y', 'x'), got {da.dims}")
+                raise ValueError(
+                    f"expected dimensions ('layer', 'y', 'x'), got {da.dims}")
         else:
-            raise NotImplementedError(f'expected two or three dimensions got {no_dims} for data variable {da_name}')
+            raise NotImplementedError(
+                f'expected two or three dimensions got {no_dims} for data variable {da_name}')
 
     # create geometries
     if polygons is None:
@@ -182,9 +190,7 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
 
 
 def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
-    """ Save one or more DataArrays from a model dataset as a
-    shapefile.
-
+    """Save one or more DataArrays from a model dataset as a shapefile.
 
     Parameters
     ----------
@@ -203,7 +209,6 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
     Returns
     -------
     None.
-
     """
     if model_ds.gridtype == 'vertex':
         gdf = vertex_dataarray_to_gdf(model_ds, data_variables,
@@ -220,7 +225,7 @@ def model_dataset_to_vector_file(model_ds,
                                  combine_dic=None,
                                  exclude=('x', 'y', 'time_steps', 'area', 'vertices',
                                           'rch_name')):
-    """ Save all data variables in a model dataset to multiple shapefiles.
+    """Save all data variables in a model dataset to multiple shapefiles.
 
     Parameters
     ----------
@@ -246,7 +251,6 @@ def model_dataset_to_vector_file(model_ds,
     -------
     fnames : str or list of str
         filename(s) of exported geopackage or shapefiles.
-
     """
 
     # get default combination dictionary
@@ -283,7 +287,8 @@ def model_dataset_to_vector_file(model_ds,
             if model_ds.gridtype == 'structured':
                 gdf = struc_dataarray_to_gdf(model_ds, item, polygons=polygons)
             elif model_ds.gridtype == 'vertex':
-                gdf = vertex_dataarray_to_gdf(model_ds, item, polygons=polygons)
+                gdf = vertex_dataarray_to_gdf(
+                    model_ds, item, polygons=polygons)
             if driver == 'GPKG':
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
             else:
@@ -292,14 +297,17 @@ def model_dataset_to_vector_file(model_ds,
                 fnames.append(fname)
             da_names -= item
         else:
-            logger.info(f'could not add {item} into to geopackage because 1 or more of the data variables do not exist')
+            logger.info(
+                f'could not add {item} into to geopackage because 1 or more of the data variables do not exist')
 
     # create unique shapefiles for the other data variables
     for da_name in da_names:
         if model_ds.gridtype == 'structured':
-            gdf = struc_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = struc_dataarray_to_gdf(
+                model_ds, (da_name,), polygons=polygons)
         elif model_ds.gridtype == 'vertex':
-            gdf = vertex_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = vertex_dataarray_to_gdf(
+                model_ds, (da_name,), polygons=polygons)
         if driver == 'GPKG':
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:

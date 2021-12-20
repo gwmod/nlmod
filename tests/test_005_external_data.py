@@ -1,4 +1,5 @@
 import nlmod
+
 import test_001_model
 
 
@@ -25,9 +26,9 @@ def test_get_recharge_steady_state():
         model_ds.attrs.pop(model_ds_key)
     model_ds = nlmod.mdims.set_model_ds_time(model_ds,
                                              '2000-1-1',
-                                              True,
-                                              False,
-                                              perlen=3650)
+                                             True,
+                                             False,
+                                             perlen=3650)
 
     # add knmi recharge to the model dataset
     model_ds.update(nlmod.read.knmi.get_recharge(model_ds))

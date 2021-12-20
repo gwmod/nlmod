@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jan  7 16:23:35 2021
+"""Created on Thu Jan  7 16:23:35 2021.
 
 @author: oebbe
 """
@@ -90,9 +89,9 @@ def test_get_regis_geotop_keep_all_layers(extent=[98600.0, 99000.0, 489400.0, 48
                                           delr=100., delc=100.):
 
     regis_geotop_ds = regis.get_combined_layer_models(extent, delr, delc,
-                                                     use_regis=True,
-                                                     use_geotop=True,
-                                                     remove_nan_layers=False)
+                                                      use_regis=True,
+                                                      use_geotop=True,
+                                                      remove_nan_layers=False)
 
     assert regis_geotop_ds.dims['layer'] == 135
 

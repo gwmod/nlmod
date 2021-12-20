@@ -74,6 +74,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
 
     # Create the Flopy iterative model solver (ims) Package object
     flopy.mf6.modflow.mfims.ModflowIms(sim, pname='ims',
+                                       print_option='summary',
                                        complexity=complexity)
 
     return sim, gwf
@@ -235,12 +236,12 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
                                                   layer=0)
     elif model_ds.gridtype == 'vertex':
         ghb_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds,
-                                                        model_ds[f'{da_name}_cond'] != 0,
-                                                        col1=f'{da_name}_peil',
-                                                        col2=f'{da_name}_cond',
-                                                        first_active_layer=True,
-                                                        only_active_cells=False,
-                                                        layer=0)
+                                                         model_ds[f'{da_name}_cond'] != 0,
+                                                         col1=f'{da_name}_peil',
+                                                         col2=f'{da_name}_cond',
+                                                         first_active_layer=True,
+                                                         only_active_cells=False,
+                                                         layer=0)
     else:
         raise ValueError(f'did not recognise gridtype {model_ds.gridtype}')
 
@@ -405,10 +406,10 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
                                                   col2=model_ds.surface_drn_cond)
     elif model_ds.gridtype == 'vertex':
         drn_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds, mask,
-                                                        col1='ahn',
-                                                        col2=model_ds.surface_drn_cond,
-                                                        first_active_layer=True,
-                                                        only_active_cells=False)
+                                                         col1='ahn',
+                                                         col2=model_ds.surface_drn_cond,
+                                                         first_active_layer=True,
+                                                         only_active_cells=False)
 
     drn = flopy.mf6.ModflowGwfdrn(gwf, print_input=True,
                                   maxbound=len(drn_rec),

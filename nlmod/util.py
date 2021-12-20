@@ -1,26 +1,29 @@
+import datetime as dt
 import logging
+import warnings
 import os
 import re
 import sys
+from shutil import copyfile
 
 import flopy
 import geopandas as gpd
 import numpy as np
-import datetime as dt
 import requests
 import xarray as xr
 from shapely.geometry import box
-from shutil import copyfile
 
 logger = logging.getLogger(__name__)
 
 
 def write_and_run_model(gwf, model_ds, write_model_ds=True,
                         nb_path=None):
-    """ write modflow files and run the model. 2 extra options:
+    """write modflow files and run the model.
+
+    2 extra options:
         1. write the model dataset to cache
         2. copy the modelscript (typically a Jupyter Notebook) to the model
-        workspace with a timestamp.
+           workspace with a timestamp.
 
 
     Parameters
@@ -32,15 +35,15 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
     write_model_ds : bool, optional
         if True the model dataset is cached. The default is True.
     nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The 
+        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
         default is None. Preferably this path does not have to be given
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
-
     """
 
     if nb_path is not None:
-        new_nb_fname = f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+        new_nb_fname = f'{dt.datetime.now().strftime("%Y%m%d")}' + \
+            os.path.split(nb_path)[-1]
         dst = os.path.join(model_ds.model_ws, new_nb_fname)
         logger.info(f'write script {new_nb_fname} to model workspace')
         copyfile(nb_path, dst)
@@ -49,21 +52,25 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
         logger.info('write model dataset to cache')
         model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
                                         'full_model_ds.nc'))
-        model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now(
+        ).strftime("%Y%m%d_%H:%M:%S")
 
     logger.info('write modflow files to model workspace')
     gwf.simulation.write_simulation()
-    model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S")
 
     logger.info('run model')
-    assert gwf.simulation.run_simulation()[0]
-    model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    assert gwf.simulation.run_simulation()[0], 'Modflow run not succeeded'
+    model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S")
 
 
 def get_model_dirs(model_ws):
-    """ Creates a new model workspace directory, if it does not 
-    exists yet. Within the model workspace directory a
-    few subdirectories are created (if they don't exist yet):
+    """Creates a new model workspace directory, if it does not exists yet.
+    Within the model workspace directory a few subdirectories are created (if
+    they don't exist yet):
+
     - figure
     - cache
 
@@ -209,13 +216,14 @@ def compare_model_extents(extent1, extent2):
 
     # option 3 left bound
     if (not check_xmin) and check_xmax and check_ymin and check_ymax:
-        logger.info('extent1 is completely within extent2 except for the left bound (xmin)')
+        logger.info(
+            'extent1 is completely within extent2 except for the left bound (xmin)')
         return 3
 
     # option 4 right bound
     if check_xmin and (not check_xmax) and check_ymin and check_ymax:
         logger.info(
-                'extent1 is completely within extent2 except for the right bound (xmax)')
+            'extent1 is completely within extent2 except for the right bound (xmax)')
         return 4
 
     # option 10
@@ -227,7 +235,7 @@ def compare_model_extents(extent1, extent2):
 
 
 def polygon_from_extent(extent):
-    """create a shapely polygon from a given extent
+    """create a shapely polygon from a given extent.
 
     Parameters
     ----------
@@ -238,7 +246,6 @@ def polygon_from_extent(extent):
     -------
     polygon_ext : shapely.geometry.polygon.Polygon
         polygon of the extent.
-
     """
 
     bbox = (extent[0], extent[2], extent[1], extent[3])
@@ -314,12 +321,12 @@ def gdf_within_extent(gdf, extent):
     return gdf
 
 
-def get_google_drive_filename(id):
+def get_google_drive_filename(fid):
     """get the filename of a google drive file.
 
     Parameters
     ----------
-    id : str
+    fid : str
         google drive id name of a file.
 
     Returns
@@ -327,32 +334,34 @@ def get_google_drive_filename(id):
     file_name : str
         filename.
     """
-    raise DeprecationWarning(
-        'this function is no longer supported use the gdown package instead')
+    warnings.warn(
+        'this function is no longer supported use the gdown package instead',
+        DeprecationWarning)
 
     if isinstance(id, requests.Response):
         response = id
     else:
-        url = 'https://drive.google.com/uc?export=download&id=' + id
+        url = 'https://drive.google.com/uc?export=download&id=' + fid
         response = requests.get(url)
     header = response.headers['Content-Disposition']
     file_name = re.search(r'filename="(.*)"', header).group(1)
     return file_name
 
 
-def download_file_from_google_drive(id, destination=None):
+def download_file_from_google_drive(fid, destination=None):
     """download a file from google drive using it's id.
 
     Parameters
     ----------
-    id : str
+    fid : str
         google drive id name of a file.
     destination : str, optional
         location to save the file to. If destination is None the file is
         written to the current working directory. The default is None.
     """
-    raise DeprecationWarning(
-        'this function is no longer supported use the gdown package instead')
+    warnings.warn(
+        'this function is no longer supported use the gdown package instead',
+        DeprecationWarning)
 
     def get_confirm_token(response):
         for key, value in response.cookies.items():
@@ -373,18 +382,18 @@ def download_file_from_google_drive(id, destination=None):
 
     session = requests.Session()
 
-    response = session.get(URL, params={'id': id}, stream=True)
+    response = session.get(URL, params={'id': fid}, stream=True)
     token = get_confirm_token(response)
 
     if token:
-        params = {'id': id, 'confirm': token}
+        params = {'id': fid, 'confirm': token}
         response = session.get(URL, params=params, stream=True)
 
     if destination is None:
-        destination = get_google_drive_filename(id)
+        destination = get_google_drive_filename(fid)
     else:
         if os.path.isdir(destination):
-            filename = get_google_drive_filename(id)
+            filename = get_google_drive_filename(fid)
             destination = os.path.join(destination, filename)
 
     save_response_content(response, destination)
@@ -469,8 +478,6 @@ def getmfexes(pth='.', version='', pltfrm=None):
     download_url = assets[zipname]
     pymake.download_and_unzip(download_url, pth)
 
-    return
-
 
 def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
@@ -492,7 +499,8 @@ def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
     """
 
     if fname_hds is None:
-        fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + '.hds')
+        fname_hds = os.path.join(
+            model_ds.model_ws, model_ds.model_name + '.hds')
 
     head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype,
                                   fill_nans=fill_nans)
@@ -505,11 +513,11 @@ def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
                                        'time': model_ds.time})
     elif model_ds.gridtype == 'structured':
         head_ar = xr.DataArray(data=head_filled,
-                           dims=('time', 'layer', 'y', 'x'),
-                           coords={'x': model_ds.x,
-                                   'y': model_ds.y,
-                                   'layer': model_ds.layer,
-                                   'time': model_ds.time})
+                               dims=('time', 'layer', 'y', 'x'),
+                               coords={'x': model_ds.x,
+                                       'y': model_ds.y,
+                                       'layer': model_ds.layer,
+                                       'time': model_ds.time})
 
     return head_ar
 
@@ -542,7 +550,8 @@ def get_heads_array(fname_hds, gridtype='structured',
     head[head == head.max()] = np.nan
 
     if gridtype == 'vertex':
-        head_filled = np.ones((head.shape[0], head.shape[1], head.shape[3])) * np.nan
+        head_filled = np.ones(
+            (head.shape[0], head.shape[1], head.shape[3])) * np.nan
 
         for t in range(head.shape[0]):
             for lay in range(head.shape[1] - 1, -1, -1):

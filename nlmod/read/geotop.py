@@ -1,17 +1,18 @@
 
+import datetime as dt
 import logging
 import os
 
 import nlmod
 import numpy as np
-import datetime as dt
 import pandas as pd
 import xarray as xr
 
-from .. import mdims, cache
+from .. import cache, mdims
 from . import regis
 
 logger = logging.getLogger(__name__)
+
 
 @cache.cache_netcdf
 def get_geotop(extent, delr, delc,
@@ -43,10 +44,12 @@ def get_geotop(extent, delr, delc,
         geotop dataset with top, bot, kh and kv per geo_eenheid
     """
     # check extent
-    extent2, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
+    extent2, _, _ = regis.fit_extent_to_regis(extent, delr, delc)
     for coord1, coord2 in zip(extent, extent2):
         if coord1 != coord2:
-            raise ValueError('extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function')
+            raise ValueError(
+                'extent not fitted to regis please fit to regis first, '
+                'use the nlmod.regis.fit_extent_to_regis function')
 
     geotop_url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent, geotop_url)
@@ -70,8 +73,8 @@ def get_geotop(extent, delr, delc,
 
     logger.info('resample geotop data to structured modelgrid')
     geotop_ds = mdims.resample_dataset_to_structured_grid(geotop_ds_raw,
-                                                         extent,
-                                                         delr, delc)
+                                                          extent,
+                                                          delr, delc)
     geotop_ds.attrs['extent'] = extent
     geotop_ds.attrs['delr'] = delr
     geotop_ds.attrs['delc'] = delc
@@ -125,7 +128,8 @@ def get_geotop_raw_within_extent(extent, url):
 def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
                                 litho_translate_df=None,
                                 geo_eenheid_translate_df=None):
-    """ does the following steps to obtain model layers based on geotop:
+    """does the following steps to obtain model layers based on geotop:
+
         1. slice by regis layer (if not None)
         2. compute kh from lithoklasse
         3. create a layer model based on geo-eenheden
@@ -135,19 +139,18 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
     geotop_ds_raw1: xr.Dataset
         dataset with geotop netcdf
     regis_ds: xarray.DataSet
-        regis dataset used to cut geotop to the same x and y coördinates    
+        regis dataset used to cut geotop to the same x and y coördinates
     regis_layer: str, optional
-        layer of regis dataset that will be filled with geotop 
+        layer of regis dataset that will be filled with geotop
     litho_translate_df: pandas.DataFrame
         horizontal conductance (kh)
     geo_eenheid_translate_df: pandas.DataFrame
-        dictionary to translate geo_eenheid to a geo name   
+        dictionary to translate geo_eenheid to a geo name
 
     Returns
     -------
     geotop_ds_raw: xarray.DataSet
         geotop dataset with added horizontal conductance
-
     """
 
     # stap 1
@@ -205,13 +208,17 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
 
     # geo eenheid 2000 zit boven 1130
     if (2000. in geo_eenheden) and (1130. in geo_eenheden):
-        geo_eenheden[(geo_eenheden == 2000.) + (geo_eenheden == 1130.)] = [2000., 1130.]
+        geo_eenheden[(geo_eenheden == 2000.) +
+                     (geo_eenheden == 1130.)] = [2000., 1130.]
 
-    geo_names = [geo_eenheid_translate_df.loc[float(geo_eenh), 'Code (lagenmodel en boringen)'] for geo_eenh in geo_eenheden]
+    geo_names = [geo_eenheid_translate_df.loc[float(
+        geo_eenh), 'Code (lagenmodel en boringen)'] for geo_eenh in geo_eenheden]
 
     # fill top and bot
-    top = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
-    bot = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
+    top = np.ones(
+        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
+    bot = np.ones(
+        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     lay = 0
     logger.info('creating top and bot per geo eenheid')
     for geo_eenheid in geo_eenheden:
@@ -256,8 +263,10 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
     geotop_ds_mod: xr.DataSet
         geotop dataset with top, bot, kh and kv per geo_eenheid
     """
-    kh = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
-    thickness = np.ones((geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
+    kh = np.ones(
+        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
+    thickness = np.ones(
+        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
     z = xr.ones_like(geotop_ds_raw.lithok) * geotop_ds_raw.z
     logger.info('adding stroombanen to top and bot of each layer')
     logger.info('get kh for each layer')
@@ -268,13 +277,15 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
             top[:, :, 0] = np.nanmax(top, axis=2)
         else:
             top[:, :, lay] = bot[:, :, lay - 1]
-        bot[:, :, lay] = np.where(np.isnan(bot[:, :, lay]), top[:, :, lay], bot[:, :, lay])
+        bot[:, :, lay] = np.where(
+            np.isnan(bot[:, :, lay]), top[:, :, lay], bot[:, :, lay])
         thickness[:, :, lay] = (top[:, :, lay] - bot[:, :, lay])
 
         # check which geotop voxels are within the range of the layer
         bool_z = xr.zeros_like(z)
         for i in range(z.z.shape[0]):
-            bool_z[:, :, i] = np.where((z[:, :, i] >= bot[:, :, lay].T) * (z[:, :, i] < top[:, :, lay].T), True, False)
+            bool_z[:, :, i] = np.where(
+                (z[:, :, i] >= bot[:, :, lay].T) * (z[:, :, i] < top[:, :, lay].T), True, False)
 
         kh_geo = xr.where(bool_z, geotop_ds_raw['kh_from_litho'], np.nan)
         kh[:, :, lay] = kh_geo.mean(dim='z').T

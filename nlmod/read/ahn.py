@@ -4,18 +4,18 @@
 @author: ruben
 """
 
+import datetime as dt
 import logging
 import os
 import tempfile
 
 import numpy as np
-import datetime as dt
 import rasterio
 import xarray as xr
 from owslib.wcs import WebCoverageService
 from rasterio import merge
 
-from .. import mdims, cache, util
+from .. import cache, mdims, util
 
 logger = logging.getLogger(__name__)
 
@@ -79,14 +79,14 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]
-    
+
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = identifier
         model_ds_out[datavar].attrs['url'] = url
-        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime(
+            '%Y%m%d')
         if datavar == 'ahn':
             model_ds_out[datavar].attrs['units'] = 'mNAP'
-        
 
     return model_ds_out
 
@@ -168,8 +168,7 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
 
 
 def _infer_url(identifier=None):
-    """ infer the url from the identifier
-    
+    """infer the url from the identifier.
 
     Parameters
     ----------
@@ -187,9 +186,8 @@ def _infer_url(identifier=None):
     -------
     url : TYPE
         DESCRIPTION.
-
     """
-    
+
     # infer url from identifier
     if 'ahn2' in identifier:
         url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
@@ -199,12 +197,14 @@ def _infer_url(identifier=None):
                'request=GetCapabilities&service=WCS')
     else:
         ValueError(f'unknown identifier -> {identifier}')
-        
+
     return url
 
+
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
-                          res=None, version='1.0.0', format='GEOTIFF_FLOAT32',
-                          crs='EPSG:28992', maxsize=800, fname=None):
+                          res=None, version='1.0.0', fmt='GEOTIFF_FLOAT32',
+                          crs='EPSG:28992', maxsize=800, fname=None,
+                          cache_dir=None):
     """
 
     Parameters
@@ -237,7 +237,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     version : str, optional
         version of wcs service, options are '1.0.0' and '2.0.1'.
         The default is '1.0.0'.
-    format : str, optional
+    fmt : str, optional
         geotif format . The default is 'GEOTIFF_FLOAT32'.
     crs : str, optional
         coördinate reference system. The default is 'EPSG:28992'.
@@ -298,37 +298,37 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         logger.info(st)
         return split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                                 identifier=identifier,
-                                version=version, format=format, crs=crs,
+                                version=version, fmt=fmt, crs=crs,
                                 fname=fname)
 
     # get filename
     if fname is None:
-        cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
+        if not cache_dir:
+            cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
         fname = 'ahn_{:.0f}_{:.0f}_{:.0f}_{:.0f}_{:.0f}.tiff'
         fname = fname.format(*extent, res * 1000)
         if not os.path.isdir(cache_dir):
             os.makedirs(cache_dir)
         fname = os.path.join(cache_dir, fname)
 
-    
     # download file
     wcs = WebCoverageService(url, version=version)
     if version == '1.0.0':
         bbox = (extent[0], extent[2], extent[1], extent[3])
         output = wcs.getCoverage(identifier=identifier, bbox=bbox,
-                                 format=format, crs=crs, resx=res,
+                                 format=fmt, crs=crs, resx=res,
                                  resy=res)
     elif version == '2.0.1':
         # bbox, resx and resy do nothing in version 2.0.1
         subsets = [('x', extent[0], extent[1]),
                    ('y', extent[2], extent[3])]
         output = wcs.getCoverage(identifier=[identifier], subsets=subsets,
-                                 format=format, crs=crs)
+                                 format=fmt, crs=crs)
     else:
         raise (Exception('Version {} not yet supported'.format(version)))
     # write file to disk
     with open(fname, 'wb') as f:
         f.write(output.read())
     logger.info(f"- download {fname}")
-    
+
     return fname

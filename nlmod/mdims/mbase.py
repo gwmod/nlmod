@@ -1,15 +1,15 @@
+import datetime as dt
 import os
 import sys
 
 import xarray as xr
-import datetime as dt
 
 from .. import util
 
 
 def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
                        exe_name=None):
-    """ get an empty model dataset
+    """get an empty model dataset.
 
     Parameters
     ----------
@@ -34,7 +34,8 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
 
     model_ds.attrs['model_name'] = model_name
     model_ds.attrs['mfversion'] = mfversion
-    model_ds.attrs['model_dataset_created_on'] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    model_ds.attrs['model_dataset_created_on'] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S")
 
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),

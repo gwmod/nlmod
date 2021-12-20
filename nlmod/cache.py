@@ -434,5 +434,4 @@ def _update_docstring_and_signature(func):
         ' Default is None.\n\n    Returns'
     new_doc = ''.join((mod_before, after))
     func.__doc__ = new_doc
-    
     return

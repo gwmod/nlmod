@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import warnings
 import os
 import re
 import sys
@@ -333,8 +334,9 @@ def get_google_drive_filename(fid):
     file_name : str
         filename.
     """
-    raise DeprecationWarning(
-        'this function is no longer supported use the gdown package instead')
+    warnings.warn(
+        'this function is no longer supported use the gdown package instead',
+        DeprecationWarning)
 
     if isinstance(id, requests.Response):
         response = id
@@ -357,8 +359,9 @@ def download_file_from_google_drive(fid, destination=None):
         location to save the file to. If destination is None the file is
         written to the current working directory. The default is None.
     """
-    raise DeprecationWarning(
-        'this function is no longer supported use the gdown package instead')
+    warnings.warn(
+        'this function is no longer supported use the gdown package instead',
+        DeprecationWarning)
 
     def get_confirm_token(response):
         for key, value in response.cookies.items():
@@ -474,8 +477,6 @@ def getmfexes(pth='.', version='', pltfrm=None):
                                    'win32.zip', 'win64.zip']}
     download_url = assets[zipname]
     pymake.download_and_unzip(download_url, pth)
-
-    return
 
 
 def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):

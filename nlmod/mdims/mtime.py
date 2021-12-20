@@ -105,7 +105,7 @@ def set_model_ds_time(model_ds, start_time, steady_state,
             time_dt = pd.date_range(start_time_dt,
                                     start_time_dt + pd.to_timedelta((transient_timesteps - 1) * perlen,
                                                                     unit=time_units), periods=nper)
-        elif isinstance(perlen, list) or isinstance(perlen, np.ndarray):
+        elif isinstance(perlen, (list, np.ndarray)):
             assert len(perlen) == nper
             start_time_dt = pd.to_datetime(start_time)
             time_dt = [start_time_dt]

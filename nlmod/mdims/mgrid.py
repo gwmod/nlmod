@@ -1199,21 +1199,21 @@ def update_idomain_from_thickness(idomain, thickness, mask):
         (layer, y,x) or (layer, cid).
     """
 
-    for lay in range(len(thickness)):
-        if lay == 0:
-            mask1 = (thickness[lay] == 0) * mask
-            idomain[lay] = xr.where(mask1, 0, idomain[lay])
-            mask2 = (thickness[lay] > 0) * mask
-            idomain[lay] = xr.where(mask2, 1, idomain[lay])
+    for ilay, thick in enumerate(thickness):
+        if ilay == 0:
+            mask1 = (thick == 0) * mask
+            idomain[ilay] = xr.where(mask1, 0, idomain[ilay])
+            mask2 = (thick > 0) * mask
+            idomain[ilay] = xr.where(mask2, 1, idomain[ilay])
         else:
-            mask1 = (thickness[lay] == 0) * mask * (idomain[lay - 1] == 0)
-            idomain[lay] = xr.where(mask1, 0, idomain[lay])
+            mask1 = (thick == 0) * mask * (idomain[ilay - 1] == 0)
+            idomain[ilay] = xr.where(mask1, 0, idomain[ilay])
 
-            mask2 = (thickness[lay] == 0) * mask * (idomain[lay - 1] != 0)
-            idomain[lay] = xr.where(mask2, -1, idomain[lay])
+            mask2 = (thick == 0) * mask * (idomain[ilay - 1] != 0)
+            idomain[ilay] = xr.where(mask2, -1, idomain[ilay])
 
-            mask3 = (thickness[lay] != 0) * mask
-            idomain[lay] = xr.where(mask3, 1, idomain[lay])
+            mask3 = (thick != 0) * mask
+            idomain[ilay] = xr.where(mask3, 1, idomain[ilay])
 
     return idomain
 

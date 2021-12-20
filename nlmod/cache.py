@@ -421,11 +421,11 @@ def _update_docstring_and_signature(func):
     original_doc = func.__doc__
     if original_doc is None:
         logger.warning(f'Function "{func.__name__}" has no docstring')
-        return None
+        return
     if 'Returns' not in original_doc:
         logger.warning(
             f'Function "{func.__name__}" has no "Returns" header in docstring')
-        return None
+        return
     before, after = original_doc.split('Returns')
     mod_before = before.strip() + '\n    cachedir : str or None, optional\n'\
         '        directory to save cache. If None no cache is used.'\
@@ -434,3 +434,5 @@ def _update_docstring_and_signature(func):
         ' Default is None.\n\n    Returns'
     new_doc = ''.join((mod_before, after))
     func.__doc__ = new_doc
+    
+    return

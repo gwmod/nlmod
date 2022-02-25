@@ -299,7 +299,7 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
 
     # download file
     logger.info(f"- download ahn between: x ({str(extent[0])}, {str(extent[1])}); "
-                f"y ({str(extent[0])}, {str(extent[1])})")
+                f"y ({str(extent[2])}, {str(extent[3])})")
     wcs = WebCoverageService(url, version=version)
     if version == '1.0.0':
         bbox = (extent[0], extent[2], extent[1], extent[3])

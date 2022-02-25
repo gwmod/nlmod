@@ -6,14 +6,13 @@
 
 import datetime as dt
 import logging
-import os
 import tempfile
 
 import numpy as np
-import rasterio
 import xarray as xr
 from owslib.wcs import WebCoverageService
 from rasterio import merge
+from rasterio.io import MemoryFile
 
 from .. import cache, mdims, util
 
@@ -55,11 +54,11 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
 
     url = _infer_url(identifier)
 
-    fname_ahn = get_ahn_within_extent(extent=model_ds.extent,
-                                      url=url,
-                                      identifier=identifier)
+    ahn_ds_raw = get_ahn_within_extent(extent=model_ds.extent,
+                                       url=url,
+                                       identifier=identifier)
 
-    ahn_ds_raw = xr.open_rasterio(fname_ahn)
+    ahn_ds_raw = xr.open_rasterio(ahn_ds_raw.open())
     ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})
     nodata = ahn_ds_raw.attrs['nodatavals'][0]
     ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != nodata)
@@ -92,7 +91,7 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
 
 
 def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
-                     fname=None, **kwargs):
+                     fname=None, tmp_dir=None, **kwargs):
     """There is a max height and width limit of 800 * res for the wcs server.
     This function splits your extent in chunks smaller than the limit. It
     returns a list of gdal Datasets.
@@ -111,6 +110,8 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
         maximum widht or height of ahn tile
     fname : str, optional
         path name of the ahn tif output file
+    tmp_dir : str, optional
+        Path-like to cache the downloads
     **kwargs :
         keyword arguments of the get_ahn_extent function.
 
@@ -125,46 +126,47 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
     what kind of interpolation is used to resample the original grid.
     """
 
-    # write tiles
-    dataset = []
-    start_x = extent[0]
-    for tx in range(x_segments):
-        if (tx + 1) == x_segments:
-            end_x = extent[1]
+    # needs a temporary folder to store the individual ahn tiffs before merge
+    with tempfile.TemporaryDirectory() as tempfile_tmp_dir:
+        if tmp_dir is None:
+            logger.info(f"- Created temporary directory {tempfile_tmp_dir}. "
+                        "To store ahn tiffs of subextents")
+            tmp_dir_path = tempfile_tmp_dir
         else:
-            end_x = start_x + maxsize * res
-        start_y = extent[2]
-        for ty in range(y_segments):
-            if (ty + 1) == y_segments:
-                end_y = extent[3]
+            logger.info(f"- Use {tmp_dir} to store ahn tiffs of subextents")
+            tmp_dir_path = tmp_dir
+
+        # write tiles
+        dataset_bytes = []
+        start_x = extent[0]
+        for tx in range(x_segments):
+            if (tx + 1) == x_segments:
+                end_x = extent[1]
             else:
-                end_y = start_y + maxsize * res
-            subextent = [start_x, end_x, start_y, end_y]
-            logger.info(f'downloading subextent {subextent}')
-            logger.info(f'x_segment-{tx}, y_segment-{ty}')
+                end_x = start_x + maxsize * res
+            start_y = extent[2]
+            for ty in range(y_segments):
+                if (ty + 1) == y_segments:
+                    end_y = extent[3]
+                else:
+                    end_y = start_y + maxsize * res
+                subextent = [start_x, end_x, start_y, end_y]
+                logger.info(f'downloading subextent {subextent}')
+                logger.info(f'x_segment-{tx}, y_segment-{ty}')
 
-            fname_chunk = get_ahn_within_extent(subextent, res=res,
-                                                **kwargs)
-            dataset.append(rasterio.open(fname_chunk))
-            start_y = end_y
-        start_x = end_x
+                chunk_bytes = get_ahn_within_extent(subextent, res=res,
+                                                    tmp_dir=tmp_dir_path,
+                                                    **kwargs)
+                dataset_bytes.append(chunk_bytes)
+                start_y = end_y
 
-    # read tiles and merge
-    dest, output_transform = merge.merge(dataset)
+            start_x = end_x
 
-    # write merged raster
-    out_meta = dataset[0].meta.copy()
-    out_meta.update({'height': dest.shape[1],
-                     'width': dest.shape[2],
-                     'transform': output_transform})
-    if fname is None:
-        fname = 'ahn_{:.0f}_{:.0f}_{:.0f}_{:.0f}_{:.0f}.tiff'
-        fname = fname.format(*extent, res)
-        fname = os.path.join(os.path.split(fname_chunk)[0], fname)
-    with rasterio.open(fname, "w", **out_meta) as dest1:
-        dest1.write(dest)
+        dataset = [MemoryFile(b).open() for b in dataset_bytes]
+        memfile = MemoryFile()
+        merge.merge(dataset, dst_path=memfile)
 
-    return fname
+    return memfile
 
 
 def _infer_url(identifier=None):
@@ -204,7 +206,7 @@ def _infer_url(identifier=None):
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', fmt='GEOTIFF_FLOAT32',
                           crs='EPSG:28992', maxsize=800, fname=None,
-                          cache_dir=None):
+                          tmp_dir=None):
     """
 
     Parameters
@@ -241,7 +243,8 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         geotif format . The default is 'GEOTIFF_FLOAT32'.
     crs : str, optional
         coördinate reference system. The default is 'EPSG:28992'.
-
+    tmp_dir : str
+        Path-like to temporairly store the downloads before merge.
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
         800.
@@ -299,19 +302,10 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         return split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                                 identifier=identifier,
                                 version=version, fmt=fmt, crs=crs,
-                                fname=fname)
-
-    # get filename
-    if fname is None:
-        if not cache_dir:
-            cache_dir = os.path.join(tempfile.gettempdir(), 'ahn', identifier)
-        fname = 'ahn_{:.0f}_{:.0f}_{:.0f}_{:.0f}_{:.0f}.tiff'
-        fname = fname.format(*extent, res * 1000)
-        if not os.path.isdir(cache_dir):
-            os.makedirs(cache_dir)
-        fname = os.path.join(cache_dir, fname)
+                                fname=fname, tmp_dir=tmp_dir)
 
     # download file
+    logger.info(f"- download {fname}")
     wcs = WebCoverageService(url, version=version)
     if version == '1.0.0':
         bbox = (extent[0], extent[2], extent[1], extent[3])
@@ -326,9 +320,5 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                                  format=fmt, crs=crs)
     else:
         raise (Exception('Version {} not yet supported'.format(version)))
-    # write file to disk
-    with open(fname, 'wb') as f:
-        f.write(output.read())
-    logger.info(f"- download {fname}")
 
-    return fname
+    return output.read()

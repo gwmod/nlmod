@@ -91,7 +91,7 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
 
 
 def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
-                     fname=None, tmp_dir=None, **kwargs):
+                     tmp_dir=None, **kwargs):
     """There is a max height and width limit of 800 * res for the wcs server.
     This function splits your extent in chunks smaller than the limit. It
     returns a list of gdal Datasets.
@@ -108,8 +108,6 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
         number of tiles on the y axis
     maxsize : int or float
         maximum widht or height of ahn tile
-    fname : str, optional
-        path name of the ahn tif output file
     tmp_dir : str, optional
         Path-like to cache the downloads
     **kwargs :
@@ -117,8 +115,8 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
 
     Returns
     -------
-    fname : str, optional
-        path name of the ahn tif output file
+    MemoryFile
+        Rasterio MemoryFile of the merged AHN
 
     Notes
     -----
@@ -137,7 +135,7 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
             tmp_dir_path = tmp_dir
 
         # write tiles
-        dataset_bytes = []
+        datasets = []
         start_x = extent[0]
         for tx in range(x_segments):
             if (tx + 1) == x_segments:
@@ -154,17 +152,15 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                 logger.info(f'downloading subextent {subextent}')
                 logger.info(f'x_segment-{tx}, y_segment-{ty}')
 
-                chunk_bytes = get_ahn_within_extent(subextent, res=res,
-                                                    tmp_dir=tmp_dir_path,
-                                                    **kwargs)
-                dataset_bytes.append(chunk_bytes)
+                datasets.append(
+                    get_ahn_within_extent(
+                        subextent, res=res, tmp_dir=tmp_dir_path, **kwargs))
                 start_y = end_y
 
             start_x = end_x
 
-        dataset = [MemoryFile(b).open() for b in dataset_bytes]
         memfile = MemoryFile()
-        merge.merge(dataset, dst_path=memfile)
+        merge.merge([b.open() for b in datasets], dst_path=memfile)
 
     return memfile
 
@@ -174,8 +170,6 @@ def _infer_url(identifier=None):
 
     Parameters
     ----------
-    url : TYPE, optional
-        DESCRIPTION. The default is None.
     identifier : TYPE, optional
         DESCRIPTION. The default is None.
 
@@ -205,8 +199,7 @@ def _infer_url(identifier=None):
 
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', fmt='GEOTIFF_FLOAT32',
-                          crs='EPSG:28992', maxsize=800, fname=None,
-                          tmp_dir=None):
+                          crs='EPSG:28992', maxsize=800, tmp_dir=None):
     """
 
     Parameters
@@ -251,8 +244,8 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
 
     Returns
     -------
-    fname : str
-        file of the geotiff
+    MemoryFile
+        Rasterio MemoryFile of the AHN
 
     """
 
@@ -302,10 +295,11 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         return split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                                 identifier=identifier,
                                 version=version, fmt=fmt, crs=crs,
-                                fname=fname, tmp_dir=tmp_dir)
+                                tmp_dir=tmp_dir)
 
     # download file
-    logger.info(f"- download {fname}")
+    logger.info(f"- download ahn between: x ({str(extent[0])}, {str(extent[1])}); "
+                f"y ({str(extent[0])}, {str(extent[1])})")
     wcs = WebCoverageService(url, version=version)
     if version == '1.0.0':
         bbox = (extent[0], extent[2], extent[1], extent[3])
@@ -321,4 +315,4 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     else:
         raise (Exception('Version {} not yet supported'.format(version)))
 
-    return output.read()
+    return MemoryFile(output.read())

@@ -118,7 +118,7 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
 def create_vertex_grid(model_name, gridgen_ws, gwf=None,
                        refine_features=None, extent=None,
                        nlay=None, nrow=None, ncol=None,
-                       delr=None, delc=None):
+                       delr=None, delc=None, exe_name=None):
     """Create vertex grid. Refine grid using refinement features.
 
     Parameters
@@ -149,6 +149,8 @@ def create_vertex_grid(model_name, gridgen_ws, gwf=None,
         cell size along rows of the desired grid (dx).
     delc : int or float, optional
         cell size along columns of the desired grid (dy).
+    exe_name : str
+        Filepath to the gridgen executable
 
     Returns
     -------
@@ -182,10 +184,13 @@ def create_vertex_grid(model_name, gridgen_ws, gwf=None,
                                         yorigin=extent[2],
                                         filename='{}.dis'.format(model_name))
 
-    exe_name = os.path.join(os.path.dirname(__file__),
-                            '..', '..', 'bin', 'gridgen')
-    if sys.platform.startswith('win'):
-        exe_name += ".exe"
+    # Define new default `exe_name` for NHFLO
+    if exe_name is None:
+        exe_name = os.path.join(os.path.dirname(__file__),
+                                '..', '..', 'bin', 'gridgen')
+
+        if sys.platform.startswith('win'):
+            exe_name += ".exe"
 
     g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
 

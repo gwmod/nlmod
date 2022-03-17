@@ -14,6 +14,13 @@ from . import regis
 logger = logging.getLogger(__name__)
 
 
+def get_default_lithoklasse_translation_table():
+    return pd.read_csv(os.path.join(nlmod.NLMOD_DATADIR,
+                                    'geotop',
+                                    'litho_eenheden.csv'),
+                       index_col=0)
+
+
 @cache.cache_netcdf
 def get_geotop(extent, delr, delc,
                regis_ds, regis_layer='HLc'):
@@ -33,7 +40,7 @@ def get_geotop(extent, delr, delc,
     delc : int or float,
         cell size along columns, equal to dy
     regis_ds: xarray.DataSet
-        regis dataset used to cut geotop to the same x and y coördinates
+        regis dataset used to cut geotop to the same x and y coordinates
     regis_layer: str, optional
         layer of regis dataset that will be filled with geotop. The default is
         'HLc'.
@@ -240,7 +247,8 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
     return geotop_ds_mod
 
 
-def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
+def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names,
+                               f_anisotropy=0.25):
     """add stroombanen to tops and bots of geo_eenheden, also computes kh per
     geo_eenheid. Kh is computed by taking the average of all kh's of a
     geo_eenheid within a cell (e.g. if one geo_eenheid has a thickness of 1,5m
@@ -257,6 +265,10 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
         raster with bottom of each geo_eenheid, shape(nlay,nrow,ncol)
     geo_names: list of str
         names of each geo_eenheid
+    f_anisotropy: float, optional
+        anisotropy factor kv/kh, ratio between vertical and horizontal
+        hydraulic conductivities, by default 0.25. 
+
 
     Returns
     -------
@@ -308,7 +320,7 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names):
     geotop_ds_mod['top'] = da_top
     geotop_ds_mod['bot'] = da_bot
     geotop_ds_mod['kh'] = da_kh
-    geotop_ds_mod['kv'] = geotop_ds_mod['kh'] * .25
+    geotop_ds_mod['kv'] = geotop_ds_mod['kh'] * f_anisotropy
     geotop_ds_mod['thickness'] = da_thick
 
     return geotop_ds_mod

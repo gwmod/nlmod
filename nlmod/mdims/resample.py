@@ -44,7 +44,8 @@ def resample_dataarray2d_to_vertex_grid(da_in, gridprops=None,
         data array with dimension (cid).
     """
     if (xyi is None) or (cid is None):
-        xyi, cid = mgrid.get_xyi_cid(gridprops)
+        xyi, cid = mgrid.get_xyi_cid(gridprops=gridprops,
+                                     model_ds=kwargs.pop("model_ds", None))
 
     # get x and y values of all cells in dataarray
     mg = np.meshgrid(da_in.x.data, da_in.y.data)
@@ -159,7 +160,7 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops,
                                                            xyi=xyi, cid=cid,
                                                            method=method)
 
-        elif ds_in[data_var].dims == ('layer'):
+        elif ds_in[data_var].dims == ('layer') or ds_in[data_var].dims == ('layer',):
             data_arr = ds_in[data_var]
 
         else:

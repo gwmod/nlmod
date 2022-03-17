@@ -7,11 +7,10 @@ from shapely.geometry import Polygon, Point
 from .. import mdims
 
 
-
 def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     """ Obtain the cells with a horizontal flow barrier between them from a 
     geodataframe with line elements.
-    
+
 
     Parameters
     ----------
@@ -33,23 +32,23 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     """
     # for the idea, sea:
     # https://gis.stackexchange.com/questions/188755/how-to-snap-a-road-network-to-a-hexagonal-grid-in-qgis
-    
+
     gdfg = mdims.gdf2grid(gdf, gwf)
-    
+
     cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index('icell2d')
-    vertices = pd.DataFrame(gwf.disv.vertices.array).set_index('iv')  
-    
+    vertices = pd.DataFrame(gwf.disv.vertices.array).set_index('iv')
+
     # for every cell determine which cell-edge could form the line
     # by testing for an intersection with a triangle to the cell-center
     icvert = cell2d.loc[:, cell2d.columns.str.startswith('icvert')].values
-    
+
     hfb_seg = []
     for index in gdfg.index.unique():
         # Get the nearest hexagon sides where routes cross
         for icell2d in gdfg.loc[index, 'cellid']:
-            for i in range(cell2d.at[icell2d, 'ncvert']-1):
+            for i in range(cell2d.at[icell2d, 'ncvert'] - 1):
                 iv1 = icvert[icell2d, i]
-                iv2 = icvert[icell2d, i+1]
+                iv2 = icvert[icell2d, i + 1]
                 # make sure vert1 is lower than vert2
                 if iv1 > iv2:
                     iv1, iv2 = iv2, iv1
@@ -60,11 +59,11 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
                 if triangle.intersects(gdf.loc[index, 'geometry']):
                     hfb_seg.append((icell2d, iv1, iv2))
     hfb_seg = np.array(hfb_seg)
-    
+
     if prevent_rings:
         # find out if there are cells with segments on each side
         # remove the segments whose centroid is farthest from the line
-        for icell2d in np.unique(hfb_seg[:,0]):
+        for icell2d in np.unique(hfb_seg[:, 0]):
             mask = hfb_seg[:, 0] == icell2d
             if mask.sum() >= cell2d.at[icell2d, 'ncvert'] - 1:
                 segs = hfb_seg[mask]
@@ -76,14 +75,13 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
                 iv1, iv2 = segs[np.argmax(dist), [1, 2]]
                 mask = (hfb_seg[:, 1] == iv1) & (hfb_seg[:, 2] == iv2)
                 hfb_seg = hfb_seg[~mask]
-    
+
     # get unique segments
-    hfb_seg = np.unique(hfb_seg[:,1:], axis=0)
-    
-        
+    hfb_seg = np.unique(hfb_seg[:, 1:], axis=0)
+
     # Get rid of disconnected (or 'open') segments
     # Let's remove disconnected/open segments
-    iv  = np.unique(hfb_seg)
+    iv = np.unique(hfb_seg)
     segments_per_iv = pd.Series([np.sum(hfb_seg == x) for x in iv], index=iv)
     mask = np.full(hfb_seg.shape[0], True)
     for i, segment in enumerate(hfb_seg):
@@ -94,7 +92,7 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
              segments_per_iv[segment[0]] >= 3)):
             mask[i] = False
     hfb_seg = hfb_seg[mask]
-    
+
     if plot:
         # test by plotting
         ax = gdfg.plot()
@@ -102,29 +100,29 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
             x = [vertices.at[seg[0], 'xv'], vertices.at[seg[1], 'xv']]
             y = [vertices.at[seg[0], 'yv'], vertices.at[seg[1], 'yv']]
             ax.plot(x, y)
-        
+
     # find out between which cellid's these segments are
     segments = []
     for icell2d in cell2d.index:
-        for i in range(cell2d.at[icell2d, 'ncvert']-1):
+        for i in range(cell2d.at[icell2d, 'ncvert'] - 1):
             iv1 = icvert[icell2d, i]
-            iv2 = icvert[icell2d, i+1]
+            iv2 = icvert[icell2d, i + 1]
             # make sure vert1 is lower than vert2
             if iv1 > iv2:
                 iv1, iv2 = iv2, iv1
             segments.append((icell2d, (iv1, iv2)))
-    segments = pd.DataFrame(segments, columns=['icell2d','verts'])
+    segments = pd.DataFrame(segments, columns=['icell2d', 'verts'])
     segments = segments.set_index(['verts'])
-    
+
     cellids = []
     for seg in hfb_seg:
-        cellids.append(list(segments.loc[[tuple(seg)]].values[:,0]))
+        cellids.append(list(segments.loc[[tuple(seg)]].values[:, 0]))
     return cellids
 
 
 def plot_hfb(cellids, gwf, ax=None):
     """ plots a horizontal flow barrier
-    
+
 
     Parameters
     ----------
@@ -134,7 +132,7 @@ def plot_hfb(cellids, gwf, ax=None):
     gwf : flopy groundwater flow model
         DESCRIPTION.
     ax : matplotlib axes
-    
+
 
     Returns
     -------
@@ -146,15 +144,15 @@ def plot_hfb(cellids, gwf, ax=None):
     """
     if ax is None:
         fig, ax = plt.subplots()
-        
+
     if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
         spd = cellids.stress_period_data.data[0]
         cellids = [[line[0][1], line[1][1]] for line in spd]
-       
+
     for line in cellids:
         pc1 = Polygon(gwf.modelgrid.get_cell_vertices(line[0]))
         pc2 = Polygon(gwf.modelgrid.get_cell_vertices(line[1]))
-        x, y  = pc1.intersection(pc2).xy
-        ax.plot(x,y, color='red')
-    
+        x, y = pc1.intersection(pc2).xy
+        ax.plot(x, y, color='red')
+
     return ax

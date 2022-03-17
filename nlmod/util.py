@@ -547,6 +547,7 @@ def get_heads_array(fname_hds, gridtype='structured',
     """
     hdobj = flopy.utils.HeadFile(fname_hds)
     head = hdobj.get_alldata()
+    # TODO: this will sometimes set largest head to NaN...
     head[head == head.max()] = np.nan
 
     if gridtype == 'vertex':

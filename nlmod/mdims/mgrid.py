@@ -12,6 +12,7 @@ import os
 import sys
 
 import flopy
+import pandas as pd
 import geopandas as gpd
 import numpy as np
 import shapely
@@ -21,7 +22,9 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from shapely.prepared import prep
 from tqdm import tqdm
+from scipy.interpolate import griddata
 
+from shapely.geometry import Point
 from .. import cache, mfpackages, util
 
 logger = logging.getLogger(__name__)
@@ -50,8 +53,8 @@ def modelgrid_from_model_ds(model_ds, gridprops=None):
                 f'extent should be a list, tuple or numpy array, not {type(model_ds.extent)}')
 
         modelgrid = StructuredGrid(delc=np.array([model_ds.delc] * model_ds.dims['y']),
-                                   delr=np.array([model_ds.delr]
-                                                 * model_ds.dims['x']),
+                                   delr=np.array([model_ds.delr] *
+                                                 model_ds.dims['x']),
                                    xoff=model_ds.extent[0], yoff=model_ds.extent[2])
     elif model_ds.gridtype == 'vertex':
         _, gwf = mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
@@ -790,6 +793,226 @@ def polygon_to_area(modelgrid, polygon, da,
     return area_array
 
 
+def gdf2data_array_struc(gdf, gwf,
+                         field='VALUE',
+                         agg_method=None,
+                         interp_method=None):
+    """ Project vector data on a structured grid. Aggregate data if multiple
+    geometries are in a single cell
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataframe
+        vector data can only contain a single geometry type.
+    gwf : flopy groundwater flow model
+        model with a structured grid.
+    field : str, optional
+        column name in the geodataframe. The default is 'VALUE'.
+    interp_method : str or None, optional
+        method to obtain values in cells without geometry by interpolating
+        between cells with values. Options are 'nearest' and 'linear'.
+    agg_method : str, optional
+        aggregation method to handle multiple geometries in one cell, options 
+        are: 
+        - max, min, mean, 
+        - length_weighted (lines), max_length (lines), 
+        - area_weighted (polygon), area_max (polygon). 
+        The default is 'max'.
+    
+
+    Returns
+    -------
+    da : xarray DataArray
+        DESCRIPTION.
+
+    """
+    xmid = gwf.modelgrid.get_xcellcenters_for_layer(0)[0]
+    ymid = gwf.modelgrid.get_ycellcenters_for_layer(0)[:, 0]
+    da = xr.DataArray(np.nan, dims=('y', 'x'),
+                      coords={'y': ymid, 'x': xmid})
+    
+    # interpolate data
+    if interp_method is not None:
+        arr = interpolate_gdf_2_array(gdf, gwf, field=field, 
+                                      method=interp_method)
+        da.values = arr
+        
+        return da
+
+    gdf_cellid = gdf2grid(gdf, gwf, 'vertex')
+    
+    
+    if gdf_cellid.cellid.duplicated().any():
+        # aggregate data
+        if agg_method is None:
+            raise ValueError('multiple geometries in one cell please define aggregation method')
+        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {field: agg_method}, 
+                                            gwf)
+    else:
+        # aggregation not neccesary
+        gdf_agg = gdf_cellid[[field]]
+        gdf_agg.set_index(pd.MultiIndex.from_tuples(gdf_cellid.cellid.values),
+                          inplace=True)
+    
+    for ind, row in gdf_agg.iterrows():
+        da.values[ind[0], ind[1]] = row[field]
+
+    return da
+
+
+def interpolate_gdf_2_array(gdf, gwf, field='values', method='nearest'):
+    """ interpolate data from a point gdf
+    
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataframe
+        vector data can only contain a single geometry type.
+    gwf : flopy groundwater flow model
+        model with a structured grid.
+    field : str, optional
+        column name in the geodataframe. The default is 'values'.
+    method : str or None, optional
+        method to obtain values in cells without geometry by interpolating
+        between cells with values. Options are 'nearest' and 'linear'.
+
+    Returns
+    -------
+    arr : np.array
+        numpy array with interpolated data.
+
+    """
+    # check geometry
+    geom_types = gdf.geometry.type.unique()
+    if geom_types[0] != 'Point':
+        raise NotImplementedError('can only use interpolation with point geometries')
+        
+    # check field
+    if field not in gdf.columns:
+        raise ValueError(f"Missing column in DataFrame: {field}")
+    
+    points = np.array([[g.x, g.y] for g in gdf.geometry])
+    values = gdf[field].values
+    xi = np.vstack((gwf.modelgrid.xcellcenters.flatten(),
+                    gwf.modelgrid.ycellcenters.flatten())).T
+    vals = griddata(points, values, xi, method=method)
+    arr = np.reshape(vals, (gwf.modelgrid.nrow, gwf.modelgrid.ncol))
+    
+    return arr
+
+
+def _agg_max_area(gdf, col):
+    return gdf.loc[gdf.area.idxmax(), col]
+
+
+def _agg_area_weighted(gdf, col):
+    nanmask = gdf[col].isna()
+    aw = ((gdf.area * gdf[col]).sum(skipna=True)
+           / gdf.loc[~nanmask].area.sum())
+    return aw
+
+
+def _agg_max_length(gdf, col):
+    return gdf.loc[gdf.length.idxmax(), col]
+
+
+def _agg_length_weighted(gdf, col):
+    nanmask = gdf[col].isna()
+    aw = ((gdf.length * gdf[col]).sum(skipna=True)
+           / gdf.loc[~nanmask].length.sum())
+    return aw
+
+
+def _agg_nearest(gdf, col, gwf):
+    cid = gdf['cellid'].values[0]
+    cellcenter = Point(gwf.modelgrid.xcellcenters[0][cid[1]],
+                       gwf.modelgrid.ycellcenters[:,0][cid[0]])
+    val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
+    return val
+
+def _get_aggregates_values(group, fields_methods, gwf=None):
+
+    agg_dic = {}
+    for field, method in fields_methods.items():
+        # aggregation is only necesary if group shape is greater than 1
+        if group.shape[0]==1:
+            agg_dic[field] = group[field].values[0]
+        if method == 'max':
+            agg_dic[field] = group[field].max()
+        elif method == 'min':
+            agg_dic[field] = group[field].min()
+        elif method == 'mean':
+            agg_dic[field] = group[field].mean()
+        elif method == 'nearest':
+            agg_dic[field] = _agg_nearest(group, field, gwf)
+        elif method == 'length_weighted':  # only for lines
+            agg_dic[field] = _agg_length_weighted(group, field)
+        elif method == 'max_length':  # only for lines
+            agg_dic[field] = _agg_max_length(group, field)
+        elif method == "area_weighted":  # only for polygons
+            agg_dic[field] = _agg_area_weighted(group, field)
+        elif method == "max_area":  # only for polygons
+            agg_dic[field] = _agg_max_area(group, field)
+        elif method == 'center_grid':  # only for polygons
+            raise NotImplementedError
+        else:
+            raise ValueError(f"Method '{method}' not recognized!")
+
+    return agg_dic
+
+
+def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
+    """Aggregate vector features per cell.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        GeoDataFrame containing points, lines or polygons per grid cell.
+    fields_methods: dict
+        fields (keys) in the Geodataframe with their aggregation method (items)
+        aggregation methods can be:
+        max, min, mean, length_weighted (lines), max_length (lines), 
+        area_weighted (polygon), area_max (polygon).
+    gwf : flopy Groundwater flow model
+        only necesary if one of the field methods is 'nearest'
+
+    Returns
+    -------
+    celldata : pd.DataFrame
+        DataFrame with aggregated surface water parameters per grid cell
+    """
+    # check geometry types
+    geom_types = gdf.geometry.type.unique()
+    if len(geom_types) > 1:
+        if len(geom_types) == 2 and ('Polygon' in geom_types) and ('MultiPolygon' in geom_types):
+            pass
+        else:
+            raise TypeError('cannot aggregate geometries of different types')
+    if bool({'length_weighted', 'max_length'} & set(fields_methods.values())):
+        assert geom_types[0] == 'LineString', 'can only use length methods with line geometries'
+    if bool({'area_weighted', 'max_area'} & set(fields_methods.values())):
+        if ('Polygon' in geom_types) or ('MultiPolygon' in geom_types):
+            pass
+        else:
+            raise TypeError('can only use area methods with polygon geometries')
+
+    # check fields
+    missing_cols = set(fields_methods.keys()).difference(gdf.columns)
+    if len(missing_cols) > 0:
+        raise ValueError(f"Missing columns in DataFrame: {missing_cols}")
+
+    # aggregate data
+    gr = gdf.groupby(by="cellid")
+    celldata = pd.DataFrame(index=gr.groups.keys())
+    for cid, group in tqdm(gr, desc="Aggregate vector data"):
+        agg_dic = _get_aggregates_values(group, fields_methods,
+                                         gwf)
+        for key, item in agg_dic.items():
+            celldata.loc[cid, key] = item
+
+    return celldata
+
+
 def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
@@ -1034,7 +1257,7 @@ def get_vertices(model_ds, modelgrid=None,
             vertices_arr = all_vertices
 
     else:
-        return ValueError('Specify gridprops or modelgrid')
+        raise ValueError('Specify gridprops or modelgrid')
 
     vertices_da = xr.DataArray(vertices_arr,
                                dims=('cid', 'vert_per_cid', 'xy'),

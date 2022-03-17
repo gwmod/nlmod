@@ -135,6 +135,9 @@ def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
     da : xr.DataArray
         DataArray with coordinates from model_ds
     """
+    if not isinstance(dims, tuple):
+        raise TypeError('keyword argument dims should be of type tuple not {type(dims)}')
+    
     coords = {dim: da_ds[dim] for dim in dims}
     da = xr.DataArray(data, dims=dims,
                       coords=coords)
@@ -479,7 +482,7 @@ def getmfexes(pth='.', version='', pltfrm=None):
     pymake.download_and_unzip(download_url, pth)
 
 
-def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
+def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
     DataArray.
 

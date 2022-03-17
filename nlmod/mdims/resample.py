@@ -471,7 +471,7 @@ def get_resampled_ml_layer_ds_vertex(raw_ds=None,
     return ml_layer_ds
 
 
-def fillnan_dataarray_structured_grid(xar_in):
+def fillnan_dataarray_structured_grid(xar_in, method='nearest'):
     """fill not-a-number values in a structured grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
@@ -483,6 +483,9 @@ def fillnan_dataarray_structured_grid(xar_in):
     xar_in : xarray DataArray
         DataArray with nan values. DataArray should have 2 dimensions
         (y and x).
+    method : str, optional
+        method used in scipy.interpolate.griddata to resample, default is 
+        nearest.
 
     Returns
     -------
@@ -511,8 +514,8 @@ def fillnan_dataarray_structured_grid(xar_in):
     points_in = points_all[np.where(mask1)[0]]
     values_in = values_all[np.where(mask1)[0]]
 
-    # get nearest value for all nan values
-    values_out = griddata(points_in, values_in, points_all, method='nearest')
+    # get value for all nan values
+    values_out = griddata(points_in, values_in, points_all, method=method)
     arr_out = values_out.reshape(xar_in.shape)
 
     # create DataArray without nan values
@@ -524,7 +527,8 @@ def fillnan_dataarray_structured_grid(xar_in):
 
 
 def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
-                                  xyi=None, cid=None):
+                                  xyi=None, cid=None,
+                                  method='nearest'):
     """fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
@@ -540,6 +544,9 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
         array with x and y coördinates of cell centers, shape(len(cid), 2).
     cid : list
         list with cellids.
+    method : str, optional
+        method used in scipy.interpolate.griddata to resample, default is 
+        nearest.
 
     Returns
     -------
@@ -563,8 +570,8 @@ def fillnan_dataarray_vertex_grid(xar_in, gridprops=None,
     xyi_in = xyi[mask1]
     values_in = values_all[mask1]
 
-    # get nearest value for all nan values
-    values_out = griddata(xyi_in, values_in, xyi, method='nearest')
+    # get value for all nan values
+    values_out = griddata(xyi_in, values_in, xyi, method=method)
 
     # create DataArray without nan values
     xar_out = xr.DataArray(values_out, dims=('cid'),

@@ -274,6 +274,11 @@ def model_dataset_to_vector_file(model_ds,
 
     # get all data variables in the model dataset
     da_names = set(model_ds)
+    
+    # add data variables with only time variant data to exclude list
+    for da_name in da_names:
+        if ('time',) == model_ds[da_name].dims:
+            exclude += (da_name,)
 
     # exclude some names from export
     da_names -= set(exclude)

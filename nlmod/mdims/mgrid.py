@@ -812,13 +812,12 @@ def gdf2data_array_struc(gdf, gwf,
         method to obtain values in cells without geometry by interpolating
         between cells with values. Options are 'nearest' and 'linear'.
     agg_method : str, optional
-        aggregation method to handle multiple geometries in one cell, options 
-        are: 
-        - max, min, mean, 
-        - length_weighted (lines), max_length (lines), 
-        - area_weighted (polygon), area_max (polygon). 
+        aggregation method to handle multiple geometries in one cell, options
+        are:
+        - max, min, mean,
+        - length_weighted (lines), max_length (lines),
+        - area_weighted (polygon), area_max (polygon).
         The default is 'max'.
-    
 
     Returns
     -------
@@ -833,7 +832,7 @@ def gdf2data_array_struc(gdf, gwf,
     
     # interpolate data
     if interp_method is not None:
-        arr = interpolate_gdf_2_array(gdf, gwf, field=field, 
+        arr = interpolate_gdf_2_array(gdf, gwf, field=field,
                                       method=interp_method)
         da.values = arr
         
@@ -846,7 +845,7 @@ def gdf2data_array_struc(gdf, gwf,
         # aggregate data
         if agg_method is None:
             raise ValueError('multiple geometries in one cell please define aggregation method')
-        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {field: agg_method}, 
+        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {field: agg_method},
                                             gwf)
     else:
         # aggregation not neccesary
@@ -971,7 +970,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     fields_methods: dict
         fields (keys) in the Geodataframe with their aggregation method (items)
         aggregation methods can be:
-        max, min, mean, length_weighted (lines), max_length (lines), 
+        max, min, mean, length_weighted (lines), max_length (lines),
         area_weighted (polygon), area_max (polygon).
     gwf : flopy Groundwater flow model
         only necesary if one of the field methods is 'nearest'

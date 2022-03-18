@@ -8,7 +8,7 @@ from .. import mdims
 
 
 def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
-    """ Obtain the cells with a horizontal flow barrier between them from a 
+    """ Obtain the cells with a horizontal flow barrier between them from a
     geodataframe with line elements.
 
 
@@ -143,7 +143,7 @@ def plot_hfb(cellids, gwf, ax=None):
 
     """
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
 
     if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
         spd = cellids.stress_period_data.data[0]

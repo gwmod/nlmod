@@ -267,7 +267,7 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names,
         names of each geo_eenheid
     f_anisotropy: float, optional
         anisotropy factor kv/kh, ratio between vertical and horizontal
-        hydraulic conductivities, by default 0.25. 
+        hydraulic conductivities, by default 0.25.
 
 
     Returns

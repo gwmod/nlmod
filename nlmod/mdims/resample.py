@@ -484,7 +484,7 @@ def fillnan_dataarray_structured_grid(xar_in, method='nearest'):
         DataArray with nan values. DataArray should have 2 dimensions
         (y and x).
     method : str, optional
-        method used in scipy.interpolate.griddata to resample, default is 
+        method used in scipy.interpolate.griddata to resample, default is
         nearest.
 
     Returns

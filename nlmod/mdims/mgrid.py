@@ -829,18 +829,17 @@ def gdf2data_array_struc(gdf, gwf,
     ymid = gwf.modelgrid.get_ycellcenters_for_layer(0)[:, 0]
     da = xr.DataArray(np.nan, dims=('y', 'x'),
                       coords={'y': ymid, 'x': xmid})
-    
+
     # interpolate data
     if interp_method is not None:
         arr = interpolate_gdf_2_array(gdf, gwf, field=field,
                                       method=interp_method)
         da.values = arr
-        
+
         return da
 
     gdf_cellid = gdf2grid(gdf, gwf, 'vertex')
-    
-    
+
     if gdf_cellid.cellid.duplicated().any():
         # aggregate data
         if agg_method is None:
@@ -852,7 +851,7 @@ def gdf2data_array_struc(gdf, gwf,
         gdf_agg = gdf_cellid[[field]]
         gdf_agg.set_index(pd.MultiIndex.from_tuples(gdf_cellid.cellid.values),
                           inplace=True)
-    
+
     for ind, row in gdf_agg.iterrows():
         da.values[ind[0], ind[1]] = row[field]
 
@@ -861,7 +860,7 @@ def gdf2data_array_struc(gdf, gwf,
 
 def interpolate_gdf_2_array(gdf, gwf, field='values', method='nearest'):
     """ interpolate data from a point gdf
-    
+
 
     Parameters
     ----------
@@ -885,18 +884,18 @@ def interpolate_gdf_2_array(gdf, gwf, field='values', method='nearest'):
     geom_types = gdf.geometry.type.unique()
     if geom_types[0] != 'Point':
         raise NotImplementedError('can only use interpolation with point geometries')
-        
+
     # check field
     if field not in gdf.columns:
         raise ValueError(f"Missing column in DataFrame: {field}")
-    
+
     points = np.array([[g.x, g.y] for g in gdf.geometry])
     values = gdf[field].values
     xi = np.vstack((gwf.modelgrid.xcellcenters.flatten(),
                     gwf.modelgrid.ycellcenters.flatten())).T
     vals = griddata(points, values, xi, method=method)
     arr = np.reshape(vals, (gwf.modelgrid.nrow, gwf.modelgrid.ncol))
-    
+
     return arr
 
 
@@ -925,16 +924,17 @@ def _agg_length_weighted(gdf, col):
 def _agg_nearest(gdf, col, gwf):
     cid = gdf['cellid'].values[0]
     cellcenter = Point(gwf.modelgrid.xcellcenters[0][cid[1]],
-                       gwf.modelgrid.ycellcenters[:,0][cid[0]])
+                       gwf.modelgrid.ycellcenters[:, 0][cid[0]])
     val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
     return val
+
 
 def _get_aggregates_values(group, fields_methods, gwf=None):
 
     agg_dic = {}
     for field, method in fields_methods.items():
         # aggregation is only necesary if group shape is greater than 1
-        if group.shape[0]==1:
+        if group.shape[0] == 1:
             agg_dic[field] = group[field].values[0]
         if method == 'max':
             agg_dic[field] = group[field].max()

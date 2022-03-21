@@ -330,7 +330,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
 
         # check if cache and function call have same argument values
         if item is None:
-            # Value of None type is always None so the check happened in previous if statement
+            # Value of None type is always None so the check happens in previous if statement
             pass
         elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple)):
             if item != func_args_dic_cache[key]:
@@ -338,7 +338,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                     'cache was created using different function argument values, do not use cached data')
                 return False
         elif isinstance(item, np.ndarray):
-            if not np.array_equal(item, func_args_dic_cache[key]):
+            if not np.allclose(item, func_args_dic_cache[key]):
                 logger.info(
                     'cache was created using different numpy array values, do not use cached data')
                 return False

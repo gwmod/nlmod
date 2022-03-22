@@ -50,10 +50,10 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
 
     if write_model_ds:
         logger.info('write model dataset to cache')
-        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
-                                        'full_model_ds.nc'))
         model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now(
         ).strftime("%Y%m%d_%H:%M:%S")
+        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
+                                        'full_model_ds.nc'))
 
     logger.info('write modflow files to model workspace')
     gwf.simulation.write_simulation()

@@ -205,7 +205,7 @@ def cache_pklz(func):
         if not cachename.endswith('.pklz'):
             cachename += '.pklz'
 
-        fname_cache = os.path.join(cachedir, cachename)  # netcdf file
+        fname_cache = os.path.join(cachedir, cachename)  # pklz file
         fname_args_cache = fname_cache.replace(
             '.pklz', '_cache.pklz')  # pickle with function arguments
 
@@ -330,7 +330,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
 
         # check if cache and function call have same argument values
         if item is None:
-            # Value of None type is always None so the check happened in previous if statement
+            # Value of None type is always None so the check happens in previous if statement
             pass
         elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple)):
             if item != func_args_dic_cache[key]:
@@ -338,7 +338,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                     'cache was created using different function argument values, do not use cached data')
                 return False
         elif isinstance(item, np.ndarray):
-            if not np.array_equal(item, func_args_dic_cache[key]):
+            if not np.allclose(item, func_args_dic_cache[key]):
                 logger.info(
                     'cache was created using different numpy array values, do not use cached data')
                 return False
@@ -353,7 +353,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 logger.info(
                     'cache was created using different dictionaries, do not use cached data')
                 return False
-        elif isinstance(item, flopy.mf6.ModflowGwf):
+        elif isinstance(item, (flopy.mf6.ModflowGwf, flopy.modflow.mf.Modflow)):
             if str(item) != str(func_args_dic_cache[key]):
                 logger.info(
                     'cache was created using different groundwater flow model, do not use cached data')

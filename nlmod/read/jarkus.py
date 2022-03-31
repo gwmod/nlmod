@@ -55,7 +55,7 @@ def get_bathymetry(model_ds, northsea,
 
     # try to get bathymetry via opendap
     try:
-        url = 'http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'
+        url = 'https://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc'
         jarkus_ds = get_dataset_jarkus(model_ds.extent, url)
     except OSError:
         import gdown

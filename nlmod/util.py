@@ -50,10 +50,10 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
 
     if write_model_ds:
         logger.info('write model dataset to cache')
-        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
-                                        'full_model_ds.nc'))
         model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now(
         ).strftime("%Y%m%d_%H:%M:%S")
+        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
+                                        'full_model_ds.nc'))
 
     logger.info('write modflow files to model workspace')
     gwf.simulation.write_simulation()
@@ -135,6 +135,9 @@ def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
     da : xr.DataArray
         DataArray with coordinates from model_ds
     """
+    if not isinstance(dims, tuple):
+        raise TypeError('keyword argument dims should be of type tuple not {type(dims)}')
+
     coords = {dim: da_ds[dim] for dim in dims}
     da = xr.DataArray(data, dims=dims,
                       coords=coords)
@@ -479,7 +482,7 @@ def getmfexes(pth='.', version='', pltfrm=None):
     pymake.download_and_unzip(download_url, pth)
 
 
-def add_heads_to_model_ds(model_ds, fill_nans=False, fname_hds=None):
+def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
     DataArray.
 
@@ -547,6 +550,7 @@ def get_heads_array(fname_hds, gridtype='structured',
     """
     hdobj = flopy.utils.HeadFile(fname_hds)
     head = hdobj.get_alldata()
+    # TODO: this will sometimes set largest head to NaN...
     head[head == head.max()] = np.nan
 
     if gridtype == 'vertex':

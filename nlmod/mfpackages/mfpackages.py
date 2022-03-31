@@ -495,8 +495,8 @@ def get_tdis_perioddata(model_ds):
         - tsmult (double) is the multiplier for the length of successive time
           steps. The length of a time step is calculated by multiplying the
           length of the previous time step by TSMULT. The length of the first
-          time step, :math:`\Delta t_1`, is related to PERLEN, NSTP, and
-          TSMULT by the relation :math:`\Delta t_1= perlen \frac{tsmult -
+          time step, :math:`\\Delta t_1`, is related to PERLEN, NSTP, and
+          TSMULT by the relation :math:`\\Delta t_1= perlen \frac{tsmult -
           1}{tsmult^{nstp}-1}`.
     """
     perlen = model_ds.perlen

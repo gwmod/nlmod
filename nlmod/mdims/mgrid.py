@@ -832,8 +832,8 @@ def gdf2data_array_struc(gdf, gwf,
 
     # interpolate data
     if interp_method is not None:
-        arr = interpolate_gdf_2_array(gdf, gwf, field=field,
-                                      method=interp_method)
+        arr = interpolate_gdf_to_array(gdf, gwf, field=field,
+                                       method=interp_method)
         da.values = arr
 
         return da
@@ -858,7 +858,7 @@ def gdf2data_array_struc(gdf, gwf,
     return da
 
 
-def interpolate_gdf_2_array(gdf, gwf, field='values', method='nearest'):
+def interpolate_gdf_to_array(gdf, gwf, field='values', method='nearest'):
     """ interpolate data from a point gdf
 
 

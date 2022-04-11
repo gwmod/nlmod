@@ -7,6 +7,92 @@ from shapely.geometry import Polygon, Point
 from .. import mdims
 
 
+def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
+    """
+    Generate a stress period data for horizontal flow barrier between two cell nodes, with several limitations. The
+    stress period data can be used directly in the HFB package of flopy.
+    The hfb is placed at the cell interface; it follows the sides of the cells.
+
+    The estimation of the cross-sectional area at the interface is pretty
+    crude, as the thickness at the cell interface is just the average of the thicknesses of the two cells.
+
+    Parameters
+    ----------
+    gwf : Groundwater flow
+        Groundwaterflow model from flopy.
+    linestrings : geopandas.geodataframe
+    hydchr : float
+        Conductance of the horizontal flow barrier
+    depth : float
+        Depth with respect to groundlevel. For example for cases where the depth of the barrier is only limited by the
+        construction method. Use depth or elevation argument.
+    elevation : float
+        The elevation of the bottom of barrier. Top of the barrier is at groundlevel.
+
+    Returns
+    -------
+    spd : List of Tuple
+        Stress period data used to configure the hfb package of Flopy.
+
+    """
+    assert sum([depth is None, elevation is None]) == 1, 'Use either depth or elevation argument'
+
+    tops = np.concatenate((gwf.disv.top.array[None], gwf.disv.botm.array))
+    thick = tops[:-1] - tops[1:]
+
+    cells = line2hfb(linestrings, gwf)
+
+    spd = []
+
+    # hydchr = 1 / 100  # resistance of 100 days
+    for icell2d1, icell2d2 in cells:
+
+        # TODO: Improve assumption of the thickness between the cells.
+        thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
+        topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
+
+        for ilay in range(gwf.disv.nlay.array):
+            cellid1 = (ilay, icell2d1)
+            cellid2 = (ilay, icell2d2)
+
+            if gwf.disv.idomain.array[cellid1] <= 0:
+                continue
+
+            if gwf.disv.idomain.array[cellid2] <= 0:
+                continue
+
+            if depth is not None:
+                if sum(thicki[:ilay + 1]) <= depth:
+                    # hfb pierces the entire cell
+                    spd.append([cellid1, cellid2, hydchr])
+
+                elif sum(thicki[:ilay]) <= depth:
+                    # hfb pierces the cell partially
+                    hydchr_frac = (depth - sum(thicki[:ilay])) / thicki[ilay]
+                    assert hydchr_frac <= 1 and hydchr_frac >= 0, 'Something is wrong'
+
+                    spd.append([cellid1, cellid2, hydchr * hydchr_frac])
+                    break  # go to next cell
+
+                else:
+                    pass
+
+            else:
+                if topi[ilay + 1] >= elevation:
+                    # hfb pierces the entire cell
+                    spd.append([cellid1, cellid2, hydchr])
+
+                else:
+                    # hfb pierces the cell partially
+                    hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
+                    assert hydchr_frac <= 1 and hydchr_frac >= 0, 'Something is wrong'
+
+                    spd.append([cellid1, cellid2, hydchr * hydchr_frac])
+                    break  # go to next cell
+
+    return spd
+
+
 def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     """ Obtain the cells with a horizontal flow barrier between them from a
     geodataframe with line elements.

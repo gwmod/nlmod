@@ -89,6 +89,9 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
     """
     assert model_ds.gridtype == 'vertex', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
 
+    if isinstance(data_variables, str):
+        data_variables = [data_variables]
+
     # create dictionary with column names and values of the geodataframe
     dv_dic = {}
     for da_name in data_variables:
@@ -153,7 +156,10 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
         geodataframe of one or more DataArrays.
     """
     assert model_ds.gridtype == 'structured', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
-
+    
+    if isinstance(data_variables, str):
+        data_variables = [data_variables]
+    
     # create dictionary with column names and values of the geodataframe
     dv_dic = {}
     for da_name in data_variables:

@@ -1094,7 +1094,7 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
     return model_ds_out
 
 
-def gdf2grid(gdf, ml, method=None, ix=None,
+def gdf2grid(gdf, ml, method='vertex', ix=None,
              desc="Intersecting with grid", **kwargs):
     """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This
     method is just a wrapper around the GridIntersect method from flopy.
@@ -1108,8 +1108,7 @@ def gdf2grid(gdf, ml, method=None, ix=None,
     ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf
         The flopy model that defines the grid.
     method : string, optional
-        Method passed to the GridIntersect-class. The default is None, which
-        makes GridIntersect choose the best method.
+        Method passed to the GridIntersect-class. The default is 'vertex'.
     ix : flopy.utils.GridIntersect, optional
         GridIntersect, if not provided the modelgrid in ml is used.
     **kwargs : keyword arguments

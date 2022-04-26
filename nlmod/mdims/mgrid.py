@@ -1216,15 +1216,13 @@ def get_thickness_from_topbot(top, bot):
     return thickness
 
 
-def get_vertices(model_ds, modelgrid=None,
-                 gridprops=None, vert_per_cid=4):
-    """get vertices of a vertex modelgrid from the modelgrid or from the
-    gridprops. Only return the 4 corners of each cell and not the corners of
+def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
+    """get vertices of a vertex modelgrid from a model_ds or the modelgrid.
+    Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
 
-    If the modelgrid is given the xvertices and yvertices attributes of the
-    modelgrid are used. If the gridprops are given the cell2d and vertices are
-    obtained from the gridprops.
+    This method uses the xvertices and yvertices attributes of the modelgrid.
+    When no modelgrid is supplied, a modelgrid-object is created from model_ds.
 
     Parameters
     ----------
@@ -1232,8 +1230,6 @@ def get_vertices(model_ds, modelgrid=None,
         model dataset, attribute grid_type should be 'vertex'
     modelgrid : flopy.discretization.vertexgrid.VertexGrid
         vertex grid with attributes xvertices and yvertices.
-    gridprops : dictionary
-        gridproperties obtained from gridgen
     vert_per_cid : int or None:
         number of vertices per cell:
         - 4 return the 4 vertices of each cell
@@ -1252,42 +1248,21 @@ def get_vertices(model_ds, modelgrid=None,
     """
 
     # obtain
-    if modelgrid is not None:
-        xvert = modelgrid.xvertices
-        yvert = modelgrid.yvertices
-        if vert_per_cid == 4:
-            from rdp import rdp
-            vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i])))[
-                                    :-1] for i in range(len(xvert))])
-        elif vert_per_cid == 5:
-            from rdp import rdp
-            vertices_arr = np.array(
-                [rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))])
-        else:
-            raise NotImplementedError()
 
-    elif gridprops is not None:
-        all_vertices = np.ones(
-            (len(gridprops['cell2d']), len(gridprops['cell2d'][0]), 2)) * np.nan
-        for i, cell in enumerate(gridprops['cell2d']):
-            for j in range(cell[3]):
-                all_vertices[i, j] = gridprops['vertices'][cell[4 + j]][1:]
-
-        if vert_per_cid in [4, 5]:
-            from rdp import rdp
-            clean_vertices = np.ones((len(gridprops['cell2d']), 5, 2)) * np.nan
-            for i, vert in enumerate(all_vertices):
-                clean_vertices[i] = rdp(vert[~np.isnan(vert).any(axis=1)])
-            if vert_per_cid == 4:
-                vertices_arr = clean_vertices[:, :4, :]
-            else:
-                vertices_arr = clean_vertices
-
-        else:
-            vertices_arr = all_vertices
-
+    if modelgrid is None:
+        modelgrid = modelgrid_from_model_ds(model_ds)
+    xvert = modelgrid.xvertices
+    yvert = modelgrid.yvertices
+    if vert_per_cid == 4:
+        from rdp import rdp
+        vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i])))[
+                                :-1] for i in range(len(xvert))])
+    elif vert_per_cid == 5:
+        from rdp import rdp
+        vertices_arr = np.array(
+            [rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))])
     else:
-        raise ValueError('Specify gridprops or modelgrid')
+        raise NotImplementedError()
 
     vertices_da = xr.DataArray(vertices_arr,
                                dims=('icell2d', 'vert_per_cid', 'xy'),

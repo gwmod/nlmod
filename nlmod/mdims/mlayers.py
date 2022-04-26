@@ -648,7 +648,7 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
         da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'y', 'x'),
                                          data=1)
     elif model_ds.gridtype == 'vertex':
-        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'cid'),
+        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'icell2d'),
                                          data=1)
     else:
         raise ValueError(
@@ -687,10 +687,10 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
     ----------
     kh_in : np.ndarray
         kh from regis with nan values shape(nlay, nrow, ncol) or
-        shape(nlay, len(cid))
+        shape(nlay, len(icell2d))
     kv_in : np.ndarray
         kv from regis with nan values shape(nlay, nrow, ncol) or
-        shape(nlay, len(cid))
+        shape(nlay, len(icell2d))
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
     fill_value_kh : int or float, optional
@@ -701,9 +701,9 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
     Returns
     -------
     kh_out : np.ndarray
-        kh without nan values (nlay, nrow, ncol) or shape(nlay, len(cid))
+        kh without nan values (nlay, nrow, ncol) or shape(nlay, len(icell2d))
     kv_out : np.ndarray
-        kv without nan values (nlay, nrow, ncol) or shape(nlay, len(cid))
+        kv without nan values (nlay, nrow, ncol) or shape(nlay, len(icell2d))
     """
     kh_out = np.zeros_like(kh_in)
     for i, kh_lay in enumerate(kh_in):
@@ -741,8 +741,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy,
 
 
 def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
-                               gridtype='structured',
-                               gridprops=None):
+                               gridtype='structured'):
     """Fill values in top, bot, kh and kv.
 
     Fill where:
@@ -763,8 +762,6 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
         1 where a cell should be replaced by masked value.
     gridtype : str, optional
         type of grid.
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Default is None
 
     Returns
     -------
@@ -780,7 +777,7 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
         fill_function_kwargs = {}
     elif gridtype == 'vertex':
         fill_function = resample.fillnan_dataarray_vertex_grid
-        fill_function_kwargs = {'gridprops': gridprops}
+        fill_function_kwargs = {'model_ds': model_ds}
 
     for lay in range(model_ds.dims['layer']):
         bottom_nan = xr.where(fill_mask, np.nan, model_ds['bot'][lay])
@@ -825,7 +822,6 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
 
 def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                      gridtype='structured',
-                                     gridprops=None,
                                      keep_vars=None,
                                      add_northsea=True,
                                      anisotropy=10,
@@ -844,8 +840,7 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
     to model dataset
     4. compute top and bots from model layer dataset, add to model dataset
     5. compute kh, kv from model layer dataset, add to model dataset
-    6. if gridtype is vertex add top, bot and area to gridprops
-    7. if add_northsea is True:
+    6. if add_northsea is True:
         a) get cells from modelgrid that are within the northsea, add data
         variable 'northsea' to model_ds
         b) fill top, bot, kh and kv add northsea cell by extrapolation
@@ -861,8 +856,6 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         dataset with model layer data corresponding to the modelgrid
     gridtype : str, optional
         type of grid, default is 'structured'
-    gridprops : dictionary
-        dictionary with grid properties output from gridgen.
     keep_vars : list of str
         variables in ml_layer_ds that will be used in model_ds
     add_northsea : bool, optional
@@ -907,23 +900,12 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                                   fill_value_kh,
                                                   fill_value_kv)
 
-    if gridtype == 'vertex':
-        gridprops['top'] = model_ds['top'].data
-        gridprops['botm'] = model_ds['bot'].data
-
-        # add surface area of each cell
-        model_ds['area'] = ('cid', gridprops.pop('area')
-                            [:len(model_ds['cid'])])
-    else:
-        gridprops = None
-
     if add_northsea:
         logger.info(
             'nan values at the northsea are filled using the bathymetry from jarkus')
 
         # find grid cells with northsea
         model_ds.update(rws.get_northsea(model_ds,
-                                         gridprops=gridprops,
                                          cachedir=cachedir,
                                          cachename='sea_model_ds.nc'))
 
@@ -931,13 +913,11 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
         fill_mask = (model_ds['first_active_layer'] ==
                      model_ds.nodata) * model_ds['northsea']
         model_ds = fill_top_bot_kh_kv_at_mask(model_ds, fill_mask,
-                                              gridtype=gridtype,
-                                              gridprops=gridprops)
+                                              gridtype=gridtype)
 
         # add bathymetry noordzee
         model_ds.update(jarkus.get_bathymetry(model_ds,
                                               model_ds['northsea'],
-                                              gridprops=gridprops,
                                               cachedir=cachedir,
                                               cachename='bathymetry_model_ds.nc'))
 
@@ -952,9 +932,6 @@ def update_model_ds_from_ml_layer_ds(model_ds, ml_layer_ds,
                                                             model_ds['northsea'])
         model_ds['first_active_layer'] = mgrid.get_first_active_layer_from_idomain(
             model_ds['idomain'])
-        if gridtype == 'vertex':
-            gridprops['top'] = model_ds['top'].data
-            gridprops['botm'] = model_ds['bot'].data
 
     else:
         model_ds['thickness'], _ = calculate_thickness(model_ds)
@@ -1016,20 +993,20 @@ def update_idomain_from_thickness(idomain, thickness, mask):
     Parameters
     ----------
     idomain : xr.DataArray
-        raster with idomain of each cell. dimensions should be (layer, y,x) or
-        (layer, cid).
+        raster with idomain of each cell. dimensions should be (layer, y, x) or
+        (layer, icell2d).
     thickness : xr.DataArray
-        raster with thickness of each cell. dimensions should be (layer, y,x) or
-        (layer, cid).
+        raster with thickness of each cell. dimensions should be (layer, y, x)
+        or (layer, icell2d).
     mask : xr.DataArray
         raster with ones in cell where the ibound is adjusted. dimensions
-        should be (y,x) or (cid).
+        should be (y, x) or (icell2d).
 
     Returns
     -------
     idomain : xr.DataArray
         raster with adjusted idomain of each cell. dimensions should be
-        (layer, y,x) or (layer, cid).
+        (layer, y, x) or (layer, icell2d).
     """
 
     for ilay, thick in enumerate(thickness):
@@ -1171,7 +1148,7 @@ def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
 
     # step 3: fill nans in all layers
     nlay = model_ds.dims['layer']
-    top_bot_raw = np.ones((nlay + 1, model_ds.dims['cid']))
+    top_bot_raw = np.ones((nlay + 1, model_ds.dims['icell2d']))
     top_bot_raw[0] = highest_top
     top_bot_raw[1:-1] = ml_layer_ds['bot'].data[:-1].copy()
     top_bot_raw[-1] = lowest_bottom
@@ -1191,11 +1168,11 @@ def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
 
         top_bot[i_from_top] = new_lay
 
-    model_ds['bot'] = xr.DataArray(top_bot[1:], dims=('layer', 'cid'),
-                                   coords={'cid': model_ds.cid.data,
+    model_ds['bot'] = xr.DataArray(top_bot[1:], dims=('layer', 'icell2d'),
+                                   coords={'icell2d': model_ds.icell2d.data,
                                            'layer': model_ds.layer.data})
-    model_ds['top'] = xr.DataArray(top_bot[0], dims=('cid',),
-                                   coords={'cid': model_ds.cid.data})
+    model_ds['top'] = xr.DataArray(top_bot[0], dims=('icell2d',),
+                                   coords={'icell2d': model_ds.icell2d.data})
 
     # keep attributes for bot en top
     for datavar in ['top', 'bot']:

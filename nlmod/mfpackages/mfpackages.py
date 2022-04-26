@@ -129,7 +129,7 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
     return dis
 
 
-def disv_from_model_ds(model_ds, gwf, gridprops,
+def disv_from_model_ds(model_ds, gwf,
                        length_units='METERS',
                        angrot=0):
     """get discretisation vertices package from the model dataset.
@@ -140,8 +140,6 @@ def disv_from_model_ds(model_ds, gwf, gridprops,
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    gridprops : dictionary
-        dictionary with grid properties output from gridgen.
     length_units : str, optional
         length unit. The default is 'METERS'.
     angrot : int or float, optional
@@ -153,13 +151,20 @@ def disv_from_model_ds(model_ds, gwf, gridprops,
         disv package
     """
 
+    vertices = mdims.mgrid.get_vertices_from_model_ds(model_ds)
+    cell2d = mdims.mgrid.get_cell2d_from_model_ds(model_ds)
     disv = flopy.mf6.ModflowGwfdisv(gwf,
                                     idomain=model_ds['idomain'].data,
                                     xorigin=model_ds.extent[0],
                                     yorigin=model_ds.extent[2],
                                     length_units=length_units,
-                                    angrot=angrot,
-                                    **gridprops)
+                                    angrot=angrot, nlay=len(model_ds.layer),
+                                    ncpl=len(model_ds.icell2d),
+                                    nvert=len(model_ds.iv),
+                                    top=model_ds['top'].data,
+                                    botm=model_ds['bot'].data,
+                                    vertices=vertices,
+                                    cell2d=cell2d)
 
     return disv
 

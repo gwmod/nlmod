@@ -371,7 +371,7 @@ def build_spd(celldata, pkg, model_ds):
 
         # check if there is an active layer for this cell
         if model_ds.gridtype == 'vertex':
-            if (model_ds["idomain"].sel(cid=cellid) == 0).all():
+            if (model_ds["idomain"].sel(icell2d=cellid) == 0).all():
                 continue
         elif model_ds.gridtype == 'structured':
             if (model_ds["idomain"].isel(y=cellid[0], x=cellid[1]) == 0).all():

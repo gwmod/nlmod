@@ -141,7 +141,7 @@ cython_debug/
 .vscode
 
 # nlmod specific
-bin/
+nlmod/bin/
 flowchartnlmod.pptx
 tests/data/
 examples/*/

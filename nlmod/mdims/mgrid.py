@@ -190,7 +190,7 @@ def create_vertex_grid(model_name, gridgen_ws, gwf=None,
     # Define new default `exe_name` for NHFLO
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),
-                                '..', '..', 'bin', 'gridgen')
+                                '..', 'bin', 'gridgen')
 
         if sys.platform.startswith('win'):
             exe_name += ".exe"

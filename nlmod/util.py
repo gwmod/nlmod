@@ -596,7 +596,7 @@ def download_mfbinaries(binpath=None, version='6.0'):
         version string, by default '6.0'
     """
     if binpath is None:
-        binpath = os.path.join(os.path.dirname(__file__), "..", "bin")
+        binpath = os.path.join(os.path.dirname(__file__), "bin")
     pltfrm = get_platform(None)
     # Download and unpack mf6 exes
     getmfexes(pth=binpath, version=version, pltfrm=pltfrm)

@@ -39,7 +39,7 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6",
 
     if exe_name is None:
         exe_name = os.path.join(os.path.dirname(__file__),
-                                '..', '..', 'bin', model_ds.mfversion)
+                                '..', 'bin', model_ds.mfversion)
 
     # if working on Windows add .exe extension
     if sys.platform.startswith('win'):

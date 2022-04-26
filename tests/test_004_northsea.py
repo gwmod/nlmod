@@ -27,10 +27,7 @@ def test_surface_water_to_dataset():
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
     name = 'surface_water'
-    model_ds_surfwat = nlmod.read.rws.get_surface_water(
-        model_ds,
-        gwf.modelgrid,
-        name)
+    model_ds_surfwat = nlmod.read.rws.get_surface_water(model_ds, name)
 
     return model_ds_surfwat
 

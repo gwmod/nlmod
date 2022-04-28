@@ -252,9 +252,9 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     Parameters
     ----------
     da : xarray.Datarray
-        plot data with dimension(cid).
+        plot data with dimension(icell2d).
     vertices : xarray.Datarray or numpy.ndarray
-        Vertex coördinates per cell with dimensions(cid, 4, 2)
+        Vertex coördinates per cell with dimensions(icell2d, 4, 2)
     ax : TYPE, optional
         DESCRIPTION. The default is None.
     gridkwargs : dict or None, optional

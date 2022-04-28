@@ -22,16 +22,13 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_bathymetry(model_ds, northsea,
-                   gridprops=None):
+def get_bathymetry(model_ds, northsea):
     """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
     model_ds : xarray.Dataset
         dataset with model data where bathymetry is added to
-    gridprops : dic, optional
-        model properties when using vertex grids. The default is None.
 
     Returns
     -------
@@ -84,11 +81,11 @@ def get_bathymetry(model_ds, northsea,
                                                                       extent=model_ds.extent,
                                                                       delr=model_ds.delr,
                                                                       delc=model_ds.delc,
-                                                                      xmid=model_ds.x.data,
-                                                                      ymid=model_ds.y.data)
+                                                                      x=model_ds.x.data,
+                                                                      y=model_ds.y.data)
     elif model_ds.gridtype == 'vertex':
         da_bathymetry = mdims.resample_dataarray2d_to_vertex_grid(da_bathymetry_filled,
-                                                                  gridprops=gridprops)
+                                                                  model_ds)
 
     model_ds_out['bathymetry'] = xr.where(northsea, da_bathymetry, np.nan)
 

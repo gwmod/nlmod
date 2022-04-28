@@ -100,7 +100,7 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
         if no_dims == 1:
             dv_dic[da_name] = da.values
         elif no_dims == 2:
-            if da.dims == ('layer', 'cid'):
+            if da.dims == ('layer', 'icell2d'):
                 for i, da_lay in enumerate(da):
                     dv_dic[f'{da_name}_lay{i}'] = da_lay
             elif 'time' in da.dims:
@@ -112,7 +112,7 @@ def vertex_dataarray_to_gdf(model_ds, data_variables, polygons=None,
                         "Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'")
             else:
                 raise ValueError(
-                    f"expected dimensions ('layer', 'cid'), got {da.dims}")
+                    f"expected dimensions ('layer', 'icell2d'), got {da.dims}")
         else:
             raise NotImplementedError(
                 f'expected one or two dimensions got {no_dims} for data variable {da_name}')
@@ -281,9 +281,16 @@ def model_dataset_to_vector_file(model_ds,
     # get all data variables in the model dataset
     da_names = set(model_ds)
 
-    # add data variables with only time variant data to exclude list
+    # exclude some data variables
     for da_name in da_names:
+        # add data variables with only time variant data to exclude list
         if ('time',) == model_ds[da_name].dims:
+            exclude += (da_name,)
+        # add data variables with vertex data to exclude list
+        elif 'iv' in model_ds[da_name].dims:
+            exclude += (da_name,)
+        # add data variables with vertex data to exclude list
+        elif 'icv' in model_ds[da_name].dims:
             exclude += (da_name,)
 
     # exclude some names from export

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
+def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
     """Get a model dataset with ahn variable.
 
     Parameters
@@ -39,18 +39,12 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
             'ahn3_5m_dtm'
 
         The default is 'ahn3_5m_dtm'.
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Only used if
-        gridtype = 'vertex'
 
     Returns
     -------
     model_ds_out : xr.Dataset
         dataset with the ahn variable.
     """
-    if (model_ds.gridtype == 'vertex') and (gridprops is None):
-        raise ValueError(
-            'gridprops should be specified when gridtype is vertex')
 
     url = _infer_url(identifier)
 
@@ -68,13 +62,11 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm', gridprops=None):
                                                                extent=model_ds.extent,
                                                                delr=model_ds.delr,
                                                                delc=model_ds.delc,
-                                                               xmid=model_ds.x.data,
-                                                               ymid=model_ds.y.data)
+                                                               x=model_ds.x.data,
+                                                               y=model_ds.y.data)
     elif model_ds.gridtype == 'vertex':
-        xyi, cid = mdims.get_xyi_cid(gridprops)
         ahn_ds = mdims.resample_dataarray3d_to_vertex_grid(ahn_ds_raw,
-                                                           gridprops,
-                                                           xyi, cid)
+                                                           model_ds)
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out['ahn'] = ahn_ds[0]

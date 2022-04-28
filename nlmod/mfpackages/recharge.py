@@ -112,18 +112,18 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     elif model_ds.gridtype == 'vertex':
         empty_str_array = np.zeros_like(model_ds['idomain'][0], dtype="S13")
         model_ds['rch_name'] = xr.DataArray(empty_str_array,
-                                            dims=('cid'),
-                                            coords={'cid': model_ds.cid})
+                                            dims=('icell2d'),
+                                            coords={'icell2d': model_ds.icell2d})
         model_ds['rch_name'] = model_ds['rch_name'].astype(str)
 
         # dimension check
-        if model_ds['recharge'].dims == ('cid', 'time'):
+        if model_ds['recharge'].dims == ('icell2d', 'time'):
             rch_2d_arr = model_ds['recharge'].values
-        elif model_ds['recharge'].dims == ('time', 'cid'):
+        elif model_ds['recharge'].dims == ('time', 'icell2d'):
             rch_2d_arr = model_ds['recharge'].values.T
         else:
             raise ValueError('expected dataarray with 2 dimensions'
-                             f'(time, cid) or (cid, time), not {model_ds["recharge"].dims}')
+                             f'(time, icell2d) or (icell2d, time), not {model_ds["recharge"].dims}')
 
         rch_unique_arr = np.unique(rch_2d_arr, axis=0)
         rch_unique_dic = {}

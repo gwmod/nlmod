@@ -91,17 +91,17 @@ def get_recharge(model_ds,
                                                         'x': model_ds.x,
                                                         'y': model_ds.y})
     elif (model_ds.gridtype == 'vertex') and model_ds.steady_state:
-        empty_time_array = np.zeros((model_ds.dims['cid']))
+        empty_time_array = np.zeros((model_ds.dims['icell2d']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
-                                                dims=('cid'),
-                                                coords={'cid': model_ds.cid})
+                                                dims=('icell2d'),
+                                                coords={'icell2d': model_ds.icell2d})
     elif (model_ds.gridtype == 'vertex') and (not model_ds.steady_state):
-        empty_time_array = np.zeros((model_ds.dims['cid'],
+        empty_time_array = np.zeros((model_ds.dims['icell2d'],
                                      model_ds.dims['time']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
-                                                dims=('cid', 'time'),
+                                                dims=('icell2d', 'time'),
                                                 coords={'time': model_ds.time,
-                                                        'cid': model_ds.cid})
+                                                        'icell2d': model_ds.icell2d})
 
     locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(model_ds,
                                                                   start=start,
@@ -190,13 +190,13 @@ def get_locations_vertex(model_ds, nodata=-999):
         includes the columns: x, y and layer
     """
     # get active locations
-    cids_active = np.where(model_ds['first_active_layer'] != nodata)[0]
+    icell2d_active = np.where(model_ds['first_active_layer'] != nodata)[0]
 
     # create dataframe from active locations
-    x = model_ds['x'].sel(cid=cids_active)
-    y = model_ds['y'].sel(cid=cids_active)
-    layer = model_ds['first_active_layer'].sel(cid=cids_active)
-    locations = pd.DataFrame(index=cids_active,
+    x = model_ds['x'].sel(icell2d=icell2d_active)
+    y = model_ds['y'].sel(icell2d=icell2d_active)
+    layer = model_ds['first_active_layer'].sel(icell2d=icell2d_active)
+    locations = pd.DataFrame(index=icell2d_active,
                              data={'x': x, 'y': y, 'layer': layer})
     locations = hpd.ObsCollection(locations)
 

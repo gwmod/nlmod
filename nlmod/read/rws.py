@@ -37,7 +37,7 @@ def get_gdf_surface_water(model_ds):
 
 
 @cache.cache_netcdf
-def get_surface_water(model_ds, da_name, gridprops=None):
+def get_surface_water(model_ds, da_name):
     """create 3 data-arrays from the shapefile with surface water:
 
     - area: with the area of the shape in the cell
@@ -51,9 +51,6 @@ def get_surface_water(model_ds, da_name, gridprops=None):
     da_name : str
         name of the polygon shapes, name is used to store data arrays in
         model_ds
-    gridprops : dict, optional
-        extra model properties when using unstructured grids.
-        The default is None.
 
     Returns
     -------
@@ -61,7 +58,7 @@ def get_surface_water(model_ds, da_name, gridprops=None):
         dataset with modelgrid data.
     """
 
-    modelgrid = mdims.modelgrid_from_model_ds(model_ds, gridprops=gridprops)
+    modelgrid = mdims.modelgrid_from_model_ds(model_ds)
     gdf = get_gdf_surface_water(model_ds)
 
     area = xr.zeros_like(model_ds['top'])
@@ -92,7 +89,7 @@ def get_surface_water(model_ds, da_name, gridprops=None):
 
 
 @cache.cache_netcdf
-def get_northsea(model_ds, gridprops=None, da_name='northsea'):
+def get_northsea(model_ds, da_name='northsea'):
     """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is
     defined by rws surface water shapefile.
 
@@ -100,8 +97,6 @@ def get_northsea(model_ds, gridprops=None, da_name='northsea'):
     ----------
     model_ds : xr.DataSet
         xarray with model data
-    gridprops : dictionary
-        dictionary with grid properties output from gridgen.
     da_name : str, optional
         name of the datavar that identifies sea cells
 
@@ -121,7 +116,7 @@ def get_northsea(model_ds, gridprops=None, da_name='northsea'):
                                                                 'Hollandse kust (kustwater)',
                                                                 'Waddenkust (kustwater)'])]
 
-    modelgrid = mdims.modelgrid_from_model_ds(model_ds, gridprops=gridprops)
+    modelgrid = mdims.modelgrid_from_model_ds(model_ds)
     model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee,
                                              modelgrid, da_name)
 

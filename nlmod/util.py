@@ -510,8 +510,8 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
 
     if model_ds.gridtype == 'vertex':
         head_ar = xr.DataArray(data=head_filled[:, :, :],
-                               dims=('time', 'layer', 'cid'),
-                               coords={'cid': model_ds.cid,
+                               dims=('time', 'layer', 'icell2d'),
+                               coords={'icell2d': model_ds.icell2d,
                                        'layer': model_ds.layer,
                                        'time': model_ds.time})
     elif model_ds.gridtype == 'structured':
@@ -530,7 +530,7 @@ def get_heads_array(fname_hds, gridtype='structured',
     """reads the heads from a modflow .hds file and returns a numpy array.
 
     assumes the dimensions of the heads file are:
-        structured: time, layer, cid
+        structured: time, layer, icell2d
         vertex: time, layer, nrow, ncol
 
 

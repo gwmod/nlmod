@@ -81,8 +81,8 @@ def get_bathymetry(model_ds, northsea):
                                                                       extent=model_ds.extent,
                                                                       delr=model_ds.delr,
                                                                       delc=model_ds.delc,
-                                                                      xmid=model_ds.x.data,
-                                                                      ymid=model_ds.y.data)
+                                                                      x=model_ds.x.data,
+                                                                      y=model_ds.y.data)
     elif model_ds.gridtype == 'vertex':
         da_bathymetry = mdims.resample_dataarray2d_to_vertex_grid(da_bathymetry_filled,
                                                                   model_ds)

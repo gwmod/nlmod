@@ -62,8 +62,8 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
                                                                extent=model_ds.extent,
                                                                delr=model_ds.delr,
                                                                delc=model_ds.delc,
-                                                               xmid=model_ds.x.data,
-                                                               ymid=model_ds.y.data)
+                                                               x=model_ds.x.data,
+                                                               y=model_ds.y.data)
     elif model_ds.gridtype == 'vertex':
         ahn_ds = mdims.resample_dataarray3d_to_vertex_grid(ahn_ds_raw,
                                                            model_ds)

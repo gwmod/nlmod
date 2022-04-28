@@ -115,9 +115,9 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
 
     Returns
     -------
-    xmid : np.array
+    x : np.array
         x-coordinates of the cell centers shape(ncol)
-    ymid : np.array
+    y : np.array
         y-coordinates of the cell centers shape(nrow)
     """
     # check if extent is valid
@@ -137,13 +137,13 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     ncol = int((extent[1] - extent[0]) / delr)
     nrow = int((extent[3] - extent[2]) / delc)
 
-    xmid = np.linspace(x_mid_start, x_mid_end, ncol)
+    x = np.linspace(x_mid_start, x_mid_end, ncol)
     if descending_y:
-        ymid = np.linspace(y_mid_end, y_mid_start, nrow)
+        y = np.linspace(y_mid_end, y_mid_start, nrow)
     else:
-        ymid = np.linspace(y_mid_start, y_mid_end, nrow)
+        y = np.linspace(y_mid_start, y_mid_end, nrow)
 
-    return xmid, ymid
+    return x, y
 
 
 @cache.cache_pklz
@@ -854,10 +854,10 @@ def gdf2data_array_struc(gdf, gwf,
         DESCRIPTION.
 
     """
-    xmid = gwf.modelgrid.get_xcellcenters_for_layer(0)[0]
-    ymid = gwf.modelgrid.get_ycellcenters_for_layer(0)[:, 0]
+    x = gwf.modelgrid.get_xcellcenters_for_layer(0)[0]
+    y = gwf.modelgrid.get_ycellcenters_for_layer(0)[:, 0]
     da = xr.DataArray(np.nan, dims=('y', 'x'),
-                      coords={'y': ymid, 'x': xmid})
+                      coords={'y': y, 'x': x})
 
     # interpolate data
     if interp_method is not None:

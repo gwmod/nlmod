@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def resample_dataarray2d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
-                                        icell2d=None, method='nearest',
+                                        method='nearest',
                                         **kwargs):
     """resample a 2d dataarray (xarray) from a structured grid to a new
     dataaraay of a vertex grid.
@@ -34,9 +34,6 @@ def resample_dataarray2d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
     y : numpy.ndarray
         array with x coördinate of cell centers, len(icell2d). If y is None y
         is retreived from model_ds.
-    icell2d : list or numpy.ndarray, optional
-        list with cell2d-numbers. If  icell2d is None icell2d is retreived
-        from model_ds.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
 
@@ -49,8 +46,6 @@ def resample_dataarray2d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
         x = model_ds['x'].data
     if y is None:
         y = model_ds['y'].data
-    if icell2d is None:
-        icell2d = model_ds['icell2d']
 
     # get x and y values of all cells in dataarray
     mg = np.meshgrid(da_in.x.data, da_in.y.data)
@@ -62,14 +57,13 @@ def resample_dataarray2d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
                        **kwargs)
 
     # new dataset
-    da_out = xr.DataArray(arr_out, dims=('icell2d'),
-                          coords={'icell2d': icell2d})
+    da_out = xr.DataArray(arr_out, dims=('icell2d'))
 
     return da_out
 
 
 def resample_dataarray3d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
-                                        icell2d=None, method='nearest'):
+                                        method='nearest'):
     """resample a dataarray (xarray) from a structured grid to a new dataaraay
     of a vertex grid.
 
@@ -88,9 +82,6 @@ def resample_dataarray3d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
     y : numpy.ndarray
         array with x coördinate of cell centers, len(icell2d). If y is None y
         is retreived from model_ds.
-    icell2d : list or numpy.ndarray, optional
-        list with cell2d-numbers. If  icell2d is None icell2d is retreived
-        from model_ds.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
 
@@ -103,8 +94,6 @@ def resample_dataarray3d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
         x = model_ds['x'].data
     if y is None:
         y = model_ds['y'].data
-    if icell2d is None:
-        icell2d = model_ds['icell2d']
 
     # get x and y values of all cells in dataarray
     mg = np.meshgrid(da_in.x.data, da_in.y.data)
@@ -123,8 +112,7 @@ def resample_dataarray3d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
 
     # new dataset
     da_out = xr.DataArray(arr_out, dims=('layer', 'icell2d'),
-                          coords={'icell2d': icell2d,
-                                  'layer': layers})
+                          coords={'layer': layers})
 
     return da_out
 
@@ -153,15 +141,14 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method='nearest'):
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
     xyi, icell2d = mgrid.get_xyi_icell2d(gridprops)
-    x = xr.DataArray(xyi[:, 0], dims=('icell2d'), coords={'icell2d': icell2d})
-    y = xr.DataArray(xyi[:, 1], dims=('icell2d'), coords={'icell2d': icell2d})
+    x = xr.DataArray(xyi[:, 0], dims=('icell2d'))
+    y = xr.DataArray(xyi[:, 1], dims=('icell2d'))
 
     if method in ['nearest', 'linear']:
         # resample the entire dataset in one line
         return ds_in.interp(x=x, y=y, method=method)
 
-    ds_out = xr.Dataset(coords={'icell2d': icell2d,
-                                'layer': ds_in.layer.data})
+    ds_out = xr.Dataset(coords={'layer': ds_in.layer.data})
 
     # add x and y coordinates
     ds_out['x'] = x
@@ -171,11 +158,11 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method='nearest'):
     for data_var in ds_in.data_vars:
         if ds_in[data_var].dims == ('layer', 'y', 'x'):
             data_arr = resample_dataarray3d_to_vertex_grid(ds_in[data_var],
-                                                           xyi=xyi, icell2d=icell2d,
+                                                           xyi=xyi,
                                                            method=method)
         elif ds_in[data_var].dims == ('y', 'x'):
             data_arr = resample_dataarray2d_to_vertex_grid(ds_in[data_var],
-                                                           xyi=xyi, icell2d=icell2d,
+                                                           xyi=xyi,
                                                            method=method)
 
         elif ds_in[data_var].dims == ('layer') or ds_in[data_var].dims == ('layer',):
@@ -236,14 +223,15 @@ def resample_dataarray2d_to_structured_grid(da_in, extent=None,
         data array with dimensions (y, x). y and x are from the new grid.
     """
 
-    assert isinstance(
-        da_in, xr.core.dataarray.DataArray), f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
+    msg = f'expected type xr.core.dataarray.DataArray got {type(da_in)} instead'
+    assert isinstance(da_in, xr.core.dataarray.DataArray), msg
 
     if x is None or y is None:
         x, y = mgrid.get_xy_mid_structured(extent, delr, delc)
 
     # check if ymid is in descending order
-    assert np.array_equal(y, np.sort(y)[::-1]), 'ymid should be in descending order'
+    msg = 'ymid should be in descending order'
+    assert np.array_equal(y, np.sort(y)[::-1]), msg
 
     # check for nan values
     if (da_in.isnull().sum() > 0) and (kind == "linear"):
@@ -480,7 +468,6 @@ def get_resampled_ml_layer_ds_vertex(raw_ds=None, extent=None, gridprops=None,
         ml_layer_ds['area'] = ('icell2d', area)
     # add information about the vertices
     iv, xv, yv = zip(*gridprops['vertices'])
-    ml_layer_ds['iv'] = np.array(iv)
     ml_layer_ds['xv'] = ('iv', np.array(xv))
     ml_layer_ds['yv'] = ('iv', np.array(yv))
     # and set which nodes use which vertices
@@ -489,9 +476,8 @@ def get_resampled_ml_layer_ds_vertex(raw_ds=None, extent=None, gridprops=None,
     for i in range(gridprops['ncpl']):
         icvert[i, :gridprops['cell2d'][i][3]] = gridprops['cell2d'][i][4:]
 
-    ml_layer_ds['icv'] = range(ncvert_max)
-    ml_layer_ds['icvert'] = ('icell2d', 'icv'), icvert
-    ml_layer_ds['icvert'].attrs['nodata'] = nodata
+    ml_layer_ds['icvert'] = ('icell2d', 'nvert'), icvert
+    ml_layer_ds['icvert'].attrs['_FillValue'] = nodata
 
     ml_layer_ds.attrs['gridtype'] = 'vertex'
     ml_layer_ds.attrs['delr'] = raw_ds.delr
@@ -575,8 +561,6 @@ def fillnan_dataarray_vertex_grid(xar_in, model_ds=None, x=None, y=None,
     y : np.array, optional
         y coördinates of the cell centers shape(icell2d), if not defined use y
         from model_ds.
-    icell2d : list, optional
-        list with cell2d-numbers. If not defined use icell2d from model_ds.
     method : str, optional
         method used in scipy.interpolate.griddata to resample, default is
         nearest.
@@ -596,8 +580,6 @@ def fillnan_dataarray_vertex_grid(xar_in, model_ds=None, x=None, y=None,
         x = model_ds['x'].data
     if y is None:
         y = model_ds['y'].data
-    if icell2d is None:
-        icell2d = model_ds['icell2d']
 
     xyi = np.column_stack((x, y))
 
@@ -613,8 +595,7 @@ def fillnan_dataarray_vertex_grid(xar_in, model_ds=None, x=None, y=None,
     values_out = griddata(xyi_in, values_in, xyi, method=method)
 
     # create DataArray without nan values
-    xar_out = xr.DataArray(values_out, dims=('icell2d'),
-                           coords={'icell2d': xar_in.icell2d.data})
+    xar_out = xr.DataArray(values_out, dims=('icell2d'))
 
     return xar_out
 

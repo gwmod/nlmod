@@ -112,8 +112,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     elif model_ds.gridtype == 'vertex':
         empty_str_array = np.zeros_like(model_ds['idomain'][0], dtype="S13")
         model_ds['rch_name'] = xr.DataArray(empty_str_array,
-                                            dims=('icell2d'),
-                                            coords={'icell2d': model_ds.icell2d})
+                                            dims=('icell2d'))
         model_ds['rch_name'] = model_ds['rch_name'].astype(str)
 
         # dimension check

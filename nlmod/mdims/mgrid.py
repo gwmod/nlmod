@@ -62,6 +62,7 @@ def modelgrid_from_model_ds(model_ds):
 
 
 def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
+    """Add information about the calculation-grid to a model dataset"""
     # add modelgrid to ds
     ds['xv'] = ('iv', mg.verts[:, 0])
     ds['yv'] = ('iv', mg.verts[:, 1])
@@ -77,11 +78,15 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
 
 
 def get_vertices_from_model_ds(ds):
+    """Get the vertices-list from a model dataset. Flopy needs needs this list
+    to build a disv-package"""
     vertices = list(zip(ds['iv'].data, ds['xv'].data, ds['yv'].data))
     return vertices
 
 
 def get_cell2d_from_model_ds(ds):
+    """Get the cell2d-list from a model dataset. Flopy needs this list to build
+    a disv-package"""
     icell2d = ds['icell2d'].data
     x = ds['x'].data
     y = ds['y'].data

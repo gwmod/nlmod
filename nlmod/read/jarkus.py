@@ -45,7 +45,9 @@ def get_bathymetry(model_ds, northsea):
 
     # no bathymetry if we don't have northsea
     if (northsea == 0).all():
-        model_ds_out['bathymetry'] = northsea.dims, np.nan
+        model_ds_out['bathymetry'] = util.get_da_from_da_ds(northsea,
+                                                            northsea.dims,
+                                                            data=np.nan)
         return model_ds_out
 
     # try to get bathymetry via opendap

@@ -136,11 +136,11 @@ def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
         DataArray with coordinates from model_ds
     """
     if not isinstance(dims, tuple):
-        raise TypeError('keyword argument dims should be of type tuple not {type(dims)}')
+        raise TypeError(
+            'keyword argument dims should be of type tuple not {type(dims)}')
 
-    coords = {dim: da_ds[dim] for dim in dims}
-    da = xr.DataArray(data, dims=dims,
-                      coords=coords)
+    coords = {dim: da_ds[dim] for dim in dims if dim in da_ds.coords}
+    da = xr.DataArray(data, dims=dims, coords=coords)
 
     return da
 

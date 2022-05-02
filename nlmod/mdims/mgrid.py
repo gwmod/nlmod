@@ -62,8 +62,8 @@ def modelgrid_from_model_ds(model_ds):
 
 
 def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
+    """Add information about the calculation-grid to a model dataset"""
     # add modelgrid to ds
-    ds['iv'] = range(mg.nvert)
     ds['xv'] = ('iv', mg.verts[:, 0])
     ds['yv'] = ('iv', mg.verts[:, 1])
 
@@ -72,25 +72,27 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     icvert = np.full((mg.ncpl, ncvert_max), nodata)
     for i in range(mg.ncpl):
         icvert[i, :cell2d[i][3]] = cell2d[i][4:]
-
-    ds['icv'] = range(ncvert_max)
     ds['icvert'] = ('cell2d', 'icv'), icvert
-    ds['icvert'].attrs['nodata'] = nodata
+    ds['icvert'].attrs['_FillValue'] = nodata
     return ds
 
 
 def get_vertices_from_model_ds(ds):
+    """Get the vertices-list from a model dataset. Flopy needs needs this list
+    to build a disv-package"""
     vertices = list(zip(ds['iv'].data, ds['xv'].data, ds['yv'].data))
     return vertices
 
 
 def get_cell2d_from_model_ds(ds):
+    """Get the cell2d-list from a model dataset. Flopy needs this list to build
+    a disv-package"""
     icell2d = ds['icell2d'].data
     x = ds['x'].data
     y = ds['y'].data
     icvert = ds['icvert'].data
     cell2d = []
-    nodata = ds['icvert'].attrs['nodata']
+    nodata = ds['icvert'].attrs['_FillValue']
     for i in range(len(icell2d)):
         mask = ds['icvert'].data[i] != nodata
         cell2d.append((icell2d[i], x[i], y[i], mask.sum(), *icvert[i][mask]))
@@ -1266,9 +1268,7 @@ def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
 
     vertices_da = xr.DataArray(vertices_arr,
                                dims=('icell2d', 'vert_per_cid', 'xy'),
-                               coords={'icell2d': model_ds.icell2d.values,
-                                       'vert_per_cid': range(vertices_arr.shape[1]),
-                                       'xy': ['x', 'y']})
+                               coords={'xy': ['x', 'y']})
 
     return vertices_da
 

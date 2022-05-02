@@ -645,18 +645,16 @@ def add_kh_kv_from_ml_layer_to_dataset(ml_layer_ds, model_ds, anisotropy,
                        fill_value_kv=fill_value_kv)
 
     if model_ds.gridtype == 'structured':
-        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'y', 'x'),
-                                         data=1)
+        dims = ('layer', 'y', 'x')
     elif model_ds.gridtype == 'vertex':
-        da_ones = util.get_da_from_da_ds(model_ds, dims=('layer', 'icell2d'),
-                                         data=1)
+        dims = ('layer', 'icell2d')
     else:
         raise ValueError(
             'function only support structured or vertex gridtypes')
 
-    model_ds['kh'] = da_ones * kh
+    model_ds['kh'] = dims, kh
 
-    model_ds['kv'] = da_ones * kv
+    model_ds['kv'] = dims, kv
 
     # keep attributes for bot en top
     for datavar in ['kh', 'kv']:
@@ -1168,11 +1166,8 @@ def add_top_bot_vertex(ml_layer_ds, model_ds, nodata=-999):
 
         top_bot[i_from_top] = new_lay
 
-    model_ds['bot'] = xr.DataArray(top_bot[1:], dims=('layer', 'icell2d'),
-                                   coords={'icell2d': model_ds.icell2d.data,
-                                           'layer': model_ds.layer.data})
-    model_ds['top'] = xr.DataArray(top_bot[0], dims=('icell2d',),
-                                   coords={'icell2d': model_ds.icell2d.data})
+    model_ds['bot'] = ('layer', 'icell2d'), top_bot[1:]
+    model_ds['top'] = 'icell2d', top_bot[0]
 
     # keep attributes for bot en top
     for datavar in ['top', 'bot']:

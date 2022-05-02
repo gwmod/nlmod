@@ -93,15 +93,13 @@ def get_recharge(model_ds,
     elif (model_ds.gridtype == 'vertex') and model_ds.steady_state:
         empty_time_array = np.zeros((model_ds.dims['icell2d']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
-                                                dims=('icell2d'),
-                                                coords={'icell2d': model_ds.icell2d})
+                                                dims=('icell2d'))
     elif (model_ds.gridtype == 'vertex') and (not model_ds.steady_state):
         empty_time_array = np.zeros((model_ds.dims['icell2d'],
                                      model_ds.dims['time']))
         model_ds_out['recharge'] = xr.DataArray(empty_time_array,
                                                 dims=('icell2d', 'time'),
-                                                coords={'time': model_ds.time,
-                                                        'icell2d': model_ds.icell2d})
+                                                coords={'time': model_ds.time})
 
     locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(model_ds,
                                                                   start=start,

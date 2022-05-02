@@ -156,10 +156,10 @@ def struc_dataarray_to_gdf(model_ds, data_variables, polygons=None,
         geodataframe of one or more DataArrays.
     """
     assert model_ds.gridtype == 'structured', f'expected model dataset with gridtype vertex, got {model_ds.gridtype}'
-    
+
     if isinstance(data_variables, str):
         data_variables = [data_variables]
-    
+
     # create dictionary with column names and values of the geodataframe
     dv_dic = {}
     for da_name in data_variables:
@@ -338,3 +338,117 @@ def model_dataset_to_vector_file(model_ds,
         return fname_gpkg
     else:
         return fnames
+
+
+def model_dataset_to_ugrid_nc_file(model_ds, fname, variables=None,
+                                   dummy_var='mesh_topology', xv='xv', yv='yv',
+                                   face_node_connectivity='icvert'):
+    """
+    Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh
+    Layer in qgis
+
+    Parameters
+    ----------
+    model_ds : xr.DataSet
+        xarray with model data
+    fname : str
+        filename of the UGRID NetCDF-file, preferably with the extension .nc.
+    variables : str or list of str, optional
+        THe variables to be saved in the NetCDF file. The default is None,
+        which means all variables will be saved in the file.
+    dummy_var : str, optional
+        The name of the new dummy-variable that contains the gridinformation in
+        its attributes. The default is 'mesh_topology'.
+    xv : str, optional
+        The name of the variable that contains the x-coordinate of the vertices
+        that together form the edges of the faces. The default is 'xv'.
+    yv : str, optional
+        The name of the variable that contains the y-coordinate of the vertices
+        that together form the edges of the faces. The default is 'yv'.
+    face_node_connectivity : str, optional
+        The name of the variable that contains the indexes of the vertices for
+        each face. The default is 'icvert'.
+
+    Returns
+    -------
+    ds : xr.DataSet
+        The dataset that was saved to a NetCDF-file. Can be used for debugging.
+
+    """
+    #assert model_ds.gridtype == 'vertex', 'Only vertex grids are supported'
+
+    # copy the dataset, so we do not alter the original one
+    ds = model_ds.copy()
+
+    # add a dummy variable with the required grid-information
+    ds[dummy_var] = 0
+    ds[dummy_var].attrs['node_coordinates'] = f'{xv} {yv}'
+    ds[dummy_var].attrs['cf_role'] = 'mesh_topology'
+    ds[dummy_var].attrs['topology_dimension'] = 2
+    ds[dummy_var].attrs['face_node_connectivity'] = face_node_connectivity
+
+    # drop the first vertex of each face, as the faces should be open in ugrid
+    nvert_per_cell_dim = ds[face_node_connectivity].dims[1]
+    ds = ds[{nvert_per_cell_dim: ds[nvert_per_cell_dim][1:]}]
+    # make sure vertices (nodes) in faces are sprecified in counterclokcwise-
+    # direction. Flopy specifies them in clocksie direction, so we need to
+    # reverse the direction.
+    data = np.flip(ds[face_node_connectivity].data, 1)
+    nodata = ds[face_node_connectivity].attrs.get('_FillValue')
+    if nodata is not None:
+        # move the nodata values from the first columns to the last
+        data_new = np.full(data.shape, nodata)
+        for i in range(data.shape[0]):
+            mask = data[i, :] != nodata
+            data_new[i, :mask.sum()] = data[i, mask]
+        data = data_new
+    ds[face_node_connectivity].data = data
+    ds[face_node_connectivity].attrs['cf_role'] = 'face_node_connectivity'
+    ds[face_node_connectivity].attrs['start_index'] = 0
+
+    # set for each of the variables that they describe the faces
+    if variables is None:
+        variables = list(ds.keys())
+    if isinstance(variables, str):
+        variables = [variables]
+    for var in variables:
+        if var in [dummy_var, face_node_connectivity]:
+            continue
+        ds[var].attrs['location'] = 'face'
+
+    # Make sure time is encoded as a float for MDAL.
+    # Copied from imod-python.
+    for var in ds.coords:
+        if np.issubdtype(ds[var].dtype, np.datetime64):
+            ds[var].encoding['dtype'] = np.float64
+
+    # Convert boolean layers to integer and int64 to int32
+    for var in variables:
+        if np.issubdtype(ds[var].dtype, bool):
+            ds[var].encoding['dtype'] = np.int
+        if np.issubdtype(ds[var].dtype, str):
+            # convert the string to an index of unique strings
+            index = np.unique(model_ds[var], return_inverse=True)[1]
+            ds[var] = ds[var].dims, index
+        if np.issubdtype(ds[var].dtype, np.int64):
+            ds[var].encoding['dtype'] = np.int32
+
+    # Breaks down variables with a layer dimension into separate variables.
+    # Copied from imod-python.
+    for var in variables:
+        if 'layer' in ds[var].dims:
+            stacked = ds[var]
+            ds = ds.drop_vars(var)
+            for layer in stacked['layer'].values:
+                name = f'{var}_layer_{layer}'
+                ds[name] = stacked.sel(layer=layer, drop=True)
+                variables.append(name)
+            variables.remove(var)
+    if 'layer' in ds.coords:
+        ds = ds.drop_vars('layer')
+
+    # only keep the selected variables
+    ds = ds[variables + [dummy_var, xv, yv, face_node_connectivity]]
+    # and save to file
+    ds.to_netcdf(fname)
+    return ds

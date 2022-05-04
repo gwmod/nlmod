@@ -53,23 +53,9 @@ def get_recharge(model_ds,
         nodata = model_ds.nodata
 
     start = pd.Timestamp(model_ds.time.data[0])
-    #end_ts = pd.Timestamp(model_ds.time.data[-1])
-    perlen = model_ds.perlen
-
-    if model_ds.steady_state:
-        end = start + pd.Timedelta(model_ds.perlen, unit=model_ds.time_units)
-    else:
-        if isinstance(perlen, numbers.Number):
-            end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen,
-                                                                        unit=model_ds.time_units))
-        elif isinstance(perlen, (list, tuple, np.ndarray)):
-            end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen[-1],
-                                                                        unit=model_ds.time_units))
-        else:
-            raise ValueError(f'did not recognise perlen data type {perlen}')
-
-        # include the end day in the time series.
-        end = end + pd.Timedelta(1, 'D')
+    end = pd.Timestamp(model_ds.time.data[-1])
+    # include the end day in the time series.
+    end = end + pd.Timedelta(1, 'D')
 
     model_ds_out = util.get_model_ds_empty(model_ds)
 

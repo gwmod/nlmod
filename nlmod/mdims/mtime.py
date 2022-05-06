@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def set_model_ds_time(model_ds, time=None, steady_state=False,
-                      steady_start=True, steady_start_perlen=1.0,
+                      steady_start=True, steady_start_perlen=3652.0,
                       time_units='DAYS', start_time=None,
                       transient_timesteps=0, perlen=1.0,
                       nstp=1, tsmult=1.0):
@@ -35,7 +35,9 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
         default is True.
     steady_start_perlen : float, optional
         stress-period length of the first steady state stress period.
-        Only used if steady_start is True. Default is 1 day.
+        Only used if steady_start is True. The period is used to determine the
+        recharge in this steady state stress period. Default is 3652 days
+        (approximately 10 years).
     time_units : str, optional
         time unit of the model. The default is 'DAYS', which is the only
         allowed value for now.

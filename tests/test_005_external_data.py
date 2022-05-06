@@ -21,13 +21,11 @@ def test_get_recharge_steady_state():
 
     # modify mtime
     model_ds = model_ds.drop_dims('time')
-    for model_ds_key in ['perlen', 'start_time', 'nper', 'nstp', 'tsmult',
+    for model_ds_key in ['start_time', 'nstp', 'tsmult',
                          'steady_start', 'steady_state']:
         model_ds.attrs.pop(model_ds_key)
     model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             '2000-1-1',
-                                             True,
-                                             False,
+                                             start_time='2000-1-1',
                                              perlen=3650)
 
     # add knmi recharge to the model dataset

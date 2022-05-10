@@ -52,7 +52,7 @@ def get_recharge(model_ds,
     if nodata is None:
         nodata = model_ds.nodata
 
-    start = pd.Timestamp(model_ds.attrs['start_time'])
+    start = pd.Timestamp(model_ds.time.attrs['start_time'])
     end = pd.Timestamp(model_ds.time.data[-1])
     # include the end day in the time series.
     end = end + pd.Timedelta(1, 'D')
@@ -64,7 +64,7 @@ def get_recharge(model_ds,
         dims = ('y', 'x')
     elif model_ds.gridtype == 'vertex':
         dims = ('icell2d',)
-    if not model_ds.steady_state:
+    if not model_ds.time.steady_state:
         dims = dims + ('time',)
 
     shape = [len(model_ds_out[dim]) for dim in dims]
@@ -100,7 +100,7 @@ def get_recharge(model_ds,
                 f'no recharge available at precipitation stations {prec_evap[0]} and evaporation station {prec_evap[1]} for date {end}')
 
         # fill recharge data array
-        if model_ds.steady_state:
+        if model_ds.time.steady_state:
             rch_average = recharge_ts.mean()
             if model_ds.gridtype == 'structured':
                 # add data to model_ds_out

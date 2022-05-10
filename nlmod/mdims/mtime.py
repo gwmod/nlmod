@@ -107,13 +107,13 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
 
     model_ds = model_ds.assign_coords(coords={'time': time_dt})
 
-    model_ds.attrs['time_units'] = time_units
-    model_ds.attrs['start_time'] = str(start_time)
-    model_ds.attrs['nstp'] = nstp
-    model_ds.attrs['tsmult'] = tsmult
+    model_ds.time.attrs['time_units'] = time_units
+    model_ds.time.attrs['start_time'] = str(start_time)
+    model_ds.time.attrs['nstp'] = nstp
+    model_ds.time.attrs['tsmult'] = tsmult
 
     # netcdf files cannot handle booleans
-    model_ds.attrs['steady_start'] = int(steady_start)
-    model_ds.attrs['steady_state'] = int(steady_state)
+    model_ds.time.attrs['steady_start'] = int(steady_start)
+    model_ds.time.attrs['steady_state'] = int(steady_state)
 
     return model_ds

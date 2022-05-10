@@ -229,8 +229,8 @@ def model_dataset_to_vector_file(model_ds,
                                  gisdir=None,
                                  driver='GPKG',
                                  combine_dic=None,
-                                 exclude=('x', 'y', 'time_steps', 'area', 'vertices',
-                                          'rch_name')):
+                                 exclude=('x', 'y', 'time_steps', 'area', 
+                                          'vertices', 'rch_name')):
     """Save all data variables in a model dataset to multiple shapefiles.
 
     Parameters
@@ -289,9 +289,9 @@ def model_dataset_to_vector_file(model_ds,
         # add data variables with vertex data to exclude list
         elif 'iv' in model_ds[da_name].dims:
             exclude += (da_name,)
-        # add data variables with vertex data to exclude list
-        elif 'icv' in model_ds[da_name].dims:
-            exclude += (da_name,)
+        # add data variables with vertex data to exclude list    
+        elif 'nvert' in model_ds[da_name].dims:
+            exclude += (da_name,)    
 
     # exclude some names from export
     da_names -= set(exclude)

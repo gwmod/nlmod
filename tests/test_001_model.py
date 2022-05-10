@@ -224,7 +224,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     model_ws = os.path.join(tmpdir, 'test_model')
     new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
     new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.start_time,
+                                                 start_time=model_ds.time.start_time,
                                                  steady_state=False,
                                                  steady_start=True,
                                                  perlen=perlen,
@@ -286,7 +286,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     model_ws = os.path.join(tmpdir, 'test_model')
     new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
     new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.start_time,
+                                                 start_time=model_ds.time.start_time,
                                                  steady_state=False,
                                                  steady_start=True,
                                                  perlen=perlen,

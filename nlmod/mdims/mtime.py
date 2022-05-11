@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def set_model_ds_time(model_ds, time=None, steady_state=False,
                       steady_start=True, steady_start_perlen=3652.0,
-                      time_units='DAYS', start_time=None,
+                      units='DAYS', start=None,
                       transient_timesteps=0, perlen=1.0,
                       nstp=1, tsmult=1.0):
     """Set timing for a model dataset.
@@ -38,12 +38,12 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
         Only used if steady_start is True. The period is used to determine the
         recharge in this steady state stress period. Default is 3652 days
         (approximately 10 years).
-    time_units : str, optional
+    units : str, optional
         time unit of the model. The default is 'DAYS', which is the only
         allowed value for now.
-    start_time : str or datetime, optional
+    start : str or datetime, optional
         start time of the model. When steady_start is True, this is the
-        start_time of the transient model period. Input is ignored when time is
+        start time of the transient model period. Input is ignored when time is
         assigned. The default is January 1, 2000.
     transient_timesteps : int, optional
         number of transient time steps. Only used when steady_state is False.
@@ -71,17 +71,17 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
     # checks
     if len(model_ds.model_name) > 16 and model_ds.mfversion == 'mf6':
         raise ValueError('model_name can not have more than 16 characters')
-    elif time_units.lower() != 'days':
+    elif units.lower() != 'days':
         raise NotImplementedError()
     if time is not None:
-        start_time = time[0]
-        perlen = np.diff(time) / pd.to_timedelta(1, unit=time_units)
+        start = time[0]
+        perlen = np.diff(time) / pd.to_timedelta(1, unit=units)
         if steady_start:
             perlen = np.insert(perlen, 0, steady_start_perlen)
 
-    if start_time is None:
-        start_time = '2000'
-    start_time = pd.to_datetime(start_time)
+    if start is None:
+        start = '2000'
+    start = pd.to_datetime(start)
 
     if steady_state:
         if isinstance(perlen, (float, int)):
@@ -102,13 +102,13 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
                 transient_timesteps = transient_timesteps - 1
         nper = transient_timesteps
         if steady_start:
-            start_time = start_time - dt.timedelta(days=perlen[0])
-    time_dt = start_time + np.cumsum(pd.to_timedelta(perlen, unit=time_units))
+            start = start - dt.timedelta(days=perlen[0])
+    time_dt = start + np.cumsum(pd.to_timedelta(perlen, unit=units))
 
     model_ds = model_ds.assign_coords(coords={'time': time_dt})
 
-    model_ds.time.attrs['time_units'] = time_units
-    model_ds.time.attrs['start_time'] = str(start_time)
+    model_ds.time.attrs['units'] = units
+    model_ds.time.attrs['start'] = str(start)
     model_ds.time.attrs['nstp'] = nstp
     model_ds.time.attrs['tsmult'] = tsmult
 

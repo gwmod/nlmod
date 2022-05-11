@@ -52,7 +52,7 @@ def get_recharge(model_ds,
     if nodata is None:
         nodata = model_ds.nodata
 
-    start = pd.Timestamp(model_ds.time.attrs['start_time'])
+    start = pd.Timestamp(model_ds.time.start)
     end = pd.Timestamp(model_ds.time.data[-1])
     # include the end day in the time series.
     end = end + pd.Timedelta(1, 'D')

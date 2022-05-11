@@ -224,7 +224,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     model_ws = os.path.join(tmpdir, 'test_model')
     new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
     new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.start_time,
+                                                 start_time=model_ds.time.start_time,
                                                  steady_state=False,
                                                  steady_start=True,
                                                  perlen=perlen,
@@ -233,8 +233,6 @@ def test_create_sea_model_perlen_list(tmpdir):
     # modfiy time
     model_ds = model_ds.drop_dims('time')
     model_ds.update(new_model_ds)
-    model_ds.attrs['nper'] = new_model_ds.nper
-    model_ds.attrs['perlen'] = new_model_ds.perlen
 
     # create modflow packages
     sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
@@ -288,7 +286,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     model_ws = os.path.join(tmpdir, 'test_model')
     new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
     new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.start_time,
+                                                 start_time=model_ds.time.start_time,
                                                  steady_state=False,
                                                  steady_start=True,
                                                  perlen=perlen,
@@ -296,8 +294,6 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     model_ds = model_ds.drop_dims('time')
     model_ds.update(new_model_ds)
-    model_ds.attrs['nper'] = new_model_ds.nper
-    model_ds.attrs['perlen'] = new_model_ds.perlen
 
     # create modflow packages
     sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)

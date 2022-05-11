@@ -52,54 +52,23 @@ def get_recharge(model_ds,
     if nodata is None:
         nodata = model_ds.nodata
 
-    start = pd.Timestamp(model_ds.time.data[0])
-    #end_ts = pd.Timestamp(model_ds.time.data[-1])
-    perlen = model_ds.perlen
-
-    if model_ds.steady_state:
-        end = start + pd.Timedelta(model_ds.perlen, unit=model_ds.time_units)
-    else:
-        if isinstance(perlen, numbers.Number):
-            end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen,
-                                                                        unit=model_ds.time_units))
-        elif isinstance(perlen, (list, tuple, np.ndarray)):
-            end = pd.Timestamp(model_ds.time.data[-1] + pd.to_timedelta(perlen[-1],
-                                                                        unit=model_ds.time_units))
-        else:
-            raise ValueError(f'did not recognise perlen data type {perlen}')
-
-        # include the end day in the time series.
-        end = end + pd.Timedelta(1, 'D')
+    start = pd.Timestamp(model_ds.time.attrs['start_time'])
+    end = pd.Timestamp(model_ds.time.data[-1])
+    # include the end day in the time series.
+    end = end + pd.Timedelta(1, 'D')
 
     model_ds_out = util.get_model_ds_empty(model_ds)
 
     # get recharge data array
-    if (model_ds.gridtype == 'structured') and model_ds.steady_state:
-        empty_time_array = np.zeros((model_ds.dims['y'],
-                                     model_ds.dims['x']))
-        model_ds_out['recharge'] = xr.DataArray(empty_time_array,
-                                                dims=('y', 'x'),
-                                                coords={'x': model_ds.x,
-                                                        'y': model_ds.y})
-    elif (model_ds.gridtype == 'structured') and (not model_ds.steady_state):
-        empty_time_array = np.zeros((model_ds.dims['y'],
-                                     model_ds.dims['x'],
-                                     model_ds.dims['time']))
-        model_ds_out['recharge'] = xr.DataArray(empty_time_array,
-                                                dims=('y', 'x', 'time'),
-                                                coords={'time': model_ds.time,
-                                                        'x': model_ds.x,
-                                                        'y': model_ds.y})
-    elif (model_ds.gridtype == 'vertex') and model_ds.steady_state:
-        empty_time_array = np.zeros((model_ds.dims['icell2d']))
-        model_ds_out['recharge'] = xr.DataArray(empty_time_array,
-                                                dims=('icell2d'))
-    elif (model_ds.gridtype == 'vertex') and (not model_ds.steady_state):
-        empty_time_array = np.zeros((model_ds.dims['icell2d'],
-                                     model_ds.dims['time']))
-        model_ds_out['recharge'] = xr.DataArray(empty_time_array,
-                                                dims=('icell2d', 'time'),
-                                                coords={'time': model_ds.time})
+    if model_ds.gridtype == 'structured':
+        dims = ('y', 'x')
+    elif model_ds.gridtype == 'vertex':
+        dims = ('icell2d',)
+    if not model_ds.time.steady_state:
+        dims = dims + ('time',)
+
+    shape = [len(model_ds_out[dim]) for dim in dims]
+    model_ds_out['recharge'] = dims, np.zeros(shape)
 
     locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(model_ds,
                                                                   start=start,
@@ -131,7 +100,7 @@ def get_recharge(model_ds,
                 f'no recharge available at precipitation stations {prec_evap[0]} and evaporation station {prec_evap[1]} for date {end}')
 
         # fill recharge data array
-        if model_ds.steady_state:
+        if model_ds.time.steady_state:
             rch_average = recharge_ts.mean()
             if model_ds.gridtype == 'structured':
                 # add data to model_ds_out

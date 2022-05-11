@@ -10,6 +10,7 @@ import sys
 
 import flopy
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 from .. import mdims
@@ -62,9 +63,9 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     # Create the Flopy temporal discretization object
     flopy.mf6.modflow.mftdis.ModflowTdis(sim,
                                          pname='tdis',
-                                         time_units=model_ds.time_units,
+                                         time_units=model_ds.time.time_units,
                                          nper=len(model_ds.time),
-                                         start_date_time=model_ds.start_time,
+                                         start_date_time=model_ds.time.start_time,
                                          perioddata=tdis_perioddata)
 
     # Create the Flopy groundwater flow (gwf) model object
@@ -324,10 +325,10 @@ def sto_from_model_ds(model_ds, gwf,
         sto package
     """
 
-    if model_ds.steady_state:
+    if model_ds.time.steady_state:
         return None
     else:
-        if model_ds.steady_start:
+        if model_ds.time.steady_start:
             sts_spd = {0: True}
             trn_spd = {1: True}
         else:
@@ -504,20 +505,11 @@ def get_tdis_perioddata(model_ds):
           TSMULT by the relation :math:`\\Delta t_1= perlen \frac{tsmult -
           1}{tsmult^{nstp}-1}`.
     """
-    perlen = model_ds.perlen
-    if isinstance(perlen, numbers.Number):
-        tdis_perioddata = [(float(perlen), model_ds.nstp,
-                            model_ds.tsmult)] * int(model_ds.nper)
-    elif isinstance(perlen, (list, tuple, np.ndarray)):
-        if model_ds.steady_start:
-            assert len(perlen) == model_ds.dims['time']
-        else:
-            assert len(perlen) == model_ds.dims['time']
-        tdis_perioddata = [(p, model_ds.nstp, model_ds.tsmult) for p in perlen]
-    else:
-        raise TypeError('did not recognise perlen type')
-
-    # netcdf does not support multi-dimensional array attributes
-    #model_ds.attrs['tdis_perioddata'] = tdis_perioddata
+    dt = pd.to_timedelta(1, model_ds.time.time_units)
+    perlen = [(pd.to_datetime(model_ds['time'].data[0]) -
+               pd.to_datetime(model_ds.time.start_time)) / dt]
+    if len(model_ds['time']) > 1:
+        perlen.extend(np.diff(model_ds['time']) / dt)
+    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
 
     return tdis_perioddata

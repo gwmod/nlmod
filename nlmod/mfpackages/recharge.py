@@ -39,7 +39,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
         raise ValueError('please remove nan values in recharge data array')
 
     # get stress period data
-    if model_ds.steady_state:
+    if model_ds.time.steady_state:
         mask = model_ds['recharge'] != 0
         if model_ds.gridtype == 'structured':
             rch_spd_data = mdims.data_array_2d_to_rec_list(

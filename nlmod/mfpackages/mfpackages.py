@@ -27,9 +27,8 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     Parameters
     ----------
     model_ds : xarray.Dataset
-        dataset with model data. Should have the dimension 'time' and the
-        attributes: model_name, mfversion, model_ws, time_units, start_time,
-        perlen, nstp, tsmult
+        dataset with model data. Should have the dimension 'time' and the 
+        attributes: model_name, mfversion & model_ws.
     exe_name: str, optional
         path to modflow executable, default is None, which assumes binaries
         are available in nlmod/bin directory. Binaries can be downloaded
@@ -63,9 +62,9 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     # Create the Flopy temporal discretization object
     flopy.mf6.modflow.mftdis.ModflowTdis(sim,
                                          pname='tdis',
-                                         time_units=model_ds.time.time_units,
+                                         time_units=model_ds.time.units,
                                          nper=len(model_ds.time),
-                                         start_date_time=model_ds.time.start_time,
+                                         start_date_time=model_ds.time.start,
                                          perioddata=tdis_perioddata)
 
     # Create the Flopy groundwater flow (gwf) model object
@@ -505,9 +504,9 @@ def get_tdis_perioddata(model_ds):
           TSMULT by the relation :math:`\\Delta t_1= perlen \frac{tsmult -
           1}{tsmult^{nstp}-1}`.
     """
-    dt = pd.to_timedelta(1, model_ds.time.time_units)
+    dt = pd.to_timedelta(1, model_ds.time.units)
     perlen = [(pd.to_datetime(model_ds['time'].data[0]) -
-               pd.to_datetime(model_ds.time.start_time)) / dt]
+               pd.to_datetime(model_ds.time.start)) / dt]
     if len(model_ds['time']) > 1:
         perlen.extend(np.diff(model_ds['time']) / dt)
     tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]

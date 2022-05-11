@@ -53,7 +53,7 @@ def test_model_ds_time_steady(tmpdir, modelname='test'):
     model_ws = os.path.join(tmpdir, 'test_model')
     model_ds = nlmod.mdims.get_empty_model_ds(modelname, model_ws)
     model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             start_time='2015-1-1',
+                                             start='2015-1-1',
                                              steady_state=True)
 
     return model_ds
@@ -63,7 +63,7 @@ def test_model_ds_time_transient(tmpdir, modelname='test'):
     model_ws = os.path.join(tmpdir, 'test_model')
     model_ds = nlmod.mdims.get_empty_model_ds(modelname, model_ws)
     model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             start_time='2015-1-1',
+                                             start='2015-1-1',
                                              steady_state=False,
                                              steady_start=True,
                                              transient_timesteps=10)
@@ -224,7 +224,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     model_ws = os.path.join(tmpdir, 'test_model')
     new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
     new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.time.start_time,
+                                                 start=model_ds.time.start,
                                                  steady_state=False,
                                                  steady_start=True,
                                                  perlen=perlen,
@@ -286,7 +286,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     model_ws = os.path.join(tmpdir, 'test_model')
     new_model_ds = nlmod.mdims.get_empty_model_ds('test', model_ws)
     new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.time.start_time,
+                                                 start=model_ds.time.start,
                                                  steady_state=False,
                                                  steady_start=True,
                                                  perlen=perlen,

@@ -164,7 +164,8 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir):
 @pytest.mark.slow
 def test_create_sea_model(tmpdir):
     model_ds = xr.open_dataset(os.path.join(tst_model_dir,
-                                            'basic_sea_model.nc'))
+                                            'basic_sea_model.nc'), 
+                               mask_and_scale=False)
     # create modflow packages
     _, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
     # Create discretization

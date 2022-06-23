@@ -134,7 +134,7 @@ def cache_netcdf(func):
                                                       func_args_dic_cache)
 
             if modification_check and argument_check:
-                cached_ds = xr.open_dataset(fname_cache)
+                cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
                 if dataset is None:
                     logger.info(f'using cached data -> {cachename}')
                     return cached_ds

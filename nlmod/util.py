@@ -586,7 +586,7 @@ def get_heads_array(fname_hds, gridtype='structured',
     return head_filled
 
 
-def download_mfbinaries(binpath=None, version='6.0'):
+def download_mfbinaries(binpath=None, version='8.0'):
     """Download and unpack platform-specific modflow binaries.
 
     Source: USGS
@@ -597,7 +597,7 @@ def download_mfbinaries(binpath=None, version='6.0'):
         path to directory to download binaries to, if it doesnt exist it
         is created. Default is None which sets dir to nlmod/bin.
     version : str, optional
-        version string, by default '6.0'
+        version string, by default 8.0
     """
     if binpath is None:
         binpath = os.path.join(os.path.dirname(__file__), "bin")

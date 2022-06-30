@@ -13,6 +13,7 @@ import numpy as np
 import xarray as xr
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 from ..read import rws
 
@@ -309,3 +310,81 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
         ax.set_title(da.name)
 
     return ax
+
+
+def get_map(extent, figsize=None, nrows=1, ncols=1, figw=10.,
+            base=1000., fmt='{:.0f}', sharex=False, sharey=True, **kwargs):
+    if figsize is None:
+        xh = 0.2
+        if base is None:
+            xh = 0.0
+        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figw,
+                              xh=xh)
+    f, axes = plt.subplots(figsize=figsize, nrows=nrows, ncols=ncols,
+                           sharex=sharex, sharey=sharey)
+    if nrows == 1 and ncols == 1:
+        set_ax_in_map(axes, extent, base=base, fmt=fmt, **kwargs)
+    else:
+        for ax in axes.ravel():
+            set_ax_in_map(ax, extent, base=base, fmt=fmt, **kwargs)
+    f.tight_layout(pad=0.0)
+
+    return f, axes
+
+
+def get_figsize(extent, figw=10., nrows=1, ncols=1, xh=0.2):
+    w = extent[1] - extent[0]
+    h = extent[3] - extent[2]
+    axh = (figw/ncols) * (h / w) + xh
+    figh = nrows * axh
+    figsize = (figw, figh)
+    return figsize
+
+
+def set_ax_in_map(ax, extent, base=1000., fmt='{:.0f}',
+                  affine=None, alpha=1.0):
+    ax.axis('scaled')
+    ax.axis(extent)
+    rotate_yticklabels(ax)
+    if base is None:
+        ax.set_xticks([])
+        ax.set_yticks([])
+    else:
+        rd_ticks(ax, base=base, fmt=fmt)
+
+
+def rotate_yticklabels(ax):
+    """Rotate the labels on the y-axis 90 degrees to save space"""
+    yticklabels = ax.yaxis.get_ticklabels()
+    plt.setp(yticklabels, rotation=90, verticalalignment='center')
+
+
+def rd_ticks(ax, base=1000., fmt_base=1000., fmt='{:.0f}'):
+    """Add ticks every 1000 (base) m, and divide ticklabels by 1000 (fmt_base)
+    """
+    def fmt_rd_ticks(x, y):
+        return fmt.format(x / fmt_base)
+    if base is not None:
+        ax.xaxis.set_major_locator(MultipleLocator(base))
+        ax.yaxis.set_major_locator(MultipleLocator(base))
+    ax.xaxis.set_major_formatter(FuncFormatter(fmt_rd_ticks))
+    ax.yaxis.set_major_formatter(FuncFormatter(fmt_rd_ticks))
+
+
+def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None,
+                    bounds=None, **kw):
+    """Place a colorbar inside an axes"""
+    if ax is None:
+        ax = plt.gca()
+    if bounds is None:
+        bounds = [0.95, 0.05, 0.02, 0.9]
+    cax = ax.inset_axes(bounds, facecolor='none')
+    if mappable is None and norm is not None and cmap is not None:
+        # make an empty dataset...
+        mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+        mappable._A = []
+    cb = plt.colorbar(mappable, cax=cax, ax=ax, **kw)
+    if bounds[0] > 0.5:
+        cax.yaxis.tick_left()
+        cax.yaxis.set_label_position("left")
+    return cb

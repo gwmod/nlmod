@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_combined_layer_models(extent, delr, delc,
+def get_combined_layer_models(extent, delr=100, delc=100,
                               regis_botm_layer=b'AKc',
                               use_regis=True, use_geotop=True,
                               remove_nan_layers=True):
@@ -30,10 +30,10 @@ def get_combined_layer_models(extent, delr, delc,
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
+    delr : int or float, optional
+        cell size along rows, equal to dx. The default is 100 m.
+    delc : int or float, optional
+        cell size along columns, equal to dy. The default is 100 m.
     regis_botm_layer : binary str, optional
         regis layer that is used as the bottom of the model. This layer is
         included in the model. the Default is b'AKc' which is the bottom
@@ -85,17 +85,17 @@ def get_combined_layer_models(extent, delr, delc,
 
 
 @cache.cache_netcdf
-def get_regis(extent, delr, delc, botm_layer=b'AKc'):
+def get_regis(extent, delr=100., delc=100., botm_layer=b'AKc'):
     """get a regis dataset projected on the modelgrid.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
+    delr : int or float, optional
+        cell size along rows, equal to dx. The default is 100 m.
+    delc : int or float, optional
+        cell size along columns, equal to dy. The default is 100 m.
     botm_layer : binary str, optional
         regis layer that is used as the bottom of the model. This layer is
         included in the model. the Default is b'AKc' which is the bottom

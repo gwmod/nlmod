@@ -310,11 +310,11 @@ def sto_from_model_ds(model_ds, gwf,
     gwf : flopy ModflowGwf
         groundwaterflow object.
     sy : float, optional
-        DESCRIPTION. The default is 0.2.
+        specific yield. The default is 0.2.
     ss : float, optional
         specific storage. The default is 0.000001.
     iconvert : int, optional
-        DESCRIPTION. The default is 1.
+        See description in ModflowGwfsto. The default is 1.
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfsto() to determine if flows
         should be saved to the cbb file. Default is False
@@ -510,6 +510,7 @@ def get_tdis_perioddata(model_ds):
                pd.to_datetime(model_ds.time.start_time)) / dt]
     if len(model_ds['time']) > 1:
         perlen.extend(np.diff(model_ds['time']) / dt)
-    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
+    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult)
+                       for p in perlen]
 
     return tdis_perioddata

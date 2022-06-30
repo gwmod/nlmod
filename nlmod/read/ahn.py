@@ -13,6 +13,7 @@ import xarray as xr
 from owslib.wcs import WebCoverageService
 from rasterio import merge
 from rasterio.io import MemoryFile
+import rioxarray
 
 from .. import cache, mdims, util
 
@@ -52,10 +53,9 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
                                        url=url,
                                        identifier=identifier)
 
-    ahn_ds_raw = xr.open_rasterio(ahn_ds_raw.open())
+    ahn_ds_raw = rioxarray.open_rasterio(ahn_ds_raw.open())
     ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})
-    nodata = ahn_ds_raw.attrs['nodatavals'][0]
-    ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != nodata)
+    ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != ahn_ds_raw.attrs['_FillValue'])
 
     if model_ds.gridtype == 'structured':
         ahn_ds = mdims.resample_dataarray3d_to_structured_grid(ahn_ds_raw,

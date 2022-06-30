@@ -222,10 +222,9 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
         geo_eenh), 'Code (lagenmodel en boringen)'] for geo_eenh in geo_eenheden]
 
     # fill top and bot
-    top = np.ones(
-        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
-    bot = np.ones(
-        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
+    shape = (len(geo_names), len(geotop_ds_raw.y), len(geotop_ds_raw.x))
+    top = np.full(shape, np.nan)
+    bot = np.full(shape, np.nan)
     lay = 0
     logger.info('creating top and bot per geo eenheid')
     for geo_eenheid in geo_eenheden:
@@ -234,8 +233,8 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
         mask = geotop_ds_raw.strat == geo_eenheid
         geo_z = xr.where(mask, geotop_ds_raw.z, np.nan)
 
-        top[:, :, lay] = geo_z.max(dim='z').T + 0.5
-        bot[:, :, lay] = geo_z.min(dim='z').T
+        top[lay] = geo_z.max(dim='z').T + 0.5
+        bot[lay] = geo_z.min(dim='z').T
 
         lay += 1
 
@@ -275,45 +274,37 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names,
     geotop_ds_mod: xr.DataSet
         geotop dataset with top, bot, kh and kv per geo_eenheid
     """
-    kh = np.ones(
-        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
-    thickness = np.ones(
-        (geotop_ds_raw.y.shape[0], geotop_ds_raw.x.shape[0], len(geo_names))) * np.nan
+    shape = (len(geo_names), len(geotop_ds_raw.y), len(geotop_ds_raw.x))
+    kh = np.full(shape, np.nan)
+    thickness = np.full(shape, np.nan)
     z = xr.ones_like(geotop_ds_raw.lithok) * geotop_ds_raw.z
     logger.info('adding stroombanen to top and bot of each layer')
     logger.info('get kh for each layer')
 
-    for lay in range(top.shape[2]):
+    for lay in range(top.shape[0]):
         logger.info(geo_names[lay])
         if lay == 0:
-            top[:, :, 0] = np.nanmax(top, axis=2)
+            top[0] = np.nanmax(top, axis=0)
         else:
-            top[:, :, lay] = bot[:, :, lay - 1]
-        bot[:, :, lay] = np.where(
-            np.isnan(bot[:, :, lay]), top[:, :, lay], bot[:, :, lay])
-        thickness[:, :, lay] = (top[:, :, lay] - bot[:, :, lay])
+            top[lay] = bot[lay - 1]
+        bot[lay] = np.where(np.isnan(bot[lay]), top[lay], bot[lay])
+        thickness[lay] = (top[lay] - bot[lay])
 
         # check which geotop voxels are within the range of the layer
         bool_z = xr.zeros_like(z)
         for i in range(z.z.shape[0]):
-            bool_z[:, :, i] = np.where(
-                (z[:, :, i] >= bot[:, :, lay].T) * (z[:, :, i] < top[:, :, lay].T), True, False)
+            mask = (z[:, :, i] >= bot[lay].T) * (z[:, :, i] < top[lay].T)
+            bool_z[:, :, i] = np.where(mask, True, False)
 
         kh_geo = xr.where(bool_z, geotop_ds_raw['kh_from_litho'], np.nan)
-        kh[:, :, lay] = kh_geo.mean(dim='z').T
+        kh[lay] = kh_geo.mean(dim='z').T
 
-    da_top = xr.DataArray(data=top, dims=('y', 'x', 'layer'),
-                          coords={'y': geotop_ds_raw.y, 'x': geotop_ds_raw.x,
-                                  'layer': geo_names})
-    da_bot = xr.DataArray(data=bot, dims=('y', 'x', 'layer'),
-                          coords={'y': geotop_ds_raw.y, 'x': geotop_ds_raw.x,
-                                  'layer': geo_names})
-    da_kh = xr.DataArray(data=kh, dims=('y', 'x', 'layer'),
-                         coords={'y': geotop_ds_raw.y, 'x': geotop_ds_raw.x,
-                                 'layer': geo_names})
-    da_thick = xr.DataArray(data=thickness, dims=('y', 'x', 'layer'),
-                            coords={'y': geotop_ds_raw.y, 'x': geotop_ds_raw.x,
-                                    'layer': geo_names})
+    dims = ('layer', 'y', 'x')
+    coords = {'layer': geo_names, 'y': geotop_ds_raw.y, 'x': geotop_ds_raw.x}
+    da_top = xr.DataArray(data=top, dims=dims, coords=coords)
+    da_bot = xr.DataArray(data=bot, dims=dims, coords=coords)
+    da_kh = xr.DataArray(data=kh, dims=dims, coords=coords)
+    da_thick = xr.DataArray(data=thickness, dims=dims, coords=coords)
 
     geotop_ds_mod = xr.Dataset()
 

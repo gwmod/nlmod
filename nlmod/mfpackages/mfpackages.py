@@ -81,8 +81,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     return sim, gwf
 
 
-def dis_from_model_ds(model_ds, gwf, length_units='METERS',
-                      angrot=0):
+def dis_from_model_ds(model_ds, gwf, length_units='METERS', angrot=0):
     """get discretisation package from the model dataset.
 
     Parameters
@@ -102,9 +101,9 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
         discretisation package.
     """
 
-    if model_ds.gridtype != 'structured':
-        raise ValueError(
-            f'cannot create dis package for gridtype -> {model_ds.gridtype}')
+    if model_ds.gridtype == 'vertex':
+        return disv_from_model_ds(model_ds, gwf, length_units=length_units,
+                                  angrot=angrot)
 
     # check attributes
     for att in ['delr', 'delc']:
@@ -123,7 +122,7 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS',
                                   delr=model_ds.delr,
                                   delc=model_ds.delc,
                                   top=model_ds['top'].data,
-                                  botm=model_ds['bot'].data,
+                                  botm=model_ds['botm'].data,
                                   idomain=model_ds['idomain'].data,
                                   filename=f'{model_ds.model_name}.dis')
 
@@ -163,7 +162,7 @@ def disv_from_model_ds(model_ds, gwf,
                                     ncpl=len(model_ds.icell2d),
                                     nvert=len(model_ds.iv),
                                     top=model_ds['top'].data,
-                                    botm=model_ds['bot'].data,
+                                    botm=model_ds['botm'].data,
                                     vertices=vertices,
                                     cell2d=cell2d)
 

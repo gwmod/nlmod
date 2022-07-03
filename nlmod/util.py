@@ -509,17 +509,16 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
         fname_hds = os.path.join(
             model_ds.model_ws, model_ds.model_name + '.hds')
 
-    head_filled = get_heads_array(fname_hds, gridtype=model_ds.gridtype,
-                                  fill_nans=fill_nans)
+    head = get_heads_array(fname_hds, fill_nans=fill_nans)
 
     if model_ds.gridtype == 'vertex':
-        head_ar = xr.DataArray(data=head_filled[:, :, :],
+        head_ar = xr.DataArray(data=head[:, :, 0],
                                dims=('time', 'layer', 'icell2d'),
                                coords={'icell2d': model_ds.icell2d,
                                        'layer': model_ds.layer,
                                        'time': model_ds.time})
     elif model_ds.gridtype == 'structured':
-        head_ar = xr.DataArray(data=head_filled,
+        head_ar = xr.DataArray(data=head,
                                dims=('time', 'layer', 'y', 'x'),
                                coords={'x': model_ds.x,
                                        'y': model_ds.y,
@@ -529,8 +528,7 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
     return head_ar
 
 
-def get_heads_array(fname_hds, gridtype='structured',
-                    fill_nans=False):
+def get_heads_array(fname_hds, fill_nans=False):
     """reads the heads from a modflow .hds file and returns a numpy array.
 
     assumes the dimensions of the heads file are:
@@ -554,36 +552,14 @@ def get_heads_array(fname_hds, gridtype='structured',
     """
     hdobj = flopy.utils.HeadFile(fname_hds)
     head = hdobj.get_alldata()
-    # TODO: this will sometimes set largest head to NaN...
-    head[head == head.max()] = np.nan
+    head[head == 1e+30] = np.nan
 
-    if gridtype == 'vertex':
-        head_filled = np.ones(
-            (head.shape[0], head.shape[1], head.shape[3])) * np.nan
-
-        for t in range(head.shape[0]):
-            for lay in range(head.shape[1] - 1, -1, -1):
-                head_filled[t][lay] = head[t][lay][0]
-                if lay < (head.shape[1] - 1):
-                    if fill_nans:
-                        head_filled[t][lay] = np.where(np.isnan(head_filled[t][lay]),
-                                                       head_filled[t][lay + 1],
-                                                       head_filled[t][lay])
-
-    elif gridtype == 'structured':
-        head_filled = np.zeros_like(head)
-        for t in range(head.shape[0]):
-            for lay in range(head.shape[1] - 1, -1, -1):
-                head_filled[t][lay] = head[t][lay]
-                if lay < (head.shape[1] - 1):
-                    if fill_nans:
-                        head_filled[t][lay] = np.where(np.isnan(head_filled[t][lay]),
-                                                       head_filled[t][lay + 1],
-                                                       head_filled[t][lay])
-    else:
-        raise ValueError('wrong gridtype')
-
-    return head_filled
+    if fill_nans:
+        for lay in range(head.shape[1] - 2, -1, -1):
+            head[:, lay] = np.where(np.isnan(head[:, lay]),
+                                    head[:, lay+1],
+                                    head[:, lay])
+    return head
 
 
 def download_mfbinaries(binpath=None, version='8.0'):

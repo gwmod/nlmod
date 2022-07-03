@@ -416,7 +416,7 @@ def build_spd(celldata, pkg, model_ds):
                                                 cellid,
                                                 rbot,
                                                 model_ds.top,
-                                                model_ds.bot,
+                                                model_ds.botm,
                                                 model_ds.idomain,
                                                 model_ds.kh,
                                                 stage)

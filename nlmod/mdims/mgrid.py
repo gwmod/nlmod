@@ -49,11 +49,12 @@ def modelgrid_from_model_ds(model_ds):
         if not isinstance(model_ds.extent, (tuple, list, np.ndarray)):
             raise TypeError(
                 f'extent should be a list, tuple or numpy array, not {type(model_ds.extent)}')
-
-        modelgrid = StructuredGrid(delc=np.array([model_ds.delc] * model_ds.dims['y']),
-                                   delr=np.array([model_ds.delr] *
-                                                 model_ds.dims['x']),
-                                   xoff=model_ds.extent[0], yoff=model_ds.extent[2])
+        delc = np.array([model_ds.delc] * model_ds.dims['y'])
+        delr = np.array([model_ds.delr] * model_ds.dims['x'])
+        modelgrid = StructuredGrid(delc=delc,
+                                   delr=delr,
+                                   xoff=model_ds.extent[0],
+                                   yoff=model_ds.extent[2])
     elif model_ds.gridtype == 'vertex':
         vertices = get_vertices_from_model_ds(model_ds)
         cell2d = get_cell2d_from_model_ds(model_ds)
@@ -148,100 +149,69 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     return x, y
 
 
-@cache.cache_pklz
-def create_vertex_grid(model_name, gridgen_ws, gwf=None,
-                       refine_features=None, extent=None,
-                       nlay=None, nrow=None, ncol=None,
-                       delr=None, delc=None, exe_name=None):
-    """Create vertex grid. Refine grid using refinement features.
+def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
+    """
+    Refine the grid (discretization by vertices, disv), using Gridgen
 
     Parameters
     ----------
-    gridgen_ws : str
-        directory to save gridgen files.
-    model_name : str
-        name of the model.
-    gwf : flopy.mf6.ModflowGwf
-        groundwater flow model, if structured grid is already defined
-        parameters defining the grid are taken from modelgrid if not
-        explicitly passed.
-    refine_features : list of tuples, optional
-        list of tuples containing refinement features, tuples must each
-        contain [(geometry, shape_type, level)]. Geometry can be a path
-        pointing to a shapefile or an object defining the geometry.
-        For accepted types for each entry, see
-        `flopy.utils.gridgen.Gridgen.add_refinement_features()`
-    extent : list, tuple or np.array
-        extent (xmin, xmax, ymin, ymax) of the desired grid.
-    nlay : int, optional
-        number of model layers. If not passed,
-    nrow : int, optional
-        number of model rows.
-    ncol : int, optional
-        number of model columns
-    delr : int or float, optional
-        cell size along rows of the desired grid (dx).
-    delc : int or float, optional
-        cell size along columns of the desired grid (dy).
-    exe_name : str
-        Filepath to the gridgen executable
+    ds : xarray.Datset
+        A structured model datset.
+    model_ws : str, optional
+        The working directory fpr GridGen. Get from ds when model_ws is None.
+        The default is None.
+    refinement_features : list of tuple of length 2, optional
+        List of tuples containing refinement features. Each tuple must be of
+        the form (GeoDataFrame, level) or (geometry, shape_type, level). The
+        default is None.
+    exe_name : str, optional
+        Filepath to the gridgen executable. The file path within nlmod is chose
+        if exe_name is None. The default is None.
 
     Returns
     -------
-    gridprops : dictionary
-        gridprops with the vertex grid information.
+    xarray.Dataset
+        The refined model dataset.
+
     """
-
+    assert 'icell2d' not in ds.dims
     logger.info('create vertex grid using gridgen')
-
-    # if existing structured grid, take parameters from grid if not
-    # explicitly passed
-    if gwf is not None:
-        if gwf.modelgrid.grid_type == "structured":
-            nlay = gwf.modelgrid.nlay if nlay is None else nlay
-            nrow = gwf.modelgrid.nrow if nrow is None else nrow
-            ncol = gwf.modelgrid.ncol if ncol is None else ncol
-            delr = gwf.modelgrid.delr if delr is None else delr
-            delc = gwf.modelgrid.delc if delc is None else delc
-            extent = gwf.modelgrid.extent if extent is None else extent
-
-    # create temporary groundwaterflow model with dis package
-    if gwf is not None:
-        _gwf_temp = copy.deepcopy(gwf)
-    else:
-        _sim_temp = flopy.mf6.MFSimulation()
-        _gwf_temp = flopy.mf6.MFModel(_sim_temp)
-    _dis_temp = flopy.mf6.ModflowGwfdis(_gwf_temp, pname='dis',
-                                        nlay=nlay, nrow=nrow, ncol=ncol,
-                                        delr=delr, delc=delc,
-                                        xorigin=extent[0],
-                                        yorigin=extent[2],
-                                        filename='{}.dis'.format(model_name))
-
-    # Define new default `exe_name` for NHFLO
+    sim = flopy.mf6.MFSimulation()
+    gwf = flopy.mf6.MFModel(sim)
+    dis = flopy.mf6.ModflowGwfdis(gwf, nrow=len(ds.y), ncol=len(ds.x),
+                                  delr=ds.delr, delc=ds.delc,
+                                  xorigin=ds.extent[0], yorigin=ds.extent[2])
     if exe_name is None:
-        exe_name = os.path.join(os.path.dirname(__file__),
-                                '..', 'bin', 'gridgen')
-
+        exe_name = os.path.join(os.path.dirname(__file__), '..', 'bin',
+                                'gridgen')
         if sys.platform.startswith('win'):
             exe_name += ".exe"
-
-    g = Gridgen(_dis_temp, model_ws=gridgen_ws, exe_name=exe_name)
-
-    if refine_features is not None:
-        for shp_fname, shp_type, lvl in refine_features:
-            if isinstance(shp_fname, str):
-                shp_fname = os.path.relpath(shp_fname, gridgen_ws)
-                if shp_fname.endswith('.shp'):
-                    shp_fname = shp_fname[:-4]
-            g.add_refinement_features(shp_fname, shp_type, lvl, range(nlay))
-
+    if model_ws is None:
+        model_ws = ds.model_ws
+    g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)
+    if refinement_features is not None:
+        for refinement_feature in refinement_features:
+            if len(refinement_feature) == 3:
+                # the feature is a file or a list of geometries
+                fname, geom_type, level = refinement_feature
+                g.add_refinement_features(fname, geom_type, level,
+                                          layers=[0])
+            elif len(refinement_feature) == 2:
+                # the feature is a geodataframe
+                gdf, level = refinement_feature
+                geom_types = gdf.geom_type.str.replace('Multi', '')
+                for geom_type in geom_types.unique():
+                    mask = geom_types == geom_type
+                    features = [gdf[mask].unary_union]
+                    g.add_refinement_features(features, geom_type, level,
+                                              layers=[0])
     g.build()
-
     gridprops = g.get_gridprops_disv()
     gridprops['area'] = g.get_area()
-
-    return gridprops
+    # import needed here, as otherwise we get a circular import, fix this later
+    from ..mdims.resample import get_resampled_ml_layer_ds_vertex
+    return get_resampled_ml_layer_ds_vertex(ds, extent=ds.extent,
+                                            gridprops=gridprops)
 
 
 def get_xyi_icell2d(gridprops=None, model_ds=None):

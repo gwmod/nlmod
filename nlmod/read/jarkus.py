@@ -214,9 +214,9 @@ def add_bathymetry_to_top_bot_kh_kv(model_ds, bathymetry,
                                       model_ds['top'])
 
     lay = 0
-    model_ds['bot'][lay] = xr.where(fill_mask,
-                                    bathymetry,
-                                    model_ds['bot'][lay])
+    model_ds['botm'][lay] = xr.where(fill_mask,
+                                     bathymetry,
+                                     model_ds['botm'][lay])
 
     model_ds['kh'][lay] = xr.where(fill_mask,
                                    kh_sea,
@@ -228,8 +228,8 @@ def add_bathymetry_to_top_bot_kh_kv(model_ds, bathymetry,
 
     # reset bot for all layers based on bathymetrie
     for lay in range(1, model_ds.dims['layer']):
-        model_ds['bot'][lay] = np.where(model_ds['bot'][lay] > model_ds['bot'][lay - 1],
-                                        model_ds['bot'][lay - 1],
-                                        model_ds['bot'][lay])
+        model_ds['botm'][lay] = np.where(model_ds['botm'][lay] > model_ds['botm'][lay - 1],
+                                         model_ds['botm'][lay - 1],
+                                         model_ds['botm'][lay])
 
     return model_ds

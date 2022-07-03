@@ -76,8 +76,6 @@ def resample_dataarray3d_to_vertex_grid(da_in, model_ds=None, x=None, y=None,
     da_in : xarray.DataArray
         data array with dimensions (layer, y, x). y and x are from the original
         grid
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen.
     model_ds : xarray.Dataset
         The model dataset to which the datarray needs to be resampled.
     x : numpy.ndarray
@@ -147,10 +145,10 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method='nearest'):
     xyi, icell2d = mgrid.get_xyi_icell2d(gridprops)
     x = xr.DataArray(xyi[:, 0], dims=('icell2d'))
     y = xr.DataArray(xyi[:, 1], dims=('icell2d'))
-
     if method in ['nearest', 'linear']:
         # resample the entire dataset in one line
-        return ds_in.interp(x=x, y=y, method=method)
+        return ds_in.interp(x=x, y=y, method=method,
+                            kwargs={"fill_value": None})
 
     ds_out = xr.Dataset(coords={'layer': ds_in.layer.data})
 
@@ -399,7 +397,8 @@ def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
     return arr_out
 
 
-def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'):
+def resample_dataset_to_structured_grid(ds_in, extent, delr, delc,
+                                        kind='linear'):
     """Resample a dataset (xarray) from a structured grid to a new dataset from
     a different structured grid.
 
@@ -427,6 +426,8 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, kind='linear'
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
     x, y = mgrid.get_xy_mid_structured(extent, delr, delc)
+    if kind in ['nearest', 'linear']:
+        return ds_in.interp(x=x, y=y, method=kind)
 
     ds_out = xr.Dataset(coords={'y': y,
                                 'x': x,

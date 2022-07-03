@@ -52,10 +52,10 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
     ahn_ds_raw = get_ahn_within_extent(extent=model_ds.extent,
                                        url=url,
                                        identifier=identifier)
+    ahn_ds_raw = rioxarray.open_rasterio(ahn_ds_raw.open(),
+                                         mask_and_scale=True)
 
-    ahn_ds_raw = rioxarray.open_rasterio(ahn_ds_raw.open())
     ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})
-    ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != ahn_ds_raw.attrs['_FillValue'])
 
     if model_ds.gridtype == 'structured':
         ahn_ds = mdims.resample_dataarray3d_to_structured_grid(ahn_ds_raw,

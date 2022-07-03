@@ -22,8 +22,7 @@ def get_default_lithoklasse_translation_table():
 
 
 @cache.cache_netcdf
-def get_geotop(extent, delr, delc,
-               regis_ds, regis_layer='HLc'):
+def get_geotop(extent, regis_ds, regis_layer='HLc'):
     """get a model layer dataset for modflow from geotop within a certain
     extent and grid.
 
@@ -50,14 +49,6 @@ def get_geotop(extent, delr, delc,
     geotop_ds: xr.DataSet
         geotop dataset with top, bot, kh and kv per geo_eenheid
     """
-    # check extent
-    extent2, _, _ = regis.fit_extent_to_regis(extent, delr, delc)
-    for coord1, coord2 in zip(extent, extent2):
-        if coord1 != coord2:
-            raise ValueError(
-                'extent not fitted to regis please fit to regis first, '
-                'use the nlmod.regis.fit_extent_to_regis function')
-
     geotop_url = r'http://www.dinodata.nl/opendap/GeoTOP/geotop.nc'
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent, geotop_url)
 
@@ -72,31 +63,24 @@ def get_geotop(extent, delr, delc,
                                            index_col=0,
                                            keep_default_na=False)
 
-    geotop_ds_raw = convert_geotop_to_ml_layers(geotop_ds_raw1,
-                                                regis_ds=regis_ds,
-                                                regis_layer=regis_layer,
-                                                litho_translate_df=litho_translate_df,
-                                                geo_eenheid_translate_df=geo_eenheid_translate_df)
+    ds = convert_geotop_to_ml_layers(geotop_ds_raw1,
+                                     regis_ds=regis_ds,
+                                     regis_layer=regis_layer,
+                                     litho_translate_df=litho_translate_df,
+                                     geo_eenheid_translate_df=geo_eenheid_translate_df)
 
-    logger.info('resample geotop data to structured modelgrid')
-    geotop_ds = mdims.resample_dataset_to_structured_grid(geotop_ds_raw,
-                                                          extent,
-                                                          delr, delc)
-    geotop_ds.attrs['extent'] = extent
-    geotop_ds.attrs['delr'] = delr
-    geotop_ds.attrs['delc'] = delc
-    geotop_ds.attrs['gridtype'] = 'structured'
+    ds.attrs['extent'] = extent
 
-    for datavar in geotop_ds:
-        geotop_ds[datavar].attrs['source'] = 'Geotop'
-        geotop_ds[datavar].attrs['url'] = geotop_url
-        geotop_ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
+    for datavar in ds:
+        ds[datavar].attrs['source'] = 'Geotop'
+        ds[datavar].attrs['url'] = geotop_url
+        ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
         if datavar in ['top', 'bot']:
-            geotop_ds[datavar].attrs['units'] = 'mNAP'
+            ds[datavar].attrs['units'] = 'mNAP'
         elif datavar in ['kh', 'kv']:
-            geotop_ds[datavar].attrs['units'] = 'm/day'
+            ds[datavar].attrs['units'] = 'm/day'
 
-    return geotop_ds
+    return ds
 
 
 def get_geotop_raw_within_extent(extent, url):
@@ -164,7 +148,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
     if (regis_ds is not None) and (regis_layer is not None):
         logger.info(f'slice geotop with regis layer {regis_layer}')
         top_rl = regis_ds['top'].sel(layer=regis_layer)
-        bot_rl = regis_ds['bot'].sel(layer=regis_layer)
+        bot_rl = regis_ds['bottom'].sel(layer=regis_layer)
 
         geotop_ds_raw = geotop_ds_raw1.sel(z=slice(np.floor(bot_rl.min().data),
                                                    np.ceil(top_rl.max().data)))
@@ -309,7 +293,7 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names,
     geotop_ds_mod = xr.Dataset()
 
     geotop_ds_mod['top'] = da_top
-    geotop_ds_mod['bot'] = da_bot
+    geotop_ds_mod['bottom'] = da_bot
     geotop_ds_mod['kh'] = da_kh
     geotop_ds_mod['kv'] = geotop_ds_mod['kh'] * f_anisotropy
     geotop_ds_mod['thickness'] = da_thick

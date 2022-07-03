@@ -37,7 +37,8 @@ setup(
 					  'pyshp>=2.1.3',
 					  'rtree>=0.9.7',
 					  'openpyxl>=3.0.7',
-                      'matplotlib'
+                      'matplotlib',
+                      'rioxarray'
                       ],
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*"]},

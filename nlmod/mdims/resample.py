@@ -398,7 +398,7 @@ def resample_2d_struc_da_nan_linear(da_in, new_x, new_y,
 
 
 def resample_dataset_to_structured_grid(ds_in, extent, delr, delc,
-                                        kind='linear'):
+                                        kind='nearest'):
     """Resample a dataset (xarray) from a structured grid to a new dataset from
     a different structured grid.
 

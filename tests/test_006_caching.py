@@ -47,18 +47,12 @@ def test_model_ds_check_grid_false(tmpdir):
                                                               50.,
                                                               50.)
     regis_ds = nlmod.read.regis.get_combined_layer_models(extent,
-                                                          50., 50.,
                                                           use_regis=True,
                                                           use_geotop=False,
                                                           cachedir=tmpdir,
                                                           cachename='comb.nc'
                                                           )
-
-    model_ds2 = nlmod.mdims.update_model_ds_from_ml_layer_ds(model_ds2,
-                                                             regis_ds,
-                                                             keep_vars=[
-                                                                 'x', 'y'],
-                                                             gridtype='structured')
+    model_ds2 = nlmod.read.regis.to_model_ds(regis_ds, delr=50., delc=50.)
 
     check = nlmod.cache._check_ds(model_ds, model_ds2)
 
@@ -74,11 +68,11 @@ def test_use_cached_regis(tmpdir):
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
         extent, delr, delc)
 
-    regis_ds1 = nlmod.read.regis.get_regis(extent, delr, delc,
+    regis_ds1 = nlmod.read.regis.get_regis(extent,
                                            cachedir=tmpdir,
                                            cachename='reg.nc')
 
-    regis_ds2 = nlmod.read.regis.get_regis(extent, delr, delc,
+    regis_ds2 = nlmod.read.regis.get_regis(extent,
                                            cachedir=tmpdir,
                                            cachename='reg.nc')
 
@@ -95,7 +89,7 @@ def test_do_not_use_cached_regis(tmpdir):
     delc = 100.
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
         extent, delr, delc)
-    regis_ds1 = nlmod.read.regis.get_regis(extent, delr, delc,
+    regis_ds1 = nlmod.read.regis.get_regis(extent,
                                            cachedir=tmpdir,
                                            cachename='regis.nc')
 
@@ -105,7 +99,7 @@ def test_do_not_use_cached_regis(tmpdir):
     delc = 100.
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
         extent, delr, delc)
-    regis_ds2 = nlmod.read.regis.get_regis(extent, delr, delc,
+    regis_ds2 = nlmod.read.regis.get_regis(extent,
                                            cachedir=tmpdir,
                                            cachename='regis.nc')
 
@@ -117,7 +111,7 @@ def test_do_not_use_cached_regis(tmpdir):
     delc = 100.
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
         extent, delr, delc)
-    regis_ds3 = nlmod.read.regis.get_regis(extent, delr, delc,
+    regis_ds3 = nlmod.read.regis.get_regis(extent,
                                            cachedir=tmpdir,
                                            cachename='regis.nc')
 
@@ -129,7 +123,7 @@ def test_do_not_use_cached_regis(tmpdir):
     delc = 50.
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
         extent, delr, delc)
-    regis_ds4 = nlmod.read.regis.get_regis(extent, delr, delc,
+    regis_ds4 = nlmod.read.regis.get_regis(extent,
                                            cachedir=tmpdir,
                                            cachename='regis.nc')
 

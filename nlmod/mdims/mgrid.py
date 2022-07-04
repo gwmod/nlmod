@@ -27,6 +27,7 @@ from scipy.interpolate import griddata
 
 from shapely.geometry import Point
 from .. import cache, mfpackages, util
+from .mlayers import set_idomain
 
 logger = logging.getLogger(__name__)
 
@@ -210,8 +211,11 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
     gridprops['area'] = g.get_area()
     # import needed here, as otherwise we get a circular import, fix this later
     from ..mdims.resample import get_resampled_ml_layer_ds_vertex
-    return get_resampled_ml_layer_ds_vertex(ds, extent=ds.extent,
-                                            gridprops=gridprops)
+    ds = get_resampled_ml_layer_ds_vertex(ds, extent=ds.extent,
+                                          gridprops=gridprops)
+    # recalculate idomain, as the interpolation changes idomain to floats
+    ds = set_idomain(ds)
+    return ds
 
 
 def get_xyi_icell2d(gridprops=None, model_ds=None):

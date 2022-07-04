@@ -832,7 +832,7 @@ def set_idomain(ds, nodata=-999):
     ds['idomain'] = xr.full_like(ds['botm'], -1, int)
     # set idomain of cells  with a positive thickness to 1
     thickness, _ = calculate_thickness(ds)
-    ds['idomain'].data[thickness > 0.0] = 1
+    ds['idomain'].data[thickness.data > 0.0] = 1
     # set idomain to 0 in the inactive part of the model
     if 'active' in ds:
         ds['idomain'] = ds['idomain'].where(ds['active'], 0)

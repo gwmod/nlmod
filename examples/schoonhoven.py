@@ -45,16 +45,13 @@ bgt['ahn_min'] = [x['min'] for x in stats]
 regis = nlmod.read.get_regis(extent, cachedir=cachedir, cachename='regis.nc')
 
 # %% create a grid and create nessecary data
-ds = nlmod.read.regis.to_grid(regis, delr=100., delc=100.)
-ds = nlmod.mbase.set_ds_attrs(ds, model_name, model_ws)
+ds = nlmod.read.regis.to_model_ds(regis, model_name, model_ws,
+                                  delr=100., delc=100.)
 
 # %% make a disv-grid (or not, by commenting out next line)
 # ds = nlmod.mgrid.refine(ds)
-refinement_features = [(bgt[bgt['bronhouder'] == 'L0002'], 2)]
-ds = nlmod.mgrid.refine(ds, refinement_features=refinement_features)
-
-# %%
-ds = nlmod.mlayers.complete_ds(ds)
+# refinement_features = [(bgt[bgt['bronhouder'] == 'L0002'], 2)]
+# ds = nlmod.mgrid.refine(ds, refinement_features=refinement_features)
 
 # %% add information about time
 ds = nlmod.mdims.set_model_ds_time(ds, time=time)

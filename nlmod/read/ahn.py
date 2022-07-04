@@ -48,28 +48,22 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
     """
 
     url = _infer_url(identifier)
-
-    ahn_ds_raw = get_ahn_within_extent(extent=model_ds.extent,
-                                       url=url,
-                                       identifier=identifier)
-    ahn_ds_raw = rioxarray.open_rasterio(ahn_ds_raw.open(),
-                                         mask_and_scale=True)
-
-    ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})
+    ahn_file = get_ahn_within_extent(extent=model_ds.extent,
+                                     url=url,
+                                     identifier=identifier)
+    ahn_ds_raw = rioxarray.open_rasterio(ahn_file.open(),
+                                         mask_and_scale=True)[0]
 
     if model_ds.gridtype == 'structured':
-        ahn_ds = mdims.resample_dataarray3d_to_structured_grid(ahn_ds_raw,
-                                                               extent=model_ds.extent,
-                                                               delr=model_ds.delr,
-                                                               delc=model_ds.delc,
+        ahn_ds = mdims.resample_dataarray2d_to_structured_grid(ahn_ds_raw,
                                                                x=model_ds.x.data,
                                                                y=model_ds.y.data)
     elif model_ds.gridtype == 'vertex':
-        ahn_ds = mdims.resample_dataarray3d_to_vertex_grid(ahn_ds_raw,
+        ahn_ds = mdims.resample_dataarray2d_to_vertex_grid(ahn_ds_raw,
                                                            model_ds)
 
     model_ds_out = util.get_model_ds_empty(model_ds)
-    model_ds_out['ahn'] = ahn_ds[0]
+    model_ds_out['ahn'] = ahn_ds
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs['source'] = identifier

@@ -148,7 +148,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
     if (regis_ds is not None) and (regis_layer is not None):
         logger.info(f'slice geotop with regis layer {regis_layer}')
         top_rl = regis_ds['top'].sel(layer=regis_layer)
-        bot_rl = regis_ds['bottom'].sel(layer=regis_layer)
+        bot_rl = regis_ds['botm'].sel(layer=regis_layer)
 
         geotop_ds_raw = geotop_ds_raw1.sel(z=slice(np.floor(bot_rl.min().data),
                                                    np.ceil(top_rl.max().data)))
@@ -170,7 +170,7 @@ def convert_geotop_to_ml_layers(geotop_ds_raw1, regis_ds=None, regis_layer=None,
 
 
 def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
-    """get top, bottom and kh of each geo-eenheid in geotop dataset.
+    """get top, botm and kh of each geo-eenheid in geotop dataset.
 
     Parameters
     ----------
@@ -293,7 +293,7 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names,
     geotop_ds_mod = xr.Dataset()
 
     geotop_ds_mod['top'] = da_top
-    geotop_ds_mod['bottom'] = da_bot
+    geotop_ds_mod['botm'] = da_bot
     geotop_ds_mod['kh'] = da_kh
     geotop_ds_mod['kv'] = geotop_ds_mod['kh'] * f_anisotropy
     geotop_ds_mod['thickness'] = da_thick

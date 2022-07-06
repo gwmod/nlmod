@@ -95,7 +95,8 @@ def get_regis(extent, botm_layer='AKc'):
     """
 
     # get local regis dataset
-    regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
+    # regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
+    regis_url = 'https://www.dinodata.nl/opendap/hyrax/REGIS/REGIS.nc'
 
     ds = xr.open_dataset(regis_url, decode_times=False)
 

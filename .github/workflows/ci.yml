@@ -26,9 +26,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install external dependencies
+      - name: SSL certificates step
         run: |
-          sudo apt-get install ca-certificates
+          update-ca-trust force-enable
 
       - name: Install dependencies
         run: |

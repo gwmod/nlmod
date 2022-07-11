@@ -1128,7 +1128,7 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
     return model_ds_out
 
 
-def gdf2grid(gdf, ml, method='vertex', ix=None,
+def gdf2grid(gdf, ml=None, method='vertex', ix=None,
              desc="Intersecting with grid", **kwargs):
     """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This
     method is just a wrapper around the GridIntersect method from flopy.
@@ -1153,28 +1153,20 @@ def gdf2grid(gdf, ml, method='vertex', ix=None,
     geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
     """
+    if ml is None and ix is None:
+        raise(Exception('Either specify ml or ix'))
     if ix is None:
         ix = flopy.utils.GridIntersect(ml.modelgrid, method=method)
     shps = []
+    geometry = gdf._geometry_column_name
     for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
-        if hasattr(ix, 'intersect'):
-            r = ix.intersect(shp.geometry, **kwargs)
-        else:
-            if shp.geometry.type in ['Point', 'MultiPoint']:
-                r = ix.intersect_point(shp.geometry, **kwargs)
-            elif shp.geometry.type in ['LineString', 'MultiLineString']:
-                r = ix.intersect_linestring(shp.geometry, **kwargs)
-            elif shp.geometry.type in ['Polygon', 'MultiPolygon']:
-                r = ix.intersect_polygon(shp.geometry, **kwargs)
-            else:
-                msg = 'Unknown geometry type: {}'.format(shp.geometry.type)
-                raise(Exception(msg))
+        r = ix.intersect(shp[geometry], **kwargs)
         for i in range(r.shape[0]):
             shpn = shp.copy()
             shpn['cellid'] = r['cellids'][i]
-            shpn.geometry = r['ixshapes'][i]
+            shpn[geometry] = r['ixshapes'][i]
             shps.append(shpn)
-    return gpd.GeoDataFrame(shps)
+    return gpd.GeoDataFrame(shps, geometry=geometry)
 
 
 def get_thickness_from_topbot(top, bot):

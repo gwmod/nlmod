@@ -7,8 +7,12 @@ import logging
 
 import numpy as np
 import xarray as xr
+import scipy
 from scipy import interpolate
 from scipy.interpolate import griddata
+import rasterio
+from rasterio.warp import reproject
+from affine import Affine
 
 from . import mgrid
 
@@ -654,3 +658,126 @@ def resample_vertex_2d_da_to_struc_2d_da(da_in, model_ds=None,
                                   'x': modelgrid_x})
 
     return da_out
+
+
+def raster_to_quadtree_grid(fname, model_ds, dst_crs=None,
+                            resampling=rasterio.enums.Resampling.average,
+                            return_data_array=True,
+                            x0=None, y0=None, width=None, height=None,
+                            extent=None, src_nodata=None,
+                            src_crs=None, src_transform=None):
+    """Resample a raster-file to a quadtree-grid, using different advanced
+    resample algoritms"""
+    if not isinstance(resampling, rasterio.enums.Resampling):
+        if hasattr(rasterio.enums.Resampling, resampling):
+            resampling = getattr(rasterio.enums.Resampling, resampling)
+        else:
+            raise(Exception(f'Unknown resample algoritm: {resampling}'))
+
+    if x0 is None and 'x0' in model_ds.attrs:
+        x0 = model_ds.attrs['x0']
+    if y0 is None and 'y0' in model_ds.attrs:
+        y0 = model_ds.attrs['y0']
+    if width is None and 'width' in model_ds.attrs:
+        width = model_ds.attrs['width']
+    if height is None and 'height' in model_ds.attrs:
+        height = model_ds.attrs['height']
+    if extent is None and 'extent' in model_ds.attrs:
+        extent = model_ds.attrs['extent']
+    if extent is not None:
+        x0 = extent[0]
+        y0 = extent[2]
+        width = extent[1]-extent[0]
+        height = extent[3]-extent[2]
+    if x0 is None or y0 is None or width is None or height is None:
+        raise(Exception('Cannot determine dst_transform'))
+
+    area = model_ds['area']
+    x = model_ds.x.values
+    y = model_ds.y.values
+    z = np.full(area.shape, np.NaN)
+
+    for ar in np.unique(area):
+        mask = area == ar
+        dx = dy = np.sqrt(ar)
+        dst_transform = Affine.translation(x0, y0) * Affine.scale(dx, dy)
+        dst_shape = (int((height) / dy), int((width) / dx))
+        zt = np.zeros(dst_shape)
+
+        if isinstance(fname, xr.DataArray):
+            da = fname
+            if src_transform is None:
+                src_transform = get_dataset_transform(da)
+            if src_crs is None:
+                src_crs = 28992
+            if dst_crs is None:
+                dst_crs = 28992
+            reproject(da.data,
+                      destination=zt,
+                      src_transform=src_transform,
+                      src_crs=src_crs,
+                      dst_transform=dst_transform,
+                      dst_crs=dst_crs,
+                      resampling=resampling,
+                      dst_nodata=np.NaN,
+                      src_nodata=src_nodata)
+        else:
+            with rasterio.open(fname) as src:
+                if dst_crs is None:
+                    dst_crs = src.crs
+                reproject(
+                    source=rasterio.band(src, 1),
+                    destination=zt,
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=dst_transform,
+                    dst_crs=dst_crs,
+                    resampling=resampling,
+                    dst_nodata=np.NaN,
+                    src_nodata=src_nodata)
+        # use an xarray to get the right values using .sel()
+        xt = np.arange(extent[0]+dst_transform[0]/2,
+                       extent[1], dst_transform[0])
+        yt = np.arange(extent[3]+dst_transform[4]/2,
+                       extent[2], dst_transform[4])
+
+        da = xr.DataArray(zt, coords=(yt, xt), dims=['y', 'x'])
+        if len(mask.shape) == 2:
+            x, y = np.meshgrid(x, y)
+        z[mask] = da.sel(y=xr.DataArray(y[mask]),
+                         x=xr.DataArray(x[mask])).values
+
+    if return_data_array:
+        z_da = xr.full_like(model_ds['area'], np.NaN)
+        z_da.data = z
+        return z_da
+    return z
+
+
+def get_dataset_transform(ds):
+    """
+    Get an Affine Transform object from a model Dataset
+
+    Parameters
+    ----------
+    ds : xr.dataset
+        The model dataset for which the transform needs to be calculated.
+
+    Returns
+    -------
+    transform : affine.Affine
+        An affine transformation object.
+
+    """
+    xsize = (ds.x.values[1] - ds.x.values[0])
+    ysize = (ds.y.values[1] - ds.y.values[0])
+    dx = np.unique(np.diff(ds.x.values))
+    assert len(dx) == 1
+    xsize = dx[0]
+    dy = np.unique(np.diff(ds.y.values))
+    assert len(dy) == 1
+    ysize = dy[0]
+    west = ds.x.values[0] - xsize/2
+    north = ds.y.values[0] - ysize/2
+    transform = rasterio.transform.from_origin(west, north, xsize, -ysize)
+    return transform

@@ -13,6 +13,7 @@ import xarray as xr
 from owslib.wcs import WebCoverageService
 from rasterio import merge
 from rasterio.io import MemoryFile
+import rioxarray
 
 from .. import cache, mdims, util
 
@@ -52,10 +53,9 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
                                        url=url,
                                        identifier=identifier)
 
-    ahn_ds_raw = xr.open_rasterio(ahn_ds_raw.open())
+    ahn_ds_raw = rioxarray.open_rasterio(ahn_ds_raw.open())
     ahn_ds_raw = ahn_ds_raw.rename({'band': 'layer'})
-    nodata = ahn_ds_raw.attrs['nodatavals'][0]
-    ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != nodata)
+    ahn_ds_raw = ahn_ds_raw.where(ahn_ds_raw != ahn_ds_raw.attrs['_FillValue'])
 
     if model_ds.gridtype == 'structured':
         ahn_ds = mdims.resample_dataarray3d_to_structured_grid(ahn_ds_raw,
@@ -146,7 +146,8 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
 
                 datasets.append(
                     get_ahn_within_extent(
-                        subextent, res=res, tmp_dir=tmp_dir_path, **kwargs))
+                        subextent, res=res, tmp_dir=tmp_dir_path,
+                        maxsize=maxsize, **kwargs))
                 start_y = end_y
 
             start_x = end_x
@@ -191,7 +192,7 @@ def _infer_url(identifier=None):
 
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', fmt='GEOTIFF_FLOAT32',
-                          crs='EPSG:28992', maxsize=800, tmp_dir=None):
+                          crs='EPSG:28992', maxsize=4000, tmp_dir=None):
     """
 
     Parameters

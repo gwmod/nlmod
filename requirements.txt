@@ -16,4 +16,5 @@ pandas>=1.4.1
 matplotlib>=3.3.4
 scipy>=1.6.2
 rasterio==1.2.6
+netCDF4==1.5.7
 rioxarray

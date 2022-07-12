@@ -1,1 +1,1 @@
-from . import ahn, geotop, jarkus, knmi, regis, rws
+from . import ahn, geotop, jarkus, knmi, regis, rws, bgt

@@ -147,7 +147,7 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                 datasets.append(
                     get_ahn_within_extent(
                         subextent, res=res, tmp_dir=tmp_dir_path,
-                        maxsize=maxsize, **kwargs))
+                        **kwargs))
                 start_y = end_y
 
             start_x = end_x
@@ -192,7 +192,7 @@ def _infer_url(identifier=None):
 
 def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
                           res=None, version='1.0.0', fmt='GEOTIFF_FLOAT32',
-                          crs='EPSG:28992', maxsize=4000, tmp_dir=None):
+                          crs='EPSG:28992', maxsize=800, tmp_dir=None):
     """
 
     Parameters

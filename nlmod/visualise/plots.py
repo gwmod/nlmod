@@ -34,22 +34,38 @@ def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
         _, ax = plt.subplots(figsize=(10, 10))
 
     gwf.modelgrid.plot(ax=ax)
-    ax.axis('scaled')
+    ax.axis("scaled")
     if add_surface_water:
         plot_surface_water(model_ds, ax=ax)
-        ax.set_title('modelgrid with surface water')
+        ax.set_title("modelgrid with surface water")
     else:
-        ax.set_title('modelgrid')
-    ax.set_ylabel('y [m RD]')
-    ax.set_xlabel('x [m RD]')
+        ax.set_title("modelgrid")
+    ax.set_ylabel("y [m RD]")
+    ax.set_xlabel("x [m RD]")
 
     return ax
 
 
-def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
-               cmap="viridis", scale_cbar=True, vmin=None, vmax=None,
-               norm=None, xlim=None, ylim=None, grid=False, figdir=None,
-               figsize=(10, 8), plot_bc=None, plot_grid=False):
+def facet_plot(
+    gwf,
+    arr,
+    lbl="",
+    plot_dim="layer",
+    layer=None,
+    period=None,
+    cmap="viridis",
+    scale_cbar=True,
+    vmin=None,
+    vmax=None,
+    norm=None,
+    xlim=None,
+    ylim=None,
+    grid=False,
+    figdir=None,
+    figsize=(10, 8),
+    plot_bc=None,
+    plot_grid=False,
+):
 
     if arr.ndim == 4 and plot_dim == "layer":
         nplots = arr.shape[1]
@@ -64,8 +80,13 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
     plots_per_col = nplots // plots_per_row + 1
 
     fig, axes = plt.subplots(
-        plots_per_col, plots_per_row, figsize=figsize,
-        sharex=True, sharey=True, constrained_layout=True)
+        plots_per_col,
+        plots_per_row,
+        figsize=figsize,
+        sharex=True,
+        sharey=True,
+        constrained_layout=True,
+    )
 
     if scale_cbar:
         vmin = np.nanmin(arr)
@@ -79,16 +100,14 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
             iper = period
             if arr.ndim == 4:
                 if iper is None:
-                    raise ValueError("Pass 'period' to select "
-                                     "timestep to plot.")
+                    raise ValueError("Pass 'period' to select " "timestep to plot.")
                 a = arr[iper]
         elif plot_dim == "time":
             ilay = layer
             iper = i
             if arr.ndim == 4:
                 if ilay is None:
-                    raise ValueError("Pass 'layer' to select "
-                                     "layer to plot.")
+                    raise ValueError("Pass 'layer' to select " "layer to plot.")
                 a = arr[iper]
         else:
             raise ValueError("'plot_dim' must be one of ['layer', 'time']")
@@ -126,15 +145,27 @@ def facet_plot(gwf, arr, lbl="", plot_dim="layer", layer=None, period=None,
     cb.set_label(lbl)
 
     if figdir:
-        fig.savefig(os.path.join(figdir, f"{lbl}_per_{plot_dim}.png"),
-                    dpi=150, bbox_inches="tight")
+        fig.savefig(
+            os.path.join(figdir, f"{lbl}_per_{plot_dim}.png"),
+            dpi=150,
+            bbox_inches="tight",
+        )
 
     return fig, axes
 
 
-def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
-                  plot_bc=('CHD',), color='k', grid=False,
-                  xlim=None, ylim=None):
+def facet_plot_ds(
+    gwf,
+    model_ds,
+    figdir,
+    plot_var="bot",
+    plot_time=None,
+    plot_bc=("CHD",),
+    color="k",
+    grid=False,
+    xlim=None,
+    ylim=None,
+):
     """make a 2d plot of every modellayer, store them in a grid.
 
     Parameters
@@ -171,7 +202,8 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
     for key in plot_bc:
         if key not in gwf.get_package_list():
             raise ValueError(
-                f'cannot plot boundary condition {key} because it is not in the package list')
+                f"cannot plot boundary condition {key} because it is not in the package list"
+            )
 
     nlay = len(model_ds.layer)
 
@@ -179,8 +211,12 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
     plots_per_col = nlay // plots_per_row + 1
 
     fig, axes = plt.subplots(
-        plots_per_col, plots_per_row, figsize=(11, 10),
-        sharex=True, sharey=True, dpi=150
+        plots_per_col,
+        plots_per_row,
+        figsize=(11, 10),
+        sharex=True,
+        sharey=True,
+        dpi=150,
     )
     if plot_time is None:
         plot_arr = model_ds[plot_var]
@@ -193,8 +229,7 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         iax = axes.ravel()[ilay]
         mp = flopy.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
         # mp.plot_grid()
-        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis",
-                           vmin=vmin, vmax=vmax)
+        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax)
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)
@@ -214,33 +249,36 @@ def facet_plot_ds(gwf, model_ds, figdir, plot_var='bot', plot_time=None,
         iax.set_visible(False)
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
-    cb.set_label(f'{plot_var}', rotation=270)
-    fig.suptitle(
-        f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year")
+    cb.set_label(f"{plot_var}", rotation=270)
+    fig.suptitle(f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year")
     fig.tight_layout()
-    fig.savefig(os.path.join(figdir, f"{plot_var}_per_layer.png"), dpi=150,
-                bbox_inches="tight")
+    fig.savefig(
+        os.path.join(figdir, f"{plot_var}_per_layer.png"), dpi=150, bbox_inches="tight"
+    )
 
     return fig, axes
 
 
 def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
 
-    warnings.warn("The 'plot_array' functions is deprecated please use"
-                  "'plot_vertex_array' instead", DeprecationWarning)
+    warnings.warn(
+        "The 'plot_array' functions is deprecated please use"
+        "'plot_vertex_array' instead",
+        DeprecationWarning,
+    )
     if ax is None:
         _, ax = plt.subplots(figsize=figsize)
 
     yticklabels = ax.yaxis.get_ticklabels()
-    plt.setp(yticklabels, rotation=90, verticalalignment='center')
-    ax.axis('scaled')
+    plt.setp(yticklabels, rotation=90, verticalalignment="center")
+    ax.axis("scaled")
     pmv = flopy.plot.PlotMapView(modelgrid=gwf.modelgrid, ax=ax)
     pcm = pmv.plot_array(array, **kwargs)
     if colorbar:
         fig = ax.get_figure()
-        fig.colorbar(pcm, ax=ax, orientation='vertical')
+        fig.colorbar(pcm, ax=ax, orientation="vertical")
         # plt.colorbar(pcm)
-    if hasattr(array, 'name'):
+    if hasattr(array, "name"):
         ax.set_title(array.name)
     # set rotation of y ticks to zero
     plt.setp(ax.yaxis.get_majorticklabels(), rotation=0)
@@ -300,28 +338,38 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
 
     ax.add_collection(quadmesh)
     ax.set_xlim(vertices[:, :, 0].min(), vertices[:, :, 0].max())
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     ax.set_ylim(vertices[:, :, 1].min(), vertices[:, :, 1].max())
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
 
-    ax.get_figure().colorbar(quadmesh, ax=ax, orientation='vertical')
-    if hasattr(da, 'name'):
+    ax.get_figure().colorbar(quadmesh, ax=ax, orientation="vertical")
+    if hasattr(da, "name"):
         ax.set_title(da.name)
 
     return ax
 
 
-def get_map(extent, figsize=None, nrows=1, ncols=1, figw=10.,
-            base=1000., fmt='{:.0f}', sharex=False, sharey=True, **kwargs):
+def get_map(
+    extent,
+    figsize=None,
+    nrows=1,
+    ncols=1,
+    figw=10.0,
+    base=1000.0,
+    fmt="{:.0f}",
+    sharex=False,
+    sharey=True,
+    **kwargs,
+):
     if figsize is None:
         xh = 0.2
         if base is None:
             xh = 0.0
-        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figw,
-                              xh=xh)
-    f, axes = plt.subplots(figsize=figsize, nrows=nrows, ncols=ncols,
-                           sharex=sharex, sharey=sharey)
+        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figw, xh=xh)
+    f, axes = plt.subplots(
+        figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
+    )
     if nrows == 1 and ncols == 1:
         set_ax_in_map(axes, extent, base=base, fmt=fmt, **kwargs)
     else:
@@ -332,18 +380,17 @@ def get_map(extent, figsize=None, nrows=1, ncols=1, figw=10.,
     return f, axes
 
 
-def get_figsize(extent, figw=10., nrows=1, ncols=1, xh=0.2):
+def get_figsize(extent, figw=10.0, nrows=1, ncols=1, xh=0.2):
     w = extent[1] - extent[0]
     h = extent[3] - extent[2]
-    axh = (figw/ncols) * (h / w) + xh
+    axh = (figw / ncols) * (h / w) + xh
     figh = nrows * axh
     figsize = (figw, figh)
     return figsize
 
 
-def set_ax_in_map(ax, extent, base=1000., fmt='{:.0f}',
-                  affine=None, alpha=1.0):
-    ax.axis('scaled')
+def set_ax_in_map(ax, extent, base=1000.0, fmt="{:.0f}", affine=None, alpha=1.0):
+    ax.axis("scaled")
     ax.axis(extent)
     rotate_yticklabels(ax)
     if base is None:
@@ -356,14 +403,15 @@ def set_ax_in_map(ax, extent, base=1000., fmt='{:.0f}',
 def rotate_yticklabels(ax):
     """Rotate the labels on the y-axis 90 degrees to save space"""
     yticklabels = ax.yaxis.get_ticklabels()
-    plt.setp(yticklabels, rotation=90, verticalalignment='center')
+    plt.setp(yticklabels, rotation=90, verticalalignment="center")
 
 
-def rd_ticks(ax, base=1000., fmt_base=1000., fmt='{:.0f}'):
-    """Add ticks every 1000 (base) m, and divide ticklabels by 1000 (fmt_base)
-    """
+def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
+    """Add ticks every 1000 (base) m, and divide ticklabels by 1000 (fmt_base)"""
+
     def fmt_rd_ticks(x, y):
         return fmt.format(x / fmt_base)
+
     if base is not None:
         ax.xaxis.set_major_locator(MultipleLocator(base))
         ax.yaxis.set_major_locator(MultipleLocator(base))
@@ -371,14 +419,13 @@ def rd_ticks(ax, base=1000., fmt_base=1000., fmt='{:.0f}'):
     ax.yaxis.set_major_formatter(FuncFormatter(fmt_rd_ticks))
 
 
-def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None,
-                    bounds=None, **kw):
+def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw):
     """Place a colorbar inside an axes"""
     if ax is None:
         ax = plt.gca()
     if bounds is None:
         bounds = [0.95, 0.05, 0.02, 0.9]
-    cax = ax.inset_axes(bounds, facecolor='none')
+    cax = ax.inset_axes(bounds, facecolor="none")
     if mappable is None and norm is not None and cmap is not None:
         # make an empty dataset...
         mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)

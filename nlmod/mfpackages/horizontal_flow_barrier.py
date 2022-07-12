@@ -35,7 +35,9 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
         Stress period data used to configure the hfb package of Flopy.
 
     """
-    assert sum([depth is None, elevation is None]) == 1, 'Use either depth or elevation argument'
+    assert (
+        sum([depth is None, elevation is None]) == 1
+    ), "Use either depth or elevation argument"
 
     tops = np.concatenate((gwf.disv.top.array[None], gwf.disv.botm.array))
     thick = tops[:-1] - tops[1:]
@@ -62,14 +64,14 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
                 continue
 
             if depth is not None:
-                if sum(thicki[:ilay + 1]) <= depth:
+                if sum(thicki[: ilay + 1]) <= depth:
                     # hfb pierces the entire cell
                     spd.append([cellid1, cellid2, hydchr])
 
                 elif sum(thicki[:ilay]) <= depth:
                     # hfb pierces the cell partially
                     hydchr_frac = (depth - sum(thicki[:ilay])) / thicki[ilay]
-                    assert hydchr_frac <= 1 and hydchr_frac >= 0, 'Something is wrong'
+                    assert hydchr_frac <= 1 and hydchr_frac >= 0, "Something is wrong"
 
                     spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                     break  # go to next cell
@@ -85,7 +87,7 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
                 else:
                     # hfb pierces the cell partially
                     hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
-                    assert hydchr_frac <= 1 and hydchr_frac >= 0, 'Something is wrong'
+                    assert hydchr_frac <= 1 and hydchr_frac >= 0, "Something is wrong"
 
                     spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                     break  # go to next cell
@@ -94,7 +96,7 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
 
 
 def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
-    """ Obtain the cells with a horizontal flow barrier between them from a
+    """Obtain the cells with a horizontal flow barrier between them from a
     geodataframe with line elements.
 
 
@@ -121,28 +123,30 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
 
     gdfg = mdims.gdf2grid(gdf, gwf)
 
-    cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index('icell2d')
-    vertices = pd.DataFrame(gwf.disv.vertices.array).set_index('iv')
+    cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index("icell2d")
+    vertices = pd.DataFrame(gwf.disv.vertices.array).set_index("iv")
 
     # for every cell determine which cell-edge could form the line
     # by testing for an intersection with a triangle to the cell-center
-    icvert = cell2d.loc[:, cell2d.columns.str.startswith('icvert')].values
+    icvert = cell2d.loc[:, cell2d.columns.str.startswith("icvert")].values
 
     hfb_seg = []
     for index in gdfg.index.unique():
         # Get the nearest hexagon sides where routes cross
-        for icell2d in gdfg.loc[index, 'cellid']:
-            for i in range(cell2d.at[icell2d, 'ncvert'] - 1):
+        for icell2d in gdfg.loc[index, "cellid"]:
+            for i in range(cell2d.at[icell2d, "ncvert"] - 1):
                 iv1 = icvert[icell2d, i]
                 iv2 = icvert[icell2d, i + 1]
                 # make sure vert1 is lower than vert2
                 if iv1 > iv2:
                     iv1, iv2 = iv2, iv1
-                coords = [(cell2d.at[icell2d, 'xc'], cell2d.at[icell2d, 'yc']),
-                          (vertices.at[iv1, 'xv'], vertices.at[iv1, 'yv']),
-                          (vertices.at[iv2, 'xv'], vertices.at[iv2, 'yv'])]
+                coords = [
+                    (cell2d.at[icell2d, "xc"], cell2d.at[icell2d, "yc"]),
+                    (vertices.at[iv1, "xv"], vertices.at[iv1, "yv"]),
+                    (vertices.at[iv2, "xv"], vertices.at[iv2, "yv"]),
+                ]
                 triangle = Polygon(coords)
-                if triangle.intersects(gdf.loc[index, 'geometry']):
+                if triangle.intersects(gdf.loc[index, "geometry"]):
                     hfb_seg.append((icell2d, iv1, iv2))
     hfb_seg = np.array(hfb_seg)
 
@@ -151,12 +155,14 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
         # remove the segments whose centroid is farthest from the line
         for icell2d in np.unique(hfb_seg[:, 0]):
             mask = hfb_seg[:, 0] == icell2d
-            if mask.sum() >= cell2d.at[icell2d, 'ncvert'] - 1:
+            if mask.sum() >= cell2d.at[icell2d, "ncvert"] - 1:
                 segs = hfb_seg[mask]
                 dist = []
                 for seg in segs:
-                    p = Point(vertices.loc[seg[1:3], 'xv'].mean(),
-                              vertices.loc[seg[1:3], 'yv'].mean())
+                    p = Point(
+                        vertices.loc[seg[1:3], "xv"].mean(),
+                        vertices.loc[seg[1:3], "yv"].mean(),
+                    )
                     dist.append(gdf.distance(p).min())
                 iv1, iv2 = segs[np.argmax(dist), [1, 2]]
                 mask = (hfb_seg[:, 1] == iv1) & (hfb_seg[:, 2] == iv2)
@@ -172,10 +178,9 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     mask = np.full(hfb_seg.shape[0], True)
     for i, segment in enumerate(hfb_seg):
         # one vertex is not connected and the other one at least to two other segments
-        if ((segments_per_iv[segment[0]] == 1 and
-             segments_per_iv[segment[1]] >= 3) or
-            (segments_per_iv[segment[1]] == 1 and
-             segments_per_iv[segment[0]] >= 3)):
+        if (segments_per_iv[segment[0]] == 1 and segments_per_iv[segment[1]] >= 3) or (
+            segments_per_iv[segment[1]] == 1 and segments_per_iv[segment[0]] >= 3
+        ):
             mask[i] = False
     hfb_seg = hfb_seg[mask]
 
@@ -183,22 +188,22 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
         # test by plotting
         ax = gdfg.plot()
         for i, seg in enumerate(hfb_seg):
-            x = [vertices.at[seg[0], 'xv'], vertices.at[seg[1], 'xv']]
-            y = [vertices.at[seg[0], 'yv'], vertices.at[seg[1], 'yv']]
+            x = [vertices.at[seg[0], "xv"], vertices.at[seg[1], "xv"]]
+            y = [vertices.at[seg[0], "yv"], vertices.at[seg[1], "yv"]]
             ax.plot(x, y)
 
     # find out between which cellid's these segments are
     segments = []
     for icell2d in cell2d.index:
-        for i in range(cell2d.at[icell2d, 'ncvert'] - 1):
+        for i in range(cell2d.at[icell2d, "ncvert"] - 1):
             iv1 = icvert[icell2d, i]
             iv2 = icvert[icell2d, i + 1]
             # make sure vert1 is lower than vert2
             if iv1 > iv2:
                 iv1, iv2 = iv2, iv1
             segments.append((icell2d, (iv1, iv2)))
-    segments = pd.DataFrame(segments, columns=['icell2d', 'verts'])
-    segments = segments.set_index(['verts'])
+    segments = pd.DataFrame(segments, columns=["icell2d", "verts"])
+    segments = segments.set_index(["verts"])
 
     cellids = []
     for seg in hfb_seg:
@@ -207,7 +212,7 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
 
 
 def plot_hfb(cellids, gwf, ax=None):
-    """ plots a horizontal flow barrier
+    """plots a horizontal flow barrier
 
 
     Parameters
@@ -239,6 +244,6 @@ def plot_hfb(cellids, gwf, ax=None):
         pc1 = Polygon(gwf.modelgrid.get_cell_vertices(line[0]))
         pc2 = Polygon(gwf.modelgrid.get_cell_vertices(line[1]))
         x, y = pc1.intersection(pc2).xy
-        ax.plot(x, y, color='red')
+        ax.plot(x, y, color="red")
 
     return ax

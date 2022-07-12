@@ -7,7 +7,7 @@ Created on Wed Apr 20 17:01:07 2022
 
 from io import BytesIO
 import shapely
-from shapely.geometry import (Point, LineString, Polygon, MultiPolygon)
+from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -18,8 +18,15 @@ from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 
 
-def get_bgt(extent, layer='waterdeel', cut_by_extent=True, fname=None,
-            geometry=None, format='citygml', reader='fiona'):
+def get_bgt(
+    extent,
+    layer="waterdeel",
+    cut_by_extent=True,
+    fname=None,
+    geometry=None,
+    format="citygml",
+    reader="fiona",
+):
     """
     Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
@@ -54,24 +61,23 @@ def get_bgt(extent, layer='waterdeel', cut_by_extent=True, fname=None,
         A GeoDataFrame containing all geometries and properties.
 
     """
-    if layer == 'all':
+    if layer == "all":
         layer = get_bgt_layers()
     if isinstance(layer, str):
         layer = [layer]
 
-    api_url = 'https://api.pdok.nl'
-    url = '{}/lv/bgt/download/v1_0/full/custom'.format(api_url)
-    body = {'format': 'citygml',
-            'featuretypes': layer}
+    api_url = "https://api.pdok.nl"
+    url = "{}/lv/bgt/download/v1_0/full/custom".format(api_url)
+    body = {"format": "citygml", "featuretypes": layer}
 
     if isinstance(extent, Polygon):
         polygon = extent
     else:
         polygon = extent2polygon(extent)
 
-    body['geofilter'] = polygon.wkt
+    body["geofilter"] = polygon.wkt
 
-    headers = {'content-type': 'application/json'}
+    headers = {"content-type": "application/json"}
 
     response = requests.post(url, headers=headers, data=json.dumps(body))
 
@@ -79,12 +85,12 @@ def get_bgt(extent, layer='waterdeel', cut_by_extent=True, fname=None,
     if response.status_code in range(200, 300):
         running = True
         href = response.json()["_links"]["status"]["href"]
-        url = '{}{}'.format(api_url, href)
+        url = "{}{}".format(api_url, href)
 
         while running:
             response = requests.get(url)
             if response.status_code in range(200, 300):
-                status = response.json()['status']
+                status = response.json()["status"]
                 if status == "COMPLETED":
                     running = False
                 else:
@@ -92,11 +98,11 @@ def get_bgt(extent, layer='waterdeel', cut_by_extent=True, fname=None,
             else:
                 running = False
     else:
-        msg = 'Download of bgt-data failed: {}'.format(response.text)
-        raise(Exception(msg))
+        msg = "Download of bgt-data failed: {}".format(response.text)
+        raise (Exception(msg))
 
     href = response.json()["_links"]["download"]["href"]
-    response = requests.get('{}{}'.format(api_url, href))
+    response = requests.get("{}{}".format(api_url, href))
 
     if fname is not None:
         file = open(fname, "wb")
@@ -109,17 +115,17 @@ def get_bgt(extent, layer='waterdeel', cut_by_extent=True, fname=None,
     gdf = read_bgt_zipfile(zipfile, geometry=geometry)
 
     for key in gdf:
-        if gdf[key] is not None and 'eindRegistratie' in gdf[key]:
+        if gdf[key] is not None and "eindRegistratie" in gdf[key]:
             # remove double features
             # by removing features with an eindRegistratie
-            gdf[key] = gdf[key][gdf[key]['eindRegistratie'].isna()]
+            gdf[key] = gdf[key][gdf[key]["eindRegistratie"].isna()]
 
         if cut_by_extent and isinstance(gdf[key], gpd.GeoDataFrame):
             try:
                 gdf[key].geometry = gdf[key].intersection(polygon)
                 gdf[key] = gdf[key][~gdf[key].is_empty]
             except shapely.geos.TopologicalError:
-                print(f'Cutting by extent failed for {key}')
+                print(f"Cutting by extent failed for {key}")
     if len(layer) == 1:
         gdf = gdf[layer[0]]
     return gdf
@@ -138,127 +144,131 @@ def read_bgt_zipfile(fname, geometry=None, files=None):
     return gdf
 
 
-def read_bgt_gml(fname, geometry='geometrie2dGrondvlak', crs='epsg:28992'):
-
+def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
     def get_xy(text):
         xy = [float(val) for val in text.split()]
-        xy = np.array(xy).reshape(int(len(xy)/2), 2)
+        xy = np.array(xy).reshape(int(len(xy) / 2), 2)
         return xy
 
     def get_ring_xy(exterior):
-        ns = '{http://www.opengis.net/gml}'
+        ns = "{http://www.opengis.net/gml}"
         assert len(exterior) == 1
-        if exterior[0].tag == f'{ns}LinearRing':
-            lr = exterior.find(f'{ns}LinearRing')
-            xy = get_xy(lr.find(f'{ns}posList').text)
-        elif exterior[0].tag == f'{ns}Ring':
-            cm = exterior.find(f'{ns}Ring').find(f'{ns}curveMember')
-            xy = read_curve(cm.find(f'{ns}Curve'))
+        if exterior[0].tag == f"{ns}LinearRing":
+            lr = exterior.find(f"{ns}LinearRing")
+            xy = get_xy(lr.find(f"{ns}posList").text)
+        elif exterior[0].tag == f"{ns}Ring":
+            cm = exterior.find(f"{ns}Ring").find(f"{ns}curveMember")
+            xy = read_curve(cm.find(f"{ns}Curve"))
         else:
-            raise(
-                Exception('Unknown exterior type: {}'.format(exterior[0].tag)))
+            raise (Exception("Unknown exterior type: {}".format(exterior[0].tag)))
         return xy
 
     def read_polygon(polygon):
-        ns = '{http://www.opengis.net/gml}'
-        exterior = polygon.find(f'{ns}exterior')
+        ns = "{http://www.opengis.net/gml}"
+        exterior = polygon.find(f"{ns}exterior")
         shell = get_ring_xy(exterior)
         holes = []
-        for interior in polygon.findall(f'{ns}interior'):
+        for interior in polygon.findall(f"{ns}interior"):
             holes.append(get_ring_xy(interior))
         return shell, holes
 
     def read_point(point):
-        ns = '{http://www.opengis.net/gml}'
-        xy = [float(x) for x in point.find(f'{ns}pos').text.split()]
+        ns = "{http://www.opengis.net/gml}"
+        xy = [float(x) for x in point.find(f"{ns}pos").text.split()]
         return xy
 
     def read_curve(curve):
         xy = np.empty((0, 2))
-        for segment in curve.find(f'{ns}segments'):
-            xy = np.vstack(
-                (xy, get_xy(segment.find(f'{ns}posList').text)))
+        for segment in curve.find(f"{ns}segments"):
+            xy = np.vstack((xy, get_xy(segment.find(f"{ns}posList").text)))
         return xy
 
     def read_linestring(linestring):
-        return get_xy(linestring.find(f'{ns}posList').text)
+        return get_xy(linestring.find(f"{ns}posList").text)
 
     tree = ET.parse(fname)
-    ns = '{http://www.opengis.net/citygml/2.0}'
+    ns = "{http://www.opengis.net/citygml/2.0}"
     data = []
-    for com in tree.findall(f'.//{ns}cityObjectMember'):
+    for com in tree.findall(f".//{ns}cityObjectMember"):
         assert len(com) == 1
         bp = com[0]
         d = {}
         for key in bp.attrib:
-            d[key.split('}', 1)[1]] = bp.attrib[key]
+            d[key.split("}", 1)[1]] = bp.attrib[key]
         for child in bp:
-            key = child.tag.split('}', 1)[1]
+            key = child.tag.split("}", 1)[1]
             if len(child) == 0:
                 d[key] = child.text
             else:
-                if key == 'identificatie':
-                    ns = '{http://www.geostandaarden.nl/imgeo/2.1}'
-                    loc_id = child.find(f'{ns}NEN3610ID').find(f'{ns}lokaalID')
+                if key == "identificatie":
+                    ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
+                    loc_id = child.find(f"{ns}NEN3610ID").find(f"{ns}lokaalID")
                     d[key] = loc_id.text
-                elif key.startswith('geometrie'):
+                elif key.startswith("geometrie"):
                     if geometry is None:
                         geometry = key
                     assert len(child) == 1
-                    ns = '{http://www.opengis.net/gml}'
-                    if child[0].tag == f'{ns}MultiSurface':
-                        ms = child.find(f'{ns}MultiSurface')
+                    ns = "{http://www.opengis.net/gml}"
+                    if child[0].tag == f"{ns}MultiSurface":
+                        ms = child.find(f"{ns}MultiSurface")
                         polygons = []
                         for sm in ms:
                             assert len(sm) == 1
-                            polygon = sm.find(f'{ns}Polygon')
+                            polygon = sm.find(f"{ns}Polygon")
                             polygons.append(read_polygon(polygon))
                         d[key] = MultiPolygon(polygons)
-                    elif child[0].tag == f'{ns}Polygon':
+                    elif child[0].tag == f"{ns}Polygon":
                         d[key] = Polygon(*read_polygon(child[0]))
-                    elif child[0].tag == f'{ns}Curve':
+                    elif child[0].tag == f"{ns}Curve":
                         d[key] = LineString(read_curve(child[0]))
-                    elif child[0].tag == f'{ns}LineString':
+                    elif child[0].tag == f"{ns}LineString":
                         d[key] = LineString(read_linestring(child[0]))
-                    elif child[0].tag == f'{ns}Point':
+                    elif child[0].tag == f"{ns}Point":
                         d[key] = Point(read_point(child[0]))
                     else:
-                        raise(Exception((f'Unsupported tag: {child[0].tag}')))
-                elif key == 'nummeraanduidingreeks':
-                    ns = '{http://www.geostandaarden.nl/imgeo/2.1}'
-                    nar = child.find(f'{ns}Nummeraanduidingreeks').find(
-                        f'{ns}nummeraanduidingreeks')
-                    label = nar.find(f'{ns}Label')
-                    d['label'] = label.find(f'{ns}tekst').text
-                    positie = label.find(f'{ns}positie').find(
-                        f'{ns}Labelpositie')
-                    xy = read_point(positie.find(f'{ns}plaatsingspunt').find(
-                        '{http://www.opengis.net/gml}Point'))
-                    d['label_plaatsingspunt'] = Point(xy)
-                    d['label_hoek'] = float(positie.find(f'{ns}hoek').text)
-                elif (key == 'kruinlijnBegroeidTerreindeel' or
-                      key == 'kruinlijnOnbegroeidTerreindeel' or
-                      key == 'kruinlijnOndersteunendWegdeel'):
-                    ns = '{http://www.opengis.net/gml}'
-                    if child[0].tag == f'{ns}LineString':
-                        ls = child.find(f'{ns}LineString')
+                        raise (Exception((f"Unsupported tag: {child[0].tag}")))
+                elif key == "nummeraanduidingreeks":
+                    ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
+                    nar = child.find(f"{ns}Nummeraanduidingreeks").find(
+                        f"{ns}nummeraanduidingreeks"
+                    )
+                    label = nar.find(f"{ns}Label")
+                    d["label"] = label.find(f"{ns}tekst").text
+                    positie = label.find(f"{ns}positie").find(f"{ns}Labelpositie")
+                    xy = read_point(
+                        positie.find(f"{ns}plaatsingspunt").find(
+                            "{http://www.opengis.net/gml}Point"
+                        )
+                    )
+                    d["label_plaatsingspunt"] = Point(xy)
+                    d["label_hoek"] = float(positie.find(f"{ns}hoek").text)
+                elif (
+                    key == "kruinlijnBegroeidTerreindeel"
+                    or key == "kruinlijnOnbegroeidTerreindeel"
+                    or key == "kruinlijnOndersteunendWegdeel"
+                ):
+                    ns = "{http://www.opengis.net/gml}"
+                    if child[0].tag == f"{ns}LineString":
+                        ls = child.find(f"{ns}LineString")
                         d[key] = LineString(read_linestring(ls))
-                    elif child[0].tag == f'{ns}Curve':
+                    elif child[0].tag == f"{ns}Curve":
                         d[key] = LineString(read_curve(child[0]))
                     else:
-                        raise(Exception((f'Unsupported tag: {child[0].tag}')))
-                elif key == 'openbareRuimteNaam':
-                    ns = '{http://www.geostandaarden.nl/imgeo/2.1}'
-                    label = child.find(f'{ns}Label')
-                    d['label'] = label.find(f'{ns}tekst').text
-                    positie = label.find(f'{ns}positie').find(
-                        f'{ns}Labelpositie')
-                    xy = read_point(positie.find(f'{ns}plaatsingspunt').find(
-                        '{http://www.opengis.net/gml}Point'))
-                    d['label_plaatsingspunt'] = Point(xy)
-                    d['label_hoek'] = float(positie.find(f'{ns}hoek').text)
+                        raise (Exception((f"Unsupported tag: {child[0].tag}")))
+                elif key == "openbareRuimteNaam":
+                    ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
+                    label = child.find(f"{ns}Label")
+                    d["label"] = label.find(f"{ns}tekst").text
+                    positie = label.find(f"{ns}positie").find(f"{ns}Labelpositie")
+                    xy = read_point(
+                        positie.find(f"{ns}plaatsingspunt").find(
+                            "{http://www.opengis.net/gml}Point"
+                        )
+                    )
+                    d["label_plaatsingspunt"] = Point(xy)
+                    d["label_hoek"] = float(positie.find(f"{ns}hoek").text)
                 else:
-                    raise(Exception((f'Unknown key: {key}')))
+                    raise (Exception((f"Unknown key: {key}")))
         data.append(d)
     if len(data) > 0:
         if geometry is None:
@@ -270,10 +280,10 @@ def read_bgt_gml(fname, geometry='geometrie2dGrondvlak', crs='epsg:28992'):
 
 
 def get_bgt_layers():
-    url = 'https://api.pdok.nl/lv/bgt/download/v1_0/dataset'
+    url = "https://api.pdok.nl/lv/bgt/download/v1_0/dataset"
     resp = requests.get(url)
     data = resp.json()
-    return [x['featuretype'] for x in data['timeliness']]
+    return [x["featuretype"] for x in data["timeliness"]]
 
 
 def extent2polygon(extent):

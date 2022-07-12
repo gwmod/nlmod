@@ -81,7 +81,7 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name='test'):
                                                                  use_geotop=True)
 
     model_ds = nlmod.read.regis.to_model_ds(regis_geotop_ds, model_name,
-                                            tmpdir, delr=100., delc=100.)
+                                            str(tmpdir), delr=100., delc=100.)
 
     model_ds = nlmod.mdims.set_model_ds_time(model_ds,
                                              start_time='2015-1-1',

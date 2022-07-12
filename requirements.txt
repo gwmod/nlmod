@@ -17,3 +17,4 @@ matplotlib>=3.3.4
 scipy>=1.7.3
 rasterio==1.2.6
 netCDF4==1.5.7
+rioxarray

@@ -72,7 +72,7 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds, complexity="MODERATE", exe_name=Non
     )
 
     # Create the Flopy groundwater flow (gwf) model object
-    model_nam_file = "{}.nam".format(model_ds.model_name)
+    model_nam_file = f"{model_ds.model_name}.nam"
     gwf = flopy.mf6.ModflowGwf(
         sim, modelname=model_ds.model_name, model_nam_file=model_nam_file
     )
@@ -487,9 +487,9 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True, print_head=True):
         oc package
     """
     # Create the output control package
-    headfile = "{}.hds".format(model_ds.model_name)
+    headfile = f"{model_ds.model_name}.hds"
     head_filerecord = [headfile]
-    budgetfile = "{}.cbb".format(model_ds.model_name)
+    budgetfile = f"{model_ds.model_name}.cbb"
     budget_filerecord = [budgetfile]
     saverecord = [("HEAD", "LAST")]
     if save_budget:

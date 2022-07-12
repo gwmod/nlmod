@@ -120,9 +120,7 @@ class DatasetCrossSection:
         xys = xys[xys[:, -1].argsort()]
         return xys
 
-    def plot_layers(
-        self, colors=None, zmin=None, zmax=None, min_label_area=np.inf, **kwargs
-    ):
+    def plot_layers(self, colors=None, min_label_area=np.inf, **kwargs):
         if colors is None:
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i) for i in range(len(self.layer))]

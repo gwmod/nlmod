@@ -336,6 +336,6 @@ def get_ahn_within_extent(
             identifier=[identifier], subsets=subsets, format=fmt, crs=crs
         )
     else:
-        raise (Exception("Version {} not yet supported".format(version)))
+        raise Exception(f"Version {version} not yet supported")
 
     return MemoryFile(output.read())

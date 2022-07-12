@@ -6,7 +6,6 @@ import xarray as xr
 
 from . import resample, mgrid
 from ..read import jarkus, rws
-from .. import util
 
 logger = logging.getLogger(__name__)
 

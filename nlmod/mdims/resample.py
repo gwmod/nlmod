@@ -7,7 +7,6 @@ import logging
 
 import numpy as np
 import xarray as xr
-import scipy
 from scipy import interpolate
 from scipy.interpolate import griddata
 import rasterio
@@ -142,7 +141,7 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
-    xyi, icell2d = mgrid.get_xyi_icell2d(gridprops)
+    xyi, _ = mgrid.get_xyi_icell2d(gridprops)
     x = xr.DataArray(xyi[:, 0], dims=("icell2d"))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
 
@@ -160,14 +159,14 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
     for data_var in ds_in.data_vars:
         if ds_in[data_var].dims == ("layer", "y", "x"):
             data_arr = resample_dataarray3d_to_vertex_grid(
-                ds_in[data_var], xyi=xyi, method=method
+                ds_in[data_var], x=x, y=y, method=method
             )
         elif ds_in[data_var].dims == ("y", "x"):
             data_arr = resample_dataarray2d_to_vertex_grid(
-                ds_in[data_var], xyi=xyi, method=method
+                ds_in[data_var], x=x, y=y, method=method
             )
 
-        elif ds_in[data_var].dims == ("layer") or ds_in[data_var].dims == ("layer",):
+        elif ds_in[data_var].dims in ("layer", ("layer",)):
             data_arr = ds_in[data_var]
 
         else:
@@ -478,7 +477,7 @@ def get_resampled_ml_layer_ds_vertex(
         area = gridprops["area"][: len(ml_layer_ds["icell2d"])]
         ml_layer_ds["area"] = ("icell2d", area)
     # add information about the vertices
-    iv, xv, yv = zip(*gridprops["vertices"])
+    _, xv, yv = zip(*gridprops["vertices"])
     ml_layer_ds["xv"] = ("iv", np.array(xv))
     ml_layer_ds["yv"] = ("iv", np.array(yv))
     # and set which nodes use which vertices

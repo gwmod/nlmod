@@ -389,7 +389,7 @@ def get_figsize(extent, figw=10.0, nrows=1, ncols=1, xh=0.2):
     return figsize
 
 
-def set_ax_in_map(ax, extent, base=1000.0, fmt="{:.0f}", affine=None, alpha=1.0):
+def set_ax_in_map(ax, extent, base=1000.0, fmt="{:.0f}"):
     ax.axis("scaled")
     ax.axis(extent)
     rotate_yticklabels(ax)
@@ -409,7 +409,7 @@ def rotate_yticklabels(ax):
 def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
     """Add ticks every 1000 (base) m, and divide ticklabels by 1000 (fmt_base)"""
 
-    def fmt_rd_ticks(x, y):
+    def fmt_rd_ticks(x, _):
         return fmt.format(x / fmt_base)
 
     if base is not None:

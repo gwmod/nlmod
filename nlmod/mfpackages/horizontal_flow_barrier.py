@@ -71,7 +71,7 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
                 elif sum(thicki[:ilay]) <= depth:
                     # hfb pierces the cell partially
                     hydchr_frac = (depth - sum(thicki[:ilay])) / thicki[ilay]
-                    assert hydchr_frac <= 1 and hydchr_frac >= 0, "Something is wrong"
+                    assert 0 <= hydchr_frac <= 1, "Something is wrong"
 
                     spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                     break  # go to next cell

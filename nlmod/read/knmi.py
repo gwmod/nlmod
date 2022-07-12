@@ -1,11 +1,9 @@
 import datetime as dt
 import logging
-import numbers
 
 import hydropandas as hpd
 import numpy as np
 import pandas as pd
-import xarray as xr
 
 from .. import cache, util
 

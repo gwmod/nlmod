@@ -26,7 +26,7 @@ from tqdm import tqdm
 from scipy.interpolate import griddata
 
 from shapely.geometry import Point
-from .. import cache, mfpackages, util
+from .. import cache, util
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +96,9 @@ def get_cell2d_from_model_ds(ds):
     icvert = ds["icvert"].data
     cell2d = []
     nodata = ds["icvert"].attrs["_FillValue"]
-    for i in range(len(icell2d)):
+    for i, cid in enumerate(icell2d):
         mask = ds["icvert"].data[i] != nodata
-        cell2d.append((icell2d[i], x[i], y[i], mask.sum(), *icvert[i][mask]))
+        cell2d.append((cid, x[i], y[i], mask.sum(), *icvert[i][mask]))
     return cell2d
 
 
@@ -237,7 +237,7 @@ def create_vertex_grid(
         delc=delc,
         xorigin=extent[0],
         yorigin=extent[2],
-        filename="{}.dis".format(model_name),
+        filename=f"{model_name}.dis",
     )
 
     # Define new default `exe_name` for NHFLO

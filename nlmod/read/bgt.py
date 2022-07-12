@@ -18,15 +18,7 @@ from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 
 
-def get_bgt(
-    extent,
-    layer="waterdeel",
-    cut_by_extent=True,
-    fname=None,
-    geometry=None,
-    format="citygml",
-    reader="fiona",
-):
+def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None):
     """
     Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
@@ -67,7 +59,7 @@ def get_bgt(
         layer = [layer]
 
     api_url = "https://api.pdok.nl"
-    url = "{}/lv/bgt/download/v1_0/full/custom".format(api_url)
+    url = f"{api_url}/lv/bgt/download/v1_0/full/custom"
     body = {"format": "citygml", "featuretypes": layer}
 
     if isinstance(extent, Polygon):
@@ -85,7 +77,7 @@ def get_bgt(
     if response.status_code in range(200, 300):
         running = True
         href = response.json()["_links"]["status"]["href"]
-        url = "{}{}".format(api_url, href)
+        url = f"{api_url}{href}"
 
         while running:
             response = requests.get(url)
@@ -98,16 +90,15 @@ def get_bgt(
             else:
                 running = False
     else:
-        msg = "Download of bgt-data failed: {}".format(response.text)
+        msg = "Download of bgt-data failed: {response.text}"
         raise (Exception(msg))
 
     href = response.json()["_links"]["download"]["href"]
-    response = requests.get("{}{}".format(api_url, href))
+    response = requests.get(f"{api_url}{href}")
 
     if fname is not None:
-        file = open(fname, "wb")
-        file.write(response.content)
-        file.close()
+        with open(fname, "wb") as file:
+            file.write(response.content)
 
     gdf = {}
 
@@ -160,7 +151,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
             cm = exterior.find(f"{ns}Ring").find(f"{ns}curveMember")
             xy = read_curve(cm.find(f"{ns}Curve"))
         else:
-            raise (Exception("Unknown exterior type: {}".format(exterior[0].tag)))
+            raise Exception(f"Unknown exterior type: {exterior[0].tag}")
         return xy
 
     def read_polygon(polygon):
@@ -242,11 +233,11 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     )
                     d["label_plaatsingspunt"] = Point(xy)
                     d["label_hoek"] = float(positie.find(f"{ns}hoek").text)
-                elif (
-                    key == "kruinlijnBegroeidTerreindeel"
-                    or key == "kruinlijnOnbegroeidTerreindeel"
-                    or key == "kruinlijnOndersteunendWegdeel"
-                ):
+                elif key in [
+                    "kruinlijnBegroeidTerreindeel",
+                    "kruinlijnOnbegroeidTerreindeel",
+                    "kruinlijnOndersteunendWegdeel",
+                ]:
                     ns = "{http://www.opengis.net/gml}"
                     if child[0].tag == f"{ns}LineString":
                         ls = child.find(f"{ns}LineString")

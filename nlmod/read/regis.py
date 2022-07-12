@@ -14,6 +14,8 @@ from . import geotop
 
 logger = logging.getLogger(__name__)
 
+REGIS_URL = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
+#REGIS_URL = 'https://www.dinodata.nl/opendap/hyrax/REGIS/REGIS.nc'
 
 @cache.cache_netcdf
 def get_combined_layer_models(extent, regis_botm_layer='AKc',
@@ -94,11 +96,7 @@ def get_regis(extent, botm_layer='AKc'):
         dataset with regis data projected on the modelgrid.
     """
 
-    # get local regis dataset
-    regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
-    # regis_url = 'https://www.dinodata.nl/opendap/hyrax/REGIS/REGIS.nc'
-
-    ds = xr.open_dataset(regis_url, decode_times=False)
+    ds = xr.open_dataset(REGIS_URL, decode_times=False)
 
     # set x and y dimensions to cell center
     ds['x'] = ds.x_bounds.mean('bounds')
@@ -123,7 +121,7 @@ def get_regis(extent, botm_layer='AKc'):
     ds.attrs['extent'] = extent
     for datavar in ds:
         ds[datavar].attrs['source'] = 'REGIS'
-        ds[datavar].attrs['url'] = regis_url
+        ds[datavar].attrs['url'] = REGIS_URL
         ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
         if datavar in ['top', 'botm']:
             ds[datavar].attrs['units'] = 'mNAP'
@@ -484,8 +482,7 @@ def get_layer_names():
         array with names of all the regis layers.
     """
 
-    regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
-    layer_names = xr.open_dataset(regis_url).layer.values
+    layer_names = xr.open_dataset(REGIS_URL).layer.values
 
     return layer_names
 

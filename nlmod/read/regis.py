@@ -13,6 +13,8 @@ from . import geotop
 
 logger = logging.getLogger(__name__)
 
+REGIS_URL = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
+#REGIS_URL = 'https://www.dinodata.nl/opendap/hyrax/REGIS/REGIS.nc'
 
 @cache.cache_netcdf
 def get_combined_layer_models(extent, delr=100, delc=100,
@@ -114,10 +116,7 @@ def get_regis(extent, delr=100., delc=100., botm_layer=b'AKc'):
             raise ValueError(
                 'extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function')
 
-    # get local regis dataset
-    regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
-
-    regis_ds_raw = xr.open_dataset(regis_url, decode_times=False)
+    regis_ds_raw = xr.open_dataset(REGIS_URL, decode_times=False)
 
     # set x and y dimensions to cell center
     regis_ds_raw['x'] = regis_ds_raw.x_bounds.mean('bounds')
@@ -156,7 +155,7 @@ def get_regis(extent, delr=100., delc=100., botm_layer=b'AKc'):
 
     for datavar in regis_ds:
         regis_ds[datavar].attrs['source'] = 'REGIS'
-        regis_ds[datavar].attrs['url'] = regis_url
+        regis_ds[datavar].attrs['url'] = REGIS_URL
         regis_ds[datavar].attrs['date'] = dt.datetime.now().strftime('%Y%m%d')
         if datavar in ['top', 'bot']:
             regis_ds[datavar].attrs['units'] = 'mNAP'
@@ -387,8 +386,7 @@ def get_layer_names():
         array with names of all the regis layers.
     """
 
-    regis_url = 'http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc'
-    layer_names = xr.open_dataset(regis_url).layer.values
+    layer_names = xr.open_dataset(REGIS_URL).layer.values
 
     return layer_names
 

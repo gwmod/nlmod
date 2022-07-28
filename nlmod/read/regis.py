@@ -128,9 +128,8 @@ def get_regis(extent, botm_layer="AKc"):
             ds[datavar].attrs["units"] = "mNAP"
         elif datavar in ["kh", "kv"]:
             ds[datavar].attrs["units"] = "m/day"
-        # if "_FillValue" in ds[datavar].attrs:
-            # remove _FillValue as this may cause problems with caching
-        #     del ds[datavar].attrs["_FillValue"]
+        # set _FillValue to NaN, otherise problems with caching will arise
+        ds[datavar].encoding['_FillValue'] = np.NaN
     return ds
 
 

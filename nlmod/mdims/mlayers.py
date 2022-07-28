@@ -812,7 +812,7 @@ def complete_ds(ds, anisotropy=10.0, fill_value_kh=1.0, fill_value_kv=0.1,
 
     # 2
     ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
-    
+
     # only keep the first layer of top
     ds["top"] = ds["top"][0]
 

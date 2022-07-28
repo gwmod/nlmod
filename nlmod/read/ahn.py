@@ -142,7 +142,7 @@ def split_ahn_extent(
 
                 datasets.append(
                     get_ahn_within_extent(
-                        subextent, res=res, tmp_dir=tmp_dir_path, **kwargs
+                        subextent, res=res, tmp_dir=tmp_dir_path, maxsize=maxsize, **kwargs
                     )
                 )
                 start_y = end_y

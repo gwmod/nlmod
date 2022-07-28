@@ -778,13 +778,6 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask, gridtype="structured"):
             model_ds["botm"][lay] = xr.where(fill_mask * mask_top,
                                              model_ds["top"],
                                              bottom_filled)
-            model_ds["kh"][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds["kh"][lay],
-                                           kh_filled)
-            model_ds["kv"][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds["kv"][lay],
-                                           kv_filled)
-
         else:
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
@@ -792,17 +785,18 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask, gridtype="structured"):
             model_ds["botm"][lay] = xr.where(fill_mask * mask_top,
                                              model_ds["botm"][lay - 1],
                                              bottom_filled)
-            model_ds["kh"][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds["kh"][lay],
-                                           kh_filled)
-            model_ds["kv"][lay] = xr.where(fill_mask * mask_top,
-                                           model_ds["kv"][lay],
-                                           kv_filled)
+        model_ds["kh"][lay] = xr.where(fill_mask * mask_top,
+                                       model_ds["kh"][lay],
+                                       kh_filled)
+        model_ds["kv"][lay] = xr.where(fill_mask * mask_top,
+                                       model_ds["kv"][lay],
+                                       kv_filled)
 
     return model_ds
 
 
-def complete_ds(ds, anisotropy=10.0, fill_value_kh=1.0, fill_value_kv=0.1):
+def complete_ds(ds, anisotropy=10.0, fill_value_kh=1.0, fill_value_kv=0.1,
+                remove_nan_layers=True):
     """Update a model dataset, by removing nans and adding necessary info
 
     Steps:
@@ -817,7 +811,8 @@ def complete_ds(ds, anisotropy=10.0, fill_value_kh=1.0, fill_value_kv=0.1):
     ds = fill_top_and_bottom(ds)
 
     # 2
-    ds = set_idomain(ds)
+    ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
+    
     # only keep the first layer of top
     ds["top"] = ds["top"][0]
 
@@ -845,7 +840,7 @@ def fill_top_and_bottom(ds):
     return ds
 
 
-def set_idomain(ds, nodata=-999):
+def set_idomain(ds, nodata=-999, remove_nan_layers=True):
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
     # set idomain of cells  with a positive thickness to 1
@@ -854,8 +849,9 @@ def set_idomain(ds, nodata=-999):
     # set idomain to 0 in the inactive part of the model
     if "active" in ds:
         ds["idomain"] = ds["idomain"].where(ds["active"], 0)
-    # only keep layers with at least one active cell
-    ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
+    if remove_nan_layers:
+        # only keep layers with at least one active cell
+        ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
     # TODO: set idomain above and below the first active layer to 0
 
     ds["first_active_layer"] = mgrid.get_first_active_layer_from_idomain(ds["idomain"],

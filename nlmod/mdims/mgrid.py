@@ -153,7 +153,8 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     return x, y
 
 
-def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
+def refine(ds, model_ws=None, refinement_features=None, exe_name=None,
+           remove_nan_layers=True):
     """
     Refine the grid (discretization by vertices, disv), using Gridgen
 
@@ -171,6 +172,10 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
     exe_name : str, optional
         Filepath to the gridgen executable. The file path within nlmod is chose
         if exe_name is None. The default is None.
+    remove_nan_layers : bool, optional
+        if True layers that are inactive everywhere are removed from the model.
+        If False nan layers are kept which might be usefull if you want
+        to keep some layers that exist in other models. The default is True.
 
     Returns
     -------
@@ -216,7 +221,7 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
     ds = get_resampled_ml_layer_ds_vertex(ds, extent=ds.extent,
                                           gridprops=gridprops)
     # recalculate idomain, as the interpolation changes idomain to floats
-    ds = set_idomain(ds)
+    ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
     return ds
 
 

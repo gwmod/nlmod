@@ -192,11 +192,6 @@ def to_model_ds(ds, model_name=None, model_ws=None, extent=None, delr=100.,
                 ("extent not fitted to regis please fit to regis first, "
                  "use the nlmod.regis.fit_extent_to_regis function"))
 
-    if remove_nan_layers:
-        nlay, lay_sel = get_non_nan_layers(ds)
-        ds = ds.sel(layer=lay_sel)
-        logger.info(f"removing {nlay} nan layers from the model")
-
     # convert regis dataset to grid
     logger.info("resample regis data to structured modelgrid")
     ds = mdims.resample_dataset_to_structured_grid(ds, extent, delr, delc)
@@ -219,7 +214,8 @@ def to_model_ds(ds, model_name=None, model_ws=None, extent=None, delr=100.,
     # fill nan's and add idomain
     ds = mdims.mlayers.complete_ds(ds, anisotropy=anisotropy,
                                    fill_value_kh=fill_value_kh,
-                                   fill_value_kv=fill_value_kv)
+                                   fill_value_kv=fill_value_kv,
+                                   remove_nan_layers=remove_nan_layers)
     return ds
 
 
@@ -459,37 +455,6 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.0):
     logger.info(f"new extent is {extent} model has {nrow} rows and {ncol} columns")
 
     return extent, nrow, ncol
-
-
-def get_non_nan_layers(raw_layer_mod, data_var="botm"):
-    """get number and name of layers based on the number of non-nan layers.
-
-    Parameters
-    ----------
-    raw_layer_mod : xarray.Dataset
-        dataset with raw layer model from regis or geotop.
-    data_var : str
-        data var that is used to check if layer mod contains nan values
-
-    Returns
-    -------
-    nlay : int
-        number of active layers within regis_ds_raw.
-    lay_sel : list of str
-        names of the active layers.
-    """
-    logger.info("find active layers in raw layer model")
-
-    bot_raw_all = raw_layer_mod[data_var]
-    lay_sel = []
-    for lay in bot_raw_all.layer.data:
-        if not bot_raw_all.sel(layer=lay).isnull().all():
-            lay_sel.append(lay)
-    nlay = len(lay_sel)
-
-    logger.info(f"there are {nlay} active layers within the extent")
-
-    return nlay, lay_sel
 
 
 def get_layer_names():

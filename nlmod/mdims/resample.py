@@ -139,7 +139,7 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
-    xyi, icell2d = mgrid.get_xyi_icell2d(gridprops)
+    xyi, _ = mgrid.get_xyi_icell2d(gridprops)
     x = xr.DataArray(xyi[:, 0], dims=("icell2d"))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
     if method in ["nearest", "linear"]:

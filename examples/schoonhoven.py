@@ -8,7 +8,6 @@ Created on Thu Jun 30 16:07:14 2022
 # %% import packages
 import os
 import rioxarray
-import rasterio
 import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
@@ -43,11 +42,11 @@ stats = zonal_stats(bgt.geometry.buffer(1.0), fname_ahn, stats="min")
 bgt["ahn_min"] = [x["min"] for x in stats]
 
 # %% downlaod regis
-regis = nlmod.read.get_regis(extent, cachedir=cachedir, cachename='regis.nc')
+regis = nlmod.read.get_regis(extent, cachedir=cachedir, cachename="regis.nc")
 
 # %% create a grid and create nessecary data
 ds = nlmod.read.regis.to_model_ds(regis, model_name, model_ws,
-                                  delr=100., delc=100.)
+                                  delr=100.0, delc=100.0)
 
 # %% make a disv-grid (or not, by commenting out next line)
 # ds = nlmod.mgrid.refine(ds)
@@ -56,15 +55,6 @@ ds = nlmod.read.regis.to_model_ds(regis, model_name, model_ws,
 
 # %% add information about time
 ds = nlmod.mdims.set_model_ds_time(ds, time=time)
-
-if False:
-    # determine the median surface height
-    transform = nlmod.resample.get_dataset_transform(ds)
-    shape = (len(ds.y), len(ds.x))
-    resampling = rasterio.enums.Resampling.average
-    ds["ahn_mean"] = ahn.rio.reproject(transform=transform, dst_crs=28992,
-                                       shape=shape, resampling=resampling,
-                                       nodata=np.NaN)
 
 # %% add knmi recharge to the model datasets
 knmi_ds = nlmod.read.knmi.get_recharge(ds, cachedir=cachedir, cachename="recharge.nc")

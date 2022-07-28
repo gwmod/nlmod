@@ -386,7 +386,7 @@ def da(da, ds=None, ax=None, **kwargs):
         ax.add_collection(pc)
         return pc
     else:
-        return ax.pcolormesh(da.x, da.y, da, **kwargs)
+        return ax.pcolormesh(da.x, da.y, da, shading='nearest', **kwargs)
 
 
 def get_map(extent, figsize=10., nrows=1, ncols=1, base=1000., fmt="{:.0f}",
@@ -425,7 +425,7 @@ def get_map(extent, figsize=10., nrows=1, ncols=1, base=1000., fmt="{:.0f}",
         the ax or axes (when ncols/nrows > 1).
 
     """
-    if isinstance(figsize, float) or isinstance(figsize, int):
+    if isinstance(figsize, (float, int)):
         xh = 0.2
         if base is None:
             xh = 0.0

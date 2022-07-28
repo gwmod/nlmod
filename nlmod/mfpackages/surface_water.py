@@ -44,7 +44,8 @@ def aggregate_surface_water(gdf, method, model_ds=None):
     for cid, group in tqdm(gr, desc="Aggregate surface water data"):
 
         stage, cond, rbot = get_surfacewater_params(
-            group, method, cid=cid, model_ds=model_ds)
+            group, method, cid=cid, model_ds=model_ds
+        )
 
         celldata.loc[cid, "stage"] = stage
         celldata.loc[cid, "cond"] = cond
@@ -54,8 +55,9 @@ def aggregate_surface_water(gdf, method, model_ds=None):
     return celldata
 
 
-def get_surfacewater_params(group, method, cid=None, model_ds=None,
-                            delange_params=None):
+def get_surfacewater_params(
+    group, method, cid=None, model_ds=None, delange_params=None
+):
 
     if method == "area_weighted":
         # stage
@@ -107,16 +109,15 @@ def agg_max_area(gdf, col):
 
 def agg_area_weighted(gdf, col):
     nanmask = gdf[col].isna()
-    aw = ((gdf.area * gdf[col]).sum(skipna=True) /
-          gdf.loc[~nanmask].area.sum())
+    aw = (gdf.area * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].area.sum()
     return aw
 
 
-def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3,
-                 crad_positive=True):
+def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
 
-    (A, laytop, laybot, kh, kv, thickness) = \
-        get_subsurface_params_by_cellid(model_ds, cid)
+    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(
+        model_ds, cid
+    )
 
     rbot = group["botm"].min()
 
@@ -133,9 +134,9 @@ def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3,
     rlay = np.where(laybot < rbot)[0][0]
 
     # equivalent hydraulic conductivities
-    H = thickness[ilay:rlay + 1]
-    kv = kv[ilay:rlay + 1]
-    kh = kh[ilay:rlay + 1]
+    H = thickness[ilay : rlay + 1]
+    kv = kv[ilay : rlay + 1]
+    kh = kh[ilay : rlay + 1]
     kveq = np.sum(H) / np.sum(H / kv)
     kheq = np.sum(H * kh) / np.sum(H)
 
@@ -155,7 +156,8 @@ def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3,
 
     # calculate params
     pstar, cstar, cond = de_lange_eqns(
-        A, H0, kveq, kheq, c1, li, B, c0, p, N, crad_positive=crad_positive)
+        A, H0, kveq, kheq, c1, li, B, c0, p, N, crad_positive=crad_positive
+    )
 
     return pstar, cstar, cond
 
@@ -163,10 +165,10 @@ def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3,
 def get_subsurface_params_by_cellid(model_ds, cid):
     r, c = cid
     A = model_ds.delr * model_ds.delc  # cell area
-    laytop = model_ds['top'].isel(x=c, y=r).data
-    laybot = model_ds['bot'].isel(x=c, y=r).data
-    kv = model_ds['kv'].isel(x=c, y=r).data
-    kh = model_ds['kh'].isel(x=c, y=r).data
+    laytop = model_ds["top"].isel(x=c, y=r).data
+    laybot = model_ds["bot"].isel(x=c, y=r).data
+    kv = model_ds["kv"].isel(x=c, y=r).data
+    kh = model_ds["kh"].isel(x=c, y=r).data
     thickness = model_ds["thickness"].isel(x=c, y=r).data
     return A, laytop, laybot, kh, kv, thickness
 
@@ -240,7 +242,7 @@ def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):
         if pSl >= 1.0 - 1e-10:
             Wp = 1 / (pSl / CB) + crad - c1
         else:
-            Wp = 1 / ((1. - pSl) / CL + pSl / CB) + crad - c1
+            Wp = 1 / ((1.0 - pSl) / CL + pSl / CB) + crad - c1
         cond = A / Wp
 
         # cstar, pstar
@@ -251,12 +253,15 @@ def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):
 
         return pstar, cstar, cond
     else:
-        return 0., 0., 0.
+        return 0.0, 0.0, 0.0
 
 
 def radial_resistance(L, B, H, kh, kv):
-    return (L / (np.pi * np.sqrt(kh * kv)) *
-            np.log(4 * H * np.sqrt(kh) / (np.pi * B * np.sqrt(kv))))
+    return (
+        L
+        / (np.pi * np.sqrt(kh * kv))
+        * np.log(4 * H * np.sqrt(kh) / (np.pi * B * np.sqrt(kv)))
+    )
 
 
 def coth(x):
@@ -273,9 +278,12 @@ def estimate_polygon_length(gdf):
 
     # estimate length from minimum rotated rectangle (for shapefactor < 4)
     min_rect = gdf.geometry.apply(lambda g: g.minimum_rotated_rectangle)
-    xy = min_rect.apply(lambda g: np.sqrt(
-        (np.array(g.exterior.xy[0]) - np.array(g.exterior.xy[0][0]))**2 +
-        (np.array(g.exterior.xy[1]) - np.array(g.exterior.xy[1][0]))**2))
+    xy = min_rect.apply(
+        lambda g: np.sqrt(
+            (np.array(g.exterior.xy[0]) - np.array(g.exterior.xy[0][0])) ** 2
+            + (np.array(g.exterior.xy[1]) - np.array(g.exterior.xy[1][0])) ** 2
+        )
+    )
     len_est3 = xy.apply(lambda a: np.partition(a.flatten(), -2)[-2])
 
     # update length estimate where shape factor is lower than 4
@@ -284,8 +292,9 @@ def estimate_polygon_length(gdf):
     return len_est
 
 
-def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
-                              idomain=None, kh=None, stage=None):
+def distribute_cond_over_lays(
+    cond, cellid, rivbot, laytop, laybot, idomain=None, kh=None, stage=None
+):
 
     if isinstance(rivbot, (np.ndarray, xr.DataArray)):
         rivbot = float(rivbot[cellid])
@@ -309,8 +318,7 @@ def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
     if stage is None or isinstance(stage, str):
         lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
     elif np.isfinite(stage):
-        lays = np.arange(int(np.sum(stage < laybot)),
-                         int(np.sum(rivbot < laybot)) + 1)
+        lays = np.arange(int(np.sum(stage < laybot)), int(np.sum(rivbot < laybot)) + 1)
     else:
         lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
     if idomain is not None:
@@ -330,13 +338,12 @@ def distribute_cond_over_lays(cond, cellid, rivbot, laytop, laybot,
             try:
                 first_active = np.where(idomain == 1)[0][0]
             except IndexError:
-                warnings.warn(f"No active layers in {cellid}, "
-                              "returning NaNs.")
+                warnings.warn(f"No active layers in {cellid}, " "returning NaNs.")
                 return np.nan, np.nan
         else:
             first_active = 0
         lays = [first_active]
-        kd[first_active] = 1.
+        kd[first_active] = 1.0
     conds = cond * kd[lays] / np.sum(kd[lays])
     return np.array(lays), np.array(conds)
 
@@ -365,15 +372,17 @@ def build_spd(celldata, pkg, model_ds):
 
     spd = []
 
-    for cellid, row in tqdm(celldata.iterrows(),
-                            total=celldata.index.size,
-                            desc=f"Building stress period data {pkg}"):
+    for cellid, row in tqdm(
+        celldata.iterrows(),
+        total=celldata.index.size,
+        desc=f"Building stress period data {pkg}",
+    ):
 
         # check if there is an active layer for this cell
-        if model_ds.gridtype == 'vertex':
+        if model_ds.gridtype == "vertex":
             if (model_ds["idomain"].sel(icell2d=cellid) == 0).all():
                 continue
-        elif model_ds.gridtype == 'structured':
+        elif model_ds.gridtype == "structured":
             if (model_ds["idomain"].isel(y=cellid[0], x=cellid[1]) == 0).all():
                 continue
 
@@ -383,8 +392,7 @@ def build_spd(celldata, pkg, model_ds):
             if np.isnan(rbot):
                 raise ValueError(f"rbot is NaN in cell {cellid}")
         elif pkg == "RIV":
-            raise ValueError("Column 'rbot' required for building "
-                             "RIV package!")
+            raise ValueError("Column 'rbot' required for building " "RIV package!")
         else:
             rbot = np.nan
 
@@ -395,8 +403,10 @@ def build_spd(celldata, pkg, model_ds):
             raise ValueError(f"stage is NaN in cell {cellid}")
 
         if (stage < rbot) and np.isfinite(rbot):
-            logger.warning(f"WARNING: stage below bottom elevation in {cellid}, "
-                           "stage reset to rbot!")
+            logger.warning(
+                f"WARNING: stage below bottom elevation in {cellid}, "
+                "stage reset to rbot!"
+            )
             stage = rbot
 
         # conductance
@@ -404,12 +414,16 @@ def build_spd(celldata, pkg, model_ds):
 
         # check value
         if np.isnan(cond):
-            raise ValueError(f"Conductance is NaN in cell {cellid}. Info: area={row.area:.2f} "
-                             f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            raise ValueError(
+                f"Conductance is NaN in cell {cellid}. Info: area={row.area:.2f} "
+                f"len={row.len_estimate:.2f}, BL={row['rbot']}"
+            )
 
         if cond < 0:
-            raise ValueError(f"Conductance is negative in cell {cellid}. Info: area={row.area:.2f} "
-                             f"len={row.len_estimate:.2f}, BL={row['rbot']}")
+            raise ValueError(
+                f"Conductance is negative in cell {cellid}. Info: area={row.area:.2f} "
+                f"len={row.len_estimate:.2f}, BL={row['rbot']}"
+            )
 
         # if surface water penetrates multiple layers:
         lays, conds = distribute_cond_over_lays(cond,
@@ -425,7 +439,7 @@ def build_spd(celldata, pkg, model_ds):
         else:
             auxlist = []
 
-        if model_ds.gridtype == 'vertex':
+        if model_ds.gridtype == "vertex":
             cellid = (cellid,)
 
         # write SPD

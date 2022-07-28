@@ -13,11 +13,19 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def set_model_ds_time(model_ds, time=None, steady_state=False,
-                      steady_start=True, steady_start_perlen=3652.0,
-                      time_units='DAYS', start_time=None,
-                      transient_timesteps=0, perlen=1.0,
-                      nstp=1, tsmult=1.0):
+def set_model_ds_time(
+    model_ds,
+    time=None,
+    steady_state=False,
+    steady_start=True,
+    steady_start_perlen=3652.0,
+    time_units="DAYS",
+    start_time=None,
+    transient_timesteps=0,
+    perlen=1.0,
+    nstp=1,
+    tsmult=1.0,
+):
     """Set timing for a model dataset.
 
     Parameters
@@ -52,7 +60,7 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
     perlen : float, int, list or np.array, optional
         length of each stress-period depending on the type:
         - float or int: this is the length of all the stress periods.
-        - list or array: the items are the length of the stress-periods in 
+        - list or array: the items are the length of the stress-periods in
           days. The length of perlen should match the number of stress-periods
           (including steady-state stress-periods).
         When steady_start is True, the length of the first steady state stress
@@ -69,9 +77,9 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
         dataset with time variant model data
     """
     # checks
-    if len(model_ds.model_name) > 16 and model_ds.mfversion == 'mf6':
-        raise ValueError('model_name can not have more than 16 characters')
-    elif time_units.lower() != 'days':
+    if len(model_ds.model_name) > 16 and model_ds.mfversion == "mf6":
+        raise ValueError("model_name can not have more than 16 characters")
+    elif time_units.lower() != "days":
         raise NotImplementedError()
     if time is not None:
         start_time = time[0]
@@ -80,7 +88,7 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
             perlen = np.insert(perlen, 0, steady_start_perlen)
 
     if start_time is None:
-        start_time = '2000'
+        start_time = "2000"
     start_time = pd.to_datetime(start_time)
 
     if steady_state:
@@ -96,7 +104,7 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
             perlen[0] = steady_start_perlen
         nper = len(perlen)
 
-        if hasattr(perlen, '__iter__'):
+        if hasattr(perlen, "__iter__"):
             transient_timesteps = len(perlen)
             if steady_start:
                 transient_timesteps = transient_timesteps - 1
@@ -105,15 +113,15 @@ def set_model_ds_time(model_ds, time=None, steady_state=False,
             start_time = start_time - dt.timedelta(days=perlen[0])
     time_dt = start_time + np.cumsum(pd.to_timedelta(perlen, unit=time_units))
 
-    model_ds = model_ds.assign_coords(coords={'time': time_dt})
+    model_ds = model_ds.assign_coords(coords={"time": time_dt})
 
-    model_ds.time.attrs['time_units'] = time_units
-    model_ds.time.attrs['start_time'] = str(start_time)
-    model_ds.time.attrs['nstp'] = nstp
-    model_ds.time.attrs['tsmult'] = tsmult
+    model_ds.time.attrs["time_units"] = time_units
+    model_ds.time.attrs["start_time"] = str(start_time)
+    model_ds.time.attrs["nstp"] = nstp
+    model_ds.time.attrs["tsmult"] = tsmult
 
     # netcdf files cannot handle booleans
-    model_ds.time.attrs['steady_start'] = int(steady_start)
-    model_ds.time.attrs['steady_state'] = int(steady_state)
+    model_ds.time.attrs["steady_start"] = int(steady_start)
+    model_ds.time.attrs["steady_state"] = int(steady_state)
 
     return model_ds

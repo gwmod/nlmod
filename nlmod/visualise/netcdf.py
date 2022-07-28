@@ -14,9 +14,20 @@ class DatasetCrossSection:
     # x is increasing, y is decreasing
     # the layers are ordered from the top down
 
-    def __init__(self, ds, line, ax=None, zmin=None, zmax=None,
-                 set_extent=True, top='t', bot='b', x='x', y='y',
-                 layer='layer'):
+    def __init__(
+        self,
+        ds,
+        line,
+        ax=None,
+        zmin=None,
+        zmax=None,
+        set_extent=True,
+        top="t",
+        bot="b",
+        x="x",
+        y="y",
+        layer="layer",
+    ):
         if ax is None:
             ax = plt.gca()
         self.ax = ax
@@ -66,15 +77,19 @@ class DatasetCrossSection:
         return x, y
 
     def coordinates_in_dataset(self, xy):
-        return (xy[0] > self.xedge.min() and xy[1] > self.yedge.min() and
-                xy[0] < self.xedge.max() and xy[1] < self.yedge.max())
+        return (
+            xy[0] > self.xedge.min()
+            and xy[1] > self.yedge.min()
+            and xy[0] < self.xedge.max()
+            and xy[1] < self.yedge.max()
+        )
 
     @staticmethod
     def add_intersections(gr_line, cs_line, points):
         intersection = cs_line.intersection(gr_line)
-        if intersection.type == 'Point':
+        if intersection.type == "Point":
             points.append(intersection)
-        elif intersection.type == 'MultiPoint':
+        elif intersection.type == "MultiPoint":
             for point in intersection:
                 points.append(point)
 
@@ -100,13 +115,12 @@ class DatasetCrossSection:
             xys.append([point.x, point.y, cs_line.project(point)])
         xys = np.array(xys)
         if xys.size == 0:
-            raise(Exception('The line does not instersect with the dataset'))
+            raise (Exception("The line does not instersect with the dataset"))
         # sort the points along the line
         xys = xys[xys[:, -1].argsort()]
         return xys
 
-    def plot_layers(self, colors=None, zmin=None, zmax=None, min_label_area=np.inf,
-                    **kwargs):
+    def plot_layers(self, colors=None, min_label_area=np.inf, **kwargs):
         if colors is None:
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i) for i in range(len(self.layer))]
@@ -117,8 +131,7 @@ class DatasetCrossSection:
                 continue
             if np.all(np.isnan(self.top[i]) | (self.top[i] == self.zmin)):
                 continue
-            z_not_nan = np.where(~np.isnan(self.top[i]) &
-                                 ~np.isnan(self.bot[i]))[0]
+            z_not_nan = np.where(~np.isnan(self.top[i]) & ~np.isnan(self.bot[i]))[0]
             vans = [z_not_nan[0]]
             tots = []
             for x in np.where(np.diff(z_not_nan) > 1)[0]:
@@ -126,15 +139,19 @@ class DatasetCrossSection:
                 vans.append(z_not_nan[x + 1])
             tots.append(z_not_nan[-1] + 1)
             for van, tot in zip(vans, tots):
-                s = self.xys[van:tot + 1, -1]
+                s = self.xys[van : tot + 1, -1]
                 t = self.top[i, van:tot]
                 b = self.bot[i, van:tot]
                 n = tot - van
 
                 x = s[sorted([0] + list(range(1, n)) * 2 + [n])]
                 x = np.concatenate((x, x[::-1]))
-                y = np.concatenate((t[sorted(list(range(n)) * 2)],
-                                    b[sorted(list(range(n)) * 2, reverse=True)]))
+                y = np.concatenate(
+                    (
+                        t[sorted(list(range(n)) * 2)],
+                        b[sorted(list(range(n)) * 2, reverse=True)],
+                    )
+                )
                 xy = list(zip(x, y))
                 # xy = np.vstack((x, y)).T
                 color = colors[i]
@@ -152,56 +169,75 @@ class DatasetCrossSection:
                         if pol.area > min_label_area:
                             p = pol.centroid
                             if not pol.contains(p):
-                                p = polylabel(pol, 100.)
-                            self.ax.text(p.x, p.y, self.layer[i],
-                                         ha='center', va='center')
+                                p = polylabel(pol, 100.0)
+                            self.ax.text(
+                                p.x, p.y, self.layer[i], ha="center", va="center"
+                            )
         return polygons
 
-    def plot_grid(self, edgecolor='k', facecolor='none', horizontal=True,
-                  vertical=True, **kwargs):
+    def plot_grid(
+        self, edgecolor="k", facecolor="none", horizontal=True, vertical=True, **kwargs
+    ):
         lines = []
         if horizontal and not vertical:
             for i in range(self.top.shape[0]):
                 for j in range(self.bot.shape[1]):
                     if not np.isnan(self.top[i, j]):
-                        lines.append([(self.xys[j, -1], self.top[i, j]),
-                                      (self.xys[j + 1, -1], self.top[i, j])])
+                        lines.append(
+                            [
+                                (self.xys[j, -1], self.top[i, j]),
+                                (self.xys[j + 1, -1], self.top[i, j]),
+                            ]
+                        )
                         # add vertical connection when necessary
-                        if (j < self.top.shape[1] - 1 and
-                            not np.isnan(self.top[i, j + 1]) and
-                                self.top[i, j] != self.top[i, j + 1]):
-                            lines.append([(self.xys[j + 1, -1], self.top[i, j]),
-                                          (self.xys[j + 1, -1], self.top[i, j + 1])])
+                        if (
+                            j < self.top.shape[1] - 1
+                            and not np.isnan(self.top[i, j + 1])
+                            and self.top[i, j] != self.top[i, j + 1]
+                        ):
+                            lines.append(
+                                [
+                                    (self.xys[j + 1, -1], self.top[i, j]),
+                                    (self.xys[j + 1, -1], self.top[i, j + 1]),
+                                ]
+                            )
                     if not np.isnan(self.bot[i, j]):
-                        lines.append([(self.xys[j, -1], self.bot[i, j]),
-                                      (self.xys[j + 1, -1], self.bot[i, j])])
+                        lines.append(
+                            [
+                                (self.xys[j, -1], self.bot[i, j]),
+                                (self.xys[j + 1, -1], self.bot[i, j]),
+                            ]
+                        )
                         # add vertical connection when necessary
-                        if (j < self.top.shape[1] - 1 and
-                            not np.isnan(self.bot[i, j + 1]) and
-                                self.bot[i, j] != self.bot[i, j + 1]):
-                            lines.append([(self.xys[j + 1, -1], self.bot[i, j]),
-                                          (self.xys[j + 1, -1], self.bot[i, j + 1])])
-            line_collection = LineCollection(lines, edgecolor=edgecolor,
-                                             **kwargs)
+                        if (
+                            j < self.top.shape[1] - 1
+                            and not np.isnan(self.bot[i, j + 1])
+                            and self.bot[i, j] != self.bot[i, j + 1]
+                        ):
+                            lines.append(
+                                [
+                                    (self.xys[j + 1, -1], self.bot[i, j]),
+                                    (self.xys[j + 1, -1], self.bot[i, j + 1]),
+                                ]
+                            )
+            line_collection = LineCollection(lines, edgecolor=edgecolor, **kwargs)
             self.ax.add_collection(line_collection)
             return line_collection
         if vertical and not horizontal:
-            raise(Exception('Not implemented yet. Why would you want this!?'))
+            raise (Exception("Not implemented yet. Why would you want this!?"))
         patches = []
         for i in range(self.top.shape[0]):
             for j in range(self.bot.shape[1]):
-                if not (np.isnan(self.top[i, j]) or
-                        np.isnan(self.bot[i, j])):
-                    if (self.bot[i, j] == self.zmax or
-                            self.top[i, j] == self.zmin):
+                if not (np.isnan(self.top[i, j]) or np.isnan(self.bot[i, j])):
+                    if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
                         continue
                     width = self.xys[j + 1, -1] - self.xys[j, -1]
                     height = self.top[i, j] - self.bot[i, j]
-                    rect = Rectangle((self.xys[j, -1], self.bot[i, j]), width,
-                                     height)
+                    rect = Rectangle((self.xys[j, -1], self.bot[i, j]), width, height)
                     patches.append(rect)
-        patch_collection = PatchCollection(patches, edgecolor=edgecolor,
-                                           facecolor=facecolor, **kwargs)
+        patch_collection = PatchCollection(
+            patches, edgecolor=edgecolor, facecolor=facecolor, **kwargs
+        )
         self.ax.add_collection(patch_collection)
         return patch_collection
 
@@ -218,16 +254,16 @@ class DatasetCrossSection:
         array = []
         for i in range(zcs.shape[0]):
             for j in range(zcs.shape[1]):
-                if not (np.isnan(self.top[i, j]) or
-                        np.isnan(self.bot[i, j]) or
-                        np.isnan(zcs[i, j])):
-                    if (self.bot[i, j] == self.zmax or
-                            self.top[i, j] == self.zmin):
+                if not (
+                    np.isnan(self.top[i, j])
+                    or np.isnan(self.bot[i, j])
+                    or np.isnan(zcs[i, j])
+                ):
+                    if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
                         continue
                     width = self.xys[j + 1, -1] - self.xys[j, -1]
                     height = self.top[i, j] - self.bot[i, j]
-                    rect = Rectangle((self.xys[j, -1], self.bot[i, j]), width,
-                                     height)
+                    rect = Rectangle((self.xys[j, -1], self.bot[i, j]), width, height)
                     patches.append(rect)
                     array.append(zcs[i, j])
         patch_collection = PatchCollection(patches, **kwargs)

@@ -26,7 +26,7 @@ from tqdm import tqdm
 from scipy.interpolate import griddata
 
 from shapely.geometry import Point
-from .. import cache, mfpackages, util
+from .. import util
 from .mlayers import set_idomain
 
 logger = logging.getLogger(__name__)
@@ -46,10 +46,10 @@ def modelgrid_from_model_ds(model_ds):
         grid information.
     """
 
-    if model_ds.gridtype == 'structured':
+    if model_ds.gridtype == "structured":
         if not isinstance(model_ds.extent, (tuple, list, np.ndarray)):
             raise TypeError(
-                f'extent should be a list, tuple or numpy array, not {type(model_ds.extent)}')
+                f"extent should be a list, tuple or numpy array, not {type(model_ds.extent)}")
         delc = np.array([model_ds.delc] * model_ds.dims['y'])
         delr = np.array([model_ds.delr] * model_ds.dims['x'])
         modelgrid = StructuredGrid(delc=delc,
@@ -66,38 +66,38 @@ def modelgrid_from_model_ds(model_ds):
 def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     """Add information about the calculation-grid to a model dataset"""
     # add modelgrid to ds
-    ds['xv'] = ('iv', mg.verts[:, 0])
-    ds['yv'] = ('iv', mg.verts[:, 1])
+    ds["xv"] = ("iv", mg.verts[:, 0])
+    ds["yv"] = ("iv", mg.verts[:, 1])
 
     cell2d = mg.cell2d
     ncvert_max = np.max([x[3] for x in cell2d])
     icvert = np.full((mg.ncpl, ncvert_max), nodata)
     for i in range(mg.ncpl):
-        icvert[i, :cell2d[i][3]] = cell2d[i][4:]
-    ds['icvert'] = ('cell2d', 'icv'), icvert
-    ds['icvert'].attrs['_FillValue'] = nodata
+        icvert[i, : cell2d[i][3]] = cell2d[i][4:]
+    ds["icvert"] = ("cell2d", "icv"), icvert
+    ds["icvert"].attrs["_FillValue"] = nodata
     return ds
 
 
 def get_vertices_from_model_ds(ds):
     """Get the vertices-list from a model dataset. Flopy needs needs this list
     to build a disv-package"""
-    vertices = list(zip(ds['iv'].data, ds['xv'].data, ds['yv'].data))
+    vertices = list(zip(ds["iv"].data, ds["xv"].data, ds["yv"].data))
     return vertices
 
 
 def get_cell2d_from_model_ds(ds):
     """Get the cell2d-list from a model dataset. Flopy needs this list to build
     a disv-package"""
-    icell2d = ds['icell2d'].data
-    x = ds['x'].data
-    y = ds['y'].data
-    icvert = ds['icvert'].data
+    icell2d = ds["icell2d"].data
+    x = ds["x"].data
+    y = ds["y"].data
+    icvert = ds["icvert"].data
     cell2d = []
-    nodata = ds['icvert'].attrs['_FillValue']
-    for i in range(len(icell2d)):
-        mask = ds['icvert'].data[i] != nodata
-        cell2d.append((icell2d[i], x[i], y[i], mask.sum(), *icvert[i][mask]))
+    nodata = ds["icvert"].attrs["_FillValue"]
+    for i, cid in enumerate(icell2d):
+        mask = ds["icvert"].data[i] != nodata
+        cell2d.append((cid, x[i], y[i], mask.sum(), *icvert[i][mask]))
     return cell2d
 
 
@@ -126,11 +126,15 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     """
     # check if extent is valid
     if (extent[1] - extent[0]) % delr != 0.0:
-        raise ValueError('invalid extent, the extent should contain an integer'
-                         ' number of cells in the x-direction')
+        raise ValueError(
+            "invalid extent, the extent should contain an integer"
+            " number of cells in the x-direction"
+        )
     if (extent[3] - extent[2]) % delc != 0.0:
-        raise ValueError('invalid extent, the extent should contain an integer'
-                         ' number of cells in the y-direction')
+        raise ValueError(
+            "invalid extent, the extent should contain an integer"
+            " number of cells in the y-direction"
+        )
 
     # get cell mids
     x_mid_start = extent[0] + 0.5 * delr
@@ -175,17 +179,17 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
         The refined model dataset.
 
     """
-    assert 'icell2d' not in ds.dims
-    logger.info('create vertex grid using gridgen')
+    assert "icell2d" not in ds.dims
+    logger.info("create vertex grid using gridgen")
     sim = flopy.mf6.MFSimulation()
     gwf = flopy.mf6.MFModel(sim)
     dis = flopy.mf6.ModflowGwfdis(gwf, nrow=len(ds.y), ncol=len(ds.x),
                                   delr=ds.delr, delc=ds.delc,
                                   xorigin=ds.extent[0], yorigin=ds.extent[2])
     if exe_name is None:
-        exe_name = os.path.join(os.path.dirname(__file__), '..', 'bin',
-                                'gridgen')
-        if sys.platform.startswith('win'):
+        exe_name = os.path.join(os.path.dirname(__file__), "..", "bin",
+                                "gridgen")
+        if sys.platform.startswith("win"):
             exe_name += ".exe"
     if model_ws is None:
         model_ws = ds.model_ws
@@ -200,7 +204,7 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
             elif len(refinement_feature) == 2:
                 # the feature is a geodataframe
                 gdf, level = refinement_feature
-                geom_types = gdf.geom_type.str.replace('Multi', '')
+                geom_types = gdf.geom_type.str.replace("Multi", "")
                 for geom_type in geom_types.unique():
                     mask = geom_types == geom_type
                     features = [gdf[mask].unary_union]
@@ -208,7 +212,7 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
                                               layers=[0])
     g.build()
     gridprops = g.get_gridprops_disv()
-    gridprops['area'] = g.get_area()
+    gridprops["area"] = g.get_area()
     # import needed here, as otherwise we get a circular import, fix this later
     from ..mdims.resample import get_resampled_ml_layer_ds_vertex
     ds = get_resampled_ml_layer_ds_vertex(ds, extent=ds.extent,
@@ -238,15 +242,15 @@ def get_xyi_icell2d(gridprops=None, model_ds=None):
         array with cellids, shape(len(icell2d))
     """
     if gridprops is not None:
-        xc_gwf = [cell2d[1] for cell2d in gridprops['cell2d']]
-        yc_gwf = [cell2d[2] for cell2d in gridprops['cell2d']]
+        xc_gwf = [cell2d[1] for cell2d in gridprops["cell2d"]]
+        yc_gwf = [cell2d[2] for cell2d in gridprops["cell2d"]]
         xyi = np.vstack((xc_gwf, yc_gwf)).T
-        icell2d = np.array([c[0] for c in gridprops['cell2d']])
+        icell2d = np.array([c[0] for c in gridprops["cell2d"]])
     elif model_ds is not None:
         xyi = np.array(list(zip(model_ds.x.values, model_ds.y.values)))
         icell2d = model_ds.icell2d.values
     else:
-        raise ValueError('either gridprops or model_ds should be specified')
+        raise ValueError("either gridprops or model_ds should be specified")
 
     return xyi, icell2d
 
@@ -288,26 +292,30 @@ def col_to_list(col_in, model_ds, cellids):
     if isinstance(col_in, str):
         if len(cellids) == 3:
             # 3d grid
-            col_lst = [model_ds[col_in].data[lay, row, col]
-                       for lay, row, col in zip(cellids[0], cellids[1], cellids[2])]
+            col_lst = [
+                model_ds[col_in].data[lay, row, col]
+                for lay, row, col in zip(cellids[0], cellids[1], cellids[2])
+            ]
         elif len(cellids) == 2:
             # 2d grid or vertex 3d grid
-            col_lst = [model_ds[col_in].data[row, col]
-                       for row, col in zip(cellids[0], cellids[1])]
+            col_lst = [
+                model_ds[col_in].data[row, col]
+                for row, col in zip(cellids[0], cellids[1])
+            ]
         elif len(cellids) == 1:
             # 2d vertex grid
             col_lst = model_ds[col_in].data[cellids[0]]
         else:
-            raise ValueError(
-                f'could not create a column list for col_in={col_in}')
+            raise ValueError(f"could not create a column list for col_in={col_in}")
     else:
         col_lst = [col_in] * len(cellids[0])
 
     return col_lst
 
 
-def lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
-                    col1=None, col2=None, col3=None):
+def lrc_to_rec_list(
+    layers, rows, columns, cellids, model_ds, col1=None, col2=None, col3=None
+):
     """Create a rec list for stress period data from a set of cellids.
 
     Used for structured grids.
@@ -369,29 +377,25 @@ def lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
         rec_list = list(zip(zip(layers, rows, columns)))
     elif (col1 is not None) and col2 is None:
         col1_lst = col_to_list(col1, model_ds, cellids)
-        rec_list = list(zip(zip(layers, rows, columns),
-                            col1_lst))
+        rec_list = list(zip(zip(layers, rows, columns), col1_lst))
     elif (col2 is not None) and col3 is None:
         col1_lst = col_to_list(col1, model_ds, cellids)
         col2_lst = col_to_list(col2, model_ds, cellids)
-        rec_list = list(zip(zip(layers, rows, columns),
-                            col1_lst, col2_lst))
-    elif (col3 is not None):
+        rec_list = list(zip(zip(layers, rows, columns), col1_lst, col2_lst))
+    elif col3 is not None:
         col1_lst = col_to_list(col1, model_ds, cellids)
         col2_lst = col_to_list(col2, model_ds, cellids)
         col3_lst = col_to_list(col3, model_ds, cellids)
-        rec_list = list(zip(zip(layers, rows, columns),
-                            col1_lst, col2_lst, col3_lst))
+        rec_list = list(zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst))
     else:
-        raise ValueError(
-            'invalid combination of values for col1, col2 and col3')
+        raise ValueError("invalid combination of values for col1, col2 and col3")
 
     return rec_list
 
 
-def data_array_3d_to_rec_list(model_ds, mask,
-                              col1=None, col2=None, col3=None,
-                              only_active_cells=True):
+def data_array_3d_to_rec_list(
+    model_ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
+):
     """Create a rec list for stress period data from a model dataset.
 
     Used for structured grids.
@@ -443,7 +447,7 @@ def data_array_3d_to_rec_list(model_ds, mask,
         every row consist of ((layer,row,column), col1, col2, col3).
     """
     if only_active_cells:
-        cellids = np.where((mask) & (model_ds['idomain'] == 1))
+        cellids = np.where((mask) & (model_ds["idomain"] == 1))
     else:
         cellids = np.where(mask)
 
@@ -451,17 +455,23 @@ def data_array_3d_to_rec_list(model_ds, mask,
     rows = cellids[1]
     columns = cellids[2]
 
-    rec_list = lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
-                               col1, col2, col3)
+    rec_list = lrc_to_rec_list(
+        layers, rows, columns, cellids, model_ds, col1, col2, col3
+    )
 
     return rec_list
 
 
-def data_array_2d_to_rec_list(model_ds, mask,
-                              col1=None, col2=None, col3=None,
-                              layer=0,
-                              first_active_layer=False,
-                              only_active_cells=True):
+def data_array_2d_to_rec_list(
+    model_ds,
+    mask,
+    col1=None,
+    col2=None,
+    col3=None,
+    layer=0,
+    first_active_layer=False,
+    only_active_cells=True,
+):
     """Create a rec list for stress period data from a model dataset.
 
     Used for structured grids.
@@ -516,15 +526,15 @@ def data_array_2d_to_rec_list(model_ds, mask,
     """
 
     if first_active_layer:
-        if 'first_active_layer' not in model_ds:
-            model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
-                model_ds['idomain'])
+        if "first_active_layer" not in model_ds:
+            model_ds["first_active_layer"] = get_first_active_layer_from_idomain(
+                model_ds["idomain"]
+            )
 
-        cellids = np.where(
-            (mask) & (model_ds['first_active_layer'] != model_ds.nodata))
-        layers = col_to_list('first_active_layer', model_ds, cellids)
+        cellids = np.where((mask) & (model_ds["first_active_layer"] != model_ds.nodata))
+        layers = col_to_list("first_active_layer", model_ds, cellids)
     elif only_active_cells:
-        cellids = np.where((mask) & (model_ds['idomain'][layer] == 1))
+        cellids = np.where((mask) & (model_ds["idomain"][layer] == 1))
         layers = col_to_list(layer, model_ds, cellids)
     else:
         cellids = np.where(mask)
@@ -533,14 +543,14 @@ def data_array_2d_to_rec_list(model_ds, mask,
     rows = cellids[-2]
     columns = cellids[-1]
 
-    rec_list = lrc_to_rec_list(layers, rows, columns, cellids, model_ds,
-                               col1, col2, col3)
+    rec_list = lrc_to_rec_list(
+        layers, rows, columns, cellids, model_ds, col1, col2, col3
+    )
 
     return rec_list
 
 
-def lcid_to_rec_list(layers, cellids, model_ds,
-                     col1=None, col2=None, col3=None):
+def lcid_to_rec_list(layers, cellids, model_ds, col1=None, col2=None, col3=None):
     """Create a rec list for stress period data from a set of cellids.
 
     Used for vertex grids.
@@ -596,29 +606,25 @@ def lcid_to_rec_list(layers, cellids, model_ds,
         rec_list = list(zip(zip(layers, cellids[-1])))
     elif (col1 is not None) and col2 is None:
         col1_lst = col_to_list(col1, model_ds, cellids)
-        rec_list = list(zip(zip(layers, cellids[-1]),
-                            col1_lst))
+        rec_list = list(zip(zip(layers, cellids[-1]), col1_lst))
     elif (col2 is not None) and col3 is None:
         col1_lst = col_to_list(col1, model_ds, cellids)
         col2_lst = col_to_list(col2, model_ds, cellids)
-        rec_list = list(zip(zip(layers, cellids[-1]),
-                            col1_lst, col2_lst))
-    elif (col3 is not None):
+        rec_list = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst))
+    elif col3 is not None:
         col1_lst = col_to_list(col1, model_ds, cellids)
         col2_lst = col_to_list(col2, model_ds, cellids)
         col3_lst = col_to_list(col3, model_ds, cellids)
-        rec_list = list(zip(zip(layers, cellids[-1]),
-                            col1_lst, col2_lst, col3_lst))
+        rec_list = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst, col3_lst))
     else:
-        raise ValueError(
-            'invalid combination of values for col1, col2 and col3')
+        raise ValueError("invalid combination of values for col1, col2 and col3")
 
     return rec_list
 
 
-def data_array_2d_vertex_to_rec_list(model_ds, mask,
-                                     col1=None, col2=None, col3=None,
-                                     only_active_cells=True):
+def data_array_2d_vertex_to_rec_list(
+    model_ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
+):
     """Create a rec list for stress period data from a model dataset.
 
     Used for vertex grids.
@@ -667,23 +673,27 @@ def data_array_2d_vertex_to_rec_list(model_ds, mask,
         every row consist of ((layer,row,column), col1, col2, col3).
     """
     if only_active_cells:
-        cellids = np.where((mask) & (model_ds['idomain'] == 1))
+        cellids = np.where((mask) & (model_ds["idomain"] == 1))
     else:
         cellids = np.where(mask)
 
     layers = cellids[0]
 
-    rec_list = lcid_to_rec_list(layers, cellids, model_ds,
-                                col1, col2, col3)
+    rec_list = lcid_to_rec_list(layers, cellids, model_ds, col1, col2, col3)
 
     return rec_list
 
 
-def data_array_1d_vertex_to_rec_list(model_ds, mask,
-                                     col1=None, col2=None, col3=None,
-                                     layer=0,
-                                     first_active_layer=False,
-                                     only_active_cells=True):
+def data_array_1d_vertex_to_rec_list(
+    model_ds,
+    mask,
+    col1=None,
+    col2=None,
+    col3=None,
+    layer=0,
+    first_active_layer=False,
+    only_active_cells=True,
+):
     """Create a rec list for stress period data from a model dataset.
 
     Used for vertex grids.
@@ -738,11 +748,10 @@ def data_array_1d_vertex_to_rec_list(model_ds, mask,
         every row consist of ((layer,icell2d), col1, col2, col3).
     """
     if first_active_layer:
-        cellids = np.where(
-            (mask) & (model_ds['first_active_layer'] != model_ds.nodata))
-        layers = col_to_list('first_active_layer', model_ds, cellids)
+        cellids = np.where((mask) & (model_ds["first_active_layer"] != model_ds.nodata))
+        layers = col_to_list("first_active_layer", model_ds, cellids)
     elif only_active_cells:
-        cellids = np.where((mask) & (model_ds['idomain'][layer] == 1))
+        cellids = np.where((mask) & (model_ds["idomain"][layer] == 1))
         layers = col_to_list(layer, model_ds, cellids)
     else:
         cellids = np.where(mask)
@@ -753,8 +762,7 @@ def data_array_1d_vertex_to_rec_list(model_ds, mask,
     return rec_list
 
 
-def polygon_to_area(modelgrid, polygon, da,
-                    gridtype='structured'):
+def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
     """create a grid with the surface area in each cell based on a polygon
     value.
 
@@ -772,25 +780,27 @@ def polygon_to_area(modelgrid, polygon, da,
     area_array : xarray.DataArray
         area of polygon within each modelgrid cell
     """
-    if polygon.type == 'Polygon':
+    if polygon.type == "Polygon":
         pass
-    elif polygon.type == 'MultiPolygon':
+    elif polygon.type == "MultiPolygon":
         Warning(
-            'function not tested for MultiPolygon type, can have unexpected results')
+            "function not tested for MultiPolygon type, can have unexpected results"
+        )
     else:
         raise TypeError(
-            f'input geometry should by of type "Polygon" not {polygon.type}')
+            f'input geometry should by of type "Polygon" not {polygon.type}'
+        )
 
-    ix = GridIntersect(modelgrid, method='vertex')
+    ix = GridIntersect(modelgrid, method="vertex")
     opp_cells = ix.intersect(polygon)
 
-    if gridtype == 'structured':
-        area_array = util.get_da_from_da_ds(da, dims=('y', 'x'), data=0)
+    if gridtype == "structured":
+        area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0)
         for opp_row in opp_cells:
             area = opp_row[-2]
             area_array[opp_row[0][0], opp_row[0][1]] = area
-    elif gridtype == 'vertex':
-        area_array = util.get_da_from_da_ds(da, dims=('icell2d',), data=0)
+    elif gridtype == "vertex":
+        area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0)
         cids = opp_cells.cellids
         area = opp_cells.areas
         area_array[cids.astype(int)] = area
@@ -798,11 +808,8 @@ def polygon_to_area(modelgrid, polygon, da,
     return area_array
 
 
-def gdf2data_array_struc(gdf, gwf,
-                         field='VALUE',
-                         agg_method=None,
-                         interp_method=None):
-    """ Project vector data on a structured grid. Aggregate data if multiple
+def gdf2data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method=None):
+    """Project vector data on a structured grid. Aggregate data if multiple
     geometries are in a single cell
 
     Parameters
@@ -832,31 +839,30 @@ def gdf2data_array_struc(gdf, gwf,
     """
     x = gwf.modelgrid.get_xcellcenters_for_layer(0)[0]
     y = gwf.modelgrid.get_ycellcenters_for_layer(0)[:, 0]
-    da = xr.DataArray(np.nan, dims=('y', 'x'),
-                      coords={'y': y, 'x': x})
+    da = xr.DataArray(np.nan, dims=("y", "x"), coords={"y": y, "x": x})
 
     # interpolate data
     if interp_method is not None:
-        arr = interpolate_gdf_to_array(gdf, gwf, field=field,
-                                       method=interp_method)
+        arr = interpolate_gdf_to_array(gdf, gwf, field=field, method=interp_method)
         da.values = arr
 
         return da
 
-    gdf_cellid = gdf2grid(gdf, gwf, 'vertex')
+    gdf_cellid = gdf2grid(gdf, gwf, "vertex")
 
     if gdf_cellid.cellid.duplicated().any():
         # aggregate data
         if agg_method is None:
             raise ValueError(
-                'multiple geometries in one cell please define aggregation method')
-        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {field: agg_method},
-                                            gwf)
+                "multiple geometries in one cell please define aggregation method"
+            )
+        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {field: agg_method}, gwf)
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[field]]
-        gdf_agg.set_index(pd.MultiIndex.from_tuples(gdf_cellid.cellid.values),
-                          inplace=True)
+        gdf_agg.set_index(
+            pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
+        )
 
     for ind, row in gdf_agg.iterrows():
         da.values[ind[0], ind[1]] = row[field]
@@ -864,8 +870,8 @@ def gdf2data_array_struc(gdf, gwf,
     return da
 
 
-def interpolate_gdf_to_array(gdf, gwf, field='values', method='nearest'):
-    """ interpolate data from a point gdf
+def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
+    """interpolate data from a point gdf
 
 
     Parameters
@@ -888,9 +894,8 @@ def interpolate_gdf_to_array(gdf, gwf, field='values', method='nearest'):
     """
     # check geometry
     geom_types = gdf.geometry.type.unique()
-    if geom_types[0] != 'Point':
-        raise NotImplementedError(
-            'can only use interpolation with point geometries')
+    if geom_types[0] != "Point":
+        raise NotImplementedError("can only use interpolation with point geometries")
 
     # check field
     if field not in gdf.columns:
@@ -898,8 +903,9 @@ def interpolate_gdf_to_array(gdf, gwf, field='values', method='nearest'):
 
     points = np.array([[g.x, g.y] for g in gdf.geometry])
     values = gdf[field].values
-    xi = np.vstack((gwf.modelgrid.xcellcenters.flatten(),
-                    gwf.modelgrid.ycellcenters.flatten())).T
+    xi = np.vstack(
+        (gwf.modelgrid.xcellcenters.flatten(), gwf.modelgrid.ycellcenters.flatten())
+    ).T
     vals = griddata(points, values, xi, method=method)
     arr = np.reshape(vals, (gwf.modelgrid.nrow, gwf.modelgrid.ncol))
 
@@ -912,8 +918,7 @@ def _agg_max_area(gdf, col):
 
 def _agg_area_weighted(gdf, col):
     nanmask = gdf[col].isna()
-    aw = ((gdf.area * gdf[col]).sum(skipna=True)
-          / gdf.loc[~nanmask].area.sum())
+    aw = (gdf.area * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].area.sum()
     return aw
 
 
@@ -923,15 +928,15 @@ def _agg_max_length(gdf, col):
 
 def _agg_length_weighted(gdf, col):
     nanmask = gdf[col].isna()
-    aw = ((gdf.length * gdf[col]).sum(skipna=True)
-          / gdf.loc[~nanmask].length.sum())
+    aw = (gdf.length * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].length.sum()
     return aw
 
 
 def _agg_nearest(gdf, col, gwf):
-    cid = gdf['cellid'].values[0]
-    cellcenter = Point(gwf.modelgrid.xcellcenters[0][cid[1]],
-                       gwf.modelgrid.ycellcenters[:, 0][cid[0]])
+    cid = gdf["cellid"].values[0]
+    cellcenter = Point(
+        gwf.modelgrid.xcellcenters[0][cid[1]], gwf.modelgrid.ycellcenters[:, 0][cid[0]]
+    )
     val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
     return val
 
@@ -943,23 +948,23 @@ def _get_aggregates_values(group, fields_methods, gwf=None):
         # aggregation is only necesary if group shape is greater than 1
         if group.shape[0] == 1:
             agg_dic[field] = group[field].values[0]
-        if method == 'max':
+        if method == "max":
             agg_dic[field] = group[field].max()
-        elif method == 'min':
+        elif method == "min":
             agg_dic[field] = group[field].min()
-        elif method == 'mean':
+        elif method == "mean":
             agg_dic[field] = group[field].mean()
-        elif method == 'nearest':
+        elif method == "nearest":
             agg_dic[field] = _agg_nearest(group, field, gwf)
-        elif method == 'length_weighted':  # only for lines
+        elif method == "length_weighted":  # only for lines
             agg_dic[field] = _agg_length_weighted(group, field)
-        elif method == 'max_length':  # only for lines
+        elif method == "max_length":  # only for lines
             agg_dic[field] = _agg_max_length(group, field)
         elif method == "area_weighted":  # only for polygons
             agg_dic[field] = _agg_area_weighted(group, field)
         elif method == "max_area":  # only for polygons
             agg_dic[field] = _agg_max_area(group, field)
-        elif method == 'center_grid':  # only for polygons
+        elif method == "center_grid":  # only for polygons
             raise NotImplementedError
         else:
             raise ValueError(f"Method '{method}' not recognized!")
@@ -990,18 +995,23 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     # check geometry types
     geom_types = gdf.geometry.type.unique()
     if len(geom_types) > 1:
-        if len(geom_types) == 2 and ('Polygon' in geom_types) and ('MultiPolygon' in geom_types):
+        if (
+            len(geom_types) == 2
+            and ("Polygon" in geom_types)
+            and ("MultiPolygon" in geom_types)
+        ):
             pass
         else:
-            raise TypeError('cannot aggregate geometries of different types')
-    if bool({'length_weighted', 'max_length'} & set(fields_methods.values())):
-        assert geom_types[0] == 'LineString', 'can only use length methods with line geometries'
-    if bool({'area_weighted', 'max_area'} & set(fields_methods.values())):
-        if ('Polygon' in geom_types) or ('MultiPolygon' in geom_types):
+            raise TypeError("cannot aggregate geometries of different types")
+    if bool({"length_weighted", "max_length"} & set(fields_methods.values())):
+        assert (
+            geom_types[0] == "LineString"
+        ), "can only use length methods with line geometries"
+    if bool({"area_weighted", "max_area"} & set(fields_methods.values())):
+        if ("Polygon" in geom_types) or ("MultiPolygon" in geom_types):
             pass
         else:
-            raise TypeError(
-                'can only use area methods with polygon geometries')
+            raise TypeError("can only use area methods with polygon geometries")
 
     # check fields
     missing_cols = set(fields_methods.keys()).difference(gdf.columns)
@@ -1012,8 +1022,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     gr = gdf.groupby(by="cellid")
     celldata = pd.DataFrame(index=gr.groups.keys())
     for cid, group in tqdm(gr, desc="Aggregate vector data"):
-        agg_dic = _get_aggregates_values(group, fields_methods,
-                                         gwf)
+        agg_dic = _get_aggregates_values(group, fields_methods, gwf)
         for key, item in agg_dic.items():
             celldata.loc[cid, key] = item
 
@@ -1044,13 +1053,12 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
     # build list of gridcells
     ix = GridIntersect(mfgrid, method="vertex")
 
-    if model_ds.gridtype == 'structured':
-        da = util.get_da_from_da_ds(model_ds, dims=('y', 'x'), data=0)
-    elif model_ds.gridtype == 'vertex':
-        da = util.get_da_from_da_ds(model_ds, dims=('icell2d',), data=0)
+    if model_ds.gridtype == "structured":
+        da = util.get_da_from_da_ds(model_ds, dims=("y", "x"), data=0)
+    elif model_ds.gridtype == "vertex":
+        da = util.get_da_from_da_ds(model_ds, dims=("icell2d",), data=0)
     else:
-        raise ValueError(
-            'function only support structured or vertex gridtypes')
+        raise ValueError("function only support structured or vertex gridtypes")
 
     if isinstance(gdf, gpd.GeoDataFrame):
         geoms = gdf.geometry.values
@@ -1067,10 +1075,10 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
         # cell ids for intersecting cells
         cids = [c.name for c in filtered]
 
-        if model_ds.gridtype == 'structured':
+        if model_ds.gridtype == "structured":
             for cid in cids:
                 da[cid[0], cid[1]] = 1
-        elif model_ds.gridtype == 'vertex':
+        elif model_ds.gridtype == "vertex":
             da[cids] = 1
 
     return da
@@ -1102,8 +1110,9 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
     return model_ds_out
 
 
-def gdf2grid(gdf, ml=None, method='vertex', ix=None,
-             desc="Intersecting with grid", **kwargs):
+def gdf2grid(
+    gdf, ml=None, method="vertex", ix=None, desc="Intersecting with grid", **kwargs
+):
     """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This
     method is just a wrapper around the GridIntersect method from flopy.
 
@@ -1128,7 +1137,7 @@ def gdf2grid(gdf, ml=None, method='vertex', ix=None,
         The GeoDataFrame with the geometries per grid-cell.
     """
     if ml is None and ix is None:
-        raise(Exception('Either specify ml or ix'))
+        raise (Exception("Either specify ml or ix"))
     if ix is None:
         ix = flopy.utils.GridIntersect(ml.modelgrid, method=method)
     shps = []
@@ -1137,8 +1146,8 @@ def gdf2grid(gdf, ml=None, method='vertex', ix=None,
         r = ix.intersect(shp[geometry], **kwargs)
         for i in range(r.shape[0]):
             shpn = shp.copy()
-            shpn['cellid'] = r['cellids'][i]
-            shpn[geometry] = r['ixshapes'][i]
+            shpn["cellid"] = r["cellids"][i]
+            shpn[geometry] = r["ixshapes"][i]
             shps.append(shpn)
     return gpd.GeoDataFrame(shps, geometry=geometry)
 
@@ -1161,19 +1170,19 @@ def get_thickness_from_topbot(top, bot):
         or (layer, icell2d).
     """
     DeprecationWarning(
-        'function is deprecated please use calculate_thickness function instead')
+        "function is deprecated please use calculate_thickness function instead"
+    )
 
     if np.ndim(top) > 2:
-        raise NotImplementedError('function works only for 2d top')
+        raise NotImplementedError("function works only for 2d top")
 
     # get thickness
     if bot.ndim == 3:
-        thickness = util.get_da_from_da_ds(bot, dims=('layer', 'y', 'x'))
+        thickness = util.get_da_from_da_ds(bot, dims=("layer", "y", "x"))
     elif bot.ndim == 2:
-        thickness = util.get_da_from_da_ds(bot, dims=('layer', 'icell2d'))
+        thickness = util.get_da_from_da_ds(bot, dims=("layer", "icell2d"))
     else:
-        raise ValueError(
-            'function only support structured or vertex gridtypes')
+        raise ValueError("function only support structured or vertex gridtypes")
 
     for lay in range(len(bot)):
         if lay == 0:
@@ -1223,18 +1232,22 @@ def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
     yvert = modelgrid.yvertices
     if vert_per_cid == 4:
         from rdp import rdp
-        vertices_arr = np.array([rdp(list(zip(xvert[i], yvert[i])))[
-                                :-1] for i in range(len(xvert))])
+
+        vertices_arr = np.array(
+            [rdp(list(zip(xvert[i], yvert[i])))[:-1] for i in range(len(xvert))]
+        )
     elif vert_per_cid == 5:
         from rdp import rdp
+
         vertices_arr = np.array(
-            [rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))])
+            [rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))]
+        )
     else:
         raise NotImplementedError()
 
-    vertices_da = xr.DataArray(vertices_arr,
-                               dims=('icell2d', 'vert_per_cid', 'xy'),
-                               coords={'xy': ['x', 'y']})
+    vertices_da = xr.DataArray(
+        vertices_arr, dims=("icell2d", "vert_per_cid", "xy"), coords={"xy": ["x", "y"]}
+    )
 
     return vertices_da
 
@@ -1256,12 +1269,12 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
         raster in which each cell has the zero based number of the first
         active layer. Shape can be (y, x) or (icell2d)
     """
-    logger.info('get first active modellayer for each cell in idomain')
+    logger.info("get first active modellayer for each cell in idomain")
 
     first_active_layer = xr.where(idomain[0] == 1, 0, nodata)
     for i in range(1, idomain.shape[0]):
-        first_active_layer = xr.where((first_active_layer == nodata) & (idomain[i] == 1),
-                                      i,
-                                      first_active_layer)
+        first_active_layer = xr.where(
+            (first_active_layer == nodata) & (idomain[i] == 1), i, first_active_layer
+        )
 
     return first_active_layer

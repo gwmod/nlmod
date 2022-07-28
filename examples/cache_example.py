@@ -18,9 +18,8 @@ def func_to_create_a_dataset(number):
     """
     arr = np.ones(100) * number
 
-    da = xr.DataArray(arr, dims=('x'),
-                      coords={'x': np.linspace(1, 100, 100)})
+    da = xr.DataArray(arr, dims=("x"), coords={"x": np.linspace(1, 100, 100)})
     ds = xr.Dataset()
-    ds['test'] = da
+    ds["test"] = da
 
     return ds

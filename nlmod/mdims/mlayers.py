@@ -216,8 +216,9 @@ def fill_data_split_layers(da, reindexer):
     return da_new
 
 
-def split_layers_ds(ds, split_dict, layer="layer",
-                    top="top", bot="botm", kh="kh", kv="kv"):
+def split_layers_ds(
+        ds, split_dict, layer="layer", top="top", bot="botm", kh="kh", kv="kv"
+):
     """Split layers based in Dataset.
 
     Parameters

@@ -392,7 +392,7 @@ def build_spd(celldata, pkg, model_ds):
             if np.isnan(rbot):
                 raise ValueError(f"rbot is NaN in cell {cellid}")
         elif pkg == "RIV":
-            raise ValueError("Column 'rbot' required for building " "RIV package!")
+            raise ValueError("Column 'rbot' required for building RIV package!")
         else:
             rbot = np.nan
 

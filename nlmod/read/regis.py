@@ -241,7 +241,7 @@ def extrapolate_ds(ds, mask=None):
     xi = np.stack((x[mask], y[mask]), axis=1)
     # geneterate the tree only once, to increase speed
     tree = cKDTree(points)
-    dist, i = tree.query(xi)
+    _, i = tree.query(xi)
     for key in ds:
         if not np.any([dim in ds[key].dims for dim in dims]):
             continue

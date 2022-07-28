@@ -6,7 +6,6 @@
     can be used as input for a MODFLOW package
 -   fill, interpolate and resample grid data
 """
-import copy
 import logging
 import os
 import sys
@@ -187,8 +186,7 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None):
                                   delr=ds.delr, delc=ds.delc,
                                   xorigin=ds.extent[0], yorigin=ds.extent[2])
     if exe_name is None:
-        exe_name = os.path.join(os.path.dirname(__file__), "..", "bin",
-                                "gridgen")
+        exe_name = os.path.join(os.path.dirname(__file__), "..", "bin", "gridgen")
         if sys.platform.startswith("win"):
             exe_name += ".exe"
     if model_ws is None:

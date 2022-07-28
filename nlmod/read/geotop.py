@@ -7,8 +7,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .. import cache, mdims
-from . import regis
+from .. import cache
 
 logger = logging.getLogger(__name__)
 

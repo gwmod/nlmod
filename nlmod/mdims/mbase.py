@@ -2,8 +2,6 @@ import datetime as dt
 import os
 import sys
 
-import xarray as xr
-
 from .. import util
 
 

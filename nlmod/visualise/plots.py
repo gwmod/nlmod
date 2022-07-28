@@ -101,14 +101,14 @@ def facet_plot(
             iper = period
             if arr.ndim == 4:
                 if iper is None:
-                    raise ValueError("Pass 'period' to select " "timestep to plot.")
+                    raise ValueError("Pass 'period' to select timestep to plot.")
                 a = arr[iper]
         elif plot_dim == "time":
             ilay = layer
             iper = i
             if arr.ndim == 4:
                 if ilay is None:
-                    raise ValueError("Pass 'layer' to select " "layer to plot.")
+                    raise ValueError("Pass 'layer' to select layer to plot.")
                 a = arr[iper]
         else:
             raise ValueError("'plot_dim' must be one of ['layer', 'time']")

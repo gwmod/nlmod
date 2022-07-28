@@ -26,7 +26,8 @@ from scipy.interpolate import griddata
 
 from shapely.geometry import Point
 from .. import util
-from .mlayers import set_idomain
+from .mlayers import set_idomain, get_first_active_layer_from_idomain
+from .resample import get_resampled_ml_layer_ds_vertex
 
 logger = logging.getLogger(__name__)
 
@@ -100,59 +101,6 @@ def get_cell2d_from_model_ds(ds):
     return cell2d
 
 
-def get_xy_mid_structured(extent, delr, delc, descending_y=True):
-    """Calculates the x and y coordinates of the cell centers of a structured
-    grid.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
-    descending_y : bool, optional
-        if True the resulting ymid array is in descending order. This is the
-        default for MODFLOW models. default is True.
-
-    Returns
-    -------
-    x : np.array
-        x-coordinates of the cell centers shape(ncol)
-    y : np.array
-        y-coordinates of the cell centers shape(nrow)
-    """
-    # check if extent is valid
-    if (extent[1] - extent[0]) % delr != 0.0:
-        raise ValueError(
-            "invalid extent, the extent should contain an integer"
-            " number of cells in the x-direction"
-        )
-    if (extent[3] - extent[2]) % delc != 0.0:
-        raise ValueError(
-            "invalid extent, the extent should contain an integer"
-            " number of cells in the y-direction"
-        )
-
-    # get cell mids
-    x_mid_start = extent[0] + 0.5 * delr
-    x_mid_end = extent[1] - 0.5 * delr
-    y_mid_start = extent[2] + 0.5 * delc
-    y_mid_end = extent[3] - 0.5 * delc
-
-    ncol = int((extent[1] - extent[0]) / delr)
-    nrow = int((extent[3] - extent[2]) / delc)
-
-    x = np.linspace(x_mid_start, x_mid_end, ncol)
-    if descending_y:
-        y = np.linspace(y_mid_end, y_mid_start, nrow)
-    else:
-        y = np.linspace(y_mid_start, y_mid_end, nrow)
-
-    return x, y
-
-
 def refine(ds, model_ws=None, refinement_features=None, exe_name=None,
            remove_nan_layers=True):
     """
@@ -216,46 +164,11 @@ def refine(ds, model_ws=None, refinement_features=None, exe_name=None,
     g.build()
     gridprops = g.get_gridprops_disv()
     gridprops["area"] = g.get_area()
-    # import needed here, as otherwise we get a circular import, fix this later
-    from ..mdims.resample import get_resampled_ml_layer_ds_vertex
     ds = get_resampled_ml_layer_ds_vertex(ds, extent=ds.extent,
                                           gridprops=gridprops)
     # recalculate idomain, as the interpolation changes idomain to floats
     ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
     return ds
-
-
-def get_xyi_icell2d(gridprops=None, model_ds=None):
-    """Get x and y coördinates of the cell mids from the cellids in the grid
-    properties.
-
-    Parameters
-    ----------
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. If gridprops is
-        None xyi and icell2d will be obtained from model_ds.
-    model_ds : xarray.Dataset
-        dataset with model data. Should have dimension (layer, icell2d).
-
-    Returns
-    -------
-    xyi : numpy.ndarray
-        array with x and y coördinates of cell centers, shape(len(icell2d), 2).
-    icell2d : numpy.ndarray
-        array with cellids, shape(len(icell2d))
-    """
-    if gridprops is not None:
-        xc_gwf = [cell2d[1] for cell2d in gridprops["cell2d"]]
-        yc_gwf = [cell2d[2] for cell2d in gridprops["cell2d"]]
-        xyi = np.vstack((xc_gwf, yc_gwf)).T
-        icell2d = np.array([c[0] for c in gridprops["cell2d"]])
-    elif model_ds is not None:
-        xyi = np.array(list(zip(model_ds.x.values, model_ds.y.values)))
-        icell2d = model_ds.icell2d.values
-    else:
-        raise ValueError("either gridprops or model_ds should be specified")
-
-    return xyi, icell2d
 
 
 def col_to_list(col_in, model_ds, cellids):
@@ -1253,31 +1166,3 @@ def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
     )
 
     return vertices_da
-
-
-def get_first_active_layer_from_idomain(idomain, nodata=-999):
-    """get the first active layer in each cell from the idomain.
-
-    Parameters
-    ----------
-    idomain : xr.DataArray
-        idomain. Shape can be (layer, y, x) or (layer, icell2d)
-    nodata : int, optional
-        nodata value. used for cells that are inactive in all layers.
-        The default is -999.
-
-    Returns
-    -------
-    first_active_layer : xr.DataArray
-        raster in which each cell has the zero based number of the first
-        active layer. Shape can be (y, x) or (icell2d)
-    """
-    logger.info("get first active modellayer for each cell in idomain")
-
-    first_active_layer = xr.where(idomain[0] == 1, 0, nodata)
-    for i in range(1, idomain.shape[0]):
-        first_active_layer = xr.where(
-            (first_active_layer == nodata) & (idomain[i] == 1), i, first_active_layer
-        )
-
-    return first_active_layer

@@ -13,8 +13,6 @@ import rasterio
 from rasterio.warp import reproject
 from affine import Affine
 
-from . import mgrid
-
 logger = logging.getLogger(__name__)
 
 
@@ -139,7 +137,7 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
-    xyi, _ = mgrid.get_xyi_icell2d(gridprops)
+    xyi, _ = get_xyi_icell2d(gridprops)
     x = xr.DataArray(xyi[:, 0], dims=("icell2d"))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
     if method in ["nearest", "linear"]:
@@ -176,6 +174,92 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
         ds_out[data_var] = data_arr
 
     return ds_out
+
+
+def get_xyi_icell2d(gridprops=None, model_ds=None):
+    """Get x and y coördinates of the cell mids from the cellids in the grid
+    properties.
+
+    Parameters
+    ----------
+    gridprops : dictionary, optional
+        dictionary with grid properties output from gridgen. If gridprops is
+        None xyi and icell2d will be obtained from model_ds.
+    model_ds : xarray.Dataset
+        dataset with model data. Should have dimension (layer, icell2d).
+
+    Returns
+    -------
+    xyi : numpy.ndarray
+        array with x and y coördinates of cell centers, shape(len(icell2d), 2).
+    icell2d : numpy.ndarray
+        array with cellids, shape(len(icell2d))
+    """
+    if gridprops is not None:
+        xc_gwf = [cell2d[1] for cell2d in gridprops["cell2d"]]
+        yc_gwf = [cell2d[2] for cell2d in gridprops["cell2d"]]
+        xyi = np.vstack((xc_gwf, yc_gwf)).T
+        icell2d = np.array([c[0] for c in gridprops["cell2d"]])
+    elif model_ds is not None:
+        xyi = np.array(list(zip(model_ds.x.values, model_ds.y.values)))
+        icell2d = model_ds.icell2d.values
+    else:
+        raise ValueError("either gridprops or model_ds should be specified")
+
+    return xyi, icell2d
+
+
+def get_xy_mid_structured(extent, delr, delc, descending_y=True):
+    """Calculates the x and y coordinates of the cell centers of a structured
+    grid.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+    descending_y : bool, optional
+        if True the resulting ymid array is in descending order. This is the
+        default for MODFLOW models. default is True.
+
+    Returns
+    -------
+    x : np.array
+        x-coordinates of the cell centers shape(ncol)
+    y : np.array
+        y-coordinates of the cell centers shape(nrow)
+    """
+    # check if extent is valid
+    if (extent[1] - extent[0]) % delr != 0.0:
+        raise ValueError(
+            "invalid extent, the extent should contain an integer"
+            " number of cells in the x-direction"
+        )
+    if (extent[3] - extent[2]) % delc != 0.0:
+        raise ValueError(
+            "invalid extent, the extent should contain an integer"
+            " number of cells in the y-direction"
+        )
+
+    # get cell mids
+    x_mid_start = extent[0] + 0.5 * delr
+    x_mid_end = extent[1] - 0.5 * delr
+    y_mid_start = extent[2] + 0.5 * delc
+    y_mid_end = extent[3] - 0.5 * delc
+
+    ncol = int((extent[1] - extent[0]) / delr)
+    nrow = int((extent[3] - extent[2]) / delc)
+
+    x = np.linspace(x_mid_start, x_mid_end, ncol)
+    if descending_y:
+        y = np.linspace(y_mid_end, y_mid_start, nrow)
+    else:
+        y = np.linspace(y_mid_start, y_mid_end, nrow)
+
+    return x, y
 
 
 def resample_dataarray2d_to_structured_grid(
@@ -233,7 +317,7 @@ def resample_dataarray2d_to_structured_grid(
     assert isinstance(da_in, xr.core.dataarray.DataArray), msg
 
     if x is None or y is None:
-        x, y = mgrid.get_xy_mid_structured(extent, delr, delc)
+        x, y = get_xy_mid_structured(extent, delr, delc)
 
     # check if ymid is in descending order
     msg = "ymid should be in descending order"
@@ -326,7 +410,7 @@ def resample_dataarray3d_to_structured_grid(
     assert np.array_equal(y, np.sort(y)[::-1]), "ymid should be in descending order"
 
     if (x is None) or (y is None):
-        x, y = mgrid.get_xy_mid_structured(extent, delr, delc)
+        x, y = get_xy_mid_structured(extent, delr, delc)
 
     layers = da_in.layer.data
     arr_out = np.zeros((len(layers), len(y), len(x)))
@@ -433,7 +517,7 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc,
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
-    x, y = mgrid.get_xy_mid_structured(extent, delr, delc)
+    x, y = get_xy_mid_structured(extent, delr, delc)
     if kind in ['nearest', 'linear']:
         return ds_in.interp(x=x, y=y, method=kind)
 

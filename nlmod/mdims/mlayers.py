@@ -4,7 +4,7 @@ from collections import OrderedDict
 import numpy as np
 import xarray as xr
 
-from . import resample, mgrid
+from . import resample
 from ..read import jarkus, rws
 
 logger = logging.getLogger(__name__)
@@ -854,11 +854,39 @@ def set_idomain(ds, nodata=-999, remove_nan_layers=True):
         ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
     # TODO: set idomain above and below the first active layer to 0
 
-    ds["first_active_layer"] = mgrid.get_first_active_layer_from_idomain(ds["idomain"],
-                                                                         nodata=nodata)
+    ds["first_active_layer"] = get_first_active_layer_from_idomain(ds["idomain"],
+                                                                   nodata=nodata)
 
     ds.attrs["nodata"] = nodata
     return ds
+
+
+def get_first_active_layer_from_idomain(idomain, nodata=-999):
+    """get the first active layer in each cell from the idomain.
+
+    Parameters
+    ----------
+    idomain : xr.DataArray
+        idomain. Shape can be (layer, y, x) or (layer, icell2d)
+    nodata : int, optional
+        nodata value. used for cells that are inactive in all layers.
+        The default is -999.
+
+    Returns
+    -------
+    first_active_layer : xr.DataArray
+        raster in which each cell has the zero based number of the first
+        active layer. Shape can be (y, x) or (icell2d)
+    """
+    logger.info("get first active modellayer for each cell in idomain")
+
+    first_active_layer = xr.where(idomain[0] == 1, 0, nodata)
+    for i in range(1, idomain.shape[0]):
+        first_active_layer = xr.where(
+            (first_active_layer == nodata) & (idomain[i] == 1), i, first_active_layer
+        )
+
+    return first_active_layer
 
 
 def add_northsea(model_ds, cachedir=None):
@@ -897,7 +925,7 @@ def add_northsea(model_ds, cachedir=None):
     model_ds['idomain'] = update_idomain_from_thickness(model_ds['idomain'],
                                                         model_ds['thickness'],
                                                         model_ds['northsea'])
-    model_ds['first_active_layer'] = mgrid.get_first_active_layer_from_idomain(
+    model_ds['first_active_layer'] = get_first_active_layer_from_idomain(
         model_ds['idomain'])
     return model_ds
 

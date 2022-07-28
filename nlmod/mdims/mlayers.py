@@ -44,7 +44,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
         if ds[top].shape[-1] == ds[bot].shape[-1]:
             # top is only top of first layer
             thickness = xr.zeros_like(ds[bot])
-            for lay in range(len(bot)):
+            for lay in range(len(thickness)):
                 if lay == 0:
                     thickness[lay] = ds[top] - ds[bot][lay]
                 else:

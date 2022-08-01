@@ -211,10 +211,10 @@ def to_model_ds(ds, model_name=None, model_ws=None, extent=None, delr=100.,
     # add attributes
     ds = mdims.mbase.set_ds_attrs(ds, model_name, model_ws)
     # fill nan's and add idomain
-    ds = mdims.mlayers.complete_ds(ds, anisotropy=anisotropy,
-                                   fill_value_kh=fill_value_kh,
-                                   fill_value_kv=fill_value_kv,
-                                   remove_nan_layers=remove_nan_layers)
+    ds = mdims.mlayers.fill_nan_top_botm_kh_kv(ds, anisotropy=anisotropy,
+                                               fill_value_kh=fill_value_kh,
+                                               fill_value_kv=fill_value_kv,
+                                               remove_nan_layers=remove_nan_layers)
     return ds
 
 

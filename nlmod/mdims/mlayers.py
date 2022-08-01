@@ -795,8 +795,8 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask, gridtype="structured"):
     return model_ds
 
 
-def complete_ds(ds, anisotropy=10.0, fill_value_kh=1.0, fill_value_kv=0.1,
-                remove_nan_layers=True):
+def fill_nan_top_botm_kh_kv(ds, anisotropy=10.0, fill_value_kh=1.0,
+                            fill_value_kv=0.1, remove_nan_layers=True):
     """Update a model dataset, by removing nans and adding necessary info
 
     Steps:

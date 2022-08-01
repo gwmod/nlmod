@@ -19,9 +19,7 @@ from . import recharge
 logger = logging.getLogger(__name__)
 
 
-def sim_tdis_gwf_ims_from_model_ds(model_ds,
-                                   complexity='MODERATE',
-                                   exe_name=None):
+def sim_tdis_gwf_ims_from_model_ds(model_ds, complexity="MODERATE", exe_name=None):
     """create sim, tdis, gwf and ims package from the model dataset.
 
     Parameters
@@ -44,44 +42,50 @@ def sim_tdis_gwf_ims_from_model_ds(model_ds,
     """
 
     # start creating model
-    logger.info('creating modflow SIM, TDIS, GWF and IMS')
+    logger.info("creating modflow SIM, TDIS, GWF and IMS")
 
     if exe_name is None:
-        exe_name = os.path.join(os.path.dirname(__file__),
-                                '..', 'bin', model_ds.mfversion)
-        if sys.platform.startswith('win'):
+        exe_name = os.path.join(
+            os.path.dirname(__file__), "..", "bin", model_ds.mfversion
+        )
+        if sys.platform.startswith("win"):
             exe_name += ".exe"
 
     # Create the Flopy simulation object
-    sim = flopy.mf6.MFSimulation(sim_name=model_ds.model_name,
-                                 exe_name=exe_name,
-                                 version=model_ds.mfversion,
-                                 sim_ws=model_ds.model_ws)
+    sim = flopy.mf6.MFSimulation(
+        sim_name=model_ds.model_name,
+        exe_name=exe_name,
+        version=model_ds.mfversion,
+        sim_ws=model_ds.model_ws,
+    )
 
     tdis_perioddata = get_tdis_perioddata(model_ds)
 
     # Create the Flopy temporal discretization object
-    flopy.mf6.modflow.mftdis.ModflowTdis(sim,
-                                         pname='tdis',
-                                         time_units=model_ds.time.time_units,
-                                         nper=len(model_ds.time),
-                                         start_date_time=model_ds.time.start_time,
-                                         perioddata=tdis_perioddata)
+    flopy.mf6.modflow.mftdis.ModflowTdis(
+        sim,
+        pname="tdis",
+        time_units=model_ds.time.time_units,
+        nper=len(model_ds.time),
+        start_date_time=model_ds.time.start_time,
+        perioddata=tdis_perioddata,
+    )
 
     # Create the Flopy groundwater flow (gwf) model object
-    model_nam_file = '{}.nam'.format(model_ds.model_name)
-    gwf = flopy.mf6.ModflowGwf(sim, modelname=model_ds.model_name,
-                               model_nam_file=model_nam_file)
+    model_nam_file = f"{model_ds.model_name}.nam"
+    gwf = flopy.mf6.ModflowGwf(
+        sim, modelname=model_ds.model_name, model_nam_file=model_nam_file
+    )
 
     # Create the Flopy iterative model solver (ims) Package object
-    flopy.mf6.modflow.mfims.ModflowIms(sim, pname='ims',
-                                       print_option='summary',
-                                       complexity=complexity)
+    flopy.mf6.modflow.mfims.ModflowIms(
+        sim, pname="ims", print_option="summary", complexity=complexity
+    )
 
     return sim, gwf
 
 
-def dis_from_model_ds(model_ds, gwf, length_units='METERS', angrot=0):
+def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
     """get discretisation package from the model dataset.
 
     Parameters
@@ -101,37 +105,35 @@ def dis_from_model_ds(model_ds, gwf, length_units='METERS', angrot=0):
         discretisation package.
     """
 
-    if model_ds.gridtype == 'vertex':
+    if model_ds.gridtype == "vertex":
         return disv_from_model_ds(model_ds, gwf, length_units=length_units,
                                   angrot=angrot)
 
     # check attributes
-    for att in ['delr', 'delc']:
+    for att in ["delr", "delc"]:
         if isinstance(model_ds.attrs[att], np.float32):
             model_ds.attrs[att] = float(model_ds.attrs[att])
 
     dis = flopy.mf6.ModflowGwfdis(gwf,
-                                  pname='dis',
+                                  pname="dis",
                                   length_units=length_units,
                                   xorigin=model_ds.extent[0],
                                   yorigin=model_ds.extent[2],
                                   angrot=angrot,
-                                  nlay=model_ds.dims['layer'],
-                                  nrow=model_ds.dims['y'],
-                                  ncol=model_ds.dims['x'],
+                                  nlay=model_ds.dims["layer"],
+                                  nrow=model_ds.dims["y"],
+                                  ncol=model_ds.dims["x"],
                                   delr=model_ds.delr,
                                   delc=model_ds.delc,
-                                  top=model_ds['top'].data,
-                                  botm=model_ds['botm'].data,
-                                  idomain=model_ds['idomain'].data,
-                                  filename=f'{model_ds.model_name}.dis')
+                                  top=model_ds["top"].data,
+                                  botm=model_ds["botm"].data,
+                                  idomain=model_ds["idomain"].data,
+                                  filename=f"{model_ds.model_name}.dis")
 
     return dis
 
 
-def disv_from_model_ds(model_ds, gwf,
-                       length_units='METERS',
-                       angrot=0):
+def disv_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
     """get discretisation vertices package from the model dataset.
 
     Parameters
@@ -154,24 +156,22 @@ def disv_from_model_ds(model_ds, gwf,
     vertices = mdims.mgrid.get_vertices_from_model_ds(model_ds)
     cell2d = mdims.mgrid.get_cell2d_from_model_ds(model_ds)
     disv = flopy.mf6.ModflowGwfdisv(gwf,
-                                    idomain=model_ds['idomain'].data,
+                                    idomain=model_ds["idomain"].data,
                                     xorigin=model_ds.extent[0],
                                     yorigin=model_ds.extent[2],
                                     length_units=length_units,
                                     angrot=angrot, nlay=len(model_ds.layer),
                                     ncpl=len(model_ds.icell2d),
                                     nvert=len(model_ds.iv),
-                                    top=model_ds['top'].data,
-                                    botm=model_ds['botm'].data,
+                                    top=model_ds["top"].data,
+                                    botm=model_ds["botm"].data,
                                     vertices=vertices,
                                     cell2d=cell2d)
 
     return disv
 
 
-def npf_from_model_ds(model_ds, gwf, icelltype=0,
-                      save_flows=False,
-                      **kwargs):
+def npf_from_model_ds(model_ds, gwf, icelltype=0, save_flows=False, **kwargs):
     """get node property flow package from model dataset.
 
     Parameters
@@ -197,13 +197,15 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0,
         npf package.
     """
 
-    npf = flopy.mf6.ModflowGwfnpf(gwf,
-                                  pname='npf',
-                                  icelltype=icelltype,
-                                  k=model_ds['kh'].data,
-                                  k33=model_ds['kv'].data,
-                                  save_flows=save_flows,
-                                  **kwargs)
+    npf = flopy.mf6.ModflowGwfnpf(
+        gwf,
+        pname="npf",
+        icelltype=icelltype,
+        k=model_ds["kh"].data,
+        k33=model_ds["kv"].data,
+        save_flows=save_flows,
+        **kwargs,
+    )
 
     return npf
 
@@ -231,40 +233,46 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
         ghb package
     """
 
-    if model_ds.gridtype == 'structured':
-        ghb_rec = mdims.data_array_2d_to_rec_list(model_ds,
-                                                  model_ds[f'{da_name}_cond'] != 0,
-                                                  col1=f'{da_name}_peil',
-                                                  col2=f'{da_name}_cond',
-                                                  first_active_layer=True,
-                                                  only_active_cells=False,
-                                                  layer=0)
-    elif model_ds.gridtype == 'vertex':
-        ghb_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds,
-                                                         model_ds[f'{da_name}_cond'] != 0,
-                                                         col1=f'{da_name}_peil',
-                                                         col2=f'{da_name}_cond',
-                                                         first_active_layer=True,
-                                                         only_active_cells=False,
-                                                         layer=0)
+    if model_ds.gridtype == "structured":
+        ghb_rec = mdims.data_array_2d_to_rec_list(
+            model_ds,
+            model_ds[f"{da_name}_cond"] != 0,
+            col1=f"{da_name}_peil",
+            col2=f"{da_name}_cond",
+            first_active_layer=True,
+            only_active_cells=False,
+            layer=0,
+        )
+    elif model_ds.gridtype == "vertex":
+        ghb_rec = mdims.data_array_1d_vertex_to_rec_list(
+            model_ds,
+            model_ds[f"{da_name}_cond"] != 0,
+            col1=f"{da_name}_peil",
+            col2=f"{da_name}_cond",
+            first_active_layer=True,
+            only_active_cells=False,
+            layer=0,
+        )
     else:
-        raise ValueError(f'did not recognise gridtype {model_ds.gridtype}')
+        raise ValueError(f"did not recognise gridtype {model_ds.gridtype}")
 
     if len(ghb_rec) > 0:
-        ghb = flopy.mf6.ModflowGwfghb(gwf, print_input=True,
-                                      maxbound=len(ghb_rec),
-                                      stress_period_data=ghb_rec,
-                                      save_flows=True)
+        ghb = flopy.mf6.ModflowGwfghb(
+            gwf,
+            print_input=True,
+            maxbound=len(ghb_rec),
+            stress_period_data=ghb_rec,
+            save_flows=True,
+        )
         return ghb
 
     else:
-        print('no ghb cells added')
+        print("no ghb cells added")
 
         return None
 
 
-def ic_from_model_ds(model_ds, gwf,
-                     starting_head='starting_head'):
+def ic_from_model_ds(model_ds, gwf, starting_head="starting_head"):
     """get initial condictions package from model dataset.
 
     Parameters
@@ -286,20 +294,16 @@ def ic_from_model_ds(model_ds, gwf,
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
-        model_ds['starting_head'] = starting_head * \
-            xr.ones_like(model_ds['idomain'])
-        model_ds['starting_head'].attrs['units'] = 'mNAP'
-        starting_head = 'starting_head'
+        model_ds["starting_head"] = starting_head * xr.ones_like(model_ds["idomain"])
+        model_ds["starting_head"].attrs["units"] = "mNAP"
+        starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(gwf, pname='ic',
-                                strt=model_ds[starting_head].data)
+    ic = flopy.mf6.ModflowGwfic(gwf, pname="ic", strt=model_ds[starting_head].data)
 
     return ic
 
 
-def sto_from_model_ds(model_ds, gwf,
-                      sy=0.2, ss=0.000001,
-                      iconvert=1, save_flows=False):
+def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False):
     """get storage package from model dataset.
 
     Parameters
@@ -334,16 +338,20 @@ def sto_from_model_ds(model_ds, gwf,
             sts_spd = None
             trn_spd = {0: True}
 
-        sto = flopy.mf6.ModflowGwfsto(gwf, pname='sto',
-                                      save_flows=save_flows,
-                                      iconvert=iconvert,
-                                      ss=ss, sy=sy, steady_state=sts_spd,
-                                      transient=trn_spd)
+        sto = flopy.mf6.ModflowGwfsto(
+            gwf,
+            pname="sto",
+            save_flows=save_flows,
+            iconvert=iconvert,
+            ss=ss,
+            sy=sy,
+            steady_state=sts_spd,
+            transient=trn_spd,
+        )
         return sto
 
 
-def chd_from_model_ds(model_ds, gwf, chd='chd',
-                      head='starting_head'):
+def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head"):
     """get constant head boundary at the model's edges from the model dataset.
 
     Parameters
@@ -365,20 +373,21 @@ def chd_from_model_ds(model_ds, gwf, chd='chd',
         chd package
     """
     # get the stress_period_data
-    if model_ds.gridtype == 'structured':
-        chd_rec = mdims.data_array_3d_to_rec_list(model_ds,
-                                                  model_ds[chd] != 0,
-                                                  col1=head)
-    elif model_ds.gridtype == 'vertex':
+    if model_ds.gridtype == "structured":
+        chd_rec = mdims.data_array_3d_to_rec_list(
+            model_ds, model_ds[chd] != 0, col1=head
+        )
+    elif model_ds.gridtype == "vertex":
         cellids = np.where(model_ds[chd])
-        chd_rec = list(zip(zip(cellids[0],
-                               cellids[1]),
-                           [1.0] * len(cellids[0])))
+        chd_rec = list(zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0])))
 
-    chd = flopy.mf6.ModflowGwfchd(gwf, pname=chd,
-                                  maxbound=len(chd_rec),
-                                  stress_period_data=chd_rec,
-                                  save_flows=True)
+    chd = flopy.mf6.ModflowGwfchd(
+        gwf,
+        pname=chd,
+        maxbound=len(chd_rec),
+        stress_period_data=chd_rec,
+        save_flows=True,
+    )
 
     return chd
 
@@ -402,24 +411,34 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
         drn package
     """
 
-    model_ds.attrs['surface_drn_cond'] = surface_drn_cond
-    mask = model_ds['ahn'].notnull()
-    if model_ds.gridtype == 'structured':
-        drn_rec = mdims.data_array_2d_to_rec_list(model_ds, mask, col1='ahn',
-                                                  first_active_layer=True,
-                                                  only_active_cells=False,
-                                                  col2=model_ds.surface_drn_cond)
-    elif model_ds.gridtype == 'vertex':
-        drn_rec = mdims.data_array_1d_vertex_to_rec_list(model_ds, mask,
-                                                         col1='ahn',
-                                                         col2=model_ds.surface_drn_cond,
-                                                         first_active_layer=True,
-                                                         only_active_cells=False)
+    model_ds.attrs["surface_drn_cond"] = surface_drn_cond
+    mask = model_ds["ahn"].notnull()
+    if model_ds.gridtype == "structured":
+        drn_rec = mdims.data_array_2d_to_rec_list(
+            model_ds,
+            mask,
+            col1="ahn",
+            first_active_layer=True,
+            only_active_cells=False,
+            col2=model_ds.surface_drn_cond,
+        )
+    elif model_ds.gridtype == "vertex":
+        drn_rec = mdims.data_array_1d_vertex_to_rec_list(
+            model_ds,
+            mask,
+            col1="ahn",
+            col2=model_ds.surface_drn_cond,
+            first_active_layer=True,
+            only_active_cells=False,
+        )
 
-    drn = flopy.mf6.ModflowGwfdrn(gwf, print_input=True,
-                                  maxbound=len(drn_rec),
-                                  stress_period_data={0: drn_rec},
-                                  save_flows=True)
+    drn = flopy.mf6.ModflowGwfdrn(
+        gwf,
+        print_input=True,
+        maxbound=len(drn_rec),
+        stress_period_data={0: drn_rec},
+        save_flows=True,
+    )
 
     return drn
 
@@ -446,8 +465,7 @@ def rch_from_model_ds(model_ds, gwf):
     return rch
 
 
-def oc_from_model_ds(model_ds, gwf, save_budget=True,
-                     print_head=True):
+def oc_from_model_ds(model_ds, gwf, save_budget=True, print_head=True):
     """get output control package from model dataset.
 
     Parameters
@@ -463,23 +481,26 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True,
         oc package
     """
     # Create the output control package
-    headfile = '{}.hds'.format(model_ds.model_name)
+    headfile = f"{model_ds.model_name}.hds"
     head_filerecord = [headfile]
-    budgetfile = '{}.cbb'.format(model_ds.model_name)
+    budgetfile = f"{model_ds.model_name}.cbb"
     budget_filerecord = [budgetfile]
-    saverecord = [('HEAD', 'LAST')]
+    saverecord = [("HEAD", "LAST")]
     if save_budget:
-        saverecord.append(('BUDGET', 'ALL'))
+        saverecord.append(("BUDGET", "ALL"))
     if print_head:
-        printrecord = [('HEAD', 'LAST')]
+        printrecord = [("HEAD", "LAST")]
     else:
         printrecord = None
 
-    oc = flopy.mf6.ModflowGwfoc(gwf, pname='oc',
-                                saverecord=saverecord,
-                                head_filerecord=head_filerecord,
-                                budget_filerecord=budget_filerecord,
-                                printrecord=printrecord)
+    oc = flopy.mf6.ModflowGwfoc(
+        gwf,
+        pname="oc",
+        saverecord=saverecord,
+        head_filerecord=head_filerecord,
+        budget_filerecord=budget_filerecord,
+        printrecord=printrecord,
+    )
 
     return oc
 
@@ -505,11 +526,15 @@ def get_tdis_perioddata(model_ds):
           1}{tsmult^{nstp}-1}`.
     """
     dt = pd.to_timedelta(1, model_ds.time.time_units)
-    perlen = [(pd.to_datetime(model_ds['time'].data[0]) -
-               pd.to_datetime(model_ds.time.start_time)) / dt]
-    if len(model_ds['time']) > 1:
-        perlen.extend(np.diff(model_ds['time']) / dt)
-    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult)
-                       for p in perlen]
+    perlen = [
+        (
+            pd.to_datetime(model_ds["time"].data[0])
+            - pd.to_datetime(model_ds.time.start_time)
+        )
+        / dt
+    ]
+    if len(model_ds["time"]) > 1:
+        perlen.extend(np.diff(model_ds["time"]) / dt)
+    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
 
     return tdis_perioddata

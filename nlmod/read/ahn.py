@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
+def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
     """Get a model dataset with ahn variable.
 
     Parameters
@@ -54,30 +54,30 @@ def get_ahn(model_ds, identifier='ahn3_5m_dtm'):
     ahn_ds_raw = rioxarray.open_rasterio(ahn_file.open(),
                                          mask_and_scale=True)[0]
 
-    if model_ds.gridtype == 'structured':
+    if model_ds.gridtype == "structured":
         ahn_ds = mdims.resample_dataarray2d_to_structured_grid(ahn_ds_raw,
                                                                x=model_ds.x.data,
                                                                y=model_ds.y.data)
-    elif model_ds.gridtype == 'vertex':
+    elif model_ds.gridtype == "vertex":
         ahn_ds = mdims.resample_dataarray2d_to_vertex_grid(ahn_ds_raw,
                                                            model_ds)
 
     model_ds_out = util.get_model_ds_empty(model_ds)
-    model_ds_out['ahn'] = ahn_ds
+    model_ds_out["ahn"] = ahn_ds
 
     for datavar in model_ds_out:
-        model_ds_out[datavar].attrs['source'] = identifier
-        model_ds_out[datavar].attrs['url'] = url
-        model_ds_out[datavar].attrs['date'] = dt.datetime.now().strftime(
-            '%Y%m%d')
-        if datavar == 'ahn':
-            model_ds_out[datavar].attrs['units'] = 'mNAP'
+        model_ds_out[datavar].attrs["source"] = identifier
+        model_ds_out[datavar].attrs["url"] = url
+        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+        if datavar == "ahn":
+            model_ds_out[datavar].attrs["units"] = "mNAP"
 
     return model_ds_out
 
 
-def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
-                     tmp_dir=None, **kwargs):
+def split_ahn_extent(
+    extent, res, x_segments, y_segments, maxsize, tmp_dir=None, **kwargs
+):
     """There is a max height and width limit of 800 * res for the wcs server.
     This function splits your extent in chunks smaller than the limit. It
     returns a list of gdal Datasets.
@@ -113,8 +113,10 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
     # needs a temporary folder to store the individual ahn tiffs before merge
     with tempfile.TemporaryDirectory() as tempfile_tmp_dir:
         if tmp_dir is None:
-            logger.info(f"- Created temporary directory {tempfile_tmp_dir}. "
-                        "To store ahn tiffs of subextents")
+            logger.info(
+                f"- Created temporary directory {tempfile_tmp_dir}. "
+                "To store ahn tiffs of subextents"
+            )
             tmp_dir_path = tempfile_tmp_dir
         else:
             logger.info(f"- Use {tmp_dir} to store ahn tiffs of subextents")
@@ -135,13 +137,14 @@ def split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
                 else:
                     end_y = start_y + maxsize * res
                 subextent = [start_x, end_x, start_y, end_y]
-                logger.info(f'downloading subextent {subextent}')
-                logger.info(f'x_segment-{tx}, y_segment-{ty}')
+                logger.info(f"downloading subextent {subextent}")
+                logger.info(f"x_segment-{tx}, y_segment-{ty}")
 
                 datasets.append(
                     get_ahn_within_extent(
-                        subextent, res=res, tmp_dir=tmp_dir_path,
-                        maxsize=maxsize, **kwargs))
+                        subextent, res=res, tmp_dir=tmp_dir_path, maxsize=maxsize, **kwargs
+                    )
+                )
                 start_y = end_y
 
             start_x = end_x
@@ -172,21 +175,33 @@ def _infer_url(identifier=None):
     """
 
     # infer url from identifier
-    if 'ahn2' in identifier:
-        url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
-               'request=GetCapabilities&service=WCS')
-    elif 'ahn3' in identifier:
-        url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
-               'request=GetCapabilities&service=WCS')
+    if "ahn2" in identifier:
+        url = (
+            "https://geodata.nationaalgeoregister.nl/ahn2/wcs?"
+            "request=GetCapabilities&service=WCS"
+        )
+    elif "ahn3" in identifier:
+        url = (
+            "https://geodata.nationaalgeoregister.nl/ahn3/wcs?"
+            "request=GetCapabilities&service=WCS"
+        )
     else:
-        ValueError(f'unknown identifier -> {identifier}')
+        ValueError(f"unknown identifier -> {identifier}")
 
     return url
 
 
-def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
-                          res=None, version='1.0.0', fmt='GEOTIFF_FLOAT32',
-                          crs='EPSG:28992', maxsize=4000, tmp_dir=None):
+def get_ahn_within_extent(
+    extent=None,
+    identifier="ahn3_5m_dtm",
+    url=None,
+    res=None,
+    version="1.0.0",
+    fmt="GEOTIFF_FLOAT32",
+    crs="EPSG:28992",
+    maxsize=800,
+    tmp_dir=None,
+):
     """
 
     Parameters
@@ -242,23 +257,27 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
     # get url
     if url is None:
         url = _infer_url(identifier)
-    elif url == 'ahn2':
-        url = ('https://geodata.nationaalgeoregister.nl/ahn2/wcs?'
-               'request=GetCapabilities&service=WCS')
-    elif url == 'ahn3':
-        url = ('https://geodata.nationaalgeoregister.nl/ahn3/wcs?'
-               'request=GetCapabilities&service=WCS')
+    elif url == "ahn2":
+        url = (
+            "https://geodata.nationaalgeoregister.nl/ahn2/wcs?"
+            "request=GetCapabilities&service=WCS"
+        )
+    elif url == "ahn3":
+        url = (
+            "https://geodata.nationaalgeoregister.nl/ahn3/wcs?"
+            "request=GetCapabilities&service=WCS"
+        )
     elif not url.startswith("https://geodata.nationaalgeoregister.nl"):
-        raise ValueError(f'unknown url -> {url}')
+        raise ValueError(f"unknown url -> {url}")
 
     # check resolution
     if res is None:
-        if '05m' in identifier.split('_')[1]:
+        if "05m" in identifier.split("_")[1]:
             res = 0.5
-        elif '5m' in identifier.split('_')[1]:
+        elif "5m" in identifier.split("_")[1]:
             res = 5.0
         else:
-            raise ValueError('could not infer resolution from identifier')
+            raise ValueError("could not infer resolution from identifier")
 
     # check if ahn is within limits
     dx = extent[1] - extent[0]
@@ -276,30 +295,40 @@ def get_ahn_within_extent(extent=None, identifier='ahn3_5m_dtm', url=None,
         y_segments = 1
 
     if (x_segments * y_segments) > 1:
-        st = f'''requested ahn raster width or height bigger than {maxsize*res}
-            -> splitting extent into {x_segments} * {y_segments} tiles'''
+        st = f"""requested ahn raster width or height bigger than {maxsize*res}
+            -> splitting extent into {x_segments} * {y_segments} tiles"""
         logger.info(st)
-        return split_ahn_extent(extent, res, x_segments, y_segments, maxsize,
-                                identifier=identifier,
-                                version=version, fmt=fmt, crs=crs,
-                                tmp_dir=tmp_dir)
+        return split_ahn_extent(
+            extent,
+            res,
+            x_segments,
+            y_segments,
+            maxsize,
+            identifier=identifier,
+            version=version,
+            fmt=fmt,
+            crs=crs,
+            tmp_dir=tmp_dir,
+        )
 
     # download file
-    logger.info(f"- download ahn between: x ({str(extent[0])}, {str(extent[1])}); "
-                f"y ({str(extent[2])}, {str(extent[3])})")
+    logger.info(
+        f"- download ahn between: x ({str(extent[0])}, {str(extent[1])}); "
+        f"y ({str(extent[2])}, {str(extent[3])})"
+    )
     wcs = WebCoverageService(url, version=version)
-    if version == '1.0.0':
+    if version == "1.0.0":
         bbox = (extent[0], extent[2], extent[1], extent[3])
-        output = wcs.getCoverage(identifier=identifier, bbox=bbox,
-                                 format=fmt, crs=crs, resx=res,
-                                 resy=res)
-    elif version == '2.0.1':
+        output = wcs.getCoverage(
+            identifier=identifier, bbox=bbox, format=fmt, crs=crs, resx=res, resy=res
+        )
+    elif version == "2.0.1":
         # bbox, resx and resy do nothing in version 2.0.1
-        subsets = [('x', extent[0], extent[1]),
-                   ('y', extent[2], extent[3])]
-        output = wcs.getCoverage(identifier=[identifier], subsets=subsets,
-                                 format=fmt, crs=crs)
+        subsets = [("x", extent[0], extent[1]), ("y", extent[2], extent[3])]
+        output = wcs.getCoverage(
+            identifier=[identifier], subsets=subsets, format=fmt, crs=crs
+        )
     else:
-        raise (Exception('Version {} not yet supported'.format(version)))
+        raise Exception(f"Version {version} not yet supported")
 
     return MemoryFile(output.read())

@@ -16,8 +16,7 @@ from shapely.geometry import box
 logger = logging.getLogger(__name__)
 
 
-def write_and_run_model(gwf, model_ds, write_model_ds=True,
-                        nb_path=None):
+def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
     """write modflow files and run the model.
 
     2 extra options:
@@ -42,28 +41,29 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True,
     """
 
     if nb_path is not None:
-        new_nb_fname = f'{dt.datetime.now().strftime("%Y%m%d")}' + \
-            os.path.split(nb_path)[-1]
+        new_nb_fname = (
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+        )
         dst = os.path.join(model_ds.model_ws, new_nb_fname)
-        logger.info(f'write script {new_nb_fname} to model workspace')
+        logger.info(f"write script {new_nb_fname} to model workspace")
         copyfile(nb_path, dst)
 
     if write_model_ds:
-        logger.info('write model dataset to cache')
-        model_ds.attrs['model_dataset_written_to_disk_on'] = dt.datetime.now(
-        ).strftime("%Y%m%d_%H:%M:%S")
-        model_ds.to_netcdf(os.path.join(model_ds.attrs['cachedir'],
-                                        'full_model_ds.nc'))
+        logger.info("write model dataset to cache")
+        model_ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
+            "%Y%m%d_%H:%M:%S"
+        )
+        model_ds.to_netcdf(os.path.join(model_ds.attrs["cachedir"], "full_model_ds.nc"))
 
-    logger.info('write modflow files to model workspace')
+    logger.info("write modflow files to model workspace")
     gwf.simulation.write_simulation()
-    model_ds.attrs['model_data_written_to_disk_on'] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S")
+    model_ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S"
+    )
 
-    logger.info('run model')
-    assert gwf.simulation.run_simulation()[0], 'Modflow run not succeeded'
-    model_ds.attrs['model_ran_on'] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S")
+    logger.info("run model")
+    assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
+    model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
 def get_model_dirs(model_ws):
@@ -86,8 +86,8 @@ def get_model_dirs(model_ws):
     cachedir : str
         cache directory inside model workspace.
     """
-    figdir = os.path.join(model_ws, 'figure')
-    cachedir = os.path.join(model_ws, 'cache')
+    figdir = os.path.join(model_ws, "figure")
+    cachedir = os.path.join(model_ws, "cache")
     if not os.path.exists(model_ws):
         os.makedirs(model_ws)
 
@@ -117,7 +117,7 @@ def get_model_ds_empty(model_ds):
     return model_ds[list(model_ds.coords)].copy()
 
 
-def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
+def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
     """get a dataarray from model_ds with certain dimensions.
 
     Parameters
@@ -137,7 +137,8 @@ def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
     """
     if not isinstance(dims, tuple):
         raise TypeError(
-            'keyword argument dims should be of type tuple not {type(dims)}')
+            "keyword argument dims should be of type tuple not {type(dims)}"
+        )
 
     coords = {dim: da_ds[dim] for dim in dims}
     da = xr.DataArray(data, dims=dims, coords=coords)
@@ -149,8 +150,8 @@ def get_da_from_da_ds(da_ds, dims=('y', 'x'), data=None):
     return da
 
 
-def find_most_recent_file(folder, name, extension='.pklz'):
-    """ find the most recent file in a folder. File must startwith name and
+def find_most_recent_file(folder, name, extension=".pklz"):
+    """find the most recent file in a folder. File must startwith name and
     end width extension. If you want to look for the most recent folder use
     extension = ''.
 
@@ -213,32 +214,34 @@ def compare_model_extents(extent1, extent2):
     check_ymax = extent1[3] <= extent2[3]
 
     if check_xmin and check_xmax and check_ymin and check_ymax:
-        logger.info('extent1 is completely within extent2 ')
+        logger.info("extent1 is completely within extent2 ")
         return 1
 
     # option2 extent2 is completely within extent1
     if (not check_xmin) and (not check_xmax) and (not check_ymin) and (not check_ymax):
-        logger.info('extent2 is completely within extent1')
+        logger.info("extent2 is completely within extent1")
         return 2
 
     # option 3 left bound
     if (not check_xmin) and check_xmax and check_ymin and check_ymax:
         logger.info(
-            'extent1 is completely within extent2 except for the left bound (xmin)')
+            "extent1 is completely within extent2 except for the left bound (xmin)"
+        )
         return 3
 
     # option 4 right bound
     if check_xmin and (not check_xmax) and check_ymin and check_ymax:
         logger.info(
-            'extent1 is completely within extent2 except for the right bound (xmax)')
+            "extent1 is completely within extent2 except for the right bound (xmax)"
+        )
         return 4
 
     # option 10
     if check_xmin and (not check_xmax) and (not check_ymin) and (not check_ymax):
-        logger.info('only the left bound of extent 1 is within extent 2')
+        logger.info("only the left bound of extent 1 is within extent 2")
         return 10
 
-    raise NotImplementedError('other options are not yet implemented')
+    raise NotImplementedError("other options are not yet implemented")
 
 
 def polygon_from_extent(extent):
@@ -279,8 +282,7 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
     """
 
     geom_extent = polygon_from_extent(extent)
-    gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent],
-                                  crs=crs)
+    gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
 
     return gdf_extent
 
@@ -308,22 +310,19 @@ def gdf_within_extent(gdf, extent):
     geom_types = gdf.geom_type.unique()
     if len(geom_types) > 1:
         # exception if geomtypes is a combination of Polygon and Multipolygon
-        multipoly_check = ('Polygon' in geom_types) and (
-            'MultiPolygon' in geom_types)
+        multipoly_check = ("Polygon" in geom_types) and ("MultiPolygon" in geom_types)
         if (len(geom_types) == 2) and multipoly_check:
             gdf = gpd.overlay(gdf, gdf_extent)
         else:
-            raise TypeError(
-                f'Only accepts single geometry type not {geom_types}')
-    elif geom_types[0] == 'Polygon':
+            raise TypeError(f"Only accepts single geometry type not {geom_types}")
+    elif geom_types[0] == "Polygon":
         gdf = gpd.overlay(gdf, gdf_extent)
-    elif geom_types[0] == 'LineString':
+    elif geom_types[0] == "LineString":
         gdf = gpd.sjoin(gdf, gdf_extent)
-    elif geom_types[0] == 'Point':
+    elif geom_types[0] == "Point":
         gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
-        raise TypeError('Function is not tested for geometry type: '
-                        f'{geom_types[0]}')
+        raise TypeError("Function is not tested for geometry type: " f"{geom_types[0]}")
 
     return gdf
 
@@ -342,15 +341,16 @@ def get_google_drive_filename(fid):
         filename.
     """
     warnings.warn(
-        'this function is no longer supported use the gdown package instead',
-        DeprecationWarning)
+        "this function is no longer supported use the gdown package instead",
+        DeprecationWarning,
+    )
 
     if isinstance(id, requests.Response):
         response = id
     else:
-        url = 'https://drive.google.com/uc?export=download&id=' + fid
+        url = "https://drive.google.com/uc?export=download&id=" + fid
         response = requests.get(url)
-    header = response.headers['Content-Disposition']
+    header = response.headers["Content-Disposition"]
     file_name = re.search(r'filename="(.*)"', header).group(1)
     return file_name
 
@@ -367,12 +367,13 @@ def download_file_from_google_drive(fid, destination=None):
         written to the current working directory. The default is None.
     """
     warnings.warn(
-        'this function is no longer supported use the gdown package instead',
-        DeprecationWarning)
+        "this function is no longer supported use the gdown package instead",
+        DeprecationWarning,
+    )
 
     def get_confirm_token(response):
         for key, value in response.cookies.items():
-            if key.startswith('download_warning'):
+            if key.startswith("download_warning"):
                 return value
 
         return None
@@ -389,11 +390,11 @@ def download_file_from_google_drive(fid, destination=None):
 
     session = requests.Session()
 
-    response = session.get(URL, params={'id': fid}, stream=True)
+    response = session.get(URL, params={"id": fid}, stream=True)
     token = get_confirm_token(response)
 
     if token:
-        params = {'id': fid, 'confirm': token}
+        params = {"id": fid, "confirm": token}
         response = session.get(URL, params=params, stream=True)
 
     if destination is None:
@@ -426,26 +427,25 @@ def get_platform(pltfrm):
         return platform string
     """
     if pltfrm is None:
-        if sys.platform.lower() == 'darwin':
-            pltfrm = 'mac'
-        elif sys.platform.lower().startswith('linux'):
-            pltfrm = 'linux'
-        elif 'win' in sys.platform.lower():
-            is_64bits = sys.maxsize > 2 ** 32
+        if sys.platform.lower() == "darwin":
+            pltfrm = "mac"
+        elif sys.platform.lower().startswith("linux"):
+            pltfrm = "linux"
+        elif "win" in sys.platform.lower():
+            is_64bits = sys.maxsize > 2**32
             if is_64bits:
-                pltfrm = 'win64'
+                pltfrm = "win64"
             else:
-                pltfrm = 'win32'
+                pltfrm = "win32"
         else:
-            errmsg = ('Could not determine platform'
-                      '.  sys.platform is {}'.format(sys.platform))
+            errmsg = "Could not determine platform" f".  sys.platform is {sys.platform}"
             raise Exception(errmsg)
     else:
-        assert pltfrm in ['mac', 'linux', 'win32', 'win64']
+        assert pltfrm in ["mac", "linux", "win32", "win64"]
     return pltfrm
 
 
-def getmfexes(pth='.', version='', pltfrm=None):
+def getmfexes(pth=".", version="", pltfrm=None):
     """Get the latest MODFLOW binary executables from a github site
     (https://github.com/MODFLOW-USGS/executables) for the specified operating
     system and put them in the specified path.
@@ -469,19 +469,19 @@ def getmfexes(pth='.', version='', pltfrm=None):
     try:
         import pymake
     except ModuleNotFoundError as e:
-        print("Install pymake with "
-              "`pip install "
-              "https://github.com/modflowpy/pymake/zipball/master`")
+        print(
+            "Install pymake with "
+            "`pip install "
+            "https://github.com/modflowpy/pymake/zipball/master`"
+        )
         raise e
     # Determine the platform in order to construct the zip file name
     pltfrm = get_platform(pltfrm)
-    zipname = '{}.zip'.format(pltfrm)
+    zipname = f"{pltfrm}.zip"
 
     # Determine path for file download and then download and unzip
-    url = ('https://github.com/MODFLOW-USGS/executables/'
-           'releases/download/{}/'.format(version))
-    assets = {p: url + p for p in ['mac.zip', 'linux.zip',
-                                   'win32.zip', 'win64.zip']}
+    url = "https://github.com/MODFLOW-USGS/executables/" f"releases/download/{version}/"
+    assets = {p: url + p for p in ["mac.zip", "linux.zip", "win32.zip", "win64.zip"]}
     download_url = assets[zipname]
     pymake.download_and_unzip(download_url, pth)
 
@@ -507,23 +507,23 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
 
     if fname_hds is None:
         fname_hds = os.path.join(
-            model_ds.model_ws, model_ds.model_name + '.hds')
+            model_ds.model_ws, model_ds.model_name + ".hds")
 
     head = get_heads_array(fname_hds, fill_nans=fill_nans)
 
-    if model_ds.gridtype == 'vertex':
+    if model_ds.gridtype == "vertex":
         head_ar = xr.DataArray(data=head[:, :, 0],
-                               dims=('time', 'layer', 'icell2d'),
-                               coords={'icell2d': model_ds.icell2d,
-                                       'layer': model_ds.layer,
-                                       'time': model_ds.time})
-    elif model_ds.gridtype == 'structured':
+                               dims=("time", "layer", "icell2d"),
+                               coords={"icell2d": model_ds.icell2d,
+                                       "layer": model_ds.layer,
+                                       "time": model_ds.time})
+    elif model_ds.gridtype == "structured":
         head_ar = xr.DataArray(data=head,
-                               dims=('time', 'layer', 'y', 'x'),
-                               coords={'x': model_ds.x,
-                                       'y': model_ds.y,
-                                       'layer': model_ds.layer,
-                                       'time': model_ds.time})
+                               dims=("time", "layer", "y", "x"),
+                               coords={"x": model_ds.x,
+                                       "y": model_ds.y,
+                                       "layer": model_ds.layer,
+                                       "time": model_ds.time})
 
     return head_ar
 
@@ -562,7 +562,7 @@ def get_heads_array(fname_hds, fill_nans=False):
     return head
 
 
-def download_mfbinaries(binpath=None, version='8.0'):
+def download_mfbinaries(binpath=None, version="8.0"):
     """Download and unpack platform-specific modflow binaries.
 
     Source: USGS

@@ -222,12 +222,13 @@ class DatasetCrossSection:
                             )
         return polygons
 
-    def plot_grid(
-        self, edgecolor="k", facecolor="none", horizontal=True, vertical=True, **kwargs
-    ):
+    def plot_grid(self, edgecolor='k', facecolor='none', horizontal=True,
+                  vertical=True, ilayers=None, **kwargs):
         lines = []
+        if ilayers is None:
+            ilayers = range(self.top.shape[0])
         if horizontal and not vertical:
-            for i in range(self.top.shape[0]):
+            for i in ilayers:
                 for j in range(self.bot.shape[1]):
                     if not np.isnan(self.top[i, j]):
                         lines.append(

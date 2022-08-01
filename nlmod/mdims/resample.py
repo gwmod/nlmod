@@ -7,7 +7,6 @@ import logging
 
 import numpy as np
 import xarray as xr
-import scipy
 from scipy import interpolate
 from scipy.interpolate import griddata
 import rasterio

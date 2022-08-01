@@ -26,7 +26,7 @@ from tqdm import tqdm
 from scipy.interpolate import griddata
 
 from shapely.geometry import Point
-from .. import cache, mfpackages, util
+from .. import util
 from .mlayers import set_idomain
 
 logger = logging.getLogger(__name__)
@@ -239,7 +239,7 @@ def get_xyi_icell2d(gridprops=None, model_ds=None):
     """
     if gridprops is not None:
         xc_gwf = [cell2d[1] for cell2d in gridprops['cell2d']]
-        yc_gwf = [cell2d[2] for cell2d in gridprops['cell2d']]
+        yc_gwf = [cellangrot2d[2] for cell2d in gridprops['cell2d']]
         xyi = np.vstack((xc_gwf, yc_gwf)).T
         icell2d = np.array([c[0] for c in gridprops['cell2d']])
     elif model_ds is not None:

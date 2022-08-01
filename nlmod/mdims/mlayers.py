@@ -852,8 +852,7 @@ def set_idomain(ds, nodata=-999, remove_nan_layers=True):
     if remove_nan_layers:
         # only keep layers with at least one active cell
         ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
-    # TODO: set idomain above and below the first active layer to 0
-
+    # TODO: set idomain above/below the first/last active layer to 0
     ds["first_active_layer"] = get_first_active_layer_from_idomain(ds["idomain"],
                                                                    nodata=nodata)
 

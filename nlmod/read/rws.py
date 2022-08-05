@@ -66,7 +66,10 @@ def get_surface_water(model_ds, da_name):
     peil = xr.zeros_like(model_ds["top"])
     for _, row in gdf.iterrows():
         area_pol = mdims.polygon_to_area(
-            modelgrid, row["geometry"], xr.ones_like(model_ds["top"]), model_ds.gridtype
+            modelgrid,
+            row["geometry"],
+            xr.ones_like(model_ds["top"]),
+            model_ds.gridtype,
         )
         cond = xr.where(area_pol > area, area_pol / row["bweerstand"], cond)
         peil = xr.where(area_pol > area, row["peil"], peil)
@@ -82,7 +85,9 @@ def get_surface_water(model_ds, da_name):
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs["source"] = "RWS"
-        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime(
+            "%Y%m%d"
+        )
 
     return model_ds_out
 
@@ -122,6 +127,8 @@ def get_northsea(model_ds, da_name="northsea"):
     ]
 
     modelgrid = mdims.modelgrid_from_model_ds(model_ds)
-    model_ds_out = mdims.gdf_to_bool_dataset(model_ds, swater_zee, modelgrid, da_name)
+    model_ds_out = mdims.gdf_to_bool_dataset(
+        model_ds, swater_zee, modelgrid, da_name
+    )
 
     return model_ds_out

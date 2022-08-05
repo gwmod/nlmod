@@ -33,7 +33,9 @@ def dis_from_model_ds(tmpdir):
 @pytest.mark.slow
 def disv_from_model_ds(tmpdir):
 
-    model_ds, gwf, gridprops = test_001_model.test_create_inf_panden_model(tmpdir)
+    model_ds, gwf, gridprops = test_001_model.test_create_inf_panden_model(
+        tmpdir
+    )
 
     disv = nlmod.mfpackages.disv_from_model_ds(model_ds, gwf, gridprops)
 
@@ -115,6 +117,8 @@ def chd_from_model_ds(tmpdir):
             model_ds, model_ds["idomain"]
         )
     )
-    chd = nlmod.mfpackages.chd_from_model_ds(model_ds, gwf, head="starting_head")
+    chd = nlmod.mfpackages.chd_from_model_ds(
+        model_ds, gwf, head="starting_head"
+    )
 
     return chd

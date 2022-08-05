@@ -43,20 +43,17 @@ def test_model_ds_check_grid_false(tmpdir):
     model_ds = test_001_model.test_get_model_ds_from_cache("small_model")
     model_ds2 = test_001_model.test_model_ds_time_transient(tmpdir)
     extent = [99100.0, 99400.0, 489100.0, 489400.0]
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50.0, 50.0)
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
+        extent, 50.0, 50.0
+    )
     regis_ds = nlmod.read.regis.get_combined_layer_models(
         extent,
-        50.0,
-        50.0,
         use_regis=True,
         use_geotop=False,
         cachedir=tmpdir,
         cachename="comb.nc",
     )
-
-    model_ds2 = nlmod.mdims.update_model_ds_from_ml_layer_ds(
-        model_ds2, regis_ds, keep_vars=["x", "y"], gridtype="structured"
-    )
+    model_ds2 = nlmod.read.regis.to_model_ds(regis_ds, delr=50.0, delc=50.0)
 
     check = nlmod.cache._check_ds(model_ds, model_ds2)
 
@@ -69,14 +66,16 @@ def test_use_cached_regis(tmpdir):
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
     delr = 100.0
     delc = 100.0
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, delr, delc)
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
+        extent, delr, delc
+    )
 
     regis_ds1 = nlmod.read.regis.get_regis(
-        extent, delr, delc, cachedir=tmpdir, cachename="reg.nc"
+        extent, cachedir=tmpdir, cachename="reg.nc"
     )
 
     regis_ds2 = nlmod.read.regis.get_regis(
-        extent, delr, delc, cachedir=tmpdir, cachename="reg.nc"
+        extent, cachedir=tmpdir, cachename="reg.nc"
     )
 
     assert regis_ds1.equals(regis_ds2)
@@ -90,18 +89,22 @@ def test_do_not_use_cached_regis(tmpdir):
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
     delr = 100.0
     delc = 100.0
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, delr, delc)
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
+        extent, delr, delc
+    )
     regis_ds1 = nlmod.read.regis.get_regis(
-        extent, delr, delc, cachedir=tmpdir, cachename="regis.nc"
+        extent, cachedir=tmpdir, cachename="regis.nc"
     )
 
     # do not use cache because extent is different
     extent = [99100.0, 99400.0, 489100.0, 489400.0]
     delr = 100.0
     delc = 100.0
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, delr, delc)
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
+        extent, delr, delc
+    )
     regis_ds2 = nlmod.read.regis.get_regis(
-        extent, delr, delc, cachedir=tmpdir, cachename="regis.nc"
+        extent, cachedir=tmpdir, cachename="regis.nc"
     )
 
     assert not regis_ds1.equals(regis_ds2)
@@ -110,9 +113,11 @@ def test_do_not_use_cached_regis(tmpdir):
     extent = [99100.0, 99400.0, 489100.0, 489400.0]
     delr = 50.0
     delc = 100.0
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, delr, delc)
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
+        extent, delr, delc
+    )
     regis_ds3 = nlmod.read.regis.get_regis(
-        extent, delr, delc, cachedir=tmpdir, cachename="regis.nc"
+        extent, cachedir=tmpdir, cachename="regis.nc"
     )
 
     assert not regis_ds2.equals(regis_ds3)
@@ -121,9 +126,11 @@ def test_do_not_use_cached_regis(tmpdir):
     extent = [99100.0, 99400.0, 489100.0, 489400.0]
     delr = 50.0
     delc = 50.0
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, delr, delc)
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
+        extent, delr, delc
+    )
     regis_ds4 = nlmod.read.regis.get_regis(
-        extent, delr, delc, cachedir=tmpdir, cachename="regis.nc"
+        extent, cachedir=tmpdir, cachename="regis.nc"
     )
 
     assert not regis_ds3.equals(regis_ds4)

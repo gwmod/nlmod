@@ -42,7 +42,8 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
 
     if nb_path is not None:
         new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+            f'{dt.datetime.now().strftime("%Y%m%d")}'
+            + os.path.split(nb_path)[-1]
         )
         dst = os.path.join(model_ds.model_ws, new_nb_fname)
         logger.info(f"write script {new_nb_fname} to model workspace")
@@ -50,20 +51,24 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
 
     if write_model_ds:
         logger.info("write model dataset to cache")
-        model_ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
-            "%Y%m%d_%H:%M:%S"
+        model_ds.attrs[
+            "model_dataset_written_to_disk_on"
+        ] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        model_ds.to_netcdf(
+            os.path.join(model_ds.attrs["cachedir"], "full_model_ds.nc")
         )
-        model_ds.to_netcdf(os.path.join(model_ds.attrs["cachedir"], "full_model_ds.nc"))
 
     logger.info("write modflow files to model workspace")
     gwf.simulation.write_simulation()
-    model_ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S"
-    )
+    model_ds.attrs[
+        "model_data_written_to_disk_on"
+    ] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
     logger.info("run model")
     assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
-    model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S"
+    )
 
 
 def get_model_dirs(model_ws):
@@ -218,7 +223,12 @@ def compare_model_extents(extent1, extent2):
         return 1
 
     # option2 extent2 is completely within extent1
-    if (not check_xmin) and (not check_xmax) and (not check_ymin) and (not check_ymax):
+    if (
+        (not check_xmin)
+        and (not check_xmax)
+        and (not check_ymin)
+        and (not check_ymax)
+    ):
         logger.info("extent2 is completely within extent1")
         return 2
 
@@ -237,7 +247,12 @@ def compare_model_extents(extent1, extent2):
         return 4
 
     # option 10
-    if check_xmin and (not check_xmax) and (not check_ymin) and (not check_ymax):
+    if (
+        check_xmin
+        and (not check_xmax)
+        and (not check_ymin)
+        and (not check_ymax)
+    ):
         logger.info("only the left bound of extent 1 is within extent 2")
         return 10
 
@@ -310,11 +325,15 @@ def gdf_within_extent(gdf, extent):
     geom_types = gdf.geom_type.unique()
     if len(geom_types) > 1:
         # exception if geomtypes is a combination of Polygon and Multipolygon
-        multipoly_check = ("Polygon" in geom_types) and ("MultiPolygon" in geom_types)
+        multipoly_check = ("Polygon" in geom_types) and (
+            "MultiPolygon" in geom_types
+        )
         if (len(geom_types) == 2) and multipoly_check:
             gdf = gpd.overlay(gdf, gdf_extent)
         else:
-            raise TypeError(f"Only accepts single geometry type not {geom_types}")
+            raise TypeError(
+                f"Only accepts single geometry type not {geom_types}"
+            )
     elif geom_types[0] == "Polygon":
         gdf = gpd.overlay(gdf, gdf_extent)
     elif geom_types[0] == "LineString":
@@ -322,7 +341,9 @@ def gdf_within_extent(gdf, extent):
     elif geom_types[0] == "Point":
         gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
-        raise TypeError("Function is not tested for geometry type: " f"{geom_types[0]}")
+        raise TypeError(
+            "Function is not tested for geometry type: " f"{geom_types[0]}"
+        )
 
     return gdf
 
@@ -438,7 +459,10 @@ def get_platform(pltfrm):
             else:
                 pltfrm = "win32"
         else:
-            errmsg = "Could not determine platform" f".  sys.platform is {sys.platform}"
+            errmsg = (
+                "Could not determine platform"
+                f".  sys.platform is {sys.platform}"
+            )
             raise Exception(errmsg)
     else:
         assert pltfrm in ["mac", "linux", "win32", "win64"]
@@ -480,8 +504,13 @@ def getmfexes(pth=".", version="", pltfrm=None):
     zipname = f"{pltfrm}.zip"
 
     # Determine path for file download and then download and unzip
-    url = "https://github.com/MODFLOW-USGS/executables/" f"releases/download/{version}/"
-    assets = {p: url + p for p in ["mac.zip", "linux.zip", "win32.zip", "win64.zip"]}
+    url = (
+        "https://github.com/MODFLOW-USGS/executables/"
+        f"releases/download/{version}/"
+    )
+    assets = {
+        p: url + p for p in ["mac.zip", "linux.zip", "win32.zip", "win64.zip"]
+    }
     download_url = assets[zipname]
     pymake.download_and_unzip(download_url, pth)
 
@@ -507,23 +536,32 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
 
     if fname_hds is None:
         fname_hds = os.path.join(
-            model_ds.model_ws, model_ds.model_name + ".hds")
+            model_ds.model_ws, model_ds.model_name + ".hds"
+        )
 
     head = get_heads_array(fname_hds, fill_nans=fill_nans)
 
     if model_ds.gridtype == "vertex":
-        head_ar = xr.DataArray(data=head[:, :, 0],
-                               dims=("time", "layer", "icell2d"),
-                               coords={"icell2d": model_ds.icell2d,
-                                       "layer": model_ds.layer,
-                                       "time": model_ds.time})
+        head_ar = xr.DataArray(
+            data=head[:, :, 0],
+            dims=("time", "layer", "icell2d"),
+            coords={
+                "icell2d": model_ds.icell2d,
+                "layer": model_ds.layer,
+                "time": model_ds.time,
+            },
+        )
     elif model_ds.gridtype == "structured":
-        head_ar = xr.DataArray(data=head,
-                               dims=("time", "layer", "y", "x"),
-                               coords={"x": model_ds.x,
-                                       "y": model_ds.y,
-                                       "layer": model_ds.layer,
-                                       "time": model_ds.time})
+        head_ar = xr.DataArray(
+            data=head,
+            dims=("time", "layer", "y", "x"),
+            coords={
+                "x": model_ds.x,
+                "y": model_ds.y,
+                "layer": model_ds.layer,
+                "time": model_ds.time,
+            },
+        )
 
     return head_ar
 
@@ -552,13 +590,13 @@ def get_heads_array(fname_hds, fill_nans=False):
     """
     hdobj = flopy.utils.HeadFile(fname_hds)
     head = hdobj.get_alldata()
-    head[head == 1e+30] = np.nan
+    head[head == 1e30] = np.nan
 
     if fill_nans:
         for lay in range(head.shape[1] - 2, -1, -1):
-            head[:, lay] = np.where(np.isnan(head[:, lay]),
-                                    head[:, lay+1],
-                                    head[:, lay])
+            head[:, lay] = np.where(
+                np.isnan(head[:, lay]), head[:, lay + 1], head[:, lay]
+            )
     return head
 
 

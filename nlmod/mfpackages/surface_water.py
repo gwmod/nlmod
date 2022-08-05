@@ -113,7 +113,9 @@ def agg_area_weighted(gdf, col):
     return aw
 
 
-def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
+def agg_de_lange(
+    group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True
+):
 
     (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(
         model_ds, cid
@@ -318,7 +320,9 @@ def distribute_cond_over_lays(
     if stage is None or isinstance(stage, str):
         lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
     elif np.isfinite(stage):
-        lays = np.arange(int(np.sum(stage < laybot)), int(np.sum(rivbot < laybot)) + 1)
+        lays = np.arange(
+            int(np.sum(stage < laybot)), int(np.sum(rivbot < laybot)) + 1
+        )
     else:
         lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
     if idomain is not None:
@@ -338,7 +342,9 @@ def distribute_cond_over_lays(
             try:
                 first_active = np.where(idomain == 1)[0][0]
             except IndexError:
-                warnings.warn(f"No active layers in {cellid}, " "returning NaNs.")
+                warnings.warn(
+                    f"No active layers in {cellid}, " "returning NaNs."
+                )
                 return np.nan, np.nan
         else:
             first_active = 0
@@ -392,7 +398,9 @@ def build_spd(celldata, pkg, model_ds):
             if np.isnan(rbot):
                 raise ValueError(f"rbot is NaN in cell {cellid}")
         elif pkg == "RIV":
-            raise ValueError("Column 'rbot' required for building RIV package!")
+            raise ValueError(
+                "Column 'rbot' required for building RIV package!"
+            )
         else:
             rbot = np.nan
 
@@ -426,14 +434,16 @@ def build_spd(celldata, pkg, model_ds):
             )
 
         # if surface water penetrates multiple layers:
-        lays, conds = distribute_cond_over_lays(cond,
-                                                cellid,
-                                                rbot,
-                                                model_ds.top,
-                                                model_ds.botm,
-                                                model_ds.idomain,
-                                                model_ds.kh,
-                                                stage)
+        lays, conds = distribute_cond_over_lays(
+            cond,
+            cellid,
+            rbot,
+            model_ds.top,
+            model_ds.botm,
+            model_ds.idomain,
+            model_ds.kh,
+            stage,
+        )
         if "aux" in row:
             auxlist = [row["aux"]]
         else:

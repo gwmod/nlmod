@@ -19,8 +19,9 @@ REGIS_URL = "http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc"
 
 
 @cache.cache_netcdf
-def get_combined_layer_models(extent, regis_botm_layer="AKc",
-                              use_regis=True, use_geotop=True):
+def get_combined_layer_models(
+    extent, regis_botm_layer="AKc", use_regis=True, use_geotop=True
+):
     """combine layer models into a single layer model.
 
     Possibilities so far include:
@@ -129,13 +130,23 @@ def get_regis(extent, botm_layer="AKc"):
         elif datavar in ["kh", "kv"]:
             ds[datavar].attrs["units"] = "m/day"
         # set _FillValue to NaN, otherise problems with caching will arise
-        ds[datavar].encoding['_FillValue'] = np.NaN
+        ds[datavar].encoding["_FillValue"] = np.NaN
     return ds
 
 
-def to_model_ds(ds, model_name=None, model_ws=None, extent=None, delr=100.,
-                delc=None, remove_nan_layers=True, extrapolate=True,
-                anisotropy=10, fill_value_kh=1., fill_value_kv=0.1):
+def to_model_ds(
+    ds,
+    model_name=None,
+    model_ws=None,
+    extent=None,
+    delr=100.0,
+    delc=None,
+    remove_nan_layers=True,
+    extrapolate=True,
+    anisotropy=10,
+    fill_value_kh=1.0,
+    fill_value_kv=0.1,
+):
     """
     Transform a regis datset to a model dataset with another resultion.
 
@@ -188,8 +199,11 @@ def to_model_ds(ds, model_name=None, model_ws=None, extent=None, delr=100.,
     for coord1, coord2 in zip(extent, extent2):
         if coord1 != coord2:
             raise ValueError(
-                ("extent not fitted to regis please fit to regis first, "
-                 "use the nlmod.regis.fit_extent_to_regis function"))
+                (
+                    "extent not fitted to regis please fit to regis first, "
+                    "use the nlmod.regis.fit_extent_to_regis function"
+                )
+            )
 
     # convert regis dataset to grid
     logger.info("resample regis data to structured modelgrid")
@@ -211,10 +225,13 @@ def to_model_ds(ds, model_name=None, model_ws=None, extent=None, delr=100.,
     # add attributes
     ds = mdims.mbase.set_ds_attrs(ds, model_name, model_ws)
     # fill nan's and add idomain
-    ds = mdims.mlayers.fill_nan_top_botm_kh_kv(ds, anisotropy=anisotropy,
-                                               fill_value_kh=fill_value_kh,
-                                               fill_value_kv=fill_value_kv,
-                                               remove_nan_layers=remove_nan_layers)
+    ds = mdims.mlayers.fill_nan_top_botm_kh_kv(
+        ds,
+        anisotropy=anisotropy,
+        fill_value_kh=fill_value_kh,
+        fill_value_kv=fill_value_kv,
+        remove_nan_layers=remove_nan_layers,
+    )
     return ds
 
 
@@ -247,7 +264,7 @@ def extrapolate_ds(ds, mask=None):
             for lay in range(len(ds["layer"])):
                 data[lay][mask] = data[lay][~mask][i]
         else:
-            raise(Exception(f"Dimensions {ds[key].dims} not supported"))
+            raise (Exception(f"Dimensions {ds[key].dims} not supported"))
         # make sure to set the data (which for some reason is sometimes needed)
         ds[key].data = data
     return ds
@@ -303,24 +320,31 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     for lay in range(geotop_ds.dims["layer"]):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
         mask1 = geotop_ds["top"][lay] <= (
-            regis_ds["botm"][layer_no] - float_correction)
+            regis_ds["botm"][layer_no] - float_correction
+        )
         geotop_ds["top"][lay] = xr.where(mask1, np.nan, geotop_ds["top"][lay])
         geotop_ds["botm"][lay] = xr.where(
-            mask1, np.nan, geotop_ds["botm"][lay])
+            mask1, np.nan, geotop_ds["botm"][lay]
+        )
         geotop_ds["kh"][lay] = xr.where(mask1, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask1, np.nan, geotop_ds["kv"][lay])
 
         # Alle geotop cellen waarvan de bodem onder de onderkant van het holoceen ligt, krijgen als bodem de onderkant van het holoceen
         mask2 = geotop_ds["botm"][lay] < regis_ds["botm"][layer_no]
         geotop_ds["botm"][lay] = xr.where(
-            mask2 * (~mask1), regis_ds["botm"][layer_no], geotop_ds["botm"][lay])
+            mask2 * (~mask1),
+            regis_ds["botm"][layer_no],
+            geotop_ds["botm"][lay],
+        )
 
         # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
         mask3 = geotop_ds["botm"][lay] >= (
-            regis_ds["top"][layer_no] - float_correction)
+            regis_ds["top"][layer_no] - float_correction
+        )
         geotop_ds["top"][lay] = xr.where(mask3, np.nan, geotop_ds["top"][lay])
         geotop_ds["botm"][lay] = xr.where(
-            mask3, np.nan, geotop_ds["botm"][lay])
+            mask3, np.nan, geotop_ds["botm"][lay]
+        )
         geotop_ds["kh"][lay] = xr.where(mask3, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask3, np.nan, geotop_ds["kv"][lay])
 
@@ -334,7 +358,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
         mask5 = regis_ds["botm"][layer_no].isnull()
         geotop_ds["top"][lay] = xr.where(mask5, np.nan, geotop_ds["top"][lay])
         geotop_ds["botm"][lay] = xr.where(
-            mask5, np.nan, geotop_ds["botm"][lay])
+            mask5, np.nan, geotop_ds["botm"][lay]
+        )
         geotop_ds["kh"][lay] = xr.where(mask5, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask5, np.nan, geotop_ds["kv"][lay])
         if (mask2 * (~mask1)).sum() > 0:
@@ -345,8 +370,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     top[: len(geotop_ds.layer), :, :] = geotop_ds["top"].data
     top[len(geotop_ds.layer) :, :, :] = regis_ds["top"].data[layer_no + 1 :]
 
-    bot[:len(geotop_ds.layer), :, :] = geotop_ds["botm"].data
-    bot[len(geotop_ds.layer):, :, :] = regis_ds["botm"].data[layer_no + 1:]
+    bot[: len(geotop_ds.layer), :, :] = geotop_ds["botm"].data
+    bot[len(geotop_ds.layer) :, :, :] = regis_ds["botm"].data[layer_no + 1 :]
 
     kh[: len(geotop_ds.layer), :, :] = geotop_ds["kh"].data
     kh[len(geotop_ds.layer) :, :, :] = regis_ds["kh"].data[layer_no + 1 :]
@@ -365,15 +390,17 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     ]
 
     # maak top, bot, kh en kv nan waar de laagdikte 0 is
-    mask = (regis_geotop_ds["top"] -
-            regis_geotop_ds["botm"]) < float_correction
+    mask = (
+        regis_geotop_ds["top"] - regis_geotop_ds["botm"]
+    ) < float_correction
     for key in ["top", "botm", "kh", "kv"]:
         regis_geotop_ds[key] = xr.where(mask, np.nan, regis_geotop_ds[key])
         regis_geotop_ds[key].attrs["source"] = "REGIS/geotop"
         regis_geotop_ds[key].attrs["regis_url"] = regis_ds[key].url
         regis_geotop_ds[key].attrs["geotop_url"] = geotop_ds[key].url
         regis_geotop_ds[key].attrs["date"] = dt.datetime.now().strftime(
-            "%Y%m%d")
+            "%Y%m%d"
+        )
         if key in ["top", "botm"]:
             regis_geotop_ds[key].attrs["units"] = "mNAP"
         elif key in ["kh", "kv"]:
@@ -433,7 +460,8 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.0):
         ]
         if float(d) not in available_cell_sizes:
             raise NotImplementedError(
-                "only this cell sizes can be used for " f"now -> {available_cell_sizes}"
+                "only this cell sizes can be used for "
+                f"now -> {available_cell_sizes}"
             )
 
     # if xmin ends with 100 do nothing, otherwise fit xmin to regis cell border
@@ -451,7 +479,9 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.0):
     nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
     extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
 
-    logger.info(f"new extent is {extent} model has {nrow} rows and {ncol} columns")
+    logger.info(
+        f"new extent is {extent} model has {nrow} rows and {ncol} columns"
+    )
 
     return extent, nrow, ncol
 

@@ -38,7 +38,9 @@ import xarray as xr
 
 tmpdir = tempfile.gettempdir()
 
-tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+tst_model_dir = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "data"
+)
 
 
 def test_model_directories(tmpdir):
@@ -51,20 +53,22 @@ def test_model_directories(tmpdir):
 def test_model_ds_time_steady(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     model_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), modelname, model_ws)
-    model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             start_time="2015-1-1",
-                                             steady_state=True)
+    model_ds = nlmod.mdims.set_model_ds_time(
+        model_ds, start_time="2015-1-1", steady_state=True
+    )
     return model_ds
 
 
 def test_model_ds_time_transient(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     model_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), modelname, model_ws)
-    model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             start_time="2015-1-1",
-                                             steady_state=False,
-                                             steady_start=True,
-                                             transient_timesteps=10)
+    model_ds = nlmod.mdims.set_model_ds_time(
+        model_ds,
+        start_time="2015-1-1",
+        steady_state=False,
+        steady_start=True,
+        transient_timesteps=10,
+    )
     return model_ds
 
 
@@ -73,20 +77,23 @@ def test_model_ds_time_transient(tmpdir, modelname="test"):
 
 @pytest.mark.slow
 def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
-    extent = [95000., 105000., 494000., 500000.]
+    extent = [95000.0, 105000.0, 494000.0, 500000.0]
     extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent,
-                                                                 use_regis=True,
-                                                                 use_geotop=True)
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
+        extent, use_regis=True, use_geotop=True
+    )
 
-    model_ds = nlmod.read.regis.to_model_ds(regis_geotop_ds, model_name,
-                                            str(tmpdir), delr=100., delc=100.)
+    model_ds = nlmod.read.regis.to_model_ds(
+        regis_geotop_ds, model_name, str(tmpdir), delr=100.0, delc=100.0
+    )
 
-    model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             start_time="2015-1-1",
-                                             steady_state=False,
-                                             steady_start=True,
-                                             transient_timesteps=10)
+    model_ds = nlmod.mdims.set_model_ds_time(
+        model_ds,
+        start_time="2015-1-1",
+        steady_state=False,
+        steady_start=True,
+        transient_timesteps=10,
+    )
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, "basic_sea_model.nc"))
@@ -96,22 +103,24 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
 
 @pytest.mark.slow
 def test_create_small_model_grid_only(tmpdir, model_name="test"):
-    extent = [98700., 99000., 489500., 489700.]
+    extent = [98700.0, 99000.0, 489500.0, 489700.0]
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent,
-                                                                 regis_botm_layer="KRz5",
-                                                                 use_regis=True,
-                                                                 use_geotop=True)
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
+        extent, regis_botm_layer="KRz5", use_regis=True, use_geotop=True
+    )
     model_ws = os.path.join(tmpdir, model_name)
-    model_ds = nlmod.read.regis.to_model_ds(regis_geotop_ds, model_name,
-                                            model_ws, delr=100., delc=100.)
+    model_ds = nlmod.read.regis.to_model_ds(
+        regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
+    )
     assert model_ds.dims["layer"] == 5
 
-    model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             start_time="2015-1-1",
-                                             steady_state=False,
-                                             steady_start=True,
-                                             transient_timesteps=10)
+    model_ds = nlmod.mdims.set_model_ds_time(
+        model_ds,
+        start_time="2015-1-1",
+        steady_state=False,
+        steady_start=True,
+        transient_timesteps=10,
+    )
 
     _, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
 
@@ -126,20 +135,23 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
 
 @pytest.mark.slow
 def test_create_sea_model_grid_only(tmpdir, model_name="test"):
-    extent = [95000., 105000., 494000., 500000.]
+    extent = [95000.0, 105000.0, 494000.0, 500000.0]
     extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent,
-                                                                 use_regis=True,
-                                                                 use_geotop=True)
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
+        extent, use_regis=True, use_geotop=True
+    )
     model_ws = os.path.join(tmpdir, model_name)
-    model_ds = nlmod.read.regis.to_model_ds(regis_geotop_ds, model_name,
-                                            model_ws, delr=100., delc=100.)
+    model_ds = nlmod.read.regis.to_model_ds(
+        regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
+    )
 
-    model_ds = nlmod.mdims.set_model_ds_time(model_ds,
-                                             start_time="2015-1-1",
-                                             steady_state=False,
-                                             steady_start=True,
-                                             transient_timesteps=10)
+    model_ds = nlmod.mdims.set_model_ds_time(
+        model_ds,
+        start_time="2015-1-1",
+        steady_state=False,
+        steady_start=True,
+        transient_timesteps=10,
+    )
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, "sea_model_grid.nc"))
@@ -150,14 +162,17 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
 @pytest.mark.slow
 def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
     model_ds = test_model_ds_time_transient(tmpdir)
-    extent = [95000., 105000., 494000., 500000.]
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50., 50.)
-    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(extent,
-                                                                 use_regis=True,
-                                                                 use_geotop=True)
+    extent = [95000.0, 105000.0, 494000.0, 500000.0]
+    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(
+        extent, 50.0, 50.0
+    )
+    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
+        extent, use_regis=True, use_geotop=True
+    )
     model_ws = os.path.join(tmpdir, model_name)
-    model_ds = nlmod.read.regis.to_model_ds(regis_geotop_ds, model_name,
-                                            model_ws, delr=50., delc=50.)
+    model_ds = nlmod.read.regis.to_model_ds(
+        regis_geotop_ds, model_name, model_ws, delr=50.0, delc=50.0
+    )
 
     # save model_ds
     model_ds.to_netcdf(os.path.join(tst_model_dir, "sea_model_grid_50.nc"))
@@ -220,7 +235,9 @@ def test_create_sea_model(tmpdir):
 
 @pytest.mark.slow
 def test_create_sea_model_perlen_list(tmpdir):
-    model_ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
+    model_ds = xr.open_dataset(
+        os.path.join(tst_model_dir, "basic_sea_model.nc")
+    )
 
     # create transient with perlen list
     perlen = [3650, 14, 10, 11]  # length of the time steps
@@ -229,12 +246,14 @@ def test_create_sea_model_perlen_list(tmpdir):
     # update current model_ds with new time dicretisation
     model_ws = os.path.join(tmpdir, "test_model")
     new_model_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.time.start_time,
-                                                 steady_state=False,
-                                                 steady_start=True,
-                                                 perlen=perlen,
-                                                 transient_timesteps=transient_timesteps)
+    new_model_ds = nlmod.mdims.set_model_ds_time(
+        new_model_ds,
+        start_time=model_ds.time.start_time,
+        steady_state=False,
+        steady_start=True,
+        perlen=perlen,
+        transient_timesteps=transient_timesteps,
+    )
 
     # modfiy time
     model_ds = model_ds.drop_dims("time")
@@ -283,7 +302,9 @@ def test_create_sea_model_perlen_list(tmpdir):
 
 @pytest.mark.slow
 def test_create_sea_model_perlen_14(tmpdir):
-    model_ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
+    model_ds = xr.open_dataset(
+        os.path.join(tst_model_dir, "basic_sea_model.nc")
+    )
 
     # create transient with perlen list
     perlen = 14  # length of the time steps
@@ -292,12 +313,14 @@ def test_create_sea_model_perlen_14(tmpdir):
     # update current model_ds with new time dicretisation
     model_ws = os.path.join(tmpdir, "test_model")
     new_model_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_model_ds = nlmod.mdims.set_model_ds_time(new_model_ds,
-                                                 start_time=model_ds.time.start_time,
-                                                 steady_state=False,
-                                                 steady_start=True,
-                                                 perlen=perlen,
-                                                 transient_timesteps=transient_timesteps)
+    new_model_ds = nlmod.mdims.set_model_ds_time(
+        new_model_ds,
+        start_time=model_ds.time.start_time,
+        steady_state=False,
+        steady_start=True,
+        perlen=perlen,
+        transient_timesteps=transient_timesteps,
+    )
 
     model_ds = model_ds.drop_dims("time")
     model_ds.update(new_model_ds)

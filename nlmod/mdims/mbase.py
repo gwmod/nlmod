@@ -35,8 +35,9 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     ds.attrs["model_dataset_created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
-        exe_name = os.path.join(os.path.dirname(__file__), "..", "bin",
-                                mfversion)
+        exe_name = os.path.join(
+            os.path.dirname(__file__), "..", "bin", mfversion
+        )
 
     # if working on Windows add .exe extension
     if sys.platform.startswith("win"):

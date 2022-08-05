@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 def get_default_lithoklasse_translation_table():
     return pd.read_csv(
-        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"), index_col=0
+        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
+        index_col=0,
     )
 
 
@@ -49,22 +50,24 @@ def get_geotop(extent, regis_ds, regis_layer="HLc"):
     geotop_url = r"http://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent, geotop_url)
 
-    litho_translate_df = pd.read_csv(os.path.join(nlmod.NLMOD_DATADIR,
-                                                  "geotop",
-                                                  "litho_eenheden.csv"),
-                                     index_col=0)
+    litho_translate_df = pd.read_csv(
+        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
+        index_col=0,
+    )
 
-    geo_eenheid_translate_df = pd.read_csv(os.path.join(nlmod.NLMOD_DATADIR,
-                                                        "geotop",
-                                                        "geo_eenheden.csv"),
-                                           index_col=0,
-                                           keep_default_na=False)
+    geo_eenheid_translate_df = pd.read_csv(
+        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "geo_eenheden.csv"),
+        index_col=0,
+        keep_default_na=False,
+    )
 
-    ds = convert_geotop_to_ml_layers(geotop_ds_raw1,
-                                     regis_ds=regis_ds,
-                                     regis_layer=regis_layer,
-                                     litho_translate_df=litho_translate_df,
-                                     geo_eenheid_translate_df=geo_eenheid_translate_df)
+    ds = convert_geotop_to_ml_layers(
+        geotop_ds_raw1,
+        regis_ds=regis_ds,
+        regis_layer=regis_layer,
+        litho_translate_df=litho_translate_df,
+        geo_eenheid_translate_df=geo_eenheid_translate_df,
+    )
 
     ds.attrs["extent"] = extent
 
@@ -161,7 +164,9 @@ def convert_geotop_to_ml_layers(
     kh_from_litho = xr.zeros_like(geotop_ds_raw.lithok)
     for i, row in litho_translate_df.iterrows():
         kh_from_litho = xr.where(
-            geotop_ds_raw.lithok == i, row["hor_conductance_default"], kh_from_litho
+            geotop_ds_raw.lithok == i,
+            row["hor_conductance_default"],
+            kh_from_litho,
         )
     geotop_ds_raw["kh_from_litho"] = kh_from_litho
 
@@ -209,7 +214,9 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
         ]
 
     geo_names = [
-        geo_eenheid_translate_df.loc[float(geo_eenh), "Code (lagenmodel en boringen)"]
+        geo_eenheid_translate_df.loc[
+            float(geo_eenh), "Code (lagenmodel en boringen)"
+        ]
         for geo_eenh in geo_eenheden
     ]
 
@@ -230,14 +237,18 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
 
         lay += 1
 
-    geotop_ds_mod = add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names)
+    geotop_ds_mod = add_stroombanen_and_get_kh(
+        geotop_ds_raw, top, bot, geo_names
+    )
 
     geotop_ds_mod.attrs["stroombanen"] = stroombaan_eenheden
 
     return geotop_ds_mod
 
 
-def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, f_anisotropy=0.25):
+def add_stroombanen_and_get_kh(
+    geotop_ds_raw, top, bot, geo_names, f_anisotropy=0.25
+):
     """add stroombanen to tops and bots of geo_eenheden, also computes kh per
     geo_eenheid. Kh is computed by taking the average of all kh's of a
     geo_eenheid within a cell (e.g. if one geo_eenheid has a thickness of 1,5m

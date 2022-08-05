@@ -48,19 +48,21 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
     """
 
     url = _infer_url(identifier)
-    ahn_file = get_ahn_within_extent(extent=model_ds.extent,
-                                     url=url,
-                                     identifier=identifier)
-    ahn_ds_raw = rioxarray.open_rasterio(ahn_file.open(),
-                                         mask_and_scale=True)[0]
+    ahn_file = get_ahn_within_extent(
+        extent=model_ds.extent, url=url, identifier=identifier
+    )
+    ahn_ds_raw = rioxarray.open_rasterio(ahn_file.open(), mask_and_scale=True)[
+        0
+    ]
 
     if model_ds.gridtype == "structured":
-        ahn_ds = mdims.resample_dataarray2d_to_structured_grid(ahn_ds_raw,
-                                                               x=model_ds.x.data,
-                                                               y=model_ds.y.data)
+        ahn_ds = mdims.resample_dataarray2d_to_structured_grid(
+            ahn_ds_raw, x=model_ds.x.data, y=model_ds.y.data
+        )
     elif model_ds.gridtype == "vertex":
-        ahn_ds = mdims.resample_dataarray2d_to_vertex_grid(ahn_ds_raw,
-                                                           model_ds)
+        ahn_ds = mdims.resample_dataarray2d_to_vertex_grid(
+            ahn_ds_raw, model_ds
+        )
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out["ahn"] = ahn_ds
@@ -68,7 +70,9 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs["source"] = identifier
         model_ds_out[datavar].attrs["url"] = url
-        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime(
+            "%Y%m%d"
+        )
         if datavar == "ahn":
             model_ds_out[datavar].attrs["units"] = "mNAP"
 
@@ -142,7 +146,11 @@ def split_ahn_extent(
 
                 datasets.append(
                     get_ahn_within_extent(
-                        subextent, res=res, tmp_dir=tmp_dir_path, maxsize=maxsize, **kwargs
+                        subextent,
+                        res=res,
+                        tmp_dir=tmp_dir_path,
+                        maxsize=maxsize,
+                        **kwargs,
                     )
                 )
                 start_y = end_y
@@ -320,7 +328,12 @@ def get_ahn_within_extent(
     if version == "1.0.0":
         bbox = (extent[0], extent[2], extent[1], extent[3])
         output = wcs.getCoverage(
-            identifier=identifier, bbox=bbox, format=fmt, crs=crs, resx=res, resy=res
+            identifier=identifier,
+            bbox=bbox,
+            format=fmt,
+            crs=crs,
+            resx=res,
+            resy=res,
         )
     elif version == "2.0.1":
         # bbox, resx and resy do nothing in version 2.0.1

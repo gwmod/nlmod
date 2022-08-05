@@ -45,8 +45,9 @@ bgt["ahn_min"] = [x["min"] for x in stats]
 regis = nlmod.read.get_regis(extent, cachedir=cachedir, cachename="regis.nc")
 
 # %% create a grid and create nessecary data
-ds = nlmod.read.regis.to_model_ds(regis, model_name, model_ws,
-                                  delr=100.0, delc=100.0)
+ds = nlmod.read.regis.to_model_ds(
+    regis, model_name, model_ws, delr=100.0, delc=100.0
+)
 
 # %% make a disv-grid (or not, by commenting out next line)
 # ds = nlmod.mgrid.refine(ds)
@@ -57,7 +58,9 @@ ds = nlmod.read.regis.to_model_ds(regis, model_name, model_ws,
 ds = nlmod.mdims.set_model_ds_time(ds, time=time)
 
 # %% add knmi recharge to the model datasets
-knmi_ds = nlmod.read.knmi.get_recharge(ds, cachedir=cachedir, cachename="recharge.nc")
+knmi_ds = nlmod.read.knmi.get_recharge(
+    ds, cachedir=cachedir, cachename="recharge.nc"
+)
 ds.update(knmi_ds)
 
 # %% create modflow packages

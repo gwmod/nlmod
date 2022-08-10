@@ -2,16 +2,16 @@ import datetime as dt
 import os
 import sys
 
-import xarray as xr
-
 from .. import util
 
 
-def get_empty_model_ds(model_name, model_ws, mfversion="mf6", exe_name=None):
+def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     """get an empty model dataset.
 
     Parameters
     ----------
+    ds : xarray dataset
+        An existing model dataset
     model_name : str
         name of the model.
     model_ws : str or None
@@ -25,34 +25,31 @@ def get_empty_model_ds(model_name, model_ws, mfversion="mf6", exe_name=None):
 
     Returns
     -------
-    model_ds : xarray dataset
+    ds : xarray dataset
         model dataset.
     """
 
-    model_ds = xr.Dataset()
-
-    model_ds.attrs["model_name"] = model_name
-    model_ds.attrs["mfversion"] = mfversion
-    model_ds.attrs["model_dataset_created_on"] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S"
-    )
+    ds.attrs["model_name"] = model_name
+    ds.attrs["mfversion"] = mfversion
+    fmt = "%Y%m%d_%H:%M:%S"
+    ds.attrs["model_dataset_created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
         exe_name = os.path.join(
-            os.path.dirname(__file__), "..", "bin", model_ds.mfversion
+            os.path.dirname(__file__), "..", "bin", mfversion
         )
 
     # if working on Windows add .exe extension
     if sys.platform.startswith("win"):
         exe_name += ".exe"
 
-    model_ds.attrs["exe_name"] = exe_name
+    ds.attrs["exe_name"] = exe_name
 
     # add some directories
     if model_ws is not None:
         figdir, cachedir = util.get_model_dirs(model_ws)
-        model_ds.attrs["model_ws"] = model_ws
-        model_ds.attrs["figdir"] = figdir
-        model_ds.attrs["cachedir"] = cachedir
+        ds.attrs["model_ws"] = model_ws
+        ds.attrs["figdir"] = figdir
+        ds.attrs["cachedir"] = cachedir
 
-    return model_ds
+    return ds

@@ -80,6 +80,22 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     return ds
 
 
+def gridprops_to_vertex_ds(gridprops, model_ds, nodata=-1):
+    """Gridprops is a dictionairy containing keyword arguments needed to generate
+    a flopy modelgrid instance"""
+    model_ds["xv"] = ("iv", [i[1] for i in gridprops['vertices']])
+    model_ds["yv"] = ("iv", [i[2] for i in gridprops['vertices']])
+
+    cell2d = gridprops['cell2d']
+    ncvert_max = np.max([x[3] for x in cell2d])
+    icvert = np.full((gridprops['ncpl'], ncvert_max), nodata)
+    for i in range(gridprops['ncpl']):
+        icvert[i, : cell2d[i][3]] = cell2d[i][4:]
+    model_ds["icvert"] = ("cell2d", "icv"), icvert
+    model_ds["icvert"].attrs["_FillValue"] = nodata
+    return model_ds
+
+
 def get_vertices_from_model_ds(ds):
     """Get the vertices-list from a model dataset. Flopy needs needs this list
     to build a disv-package"""

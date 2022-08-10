@@ -19,7 +19,9 @@ from . import recharge
 logger = logging.getLogger(__name__)
 
 
-def sim_tdis_gwf_ims_from_model_ds(model_ds, complexity="MODERATE", exe_name=None):
+def sim_tdis_gwf_ims_from_model_ds(
+    model_ds, complexity="MODERATE", exe_name=None
+):
     """create sim, tdis, gwf and ims package from the model dataset.
 
     Parameters
@@ -105,9 +107,9 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
         discretisation package.
     """
 
-    if model_ds.gridtype != "structured":
-        raise ValueError(
-            f"cannot create dis package for gridtype -> {model_ds.gridtype}"
+    if model_ds.gridtype == "vertex":
+        return disv_from_model_ds(
+            model_ds, gwf, length_units=length_units, angrot=angrot
         )
 
     # check attributes
@@ -128,7 +130,7 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
         delr=model_ds.delr,
         delc=model_ds.delc,
         top=model_ds["top"].data,
-        botm=model_ds["bot"].data,
+        botm=model_ds["botm"].data,
         idomain=model_ds["idomain"].data,
         filename=f"{model_ds.model_name}.dis",
     )
@@ -169,7 +171,7 @@ def disv_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
         ncpl=len(model_ds.icell2d),
         nvert=len(model_ds.iv),
         top=model_ds["top"].data,
-        botm=model_ds["bot"].data,
+        botm=model_ds["botm"].data,
         vertices=vertices,
         cell2d=cell2d,
     )
@@ -300,16 +302,22 @@ def ic_from_model_ds(model_ds, gwf, starting_head="starting_head"):
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
-        model_ds["starting_head"] = starting_head * xr.ones_like(model_ds["idomain"])
+        model_ds["starting_head"] = starting_head * xr.ones_like(
+            model_ds["idomain"]
+        )
         model_ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(gwf, pname="ic", strt=model_ds[starting_head].data)
+    ic = flopy.mf6.ModflowGwfic(
+        gwf, pname="ic", strt=model_ds[starting_head].data
+    )
 
     return ic
 
 
-def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False):
+def sto_from_model_ds(
+    model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False
+):
     """get storage package from model dataset.
 
     Parameters
@@ -385,7 +393,9 @@ def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head"):
         )
     elif model_ds.gridtype == "vertex":
         cellids = np.where(model_ds[chd])
-        chd_rec = list(zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0])))
+        chd_rec = list(
+            zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0]))
+        )
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -541,6 +551,8 @@ def get_tdis_perioddata(model_ds):
     ]
     if len(model_ds["time"]) > 1:
         perlen.extend(np.diff(model_ds["time"]) / dt)
-    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
+    tdis_perioddata = [
+        (p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen
+    ]
 
     return tdis_perioddata

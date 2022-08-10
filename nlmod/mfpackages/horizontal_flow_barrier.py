@@ -178,8 +178,12 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     mask = np.full(hfb_seg.shape[0], True)
     for i, segment in enumerate(hfb_seg):
         # one vertex is not connected and the other one at least to two other segments
-        if (segments_per_iv[segment[0]] == 1 and segments_per_iv[segment[1]] >= 3) or (
-            segments_per_iv[segment[1]] == 1 and segments_per_iv[segment[0]] >= 3
+        if (
+            segments_per_iv[segment[0]] == 1
+            and segments_per_iv[segment[1]] >= 3
+        ) or (
+            segments_per_iv[segment[1]] == 1
+            and segments_per_iv[segment[0]] >= 3
         ):
             mask[i] = False
     hfb_seg = hfb_seg[mask]

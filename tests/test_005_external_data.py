@@ -50,6 +50,8 @@ def test_get_surface_water_ghb():
     nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
 
     # add surface water levels to the model dataset
-    model_ds.update(nlmod.read.rws.get_surface_water(model_ds, "surface_water"))
+    model_ds.update(
+        nlmod.read.rws.get_surface_water(model_ds, "surface_water")
+    )
 
     return model_ds

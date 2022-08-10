@@ -27,7 +27,7 @@ Install the module with pip:
 
 `pip install nlmod`
 
-`nlmod` has many dependencies `xarray`, `flopy`, `rasterio`, `owslib`, `hydropandas`, `netcdf4`, `pyshp`, `rtree`, `openpyxl` and `matplotlib`.
+`nlmod` has many dependencies `xarray`, `flopy`, `rasterio`, `rioxarray`, `owslib`, `hydropandas`, `netcdf4`, `pyshp`, `rtree`, `openpyxl` and `matplotlib`.
 
 When using pip the dependencies are automatically installed. Some dependencies are notoriously hard to install on certain platforms. 
 Please see the [dependencies](https://github.com/ArtesiaWater/hydropandas#dependencies) section of the `hydropandas` package for more information on how to install these packages manually. 

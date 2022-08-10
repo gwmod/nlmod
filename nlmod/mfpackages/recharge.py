@@ -75,7 +75,9 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     if model_ds.gridtype == "structured":
         empty_str_array = np.zeros_like(model_ds["idomain"][0], dtype="S13")
         model_ds["rch_name"] = xr.DataArray(
-            empty_str_array, dims=("y", "x"), coords={"y": model_ds.y, "x": model_ds.x}
+            empty_str_array,
+            dims=("y", "x"),
+            coords={"y": model_ds.y, "x": model_ds.x},
         )
         model_ds["rch_name"] = model_ds["rch_name"].astype(str)
         # dimension check
@@ -84,13 +86,18 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
             rch_2d_arr = (
                 model_ds["recharge"]
                 .data.reshape(
-                    (model_ds.dims["time"], model_ds.dims["x"] * model_ds.dims["y"])
+                    (
+                        model_ds.dims["time"],
+                        model_ds.dims["x"] * model_ds.dims["y"],
+                    )
                 )
                 .T
             )
 
             # check if reshaping is correct
-            if not (model_ds["recharge"].values[:, 0, 0] == rch_2d_arr[0]).all():
+            if not (
+                model_ds["recharge"].values[:, 0, 0] == rch_2d_arr[0]
+            ).all():
                 raise ValueError(
                     "reshaping recharge to calculate unique time series did not work out as expected"
                 )
@@ -98,11 +105,16 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
         elif model_ds["recharge"].dims == ("y", "x", "time"):
             axis = 2
             rch_2d_arr = model_ds["recharge"].data.reshape(
-                (model_ds.dims["x"] * model_ds.dims["y"], model_ds.dims["time"])
+                (
+                    model_ds.dims["x"] * model_ds.dims["y"],
+                    model_ds.dims["time"],
+                )
             )
 
             # check if reshaping is correct
-            if not (model_ds["recharge"].values[0, 0, :] == rch_2d_arr[0]).all():
+            if not (
+                model_ds["recharge"].values[0, 0, :] == rch_2d_arr[0]
+            ).all():
                 raise ValueError(
                     "reshaping recharge to calculate unique time series did not work out as expected"
                 )
@@ -149,7 +161,9 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
         rch_unique_arr = np.unique(rch_2d_arr, axis=0)
         rch_unique_dic = {}
         for i, unique_rch in enumerate(rch_unique_arr):
-            model_ds["rch_name"][(rch_2d_arr == unique_rch).all(axis=1)] = f"rch_{i}"
+            model_ds["rch_name"][
+                (rch_2d_arr == unique_rch).all(axis=1)
+            ] = f"rch_{i}"
             rch_unique_dic[f"rch_{i}"] = unique_rch
 
         mask = model_ds["rch_name"] != ""

@@ -43,15 +43,19 @@ def clear_cache(cachedir):
 
             # remove pklz file
             os.remove(os.path.join(cachedir, fname))
-
+            logger.info(f"removing {fname}")
+            
             # remove netcdf file (make sure cached netcdf is closed)
             fpath_nc = os.path.join(cachedir, fname_nc)
-            cached_ds = xr.open_dataset(fpath_nc)
+            
+            if os.path.exists(fname_nc):
+                cached_ds = xr.open_dataset(fpath_nc)
+                logger.info(f"removing {fname_nc}")
+
             cached_ds.close()
 
             os.remove(fpath_nc)
-            logger.info(f"removing {fname} and {fname_nc}")
-
+            
 
 def cache_netcdf(func):
     """decorator to read/write the result of a function from/to a file to speed

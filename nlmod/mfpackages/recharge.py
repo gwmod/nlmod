@@ -10,7 +10,7 @@ import xarray as xr
 from tqdm import tqdm
 
 from .. import mdims
-from . import mfpackages
+from .gwf import get_tdis_perioddata
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     )
 
     # get timesteps
-    tdis_perioddata = mfpackages.get_tdis_perioddata(model_ds)
+    tdis_perioddata = get_tdis_perioddata(model_ds)
     perlen_arr = [t[0] for t in tdis_perioddata]
     time_steps_rch = [0.0] + np.array(perlen_arr).cumsum().tolist()
 

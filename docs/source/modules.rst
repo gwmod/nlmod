@@ -12,6 +12,11 @@ read
    :members:
    :undoc-members:
    :private-members:
+   
+.. automodule:: nlmod.read.bgt
+   :members:
+   :undoc-members:
+   :private-members:
 
 .. automodule:: nlmod.read.geotop
    :members:
@@ -70,7 +75,7 @@ mdims
 mfpackages
 ^^^^^^^^^^
 
-.. automodule:: nlmod.mfpackages.mfpackages
+.. automodule:: nlmod.mfpackages.gwf
    :members:
    :undoc-members:
    :private-members:
@@ -85,6 +90,15 @@ mfpackages
    :undoc-members:
    :private-members:
 
+.. automodule:: nlmod.mfpackages.constant_head
+   :members:
+   :undoc-members:
+   :private-members:
+
+.. automodule:: nlmod.mfpackages.horizontal_flow_barrier
+   :members:
+   :undoc-members:
+   :private-members:
 
 visualise
 ^^^^^^^^^
@@ -103,6 +117,14 @@ util
 ^^^^
 
 .. automodule:: nlmod.util
+   :members:
+   :undoc-members:
+   :private-members:
+
+cache
+^^^^^
+
+.. automodule:: nlmod.cache
    :members:
    :undoc-members:
    :private-members:

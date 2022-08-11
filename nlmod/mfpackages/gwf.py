@@ -499,7 +499,7 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True, print_head=True):
     # Create the output control package
     headfile = f"{model_ds.model_name}.hds"
     head_filerecord = [headfile]
-    budgetfile = f"{model_ds.model_name}.cbb"
+    budgetfile = f"{model_ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
     saverecord = [("HEAD", "LAST")]
     if save_budget:

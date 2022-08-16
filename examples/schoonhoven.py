@@ -8,7 +8,6 @@ Created on Thu Jun 30 16:07:14 2022
 # %% import packages
 import os
 import rioxarray
-import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
 from shapely.geometry import Point
@@ -41,6 +40,21 @@ bgt = nlmod.read.bgt.get_bgt(extent)
 stats = zonal_stats(bgt.geometry.buffer(1.0), fname_ahn, stats="min")
 bgt["ahn_min"] = [x["min"] for x in stats]
 
+# plot the brondhouders
+bgt.plot("bronhouder", legend=True)
+
+# get level areas (peilgebieden)
+pg = nlmod.mfpackages.surface_water.download_level_areas(bgt, extent=extent)
+
+# plot summer stage
+ax = bgt.plot(color="k")
+for wb in pg.keys():
+    pg[wb].plot("summer_stage", ax=ax, vmin=-3, vmax=1, zorder=0)
+ax.axis(extent)
+
+bgt = nlmod.mfpackages.surface_water.add_stages_from_waterboards(bgt, pg=pg)
+ax = bgt.plot("summer_stage", vmin=-3, vmax=1)
+
 # %% downlaod regis
 regis = nlmod.read.get_regis(extent, cachedir=cachedir, cachename="regis.nc")
 
@@ -51,7 +65,7 @@ ds = nlmod.read.regis.to_model_ds(
 
 # %% make a disv-grid (or not, by commenting out next line)
 # ds = nlmod.mgrid.refine(ds)
-# refinement_features = [(bgt[bgt['bronhouder'] == 'L0002'], 2)]
+# refinement_features = [(bgt[bgt["bronhouder"] == "L0002"], 2)]
 # ds = nlmod.mgrid.refine(ds, refinement_features=refinement_features)
 
 # %% add information about time
@@ -88,12 +102,6 @@ sto = nlmod.mfpackages.sto_from_model_ds(ds, gwf)
 mg = nlmod.mgrid.modelgrid_from_model_ds(ds)
 gi = flopy.utils.GridIntersect(mg, method="vertex")
 bgt_grid = nlmod.mdims.gdf2grid(bgt, ix=gi).set_index("cellid")
-
-# for now, remove items without a level
-bgt_grid = bgt_grid[~np.isnan(bgt_grid["ahn_min"])]
-bgt_grid["stage"] = bgt_grid["ahn_min"]
-bgt_grid["rbot"] = bgt_grid["ahn_min"] - 0.5
-# use a resistance of 1 meter
 bgt_grid["cond"] = bgt_grid.area / 1.0
 if True:
     # Model the river Lek as a river with a stage of 0.5 m NAP
@@ -105,8 +113,10 @@ if True:
     lek["rbot"] = -3.0
     spd = nlmod.mfpackages.surface_water.build_spd(lek, "RIV", ds)
     riv = flopy.mf6.ModflowGwfriv(gwf, stress_period_data={0: spd})
-spd = nlmod.mfpackages.surface_water.build_spd(bgt_grid, "DRN", ds)
-drn = flopy.mf6.ModflowGwfdrn(gwf, stress_period_data={0: spd})
+
+# model the other surface water using the drain package
+# with a summer stage and a  winter stage
+nlmod.mfpackages.surface_water.gdf_to_seasonal_pkg(bgt_grid, gwf, ds)
 
 # %% run model
 nlmod.util.write_and_run_model(gwf, ds)

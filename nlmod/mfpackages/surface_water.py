@@ -5,6 +5,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from tqdm import tqdm
+from shapely.strtree import STRtree
+import flopy
+
+# from ..mdims.mgrid import gdf2grid
+from ..read import bgt, waterboard
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +302,9 @@ def estimate_polygon_length(gdf):
 def distribute_cond_over_lays(
     cond, cellid, rivbot, laytop, laybot, idomain=None, kh=None, stage=None
 ):
-
+    """Distribute the conductance in a cell over the layers in that cell,
+    based on the the river-bottom and the layer bottoms, and optionally based
+    on the stage and the hydraulic conductivity"""
     if isinstance(rivbot, (np.ndarray, xr.DataArray)):
         rivbot = float(rivbot[cellid])
     if len(laybot.shape) == 3:
@@ -327,7 +334,7 @@ def distribute_cond_over_lays(
         lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
     if idomain is not None:
         # only distribute conductance over active layers
-        lays = lays[idomain.values[lays] > 0]
+        lays = lays[idomain[lays] > 0]
     topbot = np.hstack((laytop, laybot))
     topbot[topbot < rivbot] = rivbot
     d = -1 * np.diff(topbot)
@@ -340,7 +347,7 @@ def distribute_cond_over_lays(
         # river bottom is above all the layers), add to the first active layer
         if idomain is not None:
             try:
-                first_active = np.where(idomain == 1)[0][0]
+                first_active = np.where(idomain > 0)[0][0]
             except IndexError:
                 warnings.warn(
                     f"No active layers in {cellid}, " "returning NaNs."
@@ -354,18 +361,27 @@ def distribute_cond_over_lays(
     return np.array(lays), np.array(conds)
 
 
-def build_spd(celldata, pkg, model_ds):
+def build_spd(
+    celldata,
+    pkg,
+    model_ds,
+    layer_method="lay_of_rbot",
+):
     """Build stress period data for package (RIV, DRN, GHB).
 
     Parameters
     ----------
     celldata : geopandas.GeoDataFrame
         GeoDataFrame containing data. Cellid must be the index,
-        and must have columns
+        and must have columns "rbot", "stage" and "cond".
     pkg : str
         Modflow package: RIV, DRN or GHB
     model_ds : xarray.DataSet
         DataSet containing model layer information
+    layer_method: layer_method : str, optional
+        The method used to distribute the conductance over the layers. Possible
+        values are 'lay_of_rbot' and 'distribute_cond_over_lays'. The default
+        is "lay_of_rbot".
 
     Returns
     -------
@@ -378,6 +394,11 @@ def build_spd(celldata, pkg, model_ds):
 
     spd = []
 
+    top = model_ds.top.data
+    botm = model_ds.botm.data
+    idomain = model_ds.idomain.data
+    kh = model_ds.kh.data
+
     for cellid, row in tqdm(
         celldata.iterrows(),
         total=celldata.index.size,
@@ -386,11 +407,13 @@ def build_spd(celldata, pkg, model_ds):
 
         # check if there is an active layer for this cell
         if model_ds.gridtype == "vertex":
-            if (model_ds["idomain"].sel(icell2d=cellid) == 0).all():
-                continue
+            idomain_cell = idomain[:, cellid]
+            botm_cell = botm[:, cellid]
         elif model_ds.gridtype == "structured":
-            if (model_ds["idomain"].isel(y=cellid[0], x=cellid[1]) == 0).all():
-                continue
+            idomain_cell = idomain[:, cellid[0], cellid[1]]
+            botm_cell = botm[:, cellid[0], cellid[1]]
+        if (idomain_cell <= 0).all():
+            continue
 
         # rbot
         if "rbot" in row.index:
@@ -433,21 +456,29 @@ def build_spd(celldata, pkg, model_ds):
                 f"len={row.len_estimate:.2f}, BL={row['rbot']}"
             )
 
-        # if surface water penetrates multiple layers:
-        lays, conds = distribute_cond_over_lays(
-            cond,
-            cellid,
-            rbot,
-            model_ds.top,
-            model_ds.botm,
-            model_ds.idomain,
-            model_ds.kh,
-            stage,
-        )
-        if "aux" in row:
-            auxlist = [row["aux"]]
+        if layer_method == "distribute_cond_over_lays":
+            # if surface water penetrates multiple layers:
+            lays, conds = distribute_cond_over_lays(
+                cond,
+                cellid,
+                rbot,
+                top,
+                botm,
+                idomain,
+                kh,
+                stage,
+            )
+        elif layer_method == "lay_of_rbot":
+            mask = (rbot > botm_cell) & (idomain_cell > 0)
+            lays = [np.where(mask)[0][0]]
+            conds = [cond]
         else:
-            auxlist = []
+            raise (Exception(f"Method {layer_method} unknown"))
+        auxlist = []
+        if "aux" in row:
+            auxlist.append(row["aux"])
+        if "boundname" in row:
+            auxlist.append(row["boundname"])
 
         if model_ds.gridtype == "vertex":
             cellid = (cellid,)
@@ -461,3 +492,285 @@ def build_spd(celldata, pkg, model_ds):
                 spd.append([cid, stage, cond] + auxlist)
 
     return spd
+
+
+def add_info_to_gdf(
+    gdf_from,
+    gdf_to,
+    columns=None,
+    desc="",
+    silent=False,
+    min_total_overlap=0.5,
+    geom_type="Polygon",
+):
+    """ "Add information from gdf_from to gdf_to"""
+    gdf_to = gdf_to.copy()
+    if columns is None:
+        columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
+    s = STRtree(gdf_from.geometry, items=gdf_from.index)
+    for index in tqdm(gdf_to.index, desc=desc, disable=silent):
+        geom_to = gdf_to.geometry[index]
+        inds = s.query_items(geom_to)
+        if len(inds) == 0:
+            continue
+        overlap = gdf_from.geometry[inds].intersection(geom_to)
+        if geom_type is None:
+            geom_type = overlap.geom_type.iloc[0]
+        if geom_type in ["Polygon", "MultiPolygon"]:
+            measure_org = geom_to.area
+            measure = overlap.area
+        elif geom_type in ["LineString", "MultiLineString"]:
+            measure_org = geom_to.length
+            measure = overlap.length
+        else:
+            msg = f"Unsupported geometry type: {geom_type}"
+            raise (Exception(msg))
+
+        if np.any(measure.sum() > min_total_overlap * measure_org):
+            # take the largest
+            ind = measure.idxmax()
+            gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
+    return gdf_to
+
+
+def get_gdf_stage(gdf, season="winter"):
+    """
+    Get the stage from a GeoDataFrame for a specific season
+
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+        A GeoDataFrame of the polygons of the BGT with added information in the
+        columns 'summer_stage', 'winter_stage', and 'ahn_min'.
+    season : str, optional
+        The season for which the stage needs to be determined. The default is
+        "winter".
+
+    Returns
+    -------
+    stage : pandas.Series
+        The stage for each of the records in the GeoDataFrame.
+
+    """
+    stage = gdf[f"{season}_stage"].copy()
+    if "ahn_min" in gdf:
+        # when the minimum surface level is above the stage
+        # or when no stage is available
+        # use the minimum surface level
+        stage = pd.concat((stage, gdf["ahn_min"]), axis=1).max(axis=1)
+    return stage
+
+
+def download_level_areas(gdf, extent=None, config=None):
+    """Download level areas (peilgebieden) of bronhouders"""
+    if config is None:
+        config = waterboard.get_configuration()
+    bronhouders = gdf["bronhouder"].unique()
+    pg = {}
+    data_kind = "level_areas"
+    for wb in config.keys():
+        if config[wb]["bgt_code"] in bronhouders:
+            logging.info(f"Downloading {data_kind} for {wb}")
+            try:
+                pg[wb] = waterboard.get_data(wb, data_kind, extent)
+            except Exception as e:
+                if str(e) == f"{data_kind} not available for {wb}":
+                    logging.warning(e)
+                else:
+                    raise
+    return pg
+
+
+def add_stages_from_waterboards(
+    gdf, pg=None, extent=None, columns=None, config=None
+):
+    """Add information from level areas (peilgebieden) to bgt-polygons"""
+    if pg is None:
+        pg = bgt.download_level_areas(gdf, extent=extent)
+    if config is None:
+        config = waterboard.get_configuration()
+    if columns is None:
+        columns = ["summer_stage", "winter_stage"]
+    gdf[columns] = np.NaN
+    for wb in pg.keys():
+        mask = gdf["bronhouder"] == config[wb]["bgt_code"]
+        gdf[mask] = add_info_to_gdf(
+            pg[wb],
+            gdf[mask],
+            columns=columns,
+            min_total_overlap=0.0,
+            desc=f"Adding {columns} from level areas {wb} to gdf",
+        )
+    return gdf
+
+
+def gdf_to_seasonal_pkg(
+    gdf,
+    gwf,
+    ds,
+    pkg="DRN",
+    default_water_depth=0.5,
+    boundname_column="identificatie",
+    c0=1.0,
+    summer_months=(4, 5, 6, 7, 8, 9),
+    layer_method="lay_of_rbot",
+    **kwargs,
+):
+    """
+    Add a  surface water package to a groundwater-model, based on input from a
+    GeoDataFrame. This method adds two boundary conditions for each record in
+    the geodataframe: one for the winter_stage and one for the summer_stage.
+    The conductance of each record is a time-series called 'winter' or 'summer'
+    with values of either 0 or 1. These conductance values are multiplied by an
+    auxiliary variable that contains the actual conductance.
+
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+        A GeoDataFrame with Polygon-data. Cellid must be the index (it will be
+        calculated if it is not) and must have columns 'winter_stage' and
+        'summer_stage'.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    ds : xarray.Dataset
+        Dataset with model data
+    pkg: str, optional
+        The package to generate. Possible options are 'DRN', 'RIV' and 'GHB'.
+        The default is pkg.
+    default_water_depth : float, optional
+        The default water depth, only used when there is no 'rbot' column in
+        gdf or when this column contains nans. The default is 0.5.
+    boundname_column : str, optional
+        THe name of the column in gdf to use for the boundnames. The default is
+        "identificatie", which is a unique identifier in the BGT.
+    c0 : float, optional
+        The resistance of the surface water, in days. Only used when there is
+        no 'cond' column in gdf. The default is 1.0.
+    summer_months : list or tuple, optional
+        THe months in which 'summer_stage' is active. The default is
+        (4, 5, 6, 7, 8, 9), which means summer is from april through september.
+    layer_method : str, optional
+        The method used to distribute the conductance over the layers. Possible
+        values are 'lay_of_rbot' and 'distribute_cond_over_lays'. The default
+        is "lay_of_rbot".
+    **kwargs : dict
+        Kwargs are passed onto ModflowGwfdrn.
+
+    Returns
+    -------
+    package : ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb
+        The generated flopy-package
+
+    """
+    if gdf.index.name != "cellid":
+        # if "cellid" not in gdf:
+        #    gdf = gdf2grid(gdf, gwf)
+        gdf = gdf.set_index("cellid")
+    else:
+        # make sure changes to the DataFrame are temporarily
+        gdf = gdf.copy()
+
+    stages = (
+        get_gdf_stage(gdf, "winter"),
+        get_gdf_stage(gdf, "summer"),
+    )
+
+    # make sure we have a bottom height
+    if "rbot" not in gdf:
+        gdf["rbot"] = np.NaN
+    mask = gdf["rbot"].isna()
+    if mask.any():
+        min_stage = pd.concat(stages, axis=1).min(axis=1)
+        gdf.loc[mask, "rbot"] = min_stage - default_water_depth
+
+    if "cond" not in gdf:
+        gdf["cond"] = gdf.geometry.area / c0
+
+    if boundname_column is not None:
+        gdf["boundname"] = gdf[boundname_column]
+
+    spd = []
+    for iseason, season in enumerate(["winter", "summer"]):
+        # use  a winter and summer level
+
+        gdf["stage"] = stages[iseason]
+
+        mask = gdf["stage"] < gdf["rbot"]
+        gdf.loc[mask, "stage"] = gdf.loc[mask, "rbot"]
+        gdf["aux"] = season
+
+        # ignore records without a stage
+        mask = gdf["stage"].isna()
+        if mask.any():
+            logging.warning(
+                f"{mask.sum()} records without an elevation ignored"
+            )
+        spd.extend(
+            build_spd(
+                gdf[~mask],
+                pkg,
+                ds,
+                layer_method=layer_method,
+            )
+        )
+    # from the release notes (6.3.0):
+    # When this AUXMULTNAME option is used, the multiplier value in the
+    # AUXMULTNAME column should not be represented with a time series unless
+    # the value to scale is also represented with a time series
+    # So we switch the conductance (column 2) and the multiplier (column 3/4)
+    spd = np.array(spd)
+    if pkg == "RIV":
+        spd[:, [2, 4]] = spd[:, [4, 2]]
+    else:
+        spd[:, [2, 3]] = spd[:, [3, 2]]
+    spd = spd.tolist()
+
+    if boundname_column is not None:
+        observations = []
+        for boundname in np.unique(gdf[boundname_column]):
+            observations.append((boundname, pkg, boundname))
+        observations = {f"{pkg}_flows.csv": observations}
+    if pkg == "DRN":
+        cl = flopy.mf6.ModflowGwfdrn
+    elif pkg == "RIV":
+        cl = flopy.mf6.ModflowGwfriv
+    elif pkg == "GHB":
+        cl = flopy.mf6.ModflowGwfghb
+    else:
+        raise (Exception(f"Unknown package: {pkg}"))
+    package = cl(
+        gwf,
+        stress_period_data={0: spd},
+        boundnames=boundname_column is not None,
+        auxmultname="cond_fact",
+        auxiliary=["cond_fact"],
+        observations=observations,
+        **kwargs,
+    )
+    # add timeseries for the seasons 'winter' and 'summer'
+    tmin = pd.to_datetime(ds.time.start_time)
+    if tmin.month in summer_months:
+        ts_data = [(0.0, 0.0, 1.0)]
+    else:
+        ts_data = [(0.0, 1.0, 0.0)]
+    tmax = pd.to_datetime(ds["time"].data[-1])
+    years = range(tmin.year, tmax.year + 1)
+    for year in years:
+        # add a record for the start of summer, on april 1
+        time = pd.Timestamp(year=year, month=summer_months[0], day=1)
+        time = (time - tmin) / pd.to_timedelta(1, "D")
+        if time > 0:
+            ts_data.append((time, 0.0, 1.0))
+        # add a record for the start of winter, on oktober 1
+        time = pd.Timestamp(year=year, month=summer_months[-1] + 1, day=1)
+        time = (time - tmin) / pd.to_timedelta(1, "D")
+        if time > 0:
+            ts_data.append((time, 1.0, 0.0))
+
+    package.ts.initialize(
+        filename="season.ts",
+        timeseries=ts_data,
+        time_series_namerecord=["winter", "summer"],
+        interpolation_methodrecord=["stepwise", "stepwise"],
+    )
+    return package

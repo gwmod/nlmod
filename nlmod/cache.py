@@ -92,7 +92,8 @@ def cache_netcdf(func):
 
     @functools.wraps(func)
     def decorator(*args, cachedir=None, cachename=None, **kwargs):
-
+        
+        #1 check if cachedir and name are provided
         if cachedir is None or cachename is None:
             return func(*args, **kwargs)
 
@@ -102,7 +103,7 @@ def cache_netcdf(func):
         fname_cache = os.path.join(cachedir, cachename)  # netcdf file
         fname_pickle_cache = fname_cache.replace(
             ".nc", ".pklz"
-        )  # pickle with function arguments
+        )
 
         # create dictionary with function arguments
         func_args_dic = {f"arg{i}": args[i] for i in range(len(args))}
@@ -287,7 +288,9 @@ def _check_ds(ds, ds2):
     """
     for coord in ds2.coords:
         if coord in ds.coords:
-            if not ds2[coord].equals(ds[coord]):
+            try:
+                xr.testing.assert_identical(ds[coord], ds2[coord])
+            except AssertionError:
                 logger.info(
                     f"coordinate {coord} has different values in cached dataset, not using cache"
                 )

@@ -36,6 +36,18 @@ def test_model_ds_check_time_false():
     assert check == False
 
 
+def test_model_ds_check_time_attributes_false():
+
+    # two models with a different time discretisation
+    model_ds = test_001_model.test_get_model_ds_from_cache("small_model")
+    model_ds2 = model_ds.copy()
+    
+    model_ds2.time.attrs['time_units'] = 'MONTHS'
+
+    check = nlmod.cache._check_ds(model_ds, model_ds2)
+
+    assert check == False
+
 @pytest.mark.slow
 def test_model_ds_check_grid_false(tmpdir):
 

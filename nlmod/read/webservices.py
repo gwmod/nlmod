@@ -98,7 +98,6 @@ def arcrest(
                     geometry = pols[keep[0]]
                 else:
                     geometry = MultiPolygon([pols[i] for i in keep])
-            pass
             feature["attributes"]["geometry"] = geometry
             data.append(feature["attributes"])
         gdf = gpd.GeoDataFrame(data)

@@ -48,7 +48,7 @@ pg = nlmod.mfpackages.surface_water.download_level_areas(bgt, extent=extent)
 
 # plot summer stage
 ax = bgt.plot(color="k")
-for wb in pg.keys():
+for wb in pg:
     pg[wb].plot("summer_stage", ax=ax, vmin=-3, vmax=1, zorder=0)
 ax.axis(extent)
 

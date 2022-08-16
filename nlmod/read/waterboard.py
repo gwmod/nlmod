@@ -520,7 +520,7 @@ def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
         else:
             gdf.loc[mask, set_column] = gdf.loc[mask, from_column]
         if nan_values is not None:
-            if isinstance(nan_values, float) or isinstance(nan_values, int):
+            if isinstance(nan_values, (float, int)):
                 nan_values = [nan_values]
             gdf.loc[gdf[set_column].isin(nan_values), set_column] = np.NaN
     return gdf

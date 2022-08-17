@@ -33,6 +33,7 @@ setup(
         "xarray>=0.16.1",
         "rasterio>=1.1.0",
         "rioxarray",
+        "rasterstats",
         "owslib>=0.24.1",
         "hydropandas>=0.3.0",
         "shapely>=1.8.0",

@@ -32,6 +32,7 @@ setup(
         "flopy>=3.3.2",
         "xarray>=0.16.1",
         "rasterio>=1.1.0",
+        "rioxarray",
         "owslib>=0.24.1",
         "hydropandas>=0.3.0",
         "netcdf4>=1.5.7",

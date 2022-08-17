@@ -16,11 +16,9 @@ import test_001_model
 # @pytest.mark.skip(reason="too slow")
 
 
-def test_get_regis(
-    extent=[98600.0, 99000.0, 489400.0, 489700.0], delr=100.0, delc=100.0
-):
+def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
 
-    regis_ds = regis.get_regis(extent, delr, delc)
+    regis_ds = regis.get_regis(extent)
 
     assert regis_ds.dims["layer"] == 132
 
@@ -33,7 +31,8 @@ def test_fit_regis_extent(
 ):
 
     try:
-        regis_ds = regis.get_regis(extent, delr, delc)
+        regis_ds = regis.get_regis(extent)
+        nlmod.read.regis.to_model_ds(regis_ds, delr=delr, delc=delc)
     except ValueError:
         return True
 
@@ -47,12 +46,12 @@ def test_get_regis_botm_layer_BEk1(
     extent=[98700.0, 99000.0, 489500.0, 489700.0],
     delr=100.0,
     delc=100.0,
-    botm_layer=b"BEk1",
+    botm_layer="BEk1",
 ):
 
     extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
 
-    regis_ds = regis.get_regis(extent, delr, delc, botm_layer)
+    regis_ds = regis.get_regis(extent, botm_layer)
 
     assert regis_ds.dims["layer"] == 18
 
@@ -62,13 +61,11 @@ def test_get_regis_botm_layer_BEk1(
 
 
 # @pytest.mark.skip(reason="too slow")
-def test_get_geotop(
-    extent=[98600.0, 99000.0, 489400.0, 489700.0], delr=100.0, delc=100.0
-):
+def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
 
-    regis_ds = test_get_regis(extent=extent, delr=delr, delc=delc)
+    regis_ds = test_get_regis(extent=extent)
 
-    geotop_ds = geotop.get_geotop(extent, delr, delc, regis_ds)
+    geotop_ds = geotop.get_geotop(extent, regis_ds)
 
     return geotop_ds
 
@@ -76,13 +73,12 @@ def test_get_geotop(
 # @pytest.mark.skip(reason="too slow")
 
 
-def test_get_regis_geotop(
-    extent=[98600.0, 99000.0, 489400.0, 489700.0], delr=100.0, delc=100.0
-):
+def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
 
     regis_geotop_ds = regis.get_combined_layer_models(
-        extent, delr, delc, use_regis=True, use_geotop=True
+        extent, use_regis=True, use_geotop=True
     )
+    regis_geotop_ds = nlmod.read.regis.to_model_ds(regis_geotop_ds)
 
     assert regis_geotop_ds.dims["layer"] == 24
 
@@ -97,7 +93,10 @@ def test_get_regis_geotop_keep_all_layers(
 ):
 
     regis_geotop_ds = regis.get_combined_layer_models(
-        extent, delr, delc, use_regis=True, use_geotop=True, remove_nan_layers=False
+        extent, use_regis=True, use_geotop=True
+    )
+    nlmod.read.regis.to_model_ds(
+        regis_geotop_ds, delr=delr, delc=delc, remove_nan_layers=False
     )
 
     assert regis_geotop_ds.dims["layer"] == 135

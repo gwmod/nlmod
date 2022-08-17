@@ -131,7 +131,9 @@ class DatasetCrossSection:
                 continue
             if np.all(np.isnan(self.top[i]) | (self.top[i] == self.zmin)):
                 continue
-            z_not_nan = np.where(~np.isnan(self.top[i]) & ~np.isnan(self.bot[i]))[0]
+            z_not_nan = np.where(
+                ~np.isnan(self.top[i]) & ~np.isnan(self.bot[i])
+            )[0]
             vans = [z_not_nan[0]]
             tots = []
             for x in np.where(np.diff(z_not_nan) > 1)[0]:
@@ -171,12 +173,21 @@ class DatasetCrossSection:
                             if not pol.contains(p):
                                 p = polylabel(pol, 100.0)
                             self.ax.text(
-                                p.x, p.y, self.layer[i], ha="center", va="center"
+                                p.x,
+                                p.y,
+                                self.layer[i],
+                                ha="center",
+                                va="center",
                             )
         return polygons
 
     def plot_grid(
-        self, edgecolor="k", facecolor="none", horizontal=True, vertical=True, **kwargs
+        self,
+        edgecolor="k",
+        facecolor="none",
+        horizontal=True,
+        vertical=True,
+        **kwargs
     ):
         lines = []
         if horizontal and not vertical:
@@ -220,7 +231,9 @@ class DatasetCrossSection:
                                     (self.xys[j + 1, -1], self.bot[i, j + 1]),
                                 ]
                             )
-            line_collection = LineCollection(lines, edgecolor=edgecolor, **kwargs)
+            line_collection = LineCollection(
+                lines, edgecolor=edgecolor, **kwargs
+            )
             self.ax.add_collection(line_collection)
             return line_collection
         if vertical and not horizontal:
@@ -229,11 +242,16 @@ class DatasetCrossSection:
         for i in range(self.top.shape[0]):
             for j in range(self.bot.shape[1]):
                 if not (np.isnan(self.top[i, j]) or np.isnan(self.bot[i, j])):
-                    if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
+                    if (
+                        self.bot[i, j] == self.zmax
+                        or self.top[i, j] == self.zmin
+                    ):
                         continue
                     width = self.xys[j + 1, -1] - self.xys[j, -1]
                     height = self.top[i, j] - self.bot[i, j]
-                    rect = Rectangle((self.xys[j, -1], self.bot[i, j]), width, height)
+                    rect = Rectangle(
+                        (self.xys[j, -1], self.bot[i, j]), width, height
+                    )
                     patches.append(rect)
         patch_collection = PatchCollection(
             patches, edgecolor=edgecolor, facecolor=facecolor, **kwargs
@@ -259,11 +277,16 @@ class DatasetCrossSection:
                     or np.isnan(self.bot[i, j])
                     or np.isnan(zcs[i, j])
                 ):
-                    if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
+                    if (
+                        self.bot[i, j] == self.zmax
+                        or self.top[i, j] == self.zmin
+                    ):
                         continue
                     width = self.xys[j + 1, -1] - self.xys[j, -1]
                     height = self.top[i, j] - self.bot[i, j]
-                    rect = Rectangle((self.xys[j, -1], self.bot[i, j]), width, height)
+                    rect = Rectangle(
+                        (self.xys[j, -1], self.bot[i, j]), width, height
+                    )
                     patches.append(rect)
                     array.append(zcs[i, j])
         patch_collection = PatchCollection(patches, **kwargs)

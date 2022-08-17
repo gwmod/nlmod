@@ -29,7 +29,7 @@ def test_bgt_waterboards():
     return bgt
 
 
-@pytest.mark.slow
+@pytest.mark.skip("too slow")
 def test_download_peilgebieden(plot=True):
     waterboards = nlmod.read.waterboard.get_polygons()
     data_kind = "level_areas"
@@ -62,7 +62,7 @@ def test_download_peilgebieden(plot=True):
             ax.text(c.x, c.y, wb.replace(" ", "\n"), ha="center", va="center")
 
 
-@pytest.mark.slow
+@pytest.mark.skip("too slow")
 def test_download_waterlopen(plot=True):
     def get_extent(waterboards, wb, buffer=1000.0):
         c = waterboards.at[wb, "geometry"].centroid

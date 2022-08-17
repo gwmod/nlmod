@@ -34,6 +34,7 @@ setup(
         "rasterio>=1.1.0",
         "owslib>=0.24.1",
         "hydropandas>=0.3.0",
+        "shapely>=1.8.0",
         "netcdf4>=1.5.7",
         "pyshp>=2.1.3",
         "rtree>=0.9.7",

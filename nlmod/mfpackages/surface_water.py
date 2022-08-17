@@ -718,7 +718,7 @@ def gdf_to_seasonal_pkg(
     # AUXMULTNAME column should not be represented with a time series unless
     # the value to scale is also represented with a time series
     # So we switch the conductance (column 2) and the multiplier (column 3/4)
-    spd = np.array(spd)
+    spd = np.array(spd, dtype=object)
     if pkg == "RIV":
         spd[:, [2, 4]] = spd[:, [4, 2]]
     else:

@@ -570,12 +570,12 @@ def download_level_areas(gdf, extent=None, config=None):
     data_kind = "level_areas"
     for wb in config.keys():
         if config[wb]["bgt_code"] in bronhouders:
-            logging.info(f"Downloading {data_kind} for {wb}")
+            logger.info(f"Downloading {data_kind} for {wb}")
             try:
                 pg[wb] = waterboard.get_data(wb, data_kind, extent)
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
-                    logging.warning(e)
+                    logger.warning(e)
                 else:
                     raise
     return pg
@@ -702,7 +702,7 @@ def gdf_to_seasonal_pkg(
         # ignore records without a stage
         mask = gdf["stage"].isna()
         if mask.any():
-            logging.warning(
+            logger.warning(
                 f"{mask.sum()} records without an elevation ignored"
             )
         spd.extend(

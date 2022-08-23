@@ -37,9 +37,11 @@ def test_get_ahn():
     model_ds = test_001_model.test_get_model_ds_from_cache("sea_model_grid")
 
     # add ahn data to the model dataset
-    model_ds.update(nlmod.read.ahn.get_ahn(model_ds))
+    ahn_ds = nlmod.read.ahn.get_ahn(model_ds)
+    
+    assert not ahn_ds['ahn'].isnull().all(), 'AHN only has nan values'
 
-    return model_ds
+    return ahn_ds
 
 
 def test_get_surface_water_ghb():

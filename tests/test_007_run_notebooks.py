@@ -6,7 +6,7 @@ import pytest
 from nbconvert.preprocessors import ExecutePreprocessor
 
 tst_dir = os.path.dirname(os.path.realpath(__file__))
-nbdir = os.path.join(tst_dir, "..", "examples")
+nbdir = os.path.join(tst_dir, "..", "docs", "source", "examples")
 
 
 def _run_notebook(nbdir, fname):
@@ -59,6 +59,11 @@ def test_run_notebook_07_resampling():
 @pytest.mark.notebooks
 def test_run_notebook_08_gis():
     _run_notebook(nbdir, "08_gis.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_09_schoonhoven():
+    _run_notebook(nbdir, "09_schoonhoven.ipynb")
 
 
 if __name__ == "__main__":

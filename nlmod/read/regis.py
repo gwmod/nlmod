@@ -236,7 +236,26 @@ def to_model_ds(
 
 
 def extrapolate_ds(ds, mask=None):
-    """Extrapolate data-variables (into the sea or other areas with only nans)"""
+    """Fill missing data in layermodel based on nearest interpolation.
+
+    Used for ensuring layer model contains data everywhere. Useful for
+    filling in data beneath the sea for coastal groundwater models, or models
+    near the border of the Netherlands.
+
+    Parameters
+    ----------
+    ds : xarray.DataSet
+        REGIS DataSet
+    mask: np.ndarray, optional
+        Boolean mask for each cell, with a value of True if its value needs to
+        be determined. When mask is None, it is determined from the botm-
+        variable. The default is None.
+
+    Returns
+    -------
+    ds : xarray.DataSet
+        filled layermodel
+    """
     if mask is None:
         mask = np.isnan(ds["botm"]).all("layer").data
     if not mask.any():
@@ -498,37 +517,3 @@ def get_layer_names():
     layer_names = xr.open_dataset(REGIS_URL).layer.values
 
     return layer_names
-
-
-def extrapolate_regis(regis_ds):
-    """Fill missing data in layermodel based on nearest interpolation.
-
-    Used for ensuring layer model contains data everywhere. Useful for
-    filling in data beneath the sea for coastal groundwater models.
-
-    Parameters
-    ----------
-    regis_ds : xarray.DataSet
-        REGIS DataSet
-
-    Returns
-    -------
-    regis_ds : xarray.DataSet
-        filled REGIS layermodel with nearest interpolation
-    """
-    # fill layermodel with nearest interpolation (usually for filling in data
-    # under the North Sea)
-    mask = np.isnan(regis_ds["top"]).all("layer")
-    if not np.any(mask):
-        # all of the model are is inside
-        logger.info("No missing data to extrapolate")
-        return regis_ds
-    x, y = np.meshgrid(regis_ds.x, regis_ds.y)
-    points = (x[~mask], y[~mask])
-    xi = (x[mask], y[mask])
-    for key in list(regis_ds.keys()):
-        data = regis_ds[key].data
-        for lay in range(len(regis_ds.layer)):
-            values = data[lay][~mask]
-            data[lay][mask] = griddata(points, values, xi, method="nearest")
-    return regis_ds

@@ -144,4 +144,4 @@ cython_debug/
 nlmod/bin/
 flowchartnlmod.pptx
 tests/data/
-examples/*/
+docs/examples/*/

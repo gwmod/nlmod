@@ -162,6 +162,7 @@ def split_ahn_extent(
                         res=res,
                         tmp_dir=tmp_dir_path,
                         maxsize=maxsize,
+                        as_data_array=False,
                         **kwargs,
                     )
                 )
@@ -366,7 +367,7 @@ def get_ahn_within_extent(
 
     memfile = MemoryFile(output.read())
     if as_data_array:
-        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
+        da = rioxarray.open_rasterio(memfile, mask_and_scale=True)[0]
         return da
     return memfile
 

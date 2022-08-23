@@ -28,6 +28,7 @@ from shapely.geometry import Point
 from .. import util
 from .mlayers import set_idomain, get_first_active_layer_from_idomain
 from .resample import get_resampled_ml_layer_ds_vertex
+from .rdp import rdp
 
 logger = logging.getLogger(__name__)
 
@@ -85,13 +86,13 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
 def gridprops_to_vertex_ds(gridprops, model_ds, nodata=-1):
     """Gridprops is a dictionairy containing keyword arguments needed to generate
     a flopy modelgrid instance"""
-    model_ds["xv"] = ("iv", [i[1] for i in gridprops['vertices']])
-    model_ds["yv"] = ("iv", [i[2] for i in gridprops['vertices']])
+    model_ds["xv"] = ("iv", [i[1] for i in gridprops["vertices"]])
+    model_ds["yv"] = ("iv", [i[2] for i in gridprops["vertices"]])
 
-    cell2d = gridprops['cell2d']
+    cell2d = gridprops["cell2d"]
     ncvert_max = np.max([x[3] for x in cell2d])
-    icvert = np.full((gridprops['ncpl'], ncvert_max), nodata)
-    for i in range(gridprops['ncpl']):
+    icvert = np.full((gridprops["ncpl"], ncvert_max), nodata)
+    for i in range(gridprops["ncpl"]):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     model_ds["icvert"] = ("cell2d", "icv"), icvert
     model_ds["icvert"].attrs["_FillValue"] = nodata
@@ -1221,8 +1222,6 @@ def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
     xvert = modelgrid.xvertices
     yvert = modelgrid.yvertices
     if vert_per_cid == 4:
-        from rdp import rdp
-
         vertices_arr = np.array(
             [
                 rdp(list(zip(xvert[i], yvert[i])))[:-1]
@@ -1230,8 +1229,6 @@ def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
             ]
         )
     elif vert_per_cid == 5:
-        from rdp import rdp
-
         vertices_arr = np.array(
             [rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))]
         )

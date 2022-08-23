@@ -30,10 +30,14 @@ setup(
     platforms="Windows, Mac OS-X",
     install_requires=[
         "flopy>=3.3.2",
+        "mfpymake",
         "xarray>=0.16.1",
         "rasterio>=1.1.0",
+        "rioxarray",
+        "geopandas",
         "owslib>=0.24.1",
         "hydropandas>=0.3.0",
+        "shapely>=1.8.0",
         "netcdf4>=1.5.7",
         "pyshp>=2.1.3",
         "rtree>=0.9.7",
@@ -41,6 +45,6 @@ setup(
         "matplotlib",
     ],
     packages=find_packages(exclude=[]),
-    package_data={"nlmod": ["data/*"]},
+    package_data={"nlmod": ["data/*", "data/geotop/*", "data/shapes/*"]},
     include_package_data=True,
 )

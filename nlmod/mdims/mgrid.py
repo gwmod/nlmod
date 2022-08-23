@@ -33,6 +33,27 @@ from .rdp import rdp
 logger = logging.getLogger(__name__)
 
 
+def xy_to_icell2d(xy, ds):
+    """ get the icell2d value of a point defined by its x and y coordinates.
+    
+    Parameters
+    ----------
+    xy : list, tuple
+        coordinates of ta point.
+    ds : xarary dataset
+        model dataset.
+
+    Returns
+    -------
+    icell2d : int
+        number of the icell2d value of a cell containing the xy point.
+
+    """
+    
+    icell2d = (np.abs(ds.x - xy[0])+np.abs(ds.y -xy[1])).argmin().item()
+    
+    return icell2d
+
 def modelgrid_from_model_ds(model_ds):
     """Get flopy modelgrid from model_ds.
 

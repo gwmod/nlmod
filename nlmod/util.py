@@ -578,8 +578,6 @@ def get_heads_array(fname_hds, fill_nans=False):
     ----------
     fname_hds : TYPE, optional
         DESCRIPTION. The default is None.
-    gridtype : str, optional
-        DESCRIPTION. The default is 'structured'.
     fill_nans : bool, optional
         if True the nan values are filled with the heads in the cells below
 

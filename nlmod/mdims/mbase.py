@@ -6,7 +6,7 @@ from .. import util
 
 
 def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
-    """get an empty model dataset.
+    """ set the attribute of a model dataset.
 
     Parameters
     ----------

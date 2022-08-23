@@ -618,3 +618,20 @@ def download_mfbinaries(binpath=None, version="8.0"):
     pltfrm = get_platform(None)
     # Download and unpack mf6 exes
     getmfexes(pth=binpath, version=version, pltfrm=pltfrm)
+
+
+def check_presence_mfbinaries(exe_name="mf6", binpath=None):
+    """Check if exe_name is present in the binpath folder.
+
+    Parameters
+    ----------
+    exe_name : str, optional
+        the name of the file that is checked to be present, by default 'mf6'
+    binpath : str, optional
+        path to directory to download binaries to, if it doesnt exist it
+        is created. Default is None which sets dir to nlmod/bin.
+    """
+    if binpath is None:
+        binpath = os.path.join(os.path.dirname(__file__), "bin")
+    files = [os.path.splitext(file)[0] for file in os.listdir(binpath)]
+    return exe_name in files

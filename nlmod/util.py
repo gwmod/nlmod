@@ -633,5 +633,7 @@ def check_presence_mfbinaries(exe_name="mf6", binpath=None):
     """
     if binpath is None:
         binpath = os.path.join(os.path.dirname(__file__), "bin")
+    if not os.path.isdir(binpath):
+        return False
     files = [os.path.splitext(file)[0] for file in os.listdir(binpath)]
     return exe_name in files

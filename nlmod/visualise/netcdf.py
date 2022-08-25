@@ -5,7 +5,9 @@ import matplotlib
 from matplotlib.patches import Rectangle
 from matplotlib.collections import LineCollection, PatchCollection
 from shapely.geometry import Point, LineString, Polygon
-from shapely.algorithms.polylabel import polylabel
+from shapely.strtree import STRtree
+
+from ..mdims import get_vertices
 
 
 class DatasetCrossSection:
@@ -22,11 +24,12 @@ class DatasetCrossSection:
         zmin=None,
         zmax=None,
         set_extent=True,
-        top="t",
-        bot="b",
+        top="top",
+        bot="botm",
         x="x",
         y="y",
         layer="layer",
+        icell2d="icell2d",
     ):
         if ax is None:
             ax = plt.gca()
@@ -41,23 +44,48 @@ class DatasetCrossSection:
         if isinstance(layer, str):
             layer = ds[layer].data
         self.layer = layer
+        self.icell2d = icell2d
         # first determine where the cross-section crosses grid-lines
-        self.xedge, self.yedge = self.get_grid_edges()
-        self.xys = self.line_intersect_grid(line)
-        # get the row and column of the centers
-        sm = self.xys[:-1, -1] + np.diff(self.xys[:, -1]) / 2
-        self.cols = []
-        self.rows = []
-        for s in sm:
-            x, y = line.interpolate(s).coords[0]
-            if self.xedge[1] - self.xedge[0] > 0:
-                self.cols.append(np.where(x >= self.xedge[:-1])[0][-1])
-            else:
-                self.cols.append(np.where(x <= self.xedge[:-1])[0][-1])
-            if self.yedge[1] - self.yedge[0] > 0:
-                self.rows.append(np.where(y >= self.yedge[:-1])[0][-1])
-            else:
-                self.rows.append(np.where(y <= self.yedge[:-1])[0][-1])
+        if self.icell2d in ds.dims:
+            # determine the cells that are crossed
+            polygons = [Polygon(x) for x in get_vertices(ds)]
+            tree = STRtree(polygons)
+            icell2ds = tree.query_items(LineString(line))
+            s_cell = []
+            for icell2d in icell2ds:
+                intersection = line.intersection(polygons[icell2d])
+                if intersection.length == 0:
+                    continue
+                assert isinstance(intersection, LineString)
+                s_cell.append(
+                    [line.project(Point(intersection.coords[0])), 1, icell2d]
+                )
+                s_cell.append(
+                    [line.project(Point(intersection.coords[-1])), 0, icell2d]
+                )
+            s_cell = np.array(s_cell)
+            ind = np.lexsort((s_cell[:, 1], s_cell[:, 0]))
+            s_cell = s_cell[ind, :]
+            self.icell2ds = s_cell[::2, -1].astype(int)
+            self.s = s_cell[:, 0].reshape((len(self.icell2ds), 2))
+        else:
+            self.xedge, self.yedge = self.get_grid_edges()
+            xys = self.line_intersect_grid(line)
+            self.s = np.column_stack((xys[:-1, -1], xys[1:, -1]))
+            # get the row and column of the centers
+            sm = self.s[:, 0] + (self.s[:, 1] - self.s[:, 0]) / 2
+            self.cols = []
+            self.rows = []
+            for s in sm:
+                x, y = line.interpolate(s).coords[0]
+                if self.xedge[1] - self.xedge[0] > 0:
+                    self.cols.append(np.where(x >= self.xedge[:-1])[0][-1])
+                else:
+                    self.cols.append(np.where(x <= self.xedge[:-1])[0][-1])
+                if self.yedge[1] - self.yedge[0] > 0:
+                    self.rows.append(np.where(y >= self.yedge[:-1])[0][-1])
+                else:
+                    self.rows.append(np.where(y <= self.yedge[:-1])[0][-1])
         self.zmin = zmin
         self.zmax = zmax
         self.top, self.bot = self.get_top_and_bot(top, bot)
@@ -141,12 +169,11 @@ class DatasetCrossSection:
                 vans.append(z_not_nan[x + 1])
             tots.append(z_not_nan[-1] + 1)
             for van, tot in zip(vans, tots):
-                s = self.xys[van : tot + 1, -1]
                 t = self.top[i, van:tot]
                 b = self.bot[i, van:tot]
                 n = tot - van
 
-                x = s[sorted([0] + list(range(1, n)) * 2 + [n])]
+                x = self.s[van:tot].ravel()
                 x = np.concatenate((x, x[::-1]))
                 y = np.concatenate(
                     (
@@ -169,12 +196,15 @@ class DatasetCrossSection:
                         pols = [pols]
                     for pol in pols:
                         if pol.area > min_label_area:
-                            p = pol.centroid
-                            if not pol.contains(p):
-                                p = polylabel(pol, 100.0)
+                            xt = pol.centroid.x
+                            xp = x[: int(len(x) / 2)]
+                            yp1 = np.interp(xt, xp, y[: int(len(x) / 2)])
+                            yp = list(reversed(y[int(len(x) / 2) :]))
+                            yp2 = np.interp(xt, xp, yp)
+                            yt = np.mean([yp1, yp2])
                             self.ax.text(
-                                p.x,
-                                p.y,
+                                xt,
+                                yt,
                                 self.layer[i],
                                 ha="center",
                                 va="center",
@@ -196,8 +226,8 @@ class DatasetCrossSection:
                     if not np.isnan(self.top[i, j]):
                         lines.append(
                             [
-                                (self.xys[j, -1], self.top[i, j]),
-                                (self.xys[j + 1, -1], self.top[i, j]),
+                                (self.s[j, 0], self.top[i, j]),
+                                (self.s[j, 1], self.top[i, j]),
                             ]
                         )
                         # add vertical connection when necessary
@@ -208,15 +238,15 @@ class DatasetCrossSection:
                         ):
                             lines.append(
                                 [
-                                    (self.xys[j + 1, -1], self.top[i, j]),
-                                    (self.xys[j + 1, -1], self.top[i, j + 1]),
+                                    (self.s[j + 1, 0], self.top[i, j]),
+                                    (self.s[j + 1, 0], self.top[i, j + 1]),
                                 ]
                             )
                     if not np.isnan(self.bot[i, j]):
                         lines.append(
                             [
-                                (self.xys[j, -1], self.bot[i, j]),
-                                (self.xys[j + 1, -1], self.bot[i, j]),
+                                (self.s[j, 0], self.bot[i, j]),
+                                (self.s[j, 1], self.bot[i, j]),
                             ]
                         )
                         # add vertical connection when necessary
@@ -227,8 +257,8 @@ class DatasetCrossSection:
                         ):
                             lines.append(
                                 [
-                                    (self.xys[j + 1, -1], self.bot[i, j]),
-                                    (self.xys[j + 1, -1], self.bot[i, j + 1]),
+                                    (self.s[j + 1, 0], self.bot[i, j]),
+                                    (self.s[j + 1, 0], self.bot[i, j + 1]),
                                 ]
                             )
             line_collection = LineCollection(
@@ -247,10 +277,10 @@ class DatasetCrossSection:
                         or self.top[i, j] == self.zmin
                     ):
                         continue
-                    width = self.xys[j + 1, -1] - self.xys[j, -1]
+                    width = self.s[j, 1] - self.s[j, 0]
                     height = self.top[i, j] - self.bot[i, j]
                     rect = Rectangle(
-                        (self.xys[j, -1], self.bot[i, j]), width, height
+                        (self.s[j, 0], self.bot[i, j]), width, height
                     )
                     patches.append(rect)
         patch_collection = PatchCollection(
@@ -259,15 +289,28 @@ class DatasetCrossSection:
         self.ax.add_collection(patch_collection)
         return patch_collection
 
-    def plot_array(self, z, **kwargs):
+    def plot_array(self, z, head=None, **kwargs):
         if isinstance(z, xr.DataArray):
             z = z.data
-        assert len(z.shape) == 3
-        assert z.shape[0] == len(self.layer)
-        assert z.shape[1] == len(self.ds[self.y])
-        assert z.shape[2] == len(self.ds[self.x])
+        if head is not None:
+            assert head.shape == z.shape
+        if self.icell2d in self.ds.dims:
+            assert len(z.shape) == 2
+            assert z.shape[0] == len(self.layer)
+            assert z.shape[1] == len(self.ds[self.icell2d])
 
-        zcs = z[:, self.rows, self.cols]
+            zcs = z[:, self.icell2ds]
+            if head is not None:
+                head = head[:, self.icell2ds]
+        else:
+            assert len(z.shape) == 3
+            assert z.shape[0] == len(self.layer)
+            assert z.shape[1] == len(self.ds[self.y])
+            assert z.shape[2] == len(self.ds[self.x])
+
+            zcs = z[:, self.rows, self.cols]
+            if head is not None:
+                head = head[:, self.rows, self.cols]
         patches = []
         array = []
         for i in range(zcs.shape[0]):
@@ -282,11 +325,13 @@ class DatasetCrossSection:
                         or self.top[i, j] == self.zmin
                     ):
                         continue
-                    width = self.xys[j + 1, -1] - self.xys[j, -1]
-                    height = self.top[i, j] - self.bot[i, j]
-                    rect = Rectangle(
-                        (self.xys[j, -1], self.bot[i, j]), width, height
-                    )
+                    width = self.s[j, 1] - self.s[j, 0]
+                    top = self.top[i, j]
+                    if head is not None:
+                        top = max(min(top, head[i, j]), self.bot[i, j])
+                    height = top - self.bot[i, j]
+                    xy = (self.s[j, 0], self.bot[i, j])
+                    rect = Rectangle(xy, width, height)
                     patches.append(rect)
                     array.append(zcs[i, j])
         patch_collection = PatchCollection(patches, **kwargs)
@@ -298,14 +343,19 @@ class DatasetCrossSection:
         if isinstance(z, xr.DataArray):
             z = z.data
         # check if z has the same dimensions as ds
-        assert len(z.shape) == 2
-        assert z.shape[0] == len(self.ds[self.y])
-        assert z.shape[1] == len(self.ds[self.x])
+        if self.icell2d in self.ds.dims:
+            assert len(z.shape) == 1
+            assert z.shape[0] == len(self.ds[self.icell2d])
 
-        zcs = z[self.rows, self.cols]
-        n = len(zcs)
-        x = self.xys[:, -1][sorted([0] + list(range(1, n)) * 2 + [n])]
-        y = zcs[sorted(list(range(n)) * 2)]
+            zcs = z[self.icell2ds]
+        else:
+            assert len(z.shape) == 2
+            assert z.shape[0] == len(self.ds[self.y])
+            assert z.shape[1] == len(self.ds[self.x])
+
+            zcs = z[self.rows, self.cols]
+        x = self.s.ravel()
+        y = zcs[sorted(list(range(len(zcs))) * 2)]
         return self.ax.plot(x, y, **kwargs)
 
     def get_top_and_bot(self, top, bot):
@@ -317,11 +367,15 @@ class DatasetCrossSection:
         # # hack for single layer datasets
         # if len(bot.shape) == 2:
         #     bot = np.vstack([bot[np.newaxis], bot[np.newaxis]])
-        if len(top.shape) == 2:
+        if len(top.shape) == len(bot.shape) - 1:
             # the top is defines as the top of the model (like modflow)
             top = np.vstack([top[np.newaxis], bot[:-1]])
-        top = top[:, self.rows, self.cols]
-        bot = bot[:, self.rows, self.cols]
+        if self.icell2d in self.ds.dims:
+            top = top[:, self.icell2ds]
+            bot = bot[:, self.icell2ds]
+        else:
+            top = top[:, self.rows, self.cols]
+            bot = bot[:, self.rows, self.cols]
         if self.zmin:
             top[top < self.zmin] = self.zmin
             bot[bot < self.zmin] = self.zmin

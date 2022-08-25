@@ -50,6 +50,8 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
     ahn_ds_raw = get_ahn_within_extent(
         extent=model_ds.extent, url=url, identifier=identifier
     )
+    
+    #assert not ahn_ds_raw.isnull().all(), 'AHN only has nan values'
 
     if model_ds.gridtype == "structured":
         ahn_ds = mdims.resample_dataarray2d_to_structured_grid(
@@ -77,17 +79,19 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
 
 def split_ahn_extent(
     extent,
-    res,
     x_segments,
     y_segments,
     maxsize,
-    tmp_dir=None,
-    as_data_array=True,
-    **kwargs,
-):
-    """There is a max height and width limit of 2000 * res for the wcs server.
-    This function splits your extent in chunks smaller than the limit. It
-    returns a list of gdal Datasets.
+    res,
+    url,
+    identifier,
+    version, 
+    fmt,
+    crs):
+    """There is a max height and width limit for the wcs server. This function
+    splits your extent in chunks smaller than the limit. It returns a list of
+    Memory files.
+    
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -100,12 +104,11 @@ def split_ahn_extent(
         number of tiles on the y axis
     maxsize : int or float
         maximum widht or height of ahn tile
-    tmp_dir : str, optional
-        Path-like to cache the downloads
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
     **kwargs :
         keyword arguments of the get_ahn_extent function.
+        
     Returns
     -------
     xr.DataArray or MemoryFile
@@ -117,72 +120,56 @@ def split_ahn_extent(
     what kind of interpolation is used to resample the original grid.
     """
 
-    # needs a temporary folder to store the individual ahn tiffs before merge
-    with tempfile.TemporaryDirectory() as tempfile_tmp_dir:
-        if tmp_dir is None:
-            logger.debug(
-                f"- Created temporary directory {tempfile_tmp_dir}. "
-                "To store ahn tiffs of subextents"
-            )
-            tmp_dir_path = tempfile_tmp_dir
+    # write tiles
+    datasets = []
+    start_x = extent[0]
+    pbar = tqdm(total=x_segments * y_segments)
+    for tx in range(x_segments):
+        if (tx + 1) == x_segments:
+            end_x = extent[1]
         else:
-            logger.info(f"- Use {tmp_dir} to store ahn tiffs of subextents")
-            tmp_dir_path = tmp_dir
-
-        # write tiles
-        datasets = []
-        start_x = extent[0]
-        pbar = tqdm(total=x_segments * y_segments)
-        for tx in range(x_segments):
-            if (tx + 1) == x_segments:
-                end_x = extent[1]
+            end_x = start_x + maxsize * res
+        start_y = extent[2]
+        for ty in range(y_segments):
+            if (ty + 1) == y_segments:
+                end_y = extent[3]
             else:
-                end_x = start_x + maxsize * res
-            start_y = extent[2]
-            for ty in range(y_segments):
-                if (ty + 1) == y_segments:
-                    end_y = extent[3]
-                else:
-                    end_y = start_y + maxsize * res
-                subextent = [start_x, end_x, start_y, end_y]
-                logger.debug(
-                    f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
-                )
+                end_y = start_y + maxsize * res
+            subextent = [start_x, end_x, start_y, end_y]
+            logger.debug(
+                f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
+            )
+            
+            memfile =  _download_ahn(subextent, res, url, 
+                                 identifier, version, fmt, 
+                                 crs)
 
-                datasets.append(
-                    get_ahn_within_extent(
-                        subextent,
-                        res=res,
-                        tmp_dir=tmp_dir_path,
-                        maxsize=maxsize,
-                        as_data_array=False,
-                        **kwargs,
-                    )
-                )
-                start_y = end_y
-                pbar.update(1)
+            datasets.append(memfile)
+            start_y = end_y
+            pbar.update(1)
 
-            start_x = end_x
+        start_x = end_x
 
-        pbar.close()
-        memfile = MemoryFile()
-        merge.merge([b.open() for b in datasets], dst_path=memfile)
-    if as_data_array:
-        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        return da
+    pbar.close()
+    memfile = MemoryFile()
+    merge.merge([b.open() for b in datasets], dst_path=memfile)
+    
     return memfile
 
 
 def _infer_url(identifier=None):
     """infer the url from the identifier.
+    
     Parameters
     ----------
     identifier : TYPE, optional
         DESCRIPTION. The default is None.
+        
     Raises
     ------
     ValueError
         DESCRIPTION.
+        
     Returns
     -------
     url : TYPE
@@ -215,8 +202,7 @@ def get_ahn_within_extent(
     fmt="GEOTIFF_FLOAT32",
     crs="EPSG:28992",
     maxsize=2000,
-    tmp_dir=None,
-    as_data_array=True,
+    tmp_dir=None
 ):
     """
     Parameters
@@ -251,13 +237,10 @@ def get_ahn_within_extent(
         geotif format . The default is 'GEOTIFF_FLOAT32'.
     crs : str, optional
         coördinate reference system. The default is 'EPSG:28992'.
-    tmp_dir : str
-        Path-like to temporairly store the downloads before merge.
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
         2000.
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
+    
     Returns
     -------
     xr.DataArray or MemoryFile
@@ -311,20 +294,59 @@ def get_ahn_within_extent(
         st = f"""requested ahn raster width or height bigger than {maxsize*res}
             -> splitting extent into {x_segments} * {y_segments} tiles"""
         logger.info(st)
-        return split_ahn_extent(
+        memfile = split_ahn_extent(
             extent,
-            res,
             x_segments,
             y_segments,
             maxsize,
-            identifier=identifier,
-            version=version,
-            fmt=fmt,
-            crs=crs,
-            tmp_dir=tmp_dir,
-            as_data_array=as_data_array,
-        )
+            res,
+            url,
+            identifier,
+            version,
+            fmt,
+            crs)
+        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
+    else:
+        memfile = _download_ahn(extent, res, url, identifier, version, fmt, crs)
+        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
+        # load the data from the memfile otherwise lazy loading of xarray causes problems
+        da.load()
+        
+    return da
 
+
+def _download_ahn(extent, res, url, identifier, version, fmt, crs):
+    """ Download the ahn using a webservice, return a MemoryFile
+    
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    res : float, optional
+        resolution of ahn raster
+    url : str
+        webservice url.
+    identifier : str
+        identifier.
+    version : str
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+    fmt : str, optional
+        geotif format
+    crs : str, optional
+        coördinate reference system
+
+    Raises
+    ------
+    Exception
+        wrong version
+
+    Returns
+    -------
+    memfile : rasterio.io.MemoryFile
+        MemoryFile.
+
+    """
     # download file
     logger.debug(
         f"- download ahn between: x ({str(extent[0])}, {str(extent[1])}); "
@@ -349,12 +371,12 @@ def get_ahn_within_extent(
         )
     else:
         raise Exception(f"Version {version} not yet supported")
-
+    
     memfile = MemoryFile(output.read())
-    if as_data_array:
-        da = rioxarray.open_rasterio(memfile, mask_and_scale=True)[0]
-        return da
     return memfile
+    
+    
+   
 
 
 def get_ahn4_tiles(extent=None):
@@ -368,6 +390,7 @@ def get_ahn4_tiles(extent=None):
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     """
     Download AHN4
+    
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -377,6 +400,7 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
         'AHN4_DSM_5m'. The default is "AHN4_DTM_5m".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
+    
     Returns
     -------
     xr.DataArray or MemoryFile

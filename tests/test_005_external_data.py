@@ -31,6 +31,25 @@ def test_get_recharge_steady_state():
     return model_ds
 
 
+def test_ahn_within_extent():
+    
+    extent = [95000., 105000., 494000., 500000.]
+    da = nlmod.read.ahn.get_ahn_within_extent(extent)
+    
+    assert not da.isnull().all(), 'AHN only has nan values'
+    
+    return da
+    
+
+def test_ahn_split_extent():
+    
+    extent = [95000., 105000., 494000., 500000.]
+    da = nlmod.read.ahn.get_ahn_within_extent(extent, maxsize=1000)
+    
+    assert not da.isnull().all(), 'AHN only has nan values'
+    
+    return da
+
 def test_get_ahn():
 
     # model with sea
@@ -48,8 +67,20 @@ def test_get_surface_water_ghb():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache("sea_model_grid")
-    sim, gwf = nlmod.mfpackages.sim_tdis_gwf_ims_from_model_ds(model_ds)
-    nlmod.mfpackages.dis_from_model_ds(model_ds, gwf)
+    
+    # create simulation 
+    sim = nlmod.gwf.sim_from_model_ds(model_ds)
+    
+    # create time discretisation
+    tdis = nlmod.gwf.tdis_from_model_ds(model_ds, sim)
+    
+    # create groundwater flow model
+    gwf = nlmod.gwf.gwf_from_model_ds(model_ds, sim)
+    
+    # create ims
+    ims = nlmod.gwf.ims_to_sim(sim)
+    
+    nlmod.gwf.dis_from_model_ds(model_ds, gwf)
 
     # add surface water levels to the model dataset
     model_ds.update(

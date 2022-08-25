@@ -463,7 +463,7 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.0):
             f"expected extent of type list, tuple or np.ndarray, got {type(extent)}"
         )
 
-    logger.info(f"redefining current extent: {extent}, fit to regis raster")
+    logger.debug(f"redefining current extent: {extent}, fit to regis raster")
 
     for d in [delr, delc]:
         available_cell_sizes = [
@@ -498,7 +498,7 @@ def fit_extent_to_regis(extent, delr, delc, cs_regis=100.0):
     nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
     extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
 
-    logger.info(
+    logger.debug(
         f"new extent is {extent} model has {nrow} rows and {ncol} columns"
     )
 

@@ -6,8 +6,8 @@
 
 import os
 
-from . import mdims, mfpackages, read, util, visualise
-from .mdims import mbase, mgrid, mlayers, mtime, resample
+from . import mdims, gwf, modpath, read, util, visualise
+from .mdims import *
 from .version import __version__
 from .visualise import plots as plot
 

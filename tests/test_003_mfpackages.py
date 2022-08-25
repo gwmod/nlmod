@@ -95,7 +95,7 @@ def ghb_from_model_ds(tmpdir):
     return ghb
 
 
-def rch_from_model_ds():
+def rch_from_model_ds(tmpdir):
     model_ds = test_001_model.test_get_model_ds_from_cache("full_sea_model")
     sim, gwf = test_sim_tdis_gwf_ims_from_model_ds(tmpdir)
     nlmod.gwf.dis_from_model_ds(model_ds, gwf)

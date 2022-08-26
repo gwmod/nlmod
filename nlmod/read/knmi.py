@@ -80,9 +80,9 @@ def get_recharge(model_ds, nodata=None):
     )
 
     # find unique combination of precipitation and evaporation station
-    unique_combinations = locations.drop_duplicates(
+    unique_combinations = locations.drop_duplicates(["prec_point", "evap_point"])[
         ["prec_point", "evap_point"]
-    )[["prec_point", "evap_point"]].values
+    ].values
 
     for prec_evap in unique_combinations:
         # get locations with the same prec and evap station
@@ -121,27 +121,19 @@ def get_recharge(model_ds, nodata=None):
                         .mean()
                     )
                 else:
-                    model_recharge.loc[ts] = (
-                        recharge_ts.loc[ts:end].iloc[:-1].mean()
-                    )
+                    model_recharge.loc[ts] = recharge_ts.loc[ts:end].iloc[:-1].mean()
 
             # add data to model_ds_out
             if model_ds.gridtype == "structured":
                 for row, col in zip(loc_sel.row, loc_sel.col):
-                    model_ds_out["recharge"].data[
-                        row, col, :
-                    ] = model_recharge.values
+                    model_ds_out["recharge"].data[row, col, :] = model_recharge.values
 
             elif model_ds.gridtype == "vertex":
-                model_ds_out["recharge"].loc[
-                    loc_sel.index, :
-                ] = model_recharge.values
+                model_ds_out["recharge"].loc[loc_sel.index, :] = model_recharge.values
 
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs["source"] = "KNMI"
-        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime(
-            "%Y%m%d"
-        )
+        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
         model_ds_out[datavar].attrs["units"] = "m/day"
 
     return model_ds_out
@@ -206,8 +198,7 @@ def get_locations_structured(model_ds, nodata=-999):
     x = [model_ds["x"].data[col] for col in columns]
     y = [model_ds["y"].data[row] for row in rows]
     layers = [
-        model_ds["first_active_layer"].data[row, col]
-        for row, col in zip(rows, columns)
+        model_ds["first_active_layer"].data[row, col] for row, col in zip(rows, columns)
     ]
 
     locations = hpd.ObsCollection(

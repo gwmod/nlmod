@@ -18,9 +18,7 @@ from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 
 
-def get_bgt(
-    extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None
-):
+def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None):
     """
     Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
@@ -227,9 +225,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     )
                     label = nar.find(f"{ns}Label")
                     d["label"] = label.find(f"{ns}tekst").text
-                    positie = label.find(f"{ns}positie").find(
-                        f"{ns}Labelpositie"
-                    )
+                    positie = label.find(f"{ns}positie").find(f"{ns}Labelpositie")
                     xy = read_point(
                         positie.find(f"{ns}plaatsingspunt").find(
                             "{http://www.opengis.net/gml}Point"
@@ -254,9 +250,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
                     label = child.find(f"{ns}Label")
                     d["label"] = label.find(f"{ns}tekst").text
-                    positie = label.find(f"{ns}positie").find(
-                        f"{ns}Labelpositie"
-                    )
+                    positie = label.find(f"{ns}positie").find(f"{ns}Labelpositie")
                     xy = read_point(
                         positie.find(f"{ns}plaatsingspunt").find(
                             "{http://www.opengis.net/gml}Point"

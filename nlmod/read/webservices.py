@@ -16,9 +16,7 @@ from shapely.geometry import Polygon, MultiPolygon
 # from owslib.wfs import WebFeatureService
 
 
-def arcrest(
-    url, layer, extent=None, sr=28992, f="geojson", max_record_count=None
-):
+def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=None):
     """Download data from an arcgis rest FeatureServer"""
     params = {
         "f": f,
@@ -79,10 +77,7 @@ def arcrest(
         # convert to geometry
         data = []
         for feature in features:
-            if (
-                len(feature["geometry"]) > 1
-                or "rings" not in feature["geometry"]
-            ):
+            if len(feature["geometry"]) > 1 or "rings" not in feature["geometry"]:
                 raise (Exception("Not supported yet"))
             if len(feature["geometry"]["rings"]) == 1:
                 geometry = Polygon(feature["geometry"]["rings"][0])
@@ -106,9 +101,7 @@ def arcrest(
     return gdf
 
 
-def wfs(
-    url, layer, extent=None, version="2.0.0", paged=True, max_record_count=None
-):
+def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=None):
     """Download data from a wfs server"""
     params = dict(version=version, request="GetFeature", typeName=layer)
     if extent is not None:
@@ -150,9 +143,7 @@ def wfs(
         if max_record_count is None:
             max_record_count = constraints["CountDefault"]
         else:
-            max_record_count = min(
-                max_record_count, constraints["CountDefault"]
-            )
+            max_record_count = min(max_record_count, constraints["CountDefault"])
 
         # get the number of features
         params["resultType"] = "hits"

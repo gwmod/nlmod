@@ -6,12 +6,13 @@
 import logging
 import numbers
 import os
-import sys
 
 import flopy
 import numpy as np
-import pandas as pd
 import xarray as xr
+import datetime as dt
+
+from shutil import copyfile
 
 from .. import mdims
 from . import recharge
@@ -19,10 +20,58 @@ from . import recharge
 logger = logging.getLogger(__name__)
 
 
-def sim_tdis_gwf_ims_from_model_ds(
-    model_ds, complexity="MODERATE", exe_name=None
-):
-    """create sim, tdis, gwf and ims package from the model dataset.
+def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
+    """write modflow files and run the model.
+
+    2 extra options:
+        1. write the model dataset to cache
+        2. copy the modelscript (typically a Jupyter Notebook) to the model
+           workspace with a timestamp.
+
+
+    Parameters
+    ----------
+    gwf : flopy.mf6.ModflowGwf
+        groundwater flow model.
+    model_ds : xarray.Dataset
+        dataset with model data.
+    write_model_ds : bool, optional
+        if True the model dataset is cached. The default is True.
+    nb_path : str or None, optional
+        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
+        default is None. Preferably this path does not have to be given
+        manually but there is currently no good option to obtain the filename
+        of a Jupyter Notebook from within the notebook itself.
+    """
+
+    if nb_path is not None:
+        new_nb_fname = (
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+        )
+        dst = os.path.join(model_ds.model_ws, new_nb_fname)
+        logger.info(f"write script {new_nb_fname} to model workspace")
+        copyfile(nb_path, dst)
+
+    if write_model_ds:
+        logger.info("write model dataset to cache")
+        model_ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
+            "%Y%m%d_%H:%M:%S"
+        )
+        model_ds.to_netcdf(os.path.join(model_ds.attrs["cachedir"], "full_model_ds.nc"))
+
+    logger.info("write modflow files to model workspace")
+    gwf.simulation.write_simulation()
+    model_ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S"
+    )
+
+    logger.info("run model")
+    assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
+    model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+
+
+def gwf_from_model_ds(model_ds, sim):
+    """create groundwater flow model from the model dataset.
 
     Parameters
     ----------
@@ -30,48 +79,17 @@ def sim_tdis_gwf_ims_from_model_ds(
         dataset with model data. Should have the dimension 'time' and the
         attributes: model_name, mfversion, model_ws, time_units, start_time,
         perlen, nstp, tsmult
-    exe_name: str, optional
-        path to modflow executable, default is None, which assumes binaries
-        are available in nlmod/bin directory. Binaries can be downloaded
-        using `nlmod.util.download_mfbinaries()`.
+    sim : flopy MFSimulation
+        simulation object.
 
     Returns
     -------
-    sim : flopy MFSimulation
-        simulation object.
     gwf : flopy ModflowGwf
         groundwaterflow object.
     """
 
     # start creating model
-    logger.info("creating modflow SIM, TDIS, GWF and IMS")
-
-    if exe_name is None:
-        exe_name = os.path.join(
-            os.path.dirname(__file__), "..", "bin", model_ds.mfversion
-        )
-        if sys.platform.startswith("win"):
-            exe_name += ".exe"
-
-    # Create the Flopy simulation object
-    sim = flopy.mf6.MFSimulation(
-        sim_name=model_ds.model_name,
-        exe_name=exe_name,
-        version=model_ds.mfversion,
-        sim_ws=model_ds.model_ws,
-    )
-
-    tdis_perioddata = get_tdis_perioddata(model_ds)
-
-    # Create the Flopy temporal discretization object
-    flopy.mf6.modflow.mftdis.ModflowTdis(
-        sim,
-        pname="tdis",
-        time_units=model_ds.time.time_units,
-        nper=len(model_ds.time),
-        start_date_time=model_ds.time.start_time,
-        perioddata=tdis_perioddata,
-    )
+    logger.info("creating modflow GWF")
 
     # Create the Flopy groundwater flow (gwf) model object
     model_nam_file = f"{model_ds.model_name}.nam"
@@ -79,12 +97,35 @@ def sim_tdis_gwf_ims_from_model_ds(
         sim, modelname=model_ds.model_name, model_nam_file=model_nam_file
     )
 
+    return gwf
+
+
+def ims_to_sim(sim, complexity="MODERATE"):
+    """create IMS package
+
+
+    Parameters
+    ----------
+    sim : flopy MFSimulation
+        simulation object.
+    complexity : str, optional
+        solver complexity for default settings. The default is "MODERATE".
+
+    Returns
+    -------
+    ims : flopy ModflowIms
+        ims object.
+
+    """
+
+    logger.info("creating modflow IMS")
+
     # Create the Flopy iterative model solver (ims) Package object
-    flopy.mf6.modflow.mfims.ModflowIms(
+    ims = flopy.mf6.modflow.mfims.ModflowIms(
         sim, pname="ims", print_option="summary", complexity=complexity
     )
 
-    return sim, gwf
+    return ims
 
 
 def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
@@ -302,22 +343,16 @@ def ic_from_model_ds(model_ds, gwf, starting_head="starting_head"):
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
-        model_ds["starting_head"] = starting_head * xr.ones_like(
-            model_ds["idomain"]
-        )
+        model_ds["starting_head"] = starting_head * xr.ones_like(model_ds["idomain"])
         model_ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(
-        gwf, pname="ic", strt=model_ds[starting_head].data
-    )
+    ic = flopy.mf6.ModflowGwfic(gwf, pname="ic", strt=model_ds[starting_head].data)
 
     return ic
 
 
-def sto_from_model_ds(
-    model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False
-):
+def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False):
     """get storage package from model dataset.
 
     Parameters
@@ -393,9 +428,7 @@ def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head"):
         )
     elif model_ds.gridtype == "vertex":
         cellids = np.where(model_ds[chd])
-        chd_rec = list(
-            zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0]))
-        )
+        chd_rec = list(zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0])))
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -499,7 +532,7 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True, print_head=True):
     # Create the output control package
     headfile = f"{model_ds.model_name}.hds"
     head_filerecord = [headfile]
-    budgetfile = f"{model_ds.model_name}.cbb"
+    budgetfile = f"{model_ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
     saverecord = [("HEAD", "LAST")]
     if save_budget:
@@ -519,40 +552,3 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True, print_head=True):
     )
 
     return oc
-
-
-def get_tdis_perioddata(model_ds):
-    """Get tdis_perioddata from model_ds.
-
-    Parameters
-    ----------
-    model_ds : xarray.Dataset
-        dataset with time variant model data
-
-    Returns
-    -------
-    tdis_perioddata : [perlen, nstp, tsmult]
-        - perlen (double) is the length of a stress period.
-        - nstp (integer) is the number of time steps in a stress period.
-        - tsmult (double) is the multiplier for the length of successive time
-          steps. The length of a time step is calculated by multiplying the
-          length of the previous time step by TSMULT. The length of the first
-          time step, :math:`\\Delta t_1`, is related to PERLEN, NSTP, and
-          TSMULT by the relation :math:`\\Delta t_1= perlen \frac{tsmult -
-          1}{tsmult^{nstp}-1}`.
-    """
-    dt = pd.to_timedelta(1, model_ds.time.time_units)
-    perlen = [
-        (
-            pd.to_datetime(model_ds["time"].data[0])
-            - pd.to_datetime(model_ds.time.start_time)
-        )
-        / dt
-    ]
-    if len(model_ds["time"]) > 1:
-        perlen.extend(np.diff(model_ds["time"]) / dt)
-    tdis_perioddata = [
-        (p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen
-    ]
-
-    return tdis_perioddata

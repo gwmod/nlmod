@@ -10,7 +10,7 @@ import xarray as xr
 from tqdm import tqdm
 
 from .. import mdims
-from . import mfpackages
+from .sim import get_tdis_perioddata
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +95,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
             )
 
             # check if reshaping is correct
-            if not (
-                model_ds["recharge"].values[:, 0, 0] == rch_2d_arr[0]
-            ).all():
+            if not (model_ds["recharge"].values[:, 0, 0] == rch_2d_arr[0]).all():
                 raise ValueError(
                     "reshaping recharge to calculate unique time series did not work out as expected"
                 )
@@ -112,9 +110,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
             )
 
             # check if reshaping is correct
-            if not (
-                model_ds["recharge"].values[0, 0, :] == rch_2d_arr[0]
-            ).all():
+            if not (model_ds["recharge"].values[0, 0, :] == rch_2d_arr[0]).all():
                 raise ValueError(
                     "reshaping recharge to calculate unique time series did not work out as expected"
                 )
@@ -161,9 +157,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
         rch_unique_arr = np.unique(rch_2d_arr, axis=0)
         rch_unique_dic = {}
         for i, unique_rch in enumerate(rch_unique_arr):
-            model_ds["rch_name"][
-                (rch_2d_arr == unique_rch).all(axis=1)
-            ] = f"rch_{i}"
+            model_ds["rch_name"][(rch_2d_arr == unique_rch).all(axis=1)] = f"rch_{i}"
             rch_unique_dic[f"rch_{i}"] = unique_rch
 
         mask = model_ds["rch_name"] != ""
@@ -187,7 +181,7 @@ def model_datasets_to_rch(gwf, model_ds, print_input=False):
     )
 
     # get timesteps
-    tdis_perioddata = mfpackages.get_tdis_perioddata(model_ds)
+    tdis_perioddata = get_tdis_perioddata(model_ds)
     perlen_arr = [t[0] for t in tdis_perioddata]
     time_steps_rch = [0.0] + np.array(perlen_arr).cumsum().tolist()
 

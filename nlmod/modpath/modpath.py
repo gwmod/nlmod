@@ -1,5 +1,4 @@
 import os
-import sys
 import flopy
 import numbers
 
@@ -15,8 +14,6 @@ from .. import util
 import logging
 
 logger = logging.getLogger(__name__)
-
-
 
 
 def write_and_run_model(mpf, remove_prev_output=True, nb_path=None):
@@ -212,7 +209,7 @@ def mpf(gwf, exe_name=None):
 
     # get executable
     if exe_name is None:
-        exe_name = util.get_exe_path('mp7')
+        exe_name = util.get_exe_path("mp7")
 
     # create mpf model
     mpf = flopy.modpath.Modpath7(

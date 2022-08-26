@@ -7,9 +7,6 @@
 -   fill, interpolate and resample grid data
 """
 import logging
-import os
-import sys
-
 import flopy
 import pandas as pd
 import geopandas as gpd
@@ -192,8 +189,8 @@ def refine(
         yorigin=ds.extent[2],
     )
     if exe_name is None:
-        exe_name = util.get_exe_path('gridgen')
-        
+        exe_name = util.get_exe_path("gridgen")
+
     if model_ws is None:
         model_ws = ds.model_ws
     g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)

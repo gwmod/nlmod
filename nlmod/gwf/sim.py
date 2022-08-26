@@ -14,8 +14,6 @@ from .. import util
 logger = logging.getLogger(__name__)
 
 
-
-
 def get_tdis_perioddata(model_ds):
     """Get tdis_perioddata from model_ds.
 
@@ -48,7 +46,7 @@ def get_tdis_perioddata(model_ds):
         perlen.extend(np.diff(model_ds["time"]) / deltat)
     tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
 
-    return tdis_perioddata  
+    return tdis_perioddata
 
 
 def sim_from_model_ds(model_ds, exe_name=None):

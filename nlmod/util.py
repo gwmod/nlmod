@@ -48,10 +48,10 @@ def get_model_dirs(model_ws):
     return figdir, cachedir
 
 
-def get_exe_path(exe_name='mf6'):
+def get_exe_path(exe_name="mf6"):
     """get the full path of the executable. Uses the bin directory in the
     nlmod package.
-    
+
 
     Parameters
     ----------
@@ -64,12 +64,10 @@ def get_exe_path(exe_name='mf6'):
         full path of the executable.
 
     """
-    exe_path = os.path.join(
-        os.path.dirname(__file__), "bin", exe_name
-    )
+    exe_path = os.path.join(os.path.dirname(__file__), "bin", exe_name)
     if sys.platform.startswith("win"):
         exe_path += ".exe"
-        
+
     return exe_path
 
 

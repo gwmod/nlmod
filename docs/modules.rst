@@ -42,6 +42,11 @@ read
    :members:
    :undoc-members:
    :private-members:
+   
+.. automodule:: nlmod.read.waterboard
+   :members:
+   :undoc-members:
+   :private-members:
 
 
 mdims
@@ -72,30 +77,35 @@ mdims
    :undoc-members:
    :private-members:
 
-mfpackages
-^^^^^^^^^^
+gwf
+^^^
 
-.. automodule:: nlmod.mfpackages.gwf
+.. automodule:: nlmod.gwf.sim
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mfpackages.recharge
+.. automodule:: nlmod.gwf.gwf
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mfpackages.surface_water
+.. automodule:: nlmod.gwf.recharge
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mfpackages.constant_head
+.. automodule:: nlmod.gwf.surface_water
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mfpackages.horizontal_flow_barrier
+.. automodule:: nlmod.gwf.constant_head
+   :members:
+   :undoc-members:
+   :private-members:
+
+.. automodule:: nlmod.gwf.horizontal_flow_barrier
    :members:
    :undoc-members:
    :private-members:

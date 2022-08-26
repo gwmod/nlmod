@@ -192,9 +192,8 @@ def refine(
         yorigin=ds.extent[2],
     )
     if exe_name is None:
-        exe_name = os.path.join(os.path.dirname(__file__), "..", "bin", "gridgen")
-        if sys.platform.startswith("win"):
-            exe_name += ".exe"
+        exe_name = util.get_exe_path('gridgen')
+        
     if model_ws is None:
         model_ws = ds.model_ws
     g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)

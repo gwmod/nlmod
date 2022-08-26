@@ -4,14 +4,16 @@
 @author: oebbe
 """
 import logging
-import os
-import sys
 
 import flopy
 import numpy as np
 import pandas as pd
 
+from .. import util
+
 logger = logging.getLogger(__name__)
+
+
 
 
 def get_tdis_perioddata(model_ds):
@@ -46,7 +48,7 @@ def get_tdis_perioddata(model_ds):
         perlen.extend(np.diff(model_ds["time"]) / deltat)
     tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
 
-    return tdis_perioddata
+    return tdis_perioddata  
 
 
 def sim_from_model_ds(model_ds, exe_name=None):
@@ -73,11 +75,7 @@ def sim_from_model_ds(model_ds, exe_name=None):
     logger.info("creating modflow SIM")
 
     if exe_name is None:
-        exe_name = os.path.join(
-            os.path.dirname(__file__), "..", "bin", model_ds.mfversion
-        )
-        if sys.platform.startswith("win"):
-            exe_name += ".exe"
+        exe_name = util.get_exe_path(model_ds.mfversion)
 
     # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(

@@ -48,6 +48,31 @@ def get_model_dirs(model_ws):
     return figdir, cachedir
 
 
+def get_exe_path(exe_name='mf6'):
+    """get the full path of the executable. Uses the bin directory in the
+    nlmod package.
+    
+
+    Parameters
+    ----------
+    exe_name : str, optional
+        name of the executable. The default is 'mf6'.
+
+    Returns
+    -------
+    exe_path : str
+        full path of the executable.
+
+    """
+    exe_path = os.path.join(
+        os.path.dirname(__file__), "bin", exe_name
+    )
+    if sys.platform.startswith("win"):
+        exe_path += ".exe"
+        
+    return exe_path
+
+
 def get_model_ds_empty(model_ds):
     """get a copy of a model dataset with only grid and time information.
 

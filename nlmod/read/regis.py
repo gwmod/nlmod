@@ -75,22 +75,22 @@ def get_combined_layer_models(
 
 
 @cache.cache_netcdf
-def get_regis(extent, botm_layer="AKc"):
+def get_regis(extent, botm_layer="AKc", variables=["top", "botm", "kh", "kv"]):
     """get a regis dataset projected on the modelgrid.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float, optional
-        cell size along rows, equal to dx. The default is 100 m.
-    delc : int or float, optional
-        cell size along columns, equal to dy. The default is 100 m.
     botm_layer : str, optional
         regis layer that is used as the bottom of the model. This layer is
         included in the model. the Default is "AKc" which is the bottom
-        layer of regis. call nlmod.regis.get_layer_names() to get a list of
-        regis names.
+        layer of regis. call nlmod.read.regis.get_layer_names() to get a list
+        of regis names.
+    variables : list, optional
+        a list of the variables to keep from the regis Dataset. Possible
+        entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
+        'sdv'. The default is ["top", "botm", "kh", "kv"].
 
     Returns
     -------
@@ -118,7 +118,7 @@ def get_regis(extent, botm_layer="AKc"):
     ds = ds.rename_vars({"bottom": "botm"})
 
     # slice data vars
-    ds = ds[["top", "botm", "kh", "kv"]]
+    ds = ds[variables]
 
     ds.attrs["extent"] = extent
     for datavar in ds:
@@ -131,6 +131,10 @@ def get_regis(extent, botm_layer="AKc"):
             ds[datavar].attrs["units"] = "m/day"
         # set _FillValue to NaN, otherise problems with caching will arise
         ds[datavar].encoding["_FillValue"] = np.NaN
+
+    # set the crs to dutch rd-coordinates
+    ds.rio.set_crs(28992)
+
     return ds
 
 
@@ -164,7 +168,7 @@ def to_model_ds(
     delr : float, optional
         The gridsize along columns. The default is 100. meter.
     delc : float, optional
-        THe gridsize along rows. Set to delr when None. The default is None.
+        The gridsize along rows. Set to delr when None. The default is None.
     remove_nan_layers : bool, optional
         if True regis and geotop layers with only nans are removed from the
         model. if False nan layers are kept which might be usefull if you want
@@ -497,6 +501,6 @@ def get_layer_names():
         array with names of all the regis layers.
     """
 
-    layer_names = xr.open_dataset(REGIS_URL).layer.values
+    layer_names = xr.open_dataset(REGIS_URL).layer.astype(str).values
 
     return layer_names

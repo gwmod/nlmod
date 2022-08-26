@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 
 from . import resample
-from ..read import jarkus, rws
+from ..read import jarkus, rws, regis
 
 logger = logging.getLogger(__name__)
 
@@ -677,6 +677,43 @@ def add_kh_kv_from_ml_layer_to_dataset(
     return model_ds
 
 
+def set_model_top(ds, top):
+    """
+    Set the model top, changing layer bottoms when necessary as well
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        The model dataset, containing the current top.
+    top : xarray.DataArray
+        The new model top, with the same shape as the current top.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        The model dataset, containing the new top.
+
+    """
+    if "gridtype" not in ds.attrs:
+        raise (Exception("Make sure the Dataset is build by nlmod"))
+    if not top.shape == ds["top"].shape:
+        raise (
+            Exception("Please make sure the new top has the same shape as the old top")
+        )
+    if np.any(np.isnan(top)):
+        raise (Exception("PLease make sure the new top does not contain nans"))
+    # where the botm is equal to the top, the layer is inactive
+    # set the botm to the new top at these locations
+    ds["botm"] = ds["botm"].where(ds["botm"] != ds["top"], top)
+    # make sure the botm is never higher than the new top
+    ds["botm"] = ds["botm"].where(ds["botm"] < top, top)
+    # change the current top
+    ds["top"] = top
+    # recalculate idomain
+    set_idomain(ds)
+    return ds
+
+
 def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
     """maak kh en kv rasters voor flopy vanuit een regis raster met nan
     waardes.
@@ -827,9 +864,6 @@ def fill_nan_top_botm_kh_kv(
     # 2
     ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
 
-    # only keep the first layer of top
-    ds["top"] = ds["top"][0]
-
     # 3
     ds["kh"], ds["kv"] = get_kh_kv(
         ds["kh"],
@@ -842,7 +876,10 @@ def fill_nan_top_botm_kh_kv(
 
 
 def fill_top_and_bottom(ds):
-    top = ds["top"].max("layer").data
+    """Remove Nans in botm variable, and change top from 3d to 2d if needed"""
+    if "layer" in ds["top"].dims:
+        ds["top"] = ds["top"].max("layer")
+    top = ds["top"].data
     botm = ds["botm"].data
     # remove nans from botm
     for lay in range(botm.shape[0]):
@@ -853,8 +890,7 @@ def fill_top_and_bottom(ds):
         else:
             # by setting the botm to the botm of the layer above
             botm[lay, mask] = botm[lay - 1, mask]
-    ds["top"].data[0] = top
-    ds["top"].data[1:] = botm[:-1]
+    ds["top"].data = top
     return ds
 
 
@@ -1002,3 +1038,124 @@ def update_idomain_from_thickness(idomain, thickness, mask):
             idomain[ilay] = xr.where(mask3, 1, idomain[ilay])
 
     return idomain
+
+
+def get_default_model_ds(
+    extent,
+    delr=100.0,
+    delc=None,
+    model_name=None,
+    model_ws=None,
+    layer=10,
+    top=0.0,
+    botm=None,
+    kh=10.0,
+    kv=1.0,
+    crs=28992,
+    attrs=None,
+    **kwargs,
+):
+    """
+    Create a model dataset from scratch, so without a layer model.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    delr : float, optional
+        The gridsize along columns. The default is 100. meter.
+    delc : float, optional
+        The gridsize along rows. Set to delr when None. The default is None.
+    layer : int, list, tuple or ndarray, optional
+        The layers of the model. When layer is an integer it is the number of
+        layers. The default is 10.
+    top : float, list or ndarray, optional
+        The top of the model. It has to be of shape (len(y), len(x)) or it is
+        transformed into that shape if top is a float. The default is 0.0.
+    botm : list or ndarray, optional
+        The botm of the model layers. It has to be of shape
+        (len(layer), len(y), len(x)) or it is transformed to that shape if botm
+        is or a list/array of len(layer). When botm is None, a botm is
+        generated with a constant layer thickness of 10 meter. The default is
+        None.
+    kh : float, list or ndarray, optional
+        The horizontal conductivity of the model layers. It has to be of shape
+        (len(layer), len(y), len(x)) or it is transformed to that shape if kh
+        is a float or a list/array of len(layer). The default is 10.0.
+    kv : float, list or ndarray, optional
+        The vertical conductivity of the model layers. It has to be of shape
+        (len(layer), len(y), len(x)) or it is transformed to that shape if kv
+        is a float or a list/array of len(layer). The default is 1.0.
+    crs : int, optional
+        THe coordinate reference system of the model. The default is 28992.
+    attrs : dict, optional
+        Attributes of the model dataset. The default is None.
+    **kwargs : dict
+        Kwargs are passed into regis.to_model_ds. These can be the model_name
+        or model_ds.
+
+    Returns
+    -------
+    xr.Dataset
+        The model dataset.
+
+    """
+    if delc is None:
+        delc = delr
+    if isinstance(layer, int):
+        layer = np.arange(1, layer + 1)
+    if botm is None:
+        botm = top - 10 * np.arange(1.0, len(layer) + 1)
+    x, y = resample.get_xy_mid_structured(extent, delr, delc)
+
+    def check_variable(var, shape):
+        if isinstance(var, int):
+            # the variable is a single integer
+            var = float(var)
+        if isinstance(var, float):
+            # the variable is a single float
+            var = np.full(shape, var)
+        else:
+            # assume the variable is an array of some kind
+            if not isinstance(var, np.ndarray):
+                var = np.array(var)
+            if var.dtype != float:
+                var = var.astype(float)
+            if len(var.shape) == 1 and len(shape) == 3:
+                # the variable is defined per layer
+                assert len(var) == shape[0]
+                var = var[:, np.newaxis, np.newaxis]
+                var = np.repeat(np.repeat(var, shape[1], 1), shape[2], 2)
+            else:
+                assert var.shape == shape
+        return var
+
+    shape = (len(y), len(x))
+    top = check_variable(top, shape)
+    shape = (len(layer), len(y), len(x))
+    botm = check_variable(botm, shape)
+    kh = check_variable(kh, shape)
+    kv = check_variable(kv, shape)
+
+    dims = ["layer", "y", "x"]
+    ds = xr.Dataset(
+        data_vars=dict(
+            top=(dims[1:], top),
+            botm=(dims, botm),
+            kh=(dims, kh),
+            kv=(dims, kv),
+        ),
+        coords=dict(x=x, y=y, layer=layer),
+        attrs=attrs,
+    )
+    ds = regis.to_model_ds(
+        ds,
+        model_name=model_name,
+        model_ws=model_ws,
+        extent=extent,
+        delr=delr,
+        delc=delc,
+        **kwargs,
+    )
+    ds.rio.set_crs(crs)
+    return ds

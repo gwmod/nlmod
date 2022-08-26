@@ -5,7 +5,6 @@
 
 import datetime as dt
 import logging
-import tempfile
 
 import numpy as np
 import xarray as xr
@@ -187,8 +186,7 @@ def get_ahn_within_extent(
     version="1.0.0",
     fmt="GEOTIFF_FLOAT32",
     crs="EPSG:28992",
-    maxsize=2000,
-    tmp_dir=None,
+    maxsize=2000
 ):
     """
     Parameters

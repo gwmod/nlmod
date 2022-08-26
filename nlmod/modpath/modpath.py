@@ -3,18 +3,19 @@ import sys
 import flopy
 import numbers
 
-import numpy as np
 import pandas as pd
 import geopandas as gpd
 import datetime as dt
 
 from shutil import copyfile
 
+from ..mdims import mgrid
+
 import logging
 
 logger = logging.getLogger(__name__)
 
-from ..mdims import mgrid
+
 
 
 def write_and_run_model(mpf, remove_prev_output=True, nb_path=None):

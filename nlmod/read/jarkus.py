@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_bathymetry(model_ds, northsea):
+def get_bathymetry(model_ds, northsea, method="average"):
     """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
@@ -80,19 +80,9 @@ def get_bathymetry(model_ds, northsea):
     )
 
     # bathymetry projected on model grid
-    if model_ds.gridtype == "structured":
-        da_bathymetry = mdims.resample_dataarray2d_to_structured_grid(
-            da_bathymetry_filled,
-            extent=model_ds.extent,
-            delr=model_ds.delr,
-            delc=model_ds.delc,
-            x=model_ds.x.data,
-            y=model_ds.y.data,
-        )
-    elif model_ds.gridtype == "vertex":
-        da_bathymetry = mdims.resample_dataarray2d_to_vertex_grid(
-            da_bathymetry_filled, model_ds
-        )
+    da_bathymetry = mdims.resample.structured_da_to_ds(
+        da_bathymetry_filled, model_ds, method=method
+    )
 
     model_ds_out["bathymetry"] = xr.where(northsea, da_bathymetry, np.nan)
 

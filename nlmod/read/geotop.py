@@ -316,3 +316,82 @@ def add_stroombanen_and_get_kh(
     geotop_ds_mod["thickness"] = da_thick
 
     return geotop_ds_mod
+
+
+def add_flow_properties(ds, gt, k_dict, kv_dict=None,
+                        add_kD_and_c=False, stochastic=None,
+                        kh='kh', kv='kv', kd='kD', c='c'):
+    assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
+    if isinstance(list(k_dict)[0], str):
+        lith2float = {v: k for k, v in geotop.lithok_translation.items()}
+        k_dict = {lith2float[key]: float(k_dict[key]) for key in k_dict}
+    if kv_dict is None:
+        kv_dict = k_dict
+    if isinstance(list(kv_dict)[0], str):
+        lith2float = {v: k for k, v in geotop.lithok_translation.items()}
+        kv_dict = {lith2float[key]: float(kv_dict[key]) for key in kv_dict}
+    if stochastic is None:
+        gt_k = xr.full_like(gt['lithok'], np.NaN)
+        k_data = gt_k.data
+        lithok_data = gt['lithok'].data
+        for key in np.unique(lithok_data[~np.isnan(lithok_data)]):
+            mask = lithok_data == key
+            k_data[mask] = k_dict[key]
+        gt_kv = gt_k
+    elif stochastic == 'linear':
+        gt_k = xr.full_like(gt['lithok'], 0.0)
+        gt_c = xr.full_like(gt['lithok'], 0.0)
+        k_data = gt_k.data
+        c_data = gt_c.data
+        kans_totaal = xr.full_like(gt['lithok'], 0.0).data
+        for key in k_dict.keys():
+            var = f'kans_{key}'
+            if var not in gt:
+                logging.debug(f'GeoTOP does not contain {var}')
+                continue
+            kans = gt[var].data
+            k_data += kans * k_dict[key]
+            c_data += kans * 1 / kv_dict[key]
+            kans_totaal += kans
+
+        mask = kans_totaal == 0.0
+        if mask.any():
+            # antropogeen does not contain any stochastic information
+            assert np.all(gt['lithok'].data[mask] == 0)
+            k_data[mask] = k_dict[0]
+            c_data[mask] = 1 / kv_dict[0]
+            kans_totaal[mask] = 1.0
+        k_data /= kans_totaal
+        c_data /= kans_totaal
+        gt_kv = 1 / gt_c
+    else:
+        raise(Exception(f'Unsupported value for stochastic: {stochastic}'))
+
+    kD_ar = []
+    c_ar = []
+    kh_ar = []
+    kv_ar = []
+    for layer in ds.layer:
+        top = ds['top'].loc[layer]
+        bot = ds['bottom'].loc[layer]
+
+        gt_top = (gt['z']+0.25).broadcast_like(gt_k)
+        gt_bot = (gt['z']-0.25).broadcast_like(gt_k)
+        gt_top = gt_top.where(gt_top < top, top)
+        gt_top = gt_top.where(gt_top > bot, bot)
+        gt_bot = gt_bot.where(gt_bot < top, top)
+        gt_bot = gt_bot.where(gt_bot > bot, bot)
+        gt_thk = gt_top - gt_bot
+        # kD is the sum of thickness multiplied by conductivity
+        kD_ar.append((gt_thk * gt_k).sum('z'))
+        # c is the sum of thickness devided by conductivity
+        c_ar.append((gt_thk / gt_kv).sum('z'))
+        # caluclate kh and hv
+        D = top - bot
+        kh_ar.append(kD_ar[-1] / D)
+        kv_ar.append(D / c_ar[-1])
+    if add_kD_and_c:
+        ds[kd] = xr.concat(kD_ar, pd.Index(ds.layer,  name='layer'))
+        ds[c] = xr.concat(c_ar, pd.Index(ds.layer,  name='layer'))
+    ds[kh] = xr.concat(kh_ar, pd.Index(ds.layer,  name='layer'))
+    ds[kv] = xr.concat(kv_ar, pd.Index(ds.layer,  name='layer'))

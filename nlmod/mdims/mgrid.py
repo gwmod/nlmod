@@ -188,6 +188,8 @@ def refine(
                 # the feature is a geodataframe
                 gdf, level = refinement_feature
                 geom_types = gdf.geom_type.str.replace("Multi", "")
+                geom_types = geom_types.str.replace("String", "")
+                geom_types = geom_types.str.lower()
                 for geom_type in geom_types.unique():
                     mask = geom_types == geom_type
                     features = [gdf[mask].unary_union]
@@ -197,9 +199,7 @@ def refine(
     g.build()
     gridprops = g.get_gridprops_disv()
     gridprops["area"] = g.get_area()
-    ds = get_resampled_ml_layer_ds_vertex(
-        ds, extent=ds.extent, gridprops=gridprops
-    )
+    ds = get_resampled_ml_layer_ds_vertex(ds, gridprops=gridprops)
     # recalculate idomain, as the interpolation changes idomain to floats
     ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
     return ds

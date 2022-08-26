@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
+def get_ahn(model_ds, identifier="ahn3_5m_dtm", method="average"):
     """Get a model dataset with ahn variable.
 
     Parameters
@@ -43,11 +43,15 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
             'ahn3_5m_dtm'
 
         The default is 'ahn3_5m_dtm'.
+    method : str, optional
+        Method used to resample ahn to grid of model_ds. See
+        mdims.resample.structured_da_to_ds for possible values. The default is
+        'average'.
 
     Returns
     -------
     model_ds_out : xr.Dataset
-        dataset with the ahn variable.
+        Dataset with the ahn variable.
     """
 
     url = _infer_url(identifier)
@@ -55,26 +59,16 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
         extent=model_ds.extent, url=url, identifier=identifier
     )
 
-    if model_ds.gridtype == "structured":
-        ahn_ds = mdims.resample_dataarray2d_to_structured_grid(
-            ahn_ds_raw, x=model_ds.x.data, y=model_ds.y.data
-        )
-    elif model_ds.gridtype == "vertex":
-        ahn_ds = mdims.resample_dataarray2d_to_vertex_grid(
-            ahn_ds_raw, model_ds
-        )
+    ahn_da = mdims.resample.structured_da_to_ds(
+        ahn_ds_raw, model_ds, method=method
+    )
+    ahn_da.attrs["source"] = identifier
+    ahn_da.attrs["url"] = url
+    ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+    ahn_da.attrs["units"] = "mNAP"
 
     model_ds_out = util.get_model_ds_empty(model_ds)
-    model_ds_out["ahn"] = ahn_ds
-
-    for datavar in model_ds_out:
-        model_ds_out[datavar].attrs["source"] = identifier
-        model_ds_out[datavar].attrs["url"] = url
-        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime(
-            "%Y%m%d"
-        )
-        if datavar == "ahn":
-            model_ds_out[datavar].attrs["units"] = "mNAP"
+    model_ds_out["ahn"] = ahn_da
 
     return model_ds_out
 

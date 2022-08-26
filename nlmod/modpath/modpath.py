@@ -10,6 +10,7 @@ import datetime as dt
 from shutil import copyfile
 
 from ..mdims import mgrid
+from .. import util
 
 import logging
 
@@ -211,10 +212,7 @@ def mpf(gwf, exe_name=None):
 
     # get executable
     if exe_name is None:
-        exe_name = os.path.join(os.path.dirname(__file__), "..", "bin", "mp7")
-
-        if sys.platform.startswith("win"):
-            exe_name += ".exe"
+        exe_name = util.get_exe_path('mp7')
 
     # create mpf model
     mpf = flopy.modpath.Modpath7(

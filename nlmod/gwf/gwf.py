@@ -48,8 +48,7 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
 
     if nb_path is not None:
         new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}'
-            + os.path.split(nb_path)[-1]
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
         )
         dst = os.path.join(model_ds.model_ws, new_nb_fname)
         logger.info(f"write script {new_nb_fname} to model workspace")
@@ -57,24 +56,20 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
 
     if write_model_ds:
         logger.info("write model dataset to cache")
-        model_ds.attrs[
-            "model_dataset_written_to_disk_on"
-        ] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-        model_ds.to_netcdf(
-            os.path.join(model_ds.attrs["cachedir"], "full_model_ds.nc")
+        model_ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
+            "%Y%m%d_%H:%M:%S"
         )
+        model_ds.to_netcdf(os.path.join(model_ds.attrs["cachedir"], "full_model_ds.nc"))
 
     logger.info("write modflow files to model workspace")
     gwf.simulation.write_simulation()
-    model_ds.attrs[
-        "model_data_written_to_disk_on"
-    ] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    model_ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
+        "%Y%m%d_%H:%M:%S"
+    )
 
     logger.info("run model")
     assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
-    model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S"
-    )
+    model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
 def gwf_from_model_ds(model_ds, sim):
@@ -109,7 +104,7 @@ def gwf_from_model_ds(model_ds, sim):
 
 def ims_to_sim(sim, complexity="MODERATE"):
     """create IMS package
-    
+
 
     Parameters
     ----------
@@ -124,15 +119,16 @@ def ims_to_sim(sim, complexity="MODERATE"):
         ims object.
 
     """
-    
+
     logger.info("creating modflow IMS")
-    
+
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.modflow.mfims.ModflowIms(
         sim, pname="ims", print_option="summary", complexity=complexity
     )
-    
+
     return ims
+
 
 def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
     """get discretisation package from the model dataset.
@@ -349,22 +345,16 @@ def ic_from_model_ds(model_ds, gwf, starting_head="starting_head"):
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
-        model_ds["starting_head"] = starting_head * xr.ones_like(
-            model_ds["idomain"]
-        )
+        model_ds["starting_head"] = starting_head * xr.ones_like(model_ds["idomain"])
         model_ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(
-        gwf, pname="ic", strt=model_ds[starting_head].data
-    )
+    ic = flopy.mf6.ModflowGwfic(gwf, pname="ic", strt=model_ds[starting_head].data)
 
     return ic
 
 
-def sto_from_model_ds(
-    model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False
-):
+def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False):
     """get storage package from model dataset.
 
     Parameters
@@ -440,9 +430,7 @@ def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head"):
         )
     elif model_ds.gridtype == "vertex":
         cellids = np.where(model_ds[chd])
-        chd_rec = list(
-            zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0]))
-        )
+        chd_rec = list(zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0])))
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,

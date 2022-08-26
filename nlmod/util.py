@@ -167,12 +167,7 @@ def compare_model_extents(extent1, extent2):
         return 1
 
     # option2 extent2 is completely within extent1
-    if (
-        (not check_xmin)
-        and (not check_xmax)
-        and (not check_ymin)
-        and (not check_ymax)
-    ):
+    if (not check_xmin) and (not check_xmax) and (not check_ymin) and (not check_ymax):
         logger.info("extent2 is completely within extent1")
         return 2
 
@@ -191,12 +186,7 @@ def compare_model_extents(extent1, extent2):
         return 4
 
     # option 10
-    if (
-        check_xmin
-        and (not check_xmax)
-        and (not check_ymin)
-        and (not check_ymax)
-    ):
+    if check_xmin and (not check_xmax) and (not check_ymin) and (not check_ymax):
         logger.info("only the left bound of extent 1 is within extent 2")
         return 10
 
@@ -269,15 +259,11 @@ def gdf_within_extent(gdf, extent):
     geom_types = gdf.geom_type.unique()
     if len(geom_types) > 1:
         # exception if geomtypes is a combination of Polygon and Multipolygon
-        multipoly_check = ("Polygon" in geom_types) and (
-            "MultiPolygon" in geom_types
-        )
+        multipoly_check = ("Polygon" in geom_types) and ("MultiPolygon" in geom_types)
         if (len(geom_types) == 2) and multipoly_check:
             gdf = gpd.overlay(gdf, gdf_extent)
         else:
-            raise TypeError(
-                f"Only accepts single geometry type not {geom_types}"
-            )
+            raise TypeError(f"Only accepts single geometry type not {geom_types}")
     elif geom_types[0] == "Polygon":
         gdf = gpd.overlay(gdf, gdf_extent)
     elif geom_types[0] == "LineString":
@@ -285,9 +271,7 @@ def gdf_within_extent(gdf, extent):
     elif geom_types[0] == "Point":
         gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
-        raise TypeError(
-            "Function is not tested for geometry type: " f"{geom_types[0]}"
-        )
+        raise TypeError("Function is not tested for geometry type: " f"{geom_types[0]}")
 
     return gdf
 
@@ -403,10 +387,7 @@ def get_platform(pltfrm):
             else:
                 pltfrm = "win32"
         else:
-            errmsg = (
-                "Could not determine platform"
-                f".  sys.platform is {sys.platform}"
-            )
+            errmsg = "Could not determine platform" f".  sys.platform is {sys.platform}"
             raise Exception(errmsg)
     else:
         assert pltfrm in ["mac", "linux", "win32", "win64"]
@@ -448,13 +429,8 @@ def getmfexes(pth=".", version="", pltfrm=None):
     zipname = f"{pltfrm}.zip"
 
     # Determine path for file download and then download and unzip
-    url = (
-        "https://github.com/MODFLOW-USGS/executables/"
-        f"releases/download/{version}/"
-    )
-    assets = {
-        p: url + p for p in ["mac.zip", "linux.zip", "win32.zip", "win64.zip"]
-    }
+    url = "https://github.com/MODFLOW-USGS/executables/" f"releases/download/{version}/"
+    assets = {p: url + p for p in ["mac.zip", "linux.zip", "win32.zip", "win64.zip"]}
     download_url = assets[zipname]
     pymake.download_and_unzip(download_url, pth)
 
@@ -479,9 +455,7 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
     """
 
     if fname_hds is None:
-        fname_hds = os.path.join(
-            model_ds.model_ws, model_ds.model_name + ".hds"
-        )
+        fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + ".hds")
 
     head = get_heads_array(fname_hds, fill_nans=fill_nans)
 

@@ -44,9 +44,7 @@ def get_tdis_perioddata(model_ds):
     ]
     if len(model_ds["time"]) > 1:
         perlen.extend(np.diff(model_ds["time"]) / deltat)
-    tdis_perioddata = [
-        (p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen
-    ]
+    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
 
     return tdis_perioddata
 
@@ -88,7 +86,7 @@ def sim_from_model_ds(model_ds, exe_name=None):
         version=model_ds.mfversion,
         sim_ws=model_ds.model_ws,
     )
-    
+
     return sim
 
 

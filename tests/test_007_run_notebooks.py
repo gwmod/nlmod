@@ -65,9 +65,11 @@ def test_run_notebook_08_gis():
 def test_run_notebook_09_schoonhoven():
     _run_notebook(nbdir, "09_schoonhoven.ipynb")
 
+
 @pytest.mark.notebooks
 def test_run_notebook_10_modpath():
     _run_notebook(nbdir, "10_modpath.ipynb")
+
 
 if __name__ == "__main__":
     test_run_notebook_01_basic_model()

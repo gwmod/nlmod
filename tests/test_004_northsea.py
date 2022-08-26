@@ -22,19 +22,19 @@ def test_surface_water_to_dataset():
 
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache("sea_model_grid")
-    
-    # create simulation 
+
+    # create simulation
     sim = nlmod.gwf.sim_from_model_ds(model_ds)
-    
+
     # create time discretisation
     tdis = nlmod.gwf.tdis_from_model_ds(model_ds, sim)
-    
+
     # create groundwater flow model
     gwf = nlmod.gwf.gwf_from_model_ds(model_ds, sim)
-    
+
     # create ims
     ims = nlmod.gwf.ims_to_sim(sim)
-    
+
     nlmod.gwf.dis_from_model_ds(model_ds, gwf)
 
     name = "surface_water"
@@ -126,9 +126,7 @@ def test_add_bathymetrie_to_top_bot_kh_kv_seamodel():
     # model with sea
     model_ds = test_001_model.test_get_model_ds_from_cache("basic_sea_model")
     model_ds.update(nlmod.read.rws.get_northsea(model_ds))
-    model_ds.update(
-        nlmod.read.jarkus.get_bathymetry(model_ds, model_ds["northsea"])
-    )
+    model_ds.update(nlmod.read.jarkus.get_bathymetry(model_ds, model_ds["northsea"]))
 
     fill_mask = (model_ds["first_active_layer"] == model_ds.nodata) * model_ds[
         "northsea"

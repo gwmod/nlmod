@@ -50,17 +50,15 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
     ahn_ds_raw = get_ahn_within_extent(
         extent=model_ds.extent, url=url, identifier=identifier
     )
-    
-    #assert not ahn_ds_raw.isnull().all(), 'AHN only has nan values'
+
+    # assert not ahn_ds_raw.isnull().all(), 'AHN only has nan values'
 
     if model_ds.gridtype == "structured":
         ahn_ds = mdims.resample_dataarray2d_to_structured_grid(
             ahn_ds_raw, x=model_ds.x.data, y=model_ds.y.data
         )
     elif model_ds.gridtype == "vertex":
-        ahn_ds = mdims.resample_dataarray2d_to_vertex_grid(
-            ahn_ds_raw, model_ds
-        )
+        ahn_ds = mdims.resample_dataarray2d_to_vertex_grid(ahn_ds_raw, model_ds)
 
     model_ds_out = util.get_model_ds_empty(model_ds)
     model_ds_out["ahn"] = ahn_ds
@@ -68,9 +66,7 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs["source"] = identifier
         model_ds_out[datavar].attrs["url"] = url
-        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime(
-            "%Y%m%d"
-        )
+        model_ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
         if datavar == "ahn":
             model_ds_out[datavar].attrs["units"] = "mNAP"
 
@@ -78,20 +74,12 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm"):
 
 
 def split_ahn_extent(
-    extent,
-    x_segments,
-    y_segments,
-    maxsize,
-    res,
-    url,
-    identifier,
-    version, 
-    fmt,
-    crs):
+    extent, x_segments, y_segments, maxsize, res, url, identifier, version, fmt, crs
+):
     """There is a max height and width limit for the wcs server. This function
     splits your extent in chunks smaller than the limit. It returns a list of
     Memory files.
-    
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -108,7 +96,7 @@ def split_ahn_extent(
         return the data as as xarray DataArray if true. The default is True.
     **kwargs :
         keyword arguments of the get_ahn_extent function.
-        
+
     Returns
     -------
     xr.DataArray or MemoryFile
@@ -139,10 +127,8 @@ def split_ahn_extent(
             logger.debug(
                 f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
             )
-            
-            memfile =  _download_ahn(subextent, res, url, 
-                                 identifier, version, fmt, 
-                                 crs)
+
+            memfile = _download_ahn(subextent, res, url, identifier, version, fmt, crs)
 
             datasets.append(memfile)
             start_y = end_y
@@ -153,23 +139,23 @@ def split_ahn_extent(
     pbar.close()
     memfile = MemoryFile()
     merge.merge([b.open() for b in datasets], dst_path=memfile)
-    
+
     return memfile
 
 
 def _infer_url(identifier=None):
     """infer the url from the identifier.
-    
+
     Parameters
     ----------
     identifier : TYPE, optional
         DESCRIPTION. The default is None.
-        
+
     Raises
     ------
     ValueError
         DESCRIPTION.
-        
+
     Returns
     -------
     url : TYPE
@@ -202,7 +188,7 @@ def get_ahn_within_extent(
     fmt="GEOTIFF_FLOAT32",
     crs="EPSG:28992",
     maxsize=2000,
-    tmp_dir=None
+    tmp_dir=None,
 ):
     """
     Parameters
@@ -240,7 +226,7 @@ def get_ahn_within_extent(
     maxsize : float, optional
         maximum number of cells in x or y direction. The default is
         2000.
-    
+
     Returns
     -------
     xr.DataArray or MemoryFile
@@ -304,20 +290,21 @@ def get_ahn_within_extent(
             identifier,
             version,
             fmt,
-            crs)
+            crs,
+        )
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
     else:
         memfile = _download_ahn(extent, res, url, identifier, version, fmt, crs)
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
         # load the data from the memfile otherwise lazy loading of xarray causes problems
         da.load()
-        
+
     return da
 
 
 def _download_ahn(extent, res, url, identifier, version, fmt, crs):
-    """ Download the ahn using a webservice, return a MemoryFile
-    
+    """Download the ahn using a webservice, return a MemoryFile
+
 
     Parameters
     ----------
@@ -371,12 +358,9 @@ def _download_ahn(extent, res, url, identifier, version, fmt, crs):
         )
     else:
         raise Exception(f"Version {version} not yet supported")
-    
+
     memfile = MemoryFile(output.read())
     return memfile
-    
-    
-   
 
 
 def get_ahn4_tiles(extent=None):
@@ -390,7 +374,7 @@ def get_ahn4_tiles(extent=None):
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     """
     Download AHN4
-    
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -400,7 +384,7 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
         'AHN4_DSM_5m'. The default is "AHN4_DTM_5m".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
-    
+
     Returns
     -------
     xr.DataArray or MemoryFile
@@ -416,8 +400,6 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(
-            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2])
-        )
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         return da
     return memfile

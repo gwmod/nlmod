@@ -16,15 +16,15 @@ def test_sim_tdis_gwf_ims_from_model_ds(tmpdir):
 
     model_ds = test_001_model.test_get_model_ds_from_cache("basic_sea_model")
 
-    # create simulation 
+    # create simulation
     sim = nlmod.gwf.sim_from_model_ds(model_ds)
-    
+
     # create time discretisation
     tdis = nlmod.gwf.tdis_from_model_ds(model_ds, sim)
-    
+
     # create groundwater flow model
     gwf = nlmod.gwf.gwf_from_model_ds(model_ds, sim)
-    
+
     # create ims
     ims = nlmod.gwf.ims_to_sim(sim)
 
@@ -34,9 +34,9 @@ def test_sim_tdis_gwf_ims_from_model_ds(tmpdir):
 def dis_from_model_ds(tmpdir):
 
     model_ds = test_001_model.test_get_model_ds_from_cache("small_model")
-    
+
     sim, gwf = test_sim_tdis_gwf_ims_from_model_ds(tmpdir)
-    
+
     dis = nlmod.gwf.dis_from_model_ds(model_ds, gwf)
 
     return dis
@@ -45,9 +45,7 @@ def dis_from_model_ds(tmpdir):
 @pytest.mark.slow
 def disv_from_model_ds(tmpdir):
 
-    model_ds, gwf, gridprops = test_001_model.test_create_inf_panden_model(
-        tmpdir
-    )
+    model_ds, gwf, gridprops = test_001_model.test_create_inf_panden_model(tmpdir)
 
     disv = nlmod.gwf.disv_from_model_ds(model_ds, gwf, gridprops)
 
@@ -124,12 +122,8 @@ def chd_from_model_ds(tmpdir):
 
     # add constant head cells at model boundaries
     model_ds.update(
-        nlmod.gwf.constant_head.get_chd_at_model_edge(
-            model_ds, model_ds["idomain"]
-        )
+        nlmod.gwf.constant_head.get_chd_at_model_edge(model_ds, model_ds["idomain"])
     )
-    chd = nlmod.gwf.chd_from_model_ds(
-        model_ds, gwf, head="starting_head"
-    )
+    chd = nlmod.gwf.chd_from_model_ds(model_ds, gwf, head="starting_head")
 
     return chd

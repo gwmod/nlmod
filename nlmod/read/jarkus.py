@@ -61,23 +61,17 @@ def get_bathymetry(model_ds, northsea):
             "cannot access Jarkus netCDF link, copy file from google drive instead"
         )
         fname_jarkus = os.path.join(model_ds.model_ws, "jarkus_nhflopy.nc")
-        url = (
-            "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
-        )
+        url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
         gdown.download(url, fname_jarkus, quiet=False)
         jarkus_ds = xr.open_dataset(fname_jarkus)
 
     da_bathymetry_raw = jarkus_ds["z"]
 
     # fill nan values in bathymetry
-    da_bathymetry_filled = mdims.fillnan_dataarray_structured_grid(
-        da_bathymetry_raw
-    )
+    da_bathymetry_filled = mdims.fillnan_dataarray_structured_grid(da_bathymetry_raw)
 
     # bathymetrie mag nooit groter zijn dan NAP 0.0
-    da_bathymetry_filled = xr.where(
-        da_bathymetry_filled > 0, 0, da_bathymetry_filled
-    )
+    da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
 
     # bathymetry projected on model grid
     if model_ds.gridtype == "structured":
@@ -99,9 +93,7 @@ def get_bathymetry(model_ds, northsea):
     for datavar in model_ds_out:
         model_ds_out[datavar].attrs["source"] = "Jarkus"
         model_ds_out[datavar].attrs["url"] = url
-        model_ds_out[datavar].attrs["source"] = dt.datetime.now().strftime(
-            "%Y%m%d"
-        )
+        model_ds_out[datavar].attrs["source"] = dt.datetime.now().strftime("%Y%m%d")
         if datavar == "bathymetry":
             model_ds_out[datavar].attrs["units"] = "mNAP"
 
@@ -225,9 +217,7 @@ def add_bathymetry_to_top_bot_kh_kv(
     model_ds["top"].values = np.where(fill_mask, 0.0, model_ds["top"])
 
     lay = 0
-    model_ds["botm"][lay] = xr.where(
-        fill_mask, bathymetry, model_ds["botm"][lay]
-    )
+    model_ds["botm"][lay] = xr.where(fill_mask, bathymetry, model_ds["botm"][lay])
 
     model_ds["kh"][lay] = xr.where(fill_mask, kh_sea, model_ds["kh"][lay])
 

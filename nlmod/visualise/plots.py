@@ -101,9 +101,7 @@ def facet_plot(
             iper = period
             if arr.ndim == 4:
                 if iper is None:
-                    raise ValueError(
-                        "Pass 'period' to select timestep to plot."
-                    )
+                    raise ValueError("Pass 'period' to select timestep to plot.")
                 a = arr[iper]
         elif plot_dim == "time":
             ilay = layer
@@ -232,9 +230,7 @@ def facet_plot_ds(
         iax = axes.ravel()[ilay]
         mp = flopy.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
         # mp.plot_grid()
-        qm = mp.plot_array(
-            plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax
-        )
+        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax)
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)
@@ -255,9 +251,7 @@ def facet_plot_ds(
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(f"{plot_var}", rotation=270)
-    fig.suptitle(
-        f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year"
-    )
+    fig.suptitle(f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year")
     fig.tight_layout()
     fig.savefig(
         os.path.join(figdir, f"{plot_var}_per_layer.png"),
@@ -445,9 +439,7 @@ def get_map(
         xh = 0.2
         if base is None:
             xh = 0.0
-        figsize = get_figsize(
-            extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh
-        )
+        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh)
     f, axes = plt.subplots(
         figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
     )
@@ -501,9 +493,7 @@ def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
     ax.yaxis.set_major_formatter(FuncFormatter(fmt_rd_ticks))
 
 
-def colorbar_inside(
-    mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw
-):
+def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw):
     """Place a colorbar inside an axes"""
     if ax is None:
         ax = plt.gca()

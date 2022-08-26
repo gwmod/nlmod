@@ -39,9 +39,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
             thickness = ds[top] - ds[bot]
             top3d = True
         else:
-            raise ValueError(
-                "3d top and bot should have same number of layers"
-            )
+            raise ValueError("3d top and bot should have same number of layers")
     elif ds[top].ndim == (ds[bot].ndim - 1) and ds[top].ndim in [1, 2]:
         if ds[top].shape[-1] == ds[bot].shape[-1]:
             # top is only top of first layer
@@ -98,9 +96,7 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
     # calculate new number of layers
     new_nlay = (
-        ds[layer].size
-        + sum([len(sf) for sf in split_dict.values()])
-        - len(split_dict)
+        ds[layer].size + sum([len(sf) for sf in split_dict.values()]) - len(split_dict)
     )
 
     # create new DataArrays for storing new top/bot
@@ -141,19 +137,15 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
             # check if factors add up to 1
             if np.sum(sf) != 1.0:
-                raise ValueError(
-                    "Sum of split factors for layer must equal 1.0!"
-                )
+                raise ValueError("Sum of split factors for layer must equal 1.0!")
             logger.debug(
-                f"{i}: Split layer {i} into {len(sf)} layers "
-                f"with fractions: {sf}"
+                f"{i}: Split layer {i} into {len(sf)} layers " f"with fractions: {sf}"
             )
 
             # loop over split factors
             for isf, factor in enumerate(sf):
                 logger.debug(
-                    f"  - {isf}: Calculate new top/bot for "
-                    f"new layer index {j}"
+                    f"  - {isf}: Calculate new top/bot for " f"new layer index {j}"
                 )
 
                 # calculate new bot and new top
@@ -171,9 +163,7 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
         # no split, remap old layer to new layer index
         else:
-            logger.debug(
-                f"{i:2d}: No split: map layer {i} to " f"new layer index {j}"
-            )
+            logger.debug(f"{i:2d}: No split: map layer {i} to " f"new layer index {j}")
             if top3d:
                 new_top.data[j] = ds[top].data[i]
             else:
@@ -267,8 +257,7 @@ def split_layers_ds(
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
         logger.warning(
-            "Warning! Following data variables "
-            f"will be dropped: {dropped_dv}"
+            "Warning! Following data variables " f"will be dropped: {dropped_dv}"
         )
 
     # calculate new tops/bots
@@ -279,13 +268,9 @@ def split_layers_ds(
     )
 
     # fill kh/kv
-    logger.info(
-        f"Fill value '{kh}' for split layers with " "value original layer."
-    )
+    logger.info(f"Fill value '{kh}' for split layers with " "value original layer.")
     da_kh = fill_data_split_layers(ds["kh"], reindexer)
-    logger.info(
-        f"Fill value '{kv}' for split layers with " "value original layer."
-    )
+    logger.info(f"Fill value '{kv}' for split layers with " "value original layer.")
     da_kv = fill_data_split_layers(ds["kv"], reindexer)
 
     # get new layer names
@@ -296,13 +281,7 @@ def split_layers_ds(
         if layercode in layer_names:
             if isinstance(layercode, str):
                 ilay = (
-                    np.sum(
-                        [
-                            1
-                            for ilay in layer_names
-                            if ilay.startswith(layercode)
-                        ]
-                    )
+                    np.sum([1 for ilay in layer_names if ilay.startswith(layercode)])
                     + 1
                 )
                 layercode += f"_{ilay}"
@@ -330,9 +309,7 @@ def split_layers_ds(
     return ds_split
 
 
-def layer_combine_top_bot(
-    ds, combine_layers, layer="layer", top="top", bot="botm"
-):
+def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="botm"):
     """Calculate new tops and bottoms for combined layers.
 
     Parameters
@@ -361,9 +338,7 @@ def layer_combine_top_bot(
     """
     # calculate new number of layers
     new_nlay = (
-        ds[layer].size
-        - sum([len(c) for c in combine_layers])
-        + len(combine_layers)
+        ds[layer].size - sum([len(c) for c in combine_layers]) + len(combine_layers)
     )
 
     # create new DataArrays for storing new top/bot
@@ -396,8 +371,7 @@ def layer_combine_top_bot(
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
                 logger.debug(
-                    f"{j:2d}: Merge layers {c} as layer {j}, "
-                    "calculate new top/bot."
+                    f"{j:2d}: Merge layers {c} as layer {j}, " "calculate new top/bot."
                 )
                 tops = ds[top].data[c, :, :]
                 bots = ds[bot].data[c, :, :]
@@ -416,8 +390,7 @@ def layer_combine_top_bot(
         else:
             # do not merge, only map old layer index to new layer index
             logger.debug(
-                f"{j:2d}: Do not merge, map old layer index "
-                "to new layer index."
+                f"{j:2d}: Do not merge, map old layer index " "to new layer index."
             )
             new_top.data[j] = ds[top].data[i]
             new_bot.data[j] = ds[bot].data[i]
@@ -600,8 +573,7 @@ def combine_layers_ds(
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
         logger.warning(
-            "Warning! Following data variables "
-            f"will be dropped: {dropped_dv}"
+            "Warning! Following data variables " f"will be dropped: {dropped_dv}"
         )
 
     # calculate new tops/bots
@@ -950,9 +922,7 @@ def add_northsea(model_ds, cachedir=None):
 
     # find grid cells with northsea
     model_ds.update(
-        rws.get_northsea(
-            model_ds, cachedir=cachedir, cachename="sea_model_ds.nc"
-        )
+        rws.get_northsea(model_ds, cachedir=cachedir, cachename="sea_model_ds.nc")
     )
 
     # fill top, bot, kh, kv at sea cells

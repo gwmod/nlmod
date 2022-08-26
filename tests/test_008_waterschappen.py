@@ -20,12 +20,8 @@ def test_get_config():
 def test_bgt_waterboards():
     extent = [116500, 120000, 439000, 442000]
     bgt = nlmod.read.bgt.get_bgt(extent)
-    pg = nlmod.gwf.surface_water.download_level_areas(
-        bgt, extent=extent
-    )
-    bgt = nlmod.gwf.surface_water.add_stages_from_waterboards(
-        bgt, pg=pg
-    )
+    pg = nlmod.gwf.surface_water.download_level_areas(bgt, extent=extent)
+    bgt = nlmod.gwf.surface_water.add_stages_from_waterboards(bgt, pg=pg)
     return bgt
 
 
@@ -55,9 +51,7 @@ def test_download_peilgebieden(plot=True):
         for wb in waterboards.index:
             if wb in gdf:
                 # gdf[wb].plot(ax=ax, zorder=0)
-                gdf[wb].plot(
-                    "winter_stage", ax=ax, zorder=0, vmin=-10, vmax=20
-                )
+                gdf[wb].plot("winter_stage", ax=ax, zorder=0, vmin=-10, vmax=20)
             c = waterboards.at[wb, "geometry"].centroid
             ax.text(c.x, c.y, wb.replace(" ", "\n"), ha="center", va="center")
 

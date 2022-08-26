@@ -388,7 +388,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         if method == "nearest":
             # geneterate the tree only once, to increase speed
             tree = cKDTree(points)
-            dist, i = tree.query(xi)
+            _, i = tree.query(xi)
         dims = np.array(da.dims)
         dims = dims[dims != "icell2d"]
 

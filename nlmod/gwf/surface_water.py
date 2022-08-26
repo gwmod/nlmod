@@ -573,6 +573,26 @@ def download_level_areas(gdf, extent=None, config=None):
     return pg
 
 
+def download_watercourses(gdf, extent=None, config=None):
+    """Download watercourses of bronhouders"""
+    if config is None:
+        config = waterboard.get_configuration()
+    bronhouders = gdf["bronhouder"].unique()
+    wc = {}
+    data_kind = "watercourses"
+    for wb in config.keys():
+        if config[wb]["bgt_code"] in bronhouders:
+            logger.info(f"Downloading {data_kind} for {wb}")
+            try:
+                wc[wb] = waterboard.get_data(wb, data_kind, extent)
+            except Exception as e:
+                if str(e) == f"{data_kind} not available for {wb}":
+                    logger.warning(e)
+                else:
+                    raise
+    return wc
+
+
 def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=None):
     """Add information from level areas (peilgebieden) to bgt-polygons"""
     if pg is None:

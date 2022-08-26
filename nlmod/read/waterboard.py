@@ -1,5 +1,8 @@
 import numpy as np
+import logging
 from . import webservices
+
+logger = logging.getLogger(__name__)
 
 
 def get_polygons(**kwargs):
@@ -42,9 +45,25 @@ def get_configuration():
     config["Amstel, Gooi en Vecht"] = {
         "bgt_code": "W0155",
         "watercourses": {
-            "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/AGV_Legger_GEONIS/MapServer",
-            "layer": 19,
-            "index": "OVKIDENT",
+            "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/AGV_Onderh_Secundaire_Watergangen/MapServer",
+            "layer": 40,
+            "bottom_width": "BODEMBREEDTE",
+            "bottom_height": "BODEMHOOGTE",
+            "water_depth": "WATERDIEPTE",
+        },
+        "level_areas": {
+            "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/Vastgestelde_Waterpeilen/MapServer",
+            "layer": 209,
+            "summer_stage": [
+                "ZOMERPEIL",
+                "FLEXIBEL_ZOMERPEIL_BOVENGR",
+                "VAST_PEIL",
+            ],
+            "winter_stage": [
+                "WINTERPEIL",
+                "FLEXIBEL_WINTERPEIL_BOVENGR",
+                "VAST_PEIL",
+            ],
         },
     }
 
@@ -169,7 +188,8 @@ def get_configuration():
     config["Hollands Noorderkwartier"] = {
         "bgt_code": "W0651",
         "watercourses": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2022_oppervlaktewateren_ti/MapServer"
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2022_oppervlaktewateren_ti/MapServer",
+            "bottom_height": "WS_BODEMHOOGTE",
         },
         "level_areas": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilgebied_beheerregister/MapServer",
@@ -266,6 +286,7 @@ def get_configuration():
         "watercourses": {
             "url": "https://rijnland.enl-mcs.nl/arcgis/rest/services/Leggers/Legger_Oppervlaktewater_Vigerend/MapServer",
             "layer": 1,
+            "water_depth": "WATERDIEPTE",
         },
         "level_areas": {
             "url": "https://rijnland.enl-mcs.nl/arcgis/rest/services/Peilgebied_vigerend_besluit/MapServer",
@@ -335,8 +356,9 @@ def get_configuration():
         "bgt_code": "W0656",
         "watercourses": {
             "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/arcgis/rest/services/HHSK_Legger_Watersysteem/FeatureServer",
-            "layer": 11,  # Hoofdwatergang
-            # "layer": 12,  # Overig Water
+            # "layer": 11,  # Hoofdwatergang
+            "layer": 12,  # Overig Water
+            "water_depth": "DIEPTE",
         },
         "level_areas": {
             # "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Peilbesluiten/FeatureServer",
@@ -451,8 +473,6 @@ def get_data(ws, data_kind, extent=None, max_record_count=None, config=None, **k
     index = "CODE"
     server_kind = "arcrest"
     f = "geojson"
-    summer_stage = []
-    winter_stage = []
 
     if ws not in config:
         raise (Exception(f"No configuration available for {ws}"))
@@ -468,10 +488,6 @@ def get_data(ws, data_kind, extent=None, max_record_count=None, config=None, **k
         server_kind = conf["server_kind"]
     if "f" in conf:
         f = conf["f"]
-    if "summer_stage" in conf:
-        summer_stage = conf["summer_stage"]
-    if "winter_stage" in conf:
-        winter_stage = conf["winter_stage"]
 
     # % download and plot data
     if server_kind == "arcrest":
@@ -490,9 +506,28 @@ def get_data(ws, data_kind, extent=None, max_record_count=None, config=None, **k
     else:
         raise (Exception("Unknown server-kind: {server_kind}"))
     if index is not None:
-        gdf = gdf.set_index(index)
-    gdf = _set_column_from_columns(gdf, "summer_stage", summer_stage)
-    gdf = _set_column_from_columns(gdf, "winter_stage", winter_stage)
+        if index not in gdf:
+            logger.warning(f"Cannot find {index} in {data_kind} of {ws}")
+        else:
+            gdf = gdf.set_index(index)
+    if data_kind == "level_areas":
+        summer_stage = []
+        if "summer_stage" in conf:
+            summer_stage = conf["summer_stage"]
+        gdf = _set_column_from_columns(gdf, "summer_stage", summer_stage)
+        winter_stage = []
+        if "winter_stage" in conf:
+            winter_stage = conf["winter_stage"]
+        gdf = _set_column_from_columns(gdf, "winter_stage", winter_stage)
+    elif data_kind == "watercourses":
+        bottom_height = []
+        if "bottom_height" in conf:
+            bottom_height = conf["bottom_height"]
+        gdf = _set_column_from_columns(gdf, "bottom_height", bottom_height)
+        water_depth = []
+        if "water_depth" in conf:
+            water_depth = conf["water_depth"]
+        gdf = _set_column_from_columns(gdf, "water_depth", water_depth)
     return gdf
 
 
@@ -507,6 +542,11 @@ def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
     if isinstance(from_columns, str):
         from_columns = [from_columns]
     for from_column in from_columns:
+        if from_column not in gdf:
+            logger.warning(
+                f"Cannot find column {from_column} as source for {set_column}"
+            )
+            continue
         mask = gdf[set_column].isna()
         if not mask.any():
             break

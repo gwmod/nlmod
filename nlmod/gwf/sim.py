@@ -114,7 +114,7 @@ def tdis_from_model_ds(model_ds, sim):
         pname="tdis",
         time_units=model_ds.time.time_units,
         nper=len(model_ds.time),
-        start_date_time=model_ds.time.start_time,
+        # start_date_time=model_ds.time.start_time, # disable until fix in modpath
         perioddata=tdis_perioddata,
     )
 

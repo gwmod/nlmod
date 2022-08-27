@@ -195,22 +195,11 @@ def refine(
         model_ws = ds.model_ws
     g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)
 
-    def check_geom_type_and_flopy_version(geom_type):
-        if flopy.__version__ == "3.3.5" and geom_type == "line":
-            # a bug in flopy that is fixed in the dev branch
-            raise (
-                Exception(
-                    "geom_type line is buggy in flopy 3.3.5. "
-                    "See https://github.com/modflowpy/flopy/issues/1405"
-                )
-            )
-
     if refinement_features is not None:
         for refinement_feature in refinement_features:
             if len(refinement_feature) == 3:
                 # the feature is a file or a list of geometries
                 fname, geom_type, level = refinement_feature
-                check_geom_type_and_flopy_version(geom_type)
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
                 # the feature is a geodataframe
@@ -219,7 +208,14 @@ def refine(
                 geom_types = geom_types.str.replace("String", "")
                 geom_types = geom_types.str.lower()
                 for geom_type in geom_types.unique():
-                    check_geom_type_and_flopy_version(geom_type)
+                    if flopy.__version__ == "3.3.5" and geom_type == "line":
+                        # a bug in flopy that is fixed in the dev branch
+                        raise (
+                            Exception(
+                                "geom_type line is buggy in flopy 3.3.5. "
+                                "See https://github.com/modflowpy/flopy/issues/1405"
+                            )
+                        )
                     mask = geom_types == geom_type
                     features = [gdf[mask].unary_union]
                     g.add_refinement_features(features, geom_type, level, layers=[0])

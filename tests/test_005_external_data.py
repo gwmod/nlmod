@@ -87,3 +87,8 @@ def test_get_surface_water_ghb():
     model_ds.update(nlmod.read.rws.get_surface_water(model_ds, "surface_water"))
 
     return model_ds
+
+
+def test_get_brp():
+    extent = [116500, 120000, 439000, 442000]
+    return nlmod.read.brp.get_percelen(extent)

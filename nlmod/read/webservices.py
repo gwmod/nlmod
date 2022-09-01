@@ -34,6 +34,10 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
     if not r.ok:
         raise (Exception("Request not successful"))
     props = r.json()
+    if "error" in props:
+        code = props["error"]["code"]
+        message = props["error"]["message"]
+        raise (Exception(f"Error code {code}: {message}"))
     if max_record_count is None:
         max_record_count = props["maxRecordCount"]
     else:

@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import numpy as np
 import xarray as xr
+from affine import Affine
 
 from . import resample
 from ..read import jarkus, rws, regis
@@ -1052,6 +1053,9 @@ def get_default_model_ds(
     kh=10.0,
     kv=1.0,
     crs=28992,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0.0,
     attrs=None,
     **kwargs,
 ):
@@ -1088,6 +1092,15 @@ def get_default_model_ds(
         is a float or a list/array of len(layer). The default is 1.0.
     crs : int, optional
         THe coordinate reference system of the model. The default is 28992.
+    xorigin : float, optional
+        x-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0. The defauls is 0.0.
+    yorigin : float, optional
+        y-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0. The defauls is 0.0.
+    angrot : float, optional
+        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
+        model grid. The default is 0.0
     attrs : dict, optional
         Attributes of the model dataset. The default is None.
     **kwargs : dict
@@ -1102,11 +1115,46 @@ def get_default_model_ds(
     """
     if delc is None:
         delc = delr
+    if attrs is None:
+        attrs = {}
     if isinstance(layer, int):
         layer = np.arange(1, layer + 1)
     if botm is None:
         botm = top - 10 * np.arange(1.0, len(layer) + 1)
+    if angrot != 0.0:
+        if xorigin == 0.0:
+            xorigin = extent[0]
+            extent[0] = 0.0
+            extent[1] = extent[1] - xorigin
+        elif extent[0] != 0.0:
+            raise (Exception("Either extent[0] or xorigin needs to be 0.0"))
+        if yorigin == 0.0:
+            yorigin = extent[2]
+            extent[2] = 0.0
+            extent[3] = extent[3] - yorigin
+        elif extent[2] != 0.0:
+            raise (Exception("Either extent[2] or yorigin needs to be 0.0"))
+        attrs["xorigin"] = xorigin
+        attrs["yorigin"] = yorigin
+        attrs["angrot"] = angrot
     x, y = resample.get_xy_mid_structured(extent, delr, delc)
+
+    if angrot != 0.0:
+        affine = Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+        xc, yc = affine * np.meshgrid(x, y)
+        dims = ["layer", "y", "x"]
+        coords = dict(
+            x=x,
+            y=y,
+            layer=layer,
+            xc=(("y", "x"), xc),
+            yc=(("y", "x"), yc),
+        )
+    else:
+        x = x + xorigin
+        y = y + yorigin
+        dims = ["layer", "y", "x"]
+        coords = dict(x=x, y=y, layer=layer)
 
     def check_variable(var, shape):
         if isinstance(var, int):
@@ -1137,7 +1185,6 @@ def get_default_model_ds(
     kh = check_variable(kh, shape)
     kv = check_variable(kv, shape)
 
-    dims = ["layer", "y", "x"]
     ds = xr.Dataset(
         data_vars=dict(
             top=(dims[1:], top),
@@ -1145,7 +1192,7 @@ def get_default_model_ds(
             kh=(dims, kh),
             kv=(dims, kv),
         ),
-        coords=dict(x=x, y=y, layer=layer),
+        coords=coords,
         attrs=attrs,
     )
     ds = regis.to_model_ds(

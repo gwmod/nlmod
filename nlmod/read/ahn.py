@@ -51,9 +51,8 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm", method="average"):
     """
 
     url = _infer_url(identifier)
-    ahn_ds_raw = get_ahn_within_extent(
-        extent=model_ds.extent, url=url, identifier=identifier
-    )
+    extent = mdims.resample.get_extent(model_ds)
+    ahn_ds_raw = get_ahn_within_extent(extent=extent, url=url, identifier=identifier)
 
     # assert not ahn_ds_raw.isnull().all(), 'AHN only has nan values'
 

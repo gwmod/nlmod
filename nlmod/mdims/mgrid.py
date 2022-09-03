@@ -24,7 +24,7 @@ from scipy.interpolate import griddata
 from shapely.geometry import Point
 from .. import util
 from .mlayers import set_idomain, get_first_active_layer_from_idomain
-from .resample import get_resampled_ml_layer_ds_vertex
+from .resample import get_resampled_ml_layer_ds_vertex, affine_transform_gdf, get_affine
 from .rdp import rdp
 
 logger = logging.getLogger(__name__)
@@ -146,6 +146,7 @@ def refine(
     refinement_features=None,
     exe_name=None,
     remove_nan_layers=True,
+    model_coordinates=False,
 ):
     """
     Refine the grid (discretization by vertices, disv), using Gridgen
@@ -168,6 +169,9 @@ def refine(
         if True layers that are inactive everywhere are removed from the model.
         If False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
+    model_coordintes : bool, optional
+        When model_coordinates is True, the features supplied in refinement features are
+        allready in model-coordinates. The default is False.
 
     Returns
     -------
@@ -195,15 +199,28 @@ def refine(
         model_ws = ds.model_ws
     g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)
 
+    ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
+    if model_coordinates:
+        if not ds_has_rotation:
+            raise (Exception("The supplied shapes need to be in realworld coordinates"))
+    elif ds_has_rotation:
+        affine_matrix = get_affine(ds, sx=1.0, sy=1.0).to_shapely()
+
     if refinement_features is not None:
         for refinement_feature in refinement_features:
             if len(refinement_feature) == 3:
                 # the feature is a file or a list of geometries
                 fname, geom_type, level = refinement_feature
+                if not model_coordinates and ds_has_rotation:
+                    raise (
+                        Exception("Converting files to model coordinates not supported")
+                    )
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
                 # the feature is a geodataframe
                 gdf, level = refinement_feature
+                if not model_coordinates and ds_has_rotation:
+                    gdf = affine_transform_gdf(gdf, affine_matrix)
                 geom_types = gdf.geom_type.str.replace("Multi", "")
                 geom_types = geom_types.str.replace("String", "")
                 geom_types = geom_types.str.lower()

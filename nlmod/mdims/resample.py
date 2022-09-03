@@ -10,6 +10,9 @@ import xarray as xr
 from scipy.interpolate import griddata
 import rasterio
 from scipy.spatial import cKDTree
+from shapely.geometry import Polygon
+from shapely.affinity import affine_transform
+from affine import Affine
 
 logger = logging.getLogger(__name__)
 
@@ -447,7 +450,15 @@ def structured_da_to_ds(da, ds, method="average"):
         kwargs = {}
         if ds.gridtype == "structured":
             kwargs["fill_value"] = "extrapolate"
-        da_out = da.interp(x=ds.x, y=ds.y, method=method, kwargs=kwargs)
+        x = ds.x
+        y = ds.y
+        if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            affine = get_affine(ds)
+            if ds.gridtype == "structured":
+                x, y = affine * np.meshgrid(x, y)
+            else:
+                x, y = affine * (x, y)
+        da_out = da.interp(x=x, y=y, method=method, kwargs=kwargs)
         return da_out
     if isinstance(method, rasterio.enums.Resampling):
         resampling = method
@@ -467,8 +478,8 @@ def structured_da_to_ds(da, ds, method="average"):
     if ds.gridtype == "structured":
         da_out = da.rio.reproject_match(ds, resampling)
     elif ds.gridtype == "vertex":
-        # assume the grid is a quadtree grid, where cells are refined by
-        # splitting them in 4
+        # assume the grid is a quadtree grid, where cells are refined by splitting them
+        # in 4
         da_out = xr.full_like(ds["area"], np.NaN)
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
@@ -482,3 +493,57 @@ def structured_da_to_ds(da, ds, method="average"):
     else:
         raise (Exception(f"Gridtype {ds.gridtype} not supported"))
     return da_out
+
+
+def get_extent_polygon(ds):
+    """Get the model extent, as a shapely Polygon"""
+    extent = ds.attrs["extent"]
+    nw = (extent[0], extent[2])
+    no = (extent[1], extent[2])
+    zo = (extent[1], extent[3])
+    zw = (extent[0], extent[3])
+    polygon = Polygon([nw, no, zo, zw])
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        affine = get_affine(ds, sx=1.0, sy=1.0)
+        polygon = affine_transform(polygon, affine.to_shapely())
+    return polygon
+
+
+def affine_transform_gdf(gdf, affine):
+    if isinstance(affine, Affine):
+        affine = affine.to_shapely()
+    gdfm = gdf.copy()
+    gdfm.geometry = gdf.affine_transform(affine)
+    return gdfm
+
+
+def get_extent(ds):
+    """Get the model extent, corrected for angrot if necessary"""
+    extent = ds.attrs["extent"]
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        affine = get_affine(ds, sx=1.0, sy=1.0)
+        xc = np.array([extent[0], extent[1], extent[1], extent[0]])
+        yc = np.array([extent[2], extent[2], extent[3], extent[3]])
+        xc, yc = affine * (xc, yc)
+        extent = [xc.min(), xc.max(), yc.min(), yc.max()]
+    return extent
+
+
+def get_affine(ds, sx=None, sy=None):
+    """ "get the affine-transformation, from model to real coordinates"""
+    xorigin = ds.attrs["xorigin"]
+    yorigin = ds.attrs["yorigin"]
+    angrot = -ds.attrs["angrot"]
+    # xorigin and yorigin represent the lower left corner, while for the transform we
+    # need the upper left
+    dy = ds.attrs["extent"][3] - ds.attrs["extent"][2]
+    xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
+    yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
+
+    if sx is None:
+        sx = ds.attrs["delr"]
+    if sy is None:
+        sy = ds.attrs["delc"]
+    return (
+        Affine.translation(xoff, yoff) * Affine.scale(sx, -sy) * Affine.rotation(angrot)
+    )

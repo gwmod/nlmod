@@ -540,6 +540,7 @@ def get_extent(ds):
 
 
 def get_affine_mod_to_world(ds):
+    """Get the affine-transformation from model to real-world coordinates"""
     xorigin = ds.attrs["xorigin"]
     yorigin = ds.attrs["yorigin"]
     angrot = ds.attrs["angrot"]
@@ -547,6 +548,7 @@ def get_affine_mod_to_world(ds):
 
 
 def get_affine_world_to_mod(ds):
+    """Get the affine-transformation from real-world to model coordinates"""
     xorigin = ds.attrs["xorigin"]
     yorigin = ds.attrs["yorigin"]
     angrot = ds.attrs["angrot"]
@@ -554,7 +556,7 @@ def get_affine_world_to_mod(ds):
 
 
 def get_affine(ds, sx=None, sy=None):
-    """ "get the affine-transformation, from model to real coordinates"""
+    """Get the affine-transformation, from pixel to real-world coordinates"""
     xorigin = ds.attrs["xorigin"]
     yorigin = ds.attrs["yorigin"]
     angrot = -ds.attrs["angrot"]

@@ -27,7 +27,6 @@ from .mlayers import set_idomain, get_first_active_layer_from_idomain
 from .resample import (
     get_resampled_ml_layer_ds_vertex,
     affine_transform_gdf,
-    get_affine,
     get_affine_world_to_mod,
 )
 from .rdp import rdp
@@ -57,7 +56,7 @@ def xy_to_icell2d(xy, ds):
     return icell2d
 
 
-def modelgrid_from_model_ds(model_ds, rotated=False):
+def modelgrid_from_model_ds(model_ds, rotated=True):
     """Get flopy modelgrid from model_ds.
 
     Parameters
@@ -193,9 +192,10 @@ def refine(
         if True layers that are inactive everywhere are removed from the model.
         If False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
-    model_coordintes : bool, optional
+    model_coordinates : bool, optional
         When model_coordinates is True, the features supplied in refinement features are
-        allready in model-coordinates. The default is False.
+        allready in model-coordinates. Only used when a grid is rotated. The default is
+        False.
 
     Returns
     -------
@@ -1165,7 +1165,7 @@ def gdf2grid(
         raise (Exception("Either specify ml or ix"))
     if isinstance(ml, xr.Dataset):
         ds = ml
-        modelgrid = modelgrid_from_model_ds(ds)
+        modelgrid = modelgrid_from_model_ds(ds, rotated=False)
         if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
             # transform gdf into model coordinates
             affine = get_affine_world_to_mod(ds)

@@ -77,9 +77,7 @@ def set_model_ds_time(
         dataset with time variant model data
     """
     # checks
-    if len(model_ds.model_name) > 16 and model_ds.mfversion == "mf6":
-        raise ValueError("model_name can not have more than 16 characters")
-    elif time_units.lower() != "days":
+    if time_units.lower() != "days":
         raise NotImplementedError()
     if time is not None:
         start_time = time[0]

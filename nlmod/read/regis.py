@@ -6,10 +6,10 @@ import logging
 
 import numpy as np
 import xarray as xr
-from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 
-from .. import cache, mdims
+from .. import cache
+from ..mdims import mbase, mlayers, resample
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -150,9 +150,12 @@ def to_model_ds(
     anisotropy=10,
     fill_value_kh=1.0,
     fill_value_kv=0.1,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0.0,
 ):
     """
-    Transform a regis datset to a model dataset with another resultion.
+    Transform a regis datset to a model dataset with another resolution.
 
     Parameters
     ----------
@@ -211,11 +214,12 @@ def to_model_ds(
 
     # convert regis dataset to grid
     logger.info("resample regis data to structured modelgrid")
-    ds = mdims.resample_dataset_to_structured_grid(ds, extent, delr, delc)
+    ds = resample.resample_dataset_to_structured_grid(ds, extent, delr, delc)
 
     # drop attributes
     for attr in list(ds.attrs):
-        del ds.attrs[attr]
+        if attr not in ["xorigin", "yorigin", "angrot"]:
+            del ds.attrs[attr]
 
     # and add new attributes
     ds.attrs["gridtype"] = "structured"
@@ -227,9 +231,9 @@ def to_model_ds(
         ds = extrapolate_ds(ds)
 
     # add attributes
-    ds = mdims.mbase.set_ds_attrs(ds, model_name, model_ws)
+    ds = mbase.set_ds_attrs(ds, model_name, model_ws)
     # fill nan's and add idomain
-    ds = mdims.mlayers.fill_nan_top_botm_kh_kv(
+    ds = mlayers.fill_nan_top_botm_kh_kv(
         ds,
         anisotropy=anisotropy,
         fill_value_kh=fill_value_kh,

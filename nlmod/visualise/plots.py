@@ -17,6 +17,7 @@ from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 from ..read import rws
 from ..mdims import get_vertices
+from ..mdims.resample import get_affine_mod_to_world
 
 
 def plot_surface_water(model_ds, ax=None):
@@ -355,20 +356,22 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     return ax
 
 
-def da(da, ds=None, ax=None, **kwargs):
+def da(da, ds=None, ax=None, rotated=False, **kwargs):
     """
-    PLot an xarray DataArray
+    Plot an xarray DataArray, suning information from the model Dataset ds
 
     Parameters
     ----------
     da : xarray.DataArray
-        DESCRIPTION.
+        The DataArray (structured or vertex) you like to plot.
     ds : xarray.DataSet, optional
-        Needed when the calculation grid is . The default is None.
-    ax : TYPE, optional
-        DESCRIPTION. The default is None.
-    **kwargs : TYPE
-        DESCRIPTION.
+        Needed when the gridtype is vertex or rotated is True. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes used for plotting. Set to current axes when None. The default is None.
+    rotated : bool, optional
+        Plot the data-array in rotated coordinates
+    **kwargs : cit
+        Kwargs are passed to PatchCollection (vertex) or pcolormesh (structured).
 
     Returns
     -------
@@ -381,14 +384,19 @@ def da(da, ds=None, ax=None, **kwargs):
     if "icell2d" in da.dims:
         if ds is None:
             raise (Exception("Supply model dataset (ds) for grid information"))
-        vertices = get_vertices(ds)
+        vertices = get_vertices(ds, rotated=rotated)
         patches = [Polygon(vert) for vert in vertices]
         pc = PatchCollection(patches, **kwargs)
         pc.set_array(da)
         ax.add_collection(pc)
         return pc
     else:
-        return ax.pcolormesh(da.x, da.y, da, shading="nearest", **kwargs)
+        x = da.x
+        y = da.y
+        if rotated:
+            affine = get_affine_mod_to_world(ds)
+            x, y = affine * np.meshgrid(x, y)
+        return ax.pcolormesh(x, y, da, shading="nearest", **kwargs)
 
 
 def get_map(

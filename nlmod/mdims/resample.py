@@ -476,6 +476,12 @@ def structured_da_to_ds(da, ds, method="average"):
     elif da.rio.crs is None:
         da = da.rio.set_crs(ds.rio.crs)
     if ds.gridtype == "structured":
+        if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            affine = get_affine(ds)
+            # save crs as it is deleted by write_transform...
+            crs = ds.rio.crs
+            ds = ds.rio.write_transform(affine)
+            ds.rio.write_crs(crs, inplace=True)
         da_out = da.rio.reproject_match(ds, resampling)
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
@@ -485,6 +491,9 @@ def structured_da_to_ds(da, ds, method="average"):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
             da_temp = xr.DataArray(np.NaN, dims=["y", "x"], coords=dict(x=x, y=y))
+            if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+                affine = get_affine(ds)
+                da_temp = da_temp.rio.write_transform(affine, inplace=True)
             # make sure da_temp has a crs if da has a crs
             da_temp = da_temp.rio.set_crs(da.rio.crs)
             da_temp = da.rio.reproject_match(da_temp, resampling)
@@ -504,12 +513,13 @@ def get_extent_polygon(ds):
     zw = (extent[0], extent[3])
     polygon = Polygon([nw, no, zo, zw])
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds, sx=1.0, sy=1.0)
+        affine = get_affine_mod_to_world(ds)
         polygon = affine_transform(polygon, affine.to_shapely())
     return polygon
 
 
 def affine_transform_gdf(gdf, affine):
+    """Apply an affine transformation to a geopandas GeoDataFrame"""
     if isinstance(affine, Affine):
         affine = affine.to_shapely()
     gdfm = gdf.copy()
@@ -521,12 +531,26 @@ def get_extent(ds):
     """Get the model extent, corrected for angrot if necessary"""
     extent = ds.attrs["extent"]
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds, sx=1.0, sy=1.0)
+        affine = get_affine_mod_to_world(ds)
         xc = np.array([extent[0], extent[1], extent[1], extent[0]])
         yc = np.array([extent[2], extent[2], extent[3], extent[3]])
         xc, yc = affine * (xc, yc)
         extent = [xc.min(), xc.max(), yc.min(), yc.max()]
     return extent
+
+
+def get_affine_mod_to_world(ds):
+    xorigin = ds.attrs["xorigin"]
+    yorigin = ds.attrs["yorigin"]
+    angrot = ds.attrs["angrot"]
+    return Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+
+
+def get_affine_world_to_mod(ds):
+    xorigin = ds.attrs["xorigin"]
+    yorigin = ds.attrs["yorigin"]
+    angrot = ds.attrs["angrot"]
+    return Affine.rotation(-angrot) * Affine.translation(-xorigin, -yorigin)
 
 
 def get_affine(ds, sx=None, sy=None):
@@ -543,7 +567,7 @@ def get_affine(ds, sx=None, sy=None):
     if sx is None:
         sx = ds.attrs["delr"]
     if sy is None:
-        sy = ds.attrs["delc"]
+        sy = -ds.attrs["delc"]
     return (
-        Affine.translation(xoff, yoff) * Affine.scale(sx, -sy) * Affine.rotation(angrot)
+        Affine.translation(xoff, yoff) * Affine.scale(sx, sy) * Affine.rotation(angrot)
     )

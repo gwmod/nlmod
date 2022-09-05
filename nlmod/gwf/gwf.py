@@ -128,7 +128,7 @@ def ims_to_sim(sim, complexity="MODERATE"):
     return ims
 
 
-def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
+def dis_from_model_ds(model_ds, gwf, length_units="METERS"):
     """get discretisation package from the model dataset.
 
     Parameters
@@ -139,8 +139,6 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
         groundwaterflow object.
     length_units : str, optional
         length unit. The default is 'METERS'.
-    angrot : int or float, optional
-        rotation angle. The default is 0.
 
     Returns
     -------
@@ -149,21 +147,28 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
     """
 
     if model_ds.gridtype == "vertex":
-        return disv_from_model_ds(
-            model_ds, gwf, length_units=length_units, angrot=angrot
-        )
+        return disv_from_model_ds(model_ds, gwf, length_units=length_units)
 
     # check attributes
     for att in ["delr", "delc"]:
         if isinstance(model_ds.attrs[att], np.float32):
             model_ds.attrs[att] = float(model_ds.attrs[att])
 
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        xorigin = model_ds.attrs["xorigin"]
+        yorigin = model_ds.attrs["yorigin"]
+        angrot = model_ds.attrs["angrot"]
+    else:
+        xorigin = model_ds.extent[0]
+        yorigin = model_ds.extent[2]
+        angrot = 0.0
+
     dis = flopy.mf6.ModflowGwfdis(
         gwf,
         pname="dis",
         length_units=length_units,
-        xorigin=model_ds.extent[0],
-        yorigin=model_ds.extent[2],
+        xorigin=xorigin,
+        yorigin=yorigin,
         angrot=angrot,
         nlay=model_ds.dims["layer"],
         nrow=model_ds.dims["y"],
@@ -179,7 +184,7 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
     return dis
 
 
-def disv_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
+def disv_from_model_ds(model_ds, gwf, length_units="METERS"):
     """get discretisation vertices package from the model dataset.
 
     Parameters
@@ -190,8 +195,6 @@ def disv_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
         groundwaterflow object.
     length_units : str, optional
         length unit. The default is 'METERS'.
-    angrot : int or float, optional
-        rotation angle. The default is 0.
 
     Returns
     -------
@@ -199,13 +202,22 @@ def disv_from_model_ds(model_ds, gwf, length_units="METERS", angrot=0):
         disv package
     """
 
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        xorigin = model_ds.attrs["xorigin"]
+        yorigin = model_ds.attrs["yorigin"]
+        angrot = model_ds.attrs["angrot"]
+    else:
+        xorigin = 0.0
+        yorigin = 0.0
+        angrot = 0.0
+
     vertices = mdims.mgrid.get_vertices_from_model_ds(model_ds)
     cell2d = mdims.mgrid.get_cell2d_from_model_ds(model_ds)
     disv = flopy.mf6.ModflowGwfdisv(
         gwf,
         idomain=model_ds["idomain"].data,
-        xorigin=model_ds.extent[0],
-        yorigin=model_ds.extent[2],
+        xorigin=xorigin,
+        yorigin=yorigin,
         length_units=length_units,
         angrot=angrot,
         nlay=len(model_ds.layer),

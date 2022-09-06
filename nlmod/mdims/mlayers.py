@@ -1139,22 +1139,15 @@ def get_default_model_ds(
         attrs["angrot"] = angrot
     x, y = resample.get_xy_mid_structured(extent, delr, delc)
 
+    if angrot == 0.0:
+        x = x + xorigin
+        y = y + yorigin
+    coords = dict(x=x, y=y, layer=layer)
     if angrot != 0.0:
         affine = Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
         xc, yc = affine * np.meshgrid(x, y)
-        dims = ["layer", "y", "x"]
-        coords = dict(
-            x=x,
-            y=y,
-            layer=layer,
-            xc=(("y", "x"), xc),
-            yc=(("y", "x"), yc),
-        )
-    else:
-        x = x + xorigin
-        y = y + yorigin
-        dims = ["layer", "y", "x"]
-        coords = dict(x=x, y=y, layer=layer)
+        coords["xc"] = (("y", "x"), xc)
+        coords["yc"] = (("y", "x"), yc)
 
     def check_variable(var, shape):
         if isinstance(var, int):
@@ -1185,6 +1178,7 @@ def get_default_model_ds(
     kh = check_variable(kh, shape)
     kv = check_variable(kv, shape)
 
+    dims = ["layer", "y", "x"]
     ds = xr.Dataset(
         data_vars=dict(
             top=(dims[1:], top),

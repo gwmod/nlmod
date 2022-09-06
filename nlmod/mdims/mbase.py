@@ -27,7 +27,7 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
         model dataset.
     """
 
-    if len(model_name) > 16 and mfversion == "mf6":
+    if model_name is not None and len(model_name) > 16 and mfversion == "mf6":
         raise ValueError("model_name can not have more than 16 characters")
     ds.attrs["model_name"] = model_name
     ds.attrs["mfversion"] = mfversion

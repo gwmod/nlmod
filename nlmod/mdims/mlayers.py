@@ -1121,30 +1121,11 @@ def get_default_model_ds(
         layer = np.arange(1, layer + 1)
     if botm is None:
         botm = top - 10 * np.arange(1.0, len(layer) + 1)
-    if angrot != 0.0:
-        if xorigin == 0.0:
-            xorigin = extent[0]
-            extent[0] = 0.0
-            extent[1] = extent[1] - xorigin
-        elif extent[0] != 0.0:
-            raise (Exception("Either extent[0] or xorigin needs to be 0.0"))
-        if yorigin == 0.0:
-            yorigin = extent[2]
-            extent[2] = 0.0
-            extent[3] = extent[3] - yorigin
-        elif extent[2] != 0.0:
-            raise (Exception("Either extent[2] or yorigin needs to be 0.0"))
-        attrs["xorigin"] = xorigin
-        attrs["yorigin"] = yorigin
-        attrs["angrot"] = angrot
-    x, y = resample.get_xy_mid_structured(extent, delr, delc)
-
-    if angrot == 0.0:
-        x = x + xorigin
-        y = y + yorigin
+    resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
+    x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
     coords = dict(x=x, y=y, layer=layer)
     if angrot != 0.0:
-        affine = Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+        affine = resample.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(x, y)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)
@@ -1196,6 +1177,7 @@ def get_default_model_ds(
         extent=extent,
         delr=delr,
         delc=delc,
+        drop_attributes=False,
         **kwargs,
     )
     ds.rio.set_crs(crs)

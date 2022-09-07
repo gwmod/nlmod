@@ -122,6 +122,7 @@ def get_regis(extent, botm_layer="AKc", variables=["top", "botm", "kh", "kv"]):
 
     ds.attrs["extent"] = extent
     for datavar in ds:
+        ds[datavar].attrs["grid_mapping"] = "crs"
         ds[datavar].attrs["source"] = "REGIS"
         ds[datavar].attrs["url"] = REGIS_URL
         ds[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
@@ -153,6 +154,7 @@ def to_model_ds(
     xorigin=0.0,
     yorigin=0.0,
     angrot=0.0,
+    drop_attributes=True,
 ):
     """
     Transform a regis datset to a model dataset with another resolution.
@@ -199,39 +201,25 @@ def to_model_ds(
     """
     if extent is None:
         extent = ds.attrs["extent"]
-    if delc is None:
-        delc = delr
-    # check extent
-    extent2, _, _ = fit_extent_to_regis(extent, delr, delc)
-    for coord1, coord2 in zip(extent, extent2):
-        if coord1 != coord2:
-            raise ValueError(
-                (
-                    "extent not fitted to regis please fit to regis first, "
-                    "use the nlmod.regis.fit_extent_to_regis function"
-                )
-            )
+
+    # drop attributes
+    if drop_attributes:
+        ds = ds.copy()
+        for attr in list(ds.attrs):
+            del ds.attrs[attr]
 
     # convert regis dataset to grid
     logger.info("resample regis data to structured modelgrid")
-    ds = resample.resample_dataset_to_structured_grid(ds, extent, delr, delc)
-
-    # drop attributes
-    for attr in list(ds.attrs):
-        if attr not in ["xorigin", "yorigin", "angrot"]:
-            del ds.attrs[attr]
-
-    # and add new attributes
-    ds.attrs["gridtype"] = "structured"
-    ds.attrs["extent"] = extent
-    ds.attrs["delr"] = delr
-    ds.attrs["delc"] = delc
+    ds = resample.resample_dataset_to_structured_grid(
+        ds, extent, delr, delc, xorigin=xorigin, yorigin=yorigin, angrot=angrot
+    )
 
     if extrapolate:
         ds = extrapolate_ds(ds)
 
     # add attributes
     ds = mbase.set_ds_attrs(ds, model_name, model_ws)
+
     # fill nan's and add idomain
     ds = mlayers.fill_nan_top_botm_kh_kv(
         ds,

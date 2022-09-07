@@ -630,7 +630,6 @@ def get_gdf(ds=None, extent=None, fname_ahn=None):
         extent = [bs[0], bs[2], bs[1], bs[3]]
     gdf = add_stages_from_waterboards(gdf, extent=extent)
     if ds is not None:
-        mg = mgrid.modelgrid_from_model_ds(ds)
         return mgrid.gdf2grid(gdf, ds).set_index("cellid")
     return gdf
 

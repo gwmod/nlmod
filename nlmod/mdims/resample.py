@@ -143,7 +143,16 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     return x, y
 
 
-def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, method="nearest"):
+def resample_dataset_to_structured_grid(
+    ds_in,
+    extent,
+    delr,
+    delc=None,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0.0,
+    method="nearest",
+):
     """Resample a dataset (xarray) from a structured grid to a new dataset from
     a different structured grid.
 
@@ -170,20 +179,58 @@ def resample_dataset_to_structured_grid(ds_in, extent, delr, delc, method="neare
     """
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
+    if delc is None:
+        delc = delr
 
     x, y = get_xy_mid_structured(extent, delr, delc)
-    if method in ["nearest", "linear"]:
-        return ds_in.interp(
+
+    attrs = ds_in.attrs.copy()
+    _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
+
+    # add new attributes
+    attrs["gridtype"] = "structured"
+    attrs["delr"] = delr
+    attrs["delc"] = delc
+
+    if method in ["nearest", "linear"] and angrot == 0.0:
+        ds_out = ds_in.interp(
             x=x, y=y, method=method, kwargs={"fill_value": "extrapolate"}
         )
+        ds_out.attrs = attrs
+        return ds_out
 
-    ds_out = xr.Dataset(
-        coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=ds_in.attrs
-    )
+    ds_out = xr.Dataset(coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=attrs)
     for var in ds_in.data_vars:
-        ds_out[var] = structured_da_to_ds(ds_in[var], ds_in, method=method)
-
+        ds_out[var] = structured_da_to_ds(ds_in[var], ds_out, method=method)
     return ds_out
+
+
+def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
+    if angrot == 0.0:
+        if xorigin != 0.0:
+            extent[0] = extent[0] + xorigin
+            extent[1] = extent[1] + xorigin
+        if yorigin != 0.0:
+            extent[2] = extent[2] + yorigin
+            extent[3] = extent[3] + yorigin
+        attrs["extent"] = extent
+    else:
+        if xorigin == 0.0:
+            xorigin = extent[0]
+            extent[0] = 0.0
+            extent[1] = extent[1] - xorigin
+        elif extent[0] != 0.0:
+            raise (Exception("Either extent[0] or xorigin needs to be 0.0"))
+        if yorigin == 0.0:
+            yorigin = extent[2]
+            extent[2] = 0.0
+            extent[3] = extent[3] - yorigin
+        elif extent[2] != 0.0:
+            raise (Exception("Either extent[2] or yorigin needs to be 0.0"))
+        attrs["extent"] = extent
+        attrs["xorigin"] = xorigin
+        attrs["yorigin"] = yorigin
+        attrs["angrot"] = angrot
 
 
 def get_resampled_ml_layer_ds_vertex(raw_ds=None, gridprops=None, nodata=-1):
@@ -446,18 +493,19 @@ def structured_da_to_ds(da, ds, method="average"):
         The resampled DataArray
 
     """
-    if method in ["linear", "nearest"]:
+    has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
+    if method in ["linear", "nearest"] and not has_rotation:
         kwargs = {}
         if ds.gridtype == "structured":
             kwargs["fill_value"] = "extrapolate"
         x = ds.x
         y = ds.y
-        if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-            affine = get_affine(ds)
-            if ds.gridtype == "structured":
-                x, y = affine * np.meshgrid(x, y)
-            else:
-                x, y = affine * (x, y)
+        # if has_rotation:
+        #     affine = get_affine(ds)
+        #     if ds.gridtype == "structured":
+        #         x, y = affine * np.meshgrid(x, y)
+        #     else:
+        #         x, y = affine * (x, y)
         da_out = da.interp(x=x, y=y, method=method, kwargs=kwargs)
         return da_out
     if isinstance(method, rasterio.enums.Resampling):
@@ -504,15 +552,27 @@ def structured_da_to_ds(da, ds, method="average"):
     return da_out
 
 
-def get_extent_polygon(ds):
-    """Get the model extent, as a shapely Polygon"""
-    extent = ds.attrs["extent"]
+def extent_to_polygon(extent):
+    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])"""
     nw = (extent[0], extent[2])
     no = (extent[1], extent[2])
     zo = (extent[1], extent[3])
     zw = (extent[0], extent[3])
-    polygon = Polygon([nw, no, zo, zw])
-    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+    return Polygon([nw, no, zo, zw])
+
+
+def _get_attrs(ds):
+    if isinstance(ds, dict):
+        return ds
+    else:
+        return ds.attrs
+
+
+def get_extent_polygon(ds):
+    """Get the model extent, as a shapely Polygon"""
+    attrs = _get_attrs(ds)
+    polygon = extent_to_polygon(attrs["extent"])
+    if "angrot" in ds.attrs and attrs["angrot"] != 0.0:
         affine = get_affine_mod_to_world(ds)
         polygon = affine_transform(polygon, affine.to_shapely())
     return polygon
@@ -529,8 +589,9 @@ def affine_transform_gdf(gdf, affine):
 
 def get_extent(ds):
     """Get the model extent, corrected for angrot if necessary"""
-    extent = ds.attrs["extent"]
-    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+    attrs = _get_attrs(ds)
+    extent = attrs["extent"]
+    if "angrot" in attrs and attrs["angrot"] != 0.0:
         affine = get_affine_mod_to_world(ds)
         xc = np.array([extent[0], extent[1], extent[1], extent[0]])
         yc = np.array([extent[2], extent[2], extent[3], extent[3]])
@@ -541,35 +602,38 @@ def get_extent(ds):
 
 def get_affine_mod_to_world(ds):
     """Get the affine-transformation from model to real-world coordinates"""
-    xorigin = ds.attrs["xorigin"]
-    yorigin = ds.attrs["yorigin"]
-    angrot = ds.attrs["angrot"]
+    attrs = _get_attrs(ds)
+    xorigin = attrs["xorigin"]
+    yorigin = attrs["yorigin"]
+    angrot = attrs["angrot"]
     return Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
 
 
 def get_affine_world_to_mod(ds):
     """Get the affine-transformation from real-world to model coordinates"""
-    xorigin = ds.attrs["xorigin"]
-    yorigin = ds.attrs["yorigin"]
-    angrot = ds.attrs["angrot"]
+    attrs = _get_attrs(ds)
+    xorigin = attrs["xorigin"]
+    yorigin = attrs["yorigin"]
+    angrot = attrs["angrot"]
     return Affine.rotation(-angrot) * Affine.translation(-xorigin, -yorigin)
 
 
 def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates"""
-    xorigin = ds.attrs["xorigin"]
-    yorigin = ds.attrs["yorigin"]
-    angrot = -ds.attrs["angrot"]
+    attrs = _get_attrs(ds)
+    xorigin = attrs["xorigin"]
+    yorigin = attrs["yorigin"]
+    angrot = -attrs["angrot"]
     # xorigin and yorigin represent the lower left corner, while for the transform we
     # need the upper left
-    dy = ds.attrs["extent"][3] - ds.attrs["extent"][2]
+    dy = attrs["extent"][3] - attrs["extent"][2]
     xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
     yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
 
     if sx is None:
-        sx = ds.attrs["delr"]
+        sx = attrs["delr"]
     if sy is None:
-        sy = -ds.attrs["delc"]
+        sy = -attrs["delc"]
     return (
         Affine.translation(xoff, yoff) * Affine.scale(sx, sy) * Affine.rotation(angrot)
     )

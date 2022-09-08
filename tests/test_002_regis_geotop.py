@@ -26,22 +26,6 @@ def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
 
 
 # @pytest.mark.skip(reason="too slow")
-def test_fit_regis_extent(
-    extent=[128050.0, 141450.0, 468550.0, 481450.0], delr=100.0, delc=100.0
-):
-
-    try:
-        regis_ds = regis.get_regis(extent)
-        nlmod.read.regis.to_model_ds(regis_ds, delr=delr, delc=delc)
-    except ValueError:
-        return True
-
-    raise RuntimeError("regis fit does not work as expected")
-
-    return regis_ds
-
-
-# @pytest.mark.skip(reason="too slow")
 def test_get_regis_botm_layer_BEk1(
     extent=[98700.0, 99000.0, 489500.0, 489700.0],
     delr=100.0,

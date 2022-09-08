@@ -3,7 +3,6 @@ from collections import OrderedDict
 
 import numpy as np
 import xarray as xr
-from affine import Affine
 
 from . import resample
 from ..read import jarkus, rws, regis

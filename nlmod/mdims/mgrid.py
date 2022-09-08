@@ -120,7 +120,7 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     icvert = np.full((mg.ncpl, ncvert_max), nodata)
     for i in range(mg.ncpl):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
-    ds["icvert"] = ("cell2d", "icv"), icvert
+    ds["icvert"] = ("icell2d", "icv"), icvert
     ds["icvert"].attrs["_FillValue"] = nodata
     return ds
 
@@ -136,7 +136,7 @@ def gridprops_to_vertex_ds(gridprops, model_ds, nodata=-1):
     icvert = np.full((gridprops["ncpl"], ncvert_max), nodata)
     for i in range(gridprops["ncpl"]):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
-    model_ds["icvert"] = ("cell2d", "icv"), icvert
+    model_ds["icvert"] = ("icell2d", "icv"), icvert
     model_ds["icvert"].attrs["_FillValue"] = nodata
     return model_ds
 

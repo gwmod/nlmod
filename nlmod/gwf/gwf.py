@@ -100,7 +100,7 @@ def gwf_from_model_ds(model_ds, sim):
     return gwf
 
 
-def ims_to_sim(sim, complexity="MODERATE"):
+def ims_to_sim(sim, complexity="MODERATE", **kwargs):
     """create IMS package
 
 
@@ -122,7 +122,8 @@ def ims_to_sim(sim, complexity="MODERATE"):
 
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.modflow.mfims.ModflowIms(
-        sim, pname="ims", print_option="summary", complexity=complexity
+        sim, pname="ims", print_option="summary", complexity=complexity,
+        **kwargs
     )
 
     return ims
@@ -526,7 +527,8 @@ def rch_from_model_ds(model_ds, gwf):
     return rch
 
 
-def oc_from_model_ds(model_ds, gwf, save_budget=True, print_head=True):
+def oc_from_model_ds(model_ds, gwf, save_head=False, 
+                     save_budget=True, print_head=True):
     """get output control package from model dataset.
 
     Parameters
@@ -547,6 +549,8 @@ def oc_from_model_ds(model_ds, gwf, save_budget=True, print_head=True):
     budgetfile = f"{model_ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
     saverecord = [("HEAD", "LAST")]
+    if save_head:
+        saverecord = [("HEAD", "ALL")]
     if save_budget:
         saverecord.append(("BUDGET", "ALL"))
     if print_head:

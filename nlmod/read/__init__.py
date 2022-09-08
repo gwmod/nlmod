@@ -8,5 +8,6 @@ from . import (
     bgt,
     waterboard,
     webservices,
+    brp,
 )
 from .regis import get_regis

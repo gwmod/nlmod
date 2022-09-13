@@ -532,7 +532,7 @@ def rch_from_model_ds(model_ds, gwf):
     return rch
 
 
-def oc_from_model_ds(model_ds, gwf, save_head=False, 
+def oc_from_model_ds(model_ds, gwf, save_head=False,
                      save_budget=True, print_head=True):
     """get output control package from model dataset.
 

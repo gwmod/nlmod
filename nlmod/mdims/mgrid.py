@@ -1163,15 +1163,18 @@ def gdf2grid(
     """
     if ml is None and ix is None:
         raise (Exception("Either specify ml or ix"))
-    if isinstance(ml, xr.Dataset):
-        ds = ml
-        modelgrid = modelgrid_from_model_ds(ds, rotated=False)
-        if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-            # transform gdf into model coordinates
-            affine = get_affine_world_to_mod(ds)
-            gdf = affine_transform_gdf(gdf, affine)
-    else:
-        modelgrid = ml.modelgrid
+        
+    if ml is not None:
+        if isinstance(ml, xr.Dataset):
+            ds = ml
+            modelgrid = modelgrid_from_model_ds(ds, rotated=False)
+            if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+                # transform gdf into model coordinates
+                affine = get_affine_world_to_mod(ds)
+                gdf = affine_transform_gdf(gdf, affine)
+        else:
+            modelgrid = ml.modelgrid
+        
     if ix is None:
         ix = flopy.utils.GridIntersect(modelgrid, method=method)
     shps = []

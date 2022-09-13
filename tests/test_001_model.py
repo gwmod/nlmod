@@ -76,7 +76,7 @@ def test_model_ds_time_transient(tmpdir, modelname="test"):
 @pytest.mark.slow
 def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    #extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
@@ -102,7 +102,7 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
 @pytest.mark.slow
 def test_create_small_model_grid_only(tmpdir, model_name="test"):
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    #extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, regis_botm_layer="KRz5", use_regis=True, use_geotop=True
     )
@@ -144,7 +144,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
 @pytest.mark.slow
 def test_create_sea_model_grid_only(tmpdir, model_name="test"):
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    #extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
@@ -171,7 +171,7 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
 def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
     model_ds = test_model_ds_time_transient(tmpdir)
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50.0, 50.0)
+    #extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50.0, 50.0)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )

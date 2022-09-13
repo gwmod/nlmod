@@ -33,7 +33,7 @@ def test_get_regis_botm_layer_BEk1(
     botm_layer="BEk1",
 ):
 
-    extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
+    #extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
 
     regis_ds = regis.get_regis(extent, botm_layer)
 

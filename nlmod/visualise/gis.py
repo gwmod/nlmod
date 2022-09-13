@@ -4,6 +4,9 @@ import os
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon
+from shapely.affinity import affine_transform
+
+from ..mdims import resample
 
 logger = logging.getLogger(__name__)
 
@@ -53,12 +56,17 @@ def _polygons_from_model_ds(model_ds):
             for i in range(len(xmins))
             for j in range(len(ymins))
         ]
+
     elif model_ds.gridtype == "vertex":
         polygons = [Polygon(vertices) for vertices in model_ds["vertices"].values]
     else:
         raise ValueError(
-            "gridtype must be 'structured' or 'vertex', " f"not {model_ds.gridtype}"
+            f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
         )
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        # rotate the model coordinates to real coordinates
+        affine = resample.get_affine_mod_to_world(model_ds).to_shapely()
+        polygons = [affine_transform(polygon, affine) for polygon in polygons]
 
     return polygons
 
@@ -401,10 +409,15 @@ def model_dataset_to_ugrid_nc_file(
         The dataset that was saved to a NetCDF-file. Can be used for debugging.
 
     """
-    # assert model_ds.gridtype == 'vertex', 'Only vertex grids are supported'
+    assert model_ds.gridtype == "vertex", "Only vertex grids are supported"
 
     # copy the dataset, so we do not alter the original one
     ds = model_ds.copy()
+
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # rotate the model coordinates to real coordinates
+        affine = resample.get_affine_mod_to_world(ds)
+        ds[xv], ds[yv] = affine * (ds[xv], ds[yv])
 
     # add a dummy variable with the required grid-information
     ds[dummy_var] = 0
@@ -417,7 +430,7 @@ def model_dataset_to_ugrid_nc_file(
     nvert_per_cell_dim = ds[face_node_connectivity].dims[1]
     ds = ds[{nvert_per_cell_dim: ds[nvert_per_cell_dim][1:]}]
     # make sure vertices (nodes) in faces are sprecified in counterclokcwise-
-    # direction. Flopy specifies them in clocksie direction, so we need to
+    # direction. Flopy specifies them in clockwise direction, so we need to
     # reverse the direction.
     data = np.flip(ds[face_node_connectivity].data, 1)
     nodata = ds[face_node_connectivity].attrs.get("_FillValue")

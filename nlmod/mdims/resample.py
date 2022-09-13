@@ -523,7 +523,7 @@ def structured_da_to_ds(da, ds, method="average"):
             ds = ds.rio.write_transform(affine)
             ds.rio.write_crs(crs, inplace=True)
         da_out = da.rio.reproject_match(ds, resampling)
-        
+
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
         # in 4
@@ -542,12 +542,11 @@ def structured_da_to_ds(da, ds, method="average"):
             da_out[mask] = da_temp.sel(y=ds["y"][mask], x=ds["x"][mask])
     else:
         raise (Exception(f"Gridtype {ds.gridtype} not supported"))
-    
+
     # somehow the spatial_ref (jarkus) and band (ahn) coordinates are added by the reproject_match function
-    if 'spatial_ref' in da_out.coords:
-        da_out = da_out.drop_vars('spatial_ref')
-        
-    
+    if "spatial_ref" in da_out.coords:
+        da_out = da_out.drop_vars("spatial_ref")
+
     return da_out
 
 

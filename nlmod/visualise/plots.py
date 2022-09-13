@@ -384,8 +384,17 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
     if "icell2d" in da.dims:
         if ds is None:
             raise (Exception("Supply model dataset (ds) for grid information"))
-        vertices = get_vertices(ds, rotated=rotated)
-        patches = [Polygon(vert) for vert in vertices]
+        xy = np.column_stack((ds["xv"].data, ds["yv"].data))
+        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            affine = get_affine_mod_to_world(ds)
+            xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
+        icvert = ds["icvert"].data
+        nodata = ds["icvert"].attrs["_FillValue"]
+        patches = [
+            Polygon(xy[icvert[icell2d, icvert[icell2d] != nodata]])
+            for icell2d in ds.icell2d.data
+        ]
+
         pc = PatchCollection(patches, **kwargs)
         pc.set_array(da)
         ax.add_collection(pc)
@@ -393,7 +402,7 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
     else:
         x = da.x
         y = da.y
-        if rotated:
+        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
             affine = get_affine_mod_to_world(ds)
             x, y = affine * np.meshgrid(x, y)
         return ax.pcolormesh(x, y, da, shading="nearest", **kwargs)

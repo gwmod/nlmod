@@ -331,12 +331,12 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     if "vmin" in kwargs:
         vmin = kwargs.pop("vmin")
     else:
-        vmin = None
+        vmin = da.min()
 
     if "vmax" in kwargs:
         vmax = kwargs.pop("vmax")
     else:
-        vmax = None
+        vmax = da.max()
 
     # limit the color range
     pc.set_clim(vmin=vmin, vmax=vmax)

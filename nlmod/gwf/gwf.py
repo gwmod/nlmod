@@ -93,6 +93,7 @@ def gwf_from_model_ds(model_ds, sim):
 
     # Create the Flopy groundwater flow (gwf) model object
     model_nam_file = f"{model_ds.model_name}.nam"
+        
     gwf = flopy.mf6.ModflowGwf(
         sim, modelname=model_ds.model_name, model_nam_file=model_nam_file
     )
@@ -229,6 +230,10 @@ def disv_from_model_ds(model_ds, gwf, length_units="METERS"):
         vertices=vertices,
         cell2d=cell2d,
     )
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        gwf.modelgrid.set_coord_info(xoff=xorigin, 
+                                     yoff=yorigin, 
+                                     angrot=angrot)
 
     return disv
 

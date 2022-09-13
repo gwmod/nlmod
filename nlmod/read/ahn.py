@@ -54,8 +54,8 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm", method="average"):
     extent = mdims.resample.get_extent(model_ds)
     ahn_ds_raw = get_ahn_within_extent(extent=extent, url=url, identifier=identifier)
 
-    # assert not ahn_ds_raw.isnull().all(), 'AHN only has nan values'
-
+    ahn_ds_raw = ahn_ds_raw.drop_vars('band')
+        
     ahn_da = mdims.resample.structured_da_to_ds(ahn_ds_raw, model_ds, method=method)
     ahn_da.attrs["source"] = identifier
     ahn_da.attrs["url"] = url
@@ -143,18 +143,18 @@ def _infer_url(identifier=None):
 
     Parameters
     ----------
-    identifier : TYPE, optional
-        DESCRIPTION. The default is None.
+    identifier : str, optional
+        identifier of the ahn type. The default is None.
 
     Raises
     ------
     ValueError
-        DESCRIPTION.
+        unknown identifier.
 
     Returns
     -------
-    url : TYPE
-        DESCRIPTION.
+    url : str
+        ahn url corresponding to identifier.
     """
 
     # infer url from identifier

@@ -358,7 +358,7 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
 
 def da(da, ds=None, ax=None, rotated=False, **kwargs):
     """
-    Plot an xarray DataArray, suning information from the model Dataset ds
+    Plot an xarray DataArray, using information from the model Dataset ds
 
     Parameters
     ----------

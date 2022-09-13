@@ -498,15 +498,7 @@ def structured_da_to_ds(da, ds, method="average"):
         kwargs = {}
         if ds.gridtype == "structured":
             kwargs["fill_value"] = "extrapolate"
-        x = ds.x
-        y = ds.y
-        # if has_rotation:
-        #     affine = get_affine(ds)
-        #     if ds.gridtype == "structured":
-        #         x, y = affine * np.meshgrid(x, y)
-        #     else:
-        #         x, y = affine * (x, y)
-        da_out = da.interp(x=x, y=y, method=method, kwargs=kwargs)
+        da_out = da.interp(x=ds.x, y=ds.y, method=method, kwargs=kwargs)
         return da_out
     if isinstance(method, rasterio.enums.Resampling):
         resampling = method

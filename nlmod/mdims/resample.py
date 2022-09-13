@@ -552,7 +552,7 @@ def structured_da_to_ds(da, ds, method="average"):
         raise (Exception(f"Gridtype {ds.gridtype} not supported"))
     
     # somehow the spatial_ref (jarkus) and band (ahn) coordinates are added by the reproject_match function
-    if 'spatial_ref' in da_out.coords: 
+    if 'spatial_ref' in da_out.coords:
         da_out = da_out.drop_vars('spatial_ref')
         
     

@@ -1,6 +1,8 @@
 import datetime as dt
 import numpy as np
+import xarray as xr
 import logging
+
 
 from scipy.spatial import cKDTree
 
@@ -199,4 +201,147 @@ def extrapolate_ds(ds, mask=None):
             raise (Exception(f"Dimensions {ds[key].dims} not supported"))
         # make sure to set the data (which for some reason is sometimes needed)
         ds[key].data = data
+    return ds
+
+
+def get_default_ds(
+    extent,
+    delr=100.0,
+    delc=None,
+    model_name=None,
+    model_ws=None,
+    layer=10,
+    top=0.0,
+    botm=None,
+    kh=10.0,
+    kv=1.0,
+    crs=28992,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0.0,
+    attrs=None,
+    **kwargs,
+):
+    """
+    Create a model dataset from scratch, so without a layer model.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    delr : float, optional
+        The gridsize along columns. The default is 100. meter.
+    delc : float, optional
+        The gridsize along rows. Set to delr when None. The default is None.
+    layer : int, list, tuple or ndarray, optional
+        The layers of the model. When layer is an integer it is the number of
+        layers. The default is 10.
+    top : float, list or ndarray, optional
+        The top of the model. It has to be of shape (len(y), len(x)) or it is
+        transformed into that shape if top is a float. The default is 0.0.
+    botm : list or ndarray, optional
+        The botm of the model layers. It has to be of shape
+        (len(layer), len(y), len(x)) or it is transformed to that shape if botm
+        is or a list/array of len(layer). When botm is None, a botm is
+        generated with a constant layer thickness of 10 meter. The default is
+        None.
+    kh : float, list or ndarray, optional
+        The horizontal conductivity of the model layers. It has to be of shape
+        (len(layer), len(y), len(x)) or it is transformed to that shape if kh
+        is a float or a list/array of len(layer). The default is 10.0.
+    kv : float, list or ndarray, optional
+        The vertical conductivity of the model layers. It has to be of shape
+        (len(layer), len(y), len(x)) or it is transformed to that shape if kv
+        is a float or a list/array of len(layer). The default is 1.0.
+    crs : int, optional
+        THe coordinate reference system of the model. The default is 28992.
+    xorigin : float, optional
+        x-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0. The defauls is 0.0.
+    yorigin : float, optional
+        y-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0. The defauls is 0.0.
+    angrot : float, optional
+        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
+        model grid. The default is 0.0
+    attrs : dict, optional
+        Attributes of the model dataset. The default is None.
+    **kwargs : dict
+        Kwargs are passed into mbase.to_ds. These can be the model_name
+        or ds.
+
+    Returns
+    -------
+    xr.Dataset
+        The model dataset.
+
+    """
+    if delc is None:
+        delc = delr
+    if attrs is None:
+        attrs = {}
+    if isinstance(layer, int):
+        layer = np.arange(1, layer + 1)
+    if botm is None:
+        botm = top - 10 * np.arange(1.0, len(layer) + 1)
+    resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
+    x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
+    coords = dict(x=x, y=y, layer=layer)
+    if angrot != 0.0:
+        affine = resample.get_affine_mod_to_world(attrs)
+        xc, yc = affine * np.meshgrid(x, y)
+        coords["xc"] = (("y", "x"), xc)
+        coords["yc"] = (("y", "x"), yc)
+
+    def check_variable(var, shape):
+        if isinstance(var, int):
+            # the variable is a single integer
+            var = float(var)
+        if isinstance(var, float):
+            # the variable is a single float
+            var = np.full(shape, var)
+        else:
+            # assume the variable is an array of some kind
+            if not isinstance(var, np.ndarray):
+                var = np.array(var)
+            if var.dtype != float:
+                var = var.astype(float)
+            if len(var.shape) == 1 and len(shape) == 3:
+                # the variable is defined per layer
+                assert len(var) == shape[0]
+                var = var[:, np.newaxis, np.newaxis]
+                var = np.repeat(np.repeat(var, shape[1], 1), shape[2], 2)
+            else:
+                assert var.shape == shape
+        return var
+
+    shape = (len(y), len(x))
+    top = check_variable(top, shape)
+    shape = (len(layer), len(y), len(x))
+    botm = check_variable(botm, shape)
+    kh = check_variable(kh, shape)
+    kv = check_variable(kv, shape)
+
+    dims = ["layer", "y", "x"]
+    ds = xr.Dataset(
+        data_vars=dict(
+            top=(dims[1:], top),
+            botm=(dims, botm),
+            kh=(dims, kh),
+            kv=(dims, kv),
+        ),
+        coords=coords,
+        attrs=attrs,
+    )
+    ds = to_model_ds(
+        ds,
+        model_name=model_name,
+        model_ws=model_ws,
+        extent=extent,
+        delr=delr,
+        delc=delc,
+        drop_attributes=False,
+        **kwargs,
+    )
+    ds.rio.set_crs(crs)
     return ds

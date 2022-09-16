@@ -180,7 +180,7 @@ def get_netcdf_tiles():
     same string for each tile.
     """
     url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc.ascii"
-    req = requests.get(url, timeout=1200) #20 minutes time out
+    req = requests.get(url, timeout=1200)  # 20 minutes time out
     s = req.content.decode("ascii")
     start = s.find("urlPath", s.find("urlPath") + 1)
     end = s.find("projectionCoverage_x", s.find("projectionCoverage_x") + 1)

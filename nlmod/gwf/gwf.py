@@ -70,7 +70,7 @@ def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
     model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
-def gwf_from_model_ds(model_ds, sim):
+def gwf_from_model_ds(model_ds, sim, **kwargs):
     """create groundwater flow model from the model dataset.
 
     Parameters
@@ -95,13 +95,14 @@ def gwf_from_model_ds(model_ds, sim):
     model_nam_file = f"{model_ds.model_name}.nam"
 
     gwf = flopy.mf6.ModflowGwf(
-        sim, modelname=model_ds.model_name, model_nam_file=model_nam_file
+        sim, modelname=model_ds.model_name, model_nam_file=model_nam_file,
+        **kwargs
     )
 
     return gwf
 
 
-def ims_to_sim(sim, complexity="MODERATE", **kwargs):
+def ims_to_sim(sim, complexity="MODERATE", pname='ims', **kwargs):
     """create IMS package
 
 
@@ -111,6 +112,8 @@ def ims_to_sim(sim, complexity="MODERATE", **kwargs):
         simulation object.
     complexity : str, optional
         solver complexity for default settings. The default is "MODERATE".
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -123,14 +126,15 @@ def ims_to_sim(sim, complexity="MODERATE", **kwargs):
 
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.modflow.mfims.ModflowIms(
-        sim, pname="ims", print_option="summary", complexity=complexity,
+        sim, pname=pname, print_option="summary", complexity=complexity,
         **kwargs
     )
 
     return ims
 
 
-def dis_from_model_ds(model_ds, gwf, length_units="METERS"):
+def dis_from_model_ds(model_ds, gwf, length_units="METERS",
+                      pname='dis', **kwargs):
     """get discretisation package from the model dataset.
 
     Parameters
@@ -141,6 +145,8 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS"):
         groundwaterflow object.
     length_units : str, optional
         length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -167,7 +173,7 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS"):
 
     dis = flopy.mf6.ModflowGwfdis(
         gwf,
-        pname="dis",
+        pname=pname,
         length_units=length_units,
         xorigin=xorigin,
         yorigin=yorigin,
@@ -181,12 +187,14 @@ def dis_from_model_ds(model_ds, gwf, length_units="METERS"):
         botm=model_ds["botm"].data,
         idomain=model_ds["idomain"].data,
         filename=f"{model_ds.model_name}.dis",
+        **kwargs
     )
 
     return dis
 
 
-def disv_from_model_ds(model_ds, gwf, length_units="METERS"):
+def disv_from_model_ds(model_ds, gwf, length_units="METERS",
+                       pname='disv', **kwargs):
     """get discretisation vertices package from the model dataset.
 
     Parameters
@@ -197,6 +205,8 @@ def disv_from_model_ds(model_ds, gwf, length_units="METERS"):
         groundwaterflow object.
     length_units : str, optional
         length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -229,6 +239,8 @@ def disv_from_model_ds(model_ds, gwf, length_units="METERS"):
         botm=model_ds["botm"].data,
         vertices=vertices,
         cell2d=cell2d,
+        pname=pname,
+        **kwargs
     )
     if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
         gwf.modelgrid.set_coord_info(xoff=xorigin,
@@ -238,7 +250,9 @@ def disv_from_model_ds(model_ds, gwf, length_units="METERS"):
     return disv
 
 
-def npf_from_model_ds(model_ds, gwf, icelltype=0, save_flows=False, **kwargs):
+def npf_from_model_ds(model_ds, gwf, icelltype=0, save_flows=False, 
+                      pname='npf',
+                      **kwargs):
     """get node property flow package from model dataset.
 
     Parameters
@@ -252,6 +266,8 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0, save_flows=False, **kwargs):
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by
         cell flows should be saved to the cbb file. Default is False
+    pname : str, optional
+        package name
 
     Raises
     ------
@@ -266,7 +282,7 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0, save_flows=False, **kwargs):
 
     npf = flopy.mf6.ModflowGwfnpf(
         gwf,
-        pname="npf",
+        pname=pname,
         icelltype=icelltype,
         k=model_ds["kh"].data,
         k33=model_ds["kv"].data,
@@ -277,7 +293,7 @@ def npf_from_model_ds(model_ds, gwf, icelltype=0, save_flows=False, **kwargs):
     return npf
 
 
-def ghb_from_model_ds(model_ds, gwf, da_name):
+def ghb_from_model_ds(model_ds, gwf, da_name, pname='ghb', **kwargs):
     """get general head boundary from model dataset.
 
     Parameters
@@ -288,7 +304,9 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
         groundwaterflow object.
     da_name : str
         name of the ghb files in the model dataset.
-
+    pname : str, optional
+        package name
+        
     Raises
     ------
     ValueError
@@ -330,6 +348,8 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
             maxbound=len(ghb_rec),
             stress_period_data=ghb_rec,
             save_flows=True,
+            pname=pname,
+            **kwargs
         )
         return ghb
 
@@ -339,7 +359,8 @@ def ghb_from_model_ds(model_ds, gwf, da_name):
         return None
 
 
-def ic_from_model_ds(model_ds, gwf, starting_head="starting_head"):
+def ic_from_model_ds(model_ds, gwf, starting_head="starting_head",
+                     pname='ic', **kwargs):
     """get initial condictions package from model dataset.
 
     Parameters
@@ -352,6 +373,8 @@ def ic_from_model_ds(model_ds, gwf, starting_head="starting_head"):
         if type is int or float this is the starting head for all cells
         If the type is str the data variable from model_ds is used as starting
         head. The default is 'starting_head'.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -365,12 +388,14 @@ def ic_from_model_ds(model_ds, gwf, starting_head="starting_head"):
         model_ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(gwf, pname="ic", strt=model_ds[starting_head].data)
+    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=model_ds[starting_head].data,
+                                **kwargs)
 
     return ic
 
 
-def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False):
+def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, 
+                      save_flows=False, pname="sto", **kwargs):
     """get storage package from model dataset.
 
     Parameters
@@ -388,6 +413,8 @@ def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfsto() to determine if flows
         should be saved to the cbb file. Default is False
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -407,18 +434,20 @@ def sto_from_model_ds(model_ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,
-            pname="sto",
+            pname=pname,
             save_flows=save_flows,
             iconvert=iconvert,
             ss=ss,
             sy=sy,
             steady_state=sts_spd,
             transient=trn_spd,
+            **kwargs
         )
         return sto
 
 
-def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head"):
+def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head", 
+                      pname='chd', **kwargs):
     """get constant head boundary at the model's edges from the model dataset.
 
     Parameters
@@ -433,6 +462,8 @@ def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head"):
     head : str, optional
         name of data variable in model_ds that is used as the head in the chd
         cells. The default is 'starting_head'.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -450,16 +481,18 @@ def chd_from_model_ds(model_ds, gwf, chd="chd", head="starting_head"):
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
-        pname=chd,
+        pname=pname,
         maxbound=len(chd_rec),
         stress_period_data=chd_rec,
         save_flows=True,
+        **kwargs
     )
 
     return chd
 
 
-def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
+def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000,
+                                pname='drn', **kwargs):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
@@ -471,6 +504,8 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
         groundwaterflow object.
     surface_drn_cond : int or float, optional
         conductivity of the surface drain. The default is 1000.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -501,16 +536,18 @@ def surface_drain_from_model_ds(model_ds, gwf, surface_drn_cond=1000):
 
     drn = flopy.mf6.ModflowGwfdrn(
         gwf,
+        pname=pname,
         print_input=True,
         maxbound=len(drn_rec),
         stress_period_data={0: drn_rec},
         save_flows=True,
+        **kwargs
     )
 
     return drn
 
 
-def rch_from_model_ds(model_ds, gwf):
+def rch_from_model_ds(model_ds, gwf, pname='rch', **kwargs):
     """get recharge package from model dataset.
 
     Parameters
@@ -519,6 +556,8 @@ def rch_from_model_ds(model_ds, gwf):
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -527,13 +566,15 @@ def rch_from_model_ds(model_ds, gwf):
     """
 
     # create recharge package
-    rch = recharge.model_datasets_to_rch(gwf, model_ds)
+    rch = recharge.model_datasets_to_rch(gwf, model_ds,
+                                         pname=pname, **kwargs)
 
     return rch
 
 
 def oc_from_model_ds(model_ds, gwf, save_head=False,
-                     save_budget=True, print_head=True):
+                     save_budget=True, print_head=True,
+                     pname='oc', **kwargs):
     """get output control package from model dataset.
 
     Parameters
@@ -542,6 +583,8 @@ def oc_from_model_ds(model_ds, gwf, save_head=False,
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -565,11 +608,12 @@ def oc_from_model_ds(model_ds, gwf, save_head=False,
 
     oc = flopy.mf6.ModflowGwfoc(
         gwf,
-        pname="oc",
+        pname=pname,
         saverecord=saverecord,
         head_filerecord=head_filerecord,
         budget_filerecord=budget_filerecord,
         printrecord=printrecord,
+        **kwargs
     )
 
     return oc

@@ -24,7 +24,11 @@ from scipy.interpolate import griddata
 from shapely.geometry import Point
 from .. import util
 from .mlayers import set_idomain, get_first_active_layer_from_idomain
-from .resample import get_resampled_ml_layer_ds_vertex
+from .resample import (
+    get_resampled_ml_layer_ds_vertex,
+    affine_transform_gdf,
+    get_affine_world_to_mod,
+)
 from .rdp import rdp
 
 logger = logging.getLogger(__name__)
@@ -52,7 +56,7 @@ def xy_to_icell2d(xy, ds):
     return icell2d
 
 
-def modelgrid_from_model_ds(model_ds):
+def modelgrid_from_model_ds(model_ds, rotated=True):
     """Get flopy modelgrid from model_ds.
 
     Parameters
@@ -65,6 +69,18 @@ def modelgrid_from_model_ds(model_ds):
     modelgrid : StructuredGrid, VertexGrid
         grid information.
     """
+    if rotated and "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        xoff = model_ds.attrs["xorigin"]
+        yoff = model_ds.attrs["yorigin"]
+        angrot = model_ds.attrs["angrot"]
+    else:
+        if model_ds.gridtype == "structured":
+            xoff = model_ds.extent[0]
+            yoff = model_ds.extent[2]
+        else:
+            xoff = 0.0
+            yoff = 0.0
+        angrot = 0.0
 
     if model_ds.gridtype == "structured":
         if not isinstance(model_ds.extent, (tuple, list, np.ndarray)):
@@ -76,13 +92,20 @@ def modelgrid_from_model_ds(model_ds):
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,
-            xoff=model_ds.extent[0],
-            yoff=model_ds.extent[2],
+            xoff=xoff,
+            yoff=yoff,
+            angrot=angrot,
         )
     elif model_ds.gridtype == "vertex":
         vertices = get_vertices_from_model_ds(model_ds)
         cell2d = get_cell2d_from_model_ds(model_ds)
-        modelgrid = VertexGrid(vertices=vertices, cell2d=cell2d)
+        modelgrid = VertexGrid(
+            vertices=vertices,
+            cell2d=cell2d,
+            xoff=xoff,
+            yoff=yoff,
+            angrot=angrot,
+        )
     return modelgrid
 
 
@@ -146,6 +169,7 @@ def refine(
     refinement_features=None,
     exe_name=None,
     remove_nan_layers=True,
+    model_coordinates=False,
 ):
     """
     Refine the grid (discretization by vertices, disv), using Gridgen
@@ -168,6 +192,10 @@ def refine(
         if True layers that are inactive everywhere are removed from the model.
         If False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
+    model_coordinates : bool, optional
+        When model_coordinates is True, the features supplied in refinement features are
+        allready in model-coordinates. Only used when a grid is rotated. The default is
+        False.
 
     Returns
     -------
@@ -195,15 +223,28 @@ def refine(
         model_ws = ds.model_ws
     g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)
 
+    ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
+    if model_coordinates:
+        if not ds_has_rotation:
+            raise (Exception("The supplied shapes need to be in realworld coordinates"))
+    elif ds_has_rotation:
+        affine_matrix = get_affine_world_to_mod(ds).to_shapely()
+
     if refinement_features is not None:
         for refinement_feature in refinement_features:
             if len(refinement_feature) == 3:
                 # the feature is a file or a list of geometries
                 fname, geom_type, level = refinement_feature
+                if not model_coordinates and ds_has_rotation:
+                    raise (
+                        Exception("Converting files to model coordinates not supported")
+                    )
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
                 # the feature is a geodataframe
                 gdf, level = refinement_feature
+                if not model_coordinates and ds_has_rotation:
+                    gdf = affine_transform_gdf(gdf, affine_matrix)
                 geom_types = gdf.geom_type.str.replace("Multi", "")
                 geom_types = geom_types.str.replace("String", "")
                 geom_types = geom_types.str.lower()
@@ -1104,8 +1145,10 @@ def gdf2grid(
         A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can
         consist of multiple types (Point, LineString, Polygon and the Multi-
         variants).
-    ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf
-        The flopy model that defines the grid.
+    ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf or xarray.Dataset, optional
+        The flopy model or xarray dataset that defines the grid. When a Dataset is
+        supplied, and the grid is rotated, the geodataframe is transformed in model
+        coordinates. The default is None.
     method : string, optional
         Method passed to the GridIntersect-class. The default is 'vertex'.
     ix : flopy.utils.GridIntersect, optional
@@ -1120,8 +1163,20 @@ def gdf2grid(
     """
     if ml is None and ix is None:
         raise (Exception("Either specify ml or ix"))
+        
+    if ml is not None:
+        if isinstance(ml, xr.Dataset):
+            ds = ml
+            modelgrid = modelgrid_from_model_ds(ds, rotated=False)
+            if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+                # transform gdf into model coordinates
+                affine = get_affine_world_to_mod(ds)
+                gdf = affine_transform_gdf(gdf, affine)
+        else:
+            modelgrid = ml.modelgrid
+        
     if ix is None:
-        ix = flopy.utils.GridIntersect(ml.modelgrid, method=method)
+        ix = flopy.utils.GridIntersect(modelgrid, method=method)
     shps = []
     geometry = gdf._geometry_column_name
     for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
@@ -1175,7 +1230,7 @@ def get_thickness_from_topbot(top, bot):
     return thickness
 
 
-def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
+def get_vertices(model_ds, modelgrid=None, vert_per_cid=4, rotated=False):
     """get vertices of a vertex modelgrid from a model_ds or the modelgrid.
     Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
@@ -1209,7 +1264,7 @@ def get_vertices(model_ds, modelgrid=None, vert_per_cid=4):
     # obtain
 
     if modelgrid is None:
-        modelgrid = modelgrid_from_model_ds(model_ds)
+        modelgrid = modelgrid_from_model_ds(model_ds, rotated=rotated)
     xvert = modelgrid.xvertices
     yvert = modelgrid.yvertices
     if vert_per_cid == 4:

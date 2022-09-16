@@ -16,6 +16,7 @@ import json
 import time
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
+from ..mdims.resample import extent_to_polygon
 
 
 def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None):
@@ -65,7 +66,7 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
     if isinstance(extent, Polygon):
         polygon = extent
     else:
-        polygon = extent2polygon(extent)
+        polygon = extent_to_polygon(extent)
 
     body["geofilter"] = polygon.wkt
 
@@ -177,6 +178,19 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
     def read_linestring(linestring):
         return get_xy(linestring.find(f"{ns}posList").text)
 
+    def _read_label(child, d):
+        ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
+        label = child.find(f"{ns}Label")
+        d["label"] = label.find(f"{ns}tekst").text
+        positie = label.find(f"{ns}positie").find(f"{ns}Labelpositie")
+        xy = read_point(
+            positie.find(f"{ns}plaatsingspunt").find(
+                "{http://www.opengis.net/gml}Point"
+            )
+        )
+        d["label_plaatsingspunt"] = Point(xy)
+        d["label_hoek"] = float(positie.find(f"{ns}hoek").text)
+
     tree = ET.parse(fname)
     ns = "{http://www.opengis.net/citygml/2.0}"
     data = []
@@ -223,16 +237,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     nar = child.find(f"{ns}Nummeraanduidingreeks").find(
                         f"{ns}nummeraanduidingreeks"
                     )
-                    label = nar.find(f"{ns}Label")
-                    d["label"] = label.find(f"{ns}tekst").text
-                    positie = label.find(f"{ns}positie").find(f"{ns}Labelpositie")
-                    xy = read_point(
-                        positie.find(f"{ns}plaatsingspunt").find(
-                            "{http://www.opengis.net/gml}Point"
-                        )
-                    )
-                    d["label_plaatsingspunt"] = Point(xy)
-                    d["label_hoek"] = float(positie.find(f"{ns}hoek").text)
+                    _read_label(nar, d)
                 elif key in [
                     "kruinlijnBegroeidTerreindeel",
                     "kruinlijnOnbegroeidTerreindeel",
@@ -247,17 +252,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     else:
                         raise (Exception((f"Unsupported tag: {child[0].tag}")))
                 elif key == "openbareRuimteNaam":
-                    ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
-                    label = child.find(f"{ns}Label")
-                    d["label"] = label.find(f"{ns}tekst").text
-                    positie = label.find(f"{ns}positie").find(f"{ns}Labelpositie")
-                    xy = read_point(
-                        positie.find(f"{ns}plaatsingspunt").find(
-                            "{http://www.opengis.net/gml}Point"
-                        )
-                    )
-                    d["label_plaatsingspunt"] = Point(xy)
-                    d["label_hoek"] = float(positie.find(f"{ns}hoek").text)
+                    _read_label(child, d)
                 else:
                     raise (Exception((f"Unknown key: {key}")))
         data.append(d)
@@ -275,13 +270,3 @@ def get_bgt_layers():
     resp = requests.get(url)
     data = resp.json()
     return [x["featuretype"] for x in data["timeliness"]]
-
-
-def extent2polygon(extent):
-    """Make a Polygon of the extent of a matplotlib axes"""
-    nw = (extent[0], extent[2])
-    no = (extent[1], extent[2])
-    zo = (extent[1], extent[3])
-    zw = (extent[0], extent[3])
-    polygon = Polygon([nw, no, zo, zw])
-    return polygon

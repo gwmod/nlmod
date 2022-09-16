@@ -31,7 +31,8 @@ def get_gdf_surface_water(model_ds):
     # laad bestanden in
     fname = os.path.join(nlmod.NLMOD_DATADIR, "opp_water.shp")
     gdf_swater = gpd.read_file(fname)
-    gdf_swater = util.gdf_within_extent(gdf_swater, model_ds.extent)
+    extent = mdims.get_extent(model_ds)
+    gdf_swater = util.gdf_within_extent(gdf_swater, extent)
 
     return gdf_swater
 

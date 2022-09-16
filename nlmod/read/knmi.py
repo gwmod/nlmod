@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .. import cache, util
+from ..mdims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,10 @@ def get_locations_vertex(model_ds, nodata=-999):
     # create dataframe from active locations
     x = model_ds["x"].sel(icell2d=icell2d_active)
     y = model_ds["y"].sel(icell2d=icell2d_active)
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        # transform coordinates into real-world coordinates
+        affine = get_affine_mod_to_world(model_ds)
+        x, y = affine * (x, y)
     layer = model_ds["first_active_layer"].sel(icell2d=icell2d_active)
     locations = pd.DataFrame(
         index=icell2d_active, data={"x": x, "y": y, "layer": layer}
@@ -195,8 +200,12 @@ def get_locations_structured(model_ds, nodata=-999):
 
     # store x and y mids in locations of active cells
     rows, columns = np.where(model_ds["first_active_layer"] != nodata)
-    x = [model_ds["x"].data[col] for col in columns]
-    y = [model_ds["y"].data[row] for row in rows]
+    x = np.array([model_ds["x"].data[col] for col in columns])
+    y = np.array([model_ds["y"].data[row] for row in rows])
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        # transform coordinates into real-world coordinates
+        affine = get_affine_mod_to_world(model_ds)
+        x, y = affine * (x, y)
     layers = [
         model_ds["first_active_layer"].data[row, col] for row, col in zip(rows, columns)
     ]

@@ -17,6 +17,7 @@ from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 from ..read import rws
 from ..mdims import get_vertices
+from ..mdims.resample import get_affine_mod_to_world
 
 
 def plot_surface_water(model_ds, ax=None):
@@ -330,12 +331,12 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     if "vmin" in kwargs:
         vmin = kwargs.pop("vmin")
     else:
-        vmin = None
+        vmin = da.min()
 
     if "vmax" in kwargs:
         vmax = kwargs.pop("vmax")
     else:
-        vmax = None
+        vmax = da.max()
 
     # limit the color range
     pc.set_clim(vmin=vmin, vmax=vmax)
@@ -355,20 +356,22 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     return ax
 
 
-def da(da, ds=None, ax=None, **kwargs):
+def da(da, ds=None, ax=None, rotated=False, **kwargs):
     """
-    PLot an xarray DataArray
+    Plot an xarray DataArray, using information from the model Dataset ds
 
     Parameters
     ----------
     da : xarray.DataArray
-        DESCRIPTION.
+        The DataArray (structured or vertex) you like to plot.
     ds : xarray.DataSet, optional
-        Needed when the calculation grid is . The default is None.
-    ax : TYPE, optional
-        DESCRIPTION. The default is None.
-    **kwargs : TYPE
-        DESCRIPTION.
+        Needed when the gridtype is vertex or rotated is True. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes used for plotting. Set to current axes when None. The default is None.
+    rotated : bool, optional
+        Plot the data-array in rotated coordinates
+    **kwargs : cit
+        Kwargs are passed to PatchCollection (vertex) or pcolormesh (structured).
 
     Returns
     -------
@@ -381,14 +384,28 @@ def da(da, ds=None, ax=None, **kwargs):
     if "icell2d" in da.dims:
         if ds is None:
             raise (Exception("Supply model dataset (ds) for grid information"))
-        vertices = get_vertices(ds)
-        patches = [Polygon(vert) for vert in vertices]
+        xy = np.column_stack((ds["xv"].data, ds["yv"].data))
+        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            affine = get_affine_mod_to_world(ds)
+            xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
+        icvert = ds["icvert"].data
+        nodata = ds["icvert"].attrs["_FillValue"]
+        patches = [
+            Polygon(xy[icvert[icell2d, icvert[icell2d] != nodata]])
+            for icell2d in ds.icell2d.data
+        ]
+
         pc = PatchCollection(patches, **kwargs)
         pc.set_array(da)
         ax.add_collection(pc)
         return pc
     else:
-        return ax.pcolormesh(da.x, da.y, da, shading="nearest", **kwargs)
+        x = da.x
+        y = da.y
+        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            affine = get_affine_mod_to_world(ds)
+            x, y = affine * np.meshgrid(x, y)
+        return ax.pcolormesh(x, y, da, shading="nearest", **kwargs)
 
 
 def get_map(

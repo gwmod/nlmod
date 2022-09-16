@@ -6,10 +6,12 @@ import pandas as pd
 import xarray as xr
 from tqdm import tqdm
 from shapely.strtree import STRtree
+from shapely.geometry import Polygon
 import flopy
 
 # from ..mdims.mgrid import gdf2grid
 from ..read import bgt, waterboard
+from ..mdims import resample, mgrid
 
 logger = logging.getLogger(__name__)
 
@@ -596,7 +598,7 @@ def download_watercourses(gdf, extent=None, config=None):
 def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=None):
     """Add information from level areas (peilgebieden) to bgt-polygons"""
     if pg is None:
-        pg = bgt.download_level_areas(gdf, extent=extent)
+        pg = download_level_areas(gdf, extent=extent)
     if config is None:
         config = waterboard.get_configuration()
     if columns is None:
@@ -611,6 +613,24 @@ def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=
             min_total_overlap=0.0,
             desc=f"Adding {columns} from level areas {wb} to gdf",
         )
+    return gdf
+
+
+def get_gdf(ds=None, extent=None, fname_ahn=None):
+    if extent is None:
+        extent = resample.get_extent_polygon(ds)
+    gdf = bgt.get_bgt(extent)
+    if fname_ahn is not None:
+        from rasterstats import zonal_stats
+
+        stats = zonal_stats(gdf.geometry.buffer(1.0), fname_ahn, stats="min")
+        gdf["ahn_min"] = [x["min"] for x in stats]
+    if isinstance(extent, Polygon):
+        bs = extent.bounds
+        extent = [bs[0], bs[2], bs[1], bs[3]]
+    gdf = add_stages_from_waterboards(gdf, extent=extent)
+    if ds is not None:
+        return mgrid.gdf2grid(gdf, ds).set_index("cellid")
     return gdf
 
 

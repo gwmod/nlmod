@@ -6,10 +6,10 @@ import logging
 
 import numpy as np
 import xarray as xr
-from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 
-from .. import cache, mdims
+from .. import cache
+from ..mdims import mbase, mlayers, resample
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -122,6 +122,7 @@ def get_regis(extent, botm_layer="AKc", variables=["top", "botm", "kh", "kv"]):
 
     ds.attrs["extent"] = extent
     for datavar in ds:
+        ds[datavar].attrs["grid_mapping"] = "crs"
         ds[datavar].attrs["source"] = "REGIS"
         ds[datavar].attrs["url"] = REGIS_URL
         ds[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
@@ -150,9 +151,13 @@ def to_model_ds(
     anisotropy=10,
     fill_value_kh=1.0,
     fill_value_kv=0.1,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0.0,
+    drop_attributes=True,
 ):
     """
-    Transform a regis datset to a model dataset with another resultion.
+    Transform a regis datset to a model dataset with another resolution.
 
     Parameters
     ----------
@@ -196,40 +201,27 @@ def to_model_ds(
     """
     if extent is None:
         extent = ds.attrs["extent"]
-    if delc is None:
-        delc = delr
-    # check extent
-    extent2, _, _ = fit_extent_to_regis(extent, delr, delc)
-    for coord1, coord2 in zip(extent, extent2):
-        if coord1 != coord2:
-            raise ValueError(
-                (
-                    "extent not fitted to regis please fit to regis first, "
-                    "use the nlmod.regis.fit_extent_to_regis function"
-                )
-            )
+
+    # drop attributes
+    if drop_attributes:
+        ds = ds.copy()
+        for attr in list(ds.attrs):
+            del ds.attrs[attr]
 
     # convert regis dataset to grid
     logger.info("resample regis data to structured modelgrid")
-    ds = mdims.resample_dataset_to_structured_grid(ds, extent, delr, delc)
-
-    # drop attributes
-    for attr in list(ds.attrs):
-        del ds.attrs[attr]
-
-    # and add new attributes
-    ds.attrs["gridtype"] = "structured"
-    ds.attrs["extent"] = extent
-    ds.attrs["delr"] = delr
-    ds.attrs["delc"] = delc
+    ds = resample.resample_dataset_to_structured_grid(
+        ds, extent, delr, delc, xorigin=xorigin, yorigin=yorigin, angrot=angrot
+    )
 
     if extrapolate:
         ds = extrapolate_ds(ds)
 
     # add attributes
-    ds = mdims.mbase.set_ds_attrs(ds, model_name, model_ws)
+    ds = mbase.set_ds_attrs(ds, model_name, model_ws)
+
     # fill nan's and add idomain
-    ds = mdims.mlayers.fill_nan_top_botm_kh_kv(
+    ds = mlayers.fill_nan_top_botm_kh_kv(
         ds,
         anisotropy=anisotropy,
         fill_value_kh=fill_value_kh,
@@ -416,80 +408,6 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
             regis_geotop_ds[key].attrs["units"] = "m/day"
 
     return regis_geotop_ds
-
-
-def fit_extent_to_regis(extent, delr, delc, cs_regis=100.0):
-    """redifine extent and calculate the number of rows and columns.
-
-    The extent will be redefined so that the borders of the grid (xmin, xmax,
-    ymin, ymax) correspond with the borders of the regis grid.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        original extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
-    cs_regis : int or float, optional
-        cell size of regis grid. The default is 100..
-
-    Returns
-    -------
-    extent : list, tuple or np.array
-        adjusted extent
-    nrow : int
-        number of rows.
-    ncol : int
-        number of columns.
-    """
-    if isinstance(extent, list):
-        extent = extent.copy()
-    elif isinstance(extent, (tuple, np.ndarray)):
-        extent = list(extent)
-    else:
-        raise TypeError(
-            f"expected extent of type list, tuple or np.ndarray, got {type(extent)}"
-        )
-
-    logger.debug(f"redefining current extent: {extent}, fit to regis raster")
-
-    for d in [delr, delc]:
-        available_cell_sizes = [
-            10.0,
-            20.0,
-            25.0,
-            50.0,
-            100.0,
-            200.0,
-            400.0,
-            500.0,
-            800.0,
-        ]
-        if float(d) not in available_cell_sizes:
-            raise NotImplementedError(
-                "only this cell sizes can be used for " f"now -> {available_cell_sizes}"
-            )
-
-    # if xmin ends with 100 do nothing, otherwise fit xmin to regis cell border
-    if extent[0] % cs_regis != 0:
-        extent[0] -= extent[0] % cs_regis
-
-    # get number of columns
-    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
-    extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
-
-    # if ymin ends with 100 do nothing, otherwise fit ymin to regis cell border
-    if extent[2] % cs_regis != 0:
-        extent[2] -= extent[2] % cs_regis
-
-    nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
-    extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
-
-    logger.debug(f"new extent is {extent} model has {nrow} rows and {ncol} columns")
-
-    return extent, nrow, ncol
 
 
 def get_layer_names():

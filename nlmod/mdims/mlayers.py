@@ -1052,6 +1052,9 @@ def get_default_model_ds(
     kh=10.0,
     kv=1.0,
     crs=28992,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0.0,
     attrs=None,
     **kwargs,
 ):
@@ -1088,6 +1091,15 @@ def get_default_model_ds(
         is a float or a list/array of len(layer). The default is 1.0.
     crs : int, optional
         THe coordinate reference system of the model. The default is 28992.
+    xorigin : float, optional
+        x-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0. The defauls is 0.0.
+    yorigin : float, optional
+        y-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0. The defauls is 0.0.
+    angrot : float, optional
+        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
+        model grid. The default is 0.0
     attrs : dict, optional
         Attributes of the model dataset. The default is None.
     **kwargs : dict
@@ -1102,11 +1114,20 @@ def get_default_model_ds(
     """
     if delc is None:
         delc = delr
+    if attrs is None:
+        attrs = {}
     if isinstance(layer, int):
         layer = np.arange(1, layer + 1)
     if botm is None:
         botm = top - 10 * np.arange(1.0, len(layer) + 1)
-    x, y = resample.get_xy_mid_structured(extent, delr, delc)
+    resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
+    x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
+    coords = dict(x=x, y=y, layer=layer)
+    if angrot != 0.0:
+        affine = resample.get_affine_mod_to_world(attrs)
+        xc, yc = affine * np.meshgrid(x, y)
+        coords["xc"] = (("y", "x"), xc)
+        coords["yc"] = (("y", "x"), yc)
 
     def check_variable(var, shape):
         if isinstance(var, int):
@@ -1145,7 +1166,7 @@ def get_default_model_ds(
             kh=(dims, kh),
             kv=(dims, kv),
         ),
-        coords=dict(x=x, y=y, layer=layer),
+        coords=coords,
         attrs=attrs,
     )
     ds = regis.to_model_ds(
@@ -1155,6 +1176,7 @@ def get_default_model_ds(
         extent=extent,
         delr=delr,
         delc=delc,
+        drop_attributes=False,
         **kwargs,
     )
     ds.rio.set_crs(crs)

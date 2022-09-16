@@ -169,7 +169,7 @@ def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=N
             params["startindex"] = ip * max_record_count
             q = requests.Request("GET", url, params=params).prepare().url
             gdfs.append(gpd.read_file(q))
-        gdf = pd.concat(gdfs).reset_index()
+        gdf = pd.concat(gdfs).reset_index(drop=True)
     else:
         # download all features in one go
         q = requests.Request("GET", url, params=params).prepare().url

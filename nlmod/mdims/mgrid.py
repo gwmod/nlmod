@@ -56,12 +56,12 @@ def xy_to_icell2d(xy, ds):
     return icell2d
 
 
-def modelgrid_from_model_ds(model_ds, rotated=True):
-    """Get flopy modelgrid from model_ds.
+def modelgrid_from_ds(ds, rotated=True):
+    """Get flopy modelgrid from ds.
 
     Parameters
     ----------
-    model_ds : xarray DataSet
+    ds : xarray DataSet
         model dataset.
 
     Returns
@@ -69,26 +69,26 @@ def modelgrid_from_model_ds(model_ds, rotated=True):
     modelgrid : StructuredGrid, VertexGrid
         grid information.
     """
-    if rotated and "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
-        xoff = model_ds.attrs["xorigin"]
-        yoff = model_ds.attrs["yorigin"]
-        angrot = model_ds.attrs["angrot"]
+    if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        xoff = ds.attrs["xorigin"]
+        yoff = ds.attrs["yorigin"]
+        angrot = ds.attrs["angrot"]
     else:
-        if model_ds.gridtype == "structured":
-            xoff = model_ds.extent[0]
-            yoff = model_ds.extent[2]
+        if ds.gridtype == "structured":
+            xoff = ds.extent[0]
+            yoff = ds.extent[2]
         else:
             xoff = 0.0
             yoff = 0.0
         angrot = 0.0
 
-    if model_ds.gridtype == "structured":
-        if not isinstance(model_ds.extent, (tuple, list, np.ndarray)):
+    if ds.gridtype == "structured":
+        if not isinstance(ds.extent, (tuple, list, np.ndarray)):
             raise TypeError(
-                f"extent should be a list, tuple or numpy array, not {type(model_ds.extent)}"
+                f"extent should be a list, tuple or numpy array, not {type(ds.extent)}"
             )
-        delc = np.array([model_ds.delc] * model_ds.dims["y"])
-        delr = np.array([model_ds.delr] * model_ds.dims["x"])
+        delc = np.array([ds.delc] * ds.dims["y"])
+        delr = np.array([ds.delr] * ds.dims["x"])
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,
@@ -96,9 +96,9 @@ def modelgrid_from_model_ds(model_ds, rotated=True):
             yoff=yoff,
             angrot=angrot,
         )
-    elif model_ds.gridtype == "vertex":
-        vertices = get_vertices_from_model_ds(model_ds)
-        cell2d = get_cell2d_from_model_ds(model_ds)
+    elif ds.gridtype == "vertex":
+        vertices = get_vertices_from_ds(ds)
+        cell2d = get_cell2d_from_ds(ds)
         modelgrid = VertexGrid(
             vertices=vertices,
             cell2d=cell2d,
@@ -125,30 +125,30 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     return ds
 
 
-def gridprops_to_vertex_ds(gridprops, model_ds, nodata=-1):
+def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     """Gridprops is a dictionairy containing keyword arguments needed to generate
     a flopy modelgrid instance"""
-    model_ds["xv"] = ("iv", [i[1] for i in gridprops["vertices"]])
-    model_ds["yv"] = ("iv", [i[2] for i in gridprops["vertices"]])
+    ds["xv"] = ("iv", [i[1] for i in gridprops["vertices"]])
+    ds["yv"] = ("iv", [i[2] for i in gridprops["vertices"]])
 
     cell2d = gridprops["cell2d"]
     ncvert_max = np.max([x[3] for x in cell2d])
     icvert = np.full((gridprops["ncpl"], ncvert_max), nodata)
     for i in range(gridprops["ncpl"]):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
-    model_ds["icvert"] = ("icell2d", "icv"), icvert
-    model_ds["icvert"].attrs["_FillValue"] = nodata
-    return model_ds
+    ds["icvert"] = ("icell2d", "icv"), icvert
+    ds["icvert"].attrs["_FillValue"] = nodata
+    return ds
 
 
-def get_vertices_from_model_ds(ds):
+def get_vertices_from_ds(ds):
     """Get the vertices-list from a model dataset. Flopy needs needs this list
     to build a disv-package"""
     vertices = list(zip(ds["iv"].data, ds["xv"].data, ds["yv"].data))
     return vertices
 
 
-def get_cell2d_from_model_ds(ds):
+def get_cell2d_from_ds(ds):
     """Get the cell2d-list from a model dataset. Flopy needs this list to build
     a disv-package"""
     icell2d = ds["icell2d"].data
@@ -269,8 +269,8 @@ def refine(
     return ds
 
 
-def col_to_list(col_in, model_ds, cellids):
-    """Convert array data in model_ds to a list of values for specific cells.
+def col_to_list(col_in, ds, cellids):
+    """Convert array data in ds to a list of values for specific cells.
 
     This function is typically used to create a rec_array with stress period
     data for the modflow packages. Can be used for structured and
@@ -279,10 +279,10 @@ def col_to_list(col_in, model_ds, cellids):
     Parameters
     ----------
     col_in : str, int or float
-        if col_in is a str type it is the name of the column in model_ds.
+        if col_in is a str type it is the name of the column in ds.
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data. Can have dimension (layer, y, x) or
         (layer, icell2d).
     cellids : tuple of numpy arrays
@@ -300,25 +300,25 @@ def col_to_list(col_in, model_ds, cellids):
     Returns
     -------
     col_lst : list
-        raster values from model_ds presented in a list per cell.
+        raster values from ds presented in a list per cell.
     """
 
     if isinstance(col_in, str):
         if len(cellids) == 3:
             # 3d grid
             col_lst = [
-                model_ds[col_in].data[lay, row, col]
+                ds[col_in].data[lay, row, col]
                 for lay, row, col in zip(cellids[0], cellids[1], cellids[2])
             ]
         elif len(cellids) == 2:
             # 2d grid or vertex 3d grid
             col_lst = [
-                model_ds[col_in].data[row, col]
+                ds[col_in].data[row, col]
                 for row, col in zip(cellids[0], cellids[1])
             ]
         elif len(cellids) == 1:
             # 2d vertex grid
-            col_lst = model_ds[col_in].data[cellids[0]]
+            col_lst = ds[col_in].data[cellids[0]]
         else:
             raise ValueError(f"could not create a column list for col_in={col_in}")
     else:
@@ -328,7 +328,7 @@ def col_to_list(col_in, model_ds, cellids):
 
 
 def lrc_to_rec_list(
-    layers, rows, columns, cellids, model_ds, col1=None, col2=None, col3=None
+    layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None
 ):
     """Create a rec list for stress period data from a set of cellids.
 
@@ -346,7 +346,7 @@ def lrc_to_rec_list(
     cellids : tuple of numpy arrays
         tuple with indices of the cells that will be used to create the list
         with values.
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data. Can have dimension (layer, y, x) or
         (layer, icell2d).
     col1 : str, int or float, optional
@@ -390,16 +390,16 @@ def lrc_to_rec_list(
     if col1 is None:
         rec_list = list(zip(zip(layers, rows, columns)))
     elif (col1 is not None) and col2 is None:
-        col1_lst = col_to_list(col1, model_ds, cellids)
+        col1_lst = col_to_list(col1, ds, cellids)
         rec_list = list(zip(zip(layers, rows, columns), col1_lst))
     elif (col2 is not None) and col3 is None:
-        col1_lst = col_to_list(col1, model_ds, cellids)
-        col2_lst = col_to_list(col2, model_ds, cellids)
+        col1_lst = col_to_list(col1, ds, cellids)
+        col2_lst = col_to_list(col2, ds, cellids)
         rec_list = list(zip(zip(layers, rows, columns), col1_lst, col2_lst))
     elif col3 is not None:
-        col1_lst = col_to_list(col1, model_ds, cellids)
-        col2_lst = col_to_list(col2, model_ds, cellids)
-        col3_lst = col_to_list(col3, model_ds, cellids)
+        col1_lst = col_to_list(col1, ds, cellids)
+        col2_lst = col_to_list(col2, ds, cellids)
+        col3_lst = col_to_list(col3, ds, cellids)
         rec_list = list(zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst))
     else:
         raise ValueError("invalid combination of values for col1, col2 and col3")
@@ -408,7 +408,7 @@ def lrc_to_rec_list(
 
 
 def data_array_3d_to_rec_list(
-    model_ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
+    ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
 ):
     """Create a rec list for stress period data from a model dataset.
 
@@ -417,7 +417,7 @@ def data_array_3d_to_rec_list(
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data and dimensions (layer, y, x)
     mask : xarray.DataArray for booleans
         True for the cells that will be used in the rec list.
@@ -461,7 +461,7 @@ def data_array_3d_to_rec_list(
         every row consist of ((layer,row,column), col1, col2, col3).
     """
     if only_active_cells:
-        cellids = np.where((mask) & (model_ds["idomain"] == 1))
+        cellids = np.where((mask) & (ds["idomain"] == 1))
     else:
         cellids = np.where(mask)
 
@@ -470,14 +470,14 @@ def data_array_3d_to_rec_list(
     columns = cellids[2]
 
     rec_list = lrc_to_rec_list(
-        layers, rows, columns, cellids, model_ds, col1, col2, col3
+        layers, rows, columns, cellids, ds, col1, col2, col3
     )
 
     return rec_list
 
 
 def data_array_2d_to_rec_list(
-    model_ds,
+    ds,
     mask,
     col1=None,
     col2=None,
@@ -493,7 +493,7 @@ def data_array_2d_to_rec_list(
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data and dimensions (layer, y, x)
     mask : xarray.DataArray for booleans
         True for the cells that will be used in the rec list.
@@ -540,31 +540,31 @@ def data_array_2d_to_rec_list(
     """
 
     if first_active_layer:
-        if "first_active_layer" not in model_ds:
-            model_ds["first_active_layer"] = get_first_active_layer_from_idomain(
-                model_ds["idomain"]
+        if "first_active_layer" not in ds:
+            ds["first_active_layer"] = get_first_active_layer_from_idomain(
+                ds["idomain"]
             )
 
-        cellids = np.where((mask) & (model_ds["first_active_layer"] != model_ds.nodata))
-        layers = col_to_list("first_active_layer", model_ds, cellids)
+        cellids = np.where((mask) & (ds["first_active_layer"] != ds.nodata))
+        layers = col_to_list("first_active_layer", ds, cellids)
     elif only_active_cells:
-        cellids = np.where((mask) & (model_ds["idomain"][layer] == 1))
-        layers = col_to_list(layer, model_ds, cellids)
+        cellids = np.where((mask) & (ds["idomain"][layer] == 1))
+        layers = col_to_list(layer, ds, cellids)
     else:
         cellids = np.where(mask)
-        layers = col_to_list(layer, model_ds, cellids)
+        layers = col_to_list(layer, ds, cellids)
 
     rows = cellids[-2]
     columns = cellids[-1]
 
     rec_list = lrc_to_rec_list(
-        layers, rows, columns, cellids, model_ds, col1, col2, col3
+        layers, rows, columns, cellids, ds, col1, col2, col3
     )
 
     return rec_list
 
 
-def lcid_to_rec_list(layers, cellids, model_ds, col1=None, col2=None, col3=None):
+def lcid_to_rec_list(layers, cellids, ds, col1=None, col2=None, col3=None):
     """Create a rec list for stress period data from a set of cellids.
 
     Used for vertex grids.
@@ -579,7 +579,7 @@ def lcid_to_rec_list(layers, cellids, model_ds, col1=None, col2=None, col3=None)
         with values for a column. There are 2 options:
             1. cellids contains (layers, cids)
             2. cellids contains (cids)
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data. Should have dimensions (layer, icell2d).
     col1 : str, int or float, optional
         1st column of the rec_list, if None the rec_list will be a list with
@@ -619,16 +619,16 @@ def lcid_to_rec_list(layers, cellids, model_ds, col1=None, col2=None, col3=None)
     if col1 is None:
         rec_list = list(zip(zip(layers, cellids[-1])))
     elif (col1 is not None) and col2 is None:
-        col1_lst = col_to_list(col1, model_ds, cellids)
+        col1_lst = col_to_list(col1, ds, cellids)
         rec_list = list(zip(zip(layers, cellids[-1]), col1_lst))
     elif (col2 is not None) and col3 is None:
-        col1_lst = col_to_list(col1, model_ds, cellids)
-        col2_lst = col_to_list(col2, model_ds, cellids)
+        col1_lst = col_to_list(col1, ds, cellids)
+        col2_lst = col_to_list(col2, ds, cellids)
         rec_list = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst))
     elif col3 is not None:
-        col1_lst = col_to_list(col1, model_ds, cellids)
-        col2_lst = col_to_list(col2, model_ds, cellids)
-        col3_lst = col_to_list(col3, model_ds, cellids)
+        col1_lst = col_to_list(col1, ds, cellids)
+        col2_lst = col_to_list(col2, ds, cellids)
+        col3_lst = col_to_list(col3, ds, cellids)
         rec_list = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst, col3_lst))
     else:
         raise ValueError("invalid combination of values for col1, col2 and col3")
@@ -637,7 +637,7 @@ def lcid_to_rec_list(layers, cellids, model_ds, col1=None, col2=None, col3=None)
 
 
 def data_array_2d_vertex_to_rec_list(
-    model_ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
+    ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
 ):
     """Create a rec list for stress period data from a model dataset.
 
@@ -646,7 +646,7 @@ def data_array_2d_vertex_to_rec_list(
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data and dimensions (layer, icell2d)
     mask : xarray.DataArray for booleans
         True for the cells that will be used in the rec list.
@@ -687,19 +687,19 @@ def data_array_2d_vertex_to_rec_list(
         every row consist of ((layer,row,column), col1, col2, col3).
     """
     if only_active_cells:
-        cellids = np.where((mask) & (model_ds["idomain"] == 1))
+        cellids = np.where((mask) & (ds["idomain"] == 1))
     else:
         cellids = np.where(mask)
 
     layers = cellids[0]
 
-    rec_list = lcid_to_rec_list(layers, cellids, model_ds, col1, col2, col3)
+    rec_list = lcid_to_rec_list(layers, cellids, ds, col1, col2, col3)
 
     return rec_list
 
 
 def data_array_1d_vertex_to_rec_list(
-    model_ds,
+    ds,
     mask,
     col1=None,
     col2=None,
@@ -715,7 +715,7 @@ def data_array_1d_vertex_to_rec_list(
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data and dimensions (layer, icell2d)
     mask : xarray.DataArray for booleans
         True for the cells that will be used in the rec list.
@@ -762,16 +762,16 @@ def data_array_1d_vertex_to_rec_list(
         every row consist of ((layer,icell2d), col1, col2, col3).
     """
     if first_active_layer:
-        cellids = np.where((mask) & (model_ds["first_active_layer"] != model_ds.nodata))
-        layers = col_to_list("first_active_layer", model_ds, cellids)
+        cellids = np.where((mask) & (ds["first_active_layer"] != ds.nodata))
+        layers = col_to_list("first_active_layer", ds, cellids)
     elif only_active_cells:
-        cellids = np.where((mask) & (model_ds["idomain"][layer] == 1))
-        layers = col_to_list(layer, model_ds, cellids)
+        cellids = np.where((mask) & (ds["idomain"][layer] == 1))
+        layers = col_to_list(layer, ds, cellids)
     else:
         cellids = np.where(mask)
-        layers = col_to_list(layer, model_ds, cellids)
+        layers = col_to_list(layer, ds, cellids)
 
-    rec_list = lcid_to_rec_list(layers, cellids, model_ds, col1, col2, col3)
+    rec_list = lcid_to_rec_list(layers, cellids, ds, col1, col2, col3)
 
     return rec_list
 
@@ -1047,7 +1047,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     return celldata
 
 
-def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
+def gdf_to_bool_data_array(gdf, mfgrid, ds):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
@@ -1058,23 +1058,23 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
         shapes that will be rasterised.
     mfgrid : flopy grid
         model grid.
-    model_ds : xr.DataSet
+    ds : xr.DataSet
         xarray with model data
 
     Returns
     -------
     da : xr.DataArray
         1 if polygon is in cell, 0 otherwise. Grid dimensions according to
-        model_ds and mfgrid.
+        ds and mfgrid.
     """
 
     # build list of gridcells
     ix = GridIntersect(mfgrid, method="vertex")
 
-    if model_ds.gridtype == "structured":
-        da = util.get_da_from_da_ds(model_ds, dims=("y", "x"), data=0)
-    elif model_ds.gridtype == "vertex":
-        da = util.get_da_from_da_ds(model_ds, dims=("icell2d",), data=0)
+    if ds.gridtype == "structured":
+        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
+    elif ds.gridtype == "vertex":
+        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=0)
     else:
         raise ValueError("function only support structured or vertex gridtypes")
 
@@ -1093,16 +1093,16 @@ def gdf_to_bool_data_array(gdf, mfgrid, model_ds):
         # cell ids for intersecting cells
         cids = [c.name for c in filtered]
 
-        if model_ds.gridtype == "structured":
+        if ds.gridtype == "structured":
             for cid in cids:
                 da[cid[0], cid[1]] = 1
-        elif model_ds.gridtype == "vertex":
+        elif ds.gridtype == "vertex":
             da[cids] = 1
 
     return da
 
 
-def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
+def gdf_to_bool_dataset(ds, gdf, mfgrid, da_name):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1113,19 +1113,19 @@ def gdf_to_bool_dataset(model_ds, gdf, mfgrid, da_name):
         polygon shapes with surface water.
     mfgrid : flopy grid
         model grid.
-    model_ds : xr.DataSet
+    ds : xr.DataSet
         xarray with model data
 
     Returns
     -------
-    model_ds_out : xr.Dataset
+    ds_out : xr.Dataset
         Dataset with a single DataArray, this DataArray is 1 if polygon is in
-        cell, 0 otherwise. Grid dimensions according to model_ds and mfgrid.
+        cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
-    model_ds_out = util.get_model_ds_empty(model_ds)
-    model_ds_out[da_name] = gdf_to_bool_data_array(gdf, mfgrid, model_ds)
+    ds_out = util.get_ds_empty(ds)
+    ds_out[da_name] = gdf_to_bool_data_array(gdf, mfgrid, ds)
 
-    return model_ds_out
+    return ds_out
 
 
 def gdf2grid(
@@ -1167,7 +1167,7 @@ def gdf2grid(
     if ml is not None:
         if isinstance(ml, xr.Dataset):
             ds = ml
-            modelgrid = modelgrid_from_model_ds(ds, rotated=False)
+            modelgrid = modelgrid_from_ds(ds, rotated=False)
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 # transform gdf into model coordinates
                 affine = get_affine_world_to_mod(ds)
@@ -1230,17 +1230,17 @@ def get_thickness_from_topbot(top, bot):
     return thickness
 
 
-def get_vertices(model_ds, modelgrid=None, vert_per_cid=4, rotated=False):
-    """get vertices of a vertex modelgrid from a model_ds or the modelgrid.
+def get_vertices(ds, modelgrid=None, vert_per_cid=4, rotated=False):
+    """get vertices of a vertex modelgrid from a ds or the modelgrid.
     Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
 
     This method uses the xvertices and yvertices attributes of the modelgrid.
-    When no modelgrid is supplied, a modelgrid-object is created from model_ds.
+    When no modelgrid is supplied, a modelgrid-object is created from ds.
 
     Parameters
     ----------
-    model_ds : xr.DataSet
+    ds : xr.DataSet
         model dataset, attribute grid_type should be 'vertex'
     modelgrid : flopy.discretization.vertexgrid.VertexGrid
         vertex grid with attributes xvertices and yvertices.
@@ -1264,7 +1264,7 @@ def get_vertices(model_ds, modelgrid=None, vert_per_cid=4, rotated=False):
     # obtain
 
     if modelgrid is None:
-        modelgrid = modelgrid_from_model_ds(model_ds, rotated=rotated)
+        modelgrid = modelgrid_from_ds(ds, rotated=rotated)
     xvert = modelgrid.xvertices
     yvert = modelgrid.yvertices
     if vert_per_cid == 4:

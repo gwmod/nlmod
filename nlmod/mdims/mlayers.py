@@ -4,8 +4,8 @@ from collections import OrderedDict
 import numpy as np
 import xarray as xr
 
-from . import resample
-from ..read import jarkus, rws, regis
+from . import resample, mbase
+from ..read import jarkus, rws
 
 logger = logging.getLogger(__name__)
 
@@ -628,7 +628,7 @@ def combine_layers_ds(
 
 
 def add_kh_kv_from_ml_layer_to_dataset(
-    ml_layer_ds, model_ds, anisotropy, fill_value_kh, fill_value_kv
+    ml_layer_ds, ds, anisotropy, fill_value_kh, fill_value_kv
 ):
     """add kh and kv from a model layer dataset to the model dataset.
 
@@ -638,18 +638,20 @@ def add_kh_kv_from_ml_layer_to_dataset(
     ----------
     ml_layer_ds : xarray.Dataset
         dataset with model layer data with kh and kv
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data where kh and kv are added to
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
     fill_value_kh : int or float, optional
-        use this value for kh if there is no data in regis. The default is 1.0.
+        use this value for kh if there is no data in the layer model. The
+        default is 1.0.
     fill_value_kv : int or float, optional
-        use this value for kv if there is no data in regis. The default is 1.0.
+        use this value for kv if there is no data in the layer model. The
+        default is 1.0.
 
     Returns
     -------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data with new kh and kv
 
     Notes
@@ -657,9 +659,9 @@ def add_kh_kv_from_ml_layer_to_dataset(
     some model dataset, such as regis, also have 'c' and 'kd' values. These
     are ignored at the moment
     """
-    model_ds.attrs["anisotropy"] = anisotropy
-    model_ds.attrs["fill_value_kh"] = fill_value_kh
-    model_ds.attrs["fill_value_kv"] = fill_value_kv
+    ds.attrs["anisotropy"] = anisotropy
+    ds.attrs["fill_value_kh"] = fill_value_kh
+    ds.attrs["fill_value_kv"] = fill_value_kv
 
     logger.info("add kh and kv from model layer dataset to modflow model")
 
@@ -671,10 +673,10 @@ def add_kh_kv_from_ml_layer_to_dataset(
         fill_value_kv=fill_value_kv,
     )
 
-    model_ds["kh"] = kh
-    model_ds["kv"] = kv
+    ds["kh"] = kh
+    ds["kv"] = kv
 
-    return model_ds
+    return ds
 
 
 def set_model_top(ds, top):
@@ -715,18 +717,18 @@ def set_model_top(ds, top):
 
 
 def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
-    """maak kh en kv rasters voor flopy vanuit een regis raster met nan
-    waardes.
+    """create kh en kv grid data for flopy from existing kh, kv and anistropy
+    grids with nan values (typically from REGIS).
 
-    vul kh raster door:
-    1. pak kh uit regis, tenzij nan dan:
-    2. pak kv uit regis vermenigvuldig met anisotropy, tenzij nan dan:
-    3. pak fill_value_kh
-
-    vul kv raster door:
-    1. pak kv uit regis, tenzij nan dan:
-    2. pak kh uit regis deel door anisotropy, tenzij nan dan:
-    3. pak fill_value_kv
+    fill kh grid in these steps:
+    1. take kh from kh_in, if kh_in has nan values:
+    2. take kv from kv_in and multiply by anisotropy, if this is nan:
+    3. take fill_value_kh
+    
+    fill kv grid in these steps:
+    1. take kv from kv_in, if kv_in has nan values:
+    2. take kh from kh_in and divide by anisotropy, if this is nan:
+    3. take fill_value_kv
 
     Supports structured and vertex grids.
 
@@ -741,9 +743,11 @@ def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
     fill_value_kh : int or float, optional
-        use this value for kh if there is no data in regis. The default is 1.0.
+        use this value for kh if there is no data in kh_in, kv_in and
+        anisotropy. The default is 1.0.
     fill_value_kv : int or float, optional
-        use this value for kv if there is no data in regis. The default is 1.0.
+        use this value for kv if there is no data in kv_in, kh_in and
+        anisotropy. The default is 1.0.
 
     Returns
     -------
@@ -769,7 +773,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
     return kh_out, kv_out
 
 
-def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask, gridtype="structured"):
+def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
     """Fill values in top, bot, kh and kv.
 
     Fill where:
@@ -784,7 +788,7 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask, gridtype="structured"):
 
     Parameters
     ----------
-    model_ds : xr.DataSet
+    ds : xr.DataSet
         model dataset, should contain 'first_active_layer'
     fill_mask : xr.DataArray
         1 where a cell should be replaced by masked value.
@@ -793,52 +797,52 @@ def fill_top_bot_kh_kv_at_mask(model_ds, fill_mask, gridtype="structured"):
 
     Returns
     -------
-    model_ds : xr.DataSet
+    ds : xr.DataSet
         model dataset with adjusted data variables: 'top', 'botm', 'kh', 'kv'
     """
 
     # zee cellen hebben altijd een top gelijk aan 0
-    model_ds["top"].values = np.where(fill_mask, 0, model_ds["top"])
+    ds["top"].values = np.where(fill_mask, 0, ds["top"])
 
     if gridtype == "structured":
         fill_function = resample.fillnan_dataarray_structured_grid
         fill_function_kwargs = {}
     elif gridtype == "vertex":
         fill_function = resample.fillnan_dataarray_vertex_grid
-        fill_function_kwargs = {"model_ds": model_ds}
+        fill_function_kwargs = {"ds": ds}
 
-    for lay in range(model_ds.dims["layer"]):
-        bottom_nan = xr.where(fill_mask, np.nan, model_ds["botm"][lay])
+    for lay in range(ds.dims["layer"]):
+        bottom_nan = xr.where(fill_mask, np.nan, ds["botm"][lay])
         bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)
 
-        kh_nan = xr.where(fill_mask, np.nan, model_ds["kh"][lay])
+        kh_nan = xr.where(fill_mask, np.nan, ds["kh"][lay])
         kh_filled = fill_function(kh_nan, **fill_function_kwargs)
 
-        kv_nan = xr.where(fill_mask, np.nan, model_ds["kv"][lay])
+        kv_nan = xr.where(fill_mask, np.nan, ds["kv"][lay])
         kv_filled = fill_function(kv_nan, **fill_function_kwargs)
 
         if lay == 0:
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
-            mask_top = model_ds["top"] < bottom_filled
-            model_ds["botm"][lay] = xr.where(
-                fill_mask * mask_top, model_ds["top"], bottom_filled
+            mask_top = ds["top"] < bottom_filled
+            ds["botm"][lay] = xr.where(
+                fill_mask * mask_top, ds["top"], bottom_filled
             )
         else:
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
-            mask_top = model_ds["botm"][lay - 1] < bottom_filled
-            model_ds["botm"][lay] = xr.where(
-                fill_mask * mask_top, model_ds["botm"][lay - 1], bottom_filled
+            mask_top = ds["botm"][lay - 1] < bottom_filled
+            ds["botm"][lay] = xr.where(
+                fill_mask * mask_top, ds["botm"][lay - 1], bottom_filled
             )
-        model_ds["kh"][lay] = xr.where(
-            fill_mask * mask_top, model_ds["kh"][lay], kh_filled
+        ds["kh"][lay] = xr.where(
+            fill_mask * mask_top, ds["kh"][lay], kh_filled
         )
-        model_ds["kv"][lay] = xr.where(
-            fill_mask * mask_top, model_ds["kv"][lay], kv_filled
+        ds["kv"][lay] = xr.where(
+            fill_mask * mask_top, ds["kv"][lay], kv_filled
         )
 
-    return model_ds
+    return ds
 
 
 def fill_nan_top_botm_kh_kv(
@@ -945,9 +949,9 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
     return first_active_layer
 
 
-def add_northsea(model_ds, cachedir=None):
+def add_northsea(ds, cachedir=None):
     """a) get cells from modelgrid that are within the northsea, add data
-    variable 'northsea' to model_ds
+    variable 'northsea' to ds
     b) fill top, bot, kh and kv add northsea cell by extrapolation
     c) get bathymetry (northsea depth) from jarkus. Add datavariable
     bathymetry to model dataset"""
@@ -957,41 +961,41 @@ def add_northsea(model_ds, cachedir=None):
     )
 
     # find grid cells with northsea
-    model_ds.update(
-        rws.get_northsea(model_ds, cachedir=cachedir, cachename="sea_model_ds.nc")
+    ds.update(
+        rws.get_northsea(ds, cachedir=cachedir, cachename="sea_ds.nc")
     )
 
     # fill top, bot, kh, kv at sea cells
-    fill_mask = (model_ds["first_active_layer"] == model_ds.nodata) * model_ds[
+    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds[
         "northsea"
     ]
-    model_ds = fill_top_bot_kh_kv_at_mask(
-        model_ds, fill_mask, gridtype=model_ds.attrs["gridtype"]
+    ds = fill_top_bot_kh_kv_at_mask(
+        ds, fill_mask, gridtype=ds.attrs["gridtype"]
     )
 
     # add bathymetry noordzee
-    model_ds.update(
+    ds.update(
         jarkus.get_bathymetry(
-            model_ds,
-            model_ds["northsea"],
+            ds,
+            ds["northsea"],
             cachedir=cachedir,
-            cachename="bathymetry_model_ds.nc",
+            cachename="bathymetry_ds.nc",
         )
     )
 
-    model_ds = jarkus.add_bathymetry_to_top_bot_kh_kv(
-        model_ds, model_ds["bathymetry"], fill_mask
+    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(
+        ds, ds["bathymetry"], fill_mask
     )
 
     # update idomain on adjusted tops and bots
-    model_ds["thickness"], _ = calculate_thickness(model_ds)
-    model_ds["idomain"] = update_idomain_from_thickness(
-        model_ds["idomain"], model_ds["thickness"], model_ds["northsea"]
+    ds["thickness"], _ = calculate_thickness(ds)
+    ds["idomain"] = update_idomain_from_thickness(
+        ds["idomain"], ds["thickness"], ds["northsea"]
     )
-    model_ds["first_active_layer"] = get_first_active_layer_from_idomain(
-        model_ds["idomain"]
+    ds["first_active_layer"] = get_first_active_layer_from_idomain(
+        ds["idomain"]
     )
-    return model_ds
+    return ds
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):
@@ -1040,7 +1044,7 @@ def update_idomain_from_thickness(idomain, thickness, mask):
     return idomain
 
 
-def get_default_model_ds(
+def get_default_ds(
     extent,
     delr=100.0,
     delc=None,
@@ -1103,8 +1107,8 @@ def get_default_model_ds(
     attrs : dict, optional
         Attributes of the model dataset. The default is None.
     **kwargs : dict
-        Kwargs are passed into regis.to_model_ds. These can be the model_name
-        or model_ds.
+        Kwargs are passed into mbase.to_ds. These can be the model_name
+        or ds.
 
     Returns
     -------
@@ -1169,7 +1173,7 @@ def get_default_model_ds(
         coords=coords,
         attrs=attrs,
     )
-    ds = regis.to_model_ds(
+    ds = mbase.to_model_ds(
         ds,
         model_name=model_name,
         model_ws=model_ws,

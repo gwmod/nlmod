@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_ahn(model_ds, identifier="ahn3_5m_dtm", method="average"):
+def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
     """Get a model dataset with ahn variable.
     Parameters
     ----------
-    model_ds : xr.Dataset
+    ds : xr.Dataset
         dataset with the model information.
     identifier : str, optional
         Possible values for identifier are:
@@ -40,32 +40,32 @@ def get_ahn(model_ds, identifier="ahn3_5m_dtm", method="average"):
             'ahn3_5m_dtm'
         The default is 'ahn3_5m_dtm'.
     method : str, optional
-        Method used to resample ahn to grid of model_ds. See
+        Method used to resample ahn to grid of ds. See
         mdims.resample.structured_da_to_ds for possible values. The default is
         'average'.
 
     Returns
     -------
-    model_ds_out : xr.Dataset
+    ds_out : xr.Dataset
         Dataset with the ahn variable.
     """
 
     url = _infer_url(identifier)
-    extent = mdims.resample.get_extent(model_ds)
+    extent = mdims.resample.get_extent(ds)
     ahn_ds_raw = get_ahn_within_extent(extent=extent, url=url, identifier=identifier)
 
     ahn_ds_raw = ahn_ds_raw.drop_vars('band')
 
-    ahn_da = mdims.resample.structured_da_to_ds(ahn_ds_raw, model_ds, method=method)
+    ahn_da = mdims.resample.structured_da_to_ds(ahn_ds_raw, ds, method=method)
     ahn_da.attrs["source"] = identifier
     ahn_da.attrs["url"] = url
     ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
     ahn_da.attrs["units"] = "mNAP"
 
-    model_ds_out = util.get_model_ds_empty(model_ds)
-    model_ds_out["ahn"] = ahn_da
+    ds_out = util.get_ds_empty(ds)
+    ds_out["ahn"] = ahn_da
 
-    return model_ds_out
+    return ds_out
 
 
 def split_ahn_extent(

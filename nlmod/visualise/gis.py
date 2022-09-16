@@ -291,7 +291,7 @@ def model_dataset_to_vector_file(
     if combine_dic is None:
         combine_dic = {
             "idomain": {"first_active_layer", "idomain"},
-            "topbot": {"top", "bot", "thickness"},
+            "topbot": {"top", "botm", "thickness"},
             "sea": {"northsea", "bathymetry"},
         }
 

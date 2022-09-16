@@ -14,12 +14,12 @@ from .. import util
 logger = logging.getLogger(__name__)
 
 
-def get_tdis_perioddata(model_ds):
-    """Get tdis_perioddata from model_ds.
+def get_tdis_perioddata(ds):
+    """Get tdis_perioddata from ds.
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with time variant model data
 
     Returns
@@ -34,27 +34,27 @@ def get_tdis_perioddata(model_ds):
           TSMULT by the relation :math:`\\Delta t_1= perlen \frac{tsmult -
           1}{tsmult^{nstp}-1}`.
     """
-    deltat = pd.to_timedelta(1, model_ds.time.time_units)
+    deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
         (
-            pd.to_datetime(model_ds["time"].data[0])
-            - pd.to_datetime(model_ds.time.start_time)
+            pd.to_datetime(ds["time"].data[0])
+            - pd.to_datetime(ds.time.start_time)
         )
         / deltat
     ]
-    if len(model_ds["time"]) > 1:
-        perlen.extend(np.diff(model_ds["time"]) / deltat)
-    tdis_perioddata = [(p, model_ds.time.nstp, model_ds.time.tsmult) for p in perlen]
+    if len(ds["time"]) > 1:
+        perlen.extend(np.diff(ds["time"]) / deltat)
+    tdis_perioddata = [(p, ds.time.nstp, ds.time.tsmult) for p in perlen]
 
     return tdis_perioddata
 
 
-def sim_from_model_ds(model_ds, exe_name=None):
+def sim(ds, exe_name=None):
     """create sim from the model dataset.
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
         attributes: model_name, mfversion, model_ws, time_units, start_time,
         perlen, nstp, tsmult
@@ -73,29 +73,31 @@ def sim_from_model_ds(model_ds, exe_name=None):
     logger.info("creating modflow SIM")
 
     if exe_name is None:
-        exe_name = util.get_exe_path(model_ds.mfversion)
+        exe_name = util.get_exe_path(ds.mfversion)
 
     # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(
-        sim_name=model_ds.model_name,
+        sim_name=ds.model_name,
         exe_name=exe_name,
-        version=model_ds.mfversion,
-        sim_ws=model_ds.model_ws,
+        version=ds.mfversion,
+        sim_ws=ds.model_ws,
     )
 
     return sim
 
 
-def tdis_from_model_ds(model_ds, sim):
+def tdis(ds, sim, pname='tdis'):
     """create tdis package from the model dataset.
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
         attributes: time_units, start_time, perlen, nstp, tsmult
     sim : flopy MFSimulation
         simulation object.
+    pname : str, optional
+        package name
 
     Returns
     -------
@@ -106,15 +108,15 @@ def tdis_from_model_ds(model_ds, sim):
     # start creating model
     logger.info("creating modflow SIM, TDIS, GWF and IMS")
 
-    tdis_perioddata = get_tdis_perioddata(model_ds)
+    tdis_perioddata = get_tdis_perioddata(ds)
 
     # Create the Flopy temporal discretization object
     tdis = flopy.mf6.modflow.mftdis.ModflowTdis(
         sim,
-        pname="tdis",
-        time_units=model_ds.time.time_units,
-        nper=len(model_ds.time),
-        # start_date_time=model_ds.time.start_time, # disable until fix in modpath
+        pname=pname,
+        time_units=ds.time.time_units,
+        nper=len(ds.time),
+        # start_date_time=ds.time.start_time, # disable until fix in modpath
         perioddata=tdis_perioddata,
     )
 

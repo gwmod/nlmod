@@ -6,29 +6,29 @@ import test_001_model
 def test_get_recharge():
 
     # model with sea
-    model_ds = test_001_model.test_get_model_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
     # add knmi recharge to the model dataset
-    model_ds.update(nlmod.read.knmi.get_recharge(model_ds))
+    ds.update(nlmod.read.knmi.get_recharge(ds))
 
-    return model_ds
+    return ds
 
 
 def test_get_recharge_steady_state():
 
     # model with sea
-    model_ds = test_001_model.test_get_model_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
     # modify mtime
-    model_ds = model_ds.drop_dims("time")
-    model_ds = nlmod.mdims.set_model_ds_time(
-        model_ds, start_time="2000-1-1", perlen=3650
+    ds = ds.drop_dims("time")
+    ds = nlmod.mdims.set_ds_time(
+        ds, start_time="2000-1-1", perlen=3650
     )
 
     # add knmi recharge to the model dataset
-    model_ds.update(nlmod.read.knmi.get_recharge(model_ds))
+    ds.update(nlmod.read.knmi.get_recharge(ds))
 
-    return model_ds
+    return ds
 
 
 def test_ahn_within_extent():
@@ -54,10 +54,10 @@ def test_ahn_split_extent():
 def test_get_ahn():
 
     # model with sea
-    model_ds = test_001_model.test_get_model_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
     # add ahn data to the model dataset
-    ahn_ds = nlmod.read.ahn.get_ahn(model_ds)
+    ahn_ds = nlmod.read.ahn.get_ahn(ds)
 
     assert not ahn_ds["ahn"].isnull().all(), "AHN only has nan values"
 
@@ -67,26 +67,26 @@ def test_get_ahn():
 def test_get_surface_water_ghb():
 
     # model with sea
-    model_ds = test_001_model.test_get_model_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
     # create simulation
-    sim = nlmod.gwf.sim_from_model_ds(model_ds)
+    sim = nlmod.gwf.sim(ds)
 
     # create time discretisation
-    tdis = nlmod.gwf.tdis_from_model_ds(model_ds, sim)
+    tdis = nlmod.gwf.tdis(ds, sim)
 
     # create groundwater flow model
-    gwf = nlmod.gwf.gwf_from_model_ds(model_ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    ims = nlmod.gwf.ims_to_sim(sim)
+    ims = nlmod.gwf.ims(sim)
 
-    nlmod.gwf.dis_from_model_ds(model_ds, gwf)
+    nlmod.gwf.dis(ds, gwf)
 
     # add surface water levels to the model dataset
-    model_ds.update(nlmod.read.rws.get_surface_water(model_ds, "surface_water"))
+    ds.update(nlmod.read.rws.get_surface_water(ds, "surface_water"))
 
-    return model_ds
+    return ds
 
 
 def test_get_brp():

@@ -4,7 +4,7 @@ from collections import OrderedDict
 import numpy as np
 import xarray as xr
 
-from . import resample, mbase
+from . import resample
 from ..read import jarkus, rws
 
 logger = logging.getLogger(__name__)

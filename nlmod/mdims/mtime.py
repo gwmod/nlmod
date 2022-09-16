@@ -13,8 +13,8 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def set_model_ds_time(
-    model_ds,
+def set_ds_time(
+    ds,
     time=None,
     steady_state=False,
     steady_start=True,
@@ -30,7 +30,7 @@ def set_model_ds_time(
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         Dataset to add time information to
     time : list, array or DatetimeIndex of pandas.Timestamps, optional
         an array with the start-time of the model and the ending times of the
@@ -73,7 +73,7 @@ def set_model_ds_time(
 
     Returns
     -------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with time variant model data
     """
     # checks
@@ -111,15 +111,15 @@ def set_model_ds_time(
             start_time = start_time - dt.timedelta(days=perlen[0])
     time_dt = start_time + np.cumsum(pd.to_timedelta(perlen, unit=time_units))
 
-    model_ds = model_ds.assign_coords(coords={"time": time_dt})
+    ds = ds.assign_coords(coords={"time": time_dt})
 
-    model_ds.time.attrs["time_units"] = time_units
-    model_ds.time.attrs["start_time"] = str(start_time)
-    model_ds.time.attrs["nstp"] = nstp
-    model_ds.time.attrs["tsmult"] = tsmult
+    ds.time.attrs["time_units"] = time_units
+    ds.time.attrs["start_time"] = str(start_time)
+    ds.time.attrs["nstp"] = nstp
+    ds.time.attrs["tsmult"] = tsmult
 
     # netcdf files cannot handle booleans
-    model_ds.time.attrs["steady_start"] = int(steady_start)
-    model_ds.time.attrs["steady_state"] = int(steady_state)
+    ds.time.attrs["steady_start"] = int(steady_start)
+    ds.time.attrs["steady_state"] = int(steady_state)
 
-    return model_ds
+    return ds

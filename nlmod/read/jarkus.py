@@ -22,23 +22,23 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_bathymetry(model_ds, northsea, method="average"):
+def get_bathymetry(ds, northsea, method="average"):
     """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data where bathymetry is added to
     northsea : ??
         ??
     method : str, optional
-        Method used to resample ahn to grid of model_ds. See
+        Method used to resample ahn to grid of ds. See
         mdims.resample.structured_da_to_ds for possible values. The default is
         'average'.
 
     Returns
     -------
-    model_ds_out : xarray.Dataset
+    ds_out : xarray.Dataset
         dataset with bathymetry
 
     Notes
@@ -47,26 +47,26 @@ def get_bathymetry(model_ds, northsea, method="average"):
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
-    model_ds_out = util.get_model_ds_empty(model_ds)
+    ds_out = util.get_ds_empty(ds)
 
     # no bathymetry if we don't have northsea
     if (northsea == 0).all():
-        model_ds_out["bathymetry"] = util.get_da_from_da_ds(
+        ds_out["bathymetry"] = util.get_da_from_da_ds(
             northsea, northsea.dims, data=np.nan
         )
-        return model_ds_out
+        return ds_out
 
     # try to get bathymetry via opendap
     try:
         url = "https://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc"
-        jarkus_ds = get_dataset_jarkus(model_ds.extent, url)
+        jarkus_ds = get_dataset_jarkus(ds.extent, url)
     except OSError:
         import gdown
 
         logger.warning(
             "cannot access Jarkus netCDF link, copy file from google drive instead"
         )
-        fname_jarkus = os.path.join(model_ds.model_ws, "jarkus_nhflopy.nc")
+        fname_jarkus = os.path.join(ds.model_ws, "jarkus_nhflopy.nc")
         url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
         gdown.download(url, fname_jarkus, quiet=False)
         jarkus_ds = xr.open_dataset(fname_jarkus)
@@ -81,19 +81,19 @@ def get_bathymetry(model_ds, northsea, method="average"):
 
     # bathymetry projected on model grid
     da_bathymetry = mdims.resample.structured_da_to_ds(
-        da_bathymetry_filled, model_ds, method=method
+        da_bathymetry_filled, ds, method=method
     )
 
-    model_ds_out["bathymetry"] = xr.where(northsea, da_bathymetry, np.nan)
+    ds_out["bathymetry"] = xr.where(northsea, da_bathymetry, np.nan)
 
-    for datavar in model_ds_out:
-        model_ds_out[datavar].attrs["source"] = "Jarkus"
-        model_ds_out[datavar].attrs["url"] = url
-        model_ds_out[datavar].attrs["source"] = dt.datetime.now().strftime("%Y%m%d")
+    for datavar in ds_out:
+        ds_out[datavar].attrs["source"] = "Jarkus"
+        ds_out[datavar].attrs["url"] = url
+        ds_out[datavar].attrs["source"] = dt.datetime.now().strftime("%Y%m%d")
         if datavar == "bathymetry":
-            model_ds_out[datavar].attrs["units"] = "mNAP"
+            ds_out[datavar].attrs["units"] = "mNAP"
 
-    return model_ds_out
+    return ds_out
 
 
 def get_dataset_jarkus(
@@ -180,7 +180,7 @@ def get_netcdf_tiles():
     same string for each tile.
     """
     url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc.ascii"
-    req = requests.get(url)
+    req = requests.get(url, timeout=1200)  # 20 minutes time out
     s = req.content.decode("ascii")
     start = s.find("urlPath", s.find("urlPath") + 1)
     end = s.find("projectionCoverage_x", s.find("projectionCoverage_x") + 1)
@@ -188,15 +188,13 @@ def get_netcdf_tiles():
     return netcdf_urls
 
 
-def add_bathymetry_to_top_bot_kh_kv(
-    model_ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10
-):
+def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10):
     """add bathymetry to the top and bot of each layer for all cells with
     fill_mask.
 
     Parameters
     ----------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data, should
     bathymetry : xarray DataArray
         bathymetry data
@@ -207,23 +205,23 @@ def add_bathymetry_to_top_bot_kh_kv(
 
     Returns
     -------
-    model_ds : xarray.Dataset
+    ds : xarray.Dataset
         dataset with model data where the top, bot, kh and kv are changed
     """
-    model_ds["top"].values = np.where(fill_mask, 0.0, model_ds["top"])
+    ds["top"].values = np.where(fill_mask, 0.0, ds["top"])
 
     lay = 0
-    model_ds["botm"][lay] = xr.where(fill_mask, bathymetry, model_ds["botm"][lay])
+    ds["botm"][lay] = xr.where(fill_mask, bathymetry, ds["botm"][lay])
 
-    model_ds["kh"][lay] = xr.where(fill_mask, kh_sea, model_ds["kh"][lay])
+    ds["kh"][lay] = xr.where(fill_mask, kh_sea, ds["kh"][lay])
 
-    model_ds["kv"][lay] = xr.where(fill_mask, kv_sea, model_ds["kv"][lay])
+    ds["kv"][lay] = xr.where(fill_mask, kv_sea, ds["kv"][lay])
 
     # reset bot for all layers based on bathymetrie
-    for lay in range(1, model_ds.dims["layer"]):
-        model_ds["botm"][lay] = np.where(
-            model_ds["botm"][lay] > model_ds["botm"][lay - 1],
-            model_ds["botm"][lay - 1],
-            model_ds["botm"][lay],
+    for lay in range(1, ds.dims["layer"]):
+        ds["botm"][lay] = np.where(
+            ds["botm"][lay] > ds["botm"][lay - 1],
+            ds["botm"][lay - 1],
+            ds["botm"][lay],
         )
-    return model_ds
+    return ds

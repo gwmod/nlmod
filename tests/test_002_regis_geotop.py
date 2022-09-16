@@ -33,7 +33,7 @@ def test_get_regis_botm_layer_BEk1(
     botm_layer="BEk1",
 ):
 
-    #extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
+    # extent, nrow, ncol = regis.fit_extent_to_regis(extent, delr, delc)
 
     regis_ds = regis.get_regis(extent, botm_layer)
 
@@ -62,7 +62,7 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     regis_geotop_ds = regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
-    regis_geotop_ds = nlmod.read.regis.to_model_ds(regis_geotop_ds)
+    regis_geotop_ds = nlmod.mdims.to_model_ds(regis_geotop_ds)
 
     assert regis_geotop_ds.dims["layer"] == 24
 
@@ -79,7 +79,7 @@ def test_get_regis_geotop_keep_all_layers(
     regis_geotop_ds = regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
-    nlmod.read.regis.to_model_ds(
+    nlmod.mdims.to_model_ds(
         regis_geotop_ds, delr=delr, delc=delc, remove_nan_layers=False
     )
 

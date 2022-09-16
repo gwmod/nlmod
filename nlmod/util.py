@@ -71,25 +71,25 @@ def get_exe_path(exe_name="mf6"):
     return exe_path
 
 
-def get_model_ds_empty(model_ds):
+def get_ds_empty(ds):
     """get a copy of a model dataset with only grid and time information.
 
     Parameters
     ----------
-    model_ds : xr.Dataset
+    ds : xr.Dataset
         dataset with at least the variables layer, x, y and time
 
     Returns
     -------
-    model_ds_out : xr.Dataset
+    ds_out : xr.Dataset
         dataset with only model grid and time information
     """
 
-    return model_ds[list(model_ds.coords)].copy()
+    return ds[list(ds.coords)].copy()
 
 
 def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
-    """get a dataarray from model_ds with certain dimensions.
+    """get a dataarray from ds with certain dimensions.
 
     Parameters
     ----------
@@ -104,7 +104,7 @@ def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
     Returns
     -------
     da : xr.DataArray
-        DataArray with coordinates from model_ds
+        DataArray with coordinates from ds
     """
     if not isinstance(dims, tuple):
         raise TypeError(
@@ -457,13 +457,13 @@ def getmfexes(pth=".", version="", pltfrm=None):
     pymake.download_and_unzip(download_url, pth)
 
 
-def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
+def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
     DataArray.
 
     Parameters
     ----------
-    model_ds : TYPE
+    ds : TYPE
         DESCRIPTION.
     fill_nans : bool, optional
         if True the nan values are filled with the heads in the cells below
@@ -477,29 +477,29 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
     """
 
     if fname_hds is None:
-        fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + ".hds")
+        fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
 
     head = get_heads_array(fname_hds, fill_nans=fill_nans)
 
-    if model_ds.gridtype == "vertex":
+    if ds.gridtype == "vertex":
         head_ar = xr.DataArray(
             data=head[:, :, 0],
             dims=("time", "layer", "icell2d"),
             coords={
-                "icell2d": model_ds.icell2d,
-                "layer": model_ds.layer,
-                "time": model_ds.time,
+                "icell2d": ds.icell2d,
+                "layer": ds.layer,
+                "time": ds.time,
             },
         )
-    elif model_ds.gridtype == "structured":
+    elif ds.gridtype == "structured":
         head_ar = xr.DataArray(
             data=head,
             dims=("time", "layer", "y", "x"),
             coords={
-                "x": model_ds.x,
-                "y": model_ds.y,
-                "layer": model_ds.layer,
-                "time": model_ds.time,
+                "x": ds.x,
+                "y": ds.y,
+                "layer": ds.layer,
+                "time": ds.time,
             },
         )
 

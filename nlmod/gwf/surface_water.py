@@ -16,7 +16,7 @@ from ..mdims import resample, mgrid
 logger = logging.getLogger(__name__)
 
 
-def aggregate_surface_water(gdf, method, model_ds=None):
+def aggregate_surface_water(gdf, method, ds=None):
     """Aggregate surface water features.
 
     Parameters
@@ -29,7 +29,7 @@ def aggregate_surface_water(gdf, method, model_ds=None):
         "area_weighted" for area-weighted params,
         "max_area" for max area params
         "de_lange" for De Lange formula for conductance
-    model_ds : xarray.DataSet, optional
+    ds : xarray.DataSet, optional
         DataSet containing model layer information (only required for
         method='de_lange')
 
@@ -50,9 +50,7 @@ def aggregate_surface_water(gdf, method, model_ds=None):
 
     for cid, group in tqdm(gr, desc="Aggregate surface water data"):
 
-        stage, cond, rbot = get_surfacewater_params(
-            group, method, cid=cid, model_ds=model_ds
-        )
+        stage, cond, rbot = get_surfacewater_params(group, method, cid=cid, ds=ds)
 
         celldata.loc[cid, "stage"] = stage
         celldata.loc[cid, "cond"] = cond
@@ -62,9 +60,7 @@ def aggregate_surface_water(gdf, method, model_ds=None):
     return celldata
 
 
-def get_surfacewater_params(
-    group, method, cid=None, model_ds=None, delange_params=None
-):
+def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=None):
 
     if method == "area_weighted":
         # stage
@@ -99,7 +95,7 @@ def get_surfacewater_params(
 
         # cond
         c0 = agg_area_weighted(group, "c0")
-        _, _, cond = agg_de_lange(group, cid, model_ds, c1=c1, c0=c0, N=N)
+        _, _, cond = agg_de_lange(group, cid, ds, c1=c1, c0=c0, N=N)
 
         # rbot
         rbot = group["botm"].min()
@@ -120,11 +116,9 @@ def agg_area_weighted(gdf, col):
     return aw
 
 
-def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
+def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
 
-    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(
-        model_ds, cid
-    )
+    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(ds, cid)
 
     rbot = group["botm"].min()
 
@@ -153,7 +147,7 @@ def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=Tru
     # correction if group contains multiple shapes
     # but covers whole cell
     if group.area.sum() == A:
-        li = A / np.max([model_ds.delr, model_ds.delc])
+        li = A / np.max([ds.delr, ds.delc])
 
     # width
     B = group.area.sum(skipna=True) / li
@@ -169,14 +163,14 @@ def agg_de_lange(group, cid, model_ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=Tru
     return pstar, cstar, cond
 
 
-def get_subsurface_params_by_cellid(model_ds, cid):
+def get_subsurface_params_by_cellid(ds, cid):
     r, c = cid
-    A = model_ds.delr * model_ds.delc  # cell area
-    laytop = model_ds["top"].isel(x=c, y=r).data
-    laybot = model_ds["bot"].isel(x=c, y=r).data
-    kv = model_ds["kv"].isel(x=c, y=r).data
-    kh = model_ds["kh"].isel(x=c, y=r).data
-    thickness = model_ds["thickness"].isel(x=c, y=r).data
+    A = ds.delr * ds.delc  # cell area
+    laytop = ds["top"].isel(x=c, y=r).data
+    laybot = ds["bot"].isel(x=c, y=r).data
+    kv = ds["kv"].isel(x=c, y=r).data
+    kh = ds["kh"].isel(x=c, y=r).data
+    thickness = ds["thickness"].isel(x=c, y=r).data
     return A, laytop, laybot, kh, kv, thickness
 
 
@@ -360,7 +354,7 @@ def distribute_cond_over_lays(
 def build_spd(
     celldata,
     pkg,
-    model_ds,
+    ds,
     layer_method="lay_of_rbot",
 ):
     """Build stress period data for package (RIV, DRN, GHB).
@@ -372,7 +366,7 @@ def build_spd(
         and must have columns "rbot", "stage" and "cond".
     pkg : str
         Modflow package: RIV, DRN or GHB
-    model_ds : xarray.DataSet
+    ds : xarray.DataSet
         DataSet containing model layer information
     layer_method: layer_method : str, optional
         The method used to distribute the conductance over the layers. Possible
@@ -390,10 +384,10 @@ def build_spd(
 
     spd = []
 
-    top = model_ds.top.data
-    botm = model_ds.botm.data
-    idomain = model_ds.idomain.data
-    kh = model_ds.kh.data
+    top = ds.top.data
+    botm = ds.botm.data
+    idomain = ds.idomain.data
+    kh = ds.kh.data
 
     for cellid, row in tqdm(
         celldata.iterrows(),
@@ -402,10 +396,10 @@ def build_spd(
     ):
 
         # check if there is an active layer for this cell
-        if model_ds.gridtype == "vertex":
+        if ds.gridtype == "vertex":
             idomain_cell = idomain[:, cellid]
             botm_cell = botm[:, cellid]
-        elif model_ds.gridtype == "structured":
+        elif ds.gridtype == "structured":
             idomain_cell = idomain[:, cellid[0], cellid[1]]
             botm_cell = botm[:, cellid[0], cellid[1]]
         if (idomain_cell <= 0).all():
@@ -474,7 +468,7 @@ def build_spd(
         if "boundname" in row:
             auxlist.append(row["boundname"])
 
-        if model_ds.gridtype == "vertex":
+        if ds.gridtype == "vertex":
             cellid = (cellid,)
 
         # write SPD

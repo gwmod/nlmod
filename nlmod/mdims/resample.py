@@ -57,7 +57,7 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
     return ds_out
 
 
-def get_xyi_icell2d(gridprops=None, model_ds=None):
+def get_xyi_icell2d(gridprops=None, ds=None):
     """Get x and y coördinates of the cell mids from the cellids in the grid
     properties.
 
@@ -65,8 +65,8 @@ def get_xyi_icell2d(gridprops=None, model_ds=None):
     ----------
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. If gridprops is
-        None xyi and icell2d will be obtained from model_ds.
-    model_ds : xarray.Dataset
+        None xyi and icell2d will be obtained from ds.
+    ds : xarray.Dataset
         dataset with model data. Should have dimension (layer, icell2d).
 
     Returns
@@ -81,11 +81,11 @@ def get_xyi_icell2d(gridprops=None, model_ds=None):
         yc_gwf = [cell2d[2] for cell2d in gridprops["cell2d"]]
         xyi = np.vstack((xc_gwf, yc_gwf)).T
         icell2d = np.array([c[0] for c in gridprops["cell2d"]])
-    elif model_ds is not None:
-        xyi = np.array(list(zip(model_ds.x.values, model_ds.y.values)))
-        icell2d = model_ds.icell2d.values
+    elif ds is not None:
+        xyi = np.array(list(zip(ds.x.values, ds.y.values)))
+        icell2d = ds.icell2d.values
     else:
-        raise ValueError("either gridprops or model_ds should be specified")
+        raise ValueError("either gridprops or ds should be specified")
 
     return xyi, icell2d
 
@@ -337,9 +337,7 @@ def fillnan_dataarray_structured_grid(xar_in, method="nearest"):
     return xar_out
 
 
-def fillnan_dataarray_vertex_grid(
-    xar_in, model_ds=None, x=None, y=None, method="nearest"
-):
+def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     """fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
@@ -351,10 +349,10 @@ def fillnan_dataarray_vertex_grid(
         data array with nan values. Shape is (icell2d)
     x : np.array, optional
         x coördinates of the cell centers shape(icell2d), if not defined use x
-        from model_ds.
+        from ds.
     y : np.array, optional
         y coördinates of the cell centers shape(icell2d), if not defined use y
-        from model_ds.
+        from ds.
     method : str, optional
         method used in scipy.interpolate.griddata to resample, default is
         nearest.
@@ -371,9 +369,9 @@ def fillnan_dataarray_vertex_grid(
 
     # get list of coordinates from all points in raster
     if x is None:
-        x = model_ds["x"].data
+        x = ds["x"].data
     if y is None:
-        y = model_ds["y"].data
+        y = ds["y"].data
 
     xyi = np.column_stack((x, y))
 

@@ -14,47 +14,47 @@ import test_001_model
 tmpdir = tempfile.gettempdir()
 
 
-def test_model_ds_check_true():
+def test_ds_check_true():
 
     # two models with the same grid and time dicretisation
-    model_ds = test_001_model.test_get_model_ds_from_cache("small_model")
-    model_ds2 = model_ds.copy()
+    ds = test_001_model.test_get_ds_from_cache("small_model")
+    ds2 = ds.copy()
 
-    check = nlmod.cache._check_ds(model_ds, model_ds2)
+    check = nlmod.cache._check_ds(ds, ds2)
 
     assert check
 
 
-def test_model_ds_check_time_false():
+def test_ds_check_time_false():
 
     # two models with a different time discretisation
-    model_ds = test_001_model.test_get_model_ds_from_cache("small_model")
-    model_ds2 = test_001_model.test_model_ds_time_steady(tmpdir)
+    ds = test_001_model.test_get_ds_from_cache("small_model")
+    ds2 = test_001_model.test_ds_time_steady(tmpdir)
 
-    check = nlmod.cache._check_ds(model_ds, model_ds2)
+    check = nlmod.cache._check_ds(ds, ds2)
 
     assert check == False
 
 
-def test_model_ds_check_time_attributes_false():
+def test_ds_check_time_attributes_false():
 
     # two models with a different time discretisation
-    model_ds = test_001_model.test_get_model_ds_from_cache("small_model")
-    model_ds2 = model_ds.copy()
+    ds = test_001_model.test_get_ds_from_cache("small_model")
+    ds2 = ds.copy()
 
-    model_ds2.time.attrs["time_units"] = "MONTHS"
+    ds2.time.attrs["time_units"] = "MONTHS"
 
-    check = nlmod.cache._check_ds(model_ds, model_ds2)
+    check = nlmod.cache._check_ds(ds, ds2)
 
     assert check == False
 
 
 @pytest.mark.slow
-def test_model_ds_check_grid_false(tmpdir):
+def test_ds_check_grid_false(tmpdir):
 
     # two models with a different grid and same time dicretisation
-    model_ds = test_001_model.test_get_model_ds_from_cache("small_model")
-    model_ds2 = test_001_model.test_model_ds_time_transient(tmpdir)
+    ds = test_001_model.test_get_ds_from_cache("small_model")
+    ds2 = test_001_model.test_ds_time_transient(tmpdir)
     extent = [99100.0, 99400.0, 489100.0, 489400.0]
     regis_ds = nlmod.read.regis.get_combined_layer_models(
         extent,
@@ -63,9 +63,9 @@ def test_model_ds_check_grid_false(tmpdir):
         cachedir=tmpdir,
         cachename="comb.nc",
     )
-    model_ds2 = nlmod.read.regis.to_model_ds(regis_ds, delr=50.0, delc=50.0)
+    ds2 = nlmod.mdims.to_model_ds(regis_ds, delr=50.0, delc=50.0)
 
-    check = nlmod.cache._check_ds(model_ds, model_ds2)
+    check = nlmod.cache._check_ds(ds, ds2)
 
     assert check == False
 

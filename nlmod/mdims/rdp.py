@@ -5,7 +5,6 @@ Python implementation of the Ramer-Douglas-Peucker algorithm.
 :copyright: 2014-2016 Fabian Hirschmann <fabian@hirschmann.email>
 :license: MIT, see LICENSE.txt for more details.
 """
-from math import sqrt
 from functools import partial
 import numpy as np
 import sys

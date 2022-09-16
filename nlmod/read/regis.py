@@ -73,7 +73,7 @@ def get_combined_layer_models(
 
 
 @cache.cache_netcdf
-def get_regis(extent, botm_layer="AKc", variables=["top", "botm", "kh", "kv"]):
+def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
     """get a regis dataset projected on the modelgrid.
 
     Parameters
@@ -85,10 +85,10 @@ def get_regis(extent, botm_layer="AKc", variables=["top", "botm", "kh", "kv"]):
         included in the model. the Default is "AKc" which is the bottom
         layer of regis. call nlmod.read.regis.get_layer_names() to get a list
         of regis names.
-    variables : list, optional
-        a list of the variables to keep from the regis Dataset. Possible
+    variables : tuple, optional
+        a tuple of the variables to keep from the regis Dataset. Possible
         entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
-        'sdv'. The default is ["top", "botm", "kh", "kv"].
+        'sdv'. The default is ("top", "botm", "kh", "kv").
 
     Returns
     -------

@@ -52,14 +52,14 @@ class DatasetCrossSection:
             tree = STRtree(polygons)
             icell2ds = tree.query_items(LineString(line))
             s_cell = []
-            for icell2d in icell2ds:
-                intersection = line.intersection(polygons[icell2d])
+            for ic2d in icell2ds:
+                intersection = line.intersection(polygons[ic2d])
                 if intersection.length == 0:
                     continue
                 assert isinstance(intersection, LineString)
-                s_cell.append([line.project(Point(intersection.coords[0])), 1, icell2d])
+                s_cell.append([line.project(Point(intersection.coords[0])), 1, ic2d])
                 s_cell.append(
-                    [line.project(Point(intersection.coords[-1])), 0, icell2d]
+                    [line.project(Point(intersection.coords[-1])), 0, ic2d]
                 )
             s_cell = np.array(s_cell)
             ind = np.lexsort((s_cell[:, 1], s_cell[:, 0]))

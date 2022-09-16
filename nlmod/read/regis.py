@@ -116,7 +116,7 @@ def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
     ds = ds.rename_vars({"bottom": "botm"})
 
     # slice data vars
-    ds = ds[variables]
+    ds = ds[list(variables)]
 
     ds.attrs["extent"] = extent
     for datavar in ds:

@@ -30,7 +30,7 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
         params["geometry"] = f"{xmin},{ymin},{xmax},{ymax}"
         params["geometryType"] = "esriGeometryEnvelope"
         params["inSR"] = sr
-    r = requests.get(url, params={"f": "json"})
+    r = requests.get(url, params={"f": "json"}, timeout=1200)
     if not r.ok:
         raise (Exception("Request not successful"))
     props = r.json()
@@ -43,7 +43,7 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
     else:
         max_record_count = min(max_record_count, props["maxRecordCount"])
     params["returnIdsOnly"] = True
-    r = requests.get(f"{url}/{layer}/query", params=params)
+    r = requests.get(f"{url}/{layer}/query", params=params, timeout=1200)
     if not r.ok:
         raise (Exception("Request not successful"))
     props = r.json()
@@ -68,12 +68,12 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
                 object_ids[i_max],
             )
             params["where"] = where
-            r = requests.get(f"{url}/{layer}/query", params=params)
+            r = requests.get(f"{url}/{layer}/query", params=params, timeout=1200)
             if not r.ok:
                 raise (Exception("Request not successful"))
             features.extend(r.json()["features"])
     else:
-        r = requests.get(f"{url}/{layer}/query", params=params)
+        r = requests.get(f"{url}/{layer}/query", params=params, timeout=1200)
         if not r.ok:
             raise (Exception("Request not successful"))
         features = r.json()["features"]
@@ -113,7 +113,7 @@ def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=N
     if paged:
         # wfs = WebFeatureService(url)
         # get the maximum number of features
-        r = requests.get(f"{url}&request=getcapabilities")
+        r = requests.get(f"{url}&request=getcapabilities", timeout=1200)
         if not r.ok:
             raise (Exception("Request not successful"))
         root = ET.fromstring(r.text)
@@ -151,7 +151,7 @@ def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=N
 
         # get the number of features
         params["resultType"] = "hits"
-        r = requests.get(url, params=params)
+        r = requests.get(url, params=params, timeout=1200)
         params.pop("resultType")
         root = ET.fromstring(r.text)
         if version == "1.1.0":

@@ -724,7 +724,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
     1. take kh from kh_in, if kh_in has nan values:
     2. take kv from kv_in and multiply by anisotropy, if this is nan:
     3. take fill_value_kh
-    
+
     fill kv grid in these steps:
     1. take kv from kv_in, if kv_in has nan values:
     2. take kh from kh_in and divide by anisotropy, if this is nan:
@@ -825,9 +825,7 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
             mask_top = ds["top"] < bottom_filled
-            ds["botm"][lay] = xr.where(
-                fill_mask * mask_top, ds["top"], bottom_filled
-            )
+            ds["botm"][lay] = xr.where(fill_mask * mask_top, ds["top"], bottom_filled)
         else:
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
@@ -835,12 +833,8 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
             ds["botm"][lay] = xr.where(
                 fill_mask * mask_top, ds["botm"][lay - 1], bottom_filled
             )
-        ds["kh"][lay] = xr.where(
-            fill_mask * mask_top, ds["kh"][lay], kh_filled
-        )
-        ds["kv"][lay] = xr.where(
-            fill_mask * mask_top, ds["kv"][lay], kv_filled
-        )
+        ds["kh"][lay] = xr.where(fill_mask * mask_top, ds["kh"][lay], kh_filled)
+        ds["kv"][lay] = xr.where(fill_mask * mask_top, ds["kv"][lay], kv_filled)
 
     return ds
 
@@ -961,17 +955,11 @@ def add_northsea(ds, cachedir=None):
     )
 
     # find grid cells with northsea
-    ds.update(
-        rws.get_northsea(ds, cachedir=cachedir, cachename="sea_ds.nc")
-    )
+    ds.update(rws.get_northsea(ds, cachedir=cachedir, cachename="sea_ds.nc"))
 
     # fill top, bot, kh, kv at sea cells
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds[
-        "northsea"
-    ]
-    ds = fill_top_bot_kh_kv_at_mask(
-        ds, fill_mask, gridtype=ds.attrs["gridtype"]
-    )
+    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
+    ds = fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype=ds.attrs["gridtype"])
 
     # add bathymetry noordzee
     ds.update(
@@ -983,18 +971,14 @@ def add_northsea(ds, cachedir=None):
         )
     )
 
-    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(
-        ds, ds["bathymetry"], fill_mask
-    )
+    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
 
     # update idomain on adjusted tops and bots
     ds["thickness"], _ = calculate_thickness(ds)
     ds["idomain"] = update_idomain_from_thickness(
         ds["idomain"], ds["thickness"], ds["northsea"]
     )
-    ds["first_active_layer"] = get_first_active_layer_from_idomain(
-        ds["idomain"]
-    )
+    ds["first_active_layer"] = get_first_active_layer_from_idomain(ds["idomain"])
     return ds
 
 

@@ -9,6 +9,7 @@ from .. import util
 
 logger = logging.getLogger(__name__)
 
+
 def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     """set the attribute of a model dataset.
 

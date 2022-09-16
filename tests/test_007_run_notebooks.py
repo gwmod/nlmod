@@ -70,6 +70,7 @@ def test_run_notebook_09_schoonhoven():
 def test_run_notebook_10_modpath():
     _run_notebook(nbdir, "10_modpath.ipynb")
 
+
 @pytest.mark.notebooks
 def test_run_notebook_11_grid_rotation():
     _run_notebook(nbdir, "11_grid_rotation.ipynb")

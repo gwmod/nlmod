@@ -36,10 +36,7 @@ def get_tdis_perioddata(ds):
     """
     deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
-        (
-            pd.to_datetime(ds["time"].data[0])
-            - pd.to_datetime(ds.time.start_time)
-        )
+        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start_time))
         / deltat
     ]
     if len(ds["time"]) > 1:
@@ -86,7 +83,7 @@ def sim(ds, exe_name=None):
     return sim
 
 
-def tdis(ds, sim, pname='tdis'):
+def tdis(ds, sim, pname="tdis"):
     """create tdis package from the model dataset.
 
     Parameters

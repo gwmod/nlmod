@@ -95,14 +95,13 @@ def gwf(ds, sim, **kwargs):
     model_nam_file = f"{ds.model_name}.nam"
 
     gwf = flopy.mf6.ModflowGwf(
-        sim, modelname=ds.model_name, model_nam_file=model_nam_file,
-        **kwargs
+        sim, modelname=ds.model_name, model_nam_file=model_nam_file, **kwargs
     )
 
     return gwf
 
 
-def ims(sim, complexity="MODERATE", pname='ims', **kwargs):
+def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
     """create IMS package
 
 
@@ -126,15 +125,13 @@ def ims(sim, complexity="MODERATE", pname='ims', **kwargs):
 
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.modflow.mfims.ModflowIms(
-        sim, pname=pname, print_option="summary", complexity=complexity,
-        **kwargs
+        sim, pname=pname, print_option="summary", complexity=complexity, **kwargs
     )
 
     return ims
 
 
-def dis(ds, gwf, length_units="METERS",
-        pname='dis', **kwargs):
+def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
     """get discretisation package from the model dataset.
 
     Parameters
@@ -187,14 +184,13 @@ def dis(ds, gwf, length_units="METERS",
         botm=ds["botm"].data,
         idomain=ds["idomain"].data,
         filename=f"{ds.model_name}.dis",
-        **kwargs
+        **kwargs,
     )
 
     return dis
 
 
-def disv(ds, gwf, length_units="METERS",
-                       pname='disv', **kwargs):
+def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
     """get discretisation vertices package from the model dataset.
 
     Parameters
@@ -240,19 +236,15 @@ def disv(ds, gwf, length_units="METERS",
         vertices=vertices,
         cell2d=cell2d,
         pname=pname,
-        **kwargs
+        **kwargs,
     )
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        gwf.modelgrid.set_coord_info(xoff=xorigin,
-                                     yoff=yorigin,
-                                     angrot=angrot)
+        gwf.modelgrid.set_coord_info(xoff=xorigin, yoff=yorigin, angrot=angrot)
 
     return disv
 
 
-def npf(ds, gwf, icelltype=0, save_flows=False, 
-                      pname='npf',
-                      **kwargs):
+def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     """get node property flow package from model dataset.
 
     Parameters
@@ -293,7 +285,7 @@ def npf(ds, gwf, icelltype=0, save_flows=False,
     return npf
 
 
-def ghb(ds, gwf, da_name, pname='ghb', **kwargs):
+def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
     """get general head boundary from model dataset.
 
     Parameters
@@ -306,7 +298,7 @@ def ghb(ds, gwf, da_name, pname='ghb', **kwargs):
         name of the ghb files in the model dataset.
     pname : str, optional
         package name
-        
+
     Raises
     ------
     ValueError
@@ -349,7 +341,7 @@ def ghb(ds, gwf, da_name, pname='ghb', **kwargs):
             stress_period_data=ghb_rec,
             save_flows=True,
             pname=pname,
-            **kwargs
+            **kwargs,
         )
         return ghb
 
@@ -359,8 +351,7 @@ def ghb(ds, gwf, da_name, pname='ghb', **kwargs):
         return None
 
 
-def ic(ds, gwf, starting_head="starting_head",
-                     pname='ic', **kwargs):
+def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
     """get initial condictions package from model dataset.
 
     Parameters
@@ -388,14 +379,14 @@ def ic(ds, gwf, starting_head="starting_head",
         ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=ds[starting_head].data,
-                                **kwargs)
+    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=ds[starting_head].data, **kwargs)
 
     return ic
 
 
-def sto(ds, gwf, sy=0.2, ss=0.000001, iconvert=1, 
-                      save_flows=False, pname="sto", **kwargs):
+def sto(
+    ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False, pname="sto", **kwargs
+):
     """get storage package from model dataset.
 
     Parameters
@@ -441,13 +432,12 @@ def sto(ds, gwf, sy=0.2, ss=0.000001, iconvert=1,
             sy=sy,
             steady_state=sts_spd,
             transient=trn_spd,
-            **kwargs
+            **kwargs,
         )
         return sto
 
 
-def chd(ds, gwf, chd="chd", head="starting_head", 
-                      pname='chd', **kwargs):
+def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     """get constant head boundary at the model's edges from the model dataset.
 
     Parameters
@@ -472,9 +462,7 @@ def chd(ds, gwf, chd="chd", head="starting_head",
     """
     # get the stress_period_data
     if ds.gridtype == "structured":
-        chd_rec = mdims.data_array_3d_to_rec_list(
-            ds, ds[chd] != 0, col1=head
-        )
+        chd_rec = mdims.data_array_3d_to_rec_list(ds, ds[chd] != 0, col1=head)
     elif ds.gridtype == "vertex":
         cellids = np.where(ds[chd])
         chd_rec = list(zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0])))
@@ -485,14 +473,13 @@ def chd(ds, gwf, chd="chd", head="starting_head",
         maxbound=len(chd_rec),
         stress_period_data=chd_rec,
         save_flows=True,
-        **kwargs
+        **kwargs,
     )
 
     return chd
 
 
-def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000,
-                                pname='drn', **kwargs):
+def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
@@ -541,13 +528,13 @@ def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000,
         maxbound=len(drn_rec),
         stress_period_data={0: drn_rec},
         save_flows=True,
-        **kwargs
+        **kwargs,
     )
 
     return drn
 
 
-def rch(ds, gwf, pname='rch', **kwargs):
+def rch(ds, gwf, pname="rch", **kwargs):
     """get recharge package from model dataset.
 
     Parameters
@@ -566,15 +553,14 @@ def rch(ds, gwf, pname='rch', **kwargs):
     """
 
     # create recharge package
-    rch = recharge.model_datasets_to_rch(gwf, ds,
-                                         pname=pname, **kwargs)
+    rch = recharge.model_datasets_to_rch(gwf, ds, pname=pname, **kwargs)
 
     return rch
 
 
-def oc(ds, gwf, save_head=False,
-                     save_budget=True, print_head=True,
-                     pname='oc', **kwargs):
+def oc(
+    ds, gwf, save_head=False, save_budget=True, print_head=True, pname="oc", **kwargs
+):
     """get output control package from model dataset.
 
     Parameters
@@ -613,7 +599,7 @@ def oc(ds, gwf, save_head=False,
         head_filerecord=head_filerecord,
         budget_filerecord=budget_filerecord,
         printrecord=printrecord,
-        **kwargs
+        **kwargs,
     )
 
     return oc

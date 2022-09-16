@@ -337,9 +337,7 @@ def fillnan_dataarray_structured_grid(xar_in, method="nearest"):
     return xar_out
 
 
-def fillnan_dataarray_vertex_grid(
-    xar_in, ds=None, x=None, y=None, method="nearest"
-):
+def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     """fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the

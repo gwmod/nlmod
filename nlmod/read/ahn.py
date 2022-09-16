@@ -54,7 +54,7 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
     extent = mdims.resample.get_extent(ds)
     ahn_ds_raw = get_ahn_within_extent(extent=extent, url=url, identifier=identifier)
 
-    ahn_ds_raw = ahn_ds_raw.drop_vars('band')
+    ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
     ahn_da = mdims.resample.structured_da_to_ds(ahn_ds_raw, ds, method=method)
     ahn_da.attrs["source"] = identifier

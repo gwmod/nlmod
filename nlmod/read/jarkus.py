@@ -180,7 +180,7 @@ def get_netcdf_tiles():
     same string for each tile.
     """
     url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc.ascii"
-    req = requests.get(url)
+    req = requests.get(url, timeout=1200) #20 minutes time out
     s = req.content.decode("ascii")
     start = s.find("urlPath", s.find("urlPath") + 1)
     end = s.find("projectionCoverage_x", s.find("projectionCoverage_x") + 1)
@@ -188,9 +188,7 @@ def get_netcdf_tiles():
     return netcdf_urls
 
 
-def add_bathymetry_to_top_bot_kh_kv(
-    ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10
-):
+def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10):
     """add bathymetry to the top and bot of each layer for all cells with
     fill_mask.
 

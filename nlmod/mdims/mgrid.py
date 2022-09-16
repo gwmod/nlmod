@@ -313,8 +313,7 @@ def col_to_list(col_in, ds, cellids):
         elif len(cellids) == 2:
             # 2d grid or vertex 3d grid
             col_lst = [
-                ds[col_in].data[row, col]
-                for row, col in zip(cellids[0], cellids[1])
+                ds[col_in].data[row, col] for row, col in zip(cellids[0], cellids[1])
             ]
         elif len(cellids) == 1:
             # 2d vertex grid
@@ -469,9 +468,7 @@ def data_array_3d_to_rec_list(
     rows = cellids[1]
     columns = cellids[2]
 
-    rec_list = lrc_to_rec_list(
-        layers, rows, columns, cellids, ds, col1, col2, col3
-    )
+    rec_list = lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
 
     return rec_list
 
@@ -557,9 +554,7 @@ def data_array_2d_to_rec_list(
     rows = cellids[-2]
     columns = cellids[-1]
 
-    rec_list = lrc_to_rec_list(
-        layers, rows, columns, cellids, ds, col1, col2, col3
-    )
+    rec_list = lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
 
     return rec_list
 
@@ -1163,7 +1158,7 @@ def gdf2grid(
     """
     if ml is None and ix is None:
         raise (Exception("Either specify ml or ix"))
-        
+
     if ml is not None:
         if isinstance(ml, xr.Dataset):
             ds = ml
@@ -1174,7 +1169,7 @@ def gdf2grid(
                 gdf = affine_transform_gdf(gdf, affine)
         else:
             modelgrid = ml.modelgrid
-        
+
     if ix is None:
         ix = flopy.utils.GridIntersect(modelgrid, method=method)
     shps = []

@@ -72,8 +72,9 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
 
     headers = {"content-type": "application/json"}
 
-    response = requests.post(url, headers=headers, data=json.dumps(body),
-                             timeout=1200) #20 minutes
+    response = requests.post(
+        url, headers=headers, data=json.dumps(body), timeout=1200
+    )  # 20 minutes
 
     # check api-status, if completed, download
     if response.status_code in range(200, 300):
@@ -82,7 +83,7 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
         url = f"{api_url}{href}"
 
         while running:
-            response = requests.get(url, timeout=1200) #20 minutes
+            response = requests.get(url, timeout=1200)  # 20 minutes
             if response.status_code in range(200, 300):
                 status = response.json()["status"]
                 if status == "COMPLETED":
@@ -96,7 +97,7 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
         raise (Exception(msg))
 
     href = response.json()["_links"]["download"]["href"]
-    response = requests.get(f"{api_url}{href}", timeout=1200) #20 minutes
+    response = requests.get(f"{api_url}{href}", timeout=1200)  # 20 minutes
 
     if fname is not None:
         with open(fname, "wb") as file:
@@ -268,6 +269,6 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
 
 def get_bgt_layers():
     url = "https://api.pdok.nl/lv/bgt/download/v1_0/dataset"
-    resp = requests.get(url, timeout=1200) #20 minutes
+    resp = requests.get(url, timeout=1200)  # 20 minutes
     data = resp.json()
     return [x["featuretype"] for x in data["timeliness"]]

@@ -19,9 +19,7 @@ def test_model_directories(tmpdir):
 def test_ds_time_steady(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), modelname, model_ws)
-    ds = nlmod.mdims.set_ds_time(
-        ds, start_time="2015-1-1", steady_state=True
-    )
+    ds = nlmod.mdims.set_ds_time(ds, start_time="2015-1-1", steady_state=True)
     return ds
 
 
@@ -41,7 +39,7 @@ def test_ds_time_transient(tmpdir, modelname="test"):
 @pytest.mark.slow
 def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    #extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    # extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
@@ -67,7 +65,7 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
 @pytest.mark.slow
 def test_create_small_model_grid_only(tmpdir, model_name="test"):
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
-    #extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    # extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, regis_botm_layer="KRz5", use_regis=True, use_geotop=True
     )
@@ -109,7 +107,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
 @pytest.mark.slow
 def test_create_sea_model_grid_only(tmpdir, model_name="test"):
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    #extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
+    # extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
@@ -136,7 +134,7 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
 def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
     ds = test_ds_time_transient(tmpdir)
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    #extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50.0, 50.0)
+    # extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50.0, 50.0)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
@@ -190,9 +188,7 @@ def test_create_sea_model(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
-    ds.update(
-        nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"])
-    )
+    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
     nlmod.gwf.chd(ds, gwf, head="starting_head")
 
     # add knmi recharge to the model datasets
@@ -263,9 +259,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
-    ds.update(
-        nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"])
-    )
+    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
     nlmod.gwf.chd(ds, gwf, head="starting_head")
 
     # add knmi recharge to the model datasets
@@ -335,9 +329,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
-    ds.update(
-        nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"])
-    )
+    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
     nlmod.gwf.chd(ds, gwf, head="starting_head")
 
     # add knmi recharge to the model datasets

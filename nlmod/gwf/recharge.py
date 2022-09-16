@@ -15,8 +15,7 @@ from .sim import get_tdis_perioddata
 logger = logging.getLogger(__name__)
 
 
-def model_datasets_to_rch(gwf, ds, print_input=False, pname='rch',
-                          **kwargs):
+def model_datasets_to_rch(gwf, ds, print_input=False, pname="rch", **kwargs):
     """convert the recharge data in the model dataset to a recharge package
     with time series.
 
@@ -70,7 +69,7 @@ def model_datasets_to_rch(gwf, ds, print_input=False, pname='rch',
             maxbound=len(rch_spd_data),
             print_input=True,
             stress_period_data={0: rch_spd_data},
-            **kwargs
+            **kwargs,
         )
 
         return rch
@@ -182,7 +181,7 @@ def model_datasets_to_rch(gwf, ds, print_input=False, pname='rch',
         maxbound=len(rch_spd_data),
         print_input=print_input,
         stress_period_data={0: rch_spd_data},
-        **kwargs
+        **kwargs,
     )
 
     # get timesteps

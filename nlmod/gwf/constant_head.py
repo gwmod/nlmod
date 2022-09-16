@@ -29,7 +29,7 @@ def chd_at_model_edge(ds, idomain):
     """
     # add constant head cells at model boundaries
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        raise NotImplementedError('model edge not yet calculated for rotated grids')
+        raise NotImplementedError("model edge not yet calculated for rotated grids")
 
     # get mask with grid edges
     xmin = ds["x"] == ds["x"].min()
@@ -45,9 +45,7 @@ def chd_at_model_edge(ds, idomain):
         # assign 1 to cells that are on the edge and have an active idomain
         ds_out["chd"] = xr.zeros_like(idomain)
         for lay in ds.layer:
-            ds_out["chd"].loc[lay] = np.where(
-                mask2d & (idomain.loc[lay] == 1), 1, 0
-            )
+            ds_out["chd"].loc[lay] = np.where(mask2d & (idomain.loc[lay] == 1), 1, 0)
 
     elif ds.gridtype == "vertex":
         mask = np.where([xmin | xmax | ymin | ymax])[1]

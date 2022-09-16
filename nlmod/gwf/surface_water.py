@@ -50,9 +50,7 @@ def aggregate_surface_water(gdf, method, ds=None):
 
     for cid, group in tqdm(gr, desc="Aggregate surface water data"):
 
-        stage, cond, rbot = get_surfacewater_params(
-            group, method, cid=cid, ds=ds
-        )
+        stage, cond, rbot = get_surfacewater_params(group, method, cid=cid, ds=ds)
 
         celldata.loc[cid, "stage"] = stage
         celldata.loc[cid, "cond"] = cond
@@ -62,9 +60,7 @@ def aggregate_surface_water(gdf, method, ds=None):
     return celldata
 
 
-def get_surfacewater_params(
-    group, method, cid=None, ds=None, delange_params=None
-):
+def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=None):
 
     if method == "area_weighted":
         # stage
@@ -122,9 +118,7 @@ def agg_area_weighted(gdf, col):
 
 def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
 
-    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(
-        ds, cid
-    )
+    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(ds, cid)
 
     rbot = group["botm"].min()
 

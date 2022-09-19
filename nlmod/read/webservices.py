@@ -12,8 +12,15 @@ import geopandas as gpd
 from tqdm import tqdm
 import xml.etree.ElementTree as ET
 from shapely.geometry import Polygon, MultiPolygon
+import rioxarray
+from rasterio import merge
+from rasterio.io import MemoryFile
+from owslib.wcs import WebCoverageService
+import logging
 
 # from owslib.wfs import WebFeatureService
+
+logger = logging.getLogger(__name__)
 
 
 def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=None):
@@ -47,6 +54,10 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
     if not r.ok:
         raise (Exception("Request not successful"))
     props = r.json()
+    if "error" in props:
+        code = props["error"]["code"]
+        message = props["error"]["message"]
+        raise (Exception(f"Error code {code}: {message}"))
     params.pop("returnIdsOnly")
     if "objectIds" in props:
         object_ids = props["objectIds"]
@@ -176,3 +187,215 @@ def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=N
         gdf = gpd.read_file(q)
 
     return gdf
+
+
+def wcs(
+    url,
+    extent,
+    res,
+    identifier=None,
+    version="1.0.0",
+    fmt="GEOTIFF_FLOAT32",
+    crs="EPSG:28992",
+    maxsize=2000,
+):
+    """Download data from a web coverage service (WCS), return a MemoryFile
+
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    res : float, optional
+        resolution of wcs raster
+    url : str
+        webservice url.
+    identifier : str
+        identifier.
+    version : str
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+    fmt : str, optional
+        geotif format
+    crs : str, optional
+        coördinate reference system
+
+    Raises
+    ------
+    Exception
+        wrong version
+
+    Returns
+    -------
+    memfile : rasterio.io.MemoryFile
+        MemoryFile.
+
+    """
+    # check if wcs is within limits
+    dx = extent[1] - extent[0]
+    dy = extent[3] - extent[2]
+
+    # check if size exceeds maxsize
+    if (dx / res) > maxsize:
+        x_segments = int(np.ceil((dx / res) / maxsize))
+    else:
+        x_segments = 1
+
+    if (dy / res) > maxsize:
+        y_segments = int(np.ceil((dy / res) / maxsize))
+    else:
+        y_segments = 1
+
+    if (x_segments * y_segments) > 1:
+        st = f"""requested wcs raster width or height bigger than {maxsize*res}
+            -> splitting extent into {x_segments} * {y_segments} tiles"""
+        logger.info(st)
+        memfile = _split_wcs_extent(
+            extent,
+            x_segments,
+            y_segments,
+            maxsize,
+            res,
+            url,
+            identifier,
+            version,
+            fmt,
+            crs,
+        )
+        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
+    else:
+        memfile = _download_wcs(extent, res, url, identifier, version, fmt, crs)
+        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
+        # load the data from memfile otherwise lazy loading of xarray causes problems
+        da.load()
+
+    return da
+
+
+def _split_wcs_extent(
+    extent, x_segments, y_segments, maxsize, res, url, identifier, version, fmt, crs
+):
+    """There is a max height and width limit for the wcs server. This function
+    splits your extent in chunks smaller than the limit. It returns a list of
+    Memory files.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    res : float
+        The resolution of the requested output-data
+    x_segments : int
+        number of tiles on the x axis
+    y_segments : int
+        number of tiles on the y axis
+    maxsize : int or float
+        maximum widht or height of wcs tile
+
+    Returns
+    -------
+    MemoryFile
+        Rasterio MemoryFile of the merged data
+    Notes
+    -----
+    1. The resolution is used to obtain the data from the wcs server. Not sure
+    what kind of interpolation is used to resample the original grid.
+    """
+
+    # write tiles
+    datasets = []
+    start_x = extent[0]
+    pbar = tqdm(total=x_segments * y_segments)
+    for tx in range(x_segments):
+        if (tx + 1) == x_segments:
+            end_x = extent[1]
+        else:
+            end_x = start_x + maxsize * res
+        start_y = extent[2]
+        for ty in range(y_segments):
+            if (ty + 1) == y_segments:
+                end_y = extent[3]
+            else:
+                end_y = start_y + maxsize * res
+            subextent = [start_x, end_x, start_y, end_y]
+            logger.debug(
+                f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
+            )
+
+            memfile = _download_wcs(subextent, res, url, identifier, version, fmt, crs)
+
+            datasets.append(memfile)
+            start_y = end_y
+            pbar.update(1)
+
+        start_x = end_x
+
+    pbar.close()
+    memfile = MemoryFile()
+    merge.merge([b.open() for b in datasets], dst_path=memfile)
+
+    return memfile
+
+
+def _download_wcs(extent, res, url, identifier, version, fmt, crs):
+    """Download the wcs-data, return a MemoryFile
+
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    res : float, optional
+        resolution of wcs raster
+    url : str
+        webservice url.
+    identifier : str
+        identifier.
+    version : str
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+    fmt : str, optional
+        geotif format
+    crs : str, optional
+        coördinate reference system
+
+    Raises
+    ------
+    Exception
+        wrong version
+
+    Returns
+    -------
+    memfile : rasterio.io.MemoryFile
+        MemoryFile.
+
+    """
+    # download file
+    logger.debug(
+        f"- download wcs between: x ({str(extent[0])}, {str(extent[1])}); "
+        f"y ({str(extent[2])}, {str(extent[3])})"
+    )
+    wcs = WebCoverageService(url, version=version)
+    if identifier is None:
+        identifiers = list(wcs.contents)
+        if len(identifiers) > 1:
+            raise (Exception("wcs contains more than 1 identifier. Please specify."))
+        identifier = identifiers[0]
+    if version == "1.0.0":
+        bbox = (extent[0], extent[2], extent[1], extent[3])
+        output = wcs.getCoverage(
+            identifier=identifier,
+            bbox=bbox,
+            format=fmt,
+            crs=crs,
+            resx=res,
+            resy=res,
+        )
+    elif version == "2.0.1":
+        # bbox, resx and resy do nothing in version 2.0.1
+        subsets = [("x", extent[0], extent[1]), ("y", extent[2], extent[3])]
+        output = wcs.getCoverage(
+            identifier=[identifier], subsets=subsets, format=fmt, crs=crs
+        )
+    else:
+        raise Exception(f"Version {version} not yet supported")
+    memfile = MemoryFile(output.read())
+    return memfile

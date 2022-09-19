@@ -6,9 +6,7 @@
 import datetime as dt
 import logging
 
-import numpy as np
 import xarray as xr
-from owslib.wcs import WebCoverageService
 import rasterio
 from rasterio import merge
 from rasterio.io import MemoryFile
@@ -16,7 +14,7 @@ import rioxarray
 from tqdm import tqdm
 
 from .. import cache, mdims, util
-from .webservices import arcrest
+from .webservices import arcrest, wfs, wcs
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +50,7 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
 
     url = _infer_url(identifier)
     extent = mdims.resample.get_extent(ds)
-    ahn_ds_raw = get_ahn_within_extent(extent=extent, url=url, identifier=identifier)
+    ahn_ds_raw = get_ahn_from_wcs(extent=extent, url=url, identifier=identifier)
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
@@ -66,76 +64,6 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
     ds_out["ahn"] = ahn_da
 
     return ds_out
-
-
-def split_ahn_extent(
-    extent, x_segments, y_segments, maxsize, res, url, identifier, version, fmt, crs
-):
-    """There is a max height and width limit for the wcs server. This function
-    splits your extent in chunks smaller than the limit. It returns a list of
-    Memory files.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    res : float
-        The resolution of the requested output-data
-    x_segments : int
-        number of tiles on the x axis
-    y_segments : int
-        number of tiles on the y axis
-    maxsize : int or float
-        maximum widht or height of ahn tile
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-    **kwargs :
-        keyword arguments of the get_ahn_extent function.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the
-        merged AHN
-    Notes
-    -----
-    1. The resolution is used to obtain the ahn from the wcs server. Not sure
-    what kind of interpolation is used to resample the original grid.
-    """
-
-    # write tiles
-    datasets = []
-    start_x = extent[0]
-    pbar = tqdm(total=x_segments * y_segments)
-    for tx in range(x_segments):
-        if (tx + 1) == x_segments:
-            end_x = extent[1]
-        else:
-            end_x = start_x + maxsize * res
-        start_y = extent[2]
-        for ty in range(y_segments):
-            if (ty + 1) == y_segments:
-                end_y = extent[3]
-            else:
-                end_y = start_y + maxsize * res
-            subextent = [start_x, end_x, start_y, end_y]
-            logger.debug(
-                f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
-            )
-
-            memfile = _download_ahn(subextent, res, url, identifier, version, fmt, crs)
-
-            datasets.append(memfile)
-            start_y = end_y
-            pbar.update(1)
-
-        start_x = end_x
-
-    pbar.close()
-    memfile = MemoryFile()
-    merge.merge([b.open() for b in datasets], dst_path=memfile)
-
-    return memfile
 
 
 def _infer_url(identifier=None):
@@ -159,22 +87,16 @@ def _infer_url(identifier=None):
 
     # infer url from identifier
     if "ahn2" in identifier:
-        url = (
-            "https://geodata.nationaalgeoregister.nl/ahn2/wcs?"
-            "request=GetCapabilities&service=WCS"
-        )
+        url = "https://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS"
     elif "ahn3" in identifier:
-        url = (
-            "https://geodata.nationaalgeoregister.nl/ahn3/wcs?"
-            "request=GetCapabilities&service=WCS"
-        )
+        url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs?service=WCS"
     else:
         ValueError(f"unknown identifier -> {identifier}")
 
     return url
 
 
-def get_ahn_within_extent(
+def get_ahn_from_wcs(
     extent=None,
     identifier="ahn3_5m_dtm",
     url=None,
@@ -234,15 +156,9 @@ def get_ahn_within_extent(
     if url is None:
         url = _infer_url(identifier)
     elif url == "ahn2":
-        url = (
-            "https://geodata.nationaalgeoregister.nl/ahn2/wcs?"
-            "request=GetCapabilities&service=WCS"
-        )
+        url = "https://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS"
     elif url == "ahn3":
-        url = (
-            "https://geodata.nationaalgeoregister.nl/ahn3/wcs?"
-            "request=GetCapabilities&service=WCS"
-        )
+        url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs?service=WCS"
     elif not url.startswith("https://geodata.nationaalgeoregister.nl"):
         raise ValueError(f"unknown url -> {url}")
 
@@ -255,114 +171,83 @@ def get_ahn_within_extent(
         else:
             raise ValueError("could not infer resolution from identifier")
 
-    # check if ahn is within limits
-    dx = extent[1] - extent[0]
-    dy = extent[3] - extent[2]
-
-    # check if size exceeds maxsize
-    if (dx / res) > maxsize:
-        x_segments = int(np.ceil((dx / res) / maxsize))
-    else:
-        x_segments = 1
-
-    if (dy / res) > maxsize:
-        y_segments = int(np.ceil((dy / res) / maxsize))
-    else:
-        y_segments = 1
-
-    if (x_segments * y_segments) > 1:
-        st = f"""requested ahn raster width or height bigger than {maxsize*res}
-            -> splitting extent into {x_segments} * {y_segments} tiles"""
-        logger.info(st)
-        memfile = split_ahn_extent(
-            extent,
-            x_segments,
-            y_segments,
-            maxsize,
-            res,
-            url,
-            identifier,
-            version,
-            fmt,
-            crs,
-        )
-        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-    else:
-        memfile = _download_ahn(extent, res, url, identifier, version, fmt, crs)
-        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        # load the data from the memfile otherwise lazy loading of xarray causes problems
-        da.load()
-
+    da = wcs(
+        url,
+        extent,
+        res,
+        identifier=identifier,
+        version=version,
+        fmt=fmt,
+        crs=crs,
+        maxsize=maxsize,
+    )
     return da
 
 
-def _download_ahn(extent, res, url, identifier, version, fmt, crs):
-    """Download the ahn using a webservice, return a MemoryFile
-
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    res : float, optional
-        resolution of ahn raster
-    url : str
-        webservice url.
-    identifier : str
-        identifier.
-    version : str
-        version of wcs service, options are '1.0.0' and '2.0.1'.
-    fmt : str, optional
-        geotif format
-    crs : str, optional
-        coördinate reference system
-
-    Raises
-    ------
-    Exception
-        wrong version
-
-    Returns
-    -------
-    memfile : rasterio.io.MemoryFile
-        MemoryFile.
-
-    """
-    # download file
-    logger.debug(
-        f"- download ahn between: x ({str(extent[0])}, {str(extent[1])}); "
-        f"y ({str(extent[2])}, {str(extent[3])})"
-    )
-    wcs = WebCoverageService(url, version=version)
-    if version == "1.0.0":
-        bbox = (extent[0], extent[2], extent[1], extent[3])
-        output = wcs.getCoverage(
-            identifier=identifier,
-            bbox=bbox,
-            format=fmt,
-            crs=crs,
-            resx=res,
-            resy=res,
-        )
-    elif version == "2.0.1":
-        # bbox, resx and resy do nothing in version 2.0.1
-        subsets = [("x", extent[0], extent[1]), ("y", extent[2], extent[3])]
-        output = wcs.getCoverage(
-            identifier=[identifier], subsets=subsets, format=fmt, crs=crs
-        )
-    else:
-        raise Exception(f"Version {version} not yet supported")
-
-    memfile = MemoryFile(output.read())
-    return memfile
+def get_ahn3_tiles(extent=None, **kwargs):
+    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame"""
+    url = "https://service.pdok.nl/rws/ahn3/wfs/v1_0?service=wfs"
+    layer = "ahn3_bladindex"
+    gdf = wfs(url, layer, extent=extent, **kwargs)
+    if not gdf.empty:
+        gdf = gdf.set_index("bladnr")
+    return gdf
 
 
 def get_ahn4_tiles(extent=None):
     """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download links"""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN4/FeatureServer"
     layer = 0
-    gdf = arcrest(url, layer, extent).set_index("Name")
+    gdf = arcrest(url, layer, extent)
+    if not gdf.empty:
+        gdf = gdf.set_index("Name")
     return gdf
+
+
+def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
+    """
+    Download AHN3
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : TYPE, optional
+        Possible values are 'DSM_50cm', 'DTM_50cm', 'DSM_5m' and 'DTM_5m'. The default
+        is "DTM_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    tiles = get_ahn3_tiles(extent)
+    if tiles.empty:
+        raise (Exception("AHN3 has no data for requested extent"))
+    datasets = []
+    for bladnr in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
+        url = "https://ns_hwh.fundaments.nl/hwh-ahn/AHN3/"
+        if identifier == "DSM_50cm":
+            url = f"{url}DSM_50cm/R_{bladnr.upper()}.zip"
+        elif identifier == "DTM_50cm":
+            url = f"{url}DTM_50cm/M_{bladnr.upper()}.zip"
+        elif identifier == "DSM_5m":
+            url = f"{url}DSM_5m/R5_{bladnr.upper()}.zip"
+        elif identifier == "DTM_5m":
+            url = f"{url}DTM_5m/M5_{bladnr.upper()}.zip"
+        else:
+            raise (Exception(f"Unknown identifier: {identifier}"))
+        path = url.split("/")[-1].replace(".zip", ".TIF")
+        datasets.append(rasterio.open(f"zip+{url}!/{path}"))
+    memfile = MemoryFile()
+    merge.merge(datasets, dst_path=memfile)
+    if as_data_array:
+        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        return da
+    return memfile
 
 
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
@@ -385,6 +270,8 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
     tiles = get_ahn4_tiles(extent)
+    if tiles.empty:
+        raise (Exception("AHN4 has no data for requested extent"))
     datasets = []
     for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[name, identifier]

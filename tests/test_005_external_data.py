@@ -32,7 +32,7 @@ def test_get_recharge_steady_state():
 def test_ahn_within_extent():
 
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    da = nlmod.read.ahn.get_ahn_within_extent(extent)
+    da = nlmod.read.ahn.get_ahn_from_wcs(extent)
 
     assert not da.isnull().all(), "AHN only has nan values"
 
@@ -42,11 +42,27 @@ def test_ahn_within_extent():
 def test_ahn_split_extent():
 
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    da = nlmod.read.ahn.get_ahn_within_extent(extent, maxsize=1000)
+    da = nlmod.read.ahn.get_ahn_from_wcs(extent, maxsize=1000)
 
     assert not da.isnull().all(), "AHN only has nan values"
 
     return da
+
+
+def test_get_ahn3():
+
+    extent = [98000.0, 100000.0, 494000.0, 496000.0]
+    da = nlmod.read.ahn.get_ahn3(extent)
+
+    assert not da.isnull().all(), "AHN only has nan values"
+
+
+def test_get_ahn4():
+
+    extent = [98000.0, 100000.0, 494000.0, 496000.0]
+    da = nlmod.read.ahn.get_ahn4(extent)
+
+    assert not da.isnull().all(), "AHN only has nan values"
 
 
 def test_get_ahn():

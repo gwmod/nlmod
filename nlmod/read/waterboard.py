@@ -169,8 +169,12 @@ def get_configuration():
             "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/BeheerregisterWaterlopen/MapServer",
             "layer": 0,  # # Wateren (primair, secundair)
             "index": "OVKIDENT",
+            "bottom_height": "AVVBODH",
+            "water_depth": "AVVDIEPT",
             # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Legger_vastgesteld__2019/MapServer",
             # "layer": 604,  # Wateren legger
+            # "index": "BLAEU.LEG_VL_GW_OVK.OVKIDENT",
+            # "bottom_height": "BLAEU.LEG_VL_GW_OVK.AVVBODH",
         },
         "level_areas": {
             # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilbelsuit_Friese_boezem/MapServer",

@@ -282,6 +282,7 @@ def get_configuration():
             # "index": "OBJECTID",
             "layer": 10,
             "index": "OVKIDENT",
+            # "f": "json",
         },
     }
 
@@ -360,8 +361,8 @@ def get_configuration():
         "bgt_code": "W0656",
         "watercourses": {
             "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/arcgis/rest/services/HHSK_Legger_Watersysteem/FeatureServer",
-            # "layer": 11,  # Hoofdwatergang
-            "layer": 12,  # Overig Water
+            "layer": 11,  # Hoofdwatergang
+            # "layer": 12,  # Overig Water
             "water_depth": "DIEPTE",
         },
         "level_areas": {
@@ -433,14 +434,14 @@ def get_configuration():
     return config
 
 
-def get_data(ws, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
+def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
     """
     Get the data for a Waterboard and a specific data_kind
 
     Parameters
     ----------
-    ws : TYPE
-        DESCRIPTION.
+    ws : str
+        The name of the waterboard.
     data_kind : str
         The kind of data you like to download. Possible values are
         'watercourses', 'level_areas' and 'level_deviations'
@@ -478,11 +479,11 @@ def get_data(ws, data_kind, extent=None, max_record_count=None, config=None, **k
     server_kind = "arcrest"
     f = "geojson"
 
-    if ws not in config:
-        raise (Exception(f"No configuration available for {ws}"))
-    if data_kind not in config[ws]:
-        raise (Exception(f"{data_kind} not available for {ws}"))
-    conf = config[ws][data_kind]
+    if wb not in config:
+        raise (Exception(f"No configuration available for {wb}"))
+    if data_kind not in config[wb]:
+        raise (Exception(f"{data_kind} not available for {wb}"))
+    conf = config[wb][data_kind]
     url = conf["url"]
     if "layer" in conf:
         layer = conf["layer"]
@@ -511,7 +512,7 @@ def get_data(ws, data_kind, extent=None, max_record_count=None, config=None, **k
         raise (Exception("Unknown server-kind: {server_kind}"))
     if index is not None:
         if index not in gdf:
-            logger.warning(f"Cannot find {index} in {data_kind} of {ws}")
+            logger.warning(f"Cannot find {index} in {data_kind} of {wb}")
         else:
             gdf = gdf.set_index(index)
     if data_kind == "level_areas":

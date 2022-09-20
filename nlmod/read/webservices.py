@@ -11,7 +11,7 @@ import pandas as pd
 import geopandas as gpd
 from tqdm import tqdm
 import xml.etree.ElementTree as ET
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Point, Polygon, MultiPolygon
 import rioxarray
 from rasterio import merge
 from rasterio.io import MemoryFile
@@ -23,7 +23,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=None):
+def arcrest(
+    url, layer, extent=None, sr=28992, f="geojson", max_record_count=None, timeout=1200
+):
     """Download data from an arcgis rest FeatureServer"""
     params = {
         "f": f,
@@ -37,27 +39,15 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
         params["geometry"] = f"{xmin},{ymin},{xmax},{ymax}"
         params["geometryType"] = "esriGeometryEnvelope"
         params["inSR"] = sr
-    r = requests.get(url, params={"f": "json"}, timeout=1200)
-    if not r.ok:
-        raise (Exception("Request not successful"))
-    props = r.json()
-    if "error" in props:
-        code = props["error"]["code"]
-        message = props["error"]["message"]
-        raise (Exception(f"Error code {code}: {message}"))
+    props = _get_data(url, {"f": "json"}, timeout=timeout)
     if max_record_count is None:
         max_record_count = props["maxRecordCount"]
     else:
         max_record_count = min(max_record_count, props["maxRecordCount"])
+
     params["returnIdsOnly"] = True
-    r = requests.get(f"{url}/{layer}/query", params=params, timeout=1200)
-    if not r.ok:
-        raise (Exception("Request not successful"))
-    props = r.json()
-    if "error" in props:
-        code = props["error"]["code"]
-        message = props["error"]["message"]
-        raise (Exception(f"Error code {code}: {message}"))
+    url_query = f"{url}/{layer}/query"
+    props = _get_data(url_query, params, timeout=timeout)
     params.pop("returnIdsOnly")
     if "objectIds" in props:
         object_ids = props["objectIds"]
@@ -65,7 +55,8 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
     else:
         object_ids = props["properties"]["objectIds"]
         object_id_field_name = props["properties"]["objectIdFieldName"]
-    if len(object_ids) > max_record_count:
+    if object_ids is not None and len(object_ids) > max_record_count:
+        # download in batches
         object_ids.sort()
         n_d = int(np.ceil((len(object_ids) / max_record_count)))
         features = []
@@ -79,46 +70,77 @@ def arcrest(url, layer, extent=None, sr=28992, f="geojson", max_record_count=Non
                 object_ids[i_max],
             )
             params["where"] = where
-            r = requests.get(f"{url}/{layer}/query", params=params, timeout=1200)
-            if not r.ok:
-                raise (Exception("Request not successful"))
-            features.extend(r.json()["features"])
+            data = _get_data(url_query, params, timeout=timeout)
+            features.extend(data["features"])
     else:
-        r = requests.get(f"{url}/{layer}/query", params=params, timeout=1200)
-        if not r.ok:
-            raise (Exception("Request not successful"))
-        features = r.json()["features"]
-    if f == "json":
-        # convert to geometry
+        # download all data in one go
+        data = _get_data(url_query, params, timeout=timeout)
+        features = data["features"]
+    if f == "json" or f == "pjson":
+        # Interpret the geometry field
         data = []
         for feature in features:
-            if len(feature["geometry"]) > 1 or "rings" not in feature["geometry"]:
-                raise (Exception("Not supported yet"))
-            if len(feature["geometry"]["rings"]) == 1:
-                geometry = Polygon(feature["geometry"]["rings"][0])
-            else:
-                pols = [Polygon(xy) for xy in feature["geometry"]["rings"]]
-                keep = [0]
-                for i in range(1, len(pols)):
-                    if pols[i].within(pols[keep[-1]]):
-                        pols[keep[-1]] = pols[keep[-1]].difference(pols[i])
-                    else:
-                        keep.append(i)
-                if len(keep) == 1:
-                    geometry = pols[keep[0]]
+            if "rings" in feature["geometry"]:
+                if len(feature["geometry"]) > 1:
+                    raise (Exception("Not supported yet"))
+                if len(feature["geometry"]["rings"]) == 1:
+                    geometry = Polygon(feature["geometry"]["rings"][0])
                 else:
-                    geometry = MultiPolygon([pols[i] for i in keep])
+                    pols = [Polygon(xy) for xy in feature["geometry"]["rings"]]
+                    keep = [0]
+                    for i in range(1, len(pols)):
+                        if pols[i].within(pols[keep[-1]]):
+                            pols[keep[-1]] = pols[keep[-1]].difference(pols[i])
+                        else:
+                            keep.append(i)
+                    if len(keep) == 1:
+                        geometry = pols[keep[0]]
+                    else:
+                        geometry = MultiPolygon([pols[i] for i in keep])
+            elif (
+                len(feature["geometry"]) == 2
+                and "x" in feature["geometry"]
+                and "y" in feature["geometry"]
+            ):
+                geometry = Point(feature["geometry"]["x"], feature["geometry"]["y"])
+            else:
+                raise (Exception("Not supported yet"))
             feature["attributes"]["geometry"] = geometry
             data.append(feature["attributes"])
         gdf = gpd.GeoDataFrame(data)
     else:
+        # for geojson-data we can transform to GeoDataFrame right away
         gdf = gpd.GeoDataFrame.from_features(features)
     return gdf
 
 
-def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=None):
+def _get_data(url, params, timeout=1200):
+    r = requests.get(url, params=params, timeout=timeout)
+    if not r.ok:
+        raise (Exception("Request not successful"))
+    data = r.json()
+    if "error" in data:
+        code = data["error"]["code"]
+        message = data["error"]["message"]
+        raise (Exception(f"Error code {code}: {message}"))
+    return data
+
+
+def wfs(
+    url,
+    layer,
+    extent=None,
+    version="2.0.0",
+    paged=True,
+    max_record_count=None,
+    driver="GML",
+):
     """Download data from a wfs server"""
-    params = dict(version=version, request="GetFeature", typeName=layer)
+    params = dict(version=version, request="GetFeature")
+    if version == "2.0.0":
+        params["typeNames"] = layer
+    else:
+        params["typeName"] = layer
     if extent is not None:
         params["bbox"] = f"{extent[0]},{extent[2]},{extent[1]},{extent[3]}"
     if paged:
@@ -165,6 +187,8 @@ def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=N
         r = requests.get(url, params=params, timeout=1200)
         params.pop("resultType")
         root = ET.fromstring(r.text)
+        if "ExceptionReport" in root.tag:
+            raise Exception(root[0].attrib)
         if version == "1.1.0":
             n = int(root.attrib["numberOfFeatures"])
         else:
@@ -178,13 +202,13 @@ def wfs(url, layer, extent=None, version="2.0.0", paged=True, max_record_count=N
         params["count"] = max_record_count
         for ip in range(int(np.ceil(n / max_record_count))):
             params["startindex"] = ip * max_record_count
-            q = requests.Request("GET", url, params=params).prepare().url
-            gdfs.append(gpd.read_file(q))
+            req_url = requests.Request("GET", url, params=params).prepare().url
+            gdfs.append(gpd.read_file(req_url, driver=driver))
         gdf = pd.concat(gdfs).reset_index(drop=True)
     else:
         # download all features in one go
-        q = requests.Request("GET", url, params=params).prepare().url
-        gdf = gpd.read_file(q)
+        req_url = requests.Request("GET", url, params=params).prepare().url
+        gdf = gpd.read_file(req_url, driver=driver)
 
     return gdf
 
@@ -397,5 +421,8 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
         )
     else:
         raise Exception(f"Version {version} not yet supported")
+    if "xml" in output.info()["Content-Type"]:
+        root = ET.fromstring(output.read())
+        raise (Exception("Download failed: {}".format(root[0].text)))
     memfile = MemoryFile(output.read())
     return memfile

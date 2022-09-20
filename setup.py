@@ -34,7 +34,7 @@ setup(
         "xarray>=0.16.1",
         "rasterio>=1.1.0",
         "rioxarray",
-        "affine",
+        "affine>=0.3.1",
         "geopandas",
         "owslib>=0.24.1",
         "hydropandas>=0.3.0",

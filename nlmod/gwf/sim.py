@@ -103,7 +103,7 @@ def tdis(ds, sim, pname="tdis"):
     """
 
     # start creating model
-    logger.info("creating modflow SIM, TDIS, GWF and IMS")
+    logger.info("creating modflow TDIS")
 
     tdis_perioddata = get_tdis_perioddata(ds)
 

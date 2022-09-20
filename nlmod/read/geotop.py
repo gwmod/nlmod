@@ -225,7 +225,7 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
     lay = 0
     logger.info("creating top and bot per geo eenheid")
     for geo_eenheid in geo_eenheden:
-        logger.info(geo_eenheid)
+        logger.debug(geo_eenheid)
 
         mask = geotop_ds_raw.strat == geo_eenheid
         geo_z = xr.where(mask, geotop_ds_raw.z, np.nan)

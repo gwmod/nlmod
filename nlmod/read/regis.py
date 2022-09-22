@@ -3,8 +3,10 @@
 modelgrid."""
 import datetime as dt
 import logging
+import os
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 from .. import cache
@@ -274,3 +276,21 @@ def get_layer_names():
     layer_names = xr.open_dataset(REGIS_URL).layer.astype(str).values
 
     return layer_names
+
+
+def get_legend():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+    leg = pd.read_csv(
+        fname,
+        sep="\t",
+        header=None,
+        names=["naam", "beschrijving", "r", "g", "b", "a", "x"],
+    )
+    leg["naam"] = leg["naam"].str.replace("-", "")
+    leg.set_index("naam", inplace=True)
+    clrs = np.array(leg.loc[:, ["r", "g", "b"]])
+    clrs = [tuple(rgb / 255.0) for rgb in clrs]
+    leg["color"] = clrs
+    leg = leg.drop(["x", "r", "g", "b", "a"], axis=1)
+    return leg

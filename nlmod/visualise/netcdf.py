@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib
@@ -58,9 +59,7 @@ class DatasetCrossSection:
                     continue
                 assert isinstance(intersection, LineString)
                 s_cell.append([line.project(Point(intersection.coords[0])), 1, ic2d])
-                s_cell.append(
-                    [line.project(Point(intersection.coords[-1])), 0, ic2d]
-                )
+                s_cell.append([line.project(Point(intersection.coords[-1])), 0, ic2d])
             s_cell = np.array(s_cell)
             ind = np.lexsort((s_cell[:, 1], s_cell[:, 0]))
             s_cell = s_cell[ind, :]
@@ -150,6 +149,10 @@ class DatasetCrossSection:
         if colors is None:
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i) for i in range(len(self.layer))]
+        if isinstance(colors, pd.DataFrame):
+            colors = colors["color"]
+        if isinstance(colors, (dict, pd.Series)):
+            colors = [colors[layer] for layer in self.layer]
 
         polygons = []
         for i in range(len(self.layer)):

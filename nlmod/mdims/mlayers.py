@@ -712,7 +712,7 @@ def set_model_top(ds, top):
     # change the current top
     ds["top"] = top
     # recalculate idomain
-    set_idomain(ds)
+    ds = set_idomain(ds)
     return ds
 
 
@@ -908,7 +908,6 @@ def set_idomain(ds, nodata=-999, remove_nan_layers=True):
     ds["first_active_layer"] = get_first_active_layer_from_idomain(
         ds["idomain"], nodata=nodata
     )
-
     ds.attrs["nodata"] = nodata
     return ds
 

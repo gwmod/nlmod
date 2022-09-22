@@ -507,19 +507,19 @@ def structured_da_to_ds(da, ds, method="average"):
             raise (Exception(f"Unknown resample method: {method}"))
     # fill crs if it is None for da or ds
     if ds.rio.crs is None and da.rio.crs is None:
-        ds.rio.set_crs(28992)
-        da.rio.set_crs(28992)
+        ds = ds.rio.write_crs(28992)
+        da = da.rio.write_crs(28992)
     elif ds.rio.crs is None:
-        ds = ds.rio.set_crs(da.rio.crs)
+        ds = ds.rio.write_crs(da.rio.crs)
     elif da.rio.crs is None:
-        da = da.rio.set_crs(ds.rio.crs)
+        da = da.rio.write_crs(ds.rio.crs)
     if ds.gridtype == "structured":
         if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
             affine = get_affine(ds)
             # save crs as it is deleted by write_transform...
             crs = ds.rio.crs
             ds = ds.rio.write_transform(affine)
-            ds.rio.write_crs(crs, inplace=True)
+            ds = ds.rio.write_crs(crs)
         da_out = da.rio.reproject_match(ds, resampling)
 
     elif ds.gridtype == "vertex":
@@ -534,7 +534,7 @@ def structured_da_to_ds(da, ds, method="average"):
                 affine = get_affine(ds)
                 da_temp = da_temp.rio.write_transform(affine, inplace=True)
             # make sure da_temp has a crs if da has a crs
-            da_temp = da_temp.rio.set_crs(da.rio.crs)
+            da_temp = da_temp.rio.write_crs(da.rio.crs)
             da_temp = da.rio.reproject_match(da_temp, resampling)
             mask = ds["area"] == area
             da_out[mask] = da_temp.sel(y=ds["y"][mask], x=ds["x"][mask])
@@ -544,6 +544,8 @@ def structured_da_to_ds(da, ds, method="average"):
     # somehow the spatial_ref (jarkus) and band (ahn) coordinates are added by the reproject_match function
     if "spatial_ref" in da_out.coords:
         da_out = da_out.drop_vars("spatial_ref")
+        if "grid_mapping" in da_out.encoding:
+            del da_out.encoding["grid_mapping"]
 
     return da_out
 

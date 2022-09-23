@@ -12,6 +12,11 @@ read
    :members:
    :undoc-members:
    :private-members:
+   
+.. automodule:: nlmod.read.bgt
+   :members:
+   :undoc-members:
+   :private-members:
 
 .. automodule:: nlmod.read.geotop
    :members:
@@ -34,6 +39,11 @@ read
    :private-members:
 
 .. automodule:: nlmod.read.rws
+   :members:
+   :undoc-members:
+   :private-members:
+   
+.. automodule:: nlmod.read.waterboard
    :members:
    :undoc-members:
    :private-members:
@@ -67,24 +77,38 @@ mdims
    :undoc-members:
    :private-members:
 
-mfpackages
-^^^^^^^^^^
+gwf
+^^^
 
-.. automodule:: nlmod.mfpackages.mfpackages
+.. automodule:: nlmod.gwf.sim
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mfpackages.recharge
+.. automodule:: nlmod.gwf.gwf
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mfpackages.surface_water
+.. automodule:: nlmod.gwf.recharge
    :members:
    :undoc-members:
    :private-members:
 
+.. automodule:: nlmod.gwf.surface_water
+   :members:
+   :undoc-members:
+   :private-members:
+
+.. automodule:: nlmod.gwf.constant_head
+   :members:
+   :undoc-members:
+   :private-members:
+
+.. automodule:: nlmod.gwf.horizontal_flow_barrier
+   :members:
+   :undoc-members:
+   :private-members:
 
 visualise
 ^^^^^^^^^
@@ -103,6 +127,14 @@ util
 ^^^^
 
 .. automodule:: nlmod.util
+   :members:
+   :undoc-members:
+   :private-members:
+
+cache
+^^^^^
+
+.. automodule:: nlmod.cache
    :members:
    :undoc-members:
    :private-members:

@@ -16,6 +16,8 @@ from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 from ..read import rws
+from ..mdims import get_vertices
+from ..mdims.resample import get_affine_mod_to_world
 
 
 def plot_surface_water(model_ds, ax=None):
@@ -100,14 +102,14 @@ def facet_plot(
             iper = period
             if arr.ndim == 4:
                 if iper is None:
-                    raise ValueError("Pass 'period' to select " "timestep to plot.")
+                    raise ValueError("Pass 'period' to select timestep to plot.")
                 a = arr[iper]
         elif plot_dim == "time":
             ilay = layer
             iper = i
             if arr.ndim == 4:
                 if ilay is None:
-                    raise ValueError("Pass 'layer' to select " "layer to plot.")
+                    raise ValueError("Pass 'layer' to select layer to plot.")
                 a = arr[iper]
         else:
             raise ValueError("'plot_dim' must be one of ['layer', 'time']")
@@ -253,7 +255,9 @@ def facet_plot_ds(
     fig.suptitle(f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year")
     fig.tight_layout()
     fig.savefig(
-        os.path.join(figdir, f"{plot_var}_per_layer.png"), dpi=150, bbox_inches="tight"
+        os.path.join(figdir, f"{plot_var}_per_layer.png"),
+        dpi=150,
+        bbox_inches="tight",
     )
 
     return fig, axes
@@ -308,6 +312,8 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
         DESCRIPTION.
     """
 
+    if isinstance(vertices, xr.Dataset):
+        vertices = get_vertices(vertices)
     if isinstance(vertices, xr.DataArray):
         vertices = vertices.values
 
@@ -316,88 +322,173 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
 
     patches = [Polygon(vert) for vert in vertices]
     if gridkwargs is None:
-        quadmesh = PatchCollection(patches)
+        pc = PatchCollection(patches)
     else:
-        quadmesh = PatchCollection(patches, **gridkwargs)
-    quadmesh.set_array(da)
+        pc = PatchCollection(patches, **gridkwargs)
+    pc.set_array(da)
 
     # set max and min
     if "vmin" in kwargs:
         vmin = kwargs.pop("vmin")
     else:
-        vmin = None
+        vmin = da.min()
 
     if "vmax" in kwargs:
         vmax = kwargs.pop("vmax")
     else:
-        vmax = None
+        vmax = da.max()
 
     # limit the color range
-    quadmesh.set_clim(vmin=vmin, vmax=vmax)
-    quadmesh.set(**kwargs)
+    pc.set_clim(vmin=vmin, vmax=vmax)
+    pc.set(**kwargs)
 
-    ax.add_collection(quadmesh)
+    ax.add_collection(pc)
     ax.set_xlim(vertices[:, :, 0].min(), vertices[:, :, 0].max())
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_ylim(vertices[:, :, 1].min(), vertices[:, :, 1].max())
     ax.set_aspect("equal")
 
-    ax.get_figure().colorbar(quadmesh, ax=ax, orientation="vertical")
+    ax.get_figure().colorbar(pc, ax=ax, orientation="vertical")
     if hasattr(da, "name"):
         ax.set_title(da.name)
 
     return ax
 
 
+def da(da, ds=None, ax=None, rotated=False, **kwargs):
+    """
+    Plot an xarray DataArray, using information from the model Dataset ds
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        The DataArray (structured or vertex) you like to plot.
+    ds : xarray.DataSet, optional
+        Needed when the gridtype is vertex or rotated is True. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes used for plotting. Set to current axes when None. The default is None.
+    rotated : bool, optional
+        Plot the data-array in rotated coordinates
+    **kwargs : cit
+        Kwargs are passed to PatchCollection (vertex) or pcolormesh (structured).
+
+    Returns
+    -------
+    matplotlib QuadMesh or PatchCollection
+        The object containing the cells.
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    if "icell2d" in da.dims:
+        if ds is None:
+            raise (Exception("Supply model dataset (ds) for grid information"))
+        xy = np.column_stack((ds["xv"].data, ds["yv"].data))
+        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            affine = get_affine_mod_to_world(ds)
+            xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
+        icvert = ds["icvert"].data
+        nodata = ds["icvert"].attrs["_FillValue"]
+        patches = [
+            Polygon(xy[icvert[icell2d, icvert[icell2d] != nodata]])
+            for icell2d in ds.icell2d.data
+        ]
+
+        pc = PatchCollection(patches, **kwargs)
+        pc.set_array(da)
+        ax.add_collection(pc)
+        return pc
+    else:
+        x = da.x
+        y = da.y
+        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            affine = get_affine_mod_to_world(ds)
+            x, y = affine * np.meshgrid(x, y)
+        return ax.pcolormesh(x, y, da, shading="nearest", **kwargs)
+
+
 def get_map(
     extent,
-    figsize=None,
+    figsize=10.0,
     nrows=1,
     ncols=1,
-    figw=10.0,
     base=1000.0,
     fmt="{:.0f}",
     sharex=False,
     sharey=True,
-    **kwargs,
 ):
-    if figsize is None:
+    """
+    Generate a motplotlib Figure with a map with the axis set to extent
+
+    Parameters
+    ----------
+    extent : list of 4 floats
+        The model extent .
+    figsize : float or list of 2 floats, optional
+        The size of the figure, in inches. The default is 10, which means the
+        figsize is determined automatically.
+    nrows : int, optional
+        THe number of rows. The default is 1.
+    ncols : int, optional
+        THe number of columns. The default is 1.
+    base : float, optional
+        The interval for ticklabels on the x- and y-axis. The default is 1000.
+        m.
+    fmt : string, optional
+        The format of the ticks on the x- and y-axis. The default is "{:.0f}".
+    sharex : bool, optional
+        Only display the ticks on the lowest x-axes, when nrows > 1. The
+        default is False.
+    sharey : bool, optional
+        Only display the ticks on the left y-axes, when ncols > 1. The default
+        is True.
+
+    Returns
+    -------
+    f : matplotlib.Figure
+        The resulting figure.
+    axes : matplotlib.Axes or numpy array of matplotlib.Axes
+        the ax or axes (when ncols/nrows > 1).
+
+    """
+    if isinstance(figsize, (float, int)):
         xh = 0.2
         if base is None:
             xh = 0.0
-        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figw, xh=xh)
+        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh)
     f, axes = plt.subplots(
         figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
     )
+
+    def set_ax_in_map(ax, extent, base=1000.0, fmt="{:.0f}"):
+        ax.axis("scaled")
+        ax.axis(extent)
+        rotate_yticklabels(ax)
+        if base is None:
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            rd_ticks(ax, base=base, fmt=fmt)
+
     if nrows == 1 and ncols == 1:
-        set_ax_in_map(axes, extent, base=base, fmt=fmt, **kwargs)
+        set_ax_in_map(axes, extent, base=base, fmt=fmt)
     else:
         for ax in axes.ravel():
-            set_ax_in_map(ax, extent, base=base, fmt=fmt, **kwargs)
+            set_ax_in_map(ax, extent, base=base, fmt=fmt)
     f.tight_layout(pad=0.0)
 
     return f, axes
 
 
 def get_figsize(extent, figw=10.0, nrows=1, ncols=1, xh=0.2):
+    """Get a figure size in inches, calculated from a model extent"""
     w = extent[1] - extent[0]
     h = extent[3] - extent[2]
     axh = (figw / ncols) * (h / w) + xh
     figh = nrows * axh
     figsize = (figw, figh)
     return figsize
-
-
-def set_ax_in_map(ax, extent, base=1000.0, fmt="{:.0f}"):
-    ax.axis("scaled")
-    ax.axis(extent)
-    rotate_yticklabels(ax)
-    if base is None:
-        ax.set_xticks([])
-        ax.set_yticks([])
-    else:
-        rd_ticks(ax, base=base, fmt=fmt)
 
 
 def rotate_yticklabels(ax):

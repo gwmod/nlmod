@@ -3,3 +3,5 @@ Ipython
 ipykernel
 nbsphinx
 nbsphinx_link
+netCDF4==1.5.7
+rasterstats

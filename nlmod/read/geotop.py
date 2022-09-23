@@ -7,20 +7,20 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .. import cache, mdims
-from . import regis
+from .. import cache
 
 logger = logging.getLogger(__name__)
 
 
 def get_default_lithoklasse_translation_table():
     return pd.read_csv(
-        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"), index_col=0
+        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
+        index_col=0,
     )
 
 
 @cache.cache_netcdf
-def get_geotop(extent, delr, delc, regis_ds, regis_layer="HLc"):
+def get_geotop(extent, regis_ds, regis_layer="HLc"):
     """get a model layer dataset for modflow from geotop within a certain
     extent and grid.
 
@@ -47,20 +47,12 @@ def get_geotop(extent, delr, delc, regis_ds, regis_layer="HLc"):
     geotop_ds: xr.DataSet
         geotop dataset with top, bot, kh and kv per geo_eenheid
     """
-    # check extent
-    extent2, _, _ = regis.fit_extent_to_regis(extent, delr, delc)
-    for coord1, coord2 in zip(extent, extent2):
-        if coord1 != coord2:
-            raise ValueError(
-                "extent not fitted to regis please fit to regis first, "
-                "use the nlmod.regis.fit_extent_to_regis function"
-            )
-
     geotop_url = r"http://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent, geotop_url)
 
     litho_translate_df = pd.read_csv(
-        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"), index_col=0
+        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
+        index_col=0,
     )
 
     geo_eenheid_translate_df = pd.read_csv(
@@ -69,7 +61,7 @@ def get_geotop(extent, delr, delc, regis_ds, regis_layer="HLc"):
         keep_default_na=False,
     )
 
-    geotop_ds_raw = convert_geotop_to_ml_layers(
+    ds = convert_geotop_to_ml_layers(
         geotop_ds_raw1,
         regis_ds=regis_ds,
         regis_layer=regis_layer,
@@ -77,25 +69,18 @@ def get_geotop(extent, delr, delc, regis_ds, regis_layer="HLc"):
         geo_eenheid_translate_df=geo_eenheid_translate_df,
     )
 
-    logger.info("resample geotop data to structured modelgrid")
-    geotop_ds = mdims.resample_dataset_to_structured_grid(
-        geotop_ds_raw, extent, delr, delc
-    )
-    geotop_ds.attrs["extent"] = extent
-    geotop_ds.attrs["delr"] = delr
-    geotop_ds.attrs["delc"] = delc
-    geotop_ds.attrs["gridtype"] = "structured"
+    ds.attrs["extent"] = extent
 
-    for datavar in geotop_ds:
-        geotop_ds[datavar].attrs["source"] = "Geotop"
-        geotop_ds[datavar].attrs["url"] = geotop_url
-        geotop_ds[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+    for datavar in ds:
+        ds[datavar].attrs["source"] = "Geotop"
+        ds[datavar].attrs["url"] = geotop_url
+        ds[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
         if datavar in ["top", "bot"]:
-            geotop_ds[datavar].attrs["units"] = "mNAP"
+            ds[datavar].attrs["units"] = "mNAP"
         elif datavar in ["kh", "kv"]:
-            geotop_ds[datavar].attrs["units"] = "m/day"
+            ds[datavar].attrs["units"] = "m/day"
 
-    return geotop_ds
+    return ds
 
 
 def get_geotop_raw_within_extent(extent, url):
@@ -168,7 +153,7 @@ def convert_geotop_to_ml_layers(
     if (regis_ds is not None) and (regis_layer is not None):
         logger.info(f"slice geotop with regis layer {regis_layer}")
         top_rl = regis_ds["top"].sel(layer=regis_layer)
-        bot_rl = regis_ds["bot"].sel(layer=regis_layer)
+        bot_rl = regis_ds["botm"].sel(layer=regis_layer)
 
         geotop_ds_raw = geotop_ds_raw1.sel(
             z=slice(np.floor(bot_rl.min().data), np.ceil(top_rl.max().data))
@@ -179,7 +164,9 @@ def convert_geotop_to_ml_layers(
     kh_from_litho = xr.zeros_like(geotop_ds_raw.lithok)
     for i, row in litho_translate_df.iterrows():
         kh_from_litho = xr.where(
-            geotop_ds_raw.lithok == i, row["hor_conductance_default"], kh_from_litho
+            geotop_ds_raw.lithok == i,
+            row["hor_conductance_default"],
+            kh_from_litho,
         )
     geotop_ds_raw["kh_from_litho"] = kh_from_litho
 
@@ -192,7 +179,7 @@ def convert_geotop_to_ml_layers(
 
 
 def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
-    """get top, bottom and kh of each geo-eenheid in geotop dataset.
+    """get top, botm and kh of each geo-eenheid in geotop dataset.
 
     Parameters
     ----------
@@ -238,7 +225,7 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
     lay = 0
     logger.info("creating top and bot per geo eenheid")
     for geo_eenheid in geo_eenheden:
-        logger.info(geo_eenheid)
+        logger.debug(geo_eenheid)
 
         mask = geotop_ds_raw.strat == geo_eenheid
         geo_z = xr.where(mask, geotop_ds_raw.z, np.nan)
@@ -317,7 +304,7 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, f_anisotropy=
     geotop_ds_mod = xr.Dataset()
 
     geotop_ds_mod["top"] = da_top
-    geotop_ds_mod["bot"] = da_bot
+    geotop_ds_mod["botm"] = da_bot
     geotop_ds_mod["kh"] = da_kh
     geotop_ds_mod["kv"] = geotop_ds_mod["kh"] * f_anisotropy
     geotop_ds_mod["thickness"] = da_thick

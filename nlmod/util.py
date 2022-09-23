@@ -1,10 +1,8 @@
-import datetime as dt
 import logging
 import warnings
 import os
 import re
 import sys
-from shutil import copyfile
 
 import flopy
 import geopandas as gpd
@@ -14,56 +12,6 @@ import xarray as xr
 from shapely.geometry import box
 
 logger = logging.getLogger(__name__)
-
-
-def write_and_run_model(gwf, model_ds, write_model_ds=True, nb_path=None):
-    """write modflow files and run the model.
-
-    2 extra options:
-        1. write the model dataset to cache
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
-           workspace with a timestamp.
-
-
-    Parameters
-    ----------
-    gwf : flopy.mf6.ModflowGwf
-        groundwater flow model.
-    model_ds : xarray.Dataset
-        dataset with model data.
-    write_model_ds : bool, optional
-        if True the model dataset is cached. The default is True.
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
-        default is None. Preferably this path does not have to be given
-        manually but there is currently no good option to obtain the filename
-        of a Jupyter Notebook from within the notebook itself.
-    """
-
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
-        )
-        dst = os.path.join(model_ds.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to model workspace")
-        copyfile(nb_path, dst)
-
-    if write_model_ds:
-        logger.info("write model dataset to cache")
-        model_ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
-            "%Y%m%d_%H:%M:%S"
-        )
-        model_ds.to_netcdf(os.path.join(model_ds.attrs["cachedir"], "full_model_ds.nc"))
-
-    logger.info("write modflow files to model workspace")
-    gwf.simulation.write_simulation()
-    model_ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S"
-    )
-
-    logger.info("run model")
-    assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
-    model_ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
 def get_model_dirs(model_ws):
@@ -100,25 +48,48 @@ def get_model_dirs(model_ws):
     return figdir, cachedir
 
 
-def get_model_ds_empty(model_ds):
+def get_exe_path(exe_name="mf6"):
+    """get the full path of the executable. Uses the bin directory in the
+    nlmod package.
+
+
+    Parameters
+    ----------
+    exe_name : str, optional
+        name of the executable. The default is 'mf6'.
+
+    Returns
+    -------
+    exe_path : str
+        full path of the executable.
+
+    """
+    exe_path = os.path.join(os.path.dirname(__file__), "bin", exe_name)
+    if sys.platform.startswith("win"):
+        exe_path += ".exe"
+
+    return exe_path
+
+
+def get_ds_empty(ds):
     """get a copy of a model dataset with only grid and time information.
 
     Parameters
     ----------
-    model_ds : xr.Dataset
+    ds : xr.Dataset
         dataset with at least the variables layer, x, y and time
 
     Returns
     -------
-    model_ds_out : xr.Dataset
+    ds_out : xr.Dataset
         dataset with only model grid and time information
     """
 
-    return model_ds[list(model_ds.coords)].copy()
+    return ds[list(ds.coords)].copy()
 
 
 def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
-    """get a dataarray from model_ds with certain dimensions.
+    """get a dataarray from ds with certain dimensions.
 
     Parameters
     ----------
@@ -133,7 +104,7 @@ def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
     Returns
     -------
     da : xr.DataArray
-        DataArray with coordinates from model_ds
+        DataArray with coordinates from ds
     """
     if not isinstance(dims, tuple):
         raise TypeError(
@@ -486,13 +457,13 @@ def getmfexes(pth=".", version="", pltfrm=None):
     pymake.download_and_unzip(download_url, pth)
 
 
-def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
+def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
     """reads the heads from a modflow .hds file and returns an xarray
     DataArray.
 
     Parameters
     ----------
-    model_ds : TYPE
+    ds : TYPE
         DESCRIPTION.
     fill_nans : bool, optional
         if True the nan values are filled with the heads in the cells below
@@ -506,38 +477,36 @@ def get_heads_dataarray(model_ds, fill_nans=False, fname_hds=None):
     """
 
     if fname_hds is None:
-        fname_hds = os.path.join(model_ds.model_ws, model_ds.model_name + ".hds")
+        fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
 
-    head_filled = get_heads_array(
-        fname_hds, gridtype=model_ds.gridtype, fill_nans=fill_nans
-    )
+    head = get_heads_array(fname_hds, fill_nans=fill_nans)
 
-    if model_ds.gridtype == "vertex":
+    if ds.gridtype == "vertex":
         head_ar = xr.DataArray(
-            data=head_filled[:, :, :],
+            data=head[:, :, 0],
             dims=("time", "layer", "icell2d"),
             coords={
-                "icell2d": model_ds.icell2d,
-                "layer": model_ds.layer,
-                "time": model_ds.time,
+                "icell2d": ds.icell2d,
+                "layer": ds.layer,
+                "time": ds.time,
             },
         )
-    elif model_ds.gridtype == "structured":
+    elif ds.gridtype == "structured":
         head_ar = xr.DataArray(
-            data=head_filled,
+            data=head,
             dims=("time", "layer", "y", "x"),
             coords={
-                "x": model_ds.x,
-                "y": model_ds.y,
-                "layer": model_ds.layer,
-                "time": model_ds.time,
+                "x": ds.x,
+                "y": ds.y,
+                "layer": ds.layer,
+                "time": ds.time,
             },
         )
 
     return head_ar
 
 
-def get_heads_array(fname_hds, gridtype="structured", fill_nans=False):
+def get_heads_array(fname_hds, fill_nans=False):
     """reads the heads from a modflow .hds file and returns a numpy array.
 
     assumes the dimensions of the heads file are:
@@ -549,8 +518,6 @@ def get_heads_array(fname_hds, gridtype="structured", fill_nans=False):
     ----------
     fname_hds : TYPE, optional
         DESCRIPTION. The default is None.
-    gridtype : str, optional
-        DESCRIPTION. The default is 'structured'.
     fill_nans : bool, optional
         if True the nan values are filled with the heads in the cells below
 
@@ -561,39 +528,14 @@ def get_heads_array(fname_hds, gridtype="structured", fill_nans=False):
     """
     hdobj = flopy.utils.HeadFile(fname_hds)
     head = hdobj.get_alldata()
-    # TODO: this will sometimes set largest head to NaN...
-    head[head == head.max()] = np.nan
+    head[head == 1e30] = np.nan
 
-    if gridtype == "vertex":
-        head_filled = np.ones((head.shape[0], head.shape[1], head.shape[3])) * np.nan
-
-        for t in range(head.shape[0]):
-            for lay in range(head.shape[1] - 1, -1, -1):
-                head_filled[t][lay] = head[t][lay][0]
-                if lay < (head.shape[1] - 1):
-                    if fill_nans:
-                        head_filled[t][lay] = np.where(
-                            np.isnan(head_filled[t][lay]),
-                            head_filled[t][lay + 1],
-                            head_filled[t][lay],
-                        )
-
-    elif gridtype == "structured":
-        head_filled = np.zeros_like(head)
-        for t in range(head.shape[0]):
-            for lay in range(head.shape[1] - 1, -1, -1):
-                head_filled[t][lay] = head[t][lay]
-                if lay < (head.shape[1] - 1):
-                    if fill_nans:
-                        head_filled[t][lay] = np.where(
-                            np.isnan(head_filled[t][lay]),
-                            head_filled[t][lay + 1],
-                            head_filled[t][lay],
-                        )
-    else:
-        raise ValueError("wrong gridtype")
-
-    return head_filled
+    if fill_nans:
+        for lay in range(head.shape[1] - 2, -1, -1):
+            head[:, lay] = np.where(
+                np.isnan(head[:, lay]), head[:, lay + 1], head[:, lay]
+            )
+    return head
 
 
 def download_mfbinaries(binpath=None, version="8.0"):
@@ -614,3 +556,22 @@ def download_mfbinaries(binpath=None, version="8.0"):
     pltfrm = get_platform(None)
     # Download and unpack mf6 exes
     getmfexes(pth=binpath, version=version, pltfrm=pltfrm)
+
+
+def check_presence_mfbinaries(exe_name="mf6", binpath=None):
+    """Check if exe_name is present in the binpath folder.
+
+    Parameters
+    ----------
+    exe_name : str, optional
+        the name of the file that is checked to be present, by default 'mf6'
+    binpath : str, optional
+        path to directory to download binaries to, if it doesnt exist it
+        is created. Default is None which sets dir to nlmod/bin.
+    """
+    if binpath is None:
+        binpath = os.path.join(os.path.dirname(__file__), "bin")
+    if not os.path.isdir(binpath):
+        return False
+    files = [os.path.splitext(file)[0] for file in os.listdir(binpath)]
+    return exe_name in files

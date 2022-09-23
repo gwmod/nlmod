@@ -1,0 +1,375 @@
+AA	Antropogeen	200	200	200	255	x
+AAES-k-#	Antropogeen	200	200	200	255	x
+AAES-o	Antropogeen	200	200	200	255	x
+AAES-v-#	Antropogeen	200	200	200	255	x
+AAES-z-#	Antropogeen	200	200	200	255	x
+AAOM-k-#	Antropogeen Omgewerkt	200	200	200	255	x
+AAOM-o	Antropogeen Omgewerkt	200	200	200	255	x
+AAOM-v-#	Antropogeen Omgewerkt	200	200	200	255	x
+AAOM-z-#	Antropogeen Omgewerkt	200	200	200	255	x
+AAOP-k-#	Antropogeen Opgebracht	200	200	200	255	x
+AAOP-o	Antropogeen Opgebracht	200	200	200	255	x
+AAOP-v-#	Antropogeen Opgebracht	200	200	200	255	x
+AAOP-z-#	Antropogeen Opgebracht	200	200	200	255	x
+AK	Formatie van Aken	152	231	205	255	x
+AK-c	"Formatie van Aken, complex"	152	231	205	255	x
+AP	Formatie van Appelscha	218	165	32	255	x
+AP-z-1	"Formatie van Appelscha, zand 1"	218	165	32	255	x
+B	Bruinkool	140	92	54	255	x
+BE	Formatie van Beegden	200	200	255	255	x
+BE-k-1	"Formatie van Beegden, klei 1"	170	155	180	255	x
+BE-k-2	"Formatie van Beegden, klei 2"	180	170	205	255	x
+BE-o	"Formatie van Beegden, overig"	144	144	144	255	x
+BERO-k-1	"Formatie van Beegden, laagpakket van Rosmalen, klei 1"	160	140	155	255	x
+BE-z-1	"Formatie van Beegden, zand 1"	200	200	255	255	x
+BE-z-1+2	"Formatie van Beegden, zand 1 + 2"	200	200	255	255	x
+BE-z-1+2+3	"Formatie van Beegden, zand 1 + 2 + 3"	200	200	255	255	x
+BE-z-2	"Formatie van Beegden, zand 2"	200	200	255	255	x
+BE-z-2+3	"Formatie van Beegden, zand 2 + 3"	200	200	255	255	x
+BE-z-3	"Formatie van Beegden, zand 3"	200	200	255	255	x
+BE-z-Undefined	"Formatie van Beegden, zand ongedefinieerd"	200	200	255	255	x
+BR	Formatie van Breda	108	188	150	255	x
+BRE	Breccie	200	171	55	255	x
+BRK	Bruinkool	140	92	54	255	x
+BR-k-1	"Formatie van Breda, klei 1"	88	158	100	255	x
+BR-o	"Formatie van Breda, overig"	144	144	144	255	x
+BR-z-1	"Formatie van Breda, zand 1"	108	188	150	255	x
+BR-z-1+2	"Formatie van Breda, zand 1 + 2"	108	188	150	255	x
+BR-z-1+2+3	"Formatie van Breda, zand 1 + 2 + 3"	108	188	150	255	x
+BR-z-1+2+3+4	"Formatie van Breda, zand 1 + 2 + 3 + 4"	108	188	150	255	x
+BR-z-2	"Formatie van Breda, zand 2"	108	188	150	255	x
+BR-z-2+3+4	"Formatie van Breda, zand 2 + 3 + 4"	108	188	150	255	x
+BR-z-3	"Formatie van Breda, zand 3"	108	188	150	255	x
+BR-z-3+4	"Formatie van Breda, zand 3 + 4"	108	188	150	255	x
+BR-z-4	"Formatie van Breda, zand 4"	108	188	150	255	x
+BR-z-Undefined	"Formatie van Breda, zand ongedefinieerd"	108	188	150	255	x
+BST	Baksteen	200	200	200	255	x
+BX	Formatie Boxtel	255	235	0	255	x
+BX-k-1	"Formatie van Boxtel, klei 1"	225	190	0	255	x
+BX-k-2	"Formatie van Boxtel, klei 2"	235	205	0	255	x
+BXLM-k-1	"Formatie van Boxtel, laagpakket van Liempde, klei 1"	225	190	0	255	x
+BX-o	"Formatie Boxtel, overig"	144	144	144	255	x
+BXSC-c	"Formatie van Boxtel, laagpakket van Schimmert, complex"	215	175	0	255	x
+BXSC-k-1	"Formatie van Boxtel, laagpakket van Schimmert, klei 1"	215	175	0	255	x
+BXSC-z-Undefined	"Formatie van Boxtel, laagpakket van Schimmert, zand ongedefinieerd"	255	235	0	255	x
+BX-z-#	"Formatie van Boxtel, zand ongedefinieerd"	255	235	0	255	x
+BX-z-1	"Formatie van Boxtel, zand 1"	255	235	0	255	x
+BX-z-1+2	"Formatie van Boxtel, zand 1 + 2"	255	235	0	255	x
+BX-z-1+2+3	"Formatie van Boxtel, zand 1 + 2 + 3"	255	235	0	255	x
+BX-z-1+2+3+4	"Formatie van Boxtel, zand 1 + 2 + 3 + 4"	255	235	0	255	x
+BX-z-2	"Formatie van Boxtel, zand 2"	255	235	0	255	x
+BX-z-2+3+4	"Formatie van Boxtel, zand 2 + 3 + 4"	255	235	0	255	x
+BX-z-3	"Formatie van Boxtel, zand 3"	255	235	0	255	x
+BX-z-3+4	"Formatie van Boxtel, zand 3 + 4"	255	235	0	255	x
+BX-z-4	"Formatie van Boxtel, zand 4"	255	235	0	255	x
+BX-z-Undefined	"Formatie van Boxtel, zand ongedefinieerd"	255	235	0	255	x
+C	Complex	107	183	163	255	x
+CON	Conglomeraat	200	171	55	255	x
+DET	Detritus	157	78	64	255	x
+DIA	Diatomiet	204	102	255	255	x
+DN	Formatie van Drachten	250	250	210	255	x
+DN-z-1	"Formatie van Drachten, zand 1"	250	250	210	255	x
+DN-z-Undefined	"Formatie van Drachten, zand ongedefinieerd"	250	250	210	255	x
+DO	Formatie van Dongen	216	191	216	255	x
+DOAS-k-1	"Formatie van Dongen, laagpakket van Asse, klei 1"	176	131	116	255	x
+DOIE-k-1	"Formatie van Dongen, laagpakket van Ieper, klei 1"	196	161	166	255	x
+DO-k-1	"Formatie van Dongen, klei 1"	186	146	141	255	x
+DO-z-1	"Formatie van Dongen, zand 1"	216	191	216	255	x
+DO-z-1+2	"Formatie van Dongen, zand 1 + 2"	216	191	216	255	x
+do-z-1+2+3+4	"Formatie van Dongen, zand 1 + 2 + 3 + 4"	216	191	216	255	x
+DO-z-2	"Formatie van Dongen, zand 2"	216	191	216	255	x
+DO-z-2+3	"Formatie van Dongen, zand 2 + 3"	216	191	216	255	x
+DO-z-2+3+4	"Formatie van Dongen, zand 2 + 3 + 4"	216	191	216	255	x
+DO-z-3	"Formatie van Dongen, zand 3"	216	191	216	255	x
+DO-z-3+4	"Formatie van Dongen, zand 3 + 4"	216	191	216	255	x
+DO-z-4	"Formatie van Dongen, zand 4"	216	191	216	255	x
+DR	Formatie van Drente	255	127	80	255	x
+DRGI-k-1	"Formatie van Drente, laagpakket van Gieten, klei 1"	225	82	5	255	x
+DRGI-k-2	"Formatie van Drente, laagpakket van Gieten, klei 2"	235	97	30	255	x
+DRGI-o	"Formatie van Drente, overig"	144	144	144	255	x
+DRUI-k-1	"Formatie van Drente, laagpakket van Uitdam, klei 1"	215	67	0	255	x
+DR-z-1	"Formatie van Drente, zand 1"	255	127	80	255	x
+DR-z-1+2	"Formatie van Drente, zand 1 + 2"	255	127	80	255	x
+DR-z-1+2+3	"Formatie van Drente, zand 1 + 2 + 3"	255	127	80	255	x
+DR-z-2	"Formatie van Drente, zand 2"	255	127	80	255	x
+DR-z-2+3	"Formatie van Drente, zand 2 + 3"	255	127	80	255	x
+DR-z-3	"Formatie van Drente, zand 3"	255	127	80	255	x
+DR-z-Undefined	"Formatie van Drente, zand ongedefinieerd"	255	127	80	255	x
+DT	Gestuwd	156	156	156	255	x
+DT-c	"Gestuwd, complex"	156	156	156	255	x
+DY	Dy	157	78	64	255	x
+EE	Eem Formatie	190	255	115	255	x
+EE-k-1	"Eem Formatie, klei 1"	160	210	40	255	x
+EE-k-2	"Eem Formatie, klei 2"	170	225	65	255	x
+EE-z-1	"Eem Formatie, zand 1"	190	255	115	255	x
+EE-z-1+2	"Eem Formatie, zand 1 + 2"	190	255	115	255	x
+EE-z-1+2+3	"Eem Formatie, zand 1 + 2 + 3"	190	255	115	255	x
+EE-z-2	"Eem Formatie, zand 2"	190	255	115	255	x
+EE-z-2+3	"Eem Formatie, zand 2 + 3"	190	255	115	255	x
+EE-z-3	"Eem Formatie, zand 3"	190	255	115	255	x
+G	Grind	216	163	32	255	x
+GCZ	Glauconietzand	204	255	153	255	x
+GM	Geen monster	0	0	0	255	x
+GOZ	Goethietzand	204	255	153	255	x
+GU	Formatie van Gulpen	245	222	179	255	x
+GU-q	"Formatie van Gulpen, kalksteen"	245	222	179	255	x
+GY	Gyttja	157	78	64	255	x
+HL	Holoceen	12	129	12	255	x
+HL-c	"Holoceen, complex"	12	129	12	255	x
+HO	Formatie van Houthem	210	105	30	255	x
+HO-q	"Formatie van Houthem, kalksteen"	210	105	30	255	x
+HT	Formatie van Heyerath	178	34	34	255	x
+HT-c	"Formatie van Heyerath, complex"	178	34	34	255	x
+HU	Huisvuil	200	200	200	255	x
+IE	Formatie van Inden	236	121	193	255	x
+IE-k-1	"Formatie van Inden, klei 1"	206	76	118	255	x
+IE-k-2	"Formatie van Inden, klei 2"	216	91	143	255	x
+IE-z-1	"Formatie van Inden, zand 2"	236	121	193	255	x
+IE-z-1+2+3	"Formatie van Inden, zand 1 + 2 + 3"	236	121	193	255	x
+IE-z-2	"Formatie van Inden, zand 2"	236	121	193	255	x
+IE-z-2+3	"Formatie van Inden, zand 2 + 3"	236	121	193	255	x
+IE-z-3	"Formatie van Inden, zand 3"	236	121	193	255	x
+K	Klei	0	146	0	255	x
+KA	Kalk	140	180	255	255	x
+KAS	Kalksteen	140	180	255	255	x
+KEI	Keien	216	163	32	255	x
+KI	Kiezelooliet Formatie	188	143	143	255	x
+KI-k-1	"Kiezelooliet Formatie, klei 1"	138	93	68	255	x
+KI-k-2	"Kiezelooliet Formatie, klei 2"	148	103	83	255	x
+KI-k-3	"Kiezelooliet Formatie, klei 3"	158	113	98	255	x
+KI-k-4	"Kiezelooliet Formatie, klei 4"	168	123	113	255	x
+KI-z-1	"Kiezelooliet Formatie, zand 1"	188	143	143	255	x
+KI-z-1+2	"Kiezelooliet Formatie, zand 1 + 2"	188	143	143	255	x
+KI-z-1+2+3	"Kiezelooliet Formatie, zand 1 + 2 + 3"	188	143	143	255	x
+KI-z-1+2+3+4+5	"Kiezelooliet Formatie, zand 1 + 2 + 3 + 4 + 5"	188	143	143	255	x
+KI-z-2	"Kiezelooliet Formatie, zand 2"	188	143	143	255	x
+KI-z-2+3	"Kiezelooliet Formatie, zand 2 + 3"	188	143	143	255	x
+KI-z-2+3+4+5	"Kiezelooliet Formatie, zand 2 + 3 + 4 + 5"	188	143	143	255	x
+KI-z-3	"Kiezelooliet Formatie, zand 3"	188	143	143	255	x
+KI-z-3+4	"Kiezelooliet Formatie, zand 3 + 4"	188	143	143	255	x
+KI-z-3+4+5	"Kiezelooliet Formatie, zand 3 + 4 + 5"	188	143	143	255	x
+KI-z-4	"Kiezelooliet Formatie, zand 4"	188	143	143	255	x
+KI-z-4+5	"Kiezelooliet Formatie, zand 4 + 5"	188	143	143	255	x
+KI-z-5	"Kiezelooliet Formatie, zand 5"	188	143	143	255	x
+KI-z-Undefined	"Kiezelooliet Formatie, zand ongedefinieerd"	188	143	143	255	x
+KLS	Kleisteen	156	158	99	255	x
+KR	Formatie van Kreftenheye	176	48	96	255	x
+KR-k-1	"Formatie van Kreftenheye, klei 1"	111	0	0	255	x
+KR-o	"Formatie van Kreftenheye, overig"	144	144	144	255	x
+KRTW-k-1	"Formatie van Kreftenheye, laagpakket van Twello, klei 1"	156	18	46	255	x
+KRWY-k-1	"Formatie van Kreftenheye, laagpakket van Wijchen, klei 1"	86	0	0	255	x
+KR-z-1	"Formatie van Kreftenheye, zand 1"	176	48	96	255	x
+KR-z-1+2	"Formatie van Kreftenheye, zand 1 + 2"	176	48	96	255	x
+KR-z-1+2+3	"Formatie van Kreftenheye, zand 1 + 2 + 3"	176	48	96	255	x
+KR-z-1+2+3+4	"Formatie van Kreftenheye, zand 1 + 2 + 3 + 4"	176	48	96	255	x
+KR-z-1+2+3+4+5	"Formatie van Kreftenheye, zand 1 + 2 + 3 + 4 + 5"	176	48	96	255	x
+KR-z-2	"Formatie van Kreftenheye, zand 2"	176	48	96	255	x
+KR-z-2+3	"Formatie van Kreftenheye, zand 2 + 3"	176	48	96	255	x
+KR-z-2+3+4+5	"Formatie van Kreftenheye, zand 2 + 3 + 4 + 5"	176	48	96	255	x
+KR-z-3	"Formatie van Kreftenheye, zand 3"	176	48	96	255	x
+KR-z-3+4	"Formatie van Kreftenheye, zand 3 + 4"	176	48	96	255	x
+KR-z-3+4+5	"Formatie van Kreftenheye, zand 3 + 4 + 5"	176	48	96	255	x
+KR-z-4	"Formatie van Kreftenheye, zand 4"	176	48	96	255	x
+KR-z-4+5	"Formatie van Kreftenheye, zand 4 + 5"	176	48	96	255	x
+KR-z-5	"Formatie van Kreftenheye, zand 5"	176	48	96	255	x
+KRZU-k-1	"Formatie van Kreftenheye, laagpakket van Zutphen, klei 1"	136	0	0	255	x
+KR-z-Undefined	"Formatie van Kreftenheye, zand ongedefinieerd"	176	48	96	255	x
+KW	Formatie van Koewacht	172	169	43	255	x
+KWA	Kwartsiet	200	171	55	255	x
+KWS	Kwarts	144	144	144	255	x
+KW-z-1	"Formatie van Koewacht, zand 1"	172	169	43	255	x
+KW-z-1+2	"Formatie van Koewacht, zand 1 + 2"	172	169	43	255	x
+KZS	Kalkzandsteen	200	171	55	255	x
+L	Leem	194	207	92	255	x
+LA	Formatie van Landen	208	32	144	255	x
+LA-c	"Formatie van Landen, complex"	208	32	144	255	x
+LEI	Leisteen	156	158	99	255	x
+MER	Mergel	140	180	255	255	x
+MFE	Moerasijzererts	242	128	13	255	x
+MKA	Moeraskalk	204	102	255	255	x
+MS	Formatie van Maassluis	135	206	235	255	x
+MS-c	"Formatie van Maassluis, complex"	115	176	185	255	x
+MS-k-1	"Formatie van Maassluis, klei 1"	95	146	135	255	x
+MS-k-2	"Formatie van Maassluis, klei 2"	105	161	160	255	x
+MS-z-1	"Formatie van Maassluis, zand 1"	135	206	235	255	x
+MS-z-1+2	"Formatie van Maassluis, zand 1 + 2"	135	206	235	255	x
+MS-z-1+2+3	"Formatie van Maassluis, zand 1 + 2 + 3"	135	206	235	255	x
+MS-z-1+2+3+4	"Formatie van Maassluis, zand 1 + 2 + 3 + 4"	135	206	235	255	x
+MS-z-2	"Formatie van Maassluis, zand 2"	135	206	235	255	x
+MS-z-2+3	"Formatie van Maassluis, zand 2 + 3"	135	206	235	255	x
+MS-z-2+3+4	"Formatie van Maassluis, zand 2 + 3 + 4"	135	206	235	255	x
+MS-z-3	"Formatie van Maassluis, zand 3"	135	206	235	255	x
+MS-z-3+4	"Formatie van Maassluis, zand 3 + 4"	135	206	235	255	x
+MS-z-4	"Formatie van Maassluis, zand 4"	135	206	235	255	x
+MS-z-Undefined	"Formatie van Maassluis, zand ongedifinieerd"	135	206	235	255	x
+MT	Formatie van Maastricht	255	160	102	255	x
+MT-q	"Formatie van Maastricht, kalksteen"	255	160	102	255	x
+NBE	Niet benoemd	0	0	0	255	x
+NN	Niet formeel ingedeeld	0	0	0	255	x
+NN-k-#	Niet formeel ingedeeld	0	0	0	255	x
+NN-o	Niet formeel ingedeeld	0	0	0	255	x
+NN-q	Niet formeel ingedeeld	0	0	0	255	x
+NN-v-#	Niet formeel ingedeeld	0	0	0	255	x
+NN-z-#	Niet formeel ingedeeld	0	0	0	255	x
+O	Overig	144	144	144	255	x
+OER	IJzeroer	242	128	13	255	x
+OO	Formatie van Oosterhout	118	157	39	255	x
+OO-c	"Formatie van Oosterhout, complex"	98	127	0	255	x
+OO-k-1	"Formatie van Oosterhout, klei 1"	88	112	0	255	x
+OO-z-1	"Formatie van Oosterhout, zand 1"	118	157	39	255	x
+OO-z-1+2	"Formatie van Oosterhout, zand 1 + 2"	118	157	39	255	x
+OO-z-1+2+3	"Formatie van Oosterhout, zand 1 + 2 + 3"	118	157	39	255	x
+OO-z-2	"Formatie van Oosterhout, zand 2"	118	157	39	255	x
+OO-z-2+3	"Formatie van Oosterhout, zand 2 + 3"	118	157	39	255	x
+OO-z-3	"Formatie van Oosterhout, zand 3"	118	157	39	255	x
+OO-z-Undefined	"Formatie van Oosterhout, zand ongedefinieerd"	118	157	39	255	x
+P	Lei- of kleisteen	156	158	99	255	x
+PE	Formatie van Peelo	238	130	238	255	x
+PE-k-1	"Formatie van Peelo, klei 1"	208	85	163	255	x
+PE-k-2	"Formatie van Peelo, klei 2"	218	100	188	255	x
+PE-o	"Formatie van Peelo, overig"	144	144	144	255	x
+PE-z-1	"Formatie van Peelo, zand 1"	238	130	238	255	x
+PE-z-1+2	"Formatie van Peelo, zand 1 + 2"	238	130	238	255	x
+PE-z-1+2+3	"Formatie van Peelo, zand 1 + 2 + 3"	238	130	238	255	x
+PE-z-2	"Formatie van Peelo, zand 2"	238	130	238	255	x
+PE-z-2+3	"Formatie van Peelo, zand 2 + 3"	238	130	238	255	x
+PE-z-3	"Formatie van Peelo, zand 3"	238	130	238	255	x
+PE-z-Undefined	"Formatie van Peelo, zand ongedefinieerd"	238	130	238	255	x
+PU	Puin	200	200	200	255	x
+PZ	Formatie van Peize	255	204	0	255	x
+PZWA	Formatie van Peize-Waalre	255	204	0	255	x
+PZWA-z-1	"Formatie van Peize-Waalre, zand 1"	255	204	0	255	x
+PZWA-z-2	"Formatie van Peize-Waalre, zand 2"	255	204	0	255	x
+PZWA-z-3	"Formatie van Peize-Waalre, zand 3"	255	204	0	255	x
+PZWA-z-4	"Formatie van Peize-Waalre, zand 4"	255	204	0	255	x
+PZ-c	"Formatie van Peize, complex"	235	225	0	255	x
+PZ-k-1	"Formatie van Peize, klei 1"	205	180	0	255	x
+PZ-o	"Formatie van Peize, overig"	144	144	144	255	x
+PZ-z-1	"Formatie van Peize, zand 1"	255	204	0	255	x
+PZ-z-1+2	"Formatie van Peize, zand 1 + 2"	255	204	0	255	x
+PZ-z-1+2+3	"Formatie van Peize, zand 1 + 2 + 3"	255	204	0	255	x
+PZ-z-1+2+3+4	"Formatie van Peize, zand 1 + 2 + 3 + 4"	255	204	0	255	x
+PZ-z-1+2+3+4+5	"Formatie van Peize, zand 1 + 2 + 3 + 4 + 5"	255	204	0	255	x
+PZ-z-2	"Formatie van Peize, zand 2"	255	204	0	255	x
+PZ-z-2+3	"Formatie van Peize, zand 2 + 3"	255	204	0	255	x
+PZ-z-2+3+4	"Formatie van Peize, zand 2 + 3 + 4"	255	204	0	255	x
+PZ-z-2+3+4+5	"Formatie van Peize, zand 2 + 3 + 4 + 5"	255	204	0	255	x
+PZ-z-3	"Formatie van Peize, zand 3"	255	204	0	255	x
+PZ-z-3+4	"Formatie van Peize, zand 3 + 4"	255	204	0	255	x
+PZ-z-3+4+5	"Formatie van Peize, zand 3 + 4 + 5"	255	204	0	255	x
+PZ-z-4	"Formatie van Peize, zand 4"	255	204	0	255	x
+PZ-z-4+5	"Formatie van Peize, zand 4 + 5"	255	204	0	255	x
+PZ-z-5	"Formatie van Peize, zand 5"	255	204	0	255	x
+PZ-z-Undefined	"Formatie van Peize, zand ongedefinieerd"	255	204	0	255	x
+Q	Kalksteen	140	180	255	255	x
+R	"Gesteente, vast"	97	97	97	255	x
+RU	Formatie van Rupel	184	123	238	255	x
+RUBO-k-1	"Formatie van Rupel, laagpakket van Boom, klei 1"	144	63	138	255	x
+RU-k-1	"Formatie van Rupel, klei 1"	154	78	163	255	x
+RU-k-2	"Formatie van Rupel, klei 2"	164	93	188	255	x
+RU-z-1	"Formatie van Rupel, zand 1"	184	123	238	255	x
+RU-z-1+2	"Formatie van Rupel, zand 1 + 2"	184	123	238	255	x
+RU-z-1+2+3	"Formatie van Rupel, zand 1 + 2 + 3"	184	123	238	255	x
+RU-z-1+2+3+4	"Formatie van Rupel, zand 1 + 2 + 3 + 4"	184	123	238	255	x
+RU-z-2	"Formatie van Rupel, zand 2"	184	123	238	255	x
+RU-z-2+3+4	"Formatie van Rupel, zand 2 + 3 + 4"	184	123	238	255	x
+RU-z-3	"Formatie van Rupel, zand 3"	184	123	238	255	x
+RU-z-3+4	"Formatie van Rupel, zand 3 + 4"	184	123	238	255	x
+RU-z-4	"Formatie van Rupel, zand 4"	184	123	238	255	x
+S	Zandsteen	200	171	55	255	x
+SHA	Schalie	156	158	99	255	x
+SHE	Schelpen	95	95	255	255	x
+SID	Sideriet	242	128	13	255	x
+SIS	Siltsteen	156	158	99	255	x
+SLU	Slurrie	144	144	144	255	x
+ST	Formatie van Sterksel	205	92	92	255	x
+STI	Stigmaria	144	144	144	255	x
+STK	Steenkool	58	37	22	255	x
+ST-k-1	"Formatie van Sterksel, klei 1"	185	62	42	255	x
+STN	Stenen	216	163	32	255	x
+ST-z-1	"Formatie van Sterksel, zand 1"	205	92	92	255	x
+ST-z-1+2	"Formatie van Sterksel, zand 1 + 2"	205	92	92	255	x
+ST-z-2	"Formatie van Sterksel, zand 2"	205	92	92	255	x
+SY	Formatie van Stramproy	255	228	181	255	x
+SY-k-1	"Formatie van Stramproy, klei 1"	215	168	81	255	x
+SY-k-2	"Formatie van Stramproy, klei 2"	225	183	106	255	x
+SY-k-3	"Formatie van Stramproy, klei 3"	235	198	131	255	x
+SY-z-1	"Formatie van Stramproy, zand 1"	255	228	181	255	x
+SY-z-1+2	"Formatie van Stramproy, zand 1 + 2"	255	228	181	255	x
+SY-z-1+2+3	"Formatie van Stramproy, zand 1 + 2 + 3"	255	228	181	255	x
+SY-z-1+2+3+4	"Formatie van Stramproy, zand 1 + 2 + 3 + 4"	255	228	181	255	x
+SY-z-2	"Formatie van Stramproy, zand 2"	255	228	181	255	x
+SY-z-2+3	"Formatie van Stramproy, zand 2 + 3"	255	228	181	255	x
+SY-z-2+3+4	"Formatie van Stramproy, zand 2 + 3 + 4"	255	228	181	255	x
+SY-z-3	"Formatie van Stramproy, zand 3"	255	228	181	255	x
+SY-z-3+4	"Formatie van Stramproy, zand 3 + 4"	255	228	181	255	x
+SY-z-4	"Formatie van Stramproy, zand 4"	255	228	181	255	x
+TO	Formatie van Tongeren	90	159	219	255	x
+TOGO-k-1	"Formatie van Tongeren, laagpakket van Goudsberg, klei 1"	60	114	144	255	x
+TO-z-1	"Formatie van Tongeren, zand 1"	90	159	219	255	x
+TO-z-1+2	"Formatie van Tongeren, zand 1 + 2"	90	159	219	255	x
+TO-z-1+2+3	"Formatie van Tongeren, zand 1 + 2 + 3"	90	159	219	255	x
+TO-z-2	"Formatie van Tongeren, zand 2"	90	159	219	255	x
+TO-z-2+3	"Formatie van Tongeren, zand 2 + 3"	90	159	219	255	x
+TO-z-3	"Formatie van Tongeren, zand 3"	90	159	219	255	x
+TO-o-z-3	"Formatie van Tongeren, zand 3"	90	159	219	255	x
+TOZEWA-k-1	"Formatie van Tongeren, laagpakket van Zelzate, laag van Watervliet, klei 1"	70	129	169	255	x
+UR	Formatie van Urk	189	183	107	255	x
+UR-k-1	"Formatie van Urk, klei 1"	149	123	7	255	x
+UR-k-2	"Formatie van Urk, klei 2"	159	138	32	255	x
+UR-k-3	"Formatie van Urk, klei 3"	169	153	57	255	x
+UR-o	"Formatie van Urk, overig"	144	144	144	255	x
+UR-z-1	"Formatie van Urk, zand 1"	189	183	107	255	x
+UR-z-1+2	"Formatie van Urk, zand 1 + 2"	189	183	107	255	x
+UR-z-1+2+3	"Formatie van Urk, zand 1 + 2 + 3"	189	183	107	255	x
+UR-z-1+2+3+4	"Formatie van Urk, zand 1 + 2 + 3 + 4"	189	183	107	255	x
+UR-z-1+2+3+4+5	"Formatie van Urk, zand 1 + 2 + 3 + 4 + 5"	189	183	107	255	x
+UR-z-2	"Formatie van Urk, zand 2"	189	183	107	255	x
+UR-z-2+3	"Formatie van Urk, zand 2 + 3"	189	183	107	255	x
+UR-z-2+3+4	"Formatie van Urk, zand 2 + 3 + 4"	189	183	107	255	x
+UR-z-2+3+4+5	"Formatie van Urk, zand 2 + 3 + 4 + 5"	189	183	107	255	x
+UR-z-3	"Formatie van Urk, zand 3"	189	183	107	255	x
+UR-z-3+4	"Formatie van Urk, zand 3 + 4"	189	183	107	255	x
+UR-z-3+4+5	"Formatie van Urk, zand 3 + 4 + 5"	189	183	107	255	x
+UR-z-4	"Formatie van Urk, zand 4"	189	183	107	255	x
+UR-z-4+5	"Formatie van Urk, zand 4 + 5"	189	183	107	255	x
+UR-z-5	"Formatie van Urk, zand 5"	189	183	107	255	x
+V	Veen	157	78	64	255	x
+VA	Formatie van Vaals	21	153	79	255	x
+VA-c	"Formatie van Vaals, complex"	21	153	79	255	x
+VE	Formatie van Veldhoven	102	100	16	255	x
+VE-c	"Formatie van Veldhoven, complex"	0	155	0	255	x
+VE-k-#	"Formatie van Veldhoven, klei ongedifinieerd"	0	155	0	255	x
+VE-k-1	"Formatie van Veldhoven, klei 1"	0	155	0	255	x
+VE-c	"Formatie van Veldhoven, laagpakket van Someren, complex"	72	55	0	255	x
+VEVO-c	"Formatie van Veldhoven, laagpakket van Voort, complex"	92	85	0	255	x
+VEWI-k-1	"Formatie van Veldhoven, laagpakket van Wintelre, klei 1"	82	70	0	255	x
+VE-z-Undefined	"Formatie van Veldhoven, zand ongedefinieerd"	102	100	16	255	x
+VG	"Gesteente, vast"	97	97	97	255	x
+VI	Formatie van Ville	153	102	0	255	x
+VI-b-1	"Ville Formatie, bruinkool 1"	123	57	0	255	x
+VI-b-2	"Ville Formatie, bruinkool 2"	133	72	0	255	x
+VUS	Vuursteen	140	180	255	255	x
+WA	Formatie van Waalre	255	204	0	255	x
+WA-k-1	"Formatie van Waalre, klei 1"	215	105	0	255	x
+WA-k-2	"Formatie van Waalre, klei 2"	225	120	0	255	x
+WA-k-3	"Formatie van Waalre, klei 3"	235	135	0	255	x
+WA-z-1	"Formatie van Waalre, zand 1"	255	204	0	255	x
+WA-z-1+2	"Formatie van Waalre, zand 1 + 2"	255	204	0	255	x
+WA-z-1+2+3	"Formatie van Waalre, zand 1 + 2 + 3"	255	204	0	255	x
+WA-z-1+2+3+4	"Formatie van Waalre, zand 1 + 2 + 3 + 4"	255	204	0	255	x
+WA-z-1+2+3+4+5	"Formatie van Waalre, zand 1 + 2 + 3 + 4 + 5"	255	204	0	255	x
+WA-z-2	"Formatie van Waalre, zand 2"	255	204	0	255	x
+WA-z-2+3	"Formatie van Waalre, zand 2 + 3"	255	204	0	255	x
+WA-z-2+3+4	"Formatie van Waalre, zand 2 + 3 + 4"	255	204	0	255	x
+WA-z-2+3+4+5	"Formatie van Waalre, zand 2 + 3 + 4 + 5"	255	204	0	255	x
+WA-z-3	"Formatie van Waalre, zand 3"	255	204	0	255	x
+WA-z-4	"Formatie van Waalre, zand 4"	255	204	0	255	x
+WA-z-4+5	"Formatie van Waalre, zand 4 + 5"	255	204	0	255	x
+WA-z-5	"Formatie van Waalre, zand 5"	255	204	0	255	x
+WA-z-Undefined	"Formatie van Waalre, zand ongedefinieerd"	255	204	0	255	x
+WB	Woudenberg Formatie	137	67	30	255	x
+WB-v-1	"Formatie van Woudenberg, veen 1"	117	37	0	255	x
+YZ	IJzer	200	200	200	255	x
+Z	Zand	243	225	6	255	x
+ZNS	Zandsteen	200	171	55	255	x

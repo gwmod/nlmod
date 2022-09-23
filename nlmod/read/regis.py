@@ -3,12 +3,13 @@
 modelgrid."""
 import datetime as dt
 import logging
+import os
 
 import numpy as np
+import pandas as pd
 import xarray as xr
-from scipy.interpolate import griddata
 
-from .. import cache, mdims
+from .. import cache
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -19,13 +20,7 @@ REGIS_URL = "http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc"
 
 @cache.cache_netcdf
 def get_combined_layer_models(
-    extent,
-    delr=100,
-    delc=100,
-    regis_botm_layer=b"AKc",
-    use_regis=True,
-    use_geotop=True,
-    remove_nan_layers=True,
+    extent, regis_botm_layer="AKc", use_regis=True, use_geotop=True
 ):
     """combine layer models into a single layer model.
 
@@ -38,23 +33,15 @@ def get_combined_layer_models(
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float, optional
-        cell size along rows, equal to dx. The default is 100 m.
-    delc : int or float, optional
-        cell size along columns, equal to dy. The default is 100 m.
     regis_botm_layer : binary str, optional
         regis layer that is used as the bottom of the model. This layer is
-        included in the model. the Default is b'AKc' which is the bottom
+        included in the model. the Default is 'AKc' which is the bottom
         layer of regis. call nlmod.regis.get_layer_names() to get a list of
         regis names.
     use_regis : bool, optional
         True if part of the layer model should be REGIS. The default is True.
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
-    remove_nan_layers : bool, optional
-        if True regis and geotop layers with only nans are removed from the
-        model. if False nan layers are kept which might be usefull if you want
-        to keep some layers that exist in other models. The default is True.
 
     Returns
     -------
@@ -68,12 +55,12 @@ def get_combined_layer_models(
     """
 
     if use_regis:
-        regis_ds = get_regis(extent, delr, delc, regis_botm_layer)
+        regis_ds = get_regis(extent, regis_botm_layer)
     else:
         raise ValueError("layer models without REGIS not supported")
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop(extent, delr, delc, regis_ds)
+        geotop_ds = geotop.get_geotop(extent, regis_ds)
 
     if use_regis and use_geotop:
         regis_geotop_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)
@@ -84,94 +71,72 @@ def get_combined_layer_models(
     else:
         raise ValueError("combination of model layers not supported")
 
-    if remove_nan_layers:
-        nlay, lay_sel = get_non_nan_layers(combined_ds)
-        combined_ds = combined_ds.sel(layer=lay_sel)
-        logger.info(f"removing {nlay} nan layers from the model")
-
     return combined_ds
 
 
 @cache.cache_netcdf
-def get_regis(extent, delr=100.0, delc=100.0, botm_layer=b"AKc"):
+def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
     """get a regis dataset projected on the modelgrid.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float, optional
-        cell size along rows, equal to dx. The default is 100 m.
-    delc : int or float, optional
-        cell size along columns, equal to dy. The default is 100 m.
-    botm_layer : binary str, optional
+    botm_layer : str, optional
         regis layer that is used as the bottom of the model. This layer is
-        included in the model. the Default is b'AKc' which is the bottom
-        layer of regis. call nlmod.regis.get_layer_names() to get a list of
-        regis names.
+        included in the model. the Default is "AKc" which is the bottom
+        layer of regis. call nlmod.read.regis.get_layer_names() to get a list
+        of regis names.
+    variables : tuple, optional
+        a tuple of the variables to keep from the regis Dataset. Possible
+        entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
+        'sdv'. The default is ("top", "botm", "kh", "kv").
 
     Returns
     -------
     regis_ds : xarray dataset
         dataset with regis data projected on the modelgrid.
     """
-    # check extent
-    extent2, _, _ = fit_extent_to_regis(extent, delr, delc)
-    for coord1, coord2 in zip(extent, extent2):
-        if coord1 != coord2:
-            raise ValueError(
-                "extent not fitted to regis please fit to regis first, use the nlmod.regis.fit_extent_to_regis function"
-            )
 
-    regis_ds_raw = xr.open_dataset(REGIS_URL, decode_times=False)
+    ds = xr.open_dataset(REGIS_URL, decode_times=False)
 
     # set x and y dimensions to cell center
-    regis_ds_raw["x"] = regis_ds_raw.x_bounds.mean("bounds")
-    regis_ds_raw["y"] = regis_ds_raw.y_bounds.mean("bounds")
+    ds["x"] = ds.x_bounds.mean("bounds")
+    ds["y"] = ds.y_bounds.mean("bounds")
 
     # slice extent
-    regis_ds_raw = regis_ds_raw.sel(
-        x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3])
-    )
+    ds = ds.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
+
+    # make sure layer names are regular strings
+    ds["layer"] = ds["layer"].astype(str)
 
     # slice layers
-    if isinstance(botm_layer, str):
-        botm_layer = botm_layer.encode("utf-8")
+    if botm_layer is not None:
+        ds = ds.sel(layer=slice(botm_layer))
 
-    layer_no = np.where((regis_ds_raw.layer == botm_layer).values)[0][0]
-    regis_ds_raw = regis_ds_raw.sel(layer=regis_ds_raw.layer[: layer_no + 1])
+    # rename bottom to botm, as it is called in FloPy
+    ds = ds.rename_vars({"bottom": "botm"})
 
     # slice data vars
-    regis_ds_raw = regis_ds_raw[["top", "bottom", "kD", "c", "kh", "kv"]]
-    regis_ds_raw = regis_ds_raw.rename_vars({"bottom": "bot"})
+    ds = ds[list(variables)]
 
-    # rename layers
-    regis_ds_raw = regis_ds_raw.rename({"layer": "layer_old"})
-    regis_ds_raw.coords["layer"] = regis_ds_raw.layer_old.astype(
-        str
-    )  # could also use assign_coords
-    regis_ds_raw2 = regis_ds_raw.swap_dims({"layer_old": "layer"})
-
-    # convert regis dataset to grid
-    logger.info("resample regis data to structured modelgrid")
-    regis_ds = mdims.resample_dataset_to_structured_grid(
-        regis_ds_raw2, extent, delr, delc
-    )
-    regis_ds.attrs["extent"] = extent
-    regis_ds.attrs["delr"] = delr
-    regis_ds.attrs["delc"] = delc
-    regis_ds.attrs["gridtype"] = "structured"
-
-    for datavar in regis_ds:
-        regis_ds[datavar].attrs["source"] = "REGIS"
-        regis_ds[datavar].attrs["url"] = REGIS_URL
-        regis_ds[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
-        if datavar in ["top", "bot"]:
-            regis_ds[datavar].attrs["units"] = "mNAP"
+    ds.attrs["extent"] = extent
+    for datavar in ds:
+        ds[datavar].attrs["grid_mapping"] = "crs"
+        ds[datavar].attrs["source"] = "REGIS"
+        ds[datavar].attrs["url"] = REGIS_URL
+        ds[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+        if datavar in ["top", "botm"]:
+            ds[datavar].attrs["units"] = "mNAP"
         elif datavar in ["kh", "kv"]:
-            regis_ds[datavar].attrs["units"] = "m/day"
+            ds[datavar].attrs["units"] = "m/day"
+        # set _FillValue to NaN, otherise problems with caching will arise
+        ds[datavar].encoding["_FillValue"] = np.NaN
 
-    return regis_ds
+    # set the crs to dutch rd-coordinates
+    ds.rio.set_crs(28992)
+
+    return ds
 
 
 def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
@@ -223,22 +188,24 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     logger.info("cut geotop layer based on regis holoceen")
     for lay in range(geotop_ds.dims["layer"]):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
-        mask1 = geotop_ds["top"][lay] <= (regis_ds["bot"][layer_no] - float_correction)
+        mask1 = geotop_ds["top"][lay] <= (regis_ds["botm"][layer_no] - float_correction)
         geotop_ds["top"][lay] = xr.where(mask1, np.nan, geotop_ds["top"][lay])
-        geotop_ds["bot"][lay] = xr.where(mask1, np.nan, geotop_ds["bot"][lay])
+        geotop_ds["botm"][lay] = xr.where(mask1, np.nan, geotop_ds["botm"][lay])
         geotop_ds["kh"][lay] = xr.where(mask1, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask1, np.nan, geotop_ds["kv"][lay])
 
         # Alle geotop cellen waarvan de bodem onder de onderkant van het holoceen ligt, krijgen als bodem de onderkant van het holoceen
-        mask2 = geotop_ds["bot"][lay] < regis_ds["bot"][layer_no]
-        geotop_ds["bot"][lay] = xr.where(
-            mask2 * (~mask1), regis_ds["bot"][layer_no], geotop_ds["bot"][lay]
+        mask2 = geotop_ds["botm"][lay] < regis_ds["botm"][layer_no]
+        geotop_ds["botm"][lay] = xr.where(
+            mask2 * (~mask1),
+            regis_ds["botm"][layer_no],
+            geotop_ds["botm"][lay],
         )
 
         # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
-        mask3 = geotop_ds["bot"][lay] >= (regis_ds["top"][layer_no] - float_correction)
+        mask3 = geotop_ds["botm"][lay] >= (regis_ds["top"][layer_no] - float_correction)
         geotop_ds["top"][lay] = xr.where(mask3, np.nan, geotop_ds["top"][lay])
-        geotop_ds["bot"][lay] = xr.where(mask3, np.nan, geotop_ds["bot"][lay])
+        geotop_ds["botm"][lay] = xr.where(mask3, np.nan, geotop_ds["botm"][lay])
         geotop_ds["kh"][lay] = xr.where(mask3, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask3, np.nan, geotop_ds["kv"][lay])
 
@@ -249,9 +216,9 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
         )
 
         # overal waar holoceen inactief is, wordt geotop ook inactief
-        mask5 = regis_ds["bot"][layer_no].isnull()
+        mask5 = regis_ds["botm"][layer_no].isnull()
         geotop_ds["top"][lay] = xr.where(mask5, np.nan, geotop_ds["top"][lay])
-        geotop_ds["bot"][lay] = xr.where(mask5, np.nan, geotop_ds["bot"][lay])
+        geotop_ds["botm"][lay] = xr.where(mask5, np.nan, geotop_ds["botm"][lay])
         geotop_ds["kh"][lay] = xr.where(mask5, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask5, np.nan, geotop_ds["kv"][lay])
         if (mask2 * (~mask1)).sum() > 0:
@@ -262,8 +229,8 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     top[: len(geotop_ds.layer), :, :] = geotop_ds["top"].data
     top[len(geotop_ds.layer) :, :, :] = regis_ds["top"].data[layer_no + 1 :]
 
-    bot[: len(geotop_ds.layer), :, :] = geotop_ds["bot"].data
-    bot[len(geotop_ds.layer) :, :, :] = regis_ds["bot"].data[layer_no + 1 :]
+    bot[: len(geotop_ds.layer), :, :] = geotop_ds["botm"].data
+    bot[len(geotop_ds.layer) :, :, :] = regis_ds["botm"].data[layer_no + 1 :]
 
     kh[: len(geotop_ds.layer), :, :] = geotop_ds["kh"].data
     kh[len(geotop_ds.layer) :, :, :] = regis_ds["kh"].data[layer_no + 1 :]
@@ -272,7 +239,7 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     kv[len(geotop_ds.layer) :, :, :] = regis_ds["kv"].data[layer_no + 1 :]
 
     regis_geotop_ds["top"] = top
-    regis_geotop_ds["bot"] = bot
+    regis_geotop_ds["botm"] = bot
     regis_geotop_ds["kh"] = kh
     regis_geotop_ds["kv"] = kv
 
@@ -282,124 +249,19 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     ]
 
     # maak top, bot, kh en kv nan waar de laagdikte 0 is
-    mask = (regis_geotop_ds["top"] - regis_geotop_ds["bot"]) < float_correction
-    for key in ["top", "bot", "kh", "kv"]:
+    mask = (regis_geotop_ds["top"] - regis_geotop_ds["botm"]) < float_correction
+    for key in ["top", "botm", "kh", "kv"]:
         regis_geotop_ds[key] = xr.where(mask, np.nan, regis_geotop_ds[key])
         regis_geotop_ds[key].attrs["source"] = "REGIS/geotop"
         regis_geotop_ds[key].attrs["regis_url"] = regis_ds[key].url
         regis_geotop_ds[key].attrs["geotop_url"] = geotop_ds[key].url
         regis_geotop_ds[key].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
-        if key in ["top", "bot"]:
+        if key in ["top", "botm"]:
             regis_geotop_ds[key].attrs["units"] = "mNAP"
         elif key in ["kh", "kv"]:
             regis_geotop_ds[key].attrs["units"] = "m/day"
 
     return regis_geotop_ds
-
-
-def fit_extent_to_regis(extent, delr, delc, cs_regis=100.0):
-    """redifine extent and calculate the number of rows and columns.
-
-    The extent will be redefined so that the borders of the grid (xmin, xmax,
-    ymin, ymax) correspond with the borders of the regis grid.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        original extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
-    cs_regis : int or float, optional
-        cell size of regis grid. The default is 100..
-
-    Returns
-    -------
-    extent : list, tuple or np.array
-        adjusted extent
-    nrow : int
-        number of rows.
-    ncol : int
-        number of columns.
-    """
-    if isinstance(extent, list):
-        extent = extent.copy()
-    elif isinstance(extent, (tuple, np.ndarray)):
-        extent = list(extent)
-    else:
-        raise TypeError(
-            f"expected extent of type list, tuple or np.ndarray, got {type(extent)}"
-        )
-
-    logger.info(f"redefining current extent: {extent}, fit to regis raster")
-
-    for d in [delr, delc]:
-        available_cell_sizes = [
-            10.0,
-            20.0,
-            25.0,
-            50.0,
-            100.0,
-            200.0,
-            400.0,
-            500.0,
-            800.0,
-        ]
-        if float(d) not in available_cell_sizes:
-            raise NotImplementedError(
-                "only this cell sizes can be used for " f"now -> {available_cell_sizes}"
-            )
-
-    # if xmin ends with 100 do nothing, otherwise fit xmin to regis cell border
-    if extent[0] % cs_regis != 0:
-        extent[0] -= extent[0] % cs_regis
-
-    # get number of columns
-    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
-    extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
-
-    # if ymin ends with 100 do nothing, otherwise fit ymin to regis cell border
-    if extent[2] % cs_regis != 0:
-        extent[2] -= extent[2] % cs_regis
-
-    nrow = int(np.ceil((extent[3] - extent[2]) / delc))  # get number of rows
-    extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
-
-    logger.info(f"new extent is {extent} model has {nrow} rows and {ncol} columns")
-
-    return extent, nrow, ncol
-
-
-def get_non_nan_layers(raw_layer_mod, data_var="bot"):
-    """get number and name of layers based on the number of non-nan layers.
-
-    Parameters
-    ----------
-    raw_layer_mod : xarray.Dataset
-        dataset with raw layer model from regis or geotop.
-    data_var : str
-        data var that is used to check if layer mod contains nan values
-
-    Returns
-    -------
-    nlay : int
-        number of active layers within regis_ds_raw.
-    lay_sel : list of str
-        names of the active layers.
-    """
-    logger.info("find active layers in raw layer model")
-
-    bot_raw_all = raw_layer_mod[data_var]
-    lay_sel = []
-    for lay in bot_raw_all.layer.data:
-        if not bot_raw_all.sel(layer=lay).isnull().all():
-            lay_sel.append(lay)
-    nlay = len(lay_sel)
-
-    logger.info(f"there are {nlay} active layers within the extent")
-
-    return nlay, lay_sel
 
 
 def get_layer_names():
@@ -411,40 +273,24 @@ def get_layer_names():
         array with names of all the regis layers.
     """
 
-    layer_names = xr.open_dataset(REGIS_URL).layer.values
+    layer_names = xr.open_dataset(REGIS_URL).layer.astype(str).values
 
     return layer_names
 
 
-def extrapolate_regis(regis_ds):
-    """Fill missing data in layermodel based on nearest interpolation.
-
-    Used for ensuring layer model contains data everywhere. Useful for
-    filling in data beneath the sea for coastal groundwater models.
-
-    Parameters
-    ----------
-    regis_ds : xarray.DataSet
-        REGIS DataSet
-
-    Returns
-    -------
-    regis_ds : xarray.DataSet
-        filled REGIS layermodel with nearest interpolation
-    """
-    # fill layermodel with nearest interpolation (usually for filling in data
-    # under the North Sea)
-    mask = np.isnan(regis_ds["top"]).all("layer")
-    if not np.any(mask):
-        # all of the model are is inside
-        logger.info("No missing data to extrapolate")
-        return regis_ds
-    x, y = np.meshgrid(regis_ds.x, regis_ds.y)
-    points = (x[~mask], y[~mask])
-    xi = (x[mask], y[mask])
-    for key in list(regis_ds.keys()):
-        data = regis_ds[key].data
-        for lay in range(len(regis_ds.layer)):
-            values = data[lay][~mask]
-            data[lay][mask] = griddata(points, values, xi, method="nearest")
-    return regis_ds
+def get_legend():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+    leg = pd.read_csv(
+        fname,
+        sep="\t",
+        header=None,
+        names=["naam", "beschrijving", "r", "g", "b", "a", "x"],
+    )
+    leg["naam"] = leg["naam"].str.replace("-", "")
+    leg.set_index("naam", inplace=True)
+    clrs = np.array(leg.loc[:, ["r", "g", "b"]])
+    clrs = [tuple(rgb / 255.0) for rgb in clrs]
+    leg["color"] = clrs
+    leg = leg.drop(["x", "r", "g", "b", "a"], axis=1)
+    return leg

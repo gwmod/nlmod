@@ -214,9 +214,9 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
         xorigin = ds.attrs["xorigin"]
         yorigin = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
-    elif 'extent' in ds.attrs.keys():
-        xorigin = ds.attrs['extent'][0]
-        yorigin = ds.attrs['extent'][2]
+    elif "extent" in ds.attrs.keys():
+        xorigin = ds.attrs["extent"][0]
+        yorigin = ds.attrs["extent"][2]
         angrot = 0.0
     else:
         xorigin = 0.0
@@ -314,28 +314,15 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         ghb package
     """
 
-    if ds.gridtype == "structured":
-        ghb_rec = mdims.data_array_2d_to_rec_list(
-            ds,
-            ds[f"{da_name}_cond"] != 0,
-            col1=f"{da_name}_peil",
-            col2=f"{da_name}_cond",
-            first_active_layer=True,
-            only_active_cells=False,
-            layer=0,
-        )
-    elif ds.gridtype == "vertex":
-        ghb_rec = mdims.data_array_1d_vertex_to_rec_list(
-            ds,
-            ds[f"{da_name}_cond"] != 0,
-            col1=f"{da_name}_peil",
-            col2=f"{da_name}_cond",
-            first_active_layer=True,
-            only_active_cells=False,
-            layer=0,
-        )
-    else:
-        raise ValueError(f"did not recognise gridtype {ds.gridtype}")
+    ghb_rec = mdims.da_to_rec_list(
+        ds,
+        ds[f"{da_name}_cond"] != 0,
+        col1=f"{da_name}_peil",
+        col2=f"{da_name}_cond",
+        first_active_layer=True,
+        only_active_cells=False,
+        layer=0,
+    )
 
     if len(ghb_rec) > 0:
         ghb = flopy.mf6.ModflowGwfghb(
@@ -427,6 +414,12 @@ def sto(
             sts_spd = None
             trn_spd = {0: True}
 
+        if "sy" in ds:
+            sy = ds["sy"].data
+
+        if "ss" in ds:
+            ss = ds["ss"].data
+
         sto = flopy.mf6.ModflowGwfsto(
             gwf,
             pname=pname,
@@ -465,11 +458,7 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
         chd package
     """
     # get the stress_period_data
-    if ds.gridtype == "structured":
-        chd_rec = mdims.data_array_3d_to_rec_list(ds, ds[chd] != 0, col1=head)
-    elif ds.gridtype == "vertex":
-        cellids = np.where(ds[chd])
-        chd_rec = list(zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0])))
+    chd_rec = mdims.da_to_rec_list(ds, ds[chd] != 0, col1=head)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -506,24 +495,14 @@ def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs)
 
     ds.attrs["surface_drn_cond"] = surface_drn_cond
     mask = ds["ahn"].notnull()
-    if ds.gridtype == "structured":
-        drn_rec = mdims.data_array_2d_to_rec_list(
-            ds,
-            mask,
-            col1="ahn",
-            first_active_layer=True,
-            only_active_cells=False,
-            col2=ds.surface_drn_cond,
-        )
-    elif ds.gridtype == "vertex":
-        drn_rec = mdims.data_array_1d_vertex_to_rec_list(
-            ds,
-            mask,
-            col1="ahn",
-            col2=ds.surface_drn_cond,
-            first_active_layer=True,
-            only_active_cells=False,
-        )
+    drn_rec = mdims.da_to_rec_list(
+        ds,
+        mask,
+        col1="ahn",
+        col2=ds.surface_drn_cond,
+        first_active_layer=True,
+        only_active_cells=False,
+    )
 
     drn = flopy.mf6.ModflowGwfdrn(
         gwf,

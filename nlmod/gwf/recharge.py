@@ -43,22 +43,9 @@ def model_datasets_to_rch(gwf, ds, print_input=False, pname="rch", **kwargs):
     # get stress period data
     if ds.time.steady_state:
         mask = ds["recharge"] != 0
-        if ds.gridtype == "structured":
-            rch_spd_data = mdims.data_array_2d_to_rec_list(
-                ds,
-                mask,
-                col1="recharge",
-                first_active_layer=True,
-                only_active_cells=False,
-            )
-        elif ds.gridtype == "vertex":
-            rch_spd_data = mdims.data_array_1d_vertex_to_rec_list(
-                ds,
-                mask,
-                col1="recharge",
-                first_active_layer=True,
-                only_active_cells=False,
-            )
+        rch_spd_data = mdims.da_to_rec_list(
+            ds, mask, col1="recharge", first_active_layer=True, only_active_cells=False
+        )
 
         # create rch package
         rch = flopy.mf6.ModflowGwfrch(
@@ -133,7 +120,7 @@ def model_datasets_to_rch(gwf, ds, print_input=False, pname="rch", **kwargs):
             rch_unique_dic[f"rch_{i}"] = unique_rch
 
         mask = ds["rch_name"] != ""
-        rch_spd_data = mdims.data_array_2d_to_rec_list(
+        rch_spd_data = mdims.da_to_rec_list(
             ds,
             mask,
             col1="rch_name",
@@ -164,7 +151,7 @@ def model_datasets_to_rch(gwf, ds, print_input=False, pname="rch", **kwargs):
             rch_unique_dic[f"rch_{i}"] = unique_rch
 
         mask = ds["rch_name"] != ""
-        rch_spd_data = mdims.data_array_1d_vertex_to_rec_list(
+        rch_spd_data = mdims.da_to_rec_list(
             ds,
             mask,
             col1="rch_name",
@@ -215,3 +202,7 @@ def model_datasets_to_rch(gwf, ds, print_input=False, pname="rch", **kwargs):
             )
 
     return rch
+
+
+def model_datasets_to_evt(gwf, ds, print_input=False, pname="evt", **kwargs):
+    pass

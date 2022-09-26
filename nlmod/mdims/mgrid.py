@@ -385,7 +385,6 @@ def lrc_to_rec_list(
     rec_list : list of tuples
         every row consist of ((layer,row,column), col1, col2, col3).
     """
-
     if col1 is None:
         rec_list = list(zip(zip(layers, rows, columns)))
     elif (col1 is not None) and col2 is None:
@@ -402,159 +401,6 @@ def lrc_to_rec_list(
         rec_list = list(zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst))
     else:
         raise ValueError("invalid combination of values for col1, col2 and col3")
-
-    return rec_list
-
-
-def data_array_3d_to_rec_list(
-    ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
-):
-    """Create a rec list for stress period data from a model dataset.
-
-    Used for structured grids.
-
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        dataset with model data and dimensions (layer, y, x)
-    mask : xarray.DataArray for booleans
-        True for the cells that will be used in the rec list.
-    col1 : str, int or float, optional
-        1st column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column)) for each row.
-
-        col1 should be the following value for each package (can also be the
-            name of a timeseries):
-            rch: recharge [L/T]
-            ghb: head [L]
-            drn: drain level [L]
-            chd: head [L]
-            riv: stage [L]
-
-    col2 : str, int or float, optional
-        2nd column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column), col1) for each row.
-
-        col2 should be the following value for each package (can also be the
-            name of a timeseries):
-            ghb: conductance [L^2/T]
-            drn: conductance [L^2/T]
-            riv: conductance [L^2/T]
-
-    col3 : str, int or float, optional
-        3th column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column), col1, col2) for each row.
-
-        col3 should be the following value for each package (can also be the
-            name of a timeseries):
-            riv: river bottom [L]
-
-    only_active_cells : bool, optional
-        If True an extra mask is used to only include cells with an idomain
-        of 1. The default is True.
-
-    Returns
-    -------
-    rec_list : list of tuples
-        every row consist of ((layer,row,column), col1, col2, col3).
-    """
-    if only_active_cells:
-        cellids = np.where((mask) & (ds["idomain"] == 1))
-    else:
-        cellids = np.where(mask)
-
-    layers = cellids[0]
-    rows = cellids[1]
-    columns = cellids[2]
-
-    rec_list = lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
-
-    return rec_list
-
-
-def data_array_2d_to_rec_list(
-    ds,
-    mask,
-    col1=None,
-    col2=None,
-    col3=None,
-    layer=0,
-    first_active_layer=False,
-    only_active_cells=True,
-):
-    """Create a rec list for stress period data from a model dataset.
-
-    Used for structured grids.
-
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        dataset with model data and dimensions (layer, y, x)
-    mask : xarray.DataArray for booleans
-        True for the cells that will be used in the rec list.
-    col1 : str, int or float, optional
-        1st column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column)) for each row.
-
-        col1 should be the following value for each package (can also be the
-            name of a timeseries):
-            rch: recharge [L/T]
-            ghb: head [L]
-            drn: drain level [L]
-            chd: head [L]
-
-    col2 : str, int or float, optional
-        2nd column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column), col1) for each row.
-
-        col2 should be the following value for each package (can also be the
-            name of a timeseries):
-            ghb: conductance [L^2/T]
-            drn: conductance [L^2/T]
-
-    col3 : str, int or float, optional
-        3th column of the rec_list, if None the rec_list will be a list with
-        ((layer,row,column), col1, col2) for each row.
-
-        col3 should be the following value for each package (can also be the
-            name of a timeseries):
-    layer : int, optional
-        layer used in the rec_list. Not used if first_active_layer is True.
-        default is 0
-    first_active_layer : bool, optional
-        If True an extra mask is applied to use the first active layer of each
-        cell in the grid. The default is False.
-    only_active_cells : bool, optional
-        If True an extra mask is used to only include cells with an idomain
-        of 1. The default is True.
-
-    Returns
-    -------
-    rec_list : list of tuples
-        every row consist of ((layer,row,column), col1, col2, col3).
-    """
-
-    if first_active_layer:
-        if "first_active_layer" not in ds:
-            ds["first_active_layer"] = get_first_active_layer_from_idomain(
-                ds["idomain"]
-            )
-
-        cellids = np.where((mask) & (ds["first_active_layer"] != ds.nodata))
-        layers = col_to_list("first_active_layer", ds, cellids)
-    elif only_active_cells:
-        cellids = np.where((mask) & (ds["idomain"][layer] == 1))
-        layers = col_to_list(layer, ds, cellids)
-    else:
-        cellids = np.where(mask)
-        layers = col_to_list(layer, ds, cellids)
-
-    rows = cellids[-2]
-    columns = cellids[-1]
-
-    rec_list = lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
 
     return rec_list
 
@@ -631,69 +477,7 @@ def lcid_to_rec_list(layers, cellids, ds, col1=None, col2=None, col3=None):
     return rec_list
 
 
-def data_array_2d_vertex_to_rec_list(
-    ds, mask, col1=None, col2=None, col3=None, only_active_cells=True
-):
-    """Create a rec list for stress period data from a model dataset.
-
-    Used for vertex grids.
-
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        dataset with model data and dimensions (layer, icell2d)
-    mask : xarray.DataArray for booleans
-        True for the cells that will be used in the rec list.
-    col1 : str, int or float, optional
-        1st column of the rec_list, if None the rec_list will be a list with
-        ((layer,icell2d)) for each row.
-
-        col1 should be the following value for each package (can also be the
-            name of a timeseries):
-            rch: recharge [L/T]
-            ghb: head [L]
-            drn: drain level [L]
-            chd: head [L]
-
-    col2 : str, int or float, optional
-        2nd column of the rec_list, if None the rec_list will be a list with
-        (((layer,icell2d), col1) for each row.
-
-        col2 should be the following value for each package (can also be the
-            name of a timeseries):
-            ghb: conductance [L^2/T]
-            drn: conductance [L^2/T]
-
-    col3 : str, int or float, optional
-        3th column of the rec_list, if None the rec_list will be a list with
-        (((layer,icell2d), col1, col2) for each row.
-
-        col3 should be the following value for each package (can also be the
-            name of a timeseries):
-            riv: bottom [L]
-    only_active_cells : bool, optional
-        If True an extra mask is used to only include cells with an idomain
-        of 1. The default is True.
-
-    Returns
-    -------
-    rec_list : list of tuples
-        every row consist of ((layer,row,column), col1, col2, col3).
-    """
-    if only_active_cells:
-        cellids = np.where((mask) & (ds["idomain"] == 1))
-    else:
-        cellids = np.where(mask)
-
-    layers = cellids[0]
-
-    rec_list = lcid_to_rec_list(layers, cellids, ds, col1, col2, col3)
-
-    return rec_list
-
-
-def data_array_1d_vertex_to_rec_list(
+def da_to_rec_list(
     ds,
     mask,
     col1=None,
@@ -716,7 +500,7 @@ def data_array_1d_vertex_to_rec_list(
         True for the cells that will be used in the rec list.
     col1 : str, int or float, optional
         1st column of the rec_list, if None the rec_list will be a list with
-        ((layer,icell2d)) for each row.
+        (cellid,) for each row.
 
         col1 should be the following value for each package (can also be the
             name of a timeseries):
@@ -727,7 +511,7 @@ def data_array_1d_vertex_to_rec_list(
 
     col2 : str, int or float, optional
         2nd column of the rec_list, if None the rec_list will be a list with
-        (((layer,icell2d), col1) for each row.
+        (cellid, col1) for each row.
 
         col2 should be the following value for each package (can also be the
             name of a timeseries):
@@ -736,17 +520,18 @@ def data_array_1d_vertex_to_rec_list(
 
     col3 : str, int or float, optional
         3th column of the rec_list, if None the rec_list will be a list with
-        (((layer,icell2d), col1, col2) for each row.
+        (cellid, col1, col2) for each row.
 
         col3 should be the following value for each package (can also be the
             name of a timeseries):
             riv: bottom [L]
     layer : int, optional
-        layer used in the rec_list. Not used if first_active_layer is True.
-        default is 0
+        layer used in the rec_list. Not used if layer is in the dimensions of
+        mask or if first_active_layer is True. The default is 0
     first_active_layer : bool, optional
         If True an extra mask is applied to use the first active layer of each
-        cell in the grid. The default is False.
+        cell in the grid. Not used if layer is in the dimensions of mask. The
+        default is False.
     only_active_cells : bool, optional
         If True an extra mask is used to only include cells with an idomain
         of 1. The default is True.
@@ -756,19 +541,43 @@ def data_array_1d_vertex_to_rec_list(
     rec_list : list of tuples
         every row consist of ((layer,icell2d), col1, col2, col3).
     """
-    if first_active_layer:
-        cellids = np.where((mask) & (ds["first_active_layer"] != ds.nodata))
-        layers = col_to_list("first_active_layer", ds, cellids)
-    elif only_active_cells:
-        cellids = np.where((mask) & (ds["idomain"][layer] == 1))
-        layers = col_to_list(layer, ds, cellids)
+    if "layer" in mask.dims:
+        if only_active_cells:
+            cellids = np.where((mask) & (ds["idomain"] == 1))
+        else:
+            cellids = np.where(mask)
+
+        if "icell2d" in mask.dims:
+            layers = cellids[0]
+            return lcid_to_rec_list(layers, cellids, ds, col1, col2, col3)
+        else:
+            layers = cellids[0]
+            rows = cellids[1]
+            columns = cellids[2]
+            return lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
     else:
-        cellids = np.where(mask)
-        layers = col_to_list(layer, ds, cellids)
+        if first_active_layer:
+            if "first_active_layer" not in ds:
+                ds["first_active_layer"] = get_first_active_layer_from_idomain(
+                    ds["idomain"]
+                )
 
-    rec_list = lcid_to_rec_list(layers, cellids, ds, col1, col2, col3)
+            cellids = np.where((mask) & (ds["first_active_layer"] != ds.nodata))
+            layers = col_to_list("first_active_layer", ds, cellids)
+        elif only_active_cells:
+            cellids = np.where((mask) & (ds["idomain"][layer] == 1))
+            layers = col_to_list(layer, ds, cellids)
+        else:
+            cellids = np.where(mask)
+            layers = col_to_list(layer, ds, cellids)
 
-    return rec_list
+        if "icell2d" in mask.dims:
+            return lcid_to_rec_list(layers, cellids, ds, col1, col2, col3)
+        else:
+            rows = cellids[-2]
+            columns = cellids[-1]
+
+            return lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
 
 
 def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):

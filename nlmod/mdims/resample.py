@@ -167,6 +167,14 @@ def resample_dataset_to_structured_grid(
         cell size along rows of the desired grid (dx).
     delc : int or float
         cell size along columns of the desired grid (dy).
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid only used if angrot != 0.
+        Default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid only used if angrot != 0.
+        Default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees, default is 0.0
     method : str, optional
         type of interpolation used to resample. Sea structured_da_to_ds for
         possible values of method. The default is 'nearest'.

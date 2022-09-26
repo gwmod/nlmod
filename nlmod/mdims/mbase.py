@@ -106,11 +106,17 @@ def to_model_ds(
         use this value for kh if there is no data in regis. The default is 1.0.
     fill_value_kv : int or float, optional
         use this value for kv if there is no data in regis. The default is 1.0.
-
-    Raises
-    ------
-    ValueError
-        if the supplied extent does not fit delr and delc
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid only used if angrot != 0.
+        Default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid only used if angrot != 0.
+        Default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees, default is 0.0
+    drop_attributes : bool, optional
+        if True drop the attributes from the layer model dataset. Otherwise
+        keep the attributes. Default is True
 
     Returns
     -------
@@ -233,6 +239,11 @@ def get_default_ds(
         The gridsize along columns. The default is 100. meter.
     delc : float, optional
         The gridsize along rows. Set to delr when None. The default is None.
+    model_name : str, optional
+        name of the model. THe default is None
+    model_ws : str, optional
+        workspace of the model. This is where modeldata is saved to. The
+        default is None
     layer : int, list, tuple or ndarray, optional
         The layers of the model. When layer is an integer it is the number of
         layers. The default is 10.

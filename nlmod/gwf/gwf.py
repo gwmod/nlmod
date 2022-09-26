@@ -257,8 +257,9 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    icelltype : int, optional
-        celltype. The default is 0.
+    icelltype : int or str, optional
+        celltype, if int the icelltype for all layer, if str the icelltype from
+        the model ds is used. The default is 0.
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by
         cell flows should be saved to the cbb file. Default is False
@@ -275,6 +276,8 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     npf : flopy ModflowGwfnpf
         npf package.
     """
+    if isinstance(icelltype, str):
+        icelltype = ds[icelltype]
 
     npf = flopy.mf6.ModflowGwfnpf(
         gwf,

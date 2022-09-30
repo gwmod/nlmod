@@ -88,6 +88,7 @@ def test_download_waterlopen(plot=True):
             if str(e) == f"{data_kind} not available for {wb}":
                 print(e)
             else:
+                print(e)
                 raise
 
     if plot:

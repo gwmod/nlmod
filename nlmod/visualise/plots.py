@@ -384,17 +384,10 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
     if "icell2d" in da.dims:
         if ds is None:
             raise (Exception("Supply model dataset (ds) for grid information"))
-        xy = np.column_stack((ds["xv"].data, ds["yv"].data))
-        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-            affine = get_affine_mod_to_world(ds)
-            xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
-        icvert = ds["icvert"].data
-        nodata = ds["icvert"].attrs["_FillValue"]
-        patches = [
-            Polygon(xy[icvert[icell2d, icvert[icell2d] != nodata]])
-            for icell2d in ds.icell2d.data
-        ]
-
+        if isinstance(ds, list):
+            patches = ds
+        else:
+            patches = get_patches(ds)
         pc = PatchCollection(patches, **kwargs)
         pc.set_array(da)
         ax.add_collection(pc)
@@ -406,6 +399,22 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
             affine = get_affine_mod_to_world(ds)
             x, y = affine * np.meshgrid(x, y)
         return ax.pcolormesh(x, y, da, shading="nearest", **kwargs)
+
+
+def get_patches(ds, rotated=False):
+    """Get the matplotlib patches for a vertex grid, which can be used in da()"""
+    assert "icell2d" in ds.dims
+    xy = np.column_stack((ds["xv"].data, ds["yv"].data))
+    if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        affine = get_affine_mod_to_world(ds)
+        xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
+    icvert = ds["icvert"].data
+    nodata = ds["icvert"].attrs["_FillValue"]
+    patches = [
+        Polygon(xy[icvert[icell2d, icvert[icell2d] != nodata]])
+        for icell2d in ds.icell2d.data
+    ]
+    return patches
 
 
 def get_map(
@@ -429,9 +438,9 @@ def get_map(
         The size of the figure, in inches. The default is 10, which means the
         figsize is determined automatically.
     nrows : int, optional
-        THe number of rows. The default is 1.
+        The number of rows. The default is 1.
     ncols : int, optional
-        THe number of columns. The default is 1.
+        The number of columns. The default is 1.
     base : float, optional
         The interval for ticklabels on the x- and y-axis. The default is 1000.
         m.
@@ -526,3 +535,26 @@ def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None, bounds=None, *
         cax.yaxis.tick_left()
         cax.yaxis.set_label_position("left")
     return cb
+
+
+def title_inside(
+    title,
+    ax=None,
+    x=0.5,
+    y=0.98,
+    horizontalalignment="center",
+    verticalalignment="top",
+    **kwargs,
+):
+    """ "Place a title inside a matplotlib axes, at the top"""
+    if ax is None:
+        ax = plt.gca()
+    return ax.text(
+        x,
+        y,
+        title,
+        horizontalalignment=horizontalalignment,
+        verticalalignment=verticalalignment,
+        transform=ax.transAxes,
+        **kwargs,
+    )

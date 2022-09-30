@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_recharge(ds, nodata=None):
+def get_recharge(ds, method="linear", nodata=None):
     """add multiple recharge packages to the groundwater flow model with knmi
     data by following these steps:
 
@@ -36,6 +36,10 @@ def get_recharge(ds, nodata=None):
     ----------
     ds : xr.DataSet
         dataset containing relevant model grid information
+    method : bool, optional
+        If 'linear', calculate recharge by subtracting evaporation from precipitation.
+        If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
+        The defaults is 'linear'.
     nodata : int, optional
         if the first_active_layer data array in ds has this value,
         it means this cell is inactive in all layers. If nodata is None the
@@ -51,9 +55,8 @@ def get_recharge(ds, nodata=None):
         nodata = ds.nodata
 
     start = pd.Timestamp(ds.time.attrs["start_time"])
-    end = pd.Timestamp(ds.time.data[-1])
     # include the end day in the time series.
-    end = end + pd.Timedelta(1, "D")
+    end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
 
     ds_out = util.get_ds_empty(ds)
 
@@ -66,7 +69,6 @@ def get_recharge(ds, nodata=None):
         dims = dims + ("time",)
 
     shape = [len(ds_out[dim]) for dim in dims]
-    ds_out["recharge"] = dims, np.zeros(shape)
 
     locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(
         ds, start=start, end=end, nodata=nodata
@@ -80,64 +82,84 @@ def get_recharge(ds, nodata=None):
         oc_knmi_evap
     )
 
-    # find unique combination of precipitation and evaporation station
-    unique_combinations = locations.drop_duplicates(["prec_point", "evap_point"])[
-        ["prec_point", "evap_point"]
-    ].values
+    if method in ["linear"]:
+        ds_out["recharge"] = dims, np.zeros(shape)
 
-    for prec_evap in unique_combinations:
-        # get locations with the same prec and evap station
-        loc_sel = locations.loc[
-            (locations["prec_point"] == prec_evap[0])
-            & (locations["evap_point"] == prec_evap[1])
-        ]
+        # find unique combination of precipitation and evaporation station
+        unique_combinations = locations.drop_duplicates(["prec_point", "evap_point"])[
+            ["prec_point", "evap_point"]
+        ].values
 
-        # calculate recharge time series
-        prec = oc_knmi_prec.loc[prec_evap[0], "obs"]["RD"]
-        evap = oc_knmi_evap.loc[prec_evap[1], "obs"]["EV24"]
-        recharge_ts = (prec - evap).dropna()
+        for prec_stn, evap_stn in unique_combinations:
+            # get locations with the same prec and evap station
+            loc_sel = locations.loc[
+                (locations["prec_point"] == prec_stn)
+                & (locations["evap_point"] == evap_stn)
+            ]
 
-        if recharge_ts.index[-1] < (end - pd.Timedelta(1, unit="D")):
-            raise ValueError(
-                f"no recharge available at precipitation stations {prec_evap[0]} and evaporation station {prec_evap[1]} for date {end}"
-            )
+            # calculate recharge time series
+            prec = oc_knmi_prec.loc[prec_stn, "obs"]["RD"]
+            evap = oc_knmi_evap.loc[evap_stn, "obs"]["EV24"]
+            ts = (prec - evap).dropna()
+            ts.name = f"{prec.name}-{evap.name}"
 
-        # fill recharge data array
-        if ds.time.steady_state:
-            rch_average = recharge_ts.mean()
-            if ds.gridtype == "structured":
-                # add data to ds_out
-                for row, col in zip(loc_sel.row, loc_sel.col):
-                    ds_out["recharge"].data[row, col] = rch_average
-            elif ds.gridtype == "vertex":
-                # add data to ds_out
-                ds_out["recharge"].loc[loc_sel.index] = rch_average
-        else:
-            model_recharge = pd.Series(index=ds.time.data, dtype=float)
-            for j, ts in enumerate(model_recharge.index):
-                if j < (len(model_recharge) - 1):
-                    model_recharge.loc[ts] = (
-                        recharge_ts.loc[ts : model_recharge.index[j + 1]]
-                        .iloc[:-1]
-                        .mean()
-                    )
-                else:
-                    model_recharge.loc[ts] = recharge_ts.loc[ts:end].iloc[:-1].mean()
+            _add_ts_to_ds(ts, loc_sel, "recharge", ds_out)
 
-            # add data to ds_out
-            if ds.gridtype == "structured":
-                for row, col in zip(loc_sel.row, loc_sel.col):
-                    ds_out["recharge"].data[row, col, :] = model_recharge.values
-
-            elif ds.gridtype == "vertex":
-                ds_out["recharge"].loc[loc_sel.index, :] = model_recharge.values
-
+    elif method == "separate":
+        ds_out["recharge"] = dims, np.zeros(shape)
+        for stn in locations["prec_point"].unique():
+            ts = oc_knmi_prec.loc[stn, "obs"]["RD"]
+            loc_sel = locations.loc[(locations["prec_point"] == stn)]
+            _add_ts_to_ds(ts, loc_sel, "recharge", ds_out)
+        ds_out["evaporation"] = dims, np.zeros(shape)
+        for stn in locations["evap_point"].unique():
+            ts = oc_knmi_evap.loc[stn, "obs"]["EV24"]
+            loc_sel = locations.loc[(locations["evap_point"] == stn)]
+            _add_ts_to_ds(ts, loc_sel, "evaporation", ds_out)
+    else:
+        raise (Exception(f"Unknown method: {method}"))
     for datavar in ds_out:
         ds_out[datavar].attrs["source"] = "KNMI"
         ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
         ds_out[datavar].attrs["units"] = "m/day"
 
     return ds_out
+
+
+def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
+    """Add a timeseries to a variable at location loc_sel in model DataSet"""
+    end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
+    if timeseries.index[-1] < pd.Timestamp(ds.time.data[-1]):
+        raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
+
+    # fill recharge data array
+    if ds.time.steady_state:
+        rch_average = timeseries.mean()
+        if ds.gridtype == "structured":
+            # add data to ds
+            for row, col in zip(loc_sel.row, loc_sel.col):
+                ds[variable].data[row, col] = rch_average
+        elif ds.gridtype == "vertex":
+            # add data to ds
+            ds[variable].loc[loc_sel.index] = rch_average
+    else:
+        model_recharge = pd.Series(index=ds.time.data, dtype=float)
+        for j, ts in enumerate(model_recharge.index):
+            if j < (len(model_recharge) - 1):
+                model_recharge.loc[ts] = (
+                    timeseries.loc[ts : model_recharge.index[j + 1]].iloc[:-1].mean()
+                )
+            else:
+
+                model_recharge.loc[ts] = timeseries.loc[ts:end].iloc[:-1].mean()
+
+        # add data to ds
+        if ds.gridtype == "structured":
+            for row, col in zip(loc_sel.row, loc_sel.col):
+                ds[variable].data[row, col, :] = model_recharge.values
+
+        elif ds.gridtype == "vertex":
+            ds[variable].loc[loc_sel.index, :] = model_recharge.values
 
 
 def get_locations_vertex(ds, nodata=-999):

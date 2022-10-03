@@ -544,6 +544,30 @@ def rch(ds, gwf, pname="rch", **kwargs):
     return rch
 
 
+def evt(ds, gwf, pname="evt", **kwargs):
+    """get evapotranspiration package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    evt : flopy ModflowGwfevt
+        rch package
+    """
+
+    # create recharge package
+    evt = recharge.model_datasets_to_evt(gwf, ds, pname=pname, **kwargs)
+
+    return evt
+
+
 def oc(
     ds, gwf, save_head=False, save_budget=True, print_head=True, pname="oc", **kwargs
 ):

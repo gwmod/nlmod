@@ -278,7 +278,7 @@ def col_to_list(col_in, ds, cellids):
 
     Parameters
     ----------
-    col_in : str, int or float
+    col_in : xarray.DatArray, str, int or float
         if col_in is a str type it is the name of the column in ds.
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
@@ -304,20 +304,22 @@ def col_to_list(col_in, ds, cellids):
     """
 
     if isinstance(col_in, str):
+        col_in = ds[col_in]
+    if isinstance(col_in, xr.DataArray):
         if len(cellids) == 3:
             # 3d grid
             col_lst = [
-                ds[col_in].data[lay, row, col]
+                col_in.data[lay, row, col]
                 for lay, row, col in zip(cellids[0], cellids[1], cellids[2])
             ]
         elif len(cellids) == 2:
             # 2d grid or vertex 3d grid
             col_lst = [
-                ds[col_in].data[row, col] for row, col in zip(cellids[0], cellids[1])
+                col_in.data[row, col] for row, col in zip(cellids[0], cellids[1])
             ]
         elif len(cellids) == 1:
             # 2d vertex grid
-            col_lst = ds[col_in].data[cellids[0]]
+            col_lst = col_in.data[cellids[0]]
         else:
             raise ValueError(f"could not create a column list for col_in={col_in}")
     else:

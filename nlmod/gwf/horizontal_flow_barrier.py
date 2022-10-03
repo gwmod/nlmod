@@ -235,15 +235,27 @@ def plot_hfb(cellids, gwf, ax=None):
     """
     if ax is None:
         _, ax = plt.subplots()
-
-    if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
-        spd = cellids.stress_period_data.data[0]
-        cellids = [[line[0][1], line[1][1]] for line in spd]
-
-    for line in cellids:
-        pc1 = Polygon(gwf.modelgrid.get_cell_vertices(line[0]))
-        pc2 = Polygon(gwf.modelgrid.get_cell_vertices(line[1]))
-        x, y = pc1.intersection(pc2).xy
-        ax.plot(x, y, color="red")
+    
+    if gwf.modelgrid.grid_type == 'structured':
+        if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
+            spd = cellids.stress_period_data.data[0]
+            cellids = [[row[0][1:], row[1][1:]] for row in cellids.stress_period_data.array[0]]
+        for line in cellids:
+            pc1 = Polygon(gwf.modelgrid.get_cell_vertices(*line[0]))
+            pc2 = Polygon(gwf.modelgrid.get_cell_vertices(*line[1]))
+            x, y = pc1.intersection(pc2).xy
+            ax.plot(x, y, color="red")
+            
+    elif gwf.modelgrid.grid_type == 'vertex':
+        if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
+            spd = cellids.stress_period_data.data[0]
+            cellids = [[line[0][1], line[1][1]] for line in spd]
+        for line in cellids:
+            pc1 = Polygon(gwf.modelgrid.get_cell_vertices(line[0]))
+            pc2 = Polygon(gwf.modelgrid.get_cell_vertices(line[1]))
+            x, y = pc1.intersection(pc2).xy
+            ax.plot(x, y, color="red")
+    else:
+        raise ValueError(f'not supported gridtype -> {gwf.modelgrid.grid_type}')
 
     return ax

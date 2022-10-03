@@ -196,25 +196,25 @@ def _get_unique_series(ds, var, pname):
     """
     """"""
     rch_name = xr.full_like(ds["top"], "", dtype="U13")
-    # transient recharge
+    # transient
     if ds.gridtype == "structured":
-        if len(ds["recharge"].dims) != 3:
+        if len(ds[var].dims) != 3:
             raise ValueError(
                 "expected dataarray with 3 dimensions"
-                f'(time, y and x) or (y, x and time), not {ds["recharge"].dims}'
+                f"(time, y and x) or (y, x and time), not {ds[var].dims}"
             )
-        recharge = ds["recharge"].transpose("y", "x", "time").data
+        recharge = ds[var].transpose("y", "x", "time").data
         shape = (ds.dims["y"] * ds.dims["x"], ds.dims["time"])
         rch_2d_arr = recharge.reshape(shape)
 
     elif ds.gridtype == "vertex":
         # dimension check
-        if len(ds["recharge"].dims) != 2:
+        if len(ds[var].dims) != 2:
             raise ValueError(
                 "expected dataarray with 2 dimensions"
-                f'(time, icell2d) or (icell2d, time), not {ds["recharge"].dims}'
+                f"(time, icell2d) or (icell2d, time), not {ds[var].dims}"
             )
-        rch_2d_arr = ds["recharge"].transpose("icell2d", "time").data
+        rch_2d_arr = ds[var].transpose("icell2d", "time").data
 
     rch_unique_arr = np.unique(rch_2d_arr, axis=0)
     rch_unique_dic = {}

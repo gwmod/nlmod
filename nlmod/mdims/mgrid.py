@@ -69,7 +69,7 @@ def modelgrid_from_ds(ds, rotated=True):
     modelgrid : StructuredGrid, VertexGrid
         grid information.
     """
-    if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+    if rotated and ("angrot" in ds.attrs) and (ds.attrs["angrot"] != 0.0):
         xoff = ds.attrs["xorigin"]
         yoff = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
@@ -978,6 +978,8 @@ def gdf2grid(
                 gdf = affine_transform_gdf(gdf, affine)
         else:
             modelgrid = ml.modelgrid
+            if modelgrid.angrot != 0:
+                raise NotImplementedError('please use a model dataset instead of a model')
 
     if ix is None:
         ix = flopy.utils.GridIntersect(modelgrid, method=method)

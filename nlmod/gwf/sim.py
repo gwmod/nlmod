@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_tdis_perioddata(ds):
-    """Get tdis_perioddata from ds.
+    """Get tdis_perioddata from ds. 
 
     Parameters
     ----------
@@ -41,7 +41,17 @@ def get_tdis_perioddata(ds):
     ]
     if len(ds["time"]) > 1:
         perlen.extend(np.diff(ds["time"]) / deltat)
-    tdis_perioddata = [(p, ds.time.nstp, ds.time.tsmult) for p in perlen]
+        if 'nstp' in ds:
+            nstp = ds['nstp'].values
+        else:
+            nstp = [ds.time.nstp] * len(perlen)
+        
+        if 'tsmult' in ds:
+            tsmult = ds['tsmult'].values
+        else:
+            tsmult = [ds.time.tsmult] * len(perlen)
+                
+    tdis_perioddata = [(p, n, t) for p, n, t in zip(perlen, nstp, tsmult)]
 
     return tdis_perioddata
 

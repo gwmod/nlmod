@@ -1038,7 +1038,9 @@ def get_thickness_from_topbot(top, bot):
     return thickness
 
 
-def get_vertices(ds, modelgrid=None, vert_per_cid=4, rotated=False):
+
+def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, 
+                     epsilon=0, rotated=False):
     """get vertices of a vertex modelgrid from a ds or the modelgrid.
     Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
@@ -1062,10 +1064,14 @@ def get_vertices(ds, modelgrid=None, vert_per_cid=4, rotated=False):
 
         if vert_per_cid is 4 or 5 vertices are removed using the
         Ramer-Douglas-Peucker Algorithm -> https://github.com/fhirschmann/rdp.
+    epsilon : int or float, optional
+        epsilon in the rdp algorithm. I (Onno) think this is: the maximum
+        distance between a line and a point for which the point is considered
+        to be on the line. The default is 0.
 
     Returns
     -------
-    vertices_da : xarray DataArray
+    vertices_arr : numpy array
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
 
@@ -1076,15 +1082,68 @@ def get_vertices(ds, modelgrid=None, vert_per_cid=4, rotated=False):
     xvert = modelgrid.xvertices
     yvert = modelgrid.yvertices
     if vert_per_cid == 4:
-        vertices_arr = np.array(
-            [rdp(list(zip(xvert[i], yvert[i])))[:-1] for i in range(len(xvert))]
-        )
+        coord_list = []
+        for xv,yv in zip(xvert, yvert):
+            coords = rdp(list(zip(xv, yv)), epsilon=epsilon)[:-1]
+            if len(coords) > 4:
+                raise RuntimeError('unexpected number of coördinates, you probably want to change epsilon')
+            coord_list.append(coords)
+        vertices_arr = np.array(coord_list)
     elif vert_per_cid == 5:
-        vertices_arr = np.array(
-            [rdp(list(zip(xvert[i], yvert[i]))) for i in range(len(xvert))]
-        )
+        coord_list = []
+        for xv,yv in zip(xvert, yvert):
+            coords = rdp(list(zip(xv, yv)), epsilon=epsilon)
+            if len(coords) > 5:
+                raise RuntimeError('unexpected number of coördinates, you probably want to change epsilon')
+            coord_list.append(coords)
+        vertices_arr = np.array(coord_list)
     else:
         raise NotImplementedError()
+
+    return vertices_arr
+
+
+def get_vertices(ds, modelgrid=None, vert_per_cid=4, 
+                 epsilon=0, rotated=False):
+    """get vertices of a vertex modelgrid from a ds or the modelgrid.
+    Only return the 4 corners of each cell and not the corners of
+    adjacent cells thus limiting the vertices per cell to 4 points.
+
+    This method uses the xvertices and yvertices attributes of the modelgrid.
+    When no modelgrid is supplied, a modelgrid-object is created from ds.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model dataset, attribute grid_type should be 'vertex'
+    modelgrid : flopy.discretization.vertexgrid.VertexGrid
+        vertex grid with attributes xvertices and yvertices.
+    vert_per_cid : int or None:
+        number of vertices per cell:
+        - 4 return the 4 vertices of each cell
+        - 5 return the 4 vertices of each cell + one duplicate vertex
+        (sometimes useful if you want to create polygons)
+        - anything else, the maximum number of vertices. For locally refined
+        cells this includes all the vertices adjacent to the cell.
+
+        if vert_per_cid is 4 or 5 vertices are removed using the
+        Ramer-Douglas-Peucker Algorithm -> https://github.com/fhirschmann/rdp.
+    epsilon : int or float, optional
+        epsilon in the rdp algorithm. I (Onno) think this is: the maximum
+        distance between a line and a point for which the point is considered
+        to be on the line. The default is 0.
+
+    Returns
+    -------
+    vertices_da : xarray DataArray
+         Vertex coördinates per cell with dimensions(cid, no_vert, 2).
+    """
+
+    # obtain
+
+    vertices_arr = get_vertices_arr(ds, modelgrid=modelgrid, 
+                                    vert_per_cid=vert_per_cid, 
+                                    epsilon=epsilon, rotated=rotated)
 
     vertices_da = xr.DataArray(
         vertices_arr,

@@ -8,7 +8,7 @@ from matplotlib.collections import LineCollection, PatchCollection
 from shapely.geometry import Point, LineString, Polygon
 from shapely.strtree import STRtree
 
-from ..mdims import get_vertices
+from .. import mdims
 
 
 class DatasetCrossSection:
@@ -31,6 +31,8 @@ class DatasetCrossSection:
         y="y",
         layer="layer",
         icell2d="icell2d",
+        epsilon=1e-8,
+        vertices=None,
     ):
         if ax is None:
             ax = plt.gca()
@@ -46,10 +48,20 @@ class DatasetCrossSection:
             layer = ds[layer].data
         self.layer = layer
         self.icell2d = icell2d
+        
+        if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            self.rotated = True
+        else:
+            self.rotated = False
+            
         # first determine where the cross-section crosses grid-lines
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
-            polygons = [Polygon(x) for x in get_vertices(ds)]
+            if vertices is None:
+                polygons = [Polygon(x) for x in mdims.get_vertices_arr(ds, rotated=self.rotated,
+                                                                       epsilon=epsilon)]
+            else:
+                polygons = [Polygon(x) for x in vertices]
             tree = STRtree(polygons)
             icell2ds = tree.query_items(LineString(line))
             s_cell = []

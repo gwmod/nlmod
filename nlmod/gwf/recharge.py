@@ -42,8 +42,8 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         mask = ds["recharge"] != 0
         recharge = "recharge"
     else:
-        ds["rch_name"], rch_unique_dic = _get_unique_series(ds, "recharge", pname)
-
+        rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
+        ds['rch_name'] = ds['top'].dims, rch_name_arr
         mask = ds["rch_name"] != ""
         recharge = "rch_name"
 
@@ -132,8 +132,9 @@ def model_datasets_to_evt(
         mask = ds["evaporation"] != 0
         rate = "evaporation"
     else:
-        ds["evt_name"], evt_unique_dic = _get_unique_series(ds, "evaporation", pname)
-
+        evt_name_arr, evt_unique_dic = _get_unique_series(ds, "evaporation", pname)
+        ds['evt_name'] = ds['top'].dims, evt_name_arr
+        
         mask = ds["evt_name"] != ""
         rate = "evt_name"
 
@@ -188,14 +189,14 @@ def _get_unique_series(ds, var, pname):
 
     Returns
     -------
-    rch_name : xarray.DataArray
+    rch_name : np.ndarray
         The name of the recharge series for each of the cells.
     rch_unique_dic : dict
         The values of each of the time series.
 
     """
-    """"""
-    rch_name = xr.full_like(ds["top"], "", dtype="U13")
+    rch_name_arr = np.empty_like(ds['top'].values, dtype='U13')
+    
     # transient
     if ds.gridtype == "structured":
         if len(ds[var].dims) != 3:
@@ -220,11 +221,12 @@ def _get_unique_series(ds, var, pname):
     rch_unique_dic = {}
     for i, unique_rch in enumerate(rch_unique_arr):
         mask = (rch_2d_arr == unique_rch).all(axis=1)
-        if len(rch_name.shape) > 1:
-            mask = mask.reshape(rch_name.shape)
-        rch_name.data[mask] = f"{pname}_{i}"
+        if len(rch_name_arr.shape) > 1:
+            mask = mask.reshape(rch_name_arr.shape)
+        rch_name_arr[mask] = f"{pname}_{i}"
         rch_unique_dic[f"{pname}_{i}"] = unique_rch
-    return rch_name, rch_unique_dic
+        
+    return rch_name_arr, rch_unique_dic
 
 
 def _add_time_series(package, rch_unique_dic, ds):

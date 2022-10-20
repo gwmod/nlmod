@@ -568,8 +568,34 @@ def evt(ds, gwf, pname="evt", **kwargs):
     return evt
 
 
+def _set_record(head, budget):
+    record = []
+    if isinstance(head, bool):
+        if head:
+            head = "LAST"
+        else:
+            head = None
+    if head is not None:
+        record.append(("HEAD", head))
+    if isinstance(budget, bool):
+        if budget:
+            budget = "LAST"
+        else:
+            budget = None
+    if budget is not None:
+        record.append(("BUDGET", budget))
+    return record
+
+
 def oc(
-    ds, gwf, save_head=False, save_budget=True, print_head=True, pname="oc", **kwargs
+    ds,
+    gwf,
+    save_head=True,
+    save_budget=True,
+    print_head=False,
+    print_budget=False,
+    pname="oc",
+    **kwargs,
 ):
     """get output control package from model dataset.
 
@@ -592,23 +618,16 @@ def oc(
     head_filerecord = [headfile]
     budgetfile = f"{ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
-    saverecord = [("HEAD", "LAST")]
-    if save_head:
-        saverecord = [("HEAD", "ALL")]
-    if save_budget:
-        saverecord.append(("BUDGET", "ALL"))
-    if print_head:
-        printrecord = [("HEAD", "LAST")]
-    else:
-        printrecord = None
+    saverecord = _set_record(save_head, save_budget)
+    printrecord = _set_record(print_head, print_budget)
 
     oc = flopy.mf6.ModflowGwfoc(
         gwf,
         pname=pname,
         saverecord=saverecord,
+        printrecord=printrecord,
         head_filerecord=head_filerecord,
         budget_filerecord=budget_filerecord,
-        printrecord=printrecord,
         **kwargs,
     )
 

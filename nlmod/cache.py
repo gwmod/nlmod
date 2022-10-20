@@ -280,6 +280,13 @@ def _check_ds(ds, ds2):
     bool
         True if the two datasets have the same grid and time discretization.
     """
+
+    # first remove _FillValue from all coordinates
+    for coord in ds2.coords:
+        if coord in ds.coords:
+            if "_FillValue" in ds2[coord].attrs and "_FillValue" not in ds[coord].attrs:
+                del ds2[coord].attrs["_FillValue"]
+
     for coord in ds2.coords:
         if coord in ds.coords:
             try:

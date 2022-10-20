@@ -458,6 +458,13 @@ def build_spd(
             )
         elif layer_method == "lay_of_rbot":
             mask = (rbot > botm_cell) & (idomain_cell > 0)
+            if not mask.any():
+                # rbot is below the bottom of the model, maybe the stage is above it?
+                mask = (stage > botm_cell) & (idomain_cell > 0)
+                if not mask.any():
+                    raise (
+                        Exception("rbot and stage are below the bottom of the model")
+                    )
             lays = [np.where(mask)[0][0]]
             conds = [cond]
         else:

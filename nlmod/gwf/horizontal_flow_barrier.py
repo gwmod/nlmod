@@ -212,7 +212,9 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     return cellids
 
 
-def polygon_to_hfb(gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100):
+def polygon_to_hfb(
+    gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100, add_data=False
+):
 
     if isinstance(gdf, str):
         da = ds[gdf]
@@ -231,8 +233,12 @@ def polygon_to_hfb(gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100):
             for col in range(len(ds.x) - 1):
                 if data[row, col] != data[row + 1, col]:
                     spd.append([(lay, row, col), (lay, row + 1, col), hydchr])
+                    if add_data:
+                        spd[-1].extend([data[row, col], data[row + 1, col]])
                 if data[row, col] != data[row, col + 1]:
                     spd.append([(lay, row, col), (lay, row, col + 1), hydchr])
+                    if add_data:
+                        spd[-1].extend([data[row, col], data[row, col + 1]])
     else:
         # find connections
         icvert = ds["icvert"].data
@@ -259,6 +265,8 @@ def polygon_to_hfb(gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100):
         # icell2ds = np.array(icell2ds)
         for icell2d1, icell2d2 in icell2ds:
             spd.append([(lay, icell2d1), (lay, icell2d2), hydchr])
+            if add_data:
+                spd[-1].extend([data[icell2d1], data[icell2d2]])
     if gwf is None:
         return spd
     else:

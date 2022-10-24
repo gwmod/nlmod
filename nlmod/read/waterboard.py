@@ -30,6 +30,8 @@ def get_configuration():
         "watercourses": {
             "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Oppervlaktewater_L/MapServer",
             "layer": 8,
+            "bottom_width": "BODEMBREEDTE",
+            "bottom_height": [["BODEMHOOGTE_BOS", "BODEMHOOGTE_BES"]],
         },
         "level_areas": {
             # "server_kind": "wfs",
@@ -249,11 +251,12 @@ def get_configuration():
         "bgt_code": "W0665",
         "watercourses": {
             # "url": "https://maps.waterschaplimburg.nl/arcgis/rest/services/Legger/Leggerwfs/MapServer",
-            # "layer": 1, # primair
+            # "layer": 1,  # primair
             # "layer": 2, # secundair
             "url": "https://maps.waterschaplimburg.nl/arcgis/rest/services/Legger/Legger/MapServer",
             "layer": 22,  # primair
-            # "layer": 24, # secunair
+            # "layer": 23,  # secunair
+            # "layer": 24,  # Waterplas
         },
     }
 
@@ -283,6 +286,8 @@ def get_configuration():
             "layer": 10,
             "index": "OVKIDENT",
             # "f": "json",
+            "bottom_height": ["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"],
+            "bottom_width": "AVVBODDR",
         },
     }
 
@@ -457,7 +462,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         When None, the configuration is retreived from the method
         get_configuration(). The default is None.
     **kwargs : dict
-        OPtional arguments which are passed onto arcrest() or wfs().
+        Optional arguments which are passed onto arcrest() or wfs().
 
     Raises
     ------

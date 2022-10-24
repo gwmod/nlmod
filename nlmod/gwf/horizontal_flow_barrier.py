@@ -107,7 +107,8 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     gwf : flopy.mf6.modflow.mfgwf.ModflowGwf
         grondwater flow model.
     prevent_rings : bool, optional
-        DESCRIPTION. The default is True.
+        Prevent cells with segments on each side when True. Remove the segments whose
+        centroid is farthest from the line. The default is True.
     plot : bool, optional
         If True create a simple plot of the grid cells and shapefile. For a
         more complex plot you can use plot_hfb. The default is False.
@@ -211,7 +212,60 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     return cellids
 
 
-def plot_hfb(cellids, gwf, ax=None):
+def polygon_to_hfb(gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100):
+
+    if isinstance(gdf, str):
+        da = ds[gdf]
+    else:
+        if column is None:
+            column = gdf.index.name
+            if column is None:
+                column = "index"
+            gdf = gdf.reset_index()
+        da = mdims.gdf_to_da(gdf, ds, column, agg_method="max_area", fill_value=-1)
+    data = da.data
+
+    spd = []
+    if ds.gridtype == "structured":
+        for row in range(len(ds.y) - 1):
+            for col in range(len(ds.x) - 1):
+                if data[row, col] != data[row + 1, col]:
+                    spd.append([(lay, row, col), (lay, row + 1, col), hydchr])
+                if data[row, col] != data[row, col + 1]:
+                    spd.append([(lay, row, col), (lay, row, col + 1), hydchr])
+    else:
+        # find connections
+        icvert = ds["icvert"].data
+        nodata = ds["icvert"].attrs["_FillValue"]
+
+        edges = []
+        for icell2d in range(icvert.shape[0]):
+            for j in range(icvert.shape[1] - 1):
+                if icvert[icell2d, j + 1] == nodata:
+                    break
+                edge = [icell2d, data[icell2d]]
+                if icvert[icell2d, j + 1] > icvert[icell2d, j]:
+                    edge.extend([icvert[icell2d, j], icvert[icell2d, j + 1]])
+                else:
+                    edge.extend([icvert[icell2d, j + 1], icvert[icell2d, j]])
+                edges.append(edge)
+        edges = np.array(edges)
+        edges_un, inverse = np.unique(edges[:, 2:], axis=0, return_inverse=True)
+        icell2ds = []
+        for i in range(len(edges_un)):
+            mask = inverse == i
+            if len(np.unique(edges[mask, 1])) > 1:
+                icell2ds.append(edges[mask, 0])
+        # icell2ds = np.array(icell2ds)
+        for icell2d1, icell2d2 in icell2ds:
+            spd.append([(lay, icell2d1), (lay, icell2d2), hydchr])
+    if gwf is None:
+        return spd
+    else:
+        return flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
+
+
+def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
     """plots a horizontal flow barrier
 
 
@@ -235,18 +289,20 @@ def plot_hfb(cellids, gwf, ax=None):
     """
     if ax is None:
         _, ax = plt.subplots()
-    
-    if gwf.modelgrid.grid_type == 'structured':
+
+    if gwf.modelgrid.grid_type == "structured":
         if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
             spd = cellids.stress_period_data.data[0]
-            cellids = [[row[0][1:], row[1][1:]] for row in cellids.stress_period_data.array[0]]
+            cellids = [
+                [row[0][1:], row[1][1:]] for row in cellids.stress_period_data.array[0]
+            ]
         for line in cellids:
             pc1 = Polygon(gwf.modelgrid.get_cell_vertices(*line[0]))
             pc2 = Polygon(gwf.modelgrid.get_cell_vertices(*line[1]))
             x, y = pc1.intersection(pc2).xy
-            ax.plot(x, y, color="red")
-            
-    elif gwf.modelgrid.grid_type == 'vertex':
+            ax.plot(x, y, color=color, **kwargs)
+
+    elif gwf.modelgrid.grid_type == "vertex":
         if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
             spd = cellids.stress_period_data.data[0]
             cellids = [[line[0][1], line[1][1]] for line in spd]
@@ -254,8 +310,8 @@ def plot_hfb(cellids, gwf, ax=None):
             pc1 = Polygon(gwf.modelgrid.get_cell_vertices(line[0]))
             pc2 = Polygon(gwf.modelgrid.get_cell_vertices(line[1]))
             x, y = pc1.intersection(pc2).xy
-            ax.plot(x, y, color="red")
+            ax.plot(x, y, color=color, **kwargs)
     else:
-        raise ValueError(f'not supported gridtype -> {gwf.modelgrid.grid_type}')
+        raise ValueError(f"not supported gridtype -> {gwf.modelgrid.grid_type}")
 
     return ax

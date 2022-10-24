@@ -30,6 +30,7 @@ from .resample import (
     get_affine_world_to_mod,
 )
 from .rdp import rdp
+from shapely.strtree import STRtree
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ def refine(
         The refined model dataset.
 
     """
-    assert "icell2d" not in ds.dims
+    assert "icell2d" not in ds.dims, "Can only refine a structured grid"
     logger.info("create vertex grid using gridgen")
     sim = flopy.mf6.MFSimulation()
     gwf = flopy.mf6.MFModel(sim)
@@ -258,7 +259,8 @@ def refine(
                             )
                         )
                     mask = geom_types == geom_type
-                    features = [gdf[mask].unary_union]
+                    # features = [gdf[mask].unary_union]
+                    features = list(gdf[mask].geometry)
                     g.add_refinement_features(features, geom_type, level, layers=[0])
     g.build()
     gridprops = g.get_gridprops_disv()
@@ -648,7 +650,7 @@ def gdf2data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method
         are:
         - max, min, mean,
         - length_weighted (lines), max_length (lines),
-        - area_weighted (polygon), area_max (polygon).
+        - area_weighted (polygon), max_area (polygon).
         The default is 'max'.
 
     Returns
@@ -668,7 +670,7 @@ def gdf2data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method
 
         return da
 
-    gdf_cellid = gdf2grid(gdf, gwf, "vertex")
+    gdf_cellid = gdf2grid(gdf, gwf)
 
     if gdf_cellid.cellid.duplicated().any():
         # aggregate data
@@ -688,6 +690,92 @@ def gdf2data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method
         da.values[ind[0], ind[1]] = row[field]
 
     return da
+
+
+def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
+    """Project vector data on a structured grid. Aggregate data if multiple
+    geometries are in a single cell. This method replaces gdf2data_array_struc.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataframe
+        vector data can only contain a single geometry type.
+    gwf : flopy groundwater flow model
+        model with a structured grid.
+    column : str
+        column name in the geodataframe.
+    agg_method : str, optional
+        aggregation method to handle multiple geometries in one cell, options
+        are:
+        - max, min, mean,
+        - length_weighted (lines), max_length (lines),
+        - area_weighted (polygon), area_max (polygon).
+        The default is 'max'.
+
+    Returns
+    -------
+    da : xarray DataArray
+        The DataArray with the projected vector data.
+
+    """
+    gdf_cellid = gdf2grid(gdf, ds)
+    if gdf_cellid.cellid.duplicated().any():
+        # aggregate data
+        if agg_method is None:
+            raise ValueError(
+                "multiple geometries in one cell please define aggregation method"
+            )
+        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
+    else:
+        # aggregation not neccesary
+        gdf_agg = gdf_cellid[[column]]
+        gdf_agg.set_index(
+            pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
+        )
+    da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
+    for ind, row in gdf_agg.iterrows():
+        da.values[ind] = row[column]
+    da.attrs["_FillValue"] = fill_value
+    return da
+
+
+def add_info_to_gdf(
+    gdf_to,
+    gdf_from,
+    columns=None,
+    desc="",
+    silent=False,
+    min_total_overlap=0.5,
+    geom_type="Polygon",
+):
+    """ "Add information from gdf_from to gdf_to"""
+    gdf_to = gdf_to.copy()
+    if columns is None:
+        columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
+    s = STRtree(gdf_from.geometry, items=gdf_from.index)
+    for index in tqdm(gdf_to.index, desc=desc, disable=silent):
+        geom_to = gdf_to.geometry[index]
+        inds = s.query_items(geom_to)
+        if len(inds) == 0:
+            continue
+        overlap = gdf_from.geometry[inds].intersection(geom_to)
+        if geom_type is None:
+            geom_type = overlap.geom_type.iloc[0]
+        if geom_type in ["Polygon", "MultiPolygon"]:
+            measure_org = geom_to.area
+            measure = overlap.area
+        elif geom_type in ["LineString", "MultiLineString"]:
+            measure_org = geom_to.length
+            measure = overlap.length
+        else:
+            msg = f"Unsupported geometry type: {geom_type}"
+            raise (Exception(msg))
+
+        if np.any(measure.sum() > min_total_overlap * measure_org):
+            # take the largest
+            ind = measure.idxmax()
+            gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
+    return gdf_to
 
 
 def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
@@ -981,7 +1069,9 @@ def gdf2grid(
         else:
             modelgrid = ml.modelgrid
             if modelgrid.angrot != 0:
-                raise NotImplementedError('please use a model dataset instead of a model')
+                raise NotImplementedError(
+                    "please use a model dataset instead of a model"
+                )
 
     if ix is None:
         ix = flopy.utils.GridIntersect(modelgrid, method=method)
@@ -1038,9 +1128,7 @@ def get_thickness_from_topbot(top, bot):
     return thickness
 
 
-
-def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, 
-                     epsilon=0, rotated=False):
+def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
     """get vertices of a vertex modelgrid from a ds or the modelgrid.
     Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
@@ -1083,18 +1171,22 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4,
     yvert = modelgrid.yvertices
     if vert_per_cid == 4:
         coord_list = []
-        for xv,yv in zip(xvert, yvert):
+        for xv, yv in zip(xvert, yvert):
             coords = rdp(list(zip(xv, yv)), epsilon=epsilon)[:-1]
             if len(coords) > 4:
-                raise RuntimeError('unexpected number of coördinates, you probably want to change epsilon')
+                raise RuntimeError(
+                    "unexpected number of coördinates, you probably want to change epsilon"
+                )
             coord_list.append(coords)
         vertices_arr = np.array(coord_list)
     elif vert_per_cid == 5:
         coord_list = []
-        for xv,yv in zip(xvert, yvert):
+        for xv, yv in zip(xvert, yvert):
             coords = rdp(list(zip(xv, yv)), epsilon=epsilon)
             if len(coords) > 5:
-                raise RuntimeError('unexpected number of coördinates, you probably want to change epsilon')
+                raise RuntimeError(
+                    "unexpected number of coördinates, you probably want to change epsilon"
+                )
             coord_list.append(coords)
         vertices_arr = np.array(coord_list)
     else:
@@ -1103,8 +1195,7 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4,
     return vertices_arr
 
 
-def get_vertices(ds, modelgrid=None, vert_per_cid=4, 
-                 epsilon=0, rotated=False):
+def get_vertices(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
     """get vertices of a vertex modelgrid from a ds or the modelgrid.
     Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
@@ -1141,9 +1232,13 @@ def get_vertices(ds, modelgrid=None, vert_per_cid=4,
 
     # obtain
 
-    vertices_arr = get_vertices_arr(ds, modelgrid=modelgrid, 
-                                    vert_per_cid=vert_per_cid, 
-                                    epsilon=epsilon, rotated=rotated)
+    vertices_arr = get_vertices_arr(
+        ds,
+        modelgrid=modelgrid,
+        vert_per_cid=vert_per_cid,
+        epsilon=epsilon,
+        rotated=rotated,
+    )
 
     vertices_da = xr.DataArray(
         vertices_arr,

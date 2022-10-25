@@ -260,7 +260,7 @@ def refine(
                         )
                     mask = geom_types == geom_type
                     # features = [gdf[mask].unary_union]
-                    features = list(gdf[mask].geometry)
+                    features = list(gdf[mask].geometry.explode())
                     g.add_refinement_features(features, geom_type, level, layers=[0])
     g.build()
     gridprops = g.get_gridprops_disv()

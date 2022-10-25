@@ -177,6 +177,9 @@ def wfs(
             if op.attrib["name"] == "GetFeature":
                 add_constrains(op, constraints)
 
+        if "CountDefault" not in constraints:
+            logger.info("Cannot find CountDefault. Setting CountDefault to inf")
+            constraints["CountDefault"] = np.inf
         if max_record_count is None:
             max_record_count = constraints["CountDefault"]
         else:

@@ -475,7 +475,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     return xr.DataArray(z, dims=dims, coords=coords)
 
 
-def structured_da_to_ds(da, ds, method="average"):
+def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
     """
     Resample a DataArray to the coordinates of a model dataset.
 
@@ -486,7 +486,7 @@ def structured_da_to_ds(da, ds, method="average"):
     ds : xarray.Dataset
         The model dataset.
     method : string or rasterio.enums.Resampling, optional
-        THe method to resample the DataArray. Possible values are "linear",
+        The method to resample the DataArray. Possible values are "linear",
         "nearest" and all the values in rasterio.enums.Resampling. These values
         can be provided as a string ('average') or as an attribute of
         rasterio.enums.Resampling (rasterio.enums.Resampling.average). When
@@ -528,16 +528,16 @@ def structured_da_to_ds(da, ds, method="average"):
             crs = ds.rio.crs
             ds = ds.rio.write_transform(affine)
             ds = ds.rio.write_crs(crs)
-        da_out = da.rio.reproject_match(ds, resampling)
+        da_out = da.rio.reproject_match(ds, resampling, nodata=nodata)
 
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
         # in 4
-        da_out = xr.full_like(ds["area"], np.NaN)
+        da_out = xr.full_like(ds["area"], nodata)
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
-            da_temp = xr.DataArray(np.NaN, dims=["y", "x"], coords=dict(x=x, y=y))
+            da_temp = xr.DataArray(nodata, dims=["y", "x"], coords=dict(x=x, y=y))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine(ds)
                 da_temp = da_temp.rio.write_transform(affine, inplace=True)

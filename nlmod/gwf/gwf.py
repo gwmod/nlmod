@@ -20,56 +20,6 @@ from . import recharge
 logger = logging.getLogger(__name__)
 
 
-def write_and_run_model(gwf, ds, write_ds=True, nb_path=None):
-    """write modflow files and run the model.
-
-    2 extra options:
-        1. write the model dataset to cache
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
-           workspace with a timestamp.
-
-
-    Parameters
-    ----------
-    gwf : flopy.mf6.ModflowGwf
-        groundwater flow model.
-    ds : xarray.Dataset
-        dataset with model data.
-    write_ds : bool, optional
-        if True the model dataset is cached. The default is True.
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
-        default is None. Preferably this path does not have to be given
-        manually but there is currently no good option to obtain the filename
-        of a Jupyter Notebook from within the notebook itself.
-    """
-
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
-        )
-        dst = os.path.join(ds.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to model workspace")
-        copyfile(nb_path, dst)
-
-    if write_ds:
-        logger.info("write model dataset to cache")
-        ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
-            "%Y%m%d_%H:%M:%S"
-        )
-        ds.to_netcdf(os.path.join(ds.attrs["cachedir"], "full_ds.nc"))
-
-    logger.info("write modflow files to model workspace")
-    gwf.simulation.write_simulation()
-    ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S"
-    )
-
-    logger.info("run model")
-    assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
-    ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-
-
 def gwf(ds, sim, **kwargs):
     """create groundwater flow model from the model dataset.
 

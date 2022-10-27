@@ -267,7 +267,7 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         ghb package
     """
 
-    ghb_rec = mdims.da_to_rec_list(
+    ghb_rec = mdims.da_to_reclist(
         ds,
         ds[f"{da_name}_cond"] != 0,
         col1=f"{da_name}_peil",
@@ -411,7 +411,7 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
         chd package
     """
     # get the stress_period_data
-    chd_rec = mdims.da_to_rec_list(ds, ds[chd] != 0, col1=head)
+    chd_rec = mdims.da_to_reclist(ds, ds[chd] != 0, col1=head)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -448,7 +448,7 @@ def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs)
 
     ds.attrs["surface_drn_cond"] = surface_drn_cond
     mask = ds["ahn"].notnull()
-    drn_rec = mdims.da_to_rec_list(
+    drn_rec = mdims.da_to_reclist(
         ds,
         mask,
         col1="ahn",

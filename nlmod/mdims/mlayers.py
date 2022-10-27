@@ -87,7 +87,7 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
     # calculate thickness
     thickness = calculate_thickness(ds, top=top, bot=bot)
-    
+
     # check if top is 2d or 3d
     if ds[top].ndim == ds[bot].ndim:
         top3d = True

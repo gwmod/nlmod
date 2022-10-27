@@ -560,6 +560,8 @@ def da_to_reclist(
     if "layer" in mask.dims:
         if only_active_cells:
             cellids = np.where((mask) & (ds["idomain"] == 1))
+            ignore_cells = np.sum((mask) & (ds["idomain"] != 1))
+            logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
         else:
             cellids = np.where(mask)
 
@@ -577,13 +579,12 @@ def da_to_reclist(
                 ds["first_active_layer"] = get_first_active_layer_from_idomain(
                     ds["idomain"]
                 )
-            if mask.shape != ds['first_active_layer'].shape:
-                raise ValueError(f'mismatch between dimensions of mask {mask.shape} and first_active_layer {ds["first_active_layer"].shape}')
-
             cellids = np.where((mask) & (ds["first_active_layer"] != ds.nodata))
             layers = col_to_list("first_active_layer", ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
+            ignore_cells = np.sum((mask) & (ds["idomain"][layer] != 1))
+            logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
             layers = col_to_list(layer, ds, cellids)
         else:
             cellids = np.where(mask)

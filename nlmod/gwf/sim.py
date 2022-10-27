@@ -36,7 +36,7 @@ def get_tdis_perioddata(ds):
     """
     deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
-        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start_time))
+        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
         / deltat
     ]
     
@@ -65,7 +65,7 @@ def sim(ds, exe_name=None):
     ----------
     ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: model_name, mfversion, model_ws, time_units, start_time,
+        attributes: model_name, mfversion, model_ws, time_units, start,
         perlen, nstp, tsmult
     exe_name: str, optional
         path to modflow executable, default is None, which assumes binaries
@@ -102,7 +102,7 @@ def tdis(ds, sim, pname="tdis"):
     ----------
     ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: time_units, start_time, perlen, nstp, tsmult
+        attributes: time_units, start, perlen, nstp, tsmult
     sim : flopy MFSimulation
         simulation object.
     pname : str, optional
@@ -125,7 +125,7 @@ def tdis(ds, sim, pname="tdis"):
         pname=pname,
         time_units=ds.time.time_units,
         nper=len(ds.time),
-        # start_date_time=ds.time.start_time, # disable until fix in modpath
+        # start_date_time=ds.time.start, # disable until fix in modpath
         perioddata=tdis_perioddata,
     )
 

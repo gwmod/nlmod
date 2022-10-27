@@ -77,7 +77,7 @@ def gwf(ds, sim, **kwargs):
     ----------
     ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: model_name, mfversion, model_ws, time_units, start_time,
+        attributes: model_name, mfversion, model_ws, time_units, start,
         perlen, nstp, tsmult
     sim : flopy MFSimulation
         simulation object.

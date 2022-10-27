@@ -123,3 +123,64 @@ def set_ds_time(
     ds.time.attrs["steady_state"] = int(steady_state)
 
     return ds
+
+
+def estimate_nstp(forcing, perlen=1, tsmult=1.1, nstp_min=1, nstp_max=25):
+    """Scale the nstp's linearly between the min and max of the forcing.
+
+    Ensures that the first time step of this stress period connects to the
+    last time step of the previous stress period. The ratio between the
+    two time-step durations can be at most tsmult.
+
+    Parameters
+    ----------
+    forcing : array-like
+        Array with a forcing value for each stress period. Forcing can be
+        for example a pumping rate of a rainfall intensity.
+    perlen : float or array of floats (nper)
+        An array of the stress period lengths.
+    nstp : int or array of ints (nper)
+        Number of time steps in each stress period.
+    nstp_min : int
+        nstp value for the stress period with the smallest forcing.
+    nstp_max : int
+        nstp value for the stress period with the largest forcing.
+
+
+    Returns
+    -------
+    nstp : np.ndarray
+        Array with a nstp for each stress period.
+    """
+
+    nt = len(forcing)
+
+    # Scaled linear between min and max. array nstp will be modified along the way
+    nstp = np.round((forcing - forcing.min()) /
+                    (forcing.max() - forcing.min()) * (nstp_max - nstp_min)
+                    + nstp_min).astype(int)
+    perlen = np.full(nt, fill_value=perlen)
+    tsmult = np.full(nt, fill_value=tsmult)
+
+    # Duration of the first time step of each stress period. Equation TM6A16 p.4-5 eq.1
+    dt0_arr = perlen * (tsmult - 1) / (tsmult ** nstp - 1)
+    # Add axis so that durations of subsequent time steps can be added for each stress period.
+    dt_arr = [[i] for i in dt0_arr]
+
+    for i, (perleni, tsmulti, nstpi, dt0) in enumerate(zip(perlen, tsmult, nstp, dt0_arr)):
+        for _ in range(nstpi - 1):
+            dt_i = dt_arr[i][-1] * tsmulti
+            dt_arr[i].append(dt_i)
+
+        # reduce the length of the first time step of the next period to match the last time step of this period.
+        dt0_next = dt_arr[i][-1] * tsmulti
+        if i <= nt - 2 and dt0_next < dt_arr[i + 1][0]:
+            # Equation derived from TM6A16 p.4-5 eq.1
+            nstp_next = np.round(np.log(perleni * (tsmulti - 1) / dt0_next + 1) / np.log(tsmulti)).astype(int)
+            nstp[i + 1] = nstp_next
+
+            # Equation TM6A16 p.4-5 eq.1
+            dt_arr[i + 1] = [perlen[i + 1] * (tsmult[i + 1] - 1) / (tsmult[i + 1] ** nstp_next - 1)]
+
+    nstp = [len(i) for i in dt_arr]
+    return nstp

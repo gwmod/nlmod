@@ -6,7 +6,9 @@ import pytest
 import xarray as xr
 
 tmpdir = tempfile.gettempdir()
-tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+tst_model_dir = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "data"
+)
 
 
 def test_model_directories(tmpdir):
@@ -84,10 +86,10 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     )
 
     # create simulation
-    sim = nlmod.gwf.sim(ds)
+    sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    _ = nlmod.gwf.tdis(ds, sim)
+    _ = nlmod.sim.tdis(ds, sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
@@ -96,7 +98,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     _ = nlmod.gwf.ims(sim)
 
     # Create discretization
-    nlmod.gwf.dis(ds, gwf)
+    _ = nlmod.gwf.dis(ds, gwf)
 
     # save ds
     ds.to_netcdf(os.path.join(tst_model_dir, "small_model.nc"))
@@ -155,10 +157,10 @@ def test_create_sea_model(tmpdir):
         os.path.join(tst_model_dir, "basic_sea_model.nc"), mask_and_scale=False
     )
     # create simulation
-    sim = nlmod.gwf.sim(ds)
+    sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    _ = nlmod.gwf.tdis(ds, sim)
+    _ = nlmod.sim.tdis(ds, sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
@@ -167,36 +169,36 @@ def test_create_sea_model(tmpdir):
     _ = nlmod.gwf.ims(sim)
 
     # Create discretization
-    nlmod.gwf.dis(ds, gwf)
+    _ = nlmod.gwf.dis(ds, gwf)
 
     # create node property flow
-    nlmod.gwf.npf(ds, gwf)
+    _ = nlmod.gwf.npf(ds, gwf)
 
     # Create the initial conditions package
-    nlmod.gwf.ic(ds, gwf, starting_head=1.0)
+    _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
 
     # Create the output control package
-    nlmod.gwf.oc(ds, gwf)
+    _ = nlmod.gwf.oc(ds, gwf)
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = "surface_water"
     ds.update(nlmod.read.rws.get_surface_water(ds, da_name))
-    nlmod.gwf.ghb(ds, gwf, da_name)
+    _ = nlmod.gwf.ghb(ds, gwf, da_name)
 
     # surface level drain
     ds.update(nlmod.read.ahn.get_ahn(ds))
-    nlmod.gwf.surface_drain_from_ds(ds, gwf)
+    _ = nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
     ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
-    nlmod.gwf.chd(ds, gwf, head="starting_head")
+    _ = nlmod.gwf.chd(ds, gwf, head="starting_head")
 
     # add knmi recharge to the model datasets
     ds.update(nlmod.read.knmi.get_recharge(ds))
     # create recharge package
-    nlmod.gwf.rch(ds, gwf)
+    _ = nlmod.gwf.rch(ds, gwf)
 
-    nlmod.gwf.write_and_run_model(gwf, ds)
+    _ = nlmod.sim.write_and_run(sim, ds)
 
     return ds, gwf
 
@@ -226,10 +228,10 @@ def test_create_sea_model_perlen_list(tmpdir):
     ds.update(new_ds)
 
     # create simulation
-    sim = nlmod.gwf.sim(ds)
+    sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    _ = nlmod.gwf.tdis(ds, sim)
+    _ = nlmod.sim.tdis(ds, sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
@@ -267,7 +269,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     # create recharge package
     nlmod.gwf.rch(ds, gwf)
 
-    nlmod.gwf.write_and_run_model(gwf, ds)
+    nlmod.sim.write_and_run(sim, ds)
 
     return ds, gwf
 
@@ -296,10 +298,10 @@ def test_create_sea_model_perlen_14(tmpdir):
     ds.update(new_ds)
 
     # create simulation
-    sim = nlmod.gwf.sim(ds)
+    sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    _ = nlmod.gwf.tdis(ds, sim)
+    _ = nlmod.sim.tdis(ds, sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
@@ -337,7 +339,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     # create recharge package
     nlmod.gwf.rch(ds, gwf)
 
-    nlmod.gwf.write_and_run_model(gwf, ds)
+    nlmod.sim.write_and_run(sim, ds)
 
     return ds, gwf
 

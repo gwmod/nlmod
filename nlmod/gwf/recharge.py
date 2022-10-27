@@ -6,11 +6,10 @@ import logging
 
 import flopy
 import numpy as np
-import xarray as xr
 from tqdm import tqdm
 
 from .. import mdims
-from .sim import get_tdis_perioddata
+from ..sim.sim import get_tdis_perioddata
 
 logger = logging.getLogger(__name__)
 

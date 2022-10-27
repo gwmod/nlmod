@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def write_and_run_model(mpf, remove_prev_output=True, nb_path=None):
+def write_and_run(mpf, remove_prev_output=True, nb_path=None):
     """write modpath files and run the model.
 
     2 extra options:
@@ -202,7 +202,7 @@ def mpf(gwf, exe_name=None):
         )
 
     # check if the tdis has a start_time
-    if gwf.simulation.tdis.start_date_time.array is not None:
+    if sim.simulation.tdis.start_date_time.array is not None:
         logger.warning(
             "older versions of modpath cannot handle this, see https://github.com/MODFLOW-USGS/modpath-v7/issues/31"
         )
@@ -449,8 +449,8 @@ def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
     if ref_time is None:
         if direction == "backward":
             ref_time = (
-                gwf.simulation.tdis.nper.array - 1,  # stress period
-                gwf.simulation.tdis.data_list[-1].array[-1][1] - 1,  # timestep
+                sim.simulation.tdis.nper.array - 1,  # stress period
+                sim.simulation.tdis.data_list[-1].array[-1][1] - 1,  # timestep
                 1.0,
             )
         elif direction == "forward":

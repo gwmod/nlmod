@@ -201,4 +201,3 @@ def estimate_nstp(forcing, perlen=1, tsmult=1.1, nstp_min=1, nstp_max=25, return
 
     else:
         return nstp_ceiled
-

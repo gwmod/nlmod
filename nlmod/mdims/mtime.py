@@ -123,3 +123,81 @@ def set_ds_time(
     ds.time.attrs["steady_state"] = int(steady_state)
 
     return ds
+
+
+def estimate_nstp(forcing, perlen=1, tsmult=1.1, nstp_min=1, nstp_max=25, return_dt_arr=False):
+    """Scale the nstp's linearly between the min and max of the forcing.
+
+    Ensures that the first time step of this stress period connects to the
+    last time step of the previous stress period. The ratio between the
+    two time-step durations can be at most tsmult.
+
+    Parameters
+    ----------
+    forcing : array-like
+        Array with a forcing value for each stress period. Forcing can be
+        for example a pumping rate of a rainfall intensity.
+    perlen : float or array of floats (nper)
+        An array of the stress period lengths.
+    tsmult : float or array of floats (nper)
+        Time step multiplier.
+    nstp : int or array of ints (nper)
+        Number of time steps in each stress period.
+    nstp_min : int
+        nstp value for the stress period with the smallest forcing.
+    nstp_max : int
+        nstp value for the stress period with the largest forcing.
+
+
+    Returns
+    -------
+    nstp : np.ndarray
+        Array with a nstp for each stress period.
+    dt_arr : np.ndarray (optional)
+        if `return_dt_arr` is `True` returns the durations of the timesteps
+        corresponding with the returned nstp.
+    """
+
+    nt = len(forcing)
+
+    # Scaled linear between min and max. array nstp will be modified along the way
+    nstp = ((forcing - np.min(forcing)) /
+            (np.max(forcing) - np.min(forcing)) * (nstp_max - nstp_min)
+            + nstp_min)
+    perlen = np.full(nt, fill_value=perlen)
+    tsmult = np.full(nt, fill_value=tsmult)
+
+    # Duration of the first time step of each stress period. Equation TM6A16 p.4-5 eq.1
+    dt0_arr = np.where(
+        tsmult == 1.,
+        perlen / nstp,
+        perlen * (tsmult - 1) / (tsmult ** nstp - 1))
+
+    for i in range(nt - 1):
+        dt_end = dt0_arr[i] * tsmult[i] ** nstp[i]
+        dt0_next = dt_end * tsmult[i + 1]
+
+        if dt0_next < dt0_arr[i + 1]:
+            dt0_arr[i + 1] = dt0_next
+
+            # Equation derived from TM6A16 p.4-5 eq.1
+            if tsmult[i + 1] == 1.:
+                nstp[i + 1] = perlen[i + 1] / dt0_arr[i + 1]
+            else:
+                nstp[i + 1] = np.log(perlen[i + 1] * (tsmult[i + 1] - 1) / dt0_next + 1) / np.log(tsmult[i + 1])
+
+    nstp_ceiled = np.ceil(nstp).astype(int)
+
+    if return_dt_arr:
+        dt0_ceiled = np.where(
+            tsmult == 1.,
+            perlen / nstp_ceiled,
+            perlen * (tsmult - 1) / (tsmult ** nstp_ceiled - 1))
+        dt_lists = [[dt0i * tsmulti ** nstpii for nstpii in range(nstpi)] for dt0i, nstpi, tsmulti in
+                    zip(dt0_ceiled, nstp_ceiled, tsmult)]
+        dt_arr = np.concatenate(dt_lists)
+
+        return nstp_ceiled, dt_arr
+
+    else:
+        return nstp_ceiled

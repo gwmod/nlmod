@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import os
-
 import nlmod
-import pandas as pd
-import pytest
-from nlmod import util
 
 import test_001_model
-import test_002_regis_geotop
 
 
 def test_get_gdf_opp_water():
@@ -24,10 +18,10 @@ def test_surface_water_to_dataset():
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
     # create simulation
-    sim = nlmod.gwf.sim(ds)
+    sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    _ = nlmod.gwf.tdis(ds, sim)
+    _ = nlmod.sim.tdis(ds, sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
@@ -89,7 +83,7 @@ def test_fill_top_bot_kh_kv_nosea():
     return ds
 
 
-def test_get_bathymetrie_seamodel():
+def test_get_bathymetry_seamodel():
 
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")

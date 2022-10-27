@@ -48,20 +48,20 @@ class DatasetCrossSection:
             layer = ds[layer].data
         self.layer = layer
         self.icell2d = icell2d
-        
+
         if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
             self.rotated = True
         else:
             self.rotated = False
-            
+
         # first determine where the cross-section crosses grid-lines
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
             if vertices is None:
-                polygons = [Polygon(x) for x in mdims.get_vertices_arr(ds, rotated=self.rotated,
-                                                                       epsilon=epsilon)]
-            else:
-                polygons = [Polygon(x) for x in vertices]
+                vertices = mdims.get_vertices_arr(
+                    ds, rotated=self.rotated, epsilon=epsilon
+                )
+            polygons = [Polygon(x) for x in vertices]
             tree = STRtree(polygons)
             icell2ds = tree.query_items(LineString(line))
             s_cell = []
@@ -127,7 +127,7 @@ class DatasetCrossSection:
         if intersection.type == "Point":
             points.append(intersection)
         elif intersection.type == "MultiPoint":
-            for point in intersection:
+            for point in intersection.geoms:
                 points.append(point)
 
     def line_intersect_grid(self, cs_line):
@@ -205,6 +205,8 @@ class DatasetCrossSection:
                         pols = pols.buffer(0)
                     if isinstance(pols, Polygon):
                         pols = [pols]
+                    else:
+                        pols = pols.geoms
                     for pol in pols:
                         if pol.area > min_label_area:
                             xt = pol.centroid.x
@@ -222,8 +224,15 @@ class DatasetCrossSection:
                             )
         return polygons
 
-    def plot_grid(self, edgecolor='k', facecolor='none', horizontal=True,
-                  vertical=True, ilayers=None, **kwargs):
+    def plot_grid(
+        self,
+        edgecolor="k",
+        facecolor="none",
+        horizontal=True,
+        vertical=True,
+        ilayers=None,
+        **kwargs
+    ):
         lines = []
         if ilayers is None:
             ilayers = range(self.top.shape[0])

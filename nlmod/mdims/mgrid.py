@@ -20,8 +20,10 @@ from flopy.utils.gridintersect import GridIntersect
 from shapely.prepared import prep
 from tqdm import tqdm
 from scipy.interpolate import griddata
-
 from shapely.geometry import Point
+from shapely.strtree import STRtree
+from packaging import version
+
 from .. import util
 from .mlayers import set_idomain, get_first_active_layer_from_idomain
 from .resample import (
@@ -30,7 +32,6 @@ from .resample import (
     get_affine_world_to_mod,
 )
 from .rdp import rdp
-from shapely.strtree import STRtree
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def xy_to_icell2d(xy, ds):
     return icell2d
 
 
-def modelgrid_from_ds(ds, rotated=True):
+def modelgrid_from_ds(ds, rotated=True, **kwargs):
     """Get flopy modelgrid from ds.
 
     Parameters
@@ -96,6 +97,7 @@ def modelgrid_from_ds(ds, rotated=True):
             xoff=xoff,
             yoff=yoff,
             angrot=angrot,
+            **kwargs,
         )
     elif ds.gridtype == "vertex":
         vertices = get_vertices_from_ds(ds)
@@ -106,6 +108,7 @@ def modelgrid_from_ds(ds, rotated=True):
             xoff=xoff,
             yoff=yoff,
             angrot=angrot,
+            **kwargs,
         )
     return modelgrid
 
@@ -206,23 +209,32 @@ def refine(
     """
     assert "icell2d" not in ds.dims, "Can only refine a structured grid"
     logger.info("create vertex grid using gridgen")
-    sim = flopy.mf6.MFSimulation()
-    gwf = flopy.mf6.MFModel(sim)
-    dis = flopy.mf6.ModflowGwfdis(
-        gwf,
-        nrow=len(ds.y),
-        ncol=len(ds.x),
-        delr=ds.delr,
-        delc=ds.delc,
-        xorigin=ds.extent[0],
-        yorigin=ds.extent[2],
-    )
+
     if exe_name is None:
         exe_name = util.get_exe_path("gridgen")
 
     if model_ws is None:
         model_ws = ds.model_ws
-    g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)
+
+    if version.parse(flopy.__version__) < version.parse("3.3.6"):
+        sim = flopy.mf6.MFSimulation()
+        gwf = flopy.mf6.MFModel(sim)
+        dis = flopy.mf6.ModflowGwfdis(
+            gwf,
+            nrow=len(ds.y),
+            ncol=len(ds.x),
+            delr=ds.delr,
+            delc=ds.delc,
+            xorigin=ds.extent[0],
+            yorigin=ds.extent[2],
+        )
+        g = Gridgen(dis, model_ws=model_ws, exe_name=exe_name)
+    else:
+        # create a modelgrid with only one layer, to speed up Gridgen
+        top = ds["top"].values
+        botm = ds["botm"].values[[0]]
+        modelgrid = modelgrid_from_ds(ds, nlay=1, top=top, botm=botm)
+        g = Gridgen(modelgrid, model_ws=model_ws, exe_name=exe_name)
 
     ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if model_coordinates:

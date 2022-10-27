@@ -84,10 +84,10 @@ def test_get_surface_water_ghb():
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
     # create simulation
-    sim = nlmod.gwf.sim(ds)
+    sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    tdis = nlmod.gwf.tdis(ds, sim)
+    tdis = nlmod.sim.tdis(ds, sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)

@@ -10,7 +10,6 @@ import nlmod
 import xarray as xr
 
 from .. import cache, mdims, util
-
 from . import jarkus
 
 logger = logging.getLogger(__name__)
@@ -135,10 +134,11 @@ def get_northsea(ds, da_name="northsea"):
 
 def add_northsea(ds, cachedir=None):
     """a) get cells from modelgrid that are within the northsea, add data
-    variable 'northsea' to ds
-    b) fill top, bot, kh and kv add northsea cell by extrapolation
-    c) get bathymetry (northsea depth) from jarkus. Add datavariable
-    bathymetry to model dataset"""
+    variable 'northsea' to ds b) fill top, bot, kh and kv add northsea cell by
+    extrapolation c) get bathymetry (northsea depth) from jarkus.
+
+    Add datavariable bathymetry to model dataset
+    """
 
     logger.info(
         "nan values at the northsea are filled using the bathymetry from jarkus"
@@ -150,7 +150,9 @@ def add_northsea(ds, cachedir=None):
     # fill top, bot, kh, kv at sea cells
     fal = mdims.get_first_active_layer(ds)
     fill_mask = (fal == fal.attrs["_FillValue"]) * ds["northsea"]
-    ds = mdims.fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype=ds.attrs["gridtype"])
+    ds = mdims.fill_top_bot_kh_kv_at_mask(
+        ds, fill_mask, gridtype=ds.attrs["gridtype"]
+    )
 
     # add bathymetry noordzee
     ds.update(
@@ -162,7 +164,9 @@ def add_northsea(ds, cachedir=None):
         )
     )
 
-    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
+    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(
+        ds, ds["bathymetry"], fill_mask
+    )
 
     # update idomain on adjusted tops and bots
     ds = mdims.set_idomain(ds)

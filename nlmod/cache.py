@@ -11,8 +11,8 @@ import numbers
 import os
 import pickle
 
-import flopy
 import dask
+import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -33,7 +33,9 @@ def clear_cache(cachedir):
     -------
     None.
     """
-    ans = input(f"this will remove all cached files in {cachedir} are you sure [Y/N]")
+    ans = input(
+        f"this will remove all cached files in {cachedir} are you sure [Y/N]"
+    )
     if ans.lower() != "y":
         return
 
@@ -176,7 +178,9 @@ def cache_netcdf(func):
             with open(fname_pickle_cache, "wb") as fpklz:
                 pickle.dump(func_args_dic, fpklz)
         else:
-            raise TypeError(f"expected xarray Dataset, got {type(result)} instead")
+            raise TypeError(
+                f"expected xarray Dataset, got {type(result)} instead"
+            )
 
         return result
 
@@ -203,7 +207,10 @@ def _check_ds(ds, ds2):
     # first remove _FillValue from all coordinates
     for coord in ds2.coords:
         if coord in ds.coords:
-            if "_FillValue" in ds2[coord].attrs and "_FillValue" not in ds[coord].attrs:
+            if (
+                "_FillValue" in ds2[coord].attrs
+                and "_FillValue" not in ds[coord].attrs
+            ):
                 del ds2[coord].attrs["_FillValue"]
 
     for coord in ds2.coords:
@@ -216,7 +223,9 @@ def _check_ds(ds, ds2):
                 )
                 return False
         else:
-            logger.info(f"dimension {coord} only present in cache, not using cache")
+            logger.info(
+                f"dimension {coord} only present in cache, not using cache"
+            )
             return False
 
     return True
@@ -293,7 +302,9 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                     "cache was created using different dictionaries, do not use cached data"
                 )
                 return False
-        elif isinstance(item, (flopy.mf6.ModflowGwf, flopy.modflow.mf.Modflow)):
+        elif isinstance(
+            item, (flopy.mf6.ModflowGwf, flopy.modflow.mf.Modflow)
+        ):
             if str(item) != str(func_args_dic_cache[key]):
                 logger.info(
                     "cache was created using different groundwater flow model, do not use cached data"
@@ -301,7 +312,9 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 return False
 
         else:
-            logger.info("cannot check if cache is valid, assuming invalid cache")
+            logger.info(
+                "cannot check if cache is valid, assuming invalid cache"
+            )
             logger.info(f"function argument of type {type(item)}")
             return False
 

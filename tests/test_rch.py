@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Sep 28 14:07:55 2022
+"""Created on Wed Sep 28 14:07:55 2022.
 
 @author: Ruben
 """
 
+import logging
+
+import nlmod
 import numpy as np
 import pandas as pd
 import xarray as xr
-import logging
-import nlmod
-
 
 # toon informatie bij het aanroepen van functies
 logging.basicConfig(level=logging.INFO)
@@ -18,15 +17,15 @@ logging.basicConfig(level=logging.INFO)
 
 # %%
 extent = [0.0, 1000.0, 0.0, 500.0]
-ds = nlmod.get_default_ds(
+ds = nlmod.get_ds(
     extent,
     xorigin=103000,
     yorigin=400000,
     model_name="test_rch",
     model_ws="models",
 )
-ds = nlmod.refine(ds)
-ds = nlmod.set_ds_time(ds, time=pd.date_range("2020", "2022"))
+ds = nlmod.mgrid.refine(ds)
+ds = nlmod.mtime.set_ds_time(ds, time=pd.date_range("2020", "2022"))
 
 knmi = nlmod.read.knmi.get_recharge(ds, method="separate")
 ds.update(knmi)
@@ -38,11 +37,11 @@ sim = nlmod.sim.sim(ds)
 # create time discretisation
 tdis = nlmod.sim.tdis(ds, sim)
 
+# create ims
+ims = nlmod.sim.ims(sim)
+
 # create groundwater flow model
 gwf = nlmod.gwf.gwf(ds, sim)
-
-# create ims
-ims = nlmod.gwf.ims(sim)
 
 # Create discretization
 dis = nlmod.gwf.dis(ds, gwf)

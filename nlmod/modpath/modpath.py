@@ -1,17 +1,15 @@
-import os
-import flopy
-import numbers
-
-import pandas as pd
-import geopandas as gpd
 import datetime as dt
-
+import logging
+import numbers
+import os
 from shutil import copyfile
 
-from ..mdims import mgrid
-from .. import util
+import flopy
+import geopandas as gpd
+import pandas as pd
 
-import logging
+from .. import util
+from ..mdims import mgrid
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +42,8 @@ def write_and_run(mpf, remove_prev_output=True, nb_path=None):
 
     if nb_path is not None:
         new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+            f'{dt.datetime.now().strftime("%Y%m%d")}'
+            + os.path.split(nb_path)[-1]
         )
         dst = os.path.join(mpf.model_ws, new_nb_fname)
         logger.info(f"write script {new_nb_fname} to modpath workspace")
@@ -65,7 +64,6 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0):
     nodes. A node is a unique cell in a model. The icell2d is a unique cell in
     a layer.
 
-
     Parameters
     ----------
     xy_list : list of tuples
@@ -83,7 +81,6 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0):
     -------
     nodes : list of ints
         nodes numbers corresponding to the xy coordinates and layer.
-
     """
     if isinstance(layer, numbers.Number):
         layer = [layer] * len(xy_list)
@@ -100,7 +97,6 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0):
 
 def package_to_nodes(gwf, package_name, mpf):
     """Return a list of nodes from the cells with certain boundary conditions.
-
 
     Parameters
     ----------
@@ -120,7 +116,6 @@ def package_to_nodes(gwf, package_name, mpf):
     -------
     nodes : list of ints
         node numbers corresponding to the cells with a certain boundary condition.
-
     """
     gwf_package = gwf.get_package(package_name)
     if not hasattr(gwf_package, "stress_period_data"):
@@ -139,7 +134,6 @@ def package_to_nodes(gwf, package_name, mpf):
 def layer_to_nodes(mpf, modellayer):
     """get the nodes of all cells in one ore more model layer(s).
 
-
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
@@ -152,7 +146,6 @@ def layer_to_nodes(mpf, modellayer):
     -------
     nodes : list of ints
         node numbers corresponding to all cells in certain model layer(s).
-
     """
     if not isinstance(modellayer, (list, tuple)):
         modellayer = [modellayer]
@@ -191,7 +184,6 @@ def mpf(gwf, exe_name=None):
     -------
     mpf : flopy.modpath.mp7.Modpath7
         modpath object.
-
     """
 
     # check if the save flows parameter is set in the npf package
@@ -202,7 +194,7 @@ def mpf(gwf, exe_name=None):
         )
 
     # check if the tdis has a start_time
-    if sim.simulation.tdis.start_date_time.array is not None:
+    if gwf.simulation.tdis.start_date_time.array is not None:
         logger.warning(
             "older versions of modpath cannot handle this, see https://github.com/MODFLOW-USGS/modpath-v7/issues/31"
         )
@@ -226,7 +218,6 @@ def mpf(gwf, exe_name=None):
 def bas(mpf, porosity=0.3):
     """Create the basic package for the modpath model.
 
-
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
@@ -238,7 +229,6 @@ def bas(mpf, porosity=0.3):
     -------
     mpfbas : flopy.modpath.mp7bas.Modpath7Bas
         modpath bas package.
-
     """
 
     mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity)
@@ -251,7 +241,6 @@ def remove_output(mpf):
     starting a new modpath run to avoid loading the wrong data when a modpath
     run has failed.
 
-
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
@@ -260,7 +249,6 @@ def remove_output(mpf):
     Returns
     -------
     None.
-
     """
     mpffiles = [
         mpf.name + ".mppth",
@@ -282,7 +270,6 @@ def load_pathline_data(
     mpf=None, model_ws=None, model_name=None, return_df=False, return_gdf=False
 ):
     """Read the pathline data from a modpath model.
-
 
     Parameters
     ----------
@@ -311,7 +298,6 @@ def load_pathline_data(
     -------
     numpy.ndarray, DataFrame, GeoDataFrame
         pathline data. By default a numpy array is returned.
-
     """
     if mpf is None:
         fpth = os.path.join(model_ws, f"mp7_gwf_{model_name}_f.mppth")
@@ -350,7 +336,6 @@ def pg_from_fdt(nodes, divisions=3):
     -------
     pg : flopy.modpath.mp7particlegroup.ParticleGroupNodeTemplate
         Particle group.
-
     """
     logger.info(
         f"particle group with {divisions**2} particle per cell face, {6*divisions**2} particles per cell"
@@ -408,10 +393,13 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
     -------
     pg : flopy.modpath.mp7particlegroup.ParticleGroup
         Particle group.
-
     """
     p = flopy.modpath.ParticleData(
-        partlocs=nodes, structured=False, localx=localx, localy=localy, localz=localz
+        partlocs=nodes,
+        structured=False,
+        localx=localx,
+        localy=localy,
+        localz=localz,
     )
     pg = flopy.modpath.ParticleGroup(particledata=p)
 
@@ -439,7 +427,6 @@ def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
     -------
     mpsim : flopy.modpath.mp7sim.Modpath7Sim
         modpath simulation object.
-
     """
     if stoptime is None:
         stoptimeoption = "extend"
@@ -449,14 +436,16 @@ def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
     if ref_time is None:
         if direction == "backward":
             ref_time = (
-                sim.simulation.tdis.nper.array - 1,  # stress period
-                sim.simulation.tdis.data_list[-1].array[-1][1] - 1,  # timestep
+                gwf.simulation.tdis.nper.array - 1,  # stress period
+                gwf.simulation.tdis.data_list[-1].array[-1][1] - 1,  # timestep
                 1.0,
             )
         elif direction == "forward":
             ref_time = 0.0
         else:
-            raise ValueError("invalid direction, options are backward or forward")
+            raise ValueError(
+                "invalid direction, options are backward or forward"
+            )
 
     mpsim = flopy.modpath.Modpath7Sim(
         mpf,

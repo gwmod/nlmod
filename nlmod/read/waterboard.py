@@ -1,12 +1,14 @@
-import numpy as np
 import logging
+
+import numpy as np
+
 from . import webservices
 
 logger = logging.getLogger(__name__)
 
 
 def get_polygons(**kwargs):
-    """Get the location of the Waterboards as a Polygon GeoDataFrame"""
+    """Get the location of the Waterboards as a Polygon GeoDataFrame."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Waterschapsgrenzen/FeatureServer"
     layer = 0
     ws = webservices.arcrest(url, layer, **kwargs)
@@ -22,7 +24,7 @@ def get_polygons(**kwargs):
 
 
 def get_configuration():
-    """Get the configuration of of the data sources of the Waterboards"""
+    """Get the configuration of of the data sources of the Waterboards."""
     config = {}
 
     config["Aa en Maas"] = {
@@ -439,9 +441,10 @@ def get_configuration():
     return config
 
 
-def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
-    """
-    Get the data for a Waterboard and a specific data_kind
+def get_data(
+    wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs
+):
+    """Get the data for a Waterboard and a specific data_kind.
 
     Parameters
     ----------
@@ -474,7 +477,6 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
     gdf : GeoDataFrame
         A GeoDataFrame containing data from the waterboard (polygons for
         level_areas/level_deviations and lines for watercourses).
-
     """
     if config is None:
         config = get_configuration()
@@ -543,7 +545,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
 def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
     """Retrieve values from one or more Geo)DataFrame-columns and set these
-    values as another column"""
+    values as another column."""
     if set_column in gdf.columns:
         raise (Exception(f"Column {set_column} allready exists"))
     gdf[set_column] = np.NaN

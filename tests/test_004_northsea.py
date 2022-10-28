@@ -13,24 +13,8 @@ def test_get_gdf_opp_water():
 
 
 def test_surface_water_to_dataset():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
-
-    # create simulation
-    sim = nlmod.sim.sim(ds)
-
-    # create time discretisation
-    _ = nlmod.sim.tdis(ds, sim)
-
-    # create groundwater flow model
-    gwf = nlmod.gwf.gwf(ds, sim)
-
-    # create ims
-    _ = nlmod.gwf.ims(sim)
-
-    nlmod.gwf.dis(ds, gwf)
-
     name = "surface_water"
     ds_surfwat = nlmod.read.rws.get_surface_water(ds, name)
 
@@ -38,7 +22,6 @@ def test_surface_water_to_dataset():
 
 
 def test_get_northsea_seamodel():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds_sea = nlmod.read.rws.get_northsea(ds)
@@ -49,7 +32,6 @@ def test_get_northsea_seamodel():
 
 
 def test_get_northsea_nosea():
-
     # model without sea
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds_sea = nlmod.read.rws.get_northsea(ds)
@@ -60,7 +42,6 @@ def test_get_northsea_nosea():
 
 
 def test_fill_top_bot_kh_kv_seamodel():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
@@ -73,7 +54,6 @@ def test_fill_top_bot_kh_kv_seamodel():
 
 
 def test_fill_top_bot_kh_kv_nosea():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
@@ -86,7 +66,6 @@ def test_fill_top_bot_kh_kv_nosea():
 
 
 def test_get_bathymetry_seamodel():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
@@ -98,7 +77,6 @@ def test_get_bathymetry_seamodel():
 
 
 def test_get_bathymetrie_nosea():
-
     # model without sea
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
@@ -110,7 +88,6 @@ def test_get_bathymetrie_nosea():
 
 
 def test_add_bathymetrie_to_top_bot_kh_kv_seamodel():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))

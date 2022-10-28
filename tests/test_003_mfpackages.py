@@ -10,7 +10,6 @@ import test_001_model
 
 
 def test_sim_tdis_gwf_ims_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
 
     # create simulation
@@ -19,17 +18,16 @@ def test_sim_tdis_gwf_ims_from_ds(tmpdir):
     # create time discretisation
     _ = nlmod.sim.tdis(ds, sim)
 
+    # create ims
+    _ = nlmod.sim.ims(sim)
+
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
-
-    # create ims
-    _ = nlmod.gwf.ims(sim)
 
     return sim, gwf
 
 
 def dis_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
 
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
@@ -41,7 +39,6 @@ def dis_from_ds(tmpdir):
 
 @pytest.mark.slow
 def disv_from_ds(tmpdir):
-
     ds, gwf, gridprops = test_001_model.test_create_inf_panden_model(tmpdir)
 
     disv = nlmod.gwf.disv(ds, gwf, gridprops)
@@ -50,28 +47,23 @@ def disv_from_ds(tmpdir):
 
 
 def npf_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     nlmod.gwf.dis(ds)
-
     npf = nlmod.gwf.npf(ds, gwf)
 
     return npf
 
 
 def oc_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
-
     oc = nlmod.gwf.oc(ds, gwf)
 
     return oc
 
 
 def sto_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     sto = nlmod.gwf.sto(ds, gwf)
@@ -80,7 +72,6 @@ def sto_from_ds(tmpdir):
 
 
 def ghb_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("full_sea_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
@@ -118,7 +109,7 @@ def chd_from_ds(tmpdir):
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
-    chd = nlmod.gwf.chd(ds, gwf, head="starting_head")
+    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    chd = nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     return chd

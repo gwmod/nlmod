@@ -3,16 +3,15 @@
 
 @author: oebbe
 """
+import datetime as dt
 import logging
 import numbers
 import os
+from shutil import copyfile
 
 import flopy
 import numpy as np
 import xarray as xr
-import datetime as dt
-
-from shutil import copyfile
 
 from .. import mdims
 from . import recharge
@@ -49,36 +48,6 @@ def gwf(ds, sim, **kwargs):
     )
 
     return gwf
-
-
-def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
-    """create IMS package
-
-
-    Parameters
-    ----------
-    sim : flopy MFSimulation
-        simulation object.
-    complexity : str, optional
-        solver complexity for default settings. The default is "MODERATE".
-    pname : str, optional
-        package name
-
-    Returns
-    -------
-    ims : flopy ModflowIms
-        ims object.
-
-    """
-
-    logger.info("creating modflow IMS")
-
-    # Create the Flopy iterative model solver (ims) Package object
-    ims = flopy.mf6.modflow.mfims.ModflowIms(
-        sim, pname=pname, print_option="summary", complexity=complexity, **kwargs
-    )
-
-    return ims
 
 
 def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
@@ -323,13 +292,22 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
         ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=ds[starting_head].data, **kwargs)
+    ic = flopy.mf6.ModflowGwfic(
+        gwf, pname=pname, strt=ds[starting_head].data, **kwargs
+    )
 
     return ic
 
 
 def sto(
-    ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False, pname="sto", **kwargs
+    ds,
+    gwf,
+    sy=0.2,
+    ss=0.000001,
+    iconvert=1,
+    save_flows=False,
+    pname="sto",
+    **kwargs,
 ):
     """get storage package from model dataset.
 
@@ -425,7 +403,9 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     return chd
 
 
-def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs):
+def surface_drain_from_ds(
+    ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs
+):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 

@@ -33,7 +33,9 @@ def calculate_thickness(ds, top="top", bot="botm"):
             # top is 3D, every layer has top and bot
             thickness = ds[top] - ds[bot]
         else:
-            raise ValueError("3d top and bot should have same number of layers")
+            raise ValueError(
+                "3d top and bot should have same number of layers"
+            )
     elif ds[top].ndim == (ds[bot].ndim - 1) and ds[top].ndim in [1, 2]:
         if ds[top].shape[-1] == ds[bot].shape[-1]:
             # top is only top of first layer
@@ -92,7 +94,9 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
     # calculate new number of layers
     new_nlay = (
-        ds[layer].size + sum([len(sf) for sf in split_dict.values()]) - len(split_dict)
+        ds[layer].size
+        + sum((len(sf) for sf in split_dict.values()))
+        - len(split_dict)
     )
 
     # create new DataArrays for storing new top/bot
@@ -133,15 +137,19 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
             # check if factors add up to 1
             if np.sum(sf) != 1.0:
-                raise ValueError("Sum of split factors for layer must equal 1.0!")
+                raise ValueError(
+                    "Sum of split factors for layer must equal 1.0!"
+                )
             logger.debug(
-                f"{i}: Split layer {i} into {len(sf)} layers " f"with fractions: {sf}"
+                f"{i}: Split layer {i} into {len(sf)} layers "
+                f"with fractions: {sf}"
             )
 
             # loop over split factors
             for isf, factor in enumerate(sf):
                 logger.debug(
-                    f"  - {isf}: Calculate new top/bot for " f"new layer index {j}"
+                    f"  - {isf}: Calculate new top/bot for "
+                    f"new layer index {j}"
                 )
 
                 # calculate new bot and new top
@@ -159,7 +167,9 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
         # no split, remap old layer to new layer index
         else:
-            logger.debug(f"{i:2d}: No split: map layer {i} to " f"new layer index {j}")
+            logger.debug(
+                f"{i:2d}: No split: map layer {i} to " f"new layer index {j}"
+            )
             if top3d:
                 new_top.data[j] = ds[top].data[i]
             else:
@@ -253,7 +263,8 @@ def split_layers_ds(
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
         logger.warning(
-            "Warning! Following data variables " f"will be dropped: {dropped_dv}"
+            "Warning! Following data variables "
+            f"will be dropped: {dropped_dv}"
         )
 
     # calculate new tops/bots
@@ -264,9 +275,13 @@ def split_layers_ds(
     )
 
     # fill kh/kv
-    logger.info(f"Fill value '{kh}' for split layers with " "value original layer.")
+    logger.info(
+        f"Fill value '{kh}' for split layers with " "value original layer."
+    )
     da_kh = fill_data_split_layers(ds["kh"], reindexer)
-    logger.info(f"Fill value '{kv}' for split layers with " "value original layer.")
+    logger.info(
+        f"Fill value '{kv}' for split layers with " "value original layer."
+    )
     da_kv = fill_data_split_layers(ds["kv"], reindexer)
 
     # get new layer names
@@ -277,7 +292,13 @@ def split_layers_ds(
         if layercode in layer_names:
             if isinstance(layercode, str):
                 ilay = (
-                    np.sum([1 for ilay in layer_names if ilay.startswith(layercode)])
+                    np.sum(
+                        [
+                            1
+                            for ilay in layer_names
+                            if ilay.startswith(layercode)
+                        ]
+                    )
                     + 1
                 )
                 layercode += f"_{ilay}"
@@ -305,7 +326,9 @@ def split_layers_ds(
     return ds_split
 
 
-def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="botm"):
+def layer_combine_top_bot(
+    ds, combine_layers, layer="layer", top="top", bot="botm"
+):
     """Calculate new tops and bottoms for combined layers.
 
     Parameters
@@ -334,7 +357,9 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     """
     # calculate new number of layers
     new_nlay = (
-        ds[layer].size - sum([len(c) for c in combine_layers]) + len(combine_layers)
+        ds[layer].size
+        - sum((len(c) for c in combine_layers))
+        + len(combine_layers)
     )
 
     # create new DataArrays for storing new top/bot
@@ -367,7 +392,8 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
                 logger.debug(
-                    f"{j:2d}: Merge layers {c} as layer {j}, " "calculate new top/bot."
+                    f"{j:2d}: Merge layers {c} as layer {j}, "
+                    "calculate new top/bot."
                 )
                 tops = ds[top].data[c, :, :]
                 bots = ds[bot].data[c, :, :]
@@ -386,7 +412,8 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
         else:
             # do not merge, only map old layer index to new layer index
             logger.debug(
-                f"{j:2d}: Do not merge, map old layer index " "to new layer index."
+                f"{j:2d}: Do not merge, map old layer index "
+                "to new layer index."
             )
             new_top.data[j] = ds[top].data[i]
             new_bot.data[j] = ds[bot].data[i]
@@ -569,7 +596,8 @@ def combine_layers_ds(
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
         logger.warning(
-            "Warning! Following data variables " f"will be dropped: {dropped_dv}"
+            "Warning! Following data variables "
+            f"will be dropped: {dropped_dv}"
         )
 
     # calculate new tops/bots
@@ -679,8 +707,7 @@ def add_kh_kv_from_ml_layer_to_dataset(
 
 
 def set_model_top(ds, top):
-    """
-    Set the model top, changing layer bottoms when necessary as well
+    """Set the model top, changing layer bottoms when necessary as well.
 
     Parameters
     ----------
@@ -693,13 +720,14 @@ def set_model_top(ds, top):
     -------
     ds : xarray.Dataset
         The model dataset, containing the new top.
-
     """
     if "gridtype" not in ds.attrs:
         raise (Exception("Make sure the Dataset is build by nlmod"))
     if not top.shape == ds["top"].shape:
         raise (
-            Exception("Please make sure the new top has the same shape as the old top")
+            Exception(
+                "Please make sure the new top has the same shape as the old top"
+            )
         )
     if np.any(np.isnan(top)):
         raise (Exception("PLease make sure the new top does not contain nans"))
@@ -824,7 +852,9 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
             mask_top = ds["top"] < bottom_filled
-            ds["botm"][lay] = xr.where(fill_mask * mask_top, ds["top"], bottom_filled)
+            ds["botm"][lay] = xr.where(
+                fill_mask * mask_top, ds["top"], bottom_filled
+            )
         else:
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
@@ -832,8 +862,12 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
             ds["botm"][lay] = xr.where(
                 fill_mask * mask_top, ds["botm"][lay - 1], bottom_filled
             )
-        ds["kh"][lay] = xr.where(fill_mask * mask_top, ds["kh"][lay], kh_filled)
-        ds["kv"][lay] = xr.where(fill_mask * mask_top, ds["kv"][lay], kv_filled)
+        ds["kh"][lay] = xr.where(
+            fill_mask * mask_top, ds["kh"][lay], kh_filled
+        )
+        ds["kv"][lay] = xr.where(
+            fill_mask * mask_top, ds["kv"][lay], kv_filled
+        )
 
     return ds
 
@@ -845,14 +879,13 @@ def fill_nan_top_botm_kh_kv(
     fill_value_kv=0.1,
     remove_nan_layers=True,
 ):
-    """Update a model dataset, by removing nans and adding necessary info
+    """Update a model dataset, by removing nans and adding necessary info.
 
     Steps:
 
     1. Compute top and botm values, by filling nans by data from other layers
     2. Compute idomain from the layer thickness
     3. Compute kh and kv, filling nans with anisotropy or fill_values
-
     """
 
     # 1
@@ -873,7 +906,7 @@ def fill_nan_top_botm_kh_kv(
 
 
 def fill_top_and_bottom(ds):
-    """Remove Nans in botm variable, and change top from 3d to 2d if needed"""
+    """Remove Nans in botm variable, and change top from 3d to 2d if needed."""
     if "layer" in ds["top"].dims:
         ds["top"] = ds["top"].max("layer")
     top = ds["top"].data
@@ -892,8 +925,7 @@ def fill_top_and_bottom(ds):
 
 
 def set_idomain(ds, remove_nan_layers=True):
-    """
-    Set idmomain in a model Dataset
+    """Set idmomain in a model Dataset.
 
     Parameters
     ----------
@@ -906,7 +938,6 @@ def set_idomain(ds, remove_nan_layers=True):
     -------
     ds : TYPE
         DESCRIPTION.
-
     """
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
@@ -925,8 +956,7 @@ def set_idomain(ds, remove_nan_layers=True):
 
 
 def get_first_active_layer(ds, **kwargs):
-    """
-    Get the first active layer in each cell from a model ds
+    """Get the first active layer in each cell from a model ds.
 
     Parameters
     ----------
@@ -940,7 +970,6 @@ def get_first_active_layer(ds, **kwargs):
     first_active_layer : xr.DataArray
         raster in which each cell has the zero based number of the first
         active layer. Shape can be (y, x) or (icell2d)
-
     """
     return get_first_active_layer_from_idomain(ds["idomain"], **kwargs)
 

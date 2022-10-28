@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
-    """
-    Convert the recharge data in the model dataset to a rch package with time series.
+    """Convert the recharge data in the model dataset to a rch package with
+    time series.
 
     Parameters
     ----------
@@ -41,7 +41,9 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         mask = ds["recharge"] != 0
         recharge = "recharge"
     else:
-        rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
+        rch_name_arr, rch_unique_dic = _get_unique_series(
+            ds, "recharge", pname
+        )
         ds["rch_name"] = ds["top"].dims, rch_name_arr
         mask = ds["rch_name"] != ""
         recharge = "rch_name"
@@ -77,9 +79,8 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
 def model_datasets_to_evt(
     gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs
 ):
-    """
-    Convert the evaporation data in the model dataset to a evt package with time series.
-
+    """Convert the evaporation data in the model dataset to a evt package with
+    time series.
 
     Parameters
     ----------
@@ -111,7 +112,6 @@ def model_datasets_to_evt(
     -------
     evt : flopy.mf6.modflow.mfgwfevt.ModflowGwfevt
         evapotranspiiration package.
-
     """
     assert nseg == 1, "More than one evaporation segment not yet supported"
     if "surf_rate_specified" in kwargs:
@@ -131,7 +131,9 @@ def model_datasets_to_evt(
         mask = ds["evaporation"] != 0
         rate = "evaporation"
     else:
-        evt_name_arr, evt_unique_dic = _get_unique_series(ds, "evaporation", pname)
+        evt_name_arr, evt_unique_dic = _get_unique_series(
+            ds, "evaporation", pname
+        )
         ds["evt_name"] = ds["top"].dims, evt_name_arr
 
         mask = ds["evt_name"] != ""
@@ -169,8 +171,8 @@ def model_datasets_to_evt(
 
 
 def _get_unique_series(ds, var, pname):
-    """
-    Get the location and values of unique time series from a variable var in ds
+    """Get the location and values of unique time series from a variable var in
+    ds.
 
     Parameters
     ----------
@@ -192,7 +194,6 @@ def _get_unique_series(ds, var, pname):
         The name of the recharge series for each of the cells.
     rch_unique_dic : dict
         The values of each of the time series.
-
     """
     rch_name_arr = np.empty_like(ds["top"].values, dtype="U13")
 
@@ -229,8 +230,7 @@ def _get_unique_series(ds, var, pname):
 
 
 def _add_time_series(package, rch_unique_dic, ds):
-    """
-    Add time series to a package
+    """Add time series to a package.
 
     Parameters
     ----------
@@ -244,7 +244,6 @@ def _add_time_series(package, rch_unique_dic, ds):
     Returns
     -------
     None.
-
     """
     # get timesteps
     tdis_perioddata = get_tdis_perioddata(ds)

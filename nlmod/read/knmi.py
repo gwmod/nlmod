@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from .. import cache, util
-from ..mdims.resample import get_affine_mod_to_world
 from ..mdims.mlayers import get_first_active_layer
+from ..mdims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +81,9 @@ def get_recharge(ds, method="linear"):
         ds_out["recharge"] = dims, np.zeros(shape)
 
         # find unique combination of precipitation and evaporation station
-        unique_combinations = locations.drop_duplicates(["prec_point", "evap_point"])[
+        unique_combinations = locations.drop_duplicates(
             ["prec_point", "evap_point"]
-        ].values
+        )[["prec_point", "evap_point"]].values
 
         for prec_stn, evap_stn in unique_combinations:
             # get locations with the same prec and evap station
@@ -122,10 +122,12 @@ def get_recharge(ds, method="linear"):
 
 
 def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
-    """Add a timeseries to a variable at location loc_sel in model DataSet"""
+    """Add a timeseries to a variable at location loc_sel in model DataSet."""
     end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
     if timeseries.index[-1] < pd.Timestamp(ds.time.data[-1]):
-        raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
+        raise ValueError(
+            f"no recharge available at {timeseries.name} for date {end}"
+        )
 
     # fill recharge data array
     if ds.time.steady_state:
@@ -142,11 +144,15 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
         for j, ts in enumerate(model_recharge.index):
             if j < (len(model_recharge) - 1):
                 model_recharge.loc[ts] = (
-                    timeseries.loc[ts : model_recharge.index[j + 1]].iloc[:-1].mean()
+                    timeseries.loc[ts : model_recharge.index[j + 1]]
+                    .iloc[:-1]
+                    .mean()
                 )
             else:
 
-                model_recharge.loc[ts] = timeseries.loc[ts:end].iloc[:-1].mean()
+                model_recharge.loc[ts] = (
+                    timeseries.loc[ts:end].iloc[:-1].mean()
+                )
 
         # add data to ds
         if ds.gridtype == "structured":

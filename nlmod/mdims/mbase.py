@@ -1,13 +1,12 @@
 import datetime as dt
-import numpy as np
-import xarray as xr
 import logging
 
-
+import numpy as np
+import xarray as xr
 from scipy.spatial import cKDTree
 
-from . import resample, mlayers
 from .. import util
+from . import mlayers, resample
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +74,7 @@ def to_model_ds(
     angrot=0.0,
     drop_attributes=True,
 ):
-    """
-    Transform a regis datset to a model dataset with another resolution.
+    """Transform a regis datset to a model dataset with another resolution.
 
     Parameters
     ----------
@@ -122,7 +120,6 @@ def to_model_ds(
     -------
     ds : xarray.dataset
         THe model Dataset.
-
     """
     if extent is None:
         extent = ds.attrs["extent"]
@@ -212,7 +209,7 @@ def extrapolate_ds(ds, mask=None):
     return ds
 
 
-def get_default_ds(
+def get_ds(
     extent,
     delr=100.0,
     delc=None,
@@ -230,8 +227,7 @@ def get_default_ds(
     attrs=None,
     **kwargs,
 ):
-    """
-    Create a model dataset from scratch, so without a layer model.
+    """Create a model dataset from scratch, so without a layer model.
 
     Parameters
     ----------
@@ -287,7 +283,6 @@ def get_default_ds(
     -------
     xr.Dataset
         The model dataset.
-
     """
     if delc is None:
         delc = delr

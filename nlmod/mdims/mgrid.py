@@ -207,7 +207,7 @@ def refine(
         The refined model dataset.
 
     """
-    assert "icell2d" not in ds.dims, "Can only refine a structured grid"
+    assert ds.gridtype=='structured', "Can only refine a structured grid"
     logger.info("create vertex grid using gridgen")
 
     if exe_name is None:
@@ -561,7 +561,8 @@ def da_to_reclist(
         if only_active_cells:
             cellids = np.where((mask) & (ds["idomain"] == 1))
             ignore_cells = np.sum((mask) & (ds["idomain"] != 1))
-            logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
+            if ignore_cells > 0:
+                logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
         else:
             cellids = np.where(mask)
 
@@ -584,7 +585,8 @@ def da_to_reclist(
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
             ignore_cells = np.sum((mask) & (ds["idomain"][layer] != 1))
-            logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
+            if ignore_cells > 0:
+                logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
             layers = col_to_list(layer, ds, cellids)
         else:
             cellids = np.where(mask)

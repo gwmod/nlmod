@@ -26,11 +26,18 @@ from tqdm import tqdm
 
 from .. import cache, util
 from .mbase import extrapolate_ds
-from .mlayers import (fill_nan_top_botm_kh_kv, get_first_active_layer,
-                      get_first_active_layer_from_idomain, set_idomain)
+from .mlayers import (
+    fill_nan_top_botm_kh_kv,
+    get_first_active_layer,
+    set_idomain,
+)
 from .rdp import rdp
-from .resample import (affine_transform_gdf, get_affine_world_to_mod,
-                       get_resampled_ml_layer_ds_vertex, structured_da_to_ds)
+from .resample import (
+    affine_transform_gdf,
+    get_affine_world_to_mod,
+    get_resampled_ml_layer_ds_vertex,
+    structured_da_to_ds,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +56,6 @@ def xy_to_icell2d(xy, ds):
     -------
     icell2d : int
         number of the icell2d value of a cell containing the xy point.
-
     """
 
     icell2d = (np.abs(ds.x - xy[0]) + np.abs(ds.y - xy[1])).argmin().item()
@@ -113,7 +119,7 @@ def modelgrid_from_ds(ds, rotated=True, **kwargs):
 
 
 def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
-    """Add information about the calculation-grid to a model dataset"""
+    """Add information about the calculation-grid to a model dataset."""
     # add modelgrid to ds
     ds["xv"] = ("iv", mg.verts[:, 0])
     ds["yv"] = ("iv", mg.verts[:, 1])
@@ -129,8 +135,8 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
 
 
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
-    """Gridprops is a dictionairy containing keyword arguments needed to generate
-    a flopy modelgrid instance"""
+    """Gridprops is a dictionairy containing keyword arguments needed to
+    generate a flopy modelgrid instance."""
     ds["xv"] = ("iv", [i[1] for i in gridprops["vertices"]])
     ds["yv"] = ("iv", [i[2] for i in gridprops["vertices"]])
 
@@ -145,15 +151,19 @@ def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
 
 
 def get_vertices_from_ds(ds):
-    """Get the vertices-list from a model dataset. Flopy needs needs this list
-    to build a disv-package"""
+    """Get the vertices-list from a model dataset.
+
+    Flopy needs needs this list to build a disv-package
+    """
     vertices = list(zip(ds["iv"].data, ds["xv"].data, ds["yv"].data))
     return vertices
 
 
 def get_cell2d_from_ds(ds):
-    """Get the cell2d-list from a model dataset. Flopy needs this list to build
-    a disv-package"""
+    """Get the cell2d-list from a model dataset.
+
+    Flopy needs this list to build a disv-package
+    """
     icell2d = ds["icell2d"].data
     x = ds["x"].data
     y = ds["y"].data
@@ -174,8 +184,7 @@ def refine(
     remove_nan_layers=True,
     model_coordinates=False,
 ):
-    """
-    Refine the grid (discretization by vertices, disv), using Gridgen
+    """Refine the grid (discretization by vertices, disv), using Gridgen.
 
     Parameters
     ----------
@@ -204,7 +213,6 @@ def refine(
     -------
     xarray.Dataset
         The refined model dataset.
-
     """
     assert ds.gridtype == "structured", "Can only refine a structured grid"
     logger.info("create vertex grid using gridgen")
@@ -293,10 +301,9 @@ def refine(
 
 
 def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
-    """
-    Add variables from a layer Dataset to a model Dataset.
-    Keep de grid-information from the model Dataset (x and y or icell2d), but update
-    the layer dimension when neccesary.
+    """Add variables from a layer Dataset to a model Dataset. Keep de grid-
+    information from the model Dataset (x and y or icell2d), but update the
+    layer dimension when neccesary.
 
     Parameters
     ----------
@@ -313,7 +320,6 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
     -------
     ds : TYPE
         DESCRIPTION.
-
     """
     if not layer_ds.layer.equals(ds.layer):
         # do not change the original Dataset
@@ -406,7 +412,9 @@ def col_to_list(col_in, ds, cellids):
     return col_lst
 
 
-def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None):
+def lrc_to_reclist(
+    layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None
+):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for structured grids.
@@ -476,7 +484,7 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
         col1_lst = col_to_list(col1, ds, cellids)
         col2_lst = col_to_list(col2, ds, cellids)
         col3_lst = col_to_list(col3, ds, cellids)
-        rec_list = list(
+        reclist = list(
             zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst)
         )
     else:
@@ -726,7 +734,7 @@ def gdf_to_data_array_struc(
     gdf, gwf, field="VALUE", agg_method=None, interp_method=None
 ):
     """Project vector data on a structured grid. Aggregate data if multiple
-    geometries are in a single cell
+    geometries are in a single cell.
 
     Parameters
     ----------
@@ -751,7 +759,6 @@ def gdf_to_data_array_struc(
     -------
     da : xarray DataArray
         DESCRIPTION.
-
     """
     x = gwf.modelgrid.get_xcellcenters_for_layer(0)[0]
     y = gwf.modelgrid.get_ycellcenters_for_layer(0)[:, 0]
@@ -815,7 +822,6 @@ def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
     -------
     da : xarray DataArray
         The DataArray with the projected vector data.
-
     """
     gdf_cellid = gdf_to_grid(gdf, ds)
     if gdf_cellid.cellid.duplicated().any():
@@ -847,8 +853,7 @@ def add_info_to_gdf(
     min_total_overlap=0.5,
     geom_type="Polygon",
 ):
-    """
-    Add information from gdf_from to gdf_to
+    """Add information from gdf_from to gdf_to.
 
     Parameters
     ----------
@@ -876,7 +881,6 @@ def add_info_to_gdf(
     -------
     gdf_to : TYPE
         DESCRIPTION.
-
     """
 
     gdf_to = gdf_to.copy()
@@ -909,8 +913,7 @@ def add_info_to_gdf(
 
 
 def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
-    """interpolate data from a point gdf
-
+    """interpolate data from a point gdf.
 
     Parameters
     ----------
@@ -928,7 +931,6 @@ def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
     -------
     arr : np.array
         numpy array with interpolated data.
-
     """
     # check geometry
     geom_types = gdf.geometry.type.unique()
@@ -988,7 +990,6 @@ def _agg_nearest(gdf, col, gwf):
 
 
 def _get_aggregates_values(group, fields_methods, gwf=None):
-
     agg_dic = {}
     for field, method in fields_methods.items():
         # aggregation is only necesary if group shape is greater than 1
@@ -1268,9 +1269,9 @@ def get_thickness_from_topbot(top, bot):
 def get_vertices_arr(
     ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False
 ):
-    """get vertices of a vertex modelgrid from a ds or the modelgrid.
-    Only return the 4 corners of each cell and not the corners of
-    adjacent cells thus limiting the vertices per cell to 4 points.
+    """get vertices of a vertex modelgrid from a ds or the modelgrid. Only
+    return the 4 corners of each cell and not the corners of adjacent cells
+    thus limiting the vertices per cell to 4 points.
 
     This method uses the xvertices and yvertices attributes of the modelgrid.
     When no modelgrid is supplied, a modelgrid-object is created from ds.
@@ -1335,9 +1336,9 @@ def get_vertices_arr(
 
 
 def get_vertices(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
-    """get vertices of a vertex modelgrid from a ds or the modelgrid.
-    Only return the 4 corners of each cell and not the corners of
-    adjacent cells thus limiting the vertices per cell to 4 points.
+    """get vertices of a vertex modelgrid from a ds or the modelgrid. Only
+    return the 4 corners of each cell and not the corners of adjacent cells
+    thus limiting the vertices per cell to 4 points.
 
     This method uses the xvertices and yvertices attributes of the modelgrid.
     When no modelgrid is supplied, a modelgrid-object is created from ds.

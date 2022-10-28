@@ -389,9 +389,8 @@ def model_dataset_to_ugrid_nc_file(
     yv="yv",
     face_node_connectivity="icvert",
 ):
-    """
-    Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh
-    Layer in qgis
+    """Save a model dataset to a UGRID NetCDF file, so it can be opened as a
+    Mesh Layer in qgis.
 
     Parameters
     ----------
@@ -419,7 +418,6 @@ def model_dataset_to_ugrid_nc_file(
     -------
     ds : xr.DataSet
         The dataset that was saved to a NetCDF-file. Can be used for debugging.
-
     """
     assert model_ds.gridtype == "vertex", "Only vertex grids are supported"
 

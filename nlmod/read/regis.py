@@ -209,9 +209,13 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     logger.info("cut geotop layer based on regis holoceen")
     for lay in range(geotop_ds.dims["layer"]):
         # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
-        mask1 = geotop_ds["top"][lay] <= (regis_ds["botm"][layer_no] - float_correction)
+        mask1 = geotop_ds["top"][lay] <= (
+            regis_ds["botm"][layer_no] - float_correction
+        )
         geotop_ds["top"][lay] = xr.where(mask1, np.nan, geotop_ds["top"][lay])
-        geotop_ds["botm"][lay] = xr.where(mask1, np.nan, geotop_ds["botm"][lay])
+        geotop_ds["botm"][lay] = xr.where(
+            mask1, np.nan, geotop_ds["botm"][lay]
+        )
         geotop_ds["kh"][lay] = xr.where(mask1, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask1, np.nan, geotop_ds["kv"][lay])
 
@@ -224,9 +228,13 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
         )
 
         # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
-        mask3 = geotop_ds["botm"][lay] >= (regis_ds["top"][layer_no] - float_correction)
+        mask3 = geotop_ds["botm"][lay] >= (
+            regis_ds["top"][layer_no] - float_correction
+        )
         geotop_ds["top"][lay] = xr.where(mask3, np.nan, geotop_ds["top"][lay])
-        geotop_ds["botm"][lay] = xr.where(mask3, np.nan, geotop_ds["botm"][lay])
+        geotop_ds["botm"][lay] = xr.where(
+            mask3, np.nan, geotop_ds["botm"][lay]
+        )
         geotop_ds["kh"][lay] = xr.where(mask3, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask3, np.nan, geotop_ds["kv"][lay])
 
@@ -239,7 +247,9 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
         # overal waar holoceen inactief is, wordt geotop ook inactief
         mask5 = regis_ds["botm"][layer_no].isnull()
         geotop_ds["top"][lay] = xr.where(mask5, np.nan, geotop_ds["top"][lay])
-        geotop_ds["botm"][lay] = xr.where(mask5, np.nan, geotop_ds["botm"][lay])
+        geotop_ds["botm"][lay] = xr.where(
+            mask5, np.nan, geotop_ds["botm"][lay]
+        )
         geotop_ds["kh"][lay] = xr.where(mask5, np.nan, geotop_ds["kh"][lay])
         geotop_ds["kv"][lay] = xr.where(mask5, np.nan, geotop_ds["kv"][lay])
         if (mask2 * (~mask1)).sum() > 0:
@@ -270,13 +280,17 @@ def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
     ]
 
     # maak top, bot, kh en kv nan waar de laagdikte 0 is
-    mask = (regis_geotop_ds["top"] - regis_geotop_ds["botm"]) < float_correction
+    mask = (
+        regis_geotop_ds["top"] - regis_geotop_ds["botm"]
+    ) < float_correction
     for key in ["top", "botm", "kh", "kv"]:
         regis_geotop_ds[key] = xr.where(mask, np.nan, regis_geotop_ds[key])
         regis_geotop_ds[key].attrs["source"] = "REGIS/geotop"
         regis_geotop_ds[key].attrs["regis_url"] = regis_ds[key].url
         regis_geotop_ds[key].attrs["geotop_url"] = geotop_ds[key].url
-        regis_geotop_ds[key].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+        regis_geotop_ds[key].attrs["date"] = dt.datetime.now().strftime(
+            "%Y%m%d"
+        )
         if key in ["top", "botm"]:
             regis_geotop_ds[key].attrs["units"] = "mNAP"
         elif key in ["kh", "kv"]:

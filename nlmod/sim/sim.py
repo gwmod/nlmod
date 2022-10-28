@@ -92,10 +92,8 @@ def get_tdis_perioddata(ds):
     """
     deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
-        (
-            pd.to_datetime(ds["time"].data[0]) 
-            - pd.to_datetime(ds.time.start)
-        ) / deltat
+        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
+        / deltat
     ]
 
     if len(ds["time"]) > 1:
@@ -191,8 +189,7 @@ def tdis(ds, sim, pname="tdis"):
 
 
 def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
-    """create IMS package
-
+    """create IMS package.
 
     Parameters
     ----------
@@ -207,7 +204,6 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
     -------
     ims : flopy ModflowIms
         ims object.
-
     """
 
     logger.info("creating modflow IMS")

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Created on Fri Jun 12 15:33:03 2020.
+
 @author: ruben
 """
 
@@ -50,7 +51,9 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
 
     url = _infer_url(identifier)
     extent = mdims.resample.get_extent(ds)
-    ahn_ds_raw = get_ahn_from_wcs(extent=extent, url=url, identifier=identifier)
+    ahn_ds_raw = get_ahn_from_wcs(
+        extent=extent, url=url, identifier=identifier
+    )
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
@@ -185,7 +188,7 @@ def get_ahn_from_wcs(
 
 
 def get_ahn3_tiles(extent=None, **kwargs):
-    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame"""
+    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame."""
     url = "https://service.pdok.nl/rws/ahn3/wfs/v1_0?service=wfs"
     layer = "ahn3_bladindex"
     gdf = wfs(url, layer, extent=extent, **kwargs)
@@ -195,7 +198,8 @@ def get_ahn3_tiles(extent=None, **kwargs):
 
 
 def get_ahn4_tiles(extent=None):
-    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download links"""
+    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download
+    links."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN4/FeatureServer"
     layer = 0
     gdf = arcrest(url, layer, extent)
@@ -205,8 +209,7 @@ def get_ahn4_tiles(extent=None):
 
 
 def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
-    """
-    Download AHN3
+    """Download AHN3.
 
     Parameters
     ----------
@@ -245,14 +248,15 @@ def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
     merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        da = da.sel(
+            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2])
+        )
         return da
     return memfile
 
 
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
-    """
-    Download AHN4
+    """Download AHN4.
 
     Parameters
     ----------
@@ -281,6 +285,8 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        da = da.sel(
+            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2])
+        )
         return da
     return memfile

@@ -190,8 +190,8 @@ def test_create_sea_model(tmpdir):
     _ = nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
-    _ = nlmod.gwf.chd(ds, gwf, head="starting_head")
+    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    _ = nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
     ds.update(nlmod.read.knmi.get_recharge(ds))
@@ -261,8 +261,8 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
-    nlmod.gwf.chd(ds, gwf, head="starting_head")
+    ds.update(nlmod.gwf.mgrid.mask_model_edge(ds, ds["idomain"]))
+    nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
     ds.update(nlmod.read.knmi.get_recharge(ds))
@@ -303,11 +303,11 @@ def test_create_sea_model_perlen_14(tmpdir):
     # create time discretisation
     _ = nlmod.sim.tdis(ds, sim)
 
-    # create groundwater flow model
-    gwf = nlmod.gwf.gwf(ds, sim)
-
     # create ims
     _ = nlmod.sim.ims(sim)
+
+    # create groundwater flow model
+    gwf = nlmod.gwf.gwf(ds, sim)
 
     # Create discretization
     nlmod.gwf.dis(ds, gwf)
@@ -331,8 +331,8 @@ def test_create_sea_model_perlen_14(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
-    nlmod.gwf.chd(ds, gwf, head="starting_head")
+    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
     ds.update(nlmod.read.knmi.get_recharge(ds))
@@ -346,7 +346,6 @@ def test_create_sea_model_perlen_14(tmpdir):
 
 # obtaining the test models
 def test_get_ds_from_cache(name="small_model"):
-
     ds = xr.open_dataset(os.path.join(tst_model_dir, name + ".nc"))
 
     return ds
@@ -354,7 +353,6 @@ def test_get_ds_from_cache(name="small_model"):
 
 # other functions
 def _check_tmpdir(tmpdir):
-
     # pytest uses a LocalPath object for the tmpdir argument when testing
     # this function convert a LocalPath object to a string
 

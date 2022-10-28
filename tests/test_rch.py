@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Sep 28 14:07:55 2022
+"""Created on Wed Sep 28 14:07:55 2022.
 
 @author: Ruben
 """
 
+import logging
+
+import nlmod
 import numpy as np
 import pandas as pd
 import xarray as xr
-import logging
-import nlmod
-
 
 # toon informatie bij het aanroepen van functies
 logging.basicConfig(level=logging.INFO)

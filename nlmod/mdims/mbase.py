@@ -74,8 +74,7 @@ def to_model_ds(
     angrot=0.0,
     drop_attributes=True,
 ):
-    """
-    Transform a regis datset to a model dataset with another resolution.
+    """Transform a regis datset to a model dataset with another resolution.
 
     Parameters
     ----------
@@ -121,7 +120,6 @@ def to_model_ds(
     -------
     ds : xarray.dataset
         THe model Dataset.
-
     """
     if extent is None:
         extent = ds.attrs["extent"]
@@ -229,8 +227,7 @@ def get_ds(
     attrs=None,
     **kwargs,
 ):
-    """
-    Create a model dataset from scratch, so without a layer model.
+    """Create a model dataset from scratch, so without a layer model.
 
     Parameters
     ----------
@@ -286,7 +283,6 @@ def get_ds(
     -------
     xr.Dataset
         The model dataset.
-
     """
     if delc is None:
         delc = delr

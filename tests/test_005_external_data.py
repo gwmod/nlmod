@@ -4,7 +4,6 @@ import test_001_model
 
 
 def test_get_recharge():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
@@ -15,7 +14,6 @@ def test_get_recharge():
 
 
 def test_get_recharge_steady_state():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
@@ -30,7 +28,6 @@ def test_get_recharge_steady_state():
 
 
 def test_ahn_within_extent():
-
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
     da = nlmod.read.ahn.get_ahn_from_wcs(extent)
 
@@ -40,7 +37,6 @@ def test_ahn_within_extent():
 
 
 def test_ahn_split_extent():
-
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
     da = nlmod.read.ahn.get_ahn_from_wcs(extent, maxsize=1000)
 
@@ -50,7 +46,6 @@ def test_ahn_split_extent():
 
 
 def test_get_ahn3():
-
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
     da = nlmod.read.ahn.get_ahn3(extent)
 
@@ -58,7 +53,6 @@ def test_get_ahn3():
 
 
 def test_get_ahn4():
-
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
     da = nlmod.read.ahn.get_ahn4(extent)
 
@@ -66,7 +60,6 @@ def test_get_ahn4():
 
 
 def test_get_ahn():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 
@@ -79,7 +72,6 @@ def test_get_ahn():
 
 
 def test_get_surface_water_ghb():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
 

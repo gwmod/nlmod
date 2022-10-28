@@ -15,9 +15,9 @@ if sys.version_info[0] >= 3:
 
 
 def pldist(point, start, end):
-    """
-    Calculates the distance from ``point`` to the line given
-    by the points ``start`` and ``end``.
+    """Calculates the distance from ``point`` to the line given by the points
+    ``start`` and ``end``.
+
     :param point: a point
     :type point: numpy array
     :param start: a point of the line
@@ -35,9 +35,8 @@ def pldist(point, start, end):
 
 
 def rdp_rec(M, epsilon, dist=pldist):
-    """
-    Simplifies a given array of points.
-    Recursive version.
+    """Simplifies a given array of points. Recursive version.
+
     :param M: an array
     :type M: numpy array
     :param epsilon: epsilon in the rdp algorithm
@@ -94,9 +93,8 @@ def _rdp_iter(M, start_index, last_index, epsilon, dist=pldist):
 
 
 def rdp_iter(M, epsilon, dist=pldist, return_mask=False):
-    """
-    Simplifies a given array of points.
-    Iterative version.
+    """Simplifies a given array of points. Iterative version.
+
     :param M: an array
     :type M: numpy array
     :param epsilon: epsilon in the rdp algorithm
@@ -160,7 +158,9 @@ def rdp(M, epsilon=0, dist=pldist, algo="iter", return_mask=False):
         algo = partial(rdp_iter, return_mask=return_mask)
     elif algo == "rec":
         if return_mask:
-            raise NotImplementedError('return_mask=True not supported with algo="rec"')
+            raise NotImplementedError(
+                'return_mask=True not supported with algo="rec"'
+            )
         algo = rdp_rec
 
     if "numpy" in str(type(M)):

@@ -12,7 +12,6 @@ import test_001_model
 
 # @pytest.mark.skip(reason="too slow")
 def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
-
     regis_ds = regis.get_regis(extent)
 
     assert regis_ds.dims["layer"] == 20

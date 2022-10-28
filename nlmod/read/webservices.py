@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Aug 12 10:54:02 2022
+"""Created on Fri Aug 12 10:54:02 2022.
 
 @author: Ruben
 """
@@ -25,9 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 def arcrest(
-    url, layer, extent=None, sr=28992, f="geojson", max_record_count=None, timeout=1200
+    url,
+    layer,
+    extent=None,
+    sr=28992,
+    f="geojson",
+    max_record_count=None,
+    timeout=1200,
 ):
-    """Download data from an arcgis rest FeatureServer"""
+    """Download data from an arcgis rest FeatureServer."""
     params = {
         "f": f,
         "outFields": "*",
@@ -103,7 +108,9 @@ def arcrest(
                 and "x" in feature["geometry"]
                 and "y" in feature["geometry"]
             ):
-                geometry = Point(feature["geometry"]["x"], feature["geometry"]["y"])
+                geometry = Point(
+                    feature["geometry"]["x"], feature["geometry"]["y"]
+                )
             else:
                 raise (Exception("Not supported yet"))
             feature["attributes"]["geometry"] = geometry
@@ -136,7 +143,7 @@ def wfs(
     max_record_count=None,
     driver="GML",
 ):
-    """Download data from a wfs server"""
+    """Download data from a wfs server."""
     params = dict(version=version, request="GetFeature")
     if version == "2.0.0":
         params["typeNames"] = layer
@@ -179,12 +186,16 @@ def wfs(
                 add_constrains(op, constraints)
 
         if "CountDefault" not in constraints:
-            logger.info("Cannot find CountDefault. Setting CountDefault to inf")
+            logger.info(
+                "Cannot find CountDefault. Setting CountDefault to inf"
+            )
             constraints["CountDefault"] = np.inf
         if max_record_count is None:
             max_record_count = constraints["CountDefault"]
         else:
-            max_record_count = min(max_record_count, constraints["CountDefault"])
+            max_record_count = min(
+                max_record_count, constraints["CountDefault"]
+            )
 
         # get the number of features
         params["resultType"] = "hits"
@@ -227,8 +238,7 @@ def wcs(
     crs="EPSG:28992",
     maxsize=2000,
 ):
-    """Download data from a web coverage service (WCS), return a MemoryFile
-
+    """Download data from a web coverage service (WCS), return a MemoryFile.
 
     Parameters
     ----------
@@ -256,7 +266,6 @@ def wcs(
     -------
     memfile : rasterio.io.MemoryFile
         MemoryFile.
-
     """
     # check if wcs is within limits
     dx = extent[1] - extent[0]
@@ -291,7 +300,9 @@ def wcs(
         )
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
     else:
-        memfile = _download_wcs(extent, res, url, identifier, version, fmt, crs)
+        memfile = _download_wcs(
+            extent, res, url, identifier, version, fmt, crs
+        )
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
         # load the data from memfile otherwise lazy loading of xarray causes problems
         da.load()
@@ -300,7 +311,16 @@ def wcs(
 
 
 def _split_wcs_extent(
-    extent, x_segments, y_segments, maxsize, res, url, identifier, version, fmt, crs
+    extent,
+    x_segments,
+    y_segments,
+    maxsize,
+    res,
+    url,
+    identifier,
+    version,
+    fmt,
+    crs,
 ):
     """There is a max height and width limit for the wcs server. This function
     splits your extent in chunks smaller than the limit. It returns a list of
@@ -349,7 +369,9 @@ def _split_wcs_extent(
                 f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
             )
 
-            memfile = _download_wcs(subextent, res, url, identifier, version, fmt, crs)
+            memfile = _download_wcs(
+                subextent, res, url, identifier, version, fmt, crs
+            )
 
             datasets.append(memfile)
             start_y = end_y
@@ -365,8 +387,7 @@ def _split_wcs_extent(
 
 
 def _download_wcs(extent, res, url, identifier, version, fmt, crs):
-    """Download the wcs-data, return a MemoryFile
-
+    """Download the wcs-data, return a MemoryFile.
 
     Parameters
     ----------
@@ -394,7 +415,6 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
     -------
     memfile : rasterio.io.MemoryFile
         MemoryFile.
-
     """
     # download file
     logger.debug(
@@ -405,7 +425,11 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
     if identifier is None:
         identifiers = list(wcs.contents)
         if len(identifiers) > 1:
-            raise (Exception("wcs contains more than 1 identifier. Please specify."))
+            raise (
+                Exception(
+                    "wcs contains more than 1 identifier. Please specify."
+                )
+            )
         identifier = identifiers[0]
     if version == "1.0.0":
         bbox = (extent[0], extent[2], extent[1], extent[3])

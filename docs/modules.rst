@@ -102,12 +102,12 @@ gwf
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.gwf.constant_head
+.. automodule:: nlmod.gwf.horizontal_flow_barrier
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.gwf.horizontal_flow_barrier
+.. automodule:: nlmod.gwf.wells
    :members:
    :undoc-members:
    :private-members:

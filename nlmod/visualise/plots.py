@@ -31,7 +31,6 @@ def plot_surface_water(model_ds, ax=None):
 
 
 def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
-
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
 
@@ -102,7 +101,9 @@ def facet_plot(
             iper = period
             if arr.ndim == 4:
                 if iper is None:
-                    raise ValueError("Pass 'period' to select timestep to plot.")
+                    raise ValueError(
+                        "Pass 'period' to select timestep to plot."
+                    )
                 a = arr[iper]
         elif plot_dim == "time":
             ilay = layer
@@ -231,7 +232,9 @@ def facet_plot_ds(
         iax = axes.ravel()[ilay]
         mp = flopy.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
         # mp.plot_grid()
-        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax)
+        qm = mp.plot_array(
+            plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax
+        )
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)
@@ -252,7 +255,9 @@ def facet_plot_ds(
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(f"{plot_var}", rotation=270)
-    fig.suptitle(f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year")
+    fig.suptitle(
+        f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year"
+    )
     fig.tight_layout()
     fig.savefig(
         os.path.join(figdir, f"{plot_var}_per_layer.png"),
@@ -264,7 +269,6 @@ def facet_plot_ds(
 
 
 def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
-
     warnings.warn(
         "The 'plot_array' functions is deprecated please use"
         "'plot_vertex_array' instead",
@@ -357,8 +361,7 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
 
 
 def da(da, ds=None, ax=None, rotated=False, **kwargs):
-    """
-    Plot an xarray DataArray, using information from the model Dataset ds
+    """Plot an xarray DataArray, using information from the model Dataset ds.
 
     Parameters
     ----------
@@ -377,7 +380,6 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
     -------
     matplotlib QuadMesh or PatchCollection
         The object containing the cells.
-
     """
     if ax is None:
         ax = plt.gca()
@@ -402,7 +404,8 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
 
 
 def get_patches(ds, rotated=False):
-    """Get the matplotlib patches for a vertex grid, which can be used in da()"""
+    """Get the matplotlib patches for a vertex grid, which can be used in
+    da()"""
     assert "icell2d" in ds.dims
     xy = np.column_stack((ds["xv"].data, ds["yv"].data))
     if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
@@ -427,8 +430,7 @@ def get_map(
     sharex=False,
     sharey=True,
 ):
-    """
-    Generate a motplotlib Figure with a map with the axis set to extent
+    """Generate a motplotlib Figure with a map with the axis set to extent.
 
     Parameters
     ----------
@@ -459,13 +461,14 @@ def get_map(
         The resulting figure.
     axes : matplotlib.Axes or numpy array of matplotlib.Axes
         the ax or axes (when ncols/nrows > 1).
-
     """
     if isinstance(figsize, (float, int)):
         xh = 0.2
         if base is None:
             xh = 0.0
-        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh)
+        figsize = get_figsize(
+            extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh
+        )
     f, axes = plt.subplots(
         figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
     )
@@ -491,7 +494,7 @@ def get_map(
 
 
 def get_figsize(extent, figw=10.0, nrows=1, ncols=1, xh=0.2):
-    """Get a figure size in inches, calculated from a model extent"""
+    """Get a figure size in inches, calculated from a model extent."""
     w = extent[1] - extent[0]
     h = extent[3] - extent[2]
     axh = (figw / ncols) * (h / w) + xh
@@ -501,13 +504,14 @@ def get_figsize(extent, figw=10.0, nrows=1, ncols=1, xh=0.2):
 
 
 def rotate_yticklabels(ax):
-    """Rotate the labels on the y-axis 90 degrees to save space"""
+    """Rotate the labels on the y-axis 90 degrees to save space."""
     yticklabels = ax.yaxis.get_ticklabels()
     plt.setp(yticklabels, rotation=90, verticalalignment="center")
 
 
 def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
-    """Add ticks every 1000 (base) m, and divide ticklabels by 1000 (fmt_base)"""
+    """Add ticks every 1000 (base) m, and divide ticklabels by 1000
+    (fmt_base)"""
 
     def fmt_rd_ticks(x, _):
         return fmt.format(x / fmt_base)
@@ -519,8 +523,10 @@ def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
     ax.yaxis.set_major_formatter(FuncFormatter(fmt_rd_ticks))
 
 
-def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw):
-    """Place a colorbar inside an axes"""
+def colorbar_inside(
+    mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw
+):
+    """Place a colorbar inside an axes."""
     if ax is None:
         ax = plt.gca()
     if bounds is None:
@@ -546,7 +552,7 @@ def title_inside(
     verticalalignment="top",
     **kwargs,
 ):
-    """ "Place a title inside a matplotlib axes, at the top"""
+    """ "Place a title inside a matplotlib axes, at the top."""
     if ax is None:
         ax = plt.gca()
     return ax.text(

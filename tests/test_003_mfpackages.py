@@ -10,7 +10,6 @@ import test_001_model
 
 
 def test_sim_tdis_gwf_ims_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
 
     # create simulation
@@ -29,7 +28,6 @@ def test_sim_tdis_gwf_ims_from_ds(tmpdir):
 
 
 def dis_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
 
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
@@ -41,7 +39,6 @@ def dis_from_ds(tmpdir):
 
 @pytest.mark.slow
 def disv_from_ds(tmpdir):
-
     ds, gwf, gridprops = test_001_model.test_create_inf_panden_model(tmpdir)
 
     disv = nlmod.gwf.disv(ds, gwf, gridprops)
@@ -50,7 +47,6 @@ def disv_from_ds(tmpdir):
 
 
 def npf_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     nlmod.gwf.dis(ds)
@@ -60,7 +56,6 @@ def npf_from_ds(tmpdir):
 
 
 def oc_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     oc = nlmod.gwf.oc(ds, gwf)
@@ -69,7 +64,6 @@ def oc_from_ds(tmpdir):
 
 
 def sto_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     sto = nlmod.gwf.sto(ds, gwf)
@@ -78,7 +72,6 @@ def sto_from_ds(tmpdir):
 
 
 def ghb_from_ds(tmpdir):
-
     ds = test_001_model.test_get_ds_from_cache("full_sea_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)

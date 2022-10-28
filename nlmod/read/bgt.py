@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Apr 20 17:01:07 2022
+"""Created on Wed Apr 20 17:01:07 2022.
 
 @author: Ruben
 """
@@ -21,9 +20,10 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 from ..mdims.resample import extent_to_polygon
 
 
-def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None):
-    """
-    Get geometries within an extent or polygon from the Basis Registratie
+def get_bgt(
+    extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None
+):
+    """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
 
     Parameters
@@ -54,7 +54,6 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
     -------
     gdf : GeoPandas GeoDataFrame
         A GeoDataFrame containing all geometries and properties.
-
     """
     if layer == "all":
         layer = get_bgt_layers()

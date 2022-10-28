@@ -163,15 +163,17 @@ def estimate_nstp(
     nt = len(forcing)
 
     # Scaled linear between min and max. array nstp will be modified along the way
-    nstp = (forcing - np.min(forcing)) / (np.max(forcing) - np.min(forcing)) * (
-        nstp_max - nstp_min
-    ) + nstp_min
+    nstp = (forcing - np.min(forcing)) / (
+        np.max(forcing) - np.min(forcing)
+    ) * (nstp_max - nstp_min) + nstp_min
     perlen = np.full(nt, fill_value=perlen)
     tsmult = np.full(nt, fill_value=tsmult)
 
     # Duration of the first time step of each stress period. Equation TM6A16 p.4-5 eq.1
     dt0_arr = np.where(
-        tsmult == 1.0, perlen / nstp, perlen * (tsmult - 1) / (tsmult**nstp - 1)
+        tsmult == 1.0,
+        perlen / nstp,
+        perlen * (tsmult - 1) / (tsmult**nstp - 1),
     )
 
     for i in range(nt - 1):

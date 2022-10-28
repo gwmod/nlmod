@@ -67,17 +67,23 @@ def get_bathymetry(ds, northsea, method="average"):
             "cannot access Jarkus netCDF link, copy file from google drive instead"
         )
         fname_jarkus = os.path.join(ds.model_ws, "jarkus_nhflopy.nc")
-        url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
+        url = (
+            "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
+        )
         gdown.download(url, fname_jarkus, quiet=False)
         jarkus_ds = xr.open_dataset(fname_jarkus)
 
     da_bathymetry_raw = jarkus_ds["z"]
 
     # fill nan values in bathymetry
-    da_bathymetry_filled = mdims.fillnan_dataarray_structured_grid(da_bathymetry_raw)
+    da_bathymetry_filled = mdims.fillnan_dataarray_structured_grid(
+        da_bathymetry_raw
+    )
 
     # bathymetrie mag nooit groter zijn dan NAP 0.0
-    da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
+    da_bathymetry_filled = xr.where(
+        da_bathymetry_filled > 0, 0, da_bathymetry_filled
+    )
 
     # bathymetry projected on model grid
     da_bathymetry = mdims.resample.structured_da_to_ds(
@@ -188,7 +194,9 @@ def get_netcdf_tiles():
     return netcdf_urls
 
 
-def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10):
+def add_bathymetry_to_top_bot_kh_kv(
+    ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10
+):
     """add bathymetry to the top and bot of each layer for all cells with
     fill_mask.
 

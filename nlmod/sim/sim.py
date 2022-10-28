@@ -17,7 +17,6 @@ from .. import util
 logger = logging.getLogger(__name__)
 
 
-
 def write_and_run(sim, ds, write_ds=True, nb_path=None):
     """write modflow files and run the model.
 
@@ -67,8 +66,9 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None):
     assert sim.run_simulation()[0], "Modflow run not succeeded"
     ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
+
 def get_tdis_perioddata(ds):
-    """Get tdis_perioddata from ds. 
+    """Get tdis_perioddata from ds.
 
     Parameters
     ----------
@@ -89,23 +89,22 @@ def get_tdis_perioddata(ds):
     """
     deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
-        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
-        / deltat
+        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start)) / deltat
     ]
-    
+
     if len(ds["time"]) > 1:
         perlen.extend(np.diff(ds["time"]) / deltat)
-        
-    if 'nstp' in ds:
-        nstp = ds['nstp'].values
+
+    if "nstp" in ds:
+        nstp = ds["nstp"].values
     else:
         nstp = [ds.time.nstp] * len(perlen)
-    
-    if 'tsmult' in ds:
-        tsmult = ds['tsmult'].values
+
+    if "tsmult" in ds:
+        tsmult = ds["tsmult"].values
     else:
         tsmult = [ds.time.tsmult] * len(perlen)
-    
+
     tdis_perioddata = [(p, n, t) for p, n, t in zip(perlen, nstp, tsmult)]
 
     return tdis_perioddata

@@ -84,11 +84,11 @@ def get_ds_empty(ds):
     empty_ds : xr.Dataset
         dataset with only model coordinate information
     """
-    
+
     empty_ds = xr.Dataset()
     for coord in list(ds.coords):
         empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
-        
+
     return empty_ds
 
 

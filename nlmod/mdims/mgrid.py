@@ -207,7 +207,7 @@ def refine(
         The refined model dataset.
 
     """
-    assert ds.gridtype=='structured', "Can only refine a structured grid"
+    assert ds.gridtype == "structured", "Can only refine a structured grid"
     logger.info("create vertex grid using gridgen")
 
     if exe_name is None:
@@ -342,9 +342,7 @@ def col_to_list(col_in, ds, cellids):
     return col_lst
 
 
-def lrc_to_reclist(
-    layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None
-):
+def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for structured grids.
@@ -562,7 +560,9 @@ def da_to_reclist(
             cellids = np.where((mask) & (ds["idomain"] == 1))
             ignore_cells = np.sum((mask) & (ds["idomain"] != 1))
             if ignore_cells > 0:
-                logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
+                logger.info(
+                    f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+                )
         else:
             cellids = np.where(mask)
 
@@ -586,7 +586,9 @@ def da_to_reclist(
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
             ignore_cells = np.sum((mask) & (ds["idomain"][layer] != 1))
             if ignore_cells > 0:
-                logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
+                logger.info(
+                    f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+                )
             layers = col_to_list(layer, ds, cellids)
         else:
             cellids = np.where(mask)
@@ -647,7 +649,9 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
     return area_array
 
 
-def gdf_to_data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method=None):
+def gdf_to_data_array_struc(
+    gdf, gwf, field="VALUE", agg_method=None, interp_method=None
+):
     """Project vector data on a structured grid. Aggregate data if multiple
     geometries are in a single cell
 

@@ -6,15 +6,15 @@
 import datetime as dt
 import logging
 
-import xarray as xr
 import rasterio
+import rioxarray
+import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
-import rioxarray
 from tqdm import tqdm
 
 from .. import cache, mdims, util
-from .webservices import arcrest, wfs, wcs
+from .webservices import arcrest, wcs, wfs
 
 logger = logging.getLogger(__name__)
 

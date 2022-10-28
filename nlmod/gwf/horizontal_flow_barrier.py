@@ -1,8 +1,8 @@
 import flopy
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon, Point
+import numpy as np
+import pandas as pd
+from shapely.geometry import Point, Polygon
 
 from .. import mdims
 

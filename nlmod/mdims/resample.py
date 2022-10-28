@@ -6,13 +6,13 @@
 import logging
 
 import numpy as np
-import xarray as xr
-from scipy.interpolate import griddata
 import rasterio
-from scipy.spatial import cKDTree
-from shapely.geometry import Polygon
-from shapely.affinity import affine_transform
+import xarray as xr
 from affine import Affine
+from scipy.interpolate import griddata
+from scipy.spatial import cKDTree
+from shapely.affinity import affine_transform
+from shapely.geometry import Polygon
 
 logger = logging.getLogger(__name__)
 

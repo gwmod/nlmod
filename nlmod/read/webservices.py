@@ -5,18 +5,19 @@ Created on Fri Aug 12 10:54:02 2022
 @author: Ruben
 """
 
-import requests
+import logging
+import xml.etree.ElementTree as ET
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-from tqdm import tqdm
-import xml.etree.ElementTree as ET
-from shapely.geometry import Point, Polygon, MultiPolygon
+import requests
 import rioxarray
+from owslib.wcs import WebCoverageService
 from rasterio import merge
 from rasterio.io import MemoryFile
-from owslib.wcs import WebCoverageService
-import logging
+from shapely.geometry import MultiPolygon, Point, Polygon
+from tqdm import tqdm
 
 # from owslib.wfs import WebFeatureService
 

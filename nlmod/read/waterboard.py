@@ -1,5 +1,7 @@
-import numpy as np
 import logging
+
+import numpy as np
+
 from . import webservices
 
 logger = logging.getLogger(__name__)

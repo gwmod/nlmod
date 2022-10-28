@@ -583,7 +583,9 @@ def da_to_reclist(
         if only_active_cells:
             cellids = np.where((mask) & (ds["idomain"] == 1))
             ignore_cells = np.sum((mask) & (ds["idomain"] != 1))
-            logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
+            logger.info(
+                f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+            )
         else:
             cellids = np.where(mask)
 
@@ -611,7 +613,9 @@ def da_to_reclist(
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
             ignore_cells = np.sum((mask) & (ds["idomain"][layer] != 1))
-            logger.info(f'ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive')
+            logger.info(
+                f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+            )
             layers = col_to_list(layer, ds, cellids)
         else:
             cellids = np.where(mask)
@@ -674,7 +678,7 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
     return area_array
 
 
-def gdf2data_array_struc(
+def gdf_to_data_array_struc(
     gdf, gwf, field="VALUE", agg_method=None, interp_method=None
 ):
     """Project vector data on a structured grid. Aggregate data if multiple
@@ -718,7 +722,7 @@ def gdf2data_array_struc(
 
         return da
 
-    gdf_cellid = gdf2grid(gdf, gwf)
+    gdf_cellid = gdf_to_grid(gdf, gwf)
 
     if gdf_cellid.cellid.duplicated().any():
         # aggregate data
@@ -744,7 +748,8 @@ def gdf2data_array_struc(
 
 def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
     """Project vector data on a structured grid. Aggregate data if multiple
-    geometries are in a single cell. This method replaces gdf2data_array_struc.
+    geometries are in a single cell. This method replaces
+    gdf_to_data_array_struc.
 
     Parameters
     ----------
@@ -768,7 +773,7 @@ def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
         The DataArray with the projected vector data.
 
     """
-    gdf_cellid = gdf2grid(gdf, ds)
+    gdf_cellid = gdf_to_grid(gdf, ds)
     if gdf_cellid.cellid.duplicated().any():
         # aggregate data
         if agg_method is None:
@@ -1077,7 +1082,7 @@ def gdf_to_bool_dataset(ds, gdf, mfgrid, da_name):
     return ds_out
 
 
-def gdf2grid(
+def gdf_to_grid(
     gdf,
     ml=None,
     method="vertex",

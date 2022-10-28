@@ -122,7 +122,7 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     # for the idea, sea:
     # https://gis.stackexchange.com/questions/188755/how-to-snap-a-road-network-to-a-hexagonal-grid-in-qgis
 
-    gdfg = mdims.gdf2grid(gdf, gwf)
+    gdfg = mdims.gdf_to_grid(gdf, gwf)
 
     cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index("icell2d")
     vertices = pd.DataFrame(gwf.disv.vertices.array).set_index("iv")

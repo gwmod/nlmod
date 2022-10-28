@@ -239,7 +239,7 @@ def refine(
         # create a modelgrid with only one layer, to speed up Gridgen
         top = ds["top"].values
         botm = ds["botm"].values[[0]]
-        modelgrid = modelgrid_from_ds(ds, nlay=1, top=top, botm=botm)
+        modelgrid = modelgrid_from_ds(ds, rotated=False, nlay=1, top=top, botm=botm)
         g = Gridgen(modelgrid, model_ws=model_ws, exe_name=exe_name)
 
     ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
@@ -634,7 +634,7 @@ def da_to_reclist(
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
-            cellids = np.where((mask) & (fal != fal._FillValue))
+            cellids = np.where((mask) & (fal != fal.attrs["_FillValue"]))
             layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))

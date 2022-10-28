@@ -149,7 +149,7 @@ def add_northsea(ds, cachedir=None):
 
     # fill top, bot, kh, kv at sea cells
     fal = mdims.get_first_active_layer(ds)
-    fill_mask = (fal == fal._FillValue) * ds["northsea"]
+    fill_mask = (fal == fal.attrs["_FillValue"]) * ds["northsea"]
     ds = mdims.fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype=ds.attrs["gridtype"])
 
     # add bathymetry noordzee

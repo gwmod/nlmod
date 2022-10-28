@@ -1,13 +1,12 @@
 import datetime as dt
-import numpy as np
-import xarray as xr
 import logging
 
-
+import numpy as np
+import xarray as xr
 from scipy.spatial import cKDTree
 
-from . import resample, mlayers
 from .. import util
+from . import mlayers, resample
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +209,7 @@ def extrapolate_ds(ds, mask=None):
     return ds
 
 
-def get_default_ds(
+def get_ds(
     extent,
     delr=100.0,
     delc=None,

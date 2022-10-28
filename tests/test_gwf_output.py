@@ -5,7 +5,7 @@ import nlmod
 import numpy as np
 import xarray as xr
 
-from nlmod import refine
+from nlmod.mdims import refine
 from nlmod.gwf import get_heads_da
 
 tmpdir = tempfile.gettempdir()

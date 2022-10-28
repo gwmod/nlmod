@@ -182,6 +182,8 @@ def extrapolate_ds(ds, mask=None):
     if not mask.any():
         # all of the model cells are is inside the known area
         return ds
+    if mask.all():
+        raise (Exception("The model only contains NaNs"))
     if ds.gridtype == "vertex":
         x = ds.x.data
         y = ds.y.data

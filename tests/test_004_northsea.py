@@ -65,7 +65,8 @@ def test_fill_top_bot_kh_kv_seamodel():
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
 
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
+    fal = nlmod.mdims.get_first_active_layer(ds)
+    fill_mask = (fal == fal._FillValue) * ds["northsea"]
     ds = nlmod.mdims.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
 
     return ds
@@ -77,7 +78,8 @@ def test_fill_top_bot_kh_kv_nosea():
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
 
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
+    fal = nlmod.mdims.get_first_active_layer(ds)
+    fill_mask = (fal == fal._FillValue) * ds["northsea"]
     ds = nlmod.mdims.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
 
     return ds
@@ -114,7 +116,8 @@ def test_add_bathymetrie_to_top_bot_kh_kv_seamodel():
     ds.update(nlmod.read.rws.get_northsea(ds))
     ds.update(nlmod.read.jarkus.get_bathymetry(ds, ds["northsea"]))
 
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
+    fal = nlmod.mdims.get_first_active_layer(ds)
+    fill_mask = (fal == fal._FillValue) * ds["northsea"]
 
     ds = nlmod.read.jarkus.add_bathymetry_to_top_bot_kh_kv(
         ds, ds["bathymetry"], fill_mask

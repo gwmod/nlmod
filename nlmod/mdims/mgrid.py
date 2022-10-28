@@ -634,7 +634,7 @@ def da_to_reclist(
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
-            cellids = np.where((mask) & (fal != fal["_FillValue"]))
+            cellids = np.where((mask) & (fal != fal._FillValue))
             layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))

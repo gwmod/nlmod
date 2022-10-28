@@ -14,6 +14,8 @@ from scipy.spatial import cKDTree
 from shapely.affinity import affine_transform
 from shapely.geometry import Polygon
 
+from ..util import get_da_from_da_ds
+
 logger = logging.getLogger(__name__)
 
 
@@ -533,7 +535,11 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
         # in 4
-        da_out = xr.full_like(ds["area"], nodata)
+        dims = list(da.dims)
+        dims.remove("y")
+        dims.remove("x")
+        dims.append("icell2d")
+        da_out = get_da_from_da_ds(ds, dims=tuple(dims), data=nodata)
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
@@ -545,7 +551,9 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             da_temp = da_temp.rio.write_crs(da.rio.crs)
             da_temp = da.rio.reproject_match(da_temp, resampling)
             mask = ds["area"] == area
-            da_out[mask] = da_temp.sel(y=ds["y"][mask], x=ds["x"][mask])
+            da_out.loc[dict(icell2d=mask)] = da_temp.sel(
+                y=ds["y"][mask], x=ds["x"][mask]
+            )
     else:
         raise (Exception(f"Gridtype {ds.gridtype} not supported"))
 

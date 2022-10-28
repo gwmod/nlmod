@@ -21,18 +21,16 @@ from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
 from shapely.geometry import Point
-from shapely.prepared import prep
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
 from .. import cache, util
-from .mlayers import get_first_active_layer_from_idomain, set_idomain
+from .mbase import extrapolate_ds
+from .mlayers import (fill_nan_top_botm_kh_kv, get_first_active_layer,
+                      get_first_active_layer_from_idomain, set_idomain)
 from .rdp import rdp
-from .resample import (
-    affine_transform_gdf,
-    get_affine_world_to_mod,
-    get_resampled_ml_layer_ds_vertex,
-)
+from .resample import (affine_transform_gdf, get_affine_world_to_mod,
+                       get_resampled_ml_layer_ds_vertex, structured_da_to_ds)
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +289,58 @@ def refine(
     ds = get_resampled_ml_layer_ds_vertex(ds, gridprops=gridprops)
     # recalculate idomain, as the interpolation changes idomain to floats
     ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
+    return ds
+
+
+def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
+    """
+    Add variables from a layer Dataset to a model Dataset.
+    Keep de grid-information from the model Dataset (x and y or icell2d), but update
+    the layer dimension when neccesary.
+
+    Parameters
+    ----------
+    ds : TYPE
+        DESCRIPTION.
+    layer_ds : TYPE
+        DESCRIPTION.
+    method : str
+        THe method used for resampling layer_ds to the grid of ds
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    ds : TYPE
+        DESCRIPTION.
+
+    """
+    if not layer_ds.layer.equals(ds.layer):
+        # do not change the original Dataset
+        layer_ds = layer_ds.copy()
+        # update layers in ds
+        drop_vars = []
+        for var in ds.data_vars:
+            if "layer" in ds[var].dims:
+                if var not in layer_ds.data_vars:
+                    logger.info(
+                        f"Variable {var} is dropped, as it has dimension layer, but is not defined in layer_ds"
+                    )
+                drop_vars.append(var)
+        if len(drop_vars) > 0:
+            ds = ds.drop_vars(drop_vars)
+        ds = ds.assign_coords({"layer": layer_ds.layer})
+    if method in ["nearest", "linear"]:
+        layer_ds = layer_ds.interp(
+            x=ds.x, y=ds.y, method="nearest", kwargs={"fill_value": None}
+        )
+        for var in layer_ds.data_vars:
+            ds[var] = layer_ds[var]
+    else:
+        for var in layer_ds.data_vars:
+            ds[var] = structured_da_to_ds(layer_ds[var], ds, method=method)
+    ds = extrapolate_ds(ds)
+    ds = fill_nan_top_botm_kh_kv(ds, **kwargs)
     return ds
 
 
@@ -600,15 +650,9 @@ def da_to_reclist(
             )
     else:
         if first_active_layer:
-            if "first_active_layer" not in ds:
-                ds["first_active_layer"] = get_first_active_layer_from_idomain(
-                    ds["idomain"]
-                )
-
-            cellids = np.where(
-                (mask) & (ds["first_active_layer"] != ds.nodata)
-            )
-            layers = col_to_list("first_active_layer", ds, cellids)
+            fal = get_first_active_layer(ds)
+            cellids = np.where((mask) & (fal != fal.attrs["_FillValue"]))
+            layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
             ignore_cells = np.sum((mask) & (ds["idomain"][layer] != 1))
@@ -803,7 +847,38 @@ def add_info_to_gdf(
     min_total_overlap=0.5,
     geom_type="Polygon",
 ):
-    """ "Add information from gdf_from to gdf_to"""
+    """
+    Add information from gdf_from to gdf_to
+
+    Parameters
+    ----------
+    gdf_to : TYPE
+        DESCRIPTION.
+    gdf_from : TYPE
+        DESCRIPTION.
+    columns : TYPE, optional
+        DESCRIPTION. The default is None.
+    desc : TYPE, optional
+        DESCRIPTION. The default is "".
+    silent : TYPE, optional
+        DESCRIPTION. The default is False.
+    min_total_overlap : TYPE, optional
+        DESCRIPTION. The default is 0.5.
+    geom_type : TYPE, optional
+        DESCRIPTION. The default is "Polygon".
+
+    Raises
+    ------
+
+        DESCRIPTION.
+
+    Returns
+    -------
+    gdf_to : TYPE
+        DESCRIPTION.
+
+    """
+
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]

@@ -20,7 +20,11 @@ REGIS_URL = "http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc"
 
 @cache.cache_netcdf
 def get_combined_layer_models(
-    extent, regis_botm_layer="AKc", use_regis=True, use_geotop=True
+    extent,
+    regis_botm_layer="AKc",
+    use_regis=True,
+    use_geotop=True,
+    remove_nan_layers=True,
 ):
     """combine layer models into a single layer model.
 
@@ -42,6 +46,9 @@ def get_combined_layer_models(
         True if part of the layer model should be REGIS. The default is True.
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
+    remove_nan_layers : bool, optional
+        When True, layers which contain only NaNs for the botm array are removed.
+        The default is True.
 
     Returns
     -------
@@ -55,7 +62,9 @@ def get_combined_layer_models(
     """
 
     if use_regis:
-        regis_ds = get_regis(extent, regis_botm_layer)
+        regis_ds = get_regis(
+            extent, regis_botm_layer, remove_nan_layers=remove_nan_layers
+        )
     else:
         raise ValueError("layer models without REGIS not supported")
 
@@ -75,7 +84,12 @@ def get_combined_layer_models(
 
 
 @cache.cache_netcdf
-def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
+def get_regis(
+    extent,
+    botm_layer="AKc",
+    variables=("top", "botm", "kh", "kv"),
+    remove_nan_layers=True,
+):
     """get a regis dataset projected on the modelgrid.
 
     Parameters
@@ -91,6 +105,9 @@ def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
         a tuple of the variables to keep from the regis Dataset. Possible
         entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
         'sdv'. The default is ("top", "botm", "kh", "kv").
+    remove_nan_layers : bool, optional
+        When True, layers which contain only NaNs for the botm array are removed.
+        The default is True.
 
     Returns
     -------
@@ -116,6 +133,10 @@ def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
 
     # rename bottom to botm, as it is called in FloPy
     ds = ds.rename_vars({"bottom": "botm"})
+
+    if remove_nan_layers:
+        # only keep layers with at least one active cell
+        ds = ds.sel(layer=~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:]))
 
     # slice data vars
     ds = ds[list(variables)]

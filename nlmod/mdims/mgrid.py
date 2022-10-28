@@ -596,7 +596,7 @@ def da_to_reclist(
             layers = cellids[0]
             rows = cellids[1]
             columns = cellids[2]
-            return lrc_to_rec_list(
+            return lrc_to_reclist(
                 layers, rows, columns, cellids, ds, col1, col2, col3
             )
     else:
@@ -627,7 +627,7 @@ def da_to_reclist(
             rows = cellids[-2]
             columns = cellids[-1]
 
-            return lrc_to_rec_list(
+            return lrc_to_reclist(
                 layers, rows, columns, cellids, ds, col1, col2, col3
             )
 

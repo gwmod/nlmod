@@ -27,17 +27,12 @@ def calculate_thickness(ds, top="top", bot="botm"):
     -------
     thickness : xarray.DataArray
         DataArray containing thickness information
-    top3d : bool
-        boolean whether each layer has a top elevation (True),
-        or top only indicates surface level and bottom of layer i
-        is top of layer i+1 (False)
     """
     # calculate thickness
     if ds[top].ndim == ds[bot].ndim and ds[top].ndim in [2, 3]:
         if ds[top].shape[0] == ds[bot].shape[0]:
             # top is 3D, every layer has top and bot
             thickness = ds[top] - ds[bot]
-            top3d = True
         else:
             raise ValueError("3d top and bot should have same number of layers")
     elif ds[top].ndim == (ds[bot].ndim - 1) and ds[top].ndim in [1, 2]:
@@ -49,7 +44,6 @@ def calculate_thickness(ds, top="top", bot="botm"):
                     thickness[lay] = ds[top] - ds[bot][lay]
                 else:
                     thickness[lay] = ds[bot][lay - 1] - ds[bot][lay]
-            top3d = False
         else:
             raise ValueError("2d top should have same last dimension as bot")
     if isinstance(ds[bot], xr.DataArray):
@@ -59,7 +53,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
             else:
                 thickness.attrs["units"] = ds[bot].units
 
-    return thickness, top3d
+    return thickness
 
 
 def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
@@ -92,7 +86,10 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
     """
 
     # calculate thickness
-    thickness, top3d = calculate_thickness(ds, top=top, bot=bot)
+    thickness = calculate_thickness(ds, top=top, bot=bot)
+
+    # check if top is 2d or 3d
+    top3d = ds[top].ndim == ds[bot].ndim
 
     # calculate new number of layers
     new_nlay = (
@@ -588,7 +585,7 @@ def combine_layers_ds(
     da_dict[bot] = new_bot
 
     # calculate original thickness
-    thickness, _ = calculate_thickness(ds, top=top, bot=bot)
+    thickness = calculate_thickness(ds, top=top, bot=bot)
 
     # calculate equivalent kh/kv
     if kh is not None:
@@ -896,7 +893,7 @@ def set_idomain(ds, nodata=-999, remove_nan_layers=True):
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
     # set idomain of cells  with a positive thickness to 1
-    thickness, _ = calculate_thickness(ds)
+    thickness = calculate_thickness(ds)
     ds["idomain"].data[thickness.data > 0.0] = 1
     # set idomain to 0 in the inactive part of the model
     if "active" in ds:
@@ -973,7 +970,7 @@ def add_northsea(ds, cachedir=None):
     ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
 
     # update idomain on adjusted tops and bots
-    ds["thickness"], _ = calculate_thickness(ds)
+    ds["thickness"] = calculate_thickness(ds)
     ds["idomain"] = update_idomain_from_thickness(
         ds["idomain"], ds["thickness"], ds["northsea"]
     )

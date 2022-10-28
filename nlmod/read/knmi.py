@@ -54,7 +54,7 @@ def get_recharge(ds, method="linear", nodata=None):
     if nodata is None:
         nodata = ds.nodata
 
-    start = pd.Timestamp(ds.time.attrs["start_time"])
+    start = pd.Timestamp(ds.time.attrs["start"])
     # include the end day in the time series.
     end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
 

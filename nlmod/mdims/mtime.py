@@ -114,7 +114,7 @@ def set_ds_time(
     ds = ds.assign_coords(coords={"time": time_dt})
 
     ds.time.attrs["time_units"] = time_units
-    ds.time.attrs["start_time"] = str(start_time)
+    ds.time.attrs["start"] = str(start_time)
     ds.time.attrs["nstp"] = nstp
     ds.time.attrs["tsmult"] = tsmult
 

@@ -216,7 +216,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     new_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), "test", model_ws)
     new_ds = nlmod.mdims.set_ds_time(
         new_ds,
-        start_time=ds.time.start_time,
+        start_time=ds.time.start,
         steady_state=False,
         steady_start=True,
         perlen=perlen,
@@ -287,7 +287,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     new_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), "test", model_ws)
     new_ds = nlmod.mdims.set_ds_time(
         new_ds,
-        start_time=ds.time.start_time,
+        start_time=ds.time.start,
         steady_state=False,
         steady_start=True,
         perlen=perlen,

@@ -46,7 +46,7 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         mask = ds["rch_name"] != ""
         recharge = "rch_name"
 
-    spd = mdims.da_to_rec_list(
+    spd = mdims.da_to_reclist(
         ds,
         mask,
         col1=recharge,
@@ -137,7 +137,7 @@ def model_datasets_to_evt(
         mask = ds["evt_name"] != ""
         rate = "evt_name"
 
-    spd = mdims.da_to_rec_list(
+    spd = mdims.da_to_reclist(
         ds,
         mask,
         col1=surface,

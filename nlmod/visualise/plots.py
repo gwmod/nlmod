@@ -387,7 +387,7 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
         if isinstance(ds, list):
             patches = ds
         else:
-            patches = get_patches(ds)
+            patches = get_patches(ds, rotated=rotated)
         pc = PatchCollection(patches, **kwargs)
         pc.set_array(da)
         ax.add_collection(pc)

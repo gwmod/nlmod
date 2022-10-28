@@ -15,9 +15,9 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
-from ..read import rws
-from ..mdims import get_vertices
+from ..mdims.mgrid import get_vertices
 from ..mdims.resample import get_affine_mod_to_world
+from ..read import rws
 
 
 def plot_surface_water(model_ds, ax=None):
@@ -120,7 +120,7 @@ def facet_plot(
         mp.plot_ibound(color_vpt="darkgray")
 
         if plot_grid:
-            mp.plot_grid(ls=0.25, color="k")
+            mp.plot_grid(lw=0.25, color="k")
 
         if plot_bc is not None:
             for bc, bc_kwargs in plot_bc.items():

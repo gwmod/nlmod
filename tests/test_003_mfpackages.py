@@ -19,11 +19,11 @@ def test_sim_tdis_gwf_ims_from_ds(tmpdir):
     # create time discretisation
     _ = nlmod.sim.tdis(ds, sim)
 
-    # create groundwater flow model
-    gwf = nlmod.gwf.gwf(ds, sim)
-
     # create ims
     _ = nlmod.sim.ims(sim)
+
+    # create groundwater flow model
+    gwf = nlmod.gwf.gwf(ds, sim)
 
     return sim, gwf
 

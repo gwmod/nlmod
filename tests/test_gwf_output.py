@@ -5,7 +5,8 @@ import nlmod
 import numpy as np
 import xarray as xr
 
-from . import refine
+from nlmod import refine
+from nlmod.gwf import get_heads_da
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")

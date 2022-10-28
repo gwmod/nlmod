@@ -95,7 +95,7 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
     # calculate new number of layers
     new_nlay = (
         ds[layer].size
-        + sum([len(sf) for sf in split_dict.values()])
+        + sum((len(sf) for sf in split_dict.values()))
         - len(split_dict)
     )
 
@@ -358,7 +358,7 @@ def layer_combine_top_bot(
     # calculate new number of layers
     new_nlay = (
         ds[layer].size
-        - sum([len(c) for c in combine_layers])
+        - sum((len(c) for c in combine_layers))
         + len(combine_layers)
     )
 

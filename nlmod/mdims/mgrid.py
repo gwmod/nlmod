@@ -560,7 +560,7 @@ def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None):
         col1_lst = col_to_list(col1, ds, cellids)
         col2_lst = col_to_list(col2, ds, cellids)
         col3_lst = col_to_list(col3, ds, cellids)
-        rec_list = list(
+        reclist = list(
             zip(zip(layers, cellids[-1]), col1_lst, col2_lst, col3_lst)
         )
     else:
@@ -1117,17 +1117,20 @@ def gdf_to_bool_data_array(gdf, mfgrid, ds):
         geoms = [gdf]
 
     for geom in geoms:
-        cids = ix.intersects(geom)["cellids"].astype(int)
+        cids = ix.intersects(geom)["cellids"]
         if ds.gridtype == "structured":
             ncol = mfgrid.ncol
             for cid in cids:
-                # TODO: temporary fix until flopy intersect on structured
-                # grid returns row, col again.
-                i = int((cid) / ncol)
-                j = cid - i * ncol
+                if version.parse(flopy.__version__) < version.parse("3.3.6"):
+                    i, j  = cid
+                else:    
+                    # TODO: temporary fix until flopy intersect on structured
+                    # grid returns row, col again.
+                    i = int((cid) / ncol)
+                    j = cid - i * ncol
                 da[i, j] = 1
         elif ds.gridtype == "vertex":
-            da[cids] = 1
+            da[cids.astype(int)] = 1
 
     return da
 

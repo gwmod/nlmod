@@ -261,7 +261,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.gwf.mgrid.mask_model_edge(ds, ds["idomain"]))
+    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
     nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets

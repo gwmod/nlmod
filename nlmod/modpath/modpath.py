@@ -1,17 +1,15 @@
-import os
-import flopy
-import numbers
-
-import pandas as pd
-import geopandas as gpd
 import datetime as dt
-
+import logging
+import numbers
+import os
 from shutil import copyfile
 
-from ..mdims import mgrid
-from .. import util
+import flopy
+import geopandas as gpd
+import pandas as pd
 
-import logging
+from .. import util
+from ..mdims import mgrid
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +200,7 @@ def mpf(gwf, exe_name=None):
         )
 
     # check if the tdis has a start_time
-    if sim.simulation.tdis.start_date_time.array is not None:
+    if gwf.simulation.tdis.start_date_time.array is not None:
         logger.warning(
             "older versions of modpath cannot handle this, see https://github.com/MODFLOW-USGS/modpath-v7/issues/31"
         )
@@ -449,8 +447,8 @@ def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
     if ref_time is None:
         if direction == "backward":
             ref_time = (
-                sim.simulation.tdis.nper.array - 1,  # stress period
-                sim.simulation.tdis.data_list[-1].array[-1][1] - 1,  # timestep
+                gwf.simulation.tdis.nper.array - 1,  # stress period
+                gwf.simulation.tdis.data_list[-1].array[-1][1] - 1,  # timestep
                 1.0,
             )
         elif direction == "forward":

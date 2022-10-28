@@ -16,21 +16,6 @@ def test_surface_water_to_dataset():
 
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
-
-    # create simulation
-    sim = nlmod.sim.sim(ds)
-
-    # create time discretisation
-    _ = nlmod.sim.tdis(ds, sim)
-
-    # create groundwater flow model
-    gwf = nlmod.gwf.gwf(ds, sim)
-
-    # create ims
-    _ = nlmod.gwf.ims(sim)
-
-    nlmod.gwf.dis(ds, gwf)
-
     name = "surface_water"
     ds_surfwat = nlmod.read.rws.get_surface_water(ds, name)
 

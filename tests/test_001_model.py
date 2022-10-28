@@ -95,7 +95,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    _ = nlmod.gwf.ims(sim)
+    _ = nlmod.sim.ims(sim)
 
     # Create discretization
     _ = nlmod.gwf.dis(ds, gwf)
@@ -166,7 +166,7 @@ def test_create_sea_model(tmpdir):
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    _ = nlmod.gwf.ims(sim)
+    _ = nlmod.sim.ims(sim)
 
     # Create discretization
     _ = nlmod.gwf.dis(ds, gwf)
@@ -237,7 +237,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    _ = nlmod.gwf.ims(sim)
+    _ = nlmod.sim.ims(sim)
 
     # Create discretization
     nlmod.gwf.dis(ds, gwf)
@@ -307,7 +307,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    _ = nlmod.gwf.ims(sim)
+    _ = nlmod.sim.ims(sim)
 
     # Create discretization
     nlmod.gwf.dis(ds, gwf)

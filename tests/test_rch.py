@@ -18,15 +18,15 @@ logging.basicConfig(level=logging.INFO)
 
 # %%
 extent = [0.0, 1000.0, 0.0, 500.0]
-ds = nlmod.get_default_ds(
+ds = nlmod.get_ds(
     extent,
     xorigin=103000,
     yorigin=400000,
     model_name="test_rch",
     model_ws="models",
 )
-ds = nlmod.refine(ds)
-ds = nlmod.set_ds_time(ds, time=pd.date_range("2020", "2022"))
+ds = nlmod.mgrid.refine(ds)
+ds = nlmod.mtime.set_ds_time(ds, time=pd.date_range("2020", "2022"))
 
 knmi = nlmod.read.knmi.get_recharge(ds, method="separate")
 ds.update(knmi)
@@ -38,11 +38,11 @@ sim = nlmod.sim.sim(ds)
 # create time discretisation
 tdis = nlmod.sim.tdis(ds, sim)
 
+# create ims
+ims = nlmod.sim.ims(sim)
+
 # create groundwater flow model
 gwf = nlmod.gwf.gwf(ds, sim)
-
-# create ims
-ims = nlmod.gwf.ims(sim)
 
 # Create discretization
 dis = nlmod.gwf.dis(ds, gwf)

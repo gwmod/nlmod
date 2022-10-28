@@ -93,7 +93,7 @@ def test_get_surface_water_ghb():
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    ims = nlmod.gwf.ims(sim)
+    ims = nlmod.sim.ims(sim)
 
     nlmod.gwf.dis(ds, gwf)
 

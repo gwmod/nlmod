@@ -23,7 +23,7 @@ def test_sim_tdis_gwf_ims_from_ds(tmpdir):
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    _ = nlmod.gwf.ims(sim)
+    _ = nlmod.sim.ims(sim)
 
     return sim, gwf
 
@@ -54,7 +54,6 @@ def npf_from_ds(tmpdir):
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     nlmod.gwf.dis(ds)
-
     npf = nlmod.gwf.npf(ds, gwf)
 
     return npf
@@ -64,7 +63,6 @@ def oc_from_ds(tmpdir):
 
     ds = test_001_model.test_get_ds_from_cache("small_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
-
     oc = nlmod.gwf.oc(ds, gwf)
 
     return oc
@@ -118,7 +116,7 @@ def chd_from_ds(tmpdir):
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds["idomain"]))
-    chd = nlmod.gwf.chd(ds, gwf, head="starting_head")
+    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    chd = nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     return chd

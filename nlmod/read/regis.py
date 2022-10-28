@@ -20,7 +20,11 @@ REGIS_URL = "http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc"
 
 @cache.cache_netcdf
 def get_combined_layer_models(
-    extent, regis_botm_layer="AKc", use_regis=True, use_geotop=True
+    extent,
+    regis_botm_layer="AKc",
+    use_regis=True,
+    use_geotop=True,
+    remove_nan_layers=True,
 ):
     """combine layer models into a single layer model.
 
@@ -42,6 +46,9 @@ def get_combined_layer_models(
         True if part of the layer model should be REGIS. The default is True.
     use_geotop : bool, optional
         True if part of the layer model should be geotop. The default is True.
+    remove_nan_layers : bool, optional
+        When True, layers which contain only NaNs for the botm array are removed.
+        The default is True.
 
     Returns
     -------
@@ -55,7 +62,9 @@ def get_combined_layer_models(
     """
 
     if use_regis:
-        regis_ds = get_regis(extent, regis_botm_layer)
+        regis_ds = get_regis(
+            extent, regis_botm_layer, remove_nan_layers=remove_nan_layers
+        )
     else:
         raise ValueError("layer models without REGIS not supported")
 

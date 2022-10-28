@@ -75,7 +75,12 @@ def get_combined_layer_models(
 
 
 @cache.cache_netcdf
-def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
+def get_regis(
+    extent,
+    botm_layer="AKc",
+    variables=("top", "botm", "kh", "kv"),
+    remove_nan_layers=True,
+):
     """get a regis dataset projected on the modelgrid.
 
     Parameters
@@ -91,6 +96,9 @@ def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
         a tuple of the variables to keep from the regis Dataset. Possible
         entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
         'sdv'. The default is ("top", "botm", "kh", "kv").
+    remove_nan_layers : bool, optional
+        When True, layers which contain only NaNs for the botm array are removed.
+        The default is True.
 
     Returns
     -------
@@ -116,6 +124,10 @@ def get_regis(extent, botm_layer="AKc", variables=("top", "botm", "kh", "kv")):
 
     # rename bottom to botm, as it is called in FloPy
     ds = ds.rename_vars({"bottom": "botm"})
+
+    if remove_nan_layers:
+        # only keep layers with at least one active cell
+        ds = ds.sel(layer=~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:]))
 
     # slice data vars
     ds = ds[list(variables)]

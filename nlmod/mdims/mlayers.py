@@ -656,6 +656,9 @@ def add_kh_kv_from_ml_layer_to_dataset(
     some model dataset, such as regis, also have 'c' and 'kd' values. These
     are ignored at the moment
     """
+    DeprecationWarning(
+        "add_kh_kv_from_ml_layer_to_dataset is deprecated. Please use update_ds_from_layer_ds instead."
+    )
     ds.attrs["anisotropy"] = anisotropy
     ds.attrs["fill_value_kh"] = fill_value_kh
     ds.attrs["fill_value_kv"] = fill_value_kv
@@ -786,7 +789,7 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
     Parameters
     ----------
     ds : xr.DataSet
-        model dataset, should contain 'first_active_layer'
+        model dataset
     fill_mask : xr.DataArray
         1 where a cell should be replaced by masked value.
     gridtype : str, optional
@@ -889,7 +892,24 @@ def fill_top_and_bottom(ds):
     return ds
 
 
-def set_idomain(ds, nodata=-999, remove_nan_layers=True):
+def set_idomain(ds, remove_nan_layers=True):
+    """
+    Set idmomain in a model Dataset
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The model Dataset.
+    remove_nan_layers : bool, optional
+        Removes layers which only contain inactive cells. The default is True.
+
+    Returns
+    -------
+    ds : TYPE
+        DESCRIPTION.
+
+    """
+    """Set idomain in a model ds"""
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
     # set idomain of cells  with a positive thickness to 1
@@ -902,11 +922,29 @@ def set_idomain(ds, nodata=-999, remove_nan_layers=True):
         # only keep layers with at least one active cell
         ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
     # TODO: set idomain above/below the first/last active layer to 0
-    ds["first_active_layer"] = get_first_active_layer_from_idomain(
-        ds["idomain"], nodata=nodata
-    )
-    ds.attrs["nodata"] = nodata
+    # TODO: remove 'active' and replace by logic of keeping inactive cells in idomain
     return ds
+
+
+def get_first_active_layer(ds, **kwargs):
+    """
+    Get the first active layer in each cell from a model ds
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        DESCRIPTION.
+    **kwargs : dict
+        Kwargs are passed on to get_first_active_layer_from_idomain.
+
+    Returns
+    -------
+    first_active_layer : xr.DataArray
+        raster in which each cell has the zero based number of the first
+        active layer. Shape can be (y, x) or (icell2d)
+
+    """
+    return get_first_active_layer_from_idomain(ds["idomain"], **kwargs)
 
 
 def get_first_active_layer_from_idomain(idomain, nodata=-999):
@@ -926,7 +964,7 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
         raster in which each cell has the zero based number of the first
         active layer. Shape can be (y, x) or (icell2d)
     """
-    logger.info("get first active modellayer for each cell in idomain")
+    logger.debug("get first active modellayer for each cell in idomain")
 
     first_active_layer = xr.where(idomain[0] == 1, 0, nodata)
     for i in range(1, idomain.shape[0]):
@@ -935,7 +973,7 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
             i,
             first_active_layer,
         )
-
+    first_active_layer.attrs["_FillValue"] = nodata
     return first_active_layer
 
 
@@ -954,7 +992,8 @@ def add_northsea(ds, cachedir=None):
     ds.update(rws.get_northsea(ds, cachedir=cachedir, cachename="sea_ds.nc"))
 
     # fill top, bot, kh, kv at sea cells
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
+    fal = get_first_active_layer(ds)
+    fill_mask = (fal == fal["_FillValue"]) * ds["northsea"]
     ds = fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype=ds.attrs["gridtype"])
 
     # add bathymetry noordzee
@@ -970,11 +1009,7 @@ def add_northsea(ds, cachedir=None):
     ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
 
     # update idomain on adjusted tops and bots
-    ds["thickness"] = calculate_thickness(ds)
-    ds["idomain"] = update_idomain_from_thickness(
-        ds["idomain"], ds["thickness"], ds["northsea"]
-    )
-    ds["first_active_layer"] = get_first_active_layer_from_idomain(ds["idomain"])
+    ds = set_idomain(ds)
     return ds
 
 
@@ -1004,7 +1039,9 @@ def update_idomain_from_thickness(idomain, thickness, mask):
         raster with adjusted idomain of each cell. dimensions should be
         (layer, y, x) or (layer, icell2d).
     """
-
+    DeprecationWarning(
+        "update_idomain_from_thickness is deprecated. Please use set_idomain instead."
+    )
     for ilay, thick in enumerate(thickness):
         if ilay == 0:
             mask1 = (thick == 0) * mask

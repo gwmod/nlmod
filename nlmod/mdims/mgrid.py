@@ -7,31 +7,32 @@
 -   fill, interpolate and resample grid data
 """
 import logging
+
 import flopy
-import pandas as pd
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import shapely
 import xarray as xr
 from flopy.discretization.structuredgrid import StructuredGrid
 from flopy.discretization.vertexgrid import VertexGrid
 from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
-from shapely.prepared import prep
-from tqdm import tqdm
+from packaging import version
 from scipy.interpolate import griddata
 from shapely.geometry import Point
+from shapely.prepared import prep
 from shapely.strtree import STRtree
-from packaging import version
+from tqdm import tqdm
 
-from .. import util
-from .mlayers import set_idomain, get_first_active_layer_from_idomain
+from .. import cache, util
+from .mlayers import get_first_active_layer_from_idomain, set_idomain
+from .rdp import rdp
 from .resample import (
-    get_resampled_ml_layer_ds_vertex,
     affine_transform_gdf,
     get_affine_world_to_mod,
+    get_resampled_ml_layer_ds_vertex,
 )
-from .rdp import rdp
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +240,11 @@ def refine(
     ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if model_coordinates:
         if not ds_has_rotation:
-            raise (Exception("The supplied shapes need to be in realworld coordinates"))
+            raise (
+                Exception(
+                    "The supplied shapes need to be in realworld coordinates"
+                )
+            )
     elif ds_has_rotation:
         affine_matrix = get_affine_world_to_mod(ds).to_shapely()
 
@@ -250,7 +255,9 @@ def refine(
                 fname, geom_type, level = refinement_feature
                 if not model_coordinates and ds_has_rotation:
                     raise (
-                        Exception("Converting files to model coordinates not supported")
+                        Exception(
+                            "Converting files to model coordinates not supported"
+                        )
                     )
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
@@ -273,7 +280,9 @@ def refine(
                     mask = geom_types == geom_type
                     # features = [gdf[mask].unary_union]
                     features = list(gdf[mask].geometry.explode())
-                    g.add_refinement_features(features, geom_type, level, layers=[0])
+                    g.add_refinement_features(
+                        features, geom_type, level, layers=[0]
+                    )
     g.build()
     gridprops = g.get_gridprops_disv()
     gridprops["area"] = g.get_area()
@@ -329,13 +338,16 @@ def col_to_list(col_in, ds, cellids):
         elif len(cellids) == 2:
             # 2d grid or vertex 3d grid
             col_lst = [
-                col_in.data[row, col] for row, col in zip(cellids[0], cellids[1])
+                col_in.data[row, col]
+                for row, col in zip(cellids[0], cellids[1])
             ]
         elif len(cellids) == 1:
             # 2d vertex grid
             col_lst = col_in.data[cellids[0]]
         else:
-            raise ValueError(f"could not create a column list for col_in={col_in}")
+            raise ValueError(
+                f"could not create a column list for col_in={col_in}"
+            )
     else:
         col_lst = [col_in] * len(cellids[0])
 
@@ -414,9 +426,13 @@ def lrc_to_rec_list(
         col1_lst = col_to_list(col1, ds, cellids)
         col2_lst = col_to_list(col2, ds, cellids)
         col3_lst = col_to_list(col3, ds, cellids)
-        rec_list = list(zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst))
+        rec_list = list(
+            zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst)
+        )
     else:
-        raise ValueError("invalid combination of values for col1, col2 and col3")
+        raise ValueError(
+            "invalid combination of values for col1, col2 and col3"
+        )
 
     return rec_list
 
@@ -486,9 +502,13 @@ def lcid_to_rec_list(layers, cellids, ds, col1=None, col2=None, col3=None):
         col1_lst = col_to_list(col1, ds, cellids)
         col2_lst = col_to_list(col2, ds, cellids)
         col3_lst = col_to_list(col3, ds, cellids)
-        rec_list = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst, col3_lst))
+        rec_list = list(
+            zip(zip(layers, cellids[-1]), col1_lst, col2_lst, col3_lst)
+        )
     else:
-        raise ValueError("invalid combination of values for col1, col2 and col3")
+        raise ValueError(
+            "invalid combination of values for col1, col2 and col3"
+        )
 
     return rec_list
 
@@ -570,7 +590,9 @@ def da_to_rec_list(
             layers = cellids[0]
             rows = cellids[1]
             columns = cellids[2]
-            return lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
+            return lrc_to_rec_list(
+                layers, rows, columns, cellids, ds, col1, col2, col3
+            )
     else:
         if first_active_layer:
             if "first_active_layer" not in ds:
@@ -578,7 +600,9 @@ def da_to_rec_list(
                     ds["idomain"]
                 )
 
-            cellids = np.where((mask) & (ds["first_active_layer"] != ds.nodata))
+            cellids = np.where(
+                (mask) & (ds["first_active_layer"] != ds.nodata)
+            )
             layers = col_to_list("first_active_layer", ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
@@ -593,7 +617,9 @@ def da_to_rec_list(
             rows = cellids[-2]
             columns = cellids[-1]
 
-            return lrc_to_rec_list(layers, rows, columns, cellids, ds, col1, col2, col3)
+            return lrc_to_rec_list(
+                layers, rows, columns, cellids, ds, col1, col2, col3
+            )
 
 
 def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
@@ -642,7 +668,9 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
     return area_array
 
 
-def gdf2data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method=None):
+def gdf2data_array_struc(
+    gdf, gwf, field="VALUE", agg_method=None, interp_method=None
+):
     """Project vector data on a structured grid. Aggregate data if multiple
     geometries are in a single cell
 
@@ -677,7 +705,9 @@ def gdf2data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method
 
     # interpolate data
     if interp_method is not None:
-        arr = interpolate_gdf_to_array(gdf, gwf, field=field, method=interp_method)
+        arr = interpolate_gdf_to_array(
+            gdf, gwf, field=field, method=interp_method
+        )
         da.values = arr
 
         return da
@@ -690,7 +720,9 @@ def gdf2data_array_struc(gdf, gwf, field="VALUE", agg_method=None, interp_method
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
-        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {field: agg_method}, gwf)
+        gdf_agg = aggregate_vector_per_cell(
+            gdf_cellid, {field: agg_method}, gwf
+        )
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[field]]
@@ -815,7 +847,9 @@ def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
     # check geometry
     geom_types = gdf.geometry.type.unique()
     if geom_types[0] != "Point":
-        raise NotImplementedError("can only use interpolation with point geometries")
+        raise NotImplementedError(
+            "can only use interpolation with point geometries"
+        )
 
     # check field
     if field not in gdf.columns:
@@ -851,7 +885,9 @@ def _agg_max_length(gdf, col):
 
 def _agg_length_weighted(gdf, col):
     nanmask = gdf[col].isna()
-    aw = (gdf.length * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].length.sum()
+    aw = (gdf.length * gdf[col]).sum(skipna=True) / gdf.loc[
+        ~nanmask
+    ].length.sum()
     return aw
 
 
@@ -935,7 +971,9 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
         if ("Polygon" in geom_types) or ("MultiPolygon" in geom_types):
             pass
         else:
-            raise TypeError("can only use area methods with polygon geometries")
+            raise TypeError(
+                "can only use area methods with polygon geometries"
+            )
 
     # check fields
     missing_cols = set(fields_methods.keys()).difference(gdf.columns)
@@ -982,7 +1020,9 @@ def gdf_to_bool_data_array(gdf, mfgrid, ds):
     elif ds.gridtype == "vertex":
         da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=0)
     else:
-        raise ValueError("function only support structured or vertex gridtypes")
+        raise ValueError(
+            "function only support structured or vertex gridtypes"
+        )
 
     if isinstance(gdf, gpd.GeoDataFrame):
         geoms = gdf.geometry.values
@@ -990,18 +1030,15 @@ def gdf_to_bool_data_array(gdf, mfgrid, ds):
         geoms = [gdf]
 
     for geom in geoms:
-        # prepare shape for efficient batch intersection check
-        prepshp = prep(geom)
-
-        # get only gridcells that intersect
-        filtered = filter(prepshp.intersects, ix._get_gridshapes())
-
-        # cell ids for intersecting cells
-        cids = [c.name for c in filtered]
-
+        cids = ix.intersects(geom)["cellids"].astype(int)
         if ds.gridtype == "structured":
+            ncol = mfgrid.ncol
             for cid in cids:
-                da[cid[0], cid[1]] = 1
+                # TODO: temporary fix until flopy intersect on structured
+                # grid returns row, col again.
+                i = int((cid) / ncol)
+                j = cid - i * ncol
+                da[i, j] = 1
         elif ds.gridtype == "vertex":
             da[cids] = 1
 
@@ -1129,7 +1166,9 @@ def get_thickness_from_topbot(top, bot):
     elif bot.ndim == 2:
         thickness = util.get_da_from_da_ds(bot, dims=("layer", "icell2d"))
     else:
-        raise ValueError("function only support structured or vertex gridtypes")
+        raise ValueError(
+            "function only support structured or vertex gridtypes"
+        )
 
     for lay in range(len(bot)):
         if lay == 0:
@@ -1140,7 +1179,9 @@ def get_thickness_from_topbot(top, bot):
     return thickness
 
 
-def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
+def get_vertices_arr(
+    ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False
+):
     """get vertices of a vertex modelgrid from a ds or the modelgrid.
     Only return the 4 corners of each cell and not the corners of
     adjacent cells thus limiting the vertices per cell to 4 points.
@@ -1259,3 +1300,55 @@ def get_vertices(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
     )
 
     return vertices_da
+
+
+@cache.cache_netcdf
+def mask_model_edge(ds, idomain):
+    """get data array which is 1 for every active cell (defined by idomain) at
+    the boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    idomain : xarray.DataArray
+        idomain used to get active cells and shape of DataArray
+
+    Returns
+    -------
+    ds_out : xarray.Dataset
+        dataset with edge mask array
+    """
+    # add constant head cells at model boundaries
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        raise NotImplementedError(
+            "model edge not yet calculated for rotated grids"
+        )
+
+    # get mask with grid edges
+    xmin = ds["x"] == ds["x"].min()
+    xmax = ds["x"] == ds["x"].max()
+    ymin = ds["y"] == ds["y"].min()
+    ymax = ds["y"] == ds["y"].max()
+
+    ds_out = util.get_ds_empty(ds)
+
+    if ds.gridtype == "structured":
+        mask2d = ymin | ymax | xmin | xmax
+
+        # assign 1 to cells that are on the edge and have an active idomain
+        ds_out["edge_mask"] = xr.zeros_like(idomain)
+        for lay in ds.layer:
+            ds_out["edge_mask"].loc[lay] = np.where(
+                mask2d & (idomain.loc[lay] == 1), 1, 0
+            )
+
+    elif ds.gridtype == "vertex":
+        mask = np.nonzero([xmin | xmax | ymin | ymax])[1]
+
+        # assign 1 to cells that are on the edge, have an active idomain
+        ds_out["edge_mask"] = xr.zeros_like(idomain)
+        ds_out["edge_mask"].loc[:, mask] = 1
+        ds_out["edge_mask"] = xr.where(idomain == 1, ds_out["edge_mask"], 0)
+
+    return ds_out

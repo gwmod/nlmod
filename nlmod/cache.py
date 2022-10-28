@@ -12,6 +12,7 @@ import os
 import pickle
 
 import flopy
+import dask
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -130,6 +131,11 @@ def cache_netcdf(func):
                 logger.info(
                     f"module of function {func.__name__} recently modified, not using cache"
                 )
+                
+            cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
+            
+            # add netcdf hash to function arguments dic, see #66
+            func_args_dic['_nc_hash'] = dask.base.tokenize(cached_ds)
 
             # check if cache was created with same function arguments as
             # function call
@@ -138,7 +144,6 @@ def cache_netcdf(func):
             )
 
             if modification_check and argument_check:
-                cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
                 if dataset is None:
                     logger.info(f"using cached data -> {cachename}")
                     return cached_ds
@@ -161,6 +166,12 @@ def cache_netcdf(func):
 
             # write netcdf cache
             result.to_netcdf(fname_cache)
+            
+            # add netcdf hash to function arguments dic, see #66
+            temp = xr.open_dataset(fname_cache, mask_and_scale=False)
+            func_args_dic['_nc_hash'] = dask.base.tokenize(temp)
+            temp.close()
+            
             # pickle function arguments
             with open(fname_pickle_cache, "wb") as fpklz:
                 pickle.dump(func_args_dic, fpklz)

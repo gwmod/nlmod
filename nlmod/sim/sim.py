@@ -39,6 +39,8 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
         default is None. Preferably this path does not have to be given
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
+    silent : bool, optional
+        write and run model silently
     """
 
     if nb_path is not None:
@@ -91,10 +93,9 @@ def get_tdis_perioddata(ds):
     deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
         (
-            pd.to_datetime(ds["time"].data[0])
-            - pd.to_datetime(ds.time.start_time)
-        )
-        / deltat
+            pd.to_datetime(ds["time"].data[0]) 
+            - pd.to_datetime(ds.time.start)
+        ) / deltat
     ]
 
     if len(ds["time"]) > 1:

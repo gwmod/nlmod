@@ -72,20 +72,24 @@ def get_exe_path(exe_name="mf6"):
 
 
 def get_ds_empty(ds):
-    """get a copy of a model dataset with only grid and time information.
+    """get a copy of a model dataset with only coordinate information.
 
     Parameters
     ----------
     ds : xr.Dataset
-        dataset with at least the variables layer, x, y and time
+        dataset with coordinates
 
     Returns
     -------
-    ds_out : xr.Dataset
-        dataset with only model grid and time information
+    empty_ds : xr.Dataset
+        dataset with only model coordinate information
     """
 
-    return ds[list(ds.coords)].copy()
+    empty_ds = xr.Dataset()
+    for coord in list(ds.coords):
+        empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
+
+    return empty_ds
 
 
 def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):

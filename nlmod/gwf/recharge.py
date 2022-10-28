@@ -42,7 +42,7 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         recharge = "recharge"
     else:
         rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
-        ds['rch_name'] = ds['top'].dims, rch_name_arr
+        ds["rch_name"] = ds["top"].dims, rch_name_arr
         mask = ds["rch_name"] != ""
         recharge = "rch_name"
 
@@ -132,8 +132,8 @@ def model_datasets_to_evt(
         rate = "evaporation"
     else:
         evt_name_arr, evt_unique_dic = _get_unique_series(ds, "evaporation", pname)
-        ds['evt_name'] = ds['top'].dims, evt_name_arr
-        
+        ds["evt_name"] = ds["top"].dims, evt_name_arr
+
         mask = ds["evt_name"] != ""
         rate = "evt_name"
 
@@ -194,8 +194,8 @@ def _get_unique_series(ds, var, pname):
         The values of each of the time series.
 
     """
-    rch_name_arr = np.empty_like(ds['top'].values, dtype='U13')
-    
+    rch_name_arr = np.empty_like(ds["top"].values, dtype="U13")
+
     # transient
     if ds.gridtype == "structured":
         if len(ds[var].dims) != 3:
@@ -224,7 +224,7 @@ def _get_unique_series(ds, var, pname):
             mask = mask.reshape(rch_name_arr.shape)
         rch_name_arr[mask] = f"{pname}_{i}"
         rch_unique_dic[f"{pname}_{i}"] = unique_rch
-        
+
     return rch_name_arr, rch_unique_dic
 
 

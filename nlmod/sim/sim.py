@@ -17,8 +17,7 @@ from .. import util
 logger = logging.getLogger(__name__)
 
 
-
-def write_and_run(sim, ds, write_ds=True, nb_path=None):
+def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
     """write modflow files and run the model.
 
     2 extra options:
@@ -44,7 +43,8 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None):
 
     if nb_path is not None:
         new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+            f'{dt.datetime.now().strftime("%Y%m%d")}'
+            + os.path.split(nb_path)[-1]
         )
         dst = os.path.join(ds.model_ws, new_nb_fname)
         logger.info(f"write script {new_nb_fname} to model workspace")
@@ -52,23 +52,24 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None):
 
     if write_ds:
         logger.info("write model dataset to cache")
-        ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
-            "%Y%m%d_%H:%M:%S"
-        )
+        ds.attrs[
+            "model_dataset_written_to_disk_on"
+        ] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
         ds.to_netcdf(os.path.join(ds.attrs["cachedir"], "full_ds.nc"))
 
     logger.info("write modflow files to model workspace")
-    sim.write_simulation()
+    sim.write_simulation(silent=silent)
     ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
         "%Y%m%d_%H:%M:%S"
     )
 
     logger.info("run model")
-    assert sim.run_simulation()[0], "Modflow run not succeeded"
+    assert sim.run_simulation(silent=silent)[0], "Modflow run not succeeded"
     ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
+
 def get_tdis_perioddata(ds):
-    """Get tdis_perioddata from ds. 
+    """Get tdis_perioddata from ds.
 
     Parameters
     ----------
@@ -89,23 +90,26 @@ def get_tdis_perioddata(ds):
     """
     deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
-        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start_time))
+        (
+            pd.to_datetime(ds["time"].data[0])
+            - pd.to_datetime(ds.time.start_time)
+        )
         / deltat
     ]
-    
+
     if len(ds["time"]) > 1:
         perlen.extend(np.diff(ds["time"]) / deltat)
-        
-    if 'nstp' in ds:
-        nstp = ds['nstp'].values
+
+    if "nstp" in ds:
+        nstp = ds["nstp"].values
     else:
         nstp = [ds.time.nstp] * len(perlen)
-    
-    if 'tsmult' in ds:
-        tsmult = ds['tsmult'].values
+
+    if "tsmult" in ds:
+        tsmult = ds["tsmult"].values
     else:
         tsmult = [ds.time.tsmult] * len(perlen)
-    
+
     tdis_perioddata = [(p, n, t) for p, n, t in zip(perlen, nstp, tsmult)]
 
     return tdis_perioddata
@@ -183,3 +187,37 @@ def tdis(ds, sim, pname="tdis"):
     )
 
     return tdis
+
+
+def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
+    """create IMS package
+
+
+    Parameters
+    ----------
+    sim : flopy MFSimulation
+        simulation object.
+    complexity : str, optional
+        solver complexity for default settings. The default is "MODERATE".
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    ims : flopy ModflowIms
+        ims object.
+
+    """
+
+    logger.info("creating modflow IMS")
+
+    # Create the Flopy iterative model solver (ims) Package object
+    ims = flopy.mf6.modflow.mfims.ModflowIms(
+        sim,
+        pname=pname,
+        print_option="summary",
+        complexity=complexity,
+        **kwargs,
+    )
+
+    return ims

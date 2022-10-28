@@ -77,13 +77,15 @@ mdims
    :undoc-members:
    :private-members:
 
-gwf
+sim
 ^^^
-
-.. automodule:: nlmod.gwf.sim
+.. automodule:: nlmod.sim.sim
    :members:
    :undoc-members:
    :private-members:
+
+gwf
+^^^
 
 .. automodule:: nlmod.gwf.gwf
    :members:

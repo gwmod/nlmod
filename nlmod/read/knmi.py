@@ -172,7 +172,7 @@ def get_locations_vertex(ds):
     """
     # get active locations
     fal = get_first_active_layer(ds)
-    icell2d_active = np.where(fal=fal._FillValue)[0]
+    icell2d_active = np.where(fal == fal._FillValue)[0]
 
     # create dataframe from active locations
     x = ds["x"].sel(icell2d=icell2d_active)
@@ -207,7 +207,7 @@ def get_locations_structured(ds):
 
     # store x and y mids in locations of active cells
     fal = get_first_active_layer(ds)
-    rows, columns = np.where(fal=fal._FillValue)
+    rows, columns = np.where(fal == fal._FillValue)
     x = np.array([ds["x"].data[col] for col in columns])
     y = np.array([ds["y"].data[row] for row in rows])
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:

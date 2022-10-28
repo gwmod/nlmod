@@ -908,7 +908,6 @@ def set_idomain(ds, remove_nan_layers=True):
         DESCRIPTION.
 
     """
-    """Set idomain in a model ds"""
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
     # set idomain of cells  with a positive thickness to 1

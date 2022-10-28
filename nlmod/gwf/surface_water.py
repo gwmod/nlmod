@@ -1,22 +1,22 @@
 import logging
 import warnings
 
+import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
-from tqdm import tqdm
-from shapely.strtree import STRtree
 from shapely.geometry import Polygon
-import flopy
+from shapely.strtree import STRtree
+from tqdm import tqdm
 
+from ..mdims import mgrid, resample
 # from ..mdims.mgrid import gdf2grid
 from ..read import bgt, waterboard
-from ..mdims import resample, mgrid
 
 logger = logging.getLogger(__name__)
 
 
-def aggregate_surface_water(gdf, method, ds=None):
+def aggregate(gdf, method, ds=None):
     """Aggregate surface water features.
 
     Parameters
@@ -803,3 +803,23 @@ def gdf_to_seasonal_pkg(
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
     return package
+
+
+def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):
+    # TODO: temporary fix until flopy is patched
+    if gwf.modelgrid.grid_type == "structured":
+        gi = flopy.utils.GridIntersect(gwf.modelgrid, rtree=False)
+        cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
+    else:
+        gi = flopy.utils.GridIntersect(gwf.modelgrid)
+        cellids = gi.intersects(xylist, shapetype="linestring")["cellids"]
+    
+    riv_data = []
+    for cid in cellids:
+        if len(cid) == 2:
+            riv_data.append(
+                [(layer, cid[0], cid[1]), stage, cond, rbot]
+            )
+        else:
+            riv_data.append([(layer, cid), stage, cond, rbot])
+    return riv_data

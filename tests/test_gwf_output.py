@@ -3,10 +3,8 @@ import tempfile
 
 import nlmod
 import numpy as np
-import xarray as xr
-
-from nlmod.mdims import refine
 from nlmod.gwf import get_heads_da
+from nlmod.mdims import refine
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
@@ -34,7 +32,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     )
 
     # create simulation
-    sim = nlmod.gwf.sim(ds)
+    sim = nlmod.sim.sim(ds)
 
     # create time discretisation
     _ = nlmod.gwf.tdis(ds, sim)
@@ -43,26 +41,25 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    _ = nlmod.gwf.ims(sim)
+    nlmod.gwf.ims(sim)
 
     # Create discretization
-    dis = nlmod.gwf.dis(ds, gwf)
+    nlmod.gwf.dis(ds, gwf)
 
     # create node property flow
     nlmod.gwf.npf(ds, gwf)
 
     # Create the initial conditions package
-    ic = nlmod.gwf.ic(ds, gwf, starting_head=1.)
+    nlmod.gwf.ic(ds, gwf, starting_head=1.)
     nlmod.gwf.oc(ds, gwf)
 
     ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds['idomain']))
-    chd = nlmod.gwf.chd(ds, gwf, head='starting_head')
+    nlmod.gwf.chd(ds, gwf, head='starting_head')
 
     nlmod.gwf.write_and_run_model(gwf, ds)
 
     heads_correct = np.ones((3, 5, 2, 3))
     heads_correct[:, 3, :, 1:] = np.nan
-
 
     da = get_heads_da(ds=ds, gwf=None, fname_hds=None)
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
@@ -89,29 +86,29 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     )
 
     # create simulation
-    sim = nlmod.gwf.sim(ds_unstr)
+    sim = nlmod.sim.sim(ds_unstr)
 
     # create time discretisation
-    _ = nlmod.gwf.tdis(ds_unstr, sim)
+    nlmod.gwf.tdis(ds_unstr, sim)
 
     # create groundwater flow model
     gwf_unstr = nlmod.gwf.gwf(ds_unstr, sim)
 
     # create ims
-    _ = nlmod.gwf.ims(sim)
+    nlmod.gwf.ims(sim)
 
     # Create discretization
-    dis = nlmod.gwf.dis(ds_unstr, gwf_unstr)
+    nlmod.gwf.dis(ds_unstr, gwf_unstr)
 
     # create node property flow
     nlmod.gwf.npf(ds_unstr, gwf_unstr)
 
     # Create the initial conditions package
-    ic = nlmod.gwf.ic(ds_unstr, gwf_unstr, starting_head=1.)
+    nlmod.gwf.ic(ds_unstr, gwf_unstr, starting_head=1.)
     nlmod.gwf.oc(ds_unstr, gwf_unstr)
 
     ds_unstr.update(nlmod.gwf.constant_head.chd_at_model_edge(ds_unstr, ds_unstr['idomain']))
-    chd = nlmod.gwf.chd(ds_unstr, gwf_unstr, head='starting_head')
+    nlmod.gwf.chd(ds_unstr, gwf_unstr, head='starting_head')
 
     nlmod.gwf.write_and_run_model(gwf_unstr, ds_unstr)
 

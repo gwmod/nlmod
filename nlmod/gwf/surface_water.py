@@ -9,7 +9,7 @@ from shapely.strtree import STRtree
 from shapely.geometry import Polygon
 import flopy
 
-# from ..mdims.mgrid import gdf2grid
+# from ..mdims.mgrid import gdf_to_grid
 from ..read import bgt, waterboard
 from ..mdims import resample, mgrid
 
@@ -631,7 +631,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None):
         extent = [bs[0], bs[2], bs[1], bs[3]]
     gdf = add_stages_from_waterboards(gdf, extent=extent)
     if ds is not None:
-        return mgrid.gdf2grid(gdf, ds).set_index("cellid")
+        return mgrid.gdf_to_grid(gdf, ds).set_index("cellid")
     return gdf
 
 
@@ -695,7 +695,7 @@ def gdf_to_seasonal_pkg(
     """
     if gdf.index.name != "cellid":
         # if "cellid" not in gdf:
-        #    gdf = gdf2grid(gdf, gwf)
+        #    gdf = gdf_to_grid(gdf, gwf)
         gdf = gdf.set_index("cellid")
     else:
         # make sure changes to the DataFrame are temporarily

@@ -53,6 +53,7 @@ def get_recharge(ds, method="linear"):
     end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
 
     ds_out = util.get_ds_empty(ds)
+    ds_out.attrs["gridtype"] = ds.gridtype
 
     # get recharge data array
     if ds.gridtype == "structured":

@@ -10,7 +10,6 @@ nbdir = os.path.join(tst_dir, "..", "docs", "examples")
 
 
 def _run_notebook(nbdir, fname):
-
     fname_nb = os.path.join(nbdir, fname)
     with open(fname_nb) as f:
         nb = nbformat.read(f, as_version=4)
@@ -74,3 +73,8 @@ def test_run_notebook_10_modpath():
 @pytest.mark.notebooks
 def test_run_notebook_11_grid_rotation():
     _run_notebook(nbdir, "11_grid_rotation.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_12_layer_generation():
+    _run_notebook(nbdir, "12_layer_generation.ipynb")

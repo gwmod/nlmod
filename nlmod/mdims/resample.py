@@ -6,13 +6,15 @@
 import logging
 
 import numpy as np
-import xarray as xr
-from scipy.interpolate import griddata
 import rasterio
-from scipy.spatial import cKDTree
-from shapely.geometry import Polygon
-from shapely.affinity import affine_transform
+import xarray as xr
 from affine import Affine
+from scipy.interpolate import griddata
+from scipy.spatial import cKDTree
+from shapely.affinity import affine_transform
+from shapely.geometry import Polygon
+
+from ..util import get_da_from_da_ds
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,9 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
     y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
-        return ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+        return ds_in.interp(
+            x=x, y=y, method=method, kwargs={"fill_value": None}
+        )
 
     ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
 
@@ -207,7 +211,9 @@ def resample_dataset_to_structured_grid(
         ds_out.attrs = attrs
         return ds_out
 
-    ds_out = xr.Dataset(coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=attrs)
+    ds_out = xr.Dataset(
+        coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=attrs
+    )
     for var in ds_in.data_vars:
         ds_out[var] = structured_da_to_ds(ds_in[var], ds_out, method=method)
     return ds_out
@@ -345,7 +351,9 @@ def fillnan_dataarray_structured_grid(xar_in, method="nearest"):
     return xar_out
 
 
-def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
+def fillnan_dataarray_vertex_grid(
+    xar_in, ds=None, x=None, y=None, method="nearest"
+):
     """fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
@@ -401,7 +409,6 @@ def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="neare
 
 
 def fillnan_da(da, method="nearest"):
-
     if len(da.y) == da.shape[-2] and len(da.x) == da.shape[-1]:
         # the dataraary is structured
         return fillnan_dataarray_structured_grid(da, method=method)
@@ -410,8 +417,7 @@ def fillnan_da(da, method="nearest"):
 
 
 def vertex_da_to_ds(da, ds, method="nearest"):
-    """
-    Resample a vertex DataArray to a structured model dataset.
+    """Resample a vertex DataArray to a structured model dataset.
 
     Parameters
     ----------
@@ -428,10 +434,11 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     -------
     xarray.DataArray
         THe structured DataArray, with coordinates 'x' and 'y'
-
     """
     if ds.gridtype == "vertex":
-        raise (Exception("Resampling from vertex da to vertex ds not supported"))
+        raise (
+            Exception("Resampling from vertex da to vertex ds not supported")
+        )
     if "icell2d" not in da.dims:
         return da
     points = np.array((da.x.data, da.y.data)).T
@@ -476,8 +483,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
 
 
 def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
-    """
-    Resample a DataArray to the coordinates of a model dataset.
+    """Resample a DataArray to the coordinates of a model dataset.
 
     Parameters
     ----------
@@ -497,7 +503,6 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
     -------
     da_out : xarray.DataArray
         The resampled DataArray
-
     """
     has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if method in ["linear", "nearest"] and not has_rotation:
@@ -533,11 +538,17 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
         # in 4
-        da_out = xr.full_like(ds["area"], nodata)
+        dims = list(da.dims)
+        dims.remove("y")
+        dims.remove("x")
+        dims.append("icell2d")
+        da_out = get_da_from_da_ds(ds, dims=tuple(dims), data=nodata)
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
-            da_temp = xr.DataArray(nodata, dims=["y", "x"], coords=dict(x=x, y=y))
+            da_temp = xr.DataArray(
+                nodata, dims=["y", "x"], coords=dict(x=x, y=y)
+            )
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine(ds)
                 da_temp = da_temp.rio.write_transform(affine, inplace=True)
@@ -545,7 +556,9 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             da_temp = da_temp.rio.write_crs(da.rio.crs)
             da_temp = da.rio.reproject_match(da_temp, resampling)
             mask = ds["area"] == area
-            da_out[mask] = da_temp.sel(y=ds["y"][mask], x=ds["x"][mask])
+            da_out.loc[dict(icell2d=mask)] = da_temp.sel(
+                y=ds["y"][mask], x=ds["x"][mask]
+            )
     else:
         raise (Exception(f"Gridtype {ds.gridtype} not supported"))
 
@@ -575,7 +588,7 @@ def _get_attrs(ds):
 
 
 def get_extent_polygon(ds):
-    """Get the model extent, as a shapely Polygon"""
+    """Get the model extent, as a shapely Polygon."""
     attrs = _get_attrs(ds)
     polygon = extent_to_polygon(attrs["extent"])
     if "angrot" in ds.attrs and attrs["angrot"] != 0.0:
@@ -585,7 +598,7 @@ def get_extent_polygon(ds):
 
 
 def affine_transform_gdf(gdf, affine):
-    """Apply an affine transformation to a geopandas GeoDataFrame"""
+    """Apply an affine transformation to a geopandas GeoDataFrame."""
     if isinstance(affine, Affine):
         affine = affine.to_shapely()
     gdfm = gdf.copy()
@@ -594,7 +607,7 @@ def affine_transform_gdf(gdf, affine):
 
 
 def get_extent(ds):
-    """Get the model extent, corrected for angrot if necessary"""
+    """Get the model extent, corrected for angrot if necessary."""
     attrs = _get_attrs(ds)
     extent = attrs["extent"]
     if "angrot" in attrs and attrs["angrot"] != 0.0:
@@ -607,7 +620,7 @@ def get_extent(ds):
 
 
 def get_affine_mod_to_world(ds):
-    """Get the affine-transformation from model to real-world coordinates"""
+    """Get the affine-transformation from model to real-world coordinates."""
     attrs = _get_attrs(ds)
     xorigin = attrs["xorigin"]
     yorigin = attrs["yorigin"]
@@ -616,7 +629,7 @@ def get_affine_mod_to_world(ds):
 
 
 def get_affine_world_to_mod(ds):
-    """Get the affine-transformation from real-world to model coordinates"""
+    """Get the affine-transformation from real-world to model coordinates."""
     attrs = _get_attrs(ds)
     xorigin = attrs["xorigin"]
     yorigin = attrs["yorigin"]
@@ -625,7 +638,7 @@ def get_affine_world_to_mod(ds):
 
 
 def get_affine(ds, sx=None, sy=None):
-    """Get the affine-transformation, from pixel to real-world coordinates"""
+    """Get the affine-transformation, from pixel to real-world coordinates."""
     attrs = _get_attrs(ds)
     xorigin = attrs["xorigin"]
     yorigin = attrs["yorigin"]
@@ -641,5 +654,7 @@ def get_affine(ds, sx=None, sy=None):
     if sy is None:
         sy = -attrs["delc"]
     return (
-        Affine.translation(xoff, yoff) * Affine.scale(sx, sy) * Affine.rotation(angrot)
+        Affine.translation(xoff, yoff)
+        * Affine.scale(sx, sy)
+        * Affine.rotation(angrot)
     )

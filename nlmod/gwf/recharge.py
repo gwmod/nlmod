@@ -6,18 +6,17 @@ import logging
 
 import flopy
 import numpy as np
-import xarray as xr
 from tqdm import tqdm
 
 from .. import mdims
-from .sim import get_tdis_perioddata
+from ..sim.sim import get_tdis_perioddata
 
 logger = logging.getLogger(__name__)
 
 
 def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
-    """
-    Convert the recharge data in the model dataset to a rch package with time series.
+    """Convert the recharge data in the model dataset to a rch package with
+    time series.
 
     Parameters
     ----------
@@ -42,12 +41,14 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         mask = ds["recharge"] != 0
         recharge = "recharge"
     else:
-        rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
-        ds['rch_name'] = ds['top'].dims, rch_name_arr
+        rch_name_arr, rch_unique_dic = _get_unique_series(
+            ds, "recharge", pname
+        )
+        ds["rch_name"] = ds["top"].dims, rch_name_arr
         mask = ds["rch_name"] != ""
         recharge = "rch_name"
 
-    spd = mdims.da_to_rec_list(
+    spd = mdims.da_to_reclist(
         ds,
         mask,
         col1=recharge,
@@ -78,9 +79,8 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
 def model_datasets_to_evt(
     gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs
 ):
-    """
-    Convert the evaporation data in the model dataset to a evt package with time series.
-
+    """Convert the evaporation data in the model dataset to a evt package with
+    time series.
 
     Parameters
     ----------
@@ -112,7 +112,6 @@ def model_datasets_to_evt(
     -------
     evt : flopy.mf6.modflow.mfgwfevt.ModflowGwfevt
         evapotranspiiration package.
-
     """
     assert nseg == 1, "More than one evaporation segment not yet supported"
     if "surf_rate_specified" in kwargs:
@@ -132,13 +131,15 @@ def model_datasets_to_evt(
         mask = ds["evaporation"] != 0
         rate = "evaporation"
     else:
-        evt_name_arr, evt_unique_dic = _get_unique_series(ds, "evaporation", pname)
-        ds['evt_name'] = ds['top'].dims, evt_name_arr
-        
+        evt_name_arr, evt_unique_dic = _get_unique_series(
+            ds, "evaporation", pname
+        )
+        ds["evt_name"] = ds["top"].dims, evt_name_arr
+
         mask = ds["evt_name"] != ""
         rate = "evt_name"
 
-    spd = mdims.da_to_rec_list(
+    spd = mdims.da_to_reclist(
         ds,
         mask,
         col1=surface,
@@ -170,8 +171,8 @@ def model_datasets_to_evt(
 
 
 def _get_unique_series(ds, var, pname):
-    """
-    Get the location and values of unique time series from a variable var in ds
+    """Get the location and values of unique time series from a variable var in
+    ds.
 
     Parameters
     ----------
@@ -193,10 +194,9 @@ def _get_unique_series(ds, var, pname):
         The name of the recharge series for each of the cells.
     rch_unique_dic : dict
         The values of each of the time series.
-
     """
-    rch_name_arr = np.empty_like(ds['top'].values, dtype='U13')
-    
+    rch_name_arr = np.empty_like(ds["top"].values, dtype="U13")
+
     # transient
     if ds.gridtype == "structured":
         if len(ds[var].dims) != 3:
@@ -225,13 +225,12 @@ def _get_unique_series(ds, var, pname):
             mask = mask.reshape(rch_name_arr.shape)
         rch_name_arr[mask] = f"{pname}_{i}"
         rch_unique_dic[f"{pname}_{i}"] = unique_rch
-        
+
     return rch_name_arr, rch_unique_dic
 
 
 def _add_time_series(package, rch_unique_dic, ds):
-    """
-    Add time series to a package
+    """Add time series to a package.
 
     Parameters
     ----------
@@ -245,7 +244,6 @@ def _add_time_series(package, rch_unique_dic, ds):
     Returns
     -------
     None.
-
     """
     # get timesteps
     tdis_perioddata = get_tdis_perioddata(ds)

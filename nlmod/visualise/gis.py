@@ -3,8 +3,8 @@ import os
 
 import geopandas as gpd
 import numpy as np
-from shapely.geometry import Polygon
 from shapely.affinity import affine_transform
+from shapely.geometry import Polygon
 
 from ..mdims import resample
 
@@ -58,7 +58,9 @@ def _polygons_from_model_ds(model_ds):
         ]
 
     elif model_ds.gridtype == "vertex":
-        polygons = [Polygon(vertices) for vertices in model_ds["vertices"].values]
+        polygons = [
+            Polygon(vertices) for vertices in model_ds["vertices"].values
+        ]
     else:
         raise ValueError(
             f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
@@ -246,9 +248,13 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
     None.
     """
     if model_ds.gridtype == "vertex":
-        gdf = vertex_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
+        gdf = vertex_dataarray_to_gdf(
+            model_ds, data_variables, polygons=polygons
+        )
     else:
-        gdf = struc_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
+        gdf = struc_dataarray_to_gdf(
+            model_ds, data_variables, polygons=polygons
+        )
     gdf.to_file(fname)
 
 
@@ -335,7 +341,9 @@ def model_dataset_to_vector_file(
             if model_ds.gridtype == "structured":
                 gdf = struc_dataarray_to_gdf(model_ds, item, polygons=polygons)
             elif model_ds.gridtype == "vertex":
-                gdf = vertex_dataarray_to_gdf(model_ds, item, polygons=polygons)
+                gdf = vertex_dataarray_to_gdf(
+                    model_ds, item, polygons=polygons
+                )
             if driver == "GPKG":
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
             else:
@@ -351,9 +359,13 @@ def model_dataset_to_vector_file(
     # create unique shapefiles for the other data variables
     for da_name in da_names:
         if model_ds.gridtype == "structured":
-            gdf = struc_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = struc_dataarray_to_gdf(
+                model_ds, (da_name,), polygons=polygons
+            )
         elif model_ds.gridtype == "vertex":
-            gdf = vertex_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = vertex_dataarray_to_gdf(
+                model_ds, (da_name,), polygons=polygons
+            )
         if driver == "GPKG":
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:
@@ -377,9 +389,8 @@ def model_dataset_to_ugrid_nc_file(
     yv="yv",
     face_node_connectivity="icvert",
 ):
-    """
-    Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh
-    Layer in qgis
+    """Save a model dataset to a UGRID NetCDF file, so it can be opened as a
+    Mesh Layer in qgis.
 
     Parameters
     ----------
@@ -407,7 +418,6 @@ def model_dataset_to_ugrid_nc_file(
     -------
     ds : xr.DataSet
         The dataset that was saved to a NetCDF-file. Can be used for debugging.
-
     """
     assert model_ds.gridtype == "vertex", "Only vertex grids are supported"
 

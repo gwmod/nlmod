@@ -11,6 +11,7 @@ import numbers
 import os
 import pickle
 
+import dask
 import flopy
 import numpy as np
 import pandas as pd
@@ -32,7 +33,9 @@ def clear_cache(cachedir):
     -------
     None.
     """
-    ans = input(f"this will remove all cached files in {cachedir} are you sure [Y/N]")
+    ans = input(
+        f"this will remove all cached files in {cachedir} are you sure [Y/N]"
+    )
     if ans.lower() != "y":
         return
 
@@ -131,6 +134,11 @@ def cache_netcdf(func):
                     f"module of function {func.__name__} recently modified, not using cache"
                 )
 
+            cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
+
+            # add netcdf hash to function arguments dic, see #66
+            func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+
             # check if cache was created with same function arguments as
             # function call
             argument_check = _same_function_arguments(
@@ -138,7 +146,6 @@ def cache_netcdf(func):
             )
 
             if modification_check and argument_check:
-                cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
                 if dataset is None:
                     logger.info(f"using cached data -> {cachename}")
                     return cached_ds
@@ -161,103 +168,19 @@ def cache_netcdf(func):
 
             # write netcdf cache
             result.to_netcdf(fname_cache)
+
+            # add netcdf hash to function arguments dic, see #66
+            temp = xr.open_dataset(fname_cache, mask_and_scale=False)
+            func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
+            temp.close()
+
             # pickle function arguments
             with open(fname_pickle_cache, "wb") as fpklz:
                 pickle.dump(func_args_dic, fpklz)
         else:
-            raise TypeError(f"expected xarray Dataset, got {type(result)} instead")
-
-        return result
-
-    return decorator
-
-
-def cache_pklz(func):
-    """decorator to read/write the result of a function from/to a pklz file to
-    speed up function calls with the same arguments. Should only be applied to
-    functions that:
-
-        - return a dictionary
-        - have functions arguments of types that can be checked using the
-        _is_valid_cache functions
-
-    1. The directory and filename of the cache should be defined by the person
-    calling a function with this decorator. If not defined no cache is
-    created nor used.
-    2. Create a new cached file if it is impossible to check if the function
-    arguments used to create the cached file are the same as the current
-    function arguments. This can happen if one of the function arguments has a
-    type that cannot be checked using the _is_valid_cache function.
-    3. Function arguments are pickled together with the cache to check later
-    if the cache is valid.
-    4. This function uses `functools.wraps` and some home made
-    magic in _update_docstring_and_signature to add arguments of the decorator
-    to the decorated function. This assumes that the decorated function has a
-    docstring with a "Returns" heading. If this is not the case an error is
-    raised when trying to decorate the function.
-    """
-
-    _update_docstring_and_signature(func)
-
-    @functools.wraps(func)
-    def decorator(*args, cachedir=None, cachename=None, **kwargs):
-
-        if cachedir is None or cachename is None:
-            return func(*args, **kwargs)
-
-        if not cachename.endswith(".pklz"):
-            cachename += ".pklz"
-
-        fname_cache = os.path.join(cachedir, cachename)  # pklz file
-        fname_args_cache = fname_cache.replace(
-            ".pklz", "_cache.pklz"
-        )  # pickle with function arguments
-
-        # create dictionary with function arguments
-        func_args_dic = {f"arg{i}": args[i] for i in range(len(args))}
-        func_args_dic.update(kwargs)
-
-        # only use cache if the cache file and the pickled function arguments exist
-        if os.path.exists(fname_cache) and os.path.exists(fname_args_cache):
-            with open(fname_args_cache, "rb") as f:
-                func_args_dic_cache = pickle.load(f)
-
-            # check if the module where the function is defined was changed
-            # after the cache was created
-            time_mod_func = _get_modification_time(func)
-            time_mod_cache = os.path.getmtime(fname_cache)
-            modification_check = time_mod_cache > time_mod_func
-
-            if not modification_check:
-                logger.info(
-                    f"module of function {func.__name__} recently modified, not using cache"
-                )
-
-            # check if cache was created with same function arguments as
-            # function call
-            argument_check = _same_function_arguments(
-                func_args_dic, func_args_dic_cache
+            raise TypeError(
+                f"expected xarray Dataset, got {type(result)} instead"
             )
-
-            if modification_check and argument_check:
-                with open(fname_cache, "rb") as f:
-                    result = pickle.load(f)
-                logger.info(f"using cached data -> {cachename}")
-                return result
-
-        # create cache
-        result = func(*args, **kwargs)
-        logger.info(f"caching data -> {cachename}")
-
-        if isinstance(result, dict):
-            # write result
-            with open(fname_cache, "wb") as f:
-                pickle.dump(result, f)
-            # pickle function arguments
-            with open(fname_args_cache, "wb") as fpklz:
-                pickle.dump(func_args_dic, fpklz)
-        else:
-            raise TypeError(f"expected dictionary, got {type(result)} instead")
 
         return result
 
@@ -284,7 +207,10 @@ def _check_ds(ds, ds2):
     # first remove _FillValue from all coordinates
     for coord in ds2.coords:
         if coord in ds.coords:
-            if "_FillValue" in ds2[coord].attrs and "_FillValue" not in ds[coord].attrs:
+            if (
+                "_FillValue" in ds2[coord].attrs
+                and "_FillValue" not in ds[coord].attrs
+            ):
                 del ds2[coord].attrs["_FillValue"]
 
     for coord in ds2.coords:
@@ -297,7 +223,9 @@ def _check_ds(ds, ds2):
                 )
                 return False
         else:
-            logger.info(f"dimension {coord} only present in cache, not using cache")
+            logger.info(
+                f"dimension {coord} only present in cache, not using cache"
+            )
             return False
 
     return True
@@ -374,7 +302,9 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                     "cache was created using different dictionaries, do not use cached data"
                 )
                 return False
-        elif isinstance(item, (flopy.mf6.ModflowGwf, flopy.modflow.mf.Modflow)):
+        elif isinstance(
+            item, (flopy.mf6.ModflowGwf, flopy.modflow.mf.Modflow)
+        ):
             if str(item) != str(func_args_dic_cache[key]):
                 logger.info(
                     "cache was created using different groundwater flow model, do not use cached data"
@@ -382,7 +312,9 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 return False
 
         else:
-            logger.info("cannot check if cache is valid, assuming invalid cache")
+            logger.info(
+                "cannot check if cache is valid, assuming invalid cache"
+            )
             logger.info(f"function argument of type {type(item)}")
             return False
 

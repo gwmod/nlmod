@@ -6,13 +6,14 @@ import numpy as np
 import pandas as pd
 
 from .. import cache, util
+from ..mdims.mlayers import get_first_active_layer
 from ..mdims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_recharge(ds, method="linear", nodata=None):
+def get_recharge(ds, method="linear"):
     """add multiple recharge packages to the groundwater flow model with knmi
     data by following these steps:
 
@@ -40,25 +41,19 @@ def get_recharge(ds, method="linear", nodata=None):
         If 'linear', calculate recharge by subtracting evaporation from precipitation.
         If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
         The defaults is 'linear'.
-    nodata : int, optional
-        if the first_active_layer data array in ds has this value,
-        it means this cell is inactive in all layers. If nodata is None the
-        nodata value in ds is used.
-        the default is None.
 
     Returns
     -------
     ds : xr.DataSet
         dataset with spatial model data including the rch raster
     """
-    if nodata is None:
-        nodata = ds.nodata
 
-    start = pd.Timestamp(ds.time.attrs["start_time"])
+    start = pd.Timestamp(ds.time.attrs["start"])
     # include the end day in the time series.
     end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
 
     ds_out = util.get_ds_empty(ds)
+    ds_out.attrs["gridtype"] = ds.gridtype
 
     # get recharge data array
     if ds.gridtype == "structured":
@@ -71,7 +66,7 @@ def get_recharge(ds, method="linear", nodata=None):
     shape = [len(ds_out[dim]) for dim in dims]
 
     locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(
-        ds, start=start, end=end, nodata=nodata
+        ds, start=start, end=end
     )
 
     # add closest precipitation and evaporation measurement station to each cell
@@ -86,9 +81,9 @@ def get_recharge(ds, method="linear", nodata=None):
         ds_out["recharge"] = dims, np.zeros(shape)
 
         # find unique combination of precipitation and evaporation station
-        unique_combinations = locations.drop_duplicates(["prec_point", "evap_point"])[
+        unique_combinations = locations.drop_duplicates(
             ["prec_point", "evap_point"]
-        ].values
+        )[["prec_point", "evap_point"]].values
 
         for prec_stn, evap_stn in unique_combinations:
             # get locations with the same prec and evap station
@@ -127,10 +122,12 @@ def get_recharge(ds, method="linear", nodata=None):
 
 
 def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
-    """Add a timeseries to a variable at location loc_sel in model DataSet"""
+    """Add a timeseries to a variable at location loc_sel in model DataSet."""
     end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
     if timeseries.index[-1] < pd.Timestamp(ds.time.data[-1]):
-        raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
+        raise ValueError(
+            f"no recharge available at {timeseries.name} for date {end}"
+        )
 
     # fill recharge data array
     if ds.time.steady_state:
@@ -147,11 +144,15 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
         for j, ts in enumerate(model_recharge.index):
             if j < (len(model_recharge) - 1):
                 model_recharge.loc[ts] = (
-                    timeseries.loc[ts : model_recharge.index[j + 1]].iloc[:-1].mean()
+                    timeseries.loc[ts : model_recharge.index[j + 1]]
+                    .iloc[:-1]
+                    .mean()
                 )
             else:
 
-                model_recharge.loc[ts] = timeseries.loc[ts:end].iloc[:-1].mean()
+                model_recharge.loc[ts] = (
+                    timeseries.loc[ts:end].iloc[:-1].mean()
+                )
 
         # add data to ds
         if ds.gridtype == "structured":
@@ -162,18 +163,13 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
             ds[variable].loc[loc_sel.index, :] = model_recharge.values
 
 
-def get_locations_vertex(ds, nodata=-999):
+def get_locations_vertex(ds):
     """get dataframe with the locations of the grid cells of a vertex grid.
 
     Parameters
     ----------
     ds : xr.DataSet
         dataset containing relevant model grid information
-    nodata : int, optional
-        if the first_active_layer data array in ds has this value,
-        it means this cell is inactive in all layers. If nodata is None the
-        nodata value in ds is used.
-        the default is None
 
     Returns
     -------
@@ -182,7 +178,8 @@ def get_locations_vertex(ds, nodata=-999):
         includes the columns: x, y and layer
     """
     # get active locations
-    icell2d_active = np.where(ds["first_active_layer"] != nodata)[0]
+    fal = get_first_active_layer(ds)
+    icell2d_active = np.where(fal != fal.attrs["_FillValue"])[0]
 
     # create dataframe from active locations
     x = ds["x"].sel(icell2d=icell2d_active)
@@ -191,7 +188,7 @@ def get_locations_vertex(ds, nodata=-999):
         # transform coordinates into real-world coordinates
         affine = get_affine_mod_to_world(ds)
         x, y = affine * (x, y)
-    layer = ds["first_active_layer"].sel(icell2d=icell2d_active)
+    layer = fal.sel(icell2d=icell2d_active)
     locations = pd.DataFrame(
         index=icell2d_active, data={"x": x, "y": y, "layer": layer}
     )
@@ -200,18 +197,13 @@ def get_locations_vertex(ds, nodata=-999):
     return locations
 
 
-def get_locations_structured(ds, nodata=-999):
+def get_locations_structured(ds):
     """get dataframe with the locations of the grid cells of a structured grid.
 
     Parameters
     ----------
     ds : xr.DataSet
         dataset containing relevant model grid information
-    nodata : int, optional
-        if the first_active_layer data array in ds has this value,
-        it means this cell is inactive in all layers. If nodata is None the
-        nodata value in ds is used.
-        the default is None
 
     Returns
     -------
@@ -221,16 +213,15 @@ def get_locations_structured(ds, nodata=-999):
     """
 
     # store x and y mids in locations of active cells
-    rows, columns = np.where(ds["first_active_layer"] != nodata)
+    fal = get_first_active_layer(ds)
+    rows, columns = np.where(fal != fal.attrs["_FillValue"])
     x = np.array([ds["x"].data[col] for col in columns])
     y = np.array([ds["y"].data[row] for row in rows])
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         # transform coordinates into real-world coordinates
         affine = get_affine_mod_to_world(ds)
         x, y = affine * (x, y)
-    layers = [
-        ds["first_active_layer"].data[row, col] for row, col in zip(rows, columns)
-    ]
+    layers = [fal.data[row, col] for row, col in zip(rows, columns)]
 
     locations = hpd.ObsCollection(
         pd.DataFrame(
@@ -241,7 +232,7 @@ def get_locations_structured(ds, nodata=-999):
     return locations
 
 
-def get_knmi_at_locations(ds, start="2010", end=None, nodata=-999):
+def get_knmi_at_locations(ds, start="2010", end=None):
     """get knmi data at the locations of the active grid cells in ds.
 
     Parameters
@@ -252,11 +243,6 @@ def get_knmi_at_locations(ds, start="2010", end=None, nodata=-999):
         start date of measurements that you want, The default is '2010'.
     end :  str or datetime, optional
         end date of measurements that you want, The default is None.
-    nodata : int, optional
-        if the first_active_layer data array in ds has this value,
-        it means this cell is inactive in all layers. If nodata is None the
-        nodata value in ds is used.
-        the default is None
 
     Raises
     ------
@@ -274,9 +260,9 @@ def get_knmi_at_locations(ds, start="2010", end=None, nodata=-999):
     """
     # get locations
     if ds.gridtype == "structured":
-        locations = get_locations_structured(ds, nodata=nodata)
+        locations = get_locations_structured(ds)
     elif ds.gridtype == "vertex":
-        locations = get_locations_vertex(ds, nodata=nodata)
+        locations = get_locations_vertex(ds)
     else:
         raise ValueError("gridtype should be structured or vertex")
 

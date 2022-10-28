@@ -1,17 +1,17 @@
 import flopy
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon, Point
+import numpy as np
+import pandas as pd
+from shapely.geometry import Point, Polygon
 
 from .. import mdims
 
 
 def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
-    """
-    Generate a stress period data for horizontal flow barrier between two cell nodes, with several limitations. The
-    stress period data can be used directly in the HFB package of flopy.
-    The hfb is placed at the cell interface; it follows the sides of the cells.
+    """Generate a stress period data for horizontal flow barrier between two
+    cell nodes, with several limitations. The stress period data can be used
+    directly in the HFB package of flopy. The hfb is placed at the cell
+    interface; it follows the sides of the cells.
 
     The estimation of the cross-sectional area at the interface is pretty
     crude, as the thickness at the cell interface is just the average of the thicknesses of the two cells.
@@ -33,7 +33,6 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
     -------
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
-
     """
     assert (
         sum([depth is None, elevation is None]) == 1
@@ -99,7 +98,6 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     """Obtain the cells with a horizontal flow barrier between them from a
     geodataframe with line elements.
 
-
     Parameters
     ----------
     gdf : gpd.GeoDataframe
@@ -117,12 +115,11 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     -------
     cellids : 2d list of ints
         a list with pairs of cells that have a hfb between them.
-
     """
     # for the idea, sea:
     # https://gis.stackexchange.com/questions/188755/how-to-snap-a-road-network-to-a-hexagonal-grid-in-qgis
 
-    gdfg = mdims.gdf2grid(gdf, gwf)
+    gdfg = mdims.gdf_to_grid(gdf, gwf)
 
     cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index("icell2d")
     vertices = pd.DataFrame(gwf.disv.vertices.array).set_index("iv")
@@ -179,8 +176,12 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     mask = np.full(hfb_seg.shape[0], True)
     for i, segment in enumerate(hfb_seg):
         # one vertex is not connected and the other one at least to two other segments
-        if (segments_per_iv[segment[0]] == 1 and segments_per_iv[segment[1]] >= 3) or (
-            segments_per_iv[segment[1]] == 1 and segments_per_iv[segment[0]] >= 3
+        if (
+            segments_per_iv[segment[0]] == 1
+            and segments_per_iv[segment[1]] >= 3
+        ) or (
+            segments_per_iv[segment[1]] == 1
+            and segments_per_iv[segment[0]] >= 3
         ):
             mask[i] = False
     hfb_seg = hfb_seg[mask]
@@ -224,7 +225,9 @@ def polygon_to_hfb(
             if column is None:
                 column = "index"
             gdf = gdf.reset_index()
-        da = mdims.gdf_to_da(gdf, ds, column, agg_method="max_area", fill_value=-1)
+        da = mdims.gdf_to_da(
+            gdf, ds, column, agg_method="max_area", fill_value=-1
+        )
     data = da.data
 
     spd = []
@@ -256,7 +259,9 @@ def polygon_to_hfb(
                     edge.extend([icvert[icell2d, j + 1], icvert[icell2d, j]])
                 edges.append(edge)
         edges = np.array(edges)
-        edges_un, inverse = np.unique(edges[:, 2:], axis=0, return_inverse=True)
+        edges_un, inverse = np.unique(
+            edges[:, 2:], axis=0, return_inverse=True
+        )
         icell2ds = []
         for i in range(len(edges_un)):
             mask = inverse == i
@@ -274,8 +279,7 @@ def polygon_to_hfb(
 
 
 def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
-    """plots a horizontal flow barrier
-
+    """plots a horizontal flow barrier.
 
     Parameters
     ----------
@@ -293,7 +297,6 @@ def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
         DESCRIPTION.
     ax : TYPE
         DESCRIPTION.
-
     """
     if ax is None:
         _, ax = plt.subplots()
@@ -302,7 +305,8 @@ def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
         if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
             spd = cellids.stress_period_data.data[0]
             cellids = [
-                [row[0][1:], row[1][1:]] for row in cellids.stress_period_data.array[0]
+                [row[0][1:], row[1][1:]]
+                for row in cellids.stress_period_data.array[0]
             ]
         for line in cellids:
             pc1 = Polygon(gwf.modelgrid.get_cell_vertices(*line[0]))
@@ -320,6 +324,8 @@ def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
             x, y = pc1.intersection(pc2).xy
             ax.plot(x, y, color=color, **kwargs)
     else:
-        raise ValueError(f"not supported gridtype -> {gwf.modelgrid.grid_type}")
+        raise ValueError(
+            f"not supported gridtype -> {gwf.modelgrid.grid_type}"
+        )
 
     return ax

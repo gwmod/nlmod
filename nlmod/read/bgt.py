@@ -1,27 +1,29 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Apr 20 17:01:07 2022
+"""Created on Wed Apr 20 17:01:07 2022.
 
 @author: Ruben
 """
 
-from io import BytesIO
-import shapely
-from shapely.geometry import Point, LineString, Polygon, MultiPolygon
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import requests
 import json
 import time
-from zipfile import ZipFile
 import xml.etree.ElementTree as ET
+from io import BytesIO
+from zipfile import ZipFile
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import requests
+import shapely
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon
+
 from ..mdims.resample import extent_to_polygon
 
 
-def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None):
-    """
-    Get geometries within an extent or polygon from the Basis Registratie
+def get_bgt(
+    extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None
+):
+    """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
 
     Parameters
@@ -52,7 +54,6 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
     -------
     gdf : GeoPandas GeoDataFrame
         A GeoDataFrame containing all geometries and properties.
-
     """
     if layer == "all":
         layer = get_bgt_layers()

@@ -3,71 +3,20 @@
 
 @author: oebbe
 """
+import datetime as dt
 import logging
 import numbers
 import os
+from shutil import copyfile
 
 import flopy
 import numpy as np
 import xarray as xr
-import datetime as dt
-
-from shutil import copyfile
 
 from .. import mdims
 from . import recharge
 
 logger = logging.getLogger(__name__)
-
-
-def write_and_run_model(gwf, ds, write_ds=True, nb_path=None):
-    """write modflow files and run the model.
-
-    2 extra options:
-        1. write the model dataset to cache
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
-           workspace with a timestamp.
-
-
-    Parameters
-    ----------
-    gwf : flopy.mf6.ModflowGwf
-        groundwater flow model.
-    ds : xarray.Dataset
-        dataset with model data.
-    write_ds : bool, optional
-        if True the model dataset is cached. The default is True.
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
-        default is None. Preferably this path does not have to be given
-        manually but there is currently no good option to obtain the filename
-        of a Jupyter Notebook from within the notebook itself.
-    """
-
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
-        )
-        dst = os.path.join(ds.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to model workspace")
-        copyfile(nb_path, dst)
-
-    if write_ds:
-        logger.info("write model dataset to cache")
-        ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
-            "%Y%m%d_%H:%M:%S"
-        )
-        ds.to_netcdf(os.path.join(ds.attrs["cachedir"], "full_ds.nc"))
-
-    logger.info("write modflow files to model workspace")
-    gwf.simulation.write_simulation()
-    ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S"
-    )
-
-    logger.info("run model")
-    assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
-    ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
 def gwf(ds, sim, **kwargs):
@@ -77,7 +26,7 @@ def gwf(ds, sim, **kwargs):
     ----------
     ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: model_name, mfversion, model_ws, time_units, start_time,
+        attributes: model_name, mfversion, model_ws, time_units, start,
         perlen, nstp, tsmult
     sim : flopy MFSimulation
         simulation object.
@@ -99,36 +48,6 @@ def gwf(ds, sim, **kwargs):
     )
 
     return gwf
-
-
-def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
-    """create IMS package
-
-
-    Parameters
-    ----------
-    sim : flopy MFSimulation
-        simulation object.
-    complexity : str, optional
-        solver complexity for default settings. The default is "MODERATE".
-    pname : str, optional
-        package name
-
-    Returns
-    -------
-    ims : flopy ModflowIms
-        ims object.
-
-    """
-
-    logger.info("creating modflow IMS")
-
-    # Create the Flopy iterative model solver (ims) Package object
-    ims = flopy.mf6.modflow.mfims.ModflowIms(
-        sim, pname=pname, print_option="summary", complexity=complexity, **kwargs
-    )
-
-    return ims
 
 
 def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
@@ -317,7 +236,7 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         ghb package
     """
 
-    ghb_rec = mdims.da_to_rec_list(
+    ghb_rec = mdims.da_to_reclist(
         ds,
         ds[f"{da_name}_cond"] != 0,
         col1=f"{da_name}_peil",
@@ -373,13 +292,22 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
         ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=ds[starting_head].data, **kwargs)
+    ic = flopy.mf6.ModflowGwfic(
+        gwf, pname=pname, strt=ds[starting_head].data, **kwargs
+    )
 
     return ic
 
 
 def sto(
-    ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False, pname="sto", **kwargs
+    ds,
+    gwf,
+    sy=0.2,
+    ss=0.000001,
+    iconvert=1,
+    save_flows=False,
+    pname="sto",
+    **kwargs,
 ):
     """get storage package from model dataset.
 
@@ -461,7 +389,7 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
         chd package
     """
     # get the stress_period_data
-    chd_rec = mdims.da_to_rec_list(ds, ds[chd] != 0, col1=head)
+    chd_rec = mdims.da_to_reclist(ds, ds[chd] != 0, col1=head)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -475,7 +403,9 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     return chd
 
 
-def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs):
+def surface_drain_from_ds(
+    ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs
+):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
@@ -498,7 +428,7 @@ def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs)
 
     ds.attrs["surface_drn_cond"] = surface_drn_cond
     mask = ds["ahn"].notnull()
-    drn_rec = mdims.da_to_rec_list(
+    drn_rec = mdims.da_to_reclist(
         ds,
         mask,
         col1="ahn",

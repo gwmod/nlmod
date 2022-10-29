@@ -15,12 +15,12 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
-from ..mdims.mgrid import get_vertices
-from ..mdims.resample import get_affine_mod_to_world
 from ..read import rws
+from ..mdims.resample import get_affine_mod_to_world, get_extent
+from ..mdims.mgrid import get_vertices, modelgrid_from_ds
 
 
-def plot_surface_water(model_ds, ax=None):
+def surface_water(model_ds, ax=None):
     surf_water = rws.get_gdf_surface_water(model_ds)
 
     if ax is None:
@@ -30,14 +30,14 @@ def plot_surface_water(model_ds, ax=None):
     return ax
 
 
-def plot_modelgrid(model_ds, gwf, ax=None, add_surface_water=True):
+def modelgrid(ds, ax=None, add_surface_water=True):
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
-
-    gwf.modelgrid.plot(ax=ax)
+    modelgrid = modelgrid_from_ds(ds)
+    modelgrid.plot(ax=ax)
     ax.axis("scaled")
     if add_surface_water:
-        plot_surface_water(model_ds, ax=ax)
+        surface_water(ds, ax=ax)
         ax.set_title("modelgrid with surface water")
     else:
         ax.set_title("modelgrid")
@@ -101,9 +101,7 @@ def facet_plot(
             iper = period
             if arr.ndim == 4:
                 if iper is None:
-                    raise ValueError(
-                        "Pass 'period' to select timestep to plot."
-                    )
+                    raise ValueError("Pass 'period' to select timestep to plot.")
                 a = arr[iper]
         elif plot_dim == "time":
             ilay = layer
@@ -232,9 +230,7 @@ def facet_plot_ds(
         iax = axes.ravel()[ilay]
         mp = flopy.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
         # mp.plot_grid()
-        qm = mp.plot_array(
-            plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax
-        )
+        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax)
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)
@@ -255,9 +251,7 @@ def facet_plot_ds(
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(f"{plot_var}", rotation=270)
-    fig.suptitle(
-        f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year"
-    )
+    fig.suptitle(f"{plot_var} Time = {(model_ds.nper*model_ds.perlen)/365} year")
     fig.tight_layout()
     fig.savefig(
         os.path.join(figdir, f"{plot_var}_per_layer.png"),
@@ -270,8 +264,8 @@ def facet_plot_ds(
 
 def plot_array(gwf, array, figsize=(8, 8), colorbar=True, ax=None, **kwargs):
     warnings.warn(
-        "The 'plot_array' functions is deprecated please use"
-        "'plot_vertex_array' instead",
+        "The 'plot.plot_array' function is deprecated please use"
+        "'plot.data_array' instead",
         DeprecationWarning,
     )
     if ax is None:
@@ -315,6 +309,7 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     ax : TYPE
         DESCRIPTION.
     """
+    DeprecationWarning("plot.plot_vertex_array is deprecated. Use plot.data_array.")
 
     if isinstance(vertices, xr.Dataset):
         vertices = get_vertices(vertices)
@@ -360,8 +355,9 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
     return ax
 
 
-def da(da, ds=None, ax=None, rotated=False, **kwargs):
-    """Plot an xarray DataArray, using information from the model Dataset ds.
+def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
+    """
+    Plot an xarray DataArray, using information from the model Dataset ds
 
     Parameters
     ----------
@@ -390,16 +386,24 @@ def da(da, ds=None, ax=None, rotated=False, **kwargs):
             patches = ds
         else:
             patches = get_patches(ds, rotated=rotated)
-        pc = PatchCollection(patches, **kwargs)
+        if edgecolor is None:
+            edgecolor = "face"
+        pc = PatchCollection(patches, edgecolor=edgecolor, **kwargs)
         pc.set_array(da)
         ax.add_collection(pc)
+        if ax.get_autoscale_on():
+            extent = get_extent(ds, rotated=rotated)
+            ax.axis(extent)
         return pc
     else:
         x = da.x
         y = da.y
-        if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-            affine = get_affine_mod_to_world(ds)
-            x, y = affine * np.meshgrid(x, y)
+        if rotated:
+            if ds is None:
+                raise (Exception("Supply model dataset (ds) for grid information"))
+            if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+                affine = get_affine_mod_to_world(ds)
+                x, y = affine * np.meshgrid(x, y)
         return ax.pcolormesh(x, y, da, shading="nearest", **kwargs)
 
 
@@ -429,6 +433,9 @@ def get_map(
     fmt="{:.0f}",
     sharex=False,
     sharey=True,
+    crs=28992,
+    background=False,
+    alpha=0.5,
 ):
     """Generate a motplotlib Figure with a map with the axis set to extent.
 
@@ -454,6 +461,13 @@ def get_map(
     sharey : bool, optional
         Only display the ticks on the left y-axes, when ncols > 1. The default
         is True.
+    background : bool or str, optional
+        Draw a background using contextily when True or when background is a string.
+        When background is a string it repesents the map-provider. Use
+        nlmod.plot._list_contextily_providers().keys() to show possible map-providers.
+        THe defaults is False.
+    alpha: float, optional
+        The alpha value of the background. The default is 0.5.
 
     Returns
     -------
@@ -466,14 +480,14 @@ def get_map(
         xh = 0.2
         if base is None:
             xh = 0.0
-        figsize = get_figsize(
-            extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh
-        )
+        figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh)
     f, axes = plt.subplots(
         figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
     )
+    if isinstance(background, bool) and background is True:
+        background = "OpenStreetMap.Mapnik"
 
-    def set_ax_in_map(ax, extent, base=1000.0, fmt="{:.0f}"):
+    def set_ax_in_map(ax):
         ax.axis("scaled")
         ax.axis(extent)
         rotate_yticklabels(ax)
@@ -482,15 +496,67 @@ def get_map(
             ax.set_yticks([])
         else:
             rd_ticks(ax, base=base, fmt=fmt)
+        if background:
+            add_background_map(ax, crs=crs, map_provider=background, alpha=alpha)
 
     if nrows == 1 and ncols == 1:
-        set_ax_in_map(axes, extent, base=base, fmt=fmt)
+        set_ax_in_map(axes)
     else:
         for ax in axes.ravel():
-            set_ax_in_map(ax, extent, base=base, fmt=fmt)
+            set_ax_in_map(ax)
     f.tight_layout(pad=0.0)
-
     return f, axes
+
+
+def _list_contextily_providers():
+    """List contextily providers.
+
+    Taken from contextily notebooks.
+
+    Returns
+    -------
+    providers : dict
+        dictionary containing all providers. See keys for names
+        that can be passed as map_provider arguments.
+    """
+    import contextily as ctx
+
+    providers = {}
+
+    def get_providers(provider):
+        if "url" in provider:
+            providers[provider["name"]] = provider
+        else:
+            for prov in provider.values():
+                get_providers(prov)
+
+    get_providers(ctx.providers)
+    return providers
+
+
+def add_background_map(ax, crs=28992, map_provider="OpenStreetMap.Mapnik", **kwargs):
+    """Add background map to axes using contextily.
+
+    Parameters
+    ----------
+    ax: matplotlib.Axes
+        axes to add background map to
+    map_provider: str, optional
+        name of map provider, see `contextily.providers` for options.
+        Default is 'OpenStreetMap.Mapnik'
+    proj: pyproj.Proj or str, optional
+        projection for background map, default is 'epsg:28992'
+        (RD Amersfoort, a projection for the Netherlands)
+    """
+    import contextily as ctx
+
+    if isinstance(crs, (str, int)):
+        import pyproj
+
+        proj = pyproj.Proj(crs)
+
+    providers = _list_contextily_providers()
+    ctx.add_basemap(ax, source=providers[map_provider], crs=proj.srs, **kwargs)
 
 
 def get_figsize(extent, figw=10.0, nrows=1, ncols=1, xh=0.2):
@@ -523,9 +589,7 @@ def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
     ax.yaxis.set_major_formatter(FuncFormatter(fmt_rd_ticks))
 
 
-def colorbar_inside(
-    mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw
-):
+def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw):
     """Place a colorbar inside an axes."""
     if ax is None:
         ax = plt.gca()

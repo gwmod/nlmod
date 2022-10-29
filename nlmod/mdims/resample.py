@@ -577,11 +577,11 @@ def _get_attrs(ds):
         return ds.attrs
 
 
-def get_extent_polygon(ds):
+def get_extent_polygon(ds, rotated=True):
     """Get the model extent, as a shapely Polygon."""
     attrs = _get_attrs(ds)
     polygon = extent_to_polygon(attrs["extent"])
-    if "angrot" in ds.attrs and attrs["angrot"] != 0.0:
+    if rotated and "angrot" in ds.attrs and attrs["angrot"] != 0.0:
         affine = get_affine_mod_to_world(ds)
         polygon = affine_transform(polygon, affine.to_shapely())
     return polygon
@@ -600,7 +600,7 @@ def get_extent(ds, rotated=True):
     """Get the model extent, corrected for angrot if necessary."""
     attrs = _get_attrs(ds)
     extent = attrs["extent"]
-    if "angrot" in attrs and attrs["angrot"] != 0.0:
+    if rotated and "angrot" in attrs and attrs["angrot"] != 0.0:
         affine = get_affine_mod_to_world(ds)
         xc = np.array([extent[0], extent[1], extent[1], extent[0]])
         yc = np.array([extent[2], extent[2], extent[3], extent[3]])

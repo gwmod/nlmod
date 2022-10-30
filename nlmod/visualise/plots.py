@@ -416,11 +416,16 @@ def get_patches(ds, rotated=False):
         affine = get_affine_mod_to_world(ds)
         xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
     icvert = ds["icvert"].data
-    nodata = ds["icvert"].attrs["_FillValue"]
-    patches = [
-        Polygon(xy[icvert[icell2d, icvert[icell2d] != nodata]])
-        for icell2d in ds.icell2d.data
-    ]
+    if "_FillValue" in ds["icvert"].attrs:
+        nodata = ds["icvert"].attrs["_FillValue"]
+    else:
+        nodata = -1
+        icvert = icvert.copy()
+        icvert[np.isnan(icvert)] = nodata
+        icvert = icvert.astype(int)
+    patches = []
+    for icell2d in ds.icell2d.data:
+        patches.append(Polygon(xy[icvert[icell2d, icvert[icell2d] != nodata]]))
     return patches
 
 

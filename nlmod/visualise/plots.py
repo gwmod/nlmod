@@ -594,7 +594,9 @@ def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
     ax.yaxis.set_major_formatter(FuncFormatter(fmt_rd_ticks))
 
 
-def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None, bounds=None, **kw):
+def colorbar_inside(
+    mappable=None, ax=None, norm=None, cmap=None, bounds=None, bbox_labels=True, **kw
+):
     """Place a colorbar inside an axes."""
     if ax is None:
         ax = plt.gca()
@@ -609,6 +611,12 @@ def colorbar_inside(mappable=None, ax=None, norm=None, cmap=None, bounds=None, *
     if bounds[0] > 0.5:
         cax.yaxis.tick_left()
         cax.yaxis.set_label_position("left")
+    if isinstance(bbox_labels, bool) and bbox_labels is True:
+        bbox_labels = dict(facecolor="w", alpha=0.5)
+    if isinstance(bbox_labels, dict):
+        for label in cb.ax.yaxis.get_ticklabels():
+            label.set_bbox(bbox_labels)
+
     return cb
 
 

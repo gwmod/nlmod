@@ -544,7 +544,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
                 da_temp = da_temp.rio.write_transform(affine, inplace=True)
             # make sure da_temp has a crs if da has a crs
             da_temp = da_temp.rio.write_crs(da.rio.crs)
-            da_temp = da.rio.reproject_match(da_temp, resampling)
+            da_temp = da.rio.reproject_match(da_temp, resampling, nodata=nodata)
             mask = ds["area"] == area
             da_out.loc[dict(icell2d=mask)] = da_temp.sel(
                 y=ds["y"][mask], x=ds["x"][mask]

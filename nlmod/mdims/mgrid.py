@@ -58,7 +58,7 @@ def xy_to_icell2d(xy, ds):
         number of the icell2d value of a cell containing the xy point.
     """
 
-    icell2d = (np.abs(ds.x - xy[0]) + np.abs(ds.y - xy[1])).argmin().item()
+    icell2d = (np.abs(ds.x.data - xy[0]) + np.abs(ds.y.data - xy[1])).argmin().item()
 
     return icell2d
 
@@ -292,7 +292,7 @@ def refine(
                         )
                     mask = geom_types == geom_type
                     # features = [gdf[mask].unary_union]
-                    features = list(gdf[mask].geometry.explode())
+                    features = list(gdf[mask].geometry.explode(index_parts=True))
                     g.add_refinement_features(features, geom_type, level, layers=[0])
     g.build()
     gridprops = g.get_gridprops_disv()

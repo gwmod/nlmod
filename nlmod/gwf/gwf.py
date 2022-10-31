@@ -404,7 +404,7 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
 
 
 def surface_drain_from_ds(
-    ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs
+    ds, gwf, resistance, pname="drn", **kwargs
 ):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
@@ -415,8 +415,9 @@ def surface_drain_from_ds(
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    surface_drn_cond : int or float, optional
-        conductivity of the surface drain. The default is 1000.
+    resistance : int or float
+        resistance of the surface drain, scaled with cell area to
+        calculate drain conductance.
     pname : str, optional
         package name
 
@@ -426,13 +427,13 @@ def surface_drain_from_ds(
         drn package
     """
 
-    ds.attrs["surface_drn_cond"] = surface_drn_cond
+    ds.attrs["surface_drn_resistance"] = resistance
     mask = ds["ahn"].notnull()
     drn_rec = mdims.da_to_reclist(
         ds,
         mask,
         col1="ahn",
-        col2=ds.surface_drn_cond,
+        col2=ds["area"] / ds.surface_drn_resistance,
         first_active_layer=True,
         only_active_cells=False,
     )

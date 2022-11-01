@@ -7,7 +7,9 @@ from nlmod.gwf import get_heads_da
 from nlmod.mdims import refine
 
 tmpdir = tempfile.gettempdir()
-tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+tst_model_dir = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "data"
+)
 
 
 def test_create_small_model_grid_only(tmpdir, model_name="test"):
@@ -35,13 +37,13 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    _ = nlmod.gwf.tdis(ds, sim)
+    _ = nlmod.sim.tdis(ds, sim)
+
+    # create ims
+    nlmod.sim.ims(sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
-
-    # create ims
-    nlmod.gwf.ims(sim)
 
     # Create discretization
     nlmod.gwf.dis(ds, gwf)
@@ -50,13 +52,13 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.npf(ds, gwf)
 
     # Create the initial conditions package
-    nlmod.gwf.ic(ds, gwf, starting_head=1.)
+    nlmod.gwf.ic(ds, gwf, starting_head=1.0)
     nlmod.gwf.oc(ds, gwf)
 
-    ds.update(nlmod.gwf.constant_head.chd_at_model_edge(ds, ds['idomain']))
-    nlmod.gwf.chd(ds, gwf, head='starting_head')
+    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
-    nlmod.gwf.write_and_run_model(gwf, ds)
+    nlmod.sim.write_and_run(gwf, ds)
 
     heads_correct = np.ones((3, 5, 2, 3))
     heads_correct[:, 3, :, 1:] = np.nan
@@ -89,13 +91,13 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     sim = nlmod.sim.sim(ds_unstr)
 
     # create time discretisation
-    nlmod.gwf.tdis(ds_unstr, sim)
+    (_,) = nlmod.sim.tdis(ds_unstr, sim)
+
+    # create ims
+    nlmod.sim.ims(sim)
 
     # create groundwater flow model
     gwf_unstr = nlmod.gwf.gwf(ds_unstr, sim)
-
-    # create ims
-    nlmod.gwf.ims(sim)
 
     # Create discretization
     nlmod.gwf.dis(ds_unstr, gwf_unstr)
@@ -104,13 +106,13 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.npf(ds_unstr, gwf_unstr)
 
     # Create the initial conditions package
-    nlmod.gwf.ic(ds_unstr, gwf_unstr, starting_head=1.)
+    nlmod.gwf.ic(ds_unstr, gwf_unstr, starting_head=1.0)
     nlmod.gwf.oc(ds_unstr, gwf_unstr)
 
-    ds_unstr.update(nlmod.gwf.constant_head.chd_at_model_edge(ds_unstr, ds_unstr['idomain']))
-    nlmod.gwf.chd(ds_unstr, gwf_unstr, head='starting_head')
+    ds_unstr.update(nlmod.mgrid.mask_model_edge(ds_unstr, ds_unstr["idomain"]))
+    nlmod.gwf.chd(ds_unstr, gwf_unstr, chd="edge_mask", head="starting_head")
 
-    nlmod.gwf.write_and_run_model(gwf_unstr, ds_unstr)
+    nlmod.sim.write_and_run(gwf_unstr, ds_unstr)
 
     heads_correct = np.ones((3, 5, 6))
     heads_correct[:, 3, [1, 2, 4, 5]] = np.nan

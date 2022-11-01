@@ -105,7 +105,7 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
         # TODO: temporarily only add time for when ds is passed because unable to
         # exactly recreate ds.time from gwf.
         times = np.array(
-            [pd.Timestamp(ds.time.start_time) + pd.Timedelta(t, unit=ds.time.time_units[0])
+            [pd.Timestamp(ds.time.start) + pd.Timedelta(t, unit=ds.time.time_units[0])
              for t in headobj.get_times()], dtype=np.datetime64)
         head_ar.coords['time'] = times
 

@@ -769,7 +769,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
     return kh_out, kv_out
 
 
-def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
+def fill_top_bot_kh_kv_at_mask(ds, fill_mask):
     """Fill values in top, bot, kh and kv.
 
     Fill where:
@@ -788,8 +788,6 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
         model dataset
     fill_mask : xr.DataArray
         1 where a cell should be replaced by masked value.
-    gridtype : str, optional
-        type of grid.
 
     Returns
     -------

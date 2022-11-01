@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from ..dims.resample import get_extent, structured_da_to_ds
 from ..util import get_ds_empty
-from .. import cache, util
+from .. import cache
 from .webservices import arcrest, wcs, wfs
 
 logger = logging.getLogger(__name__)
@@ -53,9 +53,7 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
 
     url = _infer_url(identifier)
     extent = get_extent(ds)
-    ahn_ds_raw = get_ahn_from_wcs(
-        extent=extent, url=url, identifier=identifier
-    )
+    ahn_ds_raw = get_ahn_from_wcs(extent=extent, url=url, identifier=identifier)
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
@@ -250,9 +248,7 @@ def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
     merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(
-            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2])
-        )
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         return da
     return memfile
 
@@ -287,8 +283,6 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(
-            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2])
-        )
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         return da
     return memfile

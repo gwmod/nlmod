@@ -47,9 +47,7 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
     y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
-        return ds_in.interp(
-            x=x, y=y, method=method, kwargs={"fill_value": None}
-        )
+        return ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
 
     ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
 
@@ -211,9 +209,7 @@ def resample_dataset_to_structured_grid(
         ds_out.attrs = attrs
         return ds_out
 
-    ds_out = xr.Dataset(
-        coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=attrs
-    )
+    ds_out = xr.Dataset(coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=attrs)
     for var in ds_in.data_vars:
         ds_out[var] = structured_da_to_ds(ds_in[var], ds_out, method=method)
     return ds_out
@@ -351,9 +347,7 @@ def fillnan_dataarray_structured_grid(xar_in, method="nearest"):
     return xar_out
 
 
-def fillnan_dataarray_vertex_grid(
-    xar_in, ds=None, x=None, y=None, method="nearest"
-):
+def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     """fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
@@ -436,9 +430,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         THe structured DataArray, with coordinates 'x' and 'y'
     """
     if ds.gridtype == "vertex":
-        raise (
-            Exception("Resampling from vertex da to vertex ds not supported")
-        )
+        raise (Exception("Resampling from vertex da to vertex ds not supported"))
     if "icell2d" not in da.dims:
         return da
     points = np.array((da.x.data, da.y.data)).T
@@ -546,15 +538,13 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
-            da_temp = xr.DataArray(
-                nodata, dims=["y", "x"], coords=dict(x=x, y=y)
-            )
+            da_temp = xr.DataArray(nodata, dims=["y", "x"], coords=dict(x=x, y=y))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine(ds)
                 da_temp = da_temp.rio.write_transform(affine, inplace=True)
             # make sure da_temp has a crs if da has a crs
             da_temp = da_temp.rio.write_crs(da.rio.crs)
-            da_temp = da.rio.reproject_match(da_temp, resampling)
+            da_temp = da.rio.reproject_match(da_temp, resampling, nodata=nodata)
             mask = ds["area"] == area
             da_out.loc[dict(icell2d=mask)] = da_temp.sel(
                 y=ds["y"][mask], x=ds["x"][mask]
@@ -587,11 +577,11 @@ def _get_attrs(ds):
         return ds.attrs
 
 
-def get_extent_polygon(ds):
+def get_extent_polygon(ds, rotated=True):
     """Get the model extent, as a shapely Polygon."""
     attrs = _get_attrs(ds)
     polygon = extent_to_polygon(attrs["extent"])
-    if "angrot" in ds.attrs and attrs["angrot"] != 0.0:
+    if rotated and "angrot" in ds.attrs and attrs["angrot"] != 0.0:
         affine = get_affine_mod_to_world(ds)
         polygon = affine_transform(polygon, affine.to_shapely())
     return polygon
@@ -606,11 +596,11 @@ def affine_transform_gdf(gdf, affine):
     return gdfm
 
 
-def get_extent(ds):
+def get_extent(ds, rotated=True):
     """Get the model extent, corrected for angrot if necessary."""
     attrs = _get_attrs(ds)
     extent = attrs["extent"]
-    if "angrot" in attrs and attrs["angrot"] != 0.0:
+    if rotated and "angrot" in attrs and attrs["angrot"] != 0.0:
         affine = get_affine_mod_to_world(ds)
         xc = np.array([extent[0], extent[1], extent[1], extent[0]])
         yc = np.array([extent[2], extent[2], extent[3], extent[3]])
@@ -654,7 +644,5 @@ def get_affine(ds, sx=None, sy=None):
     if sy is None:
         sy = -attrs["delc"]
     return (
-        Affine.translation(xoff, yoff)
-        * Affine.scale(sx, sy)
-        * Affine.rotation(angrot)
+        Affine.translation(xoff, yoff) * Affine.scale(sx, sy) * Affine.rotation(angrot)
     )

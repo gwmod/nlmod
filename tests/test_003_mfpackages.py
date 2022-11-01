@@ -95,8 +95,7 @@ def drn_from_ds(tmpdir):
     ds = test_001_model.test_get_ds_from_cache("full_sea_model")
     _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
-
-    drn = nlmod.gwf.surface_drain_from_ds(ds, gwf)
+    drn = nlmod.gwf.surface_drain_from_ds(ds, gwf, 1.0)
 
     return drn
 

@@ -119,7 +119,7 @@ def to_model_ds(
     Returns
     -------
     ds : xarray.dataset
-        THe model Dataset.
+        the model Dataset.
     """
     if extent is None:
         extent = ds.attrs["extent"]
@@ -134,6 +134,11 @@ def to_model_ds(
     logger.info("resample layer model data to structured modelgrid")
     ds = resample.resample_dataset_to_structured_grid(
         ds, extent, delr, delc, xorigin=xorigin, yorigin=yorigin, angrot=angrot
+    )
+
+    # add cell area variable
+    ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
+        (ds.dims["y"], ds.dims["x"])
     )
 
     if extrapolate:

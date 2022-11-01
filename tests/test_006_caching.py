@@ -59,7 +59,7 @@ def test_ds_check_grid_false(tmpdir):
         cachedir=tmpdir,
         cachename="comb.nc",
     )
-    ds2 = nlmod.mdims.to_model_ds(regis_ds, delr=50.0, delc=50.0)
+    ds2 = nlmod.base.to_model_ds(regis_ds, delr=50.0, delc=50.0)
 
     check = nlmod.cache._check_ds(ds, ds2)
 
@@ -69,13 +69,9 @@ def test_ds_check_grid_false(tmpdir):
 @pytest.mark.skip("too slow")
 def test_use_cached_regis(tmpdir):
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
-    regis_ds1 = nlmod.read.regis.get_regis(
-        extent, cachedir=tmpdir, cachename="reg.nc"
-    )
+    regis_ds1 = nlmod.read.regis.get_regis(extent, cachedir=tmpdir, cachename="reg.nc")
 
-    regis_ds2 = nlmod.read.regis.get_regis(
-        extent, cachedir=tmpdir, cachename="reg.nc"
-    )
+    regis_ds2 = nlmod.read.regis.get_regis(extent, cachedir=tmpdir, cachename="reg.nc")
 
     assert regis_ds1.equals(regis_ds2)
 

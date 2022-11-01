@@ -16,7 +16,9 @@ import numpy as np
 import requests
 import xarray as xr
 
-from .. import cache, mdims, util
+from .. import cache
+from ..util import get_ds_empty, get_da_from_da_ds
+from ..dims.resample import fillnan_da, structured_da_to_ds
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +34,8 @@ def get_bathymetry(ds, northsea, method="average"):
     northsea : ??
         ??
     method : str, optional
-        Method used to resample ahn to grid of ds. See
-        mdims.resample.structured_da_to_ds for possible values. The default is
+        Method used to resample ahn to grid of ds. See the documentation of
+        nlmod.resample.structured_da_to_ds for possible values. The default is
         'average'.
 
     Returns
@@ -47,13 +49,11 @@ def get_bathymetry(ds, northsea, method="average"):
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
-    ds_out = util.get_ds_empty(ds)
+    ds_out = get_ds_empty(ds)
 
     # no bathymetry if we don't have northsea
     if (northsea == 0).all():
-        ds_out["bathymetry"] = util.get_da_from_da_ds(
-            northsea, northsea.dims, data=np.nan
-        )
+        ds_out["bathymetry"] = get_da_from_da_ds(northsea, northsea.dims, data=np.nan)
         return ds_out
 
     # try to get bathymetry via opendap
@@ -67,28 +67,20 @@ def get_bathymetry(ds, northsea, method="average"):
             "cannot access Jarkus netCDF link, copy file from google drive instead"
         )
         fname_jarkus = os.path.join(ds.model_ws, "jarkus_nhflopy.nc")
-        url = (
-            "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
-        )
+        url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
         gdown.download(url, fname_jarkus, quiet=False)
         jarkus_ds = xr.open_dataset(fname_jarkus)
 
     da_bathymetry_raw = jarkus_ds["z"]
 
     # fill nan values in bathymetry
-    da_bathymetry_filled = mdims.fillnan_dataarray_structured_grid(
-        da_bathymetry_raw
-    )
+    da_bathymetry_filled = fillnan_da(da_bathymetry_raw)
 
     # bathymetrie mag nooit groter zijn dan NAP 0.0
-    da_bathymetry_filled = xr.where(
-        da_bathymetry_filled > 0, 0, da_bathymetry_filled
-    )
+    da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
 
     # bathymetry projected on model grid
-    da_bathymetry = mdims.resample.structured_da_to_ds(
-        da_bathymetry_filled, ds, method=method
-    )
+    da_bathymetry = structured_da_to_ds(da_bathymetry_filled, ds, method=method)
 
     ds_out["bathymetry"] = xr.where(northsea, da_bathymetry, np.nan)
 
@@ -194,9 +186,7 @@ def get_netcdf_tiles():
     return netcdf_urls
 
 
-def add_bathymetry_to_top_bot_kh_kv(
-    ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10
-):
+def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10):
     """add bathymetry to the top and bot of each layer for all cells with
     fill_mask.
 

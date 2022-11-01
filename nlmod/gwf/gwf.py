@@ -3,17 +3,14 @@
 
 @author: oebbe
 """
-import datetime as dt
 import logging
 import numbers
-import os
-from shutil import copyfile
 
 import flopy
 import numpy as np
 import xarray as xr
 
-from .. import mdims
+from ..dims import grid
 from . import recharge
 
 logger = logging.getLogger(__name__)
@@ -142,8 +139,8 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
         yorigin = 0.0
         angrot = 0.0
 
-    vertices = mdims.mgrid.get_vertices_from_ds(ds)
-    cell2d = mdims.mgrid.get_cell2d_from_ds(ds)
+    vertices = grid.get_vertices_from_ds(ds)
+    cell2d = grid.get_cell2d_from_ds(ds)
     disv = flopy.mf6.ModflowGwfdisv(
         gwf,
         idomain=ds["idomain"].data,
@@ -236,7 +233,7 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         ghb package
     """
 
-    ghb_rec = mdims.da_to_reclist(
+    ghb_rec = grid.da_to_reclist(
         ds,
         ds[f"{da_name}_cond"] != 0,
         col1=f"{da_name}_peil",
@@ -292,9 +289,7 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
         ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(
-        gwf, pname=pname, strt=ds[starting_head].data, **kwargs
-    )
+    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=ds[starting_head].data, **kwargs)
 
     return ic
 
@@ -389,7 +384,7 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
         chd package
     """
     # get the stress_period_data
-    chd_rec = mdims.da_to_reclist(ds, ds[chd] != 0, col1=head)
+    chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -403,9 +398,7 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     return chd
 
 
-def surface_drain_from_ds(
-    ds, gwf, resistance, pname="drn", **kwargs
-):
+def surface_drain_from_ds(ds, gwf, resistance, pname="drn", **kwargs):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
@@ -429,7 +422,7 @@ def surface_drain_from_ds(
 
     ds.attrs["surface_drn_resistance"] = resistance
     mask = ds["ahn"].notnull()
-    drn_rec = mdims.da_to_reclist(
+    drn_rec = grid.da_to_reclist(
         ds,
         mask,
         col1="ahn",

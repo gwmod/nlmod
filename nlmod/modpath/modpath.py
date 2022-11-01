@@ -9,7 +9,7 @@ import geopandas as gpd
 import pandas as pd
 
 from .. import util
-from ..mdims import mgrid
+from ..dims.grid import xy_to_icell2d
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0):
 
     nodes = []
     for i, xy in enumerate(xy_list):
-        icell2d = mgrid.xy_to_icell2d(xy, ds)
+        icell2d = xy_to_icell2d(xy, ds)
         if mpf.ib[layer[i], icell2d] > 0:
             node = layer[i] * mpf.ib.shape[1] + icell2d
             nodes.append(node)

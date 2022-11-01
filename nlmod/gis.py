@@ -6,7 +6,7 @@ import numpy as np
 from shapely.affinity import affine_transform
 from shapely.geometry import Polygon
 
-from ..mdims import resample
+from .dims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 
@@ -58,16 +58,14 @@ def _polygons_from_model_ds(model_ds):
         ]
 
     elif model_ds.gridtype == "vertex":
-        polygons = [
-            Polygon(vertices) for vertices in model_ds["vertices"].values
-        ]
+        polygons = [Polygon(vertices) for vertices in model_ds["vertices"].values]
     else:
         raise ValueError(
             f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
         )
     if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
         # rotate the model coordinates to real coordinates
-        affine = resample.get_affine_mod_to_world(model_ds).to_shapely()
+        affine = get_affine_mod_to_world(model_ds).to_shapely()
         polygons = [affine_transform(polygon, affine) for polygon in polygons]
 
     return polygons
@@ -248,13 +246,9 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
     None.
     """
     if model_ds.gridtype == "vertex":
-        gdf = vertex_dataarray_to_gdf(
-            model_ds, data_variables, polygons=polygons
-        )
+        gdf = vertex_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
     else:
-        gdf = struc_dataarray_to_gdf(
-            model_ds, data_variables, polygons=polygons
-        )
+        gdf = struc_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
     gdf.to_file(fname)
 
 
@@ -341,9 +335,7 @@ def model_dataset_to_vector_file(
             if model_ds.gridtype == "structured":
                 gdf = struc_dataarray_to_gdf(model_ds, item, polygons=polygons)
             elif model_ds.gridtype == "vertex":
-                gdf = vertex_dataarray_to_gdf(
-                    model_ds, item, polygons=polygons
-                )
+                gdf = vertex_dataarray_to_gdf(model_ds, item, polygons=polygons)
             if driver == "GPKG":
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
             else:
@@ -359,13 +351,9 @@ def model_dataset_to_vector_file(
     # create unique shapefiles for the other data variables
     for da_name in da_names:
         if model_ds.gridtype == "structured":
-            gdf = struc_dataarray_to_gdf(
-                model_ds, (da_name,), polygons=polygons
-            )
+            gdf = struc_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
         elif model_ds.gridtype == "vertex":
-            gdf = vertex_dataarray_to_gdf(
-                model_ds, (da_name,), polygons=polygons
-            )
+            gdf = vertex_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
         if driver == "GPKG":
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:
@@ -426,7 +414,7 @@ def model_dataset_to_ugrid_nc_file(
 
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         # rotate the model coordinates to real coordinates
-        affine = resample.get_affine_mod_to_world(ds)
+        affine = get_affine_mod_to_world(ds)
         ds[xv], ds[yv] = affine * (ds[xv], ds[yv])
 
     # add a dummy variable with the required grid-information

@@ -43,7 +43,7 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     regis_geotop_ds = regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
-    regis_geotop_ds = nlmod.mdims.to_model_ds(regis_geotop_ds)
+    regis_geotop_ds = nlmod.base.to_model_ds(regis_geotop_ds)
     assert regis_geotop_ds.dims["layer"] == 24
     return regis_geotop_ds
 

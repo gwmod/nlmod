@@ -1,5 +1,6 @@
 import logging
 from collections import OrderedDict
+import warnings
 
 import numpy as np
 import xarray as xr
@@ -33,9 +34,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
             # top is 3D, every layer has top and bot
             thickness = ds[top] - ds[bot]
         else:
-            raise ValueError(
-                "3d top and bot should have same number of layers"
-            )
+            raise ValueError("3d top and bot should have same number of layers")
     elif ds[top].ndim == (ds[bot].ndim - 1) and ds[top].ndim in [1, 2]:
         if ds[top].shape[-1] == ds[bot].shape[-1]:
             # top is only top of first layer
@@ -94,9 +93,7 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
     # calculate new number of layers
     new_nlay = (
-        ds[layer].size
-        + sum((len(sf) for sf in split_dict.values()))
-        - len(split_dict)
+        ds[layer].size + sum((len(sf) for sf in split_dict.values())) - len(split_dict)
     )
 
     # create new DataArrays for storing new top/bot
@@ -137,19 +134,15 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
             # check if factors add up to 1
             if np.sum(sf) != 1.0:
-                raise ValueError(
-                    "Sum of split factors for layer must equal 1.0!"
-                )
+                raise ValueError("Sum of split factors for layer must equal 1.0!")
             logger.debug(
-                f"{i}: Split layer {i} into {len(sf)} layers "
-                f"with fractions: {sf}"
+                f"{i}: Split layer {i} into {len(sf)} layers with fractions: {sf}"
             )
 
             # loop over split factors
             for isf, factor in enumerate(sf):
                 logger.debug(
-                    f"  - {isf}: Calculate new top/bot for "
-                    f"new layer index {j}"
+                    f"  - {isf}: Calculate new top/bot for new layer index {j}"
                 )
 
                 # calculate new bot and new top
@@ -167,9 +160,7 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
         # no split, remap old layer to new layer index
         else:
-            logger.debug(
-                f"{i:2d}: No split: map layer {i} to " f"new layer index {j}"
-            )
+            logger.debug(f"{i:2d}: No split: map layer {i} to new layer index {j}")
             if top3d:
                 new_top.data[j] = ds[top].data[i]
             else:
@@ -262,10 +253,7 @@ def split_layers_ds(
 
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
-        logger.warning(
-            "Warning! Following data variables "
-            f"will be dropped: {dropped_dv}"
-        )
+        logger.warning(f"Following data variables will be dropped: {dropped_dv}")
 
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
@@ -275,13 +263,9 @@ def split_layers_ds(
     )
 
     # fill kh/kv
-    logger.info(
-        f"Fill value '{kh}' for split layers with " "value original layer."
-    )
+    logger.info(f"Fill value '{kh}' for split layers with value original layer.")
     da_kh = fill_data_split_layers(ds["kh"], reindexer)
-    logger.info(
-        f"Fill value '{kv}' for split layers with " "value original layer."
-    )
+    logger.info(f"Fill value '{kv}' for split layers with value original layer.")
     da_kv = fill_data_split_layers(ds["kv"], reindexer)
 
     # get new layer names
@@ -292,13 +276,7 @@ def split_layers_ds(
         if layercode in layer_names:
             if isinstance(layercode, str):
                 ilay = (
-                    np.sum(
-                        [
-                            1
-                            for ilay in layer_names
-                            if ilay.startswith(layercode)
-                        ]
-                    )
+                    np.sum([1 for ilay in layer_names if ilay.startswith(layercode)])
                     + 1
                 )
                 layercode += f"_{ilay}"
@@ -326,9 +304,7 @@ def split_layers_ds(
     return ds_split
 
 
-def layer_combine_top_bot(
-    ds, combine_layers, layer="layer", top="top", bot="botm"
-):
+def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="botm"):
     """Calculate new tops and bottoms for combined layers.
 
     Parameters
@@ -357,9 +333,7 @@ def layer_combine_top_bot(
     """
     # calculate new number of layers
     new_nlay = (
-        ds[layer].size
-        - sum((len(c) for c in combine_layers))
-        + len(combine_layers)
+        ds[layer].size - sum((len(c) for c in combine_layers)) + len(combine_layers)
     )
 
     # create new DataArrays for storing new top/bot
@@ -392,8 +366,7 @@ def layer_combine_top_bot(
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
                 logger.debug(
-                    f"{j:2d}: Merge layers {c} as layer {j}, "
-                    "calculate new top/bot."
+                    f"{j:2d}: Merge layers {c} as layer {j}, calculate new top/bot."
                 )
                 tops = ds[top].data[c, :, :]
                 bots = ds[bot].data[c, :, :]
@@ -412,8 +385,7 @@ def layer_combine_top_bot(
         else:
             # do not merge, only map old layer index to new layer index
             logger.debug(
-                f"{j:2d}: Do not merge, map old layer index "
-                "to new layer index."
+                f"{j:2d}: Do not merge, map old layer index to new layer index."
             )
             new_top.data[j] = ds[top].data[i]
             new_bot.data[j] = ds[bot].data[i]
@@ -595,10 +567,7 @@ def combine_layers_ds(
 
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
-        logger.warning(
-            "Warning! Following data variables "
-            f"will be dropped: {dropped_dv}"
-        )
+        logger.warning(f"Following data variables will be dropped: {dropped_dv}")
 
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
@@ -651,7 +620,7 @@ def combine_layers_ds(
     return ds_combine
 
 
-def add_kh_kv_from_ml_layer_to_dataset(
+def add_kh_kv_from_ml_layer_to_ds(
     ml_layer_ds, ds, anisotropy, fill_value_kh, fill_value_kv
 ):
     """add kh and kv from a model layer dataset to the model dataset.
@@ -683,9 +652,11 @@ def add_kh_kv_from_ml_layer_to_dataset(
     some model dataset, such as regis, also have 'c' and 'kd' values. These
     are ignored at the moment
     """
-    DeprecationWarning(
-        "add_kh_kv_from_ml_layer_to_dataset is deprecated. Please use update_ds_from_layer_ds instead."
+    warnings.warn(
+        "add_kh_kv_from_ml_layer_to_ds is deprecated. Please use update_ds_from_layer_ds instead.",
+        DeprecationWarning,
     )
+
     ds.attrs["anisotropy"] = anisotropy
     ds.attrs["fill_value_kh"] = fill_value_kh
     ds.attrs["fill_value_kv"] = fill_value_kv
@@ -725,9 +696,7 @@ def set_model_top(ds, top):
         raise (Exception("Make sure the Dataset is build by nlmod"))
     if not top.shape == ds["top"].shape:
         raise (
-            Exception(
-                "Please make sure the new top has the same shape as the old top"
-            )
+            Exception("Please make sure the new top has the same shape as the old top")
         )
     if np.any(np.isnan(top)):
         raise (Exception("PLease make sure the new top does not contain nans"))
@@ -831,30 +800,21 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
     # zee cellen hebben altijd een top gelijk aan 0
     ds["top"].values = np.where(fill_mask, 0, ds["top"])
 
-    if gridtype == "structured":
-        fill_function = resample.fillnan_dataarray_structured_grid
-        fill_function_kwargs = {}
-    elif gridtype == "vertex":
-        fill_function = resample.fillnan_dataarray_vertex_grid
-        fill_function_kwargs = {"ds": ds}
-
     for lay in range(ds.dims["layer"]):
         bottom_nan = xr.where(fill_mask, np.nan, ds["botm"][lay])
-        bottom_filled = fill_function(bottom_nan, **fill_function_kwargs)
+        bottom_filled = resample.fillnan_da(bottom_nan, ds=ds)
 
         kh_nan = xr.where(fill_mask, np.nan, ds["kh"][lay])
-        kh_filled = fill_function(kh_nan, **fill_function_kwargs)
+        kh_filled = resample.fillnan_da(kh_nan, ds=ds)
 
         kv_nan = xr.where(fill_mask, np.nan, ds["kv"][lay])
-        kv_filled = fill_function(kv_nan, **fill_function_kwargs)
+        kv_filled = resample.fillnan_da(kv_nan, ds=ds)
 
         if lay == 0:
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
             mask_top = ds["top"] < bottom_filled
-            ds["botm"][lay] = xr.where(
-                fill_mask * mask_top, ds["top"], bottom_filled
-            )
+            ds["botm"][lay] = xr.where(fill_mask * mask_top, ds["top"], bottom_filled)
         else:
             # top ligt onder bottom_filled -> laagdikte wordt 0
             # top ligt boven bottom_filled -> laagdikte o.b.v. bottom_filled
@@ -862,12 +822,8 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype="structured"):
             ds["botm"][lay] = xr.where(
                 fill_mask * mask_top, ds["botm"][lay - 1], bottom_filled
             )
-        ds["kh"][lay] = xr.where(
-            fill_mask * mask_top, ds["kh"][lay], kh_filled
-        )
-        ds["kv"][lay] = xr.where(
-            fill_mask * mask_top, ds["kv"][lay], kv_filled
-        )
+        ds["kh"][lay] = xr.where(fill_mask * mask_top, ds["kh"][lay], kh_filled)
+        ds["kv"][lay] = xr.where(fill_mask * mask_top, ds["kv"][lay], kv_filled)
 
     return ds
 
@@ -1030,8 +986,9 @@ def update_idomain_from_thickness(idomain, thickness, mask):
         raster with adjusted idomain of each cell. dimensions should be
         (layer, y, x) or (layer, icell2d).
     """
-    DeprecationWarning(
-        "update_idomain_from_thickness is deprecated. Please use set_idomain instead."
+    warnings.warn(
+        "update_idomain_from_thickness is deprecated. Please use set_idomain instead.",
+        DeprecationWarning,
     )
     for ilay, thick in enumerate(thickness):
         if ilay == 0:

@@ -17,7 +17,7 @@ import requests
 import shapely
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
-from ..mdims.resample import extent_to_polygon
+from ..dims.resample import extent_to_polygon
 
 
 def get_bgt(

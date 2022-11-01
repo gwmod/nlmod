@@ -187,7 +187,7 @@ def ds_to_structured_grid(
     ds_in : xarray.Dataset
         dataset with dimensions (layer, y, x). y and x are from the original
         grid
-    extent : list, tuple or np.array
+    extent : list, tuple or np.array of length 4
         extent (xmin, xmax, ymin, ymax) of the desired grid.
     delr : int or float
         cell size along rows of the desired grid (dx).
@@ -240,6 +240,32 @@ def ds_to_structured_grid(
 
 
 def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
+    """
+    Internal method to set the properties of the grid in an attribute dictionary.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array of length 4
+        extent (xmin, xmax, ymin, ymax) of the desired grid.
+    xorigin : float
+        x-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0.
+    yorigin : float
+        y-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0.
+    angrot : float
+        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
+        model grid.
+    attrs : dict
+        Attributes of a model dataset.
+
+    Returns
+    -------
+    None.
+
+    """
+    # make sure extent is a list and the original extent is not changed
+    extent = list(extent)
     if angrot == 0.0:
         if xorigin != 0.0:
             extent[0] = extent[0] + xorigin

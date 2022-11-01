@@ -127,7 +127,7 @@ def get_northsea(ds, da_name="northsea"):
     ]
 
     modelgrid = dims.modelgrid_from_ds(ds)
-    ds_out = dims.gdf_to_bool_dataset(ds, swater_zee, modelgrid, da_name)
+    ds_out = dims.gdf_to_bool_ds(ds, swater_zee, modelgrid, da_name)
 
     return ds_out
 
@@ -150,9 +150,7 @@ def add_northsea(ds, cachedir=None):
     # fill top, bot, kh, kv at sea cells
     fal = dims.get_first_active_layer(ds)
     fill_mask = (fal == fal.attrs["_FillValue"]) * ds["northsea"]
-    ds = dims.fill_top_bot_kh_kv_at_mask(
-        ds, fill_mask, gridtype=ds.attrs["gridtype"]
-    )
+    ds = dims.fill_top_bot_kh_kv_at_mask(ds, fill_mask, gridtype=ds.attrs["gridtype"])
 
     # add bathymetry noordzee
     ds.update(
@@ -164,9 +162,7 @@ def add_northsea(ds, cachedir=None):
         )
     )
 
-    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(
-        ds, ds["bathymetry"], fill_mask
-    )
+    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
 
     # update idomain on adjusted tops and bots
     ds = dims.set_idomain(ds)

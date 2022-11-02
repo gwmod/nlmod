@@ -108,9 +108,7 @@ def arcrest(
                 and "x" in feature["geometry"]
                 and "y" in feature["geometry"]
             ):
-                geometry = Point(
-                    feature["geometry"]["x"], feature["geometry"]["y"]
-                )
+                geometry = Point(feature["geometry"]["x"], feature["geometry"]["y"])
             else:
                 raise (Exception("Not supported yet"))
             feature["attributes"]["geometry"] = geometry
@@ -186,16 +184,12 @@ def wfs(
                 add_constrains(op, constraints)
 
         if "CountDefault" not in constraints:
-            logger.info(
-                "Cannot find CountDefault. Setting CountDefault to inf"
-            )
+            logger.info("Cannot find CountDefault. Setting CountDefault to inf")
             constraints["CountDefault"] = np.inf
         if max_record_count is None:
             max_record_count = constraints["CountDefault"]
         else:
-            max_record_count = min(
-                max_record_count, constraints["CountDefault"]
-            )
+            max_record_count = min(max_record_count, constraints["CountDefault"])
 
         # get the number of features
         params["resultType"] = "hits"
@@ -300,9 +294,7 @@ def wcs(
         )
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
     else:
-        memfile = _download_wcs(
-            extent, res, url, identifier, version, fmt, crs
-        )
+        memfile = _download_wcs(extent, res, url, identifier, version, fmt, crs)
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
         # load the data from memfile otherwise lazy loading of xarray causes problems
         da.load()
@@ -369,9 +361,7 @@ def _split_wcs_extent(
                 f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
             )
 
-            memfile = _download_wcs(
-                subextent, res, url, identifier, version, fmt, crs
-            )
+            memfile = _download_wcs(subextent, res, url, identifier, version, fmt, crs)
 
             datasets.append(memfile)
             start_y = end_y
@@ -425,11 +415,7 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
     if identifier is None:
         identifiers = list(wcs.contents)
         if len(identifiers) > 1:
-            raise (
-                Exception(
-                    "wcs contains more than 1 identifier. Please specify."
-                )
-            )
+            raise (Exception("wcs contains more than 1 identifier. Please specify."))
         identifier = identifiers[0]
     if version == "1.0.0":
         bbox = (extent[0], extent[2], extent[1], extent[3])

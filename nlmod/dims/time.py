@@ -163,9 +163,9 @@ def estimate_nstp(
     nt = len(forcing)
 
     # Scaled linear between min and max. array nstp will be modified along the way
-    nstp = (forcing - np.min(forcing)) / (
-        np.max(forcing) - np.min(forcing)
-    ) * (nstp_max - nstp_min) + nstp_min
+    nstp = (forcing - np.min(forcing)) / (np.max(forcing) - np.min(forcing)) * (
+        nstp_max - nstp_min
+    ) + nstp_min
     perlen = np.full(nt, fill_value=perlen)
     tsmult = np.full(nt, fill_value=tsmult)
 

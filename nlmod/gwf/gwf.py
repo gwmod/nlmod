@@ -11,6 +11,7 @@ import numpy as np
 import xarray as xr
 
 from ..dims import grid
+from ..sim import ims, sim, tdis
 from . import recharge
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,7 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
     dis : TYPE
         discretisation package.
     """
+    logger.info("creating modflow DIS")
 
     if ds.gridtype == "vertex":
         return disv(ds, gwf, length_units=length_units)
@@ -125,6 +127,7 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
     disv : flopy ModflowGwfdisv
         disv package
     """
+    logger.info("creating modflow DISV")
 
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         xorigin = ds.attrs["xorigin"]
@@ -192,6 +195,8 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     npf : flopy ModflowGwfnpf
         npf package.
     """
+    logger.info("creating modflow NPF")
+
     if isinstance(icelltype, str):
         icelltype = ds[icelltype]
 
@@ -232,6 +237,7 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
     ghb : flopy ModflowGwfghb
         ghb package
     """
+    logger.info("creating modflow GHB")
 
     ghb_rec = grid.da_to_reclist(
         ds,
@@ -282,6 +288,8 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
     ic : flopy ModflowGwfic
         ic package
     """
+    logger.info("creating modflow IC")
+
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
@@ -329,6 +337,7 @@ def sto(
     sto : flopy ModflowGwfsto
         sto package
     """
+    logger.info("creating modflow STO")
 
     if ds.time.steady_state:
         return None
@@ -383,6 +392,8 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     chd : flopy ModflowGwfchd
         chd package
     """
+    logger.info("creating modflow CHD")
+
     # get the stress_period_data
     chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head)
 
@@ -461,7 +472,7 @@ def rch(ds, gwf, pname="rch", **kwargs):
     rch : flopy ModflowGwfrch
         rch package
     """
-
+    logger.info("creating modflow RCH")
     # create recharge package
     rch = recharge.model_datasets_to_rch(gwf, ds, pname=pname, **kwargs)
 
@@ -485,6 +496,7 @@ def evt(ds, gwf, pname="evt", **kwargs):
     evt : flopy ModflowGwfevt
         rch package
     """
+    logger.info("creating modflow EVT")
 
     # create recharge package
     evt = recharge.model_datasets_to_evt(gwf, ds, pname=pname, **kwargs)
@@ -537,6 +549,8 @@ def oc(
     oc : flopy ModflowGwfoc
         oc package
     """
+    logger.info("creating modflow OC")
+
     # Create the output control package
     headfile = f"{ds.model_name}.hds"
     head_filerecord = [headfile]
@@ -556,3 +570,70 @@ def oc(
     )
 
     return oc
+
+
+def ds_to_gwf(ds):
+    """Generate Simulation and GWF model from model DataSet.
+
+    Builds the following packages:
+    - sim
+    - tdis
+    - ims
+    - gwf
+      - dis
+      - npf
+      - ic
+      - oc
+      - rch if "recharge" is present in DataSet
+      - evt if "evaporation" is present in DataSet
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset
+
+    Returns
+    -------
+    flopy.mf6.ModflowGwf
+        MODFLOW6 GroundwaterFlow model object.
+    """
+
+    # create simulation
+    mf_sim = sim(ds)
+
+    # create time discretisation
+    tdis(ds, mf_sim)
+
+    # create ims
+    ims(mf_sim)
+
+    # create groundwater flow model
+    mf_gwf = gwf(ds, mf_sim)
+
+    # Create discretization
+    if ds.gridtype == "structured":
+        dis(ds, mf_gwf)
+    elif ds.gridtype == "vertex":
+        disv(ds, mf_gwf)
+    else:
+        raise TypeError("gridtype not recognized.")
+
+    # create node property flow
+    npf(ds, mf_gwf)
+
+    # Create the initial conditions package
+    starting_head = "starting_head"
+    if starting_head not in ds:
+        starting_head = 0.0
+    ic(ds, mf_gwf, starting_head=starting_head)
+
+    # Create the output control package
+    oc(ds, mf_gwf)
+
+    if "recharge" in ds:
+        rch(ds, mf_gwf)
+
+    if "evaporation" in ds:
+        evt(ds, mf_gwf)
+
+    return mf_gwf

@@ -14,9 +14,9 @@ from rasterio import merge
 from rasterio.io import MemoryFile
 from tqdm import tqdm
 
+from .. import cache
 from ..dims.resample import get_extent, structured_da_to_ds
 from ..util import get_ds_empty
-from .. import cache
 from .webservices import arcrest, wcs, wfs
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf
 def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
-    """Get a model dataset with ahn variable.
+    """Get a model dataset with ahn variable.    
     Parameters
     ----------
     ds : xr.Dataset

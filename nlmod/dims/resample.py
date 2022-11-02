@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
-    """resample a dataset (xarray) on an structured grid to a new dataset with a vertex
-    grid.
+    """resample a dataset (xarray) on an structured grid to a new dataset with
+    a vertex grid.
 
     Parameters
     ----------
@@ -240,8 +240,8 @@ def ds_to_structured_grid(
 
 
 def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
-    """
-    Internal method to set the properties of the grid in an attribute dictionary.
+    """Internal method to set the properties of the grid in an attribute
+    dictionary.
 
     Parameters
     ----------
@@ -262,7 +262,6 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
     Returns
     -------
     None.
-
     """
     # make sure extent is a list and the original extent is not changed
     extent = list(extent)

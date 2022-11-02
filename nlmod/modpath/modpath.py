@@ -42,8 +42,7 @@ def write_and_run(mpf, remove_prev_output=True, nb_path=None):
 
     if nb_path is not None:
         new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}'
-            + os.path.split(nb_path)[-1]
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
         )
         dst = os.path.join(mpf.model_ws, new_nb_fname)
         logger.info(f"write script {new_nb_fname} to modpath workspace")
@@ -443,9 +442,7 @@ def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
         elif direction == "forward":
             ref_time = 0.0
         else:
-            raise ValueError(
-                "invalid direction, options are backward or forward"
-            )
+            raise ValueError("invalid direction, options are backward or forward")
 
     mpsim = flopy.modpath.Modpath7Sim(
         mpf,

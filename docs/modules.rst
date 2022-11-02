@@ -49,30 +49,30 @@ read
    :private-members:
 
 
-mdims
+dims
 ^^^^^
 
-.. automodule:: nlmod.mdims.mbase
+.. automodule:: nlmod.dims.base
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.mgrid
+.. automodule:: nlmod.dims.grid
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.mlayers
+.. automodule:: nlmod.dims.layers
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.mtime
+.. automodule:: nlmod.dims.time
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.resample
+.. automodule:: nlmod.dims.resample
    :members:
    :undoc-members:
    :private-members:
@@ -112,15 +112,26 @@ gwf
    :undoc-members:
    :private-members:
 
-visualise
-^^^^^^^^^
+plot
+^^^^
 
-.. automodule:: nlmod.visualise.plots
+.. automodule:: nlmod.plot
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.visualise.gis
+gis
+^^^
+
+.. automodule:: nlmod.gis
+   :members:
+   :undoc-members:
+   :private-members:
+
+DatasetCrossSection
+^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: nlmod.dcs
    :members:
    :undoc-members:
    :private-members:

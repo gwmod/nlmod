@@ -8,6 +8,6 @@ import os
 
 NLMOD_DATADIR = os.path.join(os.path.dirname(__file__), "data")
 
-from . import gwf, dims, modpath, read, sim, util, plot, gis
-from .dims import get_ds, base, grid, layers, time, resample, to_model_ds
+from . import dims, gis, gwf, modpath, plot, read, sim, util
+from .dims import base, get_ds, grid, layers, resample, time, to_model_ds
 from .version import __version__

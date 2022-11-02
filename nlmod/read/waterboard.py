@@ -441,9 +441,7 @@ def get_configuration():
     return config
 
 
-def get_data(
-    wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs
-):
+def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
     """Get the data for a Waterboard and a specific data_kind.
 
     Parameters

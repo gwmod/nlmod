@@ -108,7 +108,7 @@ def chd_from_ds(tmpdir):
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
     chd = nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     return chd

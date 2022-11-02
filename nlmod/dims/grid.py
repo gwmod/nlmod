@@ -7,6 +7,7 @@
 -   fill, interpolate and resample grid data
 """
 import logging
+import warnings
 
 import flopy
 import geopandas as gpd
@@ -23,20 +24,15 @@ from scipy.interpolate import griddata
 from shapely.geometry import Point
 from shapely.strtree import STRtree
 from tqdm import tqdm
-import warnings
 
 from .. import cache, util
 from .base import extrapolate_ds
-from .layers import (
-    fill_nan_top_botm_kh_kv,
-    get_first_active_layer,
-    set_idomain,
-)
+from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
-    get_affine_world_to_mod,
     ds_to_gridprops,
+    get_affine_world_to_mod,
     structured_da_to_ds,
 )
 

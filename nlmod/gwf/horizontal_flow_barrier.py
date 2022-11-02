@@ -4,14 +4,14 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point, Polygon
 
-from ..dims.grid import gdf_to_grid, gdf_to_da
+from ..dims.grid import gdf_to_da, gdf_to_grid
 
 
 def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
-    """Generate a stress period data for horizontal flow barrier between two cell nodes,
-    with several limitations. The stress period data can be used directly in the HFB
-    package of flopy. The hfb is placed at the cell interface; it follows the sides of
-    the cells.
+    """Generate a stress period data for horizontal flow barrier between two
+    cell nodes, with several limitations. The stress period data can be used
+    directly in the HFB package of flopy. The hfb is placed at the cell
+    interface; it follows the sides of the cells.
 
     The estimation of the cross-sectional area at the interface is pretty crude, as the
     thickness at the cell interface is just the average of the thicknesses of the two

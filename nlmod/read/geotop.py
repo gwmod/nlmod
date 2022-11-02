@@ -6,8 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .. import cache
-from .. import NLMOD_DATADIR
+from .. import NLMOD_DATADIR, cache
 
 logger = logging.getLogger(__name__)
 

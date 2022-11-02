@@ -53,7 +53,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.ic(ds, gwf, starting_head=1.0)
     nlmod.gwf.oc(ds, gwf)
 
-    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
     nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     nlmod.sim.write_and_run(sim, ds)
@@ -107,7 +107,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.ic(ds_unstr, gwf_unstr, starting_head=1.0)
     nlmod.gwf.oc(ds_unstr, gwf_unstr)
 
-    ds_unstr.update(nlmod.mgrid.mask_model_edge(ds_unstr, ds_unstr["idomain"]))
+    ds_unstr.update(nlmod.grid.mask_model_edge(ds_unstr, ds_unstr["idomain"]))
     nlmod.gwf.chd(ds_unstr, gwf_unstr, chd="edge_mask", head="starting_head")
 
     nlmod.sim.write_and_run(sim, ds_unstr)

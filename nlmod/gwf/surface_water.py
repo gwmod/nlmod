@@ -7,10 +7,12 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Polygon
 from shapely.strtree import STRtree
+from shapely.errors import ShapelyDeprecationWarning
 from tqdm import tqdm
 
-from ..dims.resample import get_extent_polygon
+
 from ..dims.grid import gdf_to_grid
+from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
 
 logger = logging.getLogger(__name__)
@@ -61,7 +63,6 @@ def aggregate(gdf, method, ds=None):
 
 
 def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=None):
-
     if method == "area_weighted":
         # stage
         stage = agg_area_weighted(group, "stage")
@@ -501,7 +502,9 @@ def add_info_to_gdf(
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
-    s = STRtree(gdf_from.geometry, items=gdf_from.index)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
+        s = STRtree(gdf_from.geometry, items=gdf_from.index)
     for index in tqdm(gdf_to.index, desc=desc, disable=silent):
         geom_to = gdf_to.geometry[index]
         inds = s.query_items(geom_to)
@@ -609,7 +612,7 @@ def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=
             gdf[mask],
             columns=columns,
             min_total_overlap=0.0,
-            desc=f"Adding {columns} from level areas {wb} to gdf",
+            desc=f"Adding {columns} from {wb}",
         )
     return gdf
 

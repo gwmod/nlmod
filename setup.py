@@ -40,6 +40,7 @@ setup(
         "hydropandas>=0.3.0",
         "shapely>=1.8.0",
         "netcdf4>=1.5.7",
+        "pyshp>=2.1.3",
         "matplotlib",
         "dask",
         "colorama",

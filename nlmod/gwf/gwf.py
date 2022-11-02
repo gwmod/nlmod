@@ -289,7 +289,7 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
         ic package
     """
     logger.info("creating modflow IC")
-    
+
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
@@ -338,7 +338,7 @@ def sto(
         sto package
     """
     logger.info("creating modflow STO")
-    
+
     if ds.time.steady_state:
         return None
     else:
@@ -550,7 +550,7 @@ def oc(
         oc package
     """
     logger.info("creating modflow OC")
-    
+
     # Create the output control package
     headfile = f"{ds.model_name}.hds"
     head_filerecord = [headfile]

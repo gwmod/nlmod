@@ -498,7 +498,7 @@ def add_info_to_gdf(
     min_total_overlap=0.5,
     geom_type="Polygon",
 ):
-    """ "Add information from gdf_from to gdf_to."""
+    """"Add information from gdf_from to gdf_to."""
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]

@@ -4,3 +4,4 @@ rasterstats
 gdown
 imod
 bottleneck
+contextily

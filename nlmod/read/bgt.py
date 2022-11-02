@@ -20,9 +20,7 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 from ..dims.resample import extent_to_polygon
 
 
-def get_bgt(
-    extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None
-):
+def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None):
     """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
 

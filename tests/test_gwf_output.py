@@ -7,9 +7,7 @@ from nlmod.gwf import get_heads_da
 from nlmod.mdims import refine
 
 tmpdir = tempfile.gettempdir()
-tst_model_dir = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "data"
-)
+tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
 
 
 def test_create_small_model_grid_only(tmpdir, model_name="test"):

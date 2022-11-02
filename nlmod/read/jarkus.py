@@ -17,8 +17,8 @@ import requests
 import xarray as xr
 
 from .. import cache
-from ..util import get_ds_empty, get_da_from_da_ds
 from ..dims.resample import fillnan_da, structured_da_to_ds
+from ..util import get_da_from_da_ds, get_ds_empty
 
 logger = logging.getLogger(__name__)
 

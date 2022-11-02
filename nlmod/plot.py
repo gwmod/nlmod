@@ -9,9 +9,9 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
-from .read import rws
-from .dims.resample import get_affine_mod_to_world, get_extent
 from .dims.grid import get_vertices, modelgrid_from_ds
+from .dims.resample import get_affine_mod_to_world, get_extent
+from .read import rws
 
 
 def surface_water(model_ds, ax=None):
@@ -350,8 +350,7 @@ def plot_vertex_array(da, vertices, ax=None, gridkwargs=None, **kwargs):
 
 
 def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
-    """
-    Plot an xarray DataArray, using information from the model Dataset ds
+    """Plot an xarray DataArray, using information from the model Dataset ds.
 
     Parameters
     ----------
@@ -623,7 +622,7 @@ def title_inside(
     verticalalignment="top",
     **kwargs,
 ):
-    """ "Place a title inside a matplotlib axes, at the top."""
+    """"Place a title inside a matplotlib axes, at the top."""
     if ax is None:
         ax = plt.gca()
     return ax.text(

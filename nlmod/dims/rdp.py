@@ -158,9 +158,7 @@ def rdp(M, epsilon=0, dist=pldist, algo="iter", return_mask=False):
         algo = partial(rdp_iter, return_mask=return_mask)
     elif algo == "rec":
         if return_mask:
-            raise NotImplementedError(
-                'return_mask=True not supported with algo="rec"'
-            )
+            raise NotImplementedError('return_mask=True not supported with algo="rec"')
         algo = rdp_rec
 
     if "numpy" in str(type(M)):

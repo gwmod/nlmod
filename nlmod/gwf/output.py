@@ -6,16 +6,17 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from ..mdims import resample
+from ..dims.resample import get_affine, get_xy_mid_structured
 
 logger = logging.getLogger(__name__)
 
 
 def get_heads_da(ds=None, gwf=None, fname_hds=None):
-    """Reads the heads binary file given either a dataset or a groundwater flowobject.
-    Calling this function with ds is currently prevered over calling it with gwf,
-    because the layer and time coordinates can not be fully reconstructed from gwf.
+    """Reads heads file given either a dataset or a groundwater flow object.
 
+    Note: Calling this function with ds is currently prevered over calling it
+    with gwf, because the layer and time coordinates can not be fully
+    reconstructed from gwf.
 
     Parameters
     ----------
@@ -32,9 +33,10 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
     -------
     head_ar : xarray.DataArray
         heads array.
-
     """
-    assert ((ds is not None) + (gwf is not None)) == 1, 'Load the heads using either the ds or the gwf'
+    assert (
+        (ds is not None) + (gwf is not None)
+    ) == 1, "Load the heads using either the ds or the gwf"
 
     if fname_hds is not None and ds is not None:
         headobj = flopy.utils.HeadFile(fname_hds)
@@ -73,7 +75,7 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
             data=heads[:, :, 0],
             dims=("time", "layer", "icell2d"),
             coords={},
-            attrs={'units': 'mNAP'}
+            attrs={"units": "mNAP"},
         )
 
     elif gridtype == "structured":
@@ -81,7 +83,7 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
             delr = np.unique(gwf.modelgrid.delr).item()
             delc = np.unique(gwf.modelgrid.delc).item()
             extent = gwf.modelgrid.extent
-            x, y = resample.get_xy_mid_structured(extent, delr, delc)
+            x, y = get_xy_mid_structured(extent, delr, delc)
 
         else:
             x = ds.x
@@ -94,35 +96,40 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
                 "x": x,
                 "y": y,
             },
-            attrs={'units': 'mNAP'}
+            attrs={"units": "mNAP"},
         )
     else:
-        assert 0, 'Gridtype not supported'
+        assert 0, "Gridtype not supported"
 
     if ds is not None:
-        head_ar.coords['layer'] = ds.layer
+        head_ar.coords["layer"] = ds.layer
 
         # TODO: temporarily only add time for when ds is passed because unable to
         # exactly recreate ds.time from gwf.
         times = np.array(
-            [pd.Timestamp(ds.time.start) + pd.Timedelta(t, unit=ds.time.time_units[0])
-             for t in headobj.get_times()], dtype=np.datetime64)
-        head_ar.coords['time'] = times
+            [
+                pd.Timestamp(ds.time.start)
+                + pd.Timedelta(t, unit=ds.time.time_units[0])
+                for t in headobj.get_times()
+            ],
+            dtype=np.datetime64,
+        )
+        head_ar.coords["time"] = times
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = resample.get_affine(ds)
+        affine = get_affine(ds)
         head_ar.rio.write_transform(affine, inplace=True)
 
     elif gwf is not None and gwf.modelgrid.angrot != 0.0:
         attrs = dict(
             delr=np.unique(gwf.modelgrid.delr).item(),
-            delc = np.unique(gwf.modelgrid.delc).item(),
+            delc=np.unique(gwf.modelgrid.delc).item(),
             xorigin=gwf.modelgrid.xoffset,
             yorigin=gwf.modelgrid.yoffset,
-            angrot= gwf.modelgrid.angrot,
-            extent=gwf.modelgrid.extent
+            angrot=gwf.modelgrid.angrot,
+            extent=gwf.modelgrid.extent,
         )
-        affine = resample.get_affine(attrs)
+        affine = get_affine(attrs)
         head_ar.rio.write_transform(affine, inplace=True)
 
     else:

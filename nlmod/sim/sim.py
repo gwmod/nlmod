@@ -45,8 +45,7 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
 
     if nb_path is not None:
         new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}'
-            + os.path.split(nb_path)[-1]
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
         )
         dst = os.path.join(ds.model_ws, new_nb_fname)
         logger.info(f"write script {new_nb_fname} to model workspace")
@@ -54,9 +53,9 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
 
     if write_ds:
         logger.info("write model dataset to cache")
-        ds.attrs[
-            "model_dataset_written_to_disk_on"
-        ] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
+            "%Y%m%d_%H:%M:%S"
+        )
         ds.to_netcdf(os.path.join(ds.attrs["cachedir"], "full_ds.nc"))
 
     logger.info("write modflow files to model workspace")
@@ -92,8 +91,7 @@ def get_tdis_perioddata(ds):
     """
     deltat = pd.to_timedelta(1, ds.time.time_units)
     perlen = [
-        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
-        / deltat
+        (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start)) / deltat
     ]
 
     if len(ds["time"]) > 1:

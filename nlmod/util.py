@@ -3,16 +3,15 @@ import os
 import re
 import sys
 import warnings
+from typing import Dict, Optional
 
 import flopy
 import geopandas as gpd
 import numpy as np
 import requests
 import xarray as xr
+from colorama import Back, Fore, Style
 from shapely.geometry import box
-from typing import Optional, Dict
-
-from colorama import Fore, Back, Style
 
 logger = logging.getLogger(__name__)
 
@@ -583,8 +582,11 @@ def check_presence_mfbinaries(exe_name="mf6", binpath=None):
 
 
 class ColoredFormatter(logging.Formatter):
-    """Colored log formatter. Taken from
-    https://gist.github.com/joshbode/58fac7ababc700f51e2a9ecdebe563ad"""
+    """Colored log formatter.
+
+    Taken from
+    https://gist.github.com/joshbode/58fac7ababc700f51e2a9ecdebe563ad
+    """
 
     def __init__(
         self, *args, colors: Optional[Dict[str, str]] = None, **kwargs

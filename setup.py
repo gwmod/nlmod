@@ -41,6 +41,7 @@ setup(
         "shapely>=1.8.0",
         "netcdf4>=1.5.7",
         "pyshp>=2.1.3",
+        "rtree>=0.9.7",
         "matplotlib",
         "dask",
         "colorama",

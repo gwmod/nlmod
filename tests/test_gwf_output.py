@@ -91,7 +91,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     sim = nlmod.sim.sim(ds_unstr)
 
     # create time discretisation
-    (_,) = nlmod.sim.tdis(ds_unstr, sim)
+    _ = nlmod.sim.tdis(ds_unstr, sim)
 
     # create ims
     nlmod.sim.ims(sim)

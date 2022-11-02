@@ -44,6 +44,8 @@ setup(
         "rtree>=0.9.7",
         "openpyxl>=3.0.7",
         "matplotlib",
+        "dask",
+        "colorama",
     ],
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*", "data/geotop/*", "data/shapes/*"]},

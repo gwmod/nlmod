@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import os
-
 import nlmod
-import pandas as pd
-import pytest
-from nlmod import util
 
 import test_001_model
-import test_002_regis_geotop
 
 
 def test_get_gdf_opp_water():
@@ -19,24 +13,8 @@ def test_get_gdf_opp_water():
 
 
 def test_surface_water_to_dataset():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
-
-    # create simulation
-    sim = nlmod.gwf.sim(ds)
-
-    # create time discretisation
-    _ = nlmod.gwf.tdis(ds, sim)
-
-    # create groundwater flow model
-    gwf = nlmod.gwf.gwf(ds, sim)
-
-    # create ims
-    _ = nlmod.gwf.ims(sim)
-
-    nlmod.gwf.dis(ds, gwf)
-
     name = "surface_water"
     ds_surfwat = nlmod.read.rws.get_surface_water(ds, name)
 
@@ -44,7 +22,6 @@ def test_surface_water_to_dataset():
 
 
 def test_get_northsea_seamodel():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds_sea = nlmod.read.rws.get_northsea(ds)
@@ -55,7 +32,6 @@ def test_get_northsea_seamodel():
 
 
 def test_get_northsea_nosea():
-
     # model without sea
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds_sea = nlmod.read.rws.get_northsea(ds)
@@ -66,31 +42,30 @@ def test_get_northsea_nosea():
 
 
 def test_fill_top_bot_kh_kv_seamodel():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
 
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
-    ds = nlmod.mdims.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
+    fal = nlmod.layers.get_first_active_layer(ds)
+    fill_mask = (fal == fal._FillValue) * ds["northsea"]
+    ds = nlmod.layers.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
 
     return ds
 
 
 def test_fill_top_bot_kh_kv_nosea():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
 
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
-    ds = nlmod.mdims.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
+    fal = nlmod.layers.get_first_active_layer(ds)
+    fill_mask = (fal == fal._FillValue) * ds["northsea"]
+    ds = nlmod.layers.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
 
     return ds
 
 
-def test_get_bathymetrie_seamodel():
-
+def test_get_bathymetry_seamodel():
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
@@ -102,7 +77,6 @@ def test_get_bathymetrie_seamodel():
 
 
 def test_get_bathymetrie_nosea():
-
     # model without sea
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
@@ -114,13 +88,13 @@ def test_get_bathymetrie_nosea():
 
 
 def test_add_bathymetrie_to_top_bot_kh_kv_seamodel():
-
     # model with sea
     ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
     ds.update(nlmod.read.jarkus.get_bathymetry(ds, ds["northsea"]))
 
-    fill_mask = (ds["first_active_layer"] == ds.nodata) * ds["northsea"]
+    fal = nlmod.layers.get_first_active_layer(ds)
+    fill_mask = (fal == fal._FillValue) * ds["northsea"]
 
     ds = nlmod.read.jarkus.add_bathymetry_to_top_bot_kh_kv(
         ds, ds["bathymetry"], fill_mask

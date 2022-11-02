@@ -1,27 +1,30 @@
 # -*- coding: utf-8 -*-
 """Created on Fri Jun 12 15:33:03 2020.
+
 @author: ruben
 """
 
 import datetime as dt
 import logging
 
-import xarray as xr
 import rasterio
+import rioxarray
+import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
-import rioxarray
 from tqdm import tqdm
 
-from .. import cache, mdims, util
-from .webservices import arcrest, wfs, wcs
+from .. import cache
+from ..dims.resample import get_extent, structured_da_to_ds
+from ..util import get_ds_empty
+from .webservices import arcrest, wcs, wfs
 
 logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
 def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
-    """Get a model dataset with ahn variable.
+    """Get a model dataset with ahn variable.    
     Parameters
     ----------
     ds : xr.Dataset
@@ -38,8 +41,8 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
             'ahn3_5m_dtm'
         The default is 'ahn3_5m_dtm'.
     method : str, optional
-        Method used to resample ahn to grid of ds. See
-        mdims.resample.structured_da_to_ds for possible values. The default is
+        Method used to resample ahn to grid of ds. See documentation of
+        nlmod.resample.structured_da_to_ds for possible values. The default is
         'average'.
 
     Returns
@@ -49,18 +52,18 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
     """
 
     url = _infer_url(identifier)
-    extent = mdims.resample.get_extent(ds)
+    extent = get_extent(ds)
     ahn_ds_raw = get_ahn_from_wcs(extent=extent, url=url, identifier=identifier)
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
-    ahn_da = mdims.resample.structured_da_to_ds(ahn_ds_raw, ds, method=method)
+    ahn_da = structured_da_to_ds(ahn_ds_raw, ds, method=method)
     ahn_da.attrs["source"] = identifier
     ahn_da.attrs["url"] = url
     ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
     ahn_da.attrs["units"] = "mNAP"
 
-    ds_out = util.get_ds_empty(ds)
+    ds_out = get_ds_empty(ds)
     ds_out["ahn"] = ahn_da
 
     return ds_out
@@ -185,7 +188,7 @@ def get_ahn_from_wcs(
 
 
 def get_ahn3_tiles(extent=None, **kwargs):
-    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame"""
+    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame."""
     url = "https://service.pdok.nl/rws/ahn3/wfs/v1_0?service=wfs"
     layer = "ahn3_bladindex"
     gdf = wfs(url, layer, extent=extent, **kwargs)
@@ -195,7 +198,8 @@ def get_ahn3_tiles(extent=None, **kwargs):
 
 
 def get_ahn4_tiles(extent=None):
-    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download links"""
+    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download
+    links."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN4/FeatureServer"
     layer = 0
     gdf = arcrest(url, layer, extent)
@@ -205,8 +209,7 @@ def get_ahn4_tiles(extent=None):
 
 
 def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
-    """
-    Download AHN3
+    """Download AHN3.
 
     Parameters
     ----------
@@ -251,8 +254,7 @@ def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
 
 
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
-    """
-    Download AHN4
+    """Download AHN4.
 
     Parameters
     ----------

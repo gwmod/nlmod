@@ -49,41 +49,43 @@ read
    :private-members:
 
 
-mdims
+dims
 ^^^^^
 
-.. automodule:: nlmod.mdims.mbase
+.. automodule:: nlmod.dims.base
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.mgrid
+.. automodule:: nlmod.dims.grid
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.mlayers
+.. automodule:: nlmod.dims.layers
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.mtime
+.. automodule:: nlmod.dims.time
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.mdims.resample
+.. automodule:: nlmod.dims.resample
+   :members:
+   :undoc-members:
+   :private-members:
+
+sim
+^^^
+.. automodule:: nlmod.sim.sim
    :members:
    :undoc-members:
    :private-members:
 
 gwf
 ^^^
-
-.. automodule:: nlmod.gwf.sim
-   :members:
-   :undoc-members:
-   :private-members:
 
 .. automodule:: nlmod.gwf.gwf
    :members:
@@ -100,25 +102,36 @@ gwf
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.gwf.constant_head
-   :members:
-   :undoc-members:
-   :private-members:
-
 .. automodule:: nlmod.gwf.horizontal_flow_barrier
    :members:
    :undoc-members:
    :private-members:
 
-visualise
-^^^^^^^^^
-
-.. automodule:: nlmod.visualise.plots
+.. automodule:: nlmod.gwf.wells
    :members:
    :undoc-members:
    :private-members:
 
-.. automodule:: nlmod.visualise.gis
+plot
+^^^^
+
+.. automodule:: nlmod.plot
+   :members:
+   :undoc-members:
+   :private-members:
+
+gis
+^^^
+
+.. automodule:: nlmod.gis
+   :members:
+   :undoc-members:
+   :private-members:
+
+DatasetCrossSection
+^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: nlmod.dcs
    :members:
    :undoc-members:
    :private-members:

@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Aug 16 10:29:13 2022
+"""Created on Tue Aug 16 10:29:13 2022.
 
 @author: Ruben
 """
 
-import pytest
 import nlmod
+import pytest
 
 
 def test_download_polygons():
@@ -88,6 +87,7 @@ def test_download_waterlopen(plot=True):
             if str(e) == f"{data_kind} not available for {wb}":
                 print(e)
             else:
+                print(e)
                 raise
 
     if plot:

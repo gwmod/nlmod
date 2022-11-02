@@ -1,22 +1,24 @@
 import logging
 import warnings
 
+import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
-from tqdm import tqdm
-from shapely.strtree import STRtree
 from shapely.geometry import Polygon
-import flopy
+from shapely.strtree import STRtree
+from shapely.errors import ShapelyDeprecationWarning
+from tqdm import tqdm
 
-# from ..mdims.mgrid import gdf2grid
+
+from ..dims.grid import gdf_to_grid
+from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
-from ..mdims import resample, mgrid
 
 logger = logging.getLogger(__name__)
 
 
-def aggregate_surface_water(gdf, method, ds=None):
+def aggregate(gdf, method, ds=None):
     """Aggregate surface water features.
 
     Parameters
@@ -61,7 +63,6 @@ def aggregate_surface_water(gdf, method, ds=None):
 
 
 def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=None):
-
     if method == "area_weighted":
         # stage
         stage = agg_area_weighted(group, "stage")
@@ -117,7 +118,6 @@ def agg_area_weighted(gdf, col):
 
 
 def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
-
     (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(ds, cid)
 
     rbot = group["botm"].min()
@@ -296,9 +296,9 @@ def estimate_polygon_length(gdf):
 def distribute_cond_over_lays(
     cond, cellid, rivbot, laytop, laybot, idomain=None, kh=None, stage=None
 ):
-    """Distribute the conductance in a cell over the layers in that cell,
-    based on the the river-bottom and the layer bottoms, and optionally based
-    on the stage and the hydraulic conductivity"""
+    """Distribute the conductance in a cell over the layers in that cell, based
+    on the the river-bottom and the layer bottoms, and optionally based on the
+    stage and the hydraulic conductivity."""
     if isinstance(rivbot, (np.ndarray, xr.DataArray)):
         rivbot = float(rivbot[cellid])
     if len(laybot.shape) == 3:
@@ -458,6 +458,13 @@ def build_spd(
             )
         elif layer_method == "lay_of_rbot":
             mask = (rbot > botm_cell) & (idomain_cell > 0)
+            if not mask.any():
+                # rbot is below the bottom of the model, maybe the stage is above it?
+                mask = (stage > botm_cell) & (idomain_cell > 0)
+                if not mask.any():
+                    raise (
+                        Exception("rbot and stage are below the bottom of the model")
+                    )
             lays = [np.where(mask)[0][0]]
             conds = [cond]
         else:
@@ -491,11 +498,13 @@ def add_info_to_gdf(
     min_total_overlap=0.5,
     geom_type="Polygon",
 ):
-    """ "Add information from gdf_from to gdf_to"""
+    """"Add information from gdf_from to gdf_to."""
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
-    s = STRtree(gdf_from.geometry, items=gdf_from.index)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
+        s = STRtree(gdf_from.geometry, items=gdf_from.index)
     for index in tqdm(gdf_to.index, desc=desc, disable=silent):
         geom_to = gdf_to.geometry[index]
         inds = s.query_items(geom_to)
@@ -522,8 +531,7 @@ def add_info_to_gdf(
 
 
 def get_gdf_stage(gdf, season="winter"):
-    """
-    Get the stage from a GeoDataFrame for a specific season
+    """Get the stage from a GeoDataFrame for a specific season.
 
     Parameters
     ----------
@@ -538,7 +546,6 @@ def get_gdf_stage(gdf, season="winter"):
     -------
     stage : pandas.Series
         The stage for each of the records in the GeoDataFrame.
-
     """
     stage = gdf[f"{season}_stage"].copy()
     if "ahn_min" in gdf:
@@ -550,7 +557,7 @@ def get_gdf_stage(gdf, season="winter"):
 
 
 def download_level_areas(gdf, extent=None, config=None):
-    """Download level areas (peilgebieden) of bronhouders"""
+    """Download level areas (peilgebieden) of bronhouders."""
     if config is None:
         config = waterboard.get_configuration()
     bronhouders = gdf["bronhouder"].unique()
@@ -570,7 +577,7 @@ def download_level_areas(gdf, extent=None, config=None):
 
 
 def download_watercourses(gdf, extent=None, config=None):
-    """Download watercourses of bronhouders"""
+    """Download watercourses of bronhouders."""
     if config is None:
         config = waterboard.get_configuration()
     bronhouders = gdf["bronhouder"].unique()
@@ -590,7 +597,7 @@ def download_watercourses(gdf, extent=None, config=None):
 
 
 def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=None):
-    """Add information from level areas (peilgebieden) to bgt-polygons"""
+    """Add information from level areas (peilgebieden) to bgt-polygons."""
     if pg is None:
         pg = download_level_areas(gdf, extent=extent)
     if config is None:
@@ -605,14 +612,14 @@ def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=
             gdf[mask],
             columns=columns,
             min_total_overlap=0.0,
-            desc=f"Adding {columns} from level areas {wb} to gdf",
+            desc=f"Adding {columns} from {wb}",
         )
     return gdf
 
 
 def get_gdf(ds=None, extent=None, fname_ahn=None):
     if extent is None:
-        extent = resample.get_extent_polygon(ds)
+        extent = get_extent_polygon(ds)
     gdf = bgt.get_bgt(extent)
     if fname_ahn is not None:
         from rasterstats import zonal_stats
@@ -624,7 +631,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None):
         extent = [bs[0], bs[2], bs[1], bs[3]]
     gdf = add_stages_from_waterboards(gdf, extent=extent)
     if ds is not None:
-        return mgrid.gdf2grid(gdf, ds).set_index("cellid")
+        return gdf_to_grid(gdf, ds).set_index("cellid")
     return gdf
 
 
@@ -640,9 +647,8 @@ def gdf_to_seasonal_pkg(
     layer_method="lay_of_rbot",
     **kwargs,
 ):
-    """
-    Add a  surface water package to a groundwater-model, based on input from a
-    GeoDataFrame. This method adds two boundary conditions for each record in
+    """Add a  surface water package to a groundwater-model, based on input from
+    a GeoDataFrame. This method adds two boundary conditions for each record in
     the geodataframe: one for the winter_stage and one for the summer_stage.
     The conductance of each record is a time-series called 'winter' or 'summer'
     with values of either 0 or 1. These conductance values are multiplied by an
@@ -684,11 +690,10 @@ def gdf_to_seasonal_pkg(
     -------
     package : ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb
         The generated flopy-package
-
     """
     if gdf.index.name != "cellid":
         # if "cellid" not in gdf:
-        #    gdf = gdf2grid(gdf, gwf)
+        #    gdf = gdf_to_grid(gdf, gwf)
         gdf = gdf.set_index("cellid")
     else:
         # make sure changes to the DataFrame are temporarily
@@ -770,7 +775,7 @@ def gdf_to_seasonal_pkg(
         **kwargs,
     )
     # add timeseries for the seasons 'winter' and 'summer'
-    tmin = pd.to_datetime(ds.time.start_time)
+    tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]
     else:
@@ -796,3 +801,21 @@ def gdf_to_seasonal_pkg(
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
     return package
+
+
+def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):
+    # TODO: temporary fix until flopy is patched
+    if gwf.modelgrid.grid_type == "structured":
+        gi = flopy.utils.GridIntersect(gwf.modelgrid, rtree=False)
+        cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
+    else:
+        gi = flopy.utils.GridIntersect(gwf.modelgrid)
+        cellids = gi.intersects(xylist, shapetype="linestring")["cellids"]
+
+    riv_data = []
+    for cid in cellids:
+        if len(cid) == 2:
+            riv_data.append([(layer, cid[0], cid[1]), stage, cond, rbot])
+        else:
+            riv_data.append([(layer, cid), stage, cond, rbot])
+    return riv_data

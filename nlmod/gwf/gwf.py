@@ -5,69 +5,16 @@
 """
 import logging
 import numbers
-import os
 
 import flopy
 import numpy as np
 import xarray as xr
-import datetime as dt
 
-from shutil import copyfile
-
-from .. import mdims
+from ..dims import grid
+from ..sim import ims, sim, tdis
 from . import recharge
 
 logger = logging.getLogger(__name__)
-
-
-def write_and_run_model(gwf, ds, write_ds=True, nb_path=None):
-    """write modflow files and run the model.
-
-    2 extra options:
-        1. write the model dataset to cache
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
-           workspace with a timestamp.
-
-
-    Parameters
-    ----------
-    gwf : flopy.mf6.ModflowGwf
-        groundwater flow model.
-    ds : xarray.Dataset
-        dataset with model data.
-    write_ds : bool, optional
-        if True the model dataset is cached. The default is True.
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
-        default is None. Preferably this path does not have to be given
-        manually but there is currently no good option to obtain the filename
-        of a Jupyter Notebook from within the notebook itself.
-    """
-
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
-        )
-        dst = os.path.join(ds.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to model workspace")
-        copyfile(nb_path, dst)
-
-    if write_ds:
-        logger.info("write model dataset to cache")
-        ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
-            "%Y%m%d_%H:%M:%S"
-        )
-        ds.to_netcdf(os.path.join(ds.attrs["cachedir"], "full_ds.nc"))
-
-    logger.info("write modflow files to model workspace")
-    gwf.simulation.write_simulation()
-    ds.attrs["model_data_written_to_disk_on"] = dt.datetime.now().strftime(
-        "%Y%m%d_%H:%M:%S"
-    )
-
-    logger.info("run model")
-    assert gwf.simulation.run_simulation()[0], "Modflow run not succeeded"
-    ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
 def gwf(ds, sim, **kwargs):
@@ -77,7 +24,7 @@ def gwf(ds, sim, **kwargs):
     ----------
     ds : xarray.Dataset
         dataset with model data. Should have the dimension 'time' and the
-        attributes: model_name, mfversion, model_ws, time_units, start_time,
+        attributes: model_name, mfversion, model_ws, time_units, start,
         perlen, nstp, tsmult
     sim : flopy MFSimulation
         simulation object.
@@ -101,36 +48,6 @@ def gwf(ds, sim, **kwargs):
     return gwf
 
 
-def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
-    """create IMS package
-
-
-    Parameters
-    ----------
-    sim : flopy MFSimulation
-        simulation object.
-    complexity : str, optional
-        solver complexity for default settings. The default is "MODERATE".
-    pname : str, optional
-        package name
-
-    Returns
-    -------
-    ims : flopy ModflowIms
-        ims object.
-
-    """
-
-    logger.info("creating modflow IMS")
-
-    # Create the Flopy iterative model solver (ims) Package object
-    ims = flopy.mf6.modflow.mfims.ModflowIms(
-        sim, pname=pname, print_option="summary", complexity=complexity, **kwargs
-    )
-
-    return ims
-
-
 def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
     """get discretisation package from the model dataset.
 
@@ -150,6 +67,7 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
     dis : TYPE
         discretisation package.
     """
+    logger.info("creating modflow DIS")
 
     if ds.gridtype == "vertex":
         return disv(ds, gwf, length_units=length_units)
@@ -209,22 +127,23 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
     disv : flopy ModflowGwfdisv
         disv package
     """
+    logger.info("creating modflow DISV")
 
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         xorigin = ds.attrs["xorigin"]
         yorigin = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
-    elif 'extent' in ds.attrs.keys():
-        xorigin = ds.attrs['extent'][0]
-        yorigin = ds.attrs['extent'][2]
+    elif "extent" in ds.attrs.keys():
+        xorigin = ds.attrs["extent"][0]
+        yorigin = ds.attrs["extent"][2]
         angrot = 0.0
     else:
         xorigin = 0.0
         yorigin = 0.0
         angrot = 0.0
 
-    vertices = mdims.mgrid.get_vertices_from_ds(ds)
-    cell2d = mdims.mgrid.get_cell2d_from_ds(ds)
+    vertices = grid.get_vertices_from_ds(ds)
+    cell2d = grid.get_cell2d_from_ds(ds)
     disv = flopy.mf6.ModflowGwfdisv(
         gwf,
         idomain=ds["idomain"].data,
@@ -257,8 +176,9 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    icelltype : int, optional
-        celltype. The default is 0.
+    icelltype : int or str, optional
+        celltype, if int the icelltype for all layer, if str the icelltype from
+        the model ds is used. The default is 0.
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by
         cell flows should be saved to the cbb file. Default is False
@@ -275,6 +195,10 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     npf : flopy ModflowGwfnpf
         npf package.
     """
+    logger.info("creating modflow NPF")
+
+    if isinstance(icelltype, str):
+        icelltype = ds[icelltype]
 
     npf = flopy.mf6.ModflowGwfnpf(
         gwf,
@@ -313,29 +237,17 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
     ghb : flopy ModflowGwfghb
         ghb package
     """
+    logger.info("creating modflow GHB")
 
-    if ds.gridtype == "structured":
-        ghb_rec = mdims.data_array_2d_to_rec_list(
-            ds,
-            ds[f"{da_name}_cond"] != 0,
-            col1=f"{da_name}_peil",
-            col2=f"{da_name}_cond",
-            first_active_layer=True,
-            only_active_cells=False,
-            layer=0,
-        )
-    elif ds.gridtype == "vertex":
-        ghb_rec = mdims.data_array_1d_vertex_to_rec_list(
-            ds,
-            ds[f"{da_name}_cond"] != 0,
-            col1=f"{da_name}_peil",
-            col2=f"{da_name}_cond",
-            first_active_layer=True,
-            only_active_cells=False,
-            layer=0,
-        )
-    else:
-        raise ValueError(f"did not recognise gridtype {ds.gridtype}")
+    ghb_rec = grid.da_to_reclist(
+        ds,
+        ds[f"{da_name}_cond"] != 0,
+        col1=f"{da_name}_peil",
+        col2=f"{da_name}_cond",
+        first_active_layer=True,
+        only_active_cells=False,
+        layer=0,
+    )
 
     if len(ghb_rec) > 0:
         ghb = flopy.mf6.ModflowGwfghb(
@@ -376,6 +288,8 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
     ic : flopy ModflowGwfic
         ic package
     """
+    logger.info("creating modflow IC")
+
     if isinstance(starting_head, str):
         pass
     elif isinstance(starting_head, numbers.Number):
@@ -389,7 +303,14 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
 
 
 def sto(
-    ds, gwf, sy=0.2, ss=0.000001, iconvert=1, save_flows=False, pname="sto", **kwargs
+    ds,
+    gwf,
+    sy=0.2,
+    ss=0.000001,
+    iconvert=1,
+    save_flows=False,
+    pname="sto",
+    **kwargs,
 ):
     """get storage package from model dataset.
 
@@ -416,6 +337,7 @@ def sto(
     sto : flopy ModflowGwfsto
         sto package
     """
+    logger.info("creating modflow STO")
 
     if ds.time.steady_state:
         return None
@@ -426,6 +348,12 @@ def sto(
         else:
             sts_spd = None
             trn_spd = {0: True}
+
+        if "sy" in ds:
+            sy = ds["sy"].data
+
+        if "ss" in ds:
+            ss = ds["ss"].data
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,
@@ -464,12 +392,10 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     chd : flopy ModflowGwfchd
         chd package
     """
+    logger.info("creating modflow CHD")
+
     # get the stress_period_data
-    if ds.gridtype == "structured":
-        chd_rec = mdims.data_array_3d_to_rec_list(ds, ds[chd] != 0, col1=head)
-    elif ds.gridtype == "vertex":
-        cellids = np.where(ds[chd])
-        chd_rec = list(zip(zip(cellids[0], cellids[1]), [1.0] * len(cellids[0])))
+    chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -483,7 +409,7 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     return chd
 
 
-def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs):
+def surface_drain_from_ds(ds, gwf, resistance, pname="drn", **kwargs):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
@@ -493,8 +419,9 @@ def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs)
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    surface_drn_cond : int or float, optional
-        conductivity of the surface drain. The default is 1000.
+    resistance : int or float
+        resistance of the surface drain, scaled with cell area to
+        calculate drain conductance.
     pname : str, optional
         package name
 
@@ -504,26 +431,16 @@ def surface_drain_from_ds(ds, gwf, surface_drn_cond=1000, pname="drn", **kwargs)
         drn package
     """
 
-    ds.attrs["surface_drn_cond"] = surface_drn_cond
+    ds.attrs["surface_drn_resistance"] = resistance
     mask = ds["ahn"].notnull()
-    if ds.gridtype == "structured":
-        drn_rec = mdims.data_array_2d_to_rec_list(
-            ds,
-            mask,
-            col1="ahn",
-            first_active_layer=True,
-            only_active_cells=False,
-            col2=ds.surface_drn_cond,
-        )
-    elif ds.gridtype == "vertex":
-        drn_rec = mdims.data_array_1d_vertex_to_rec_list(
-            ds,
-            mask,
-            col1="ahn",
-            col2=ds.surface_drn_cond,
-            first_active_layer=True,
-            only_active_cells=False,
-        )
+    drn_rec = grid.da_to_reclist(
+        ds,
+        mask,
+        col1="ahn",
+        col2=ds["area"] / ds.surface_drn_resistance,
+        first_active_layer=True,
+        only_active_cells=False,
+    )
 
     drn = flopy.mf6.ModflowGwfdrn(
         gwf,
@@ -555,15 +472,66 @@ def rch(ds, gwf, pname="rch", **kwargs):
     rch : flopy ModflowGwfrch
         rch package
     """
-
+    logger.info("creating modflow RCH")
     # create recharge package
     rch = recharge.model_datasets_to_rch(gwf, ds, pname=pname, **kwargs)
 
     return rch
 
 
+def evt(ds, gwf, pname="evt", **kwargs):
+    """get evapotranspiration package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    evt : flopy ModflowGwfevt
+        rch package
+    """
+    logger.info("creating modflow EVT")
+
+    # create recharge package
+    evt = recharge.model_datasets_to_evt(gwf, ds, pname=pname, **kwargs)
+
+    return evt
+
+
+def _set_record(head, budget):
+    record = []
+    if isinstance(head, bool):
+        if head:
+            head = "LAST"
+        else:
+            head = None
+    if head is not None:
+        record.append(("HEAD", head))
+    if isinstance(budget, bool):
+        if budget:
+            budget = "LAST"
+        else:
+            budget = None
+    if budget is not None:
+        record.append(("BUDGET", budget))
+    return record
+
+
 def oc(
-    ds, gwf, save_head=False, save_budget=True, print_head=True, pname="oc", **kwargs
+    ds,
+    gwf,
+    save_head=True,
+    save_budget=True,
+    print_head=False,
+    print_budget=False,
+    pname="oc",
+    **kwargs,
 ):
     """get output control package from model dataset.
 
@@ -581,29 +549,91 @@ def oc(
     oc : flopy ModflowGwfoc
         oc package
     """
+    logger.info("creating modflow OC")
+
     # Create the output control package
     headfile = f"{ds.model_name}.hds"
     head_filerecord = [headfile]
     budgetfile = f"{ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
-    saverecord = [("HEAD", "LAST")]
-    if save_head:
-        saverecord = [("HEAD", "ALL")]
-    if save_budget:
-        saverecord.append(("BUDGET", "ALL"))
-    if print_head:
-        printrecord = [("HEAD", "LAST")]
-    else:
-        printrecord = None
+    saverecord = _set_record(save_head, save_budget)
+    printrecord = _set_record(print_head, print_budget)
 
     oc = flopy.mf6.ModflowGwfoc(
         gwf,
         pname=pname,
         saverecord=saverecord,
+        printrecord=printrecord,
         head_filerecord=head_filerecord,
         budget_filerecord=budget_filerecord,
-        printrecord=printrecord,
         **kwargs,
     )
 
     return oc
+
+
+def ds_to_gwf(ds):
+    """Generate Simulation and GWF model from model DataSet.
+
+    Builds the following packages:
+    - sim
+    - tdis
+    - ims
+    - gwf
+      - dis
+      - npf
+      - ic
+      - oc
+      - rch if "recharge" is present in DataSet
+      - evt if "evaporation" is present in DataSet
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset
+
+    Returns
+    -------
+    flopy.mf6.ModflowGwf
+        MODFLOW6 GroundwaterFlow model object.
+    """
+
+    # create simulation
+    mf_sim = sim(ds)
+
+    # create time discretisation
+    tdis(ds, mf_sim)
+
+    # create ims
+    ims(mf_sim)
+
+    # create groundwater flow model
+    mf_gwf = gwf(ds, mf_sim)
+
+    # Create discretization
+    if ds.gridtype == "structured":
+        dis(ds, mf_gwf)
+    elif ds.gridtype == "vertex":
+        disv(ds, mf_gwf)
+    else:
+        raise TypeError("gridtype not recognized.")
+
+    # create node property flow
+    npf(ds, mf_gwf)
+
+    # Create the initial conditions package
+    starting_head = "starting_head"
+    if starting_head not in ds:
+        starting_head = 0.0
+    ic(ds, mf_gwf, starting_head=starting_head)
+
+    # Create the output control package
+    oc(ds, mf_gwf)
+
+    if "recharge" in ds:
+        rch(ds, mf_gwf)
+
+    if "evaporation" in ds:
+        evt(ds, mf_gwf)
+
+    return mf_gwf

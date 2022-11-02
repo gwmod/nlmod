@@ -1,14 +1,16 @@
 import logging
-import warnings
 import os
 import re
 import sys
+import warnings
+from typing import Dict, Optional
 
 import flopy
 import geopandas as gpd
 import numpy as np
 import requests
 import xarray as xr
+from colorama import Back, Fore, Style
 from shapely.geometry import box
 
 logger = logging.getLogger(__name__)
@@ -49,9 +51,8 @@ def get_model_dirs(model_ws):
 
 
 def get_exe_path(exe_name="mf6"):
-    """get the full path of the executable. Uses the bin directory in the
-    nlmod package.
-
+    """get the full path of the executable. Uses the bin directory in the nlmod
+    package.
 
     Parameters
     ----------
@@ -62,7 +63,6 @@ def get_exe_path(exe_name="mf6"):
     -------
     exe_path : str
         full path of the executable.
-
     """
     exe_path = os.path.join(os.path.dirname(__file__), "bin", exe_name)
     if sys.platform.startswith("win"):
@@ -72,20 +72,24 @@ def get_exe_path(exe_name="mf6"):
 
 
 def get_ds_empty(ds):
-    """get a copy of a model dataset with only grid and time information.
+    """get a copy of a model dataset with only coordinate information.
 
     Parameters
     ----------
     ds : xr.Dataset
-        dataset with at least the variables layer, x, y and time
+        dataset with coordinates
 
     Returns
     -------
-    ds_out : xr.Dataset
-        dataset with only model grid and time information
+    empty_ds : xr.Dataset
+        dataset with only model coordinate information
     """
 
-    return ds[list(ds.coords)].copy()
+    empty_ds = xr.Dataset()
+    for coord in list(ds.coords):
+        empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
+
+    return empty_ds
 
 
 def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
@@ -575,3 +579,52 @@ def check_presence_mfbinaries(exe_name="mf6", binpath=None):
         return False
     files = [os.path.splitext(file)[0] for file in os.listdir(binpath)]
     return exe_name in files
+
+
+class ColoredFormatter(logging.Formatter):
+    """Colored log formatter.
+
+    Taken from
+    https://gist.github.com/joshbode/58fac7ababc700f51e2a9ecdebe563ad
+    """
+
+    def __init__(
+        self, *args, colors: Optional[Dict[str, str]] = None, **kwargs
+    ) -> None:
+        """Initialize the formatter with specified format strings."""
+
+        super().__init__(*args, **kwargs)
+
+        self.colors = colors if colors else {}
+
+    def format(self, record) -> str:
+        """Format the specified record as text."""
+
+        record.color = self.colors.get(record.levelname, "")
+        record.reset = Style.RESET_ALL
+
+        return super().format(record)
+
+
+def get_color_logger(level="INFO"):
+    formatter = ColoredFormatter(
+        "{color}{levelname}:{name}:{message}{reset}",
+        style="{",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        colors={
+            "DEBUG": Fore.CYAN,
+            "INFO": Fore.GREEN,
+            "WARNING": Fore.YELLOW,
+            "ERROR": Fore.RED,
+            "CRITICAL": Fore.RED + Back.WHITE + Style.BRIGHT,
+        },
+    )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger()
+    logger.handlers[:] = []
+    logger.addHandler(handler)
+    logger.setLevel(getattr(logging, level))
+    return logger

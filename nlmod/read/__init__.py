@@ -1,13 +1,2 @@
-from . import (
-    ahn,
-    geotop,
-    jarkus,
-    knmi,
-    regis,
-    rws,
-    bgt,
-    waterboard,
-    webservices,
-    brp,
-)
+from . import ahn, bgt, brp, geotop, jarkus, knmi, regis, rws, waterboard, webservices
 from .regis import get_regis

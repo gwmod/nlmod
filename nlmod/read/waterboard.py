@@ -1,12 +1,14 @@
-import numpy as np
 import logging
+
+import numpy as np
+
 from . import webservices
 
 logger = logging.getLogger(__name__)
 
 
 def get_polygons(**kwargs):
-    """Get the location of the Waterboards as a Polygon GeoDataFrame"""
+    """Get the location of the Waterboards as a Polygon GeoDataFrame."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Waterschapsgrenzen/FeatureServer"
     layer = 0
     ws = webservices.arcrest(url, layer, **kwargs)
@@ -22,7 +24,7 @@ def get_polygons(**kwargs):
 
 
 def get_configuration():
-    """Get the configuration of of the data sources of the Waterboards"""
+    """Get the configuration of of the data sources of the Waterboards."""
     config = {}
 
     config["Aa en Maas"] = {
@@ -30,6 +32,8 @@ def get_configuration():
         "watercourses": {
             "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Oppervlaktewater_L/MapServer",
             "layer": 8,
+            "bottom_width": "BODEMBREEDTE",
+            "bottom_height": [["BODEMHOOGTE_BOS", "BODEMHOOGTE_BES"]],
         },
         "level_areas": {
             # "server_kind": "wfs",
@@ -249,11 +253,12 @@ def get_configuration():
         "bgt_code": "W0665",
         "watercourses": {
             # "url": "https://maps.waterschaplimburg.nl/arcgis/rest/services/Legger/Leggerwfs/MapServer",
-            # "layer": 1, # primair
+            # "layer": 1,  # primair
             # "layer": 2, # secundair
             "url": "https://maps.waterschaplimburg.nl/arcgis/rest/services/Legger/Legger/MapServer",
             "layer": 22,  # primair
-            # "layer": 24, # secunair
+            # "layer": 23,  # secunair
+            # "layer": 24,  # Waterplas
         },
     }
 
@@ -283,6 +288,8 @@ def get_configuration():
             "layer": 10,
             "index": "OVKIDENT",
             # "f": "json",
+            "bottom_height": ["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"],
+            "bottom_width": "AVVBODDR",
         },
     }
 
@@ -435,8 +442,7 @@ def get_configuration():
 
 
 def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
-    """
-    Get the data for a Waterboard and a specific data_kind
+    """Get the data for a Waterboard and a specific data_kind.
 
     Parameters
     ----------
@@ -457,7 +463,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         When None, the configuration is retreived from the method
         get_configuration(). The default is None.
     **kwargs : dict
-        OPtional arguments which are passed onto arcrest() or wfs().
+        Optional arguments which are passed onto arcrest() or wfs().
 
     Raises
     ------
@@ -469,7 +475,6 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
     gdf : GeoDataFrame
         A GeoDataFrame containing data from the waterboard (polygons for
         level_areas/level_deviations and lines for watercourses).
-
     """
     if config is None:
         config = get_configuration()
@@ -538,7 +543,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
 def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
     """Retrieve values from one or more Geo)DataFrame-columns and set these
-    values as another column"""
+    values as another column."""
     if set_column in gdf.columns:
         raise (Exception(f"Column {set_column} allready exists"))
     gdf[set_column] = np.NaN

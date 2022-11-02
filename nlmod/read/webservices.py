@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Aug 12 10:54:02 2022
+"""Created on Fri Aug 12 10:54:02 2022.
 
 @author: Ruben
 """
 
-import requests
+import logging
+import xml.etree.ElementTree as ET
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-from tqdm import tqdm
-import xml.etree.ElementTree as ET
-from shapely.geometry import Point, Polygon, MultiPolygon
+import requests
 import rioxarray
+from owslib.wcs import WebCoverageService
 from rasterio import merge
 from rasterio.io import MemoryFile
-from owslib.wcs import WebCoverageService
-import logging
+from shapely.geometry import MultiPolygon, Point, Polygon
+from tqdm import tqdm
 
 # from owslib.wfs import WebFeatureService
 
@@ -24,9 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 def arcrest(
-    url, layer, extent=None, sr=28992, f="geojson", max_record_count=None, timeout=1200
+    url,
+    layer,
+    extent=None,
+    sr=28992,
+    f="geojson",
+    max_record_count=None,
+    timeout=1200,
 ):
-    """Download data from an arcgis rest FeatureServer"""
+    """Download data from an arcgis rest FeatureServer."""
     params = {
         "f": f,
         "outFields": "*",
@@ -135,7 +141,7 @@ def wfs(
     max_record_count=None,
     driver="GML",
 ):
-    """Download data from a wfs server"""
+    """Download data from a wfs server."""
     params = dict(version=version, request="GetFeature")
     if version == "2.0.0":
         params["typeNames"] = layer
@@ -177,6 +183,9 @@ def wfs(
             if op.attrib["name"] == "GetFeature":
                 add_constrains(op, constraints)
 
+        if "CountDefault" not in constraints:
+            logger.info("Cannot find CountDefault. Setting CountDefault to inf")
+            constraints["CountDefault"] = np.inf
         if max_record_count is None:
             max_record_count = constraints["CountDefault"]
         else:
@@ -223,8 +232,7 @@ def wcs(
     crs="EPSG:28992",
     maxsize=2000,
 ):
-    """Download data from a web coverage service (WCS), return a MemoryFile
-
+    """Download data from a web coverage service (WCS), return a MemoryFile.
 
     Parameters
     ----------
@@ -252,7 +260,6 @@ def wcs(
     -------
     memfile : rasterio.io.MemoryFile
         MemoryFile.
-
     """
     # check if wcs is within limits
     dx = extent[1] - extent[0]
@@ -296,7 +303,16 @@ def wcs(
 
 
 def _split_wcs_extent(
-    extent, x_segments, y_segments, maxsize, res, url, identifier, version, fmt, crs
+    extent,
+    x_segments,
+    y_segments,
+    maxsize,
+    res,
+    url,
+    identifier,
+    version,
+    fmt,
+    crs,
 ):
     """There is a max height and width limit for the wcs server. This function
     splits your extent in chunks smaller than the limit. It returns a list of
@@ -361,8 +377,7 @@ def _split_wcs_extent(
 
 
 def _download_wcs(extent, res, url, identifier, version, fmt, crs):
-    """Download the wcs-data, return a MemoryFile
-
+    """Download the wcs-data, return a MemoryFile.
 
     Parameters
     ----------
@@ -390,7 +405,6 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
     -------
     memfile : rasterio.io.MemoryFile
         MemoryFile.
-
     """
     # download file
     logger.debug(

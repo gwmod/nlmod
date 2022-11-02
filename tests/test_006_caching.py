@@ -15,7 +15,6 @@ tmpdir = tempfile.gettempdir()
 
 
 def test_ds_check_true():
-
     # two models with the same grid and time dicretisation
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds2 = ds.copy()
@@ -26,7 +25,6 @@ def test_ds_check_true():
 
 
 def test_ds_check_time_false():
-
     # two models with a different time discretisation
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds2 = test_001_model.test_ds_time_steady(tmpdir)
@@ -37,7 +35,6 @@ def test_ds_check_time_false():
 
 
 def test_ds_check_time_attributes_false():
-
     # two models with a different time discretisation
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds2 = ds.copy()
@@ -51,7 +48,6 @@ def test_ds_check_time_attributes_false():
 
 @pytest.mark.slow
 def test_ds_check_grid_false(tmpdir):
-
     # two models with a different grid and same time dicretisation
     ds = test_001_model.test_get_ds_from_cache("small_model")
     ds2 = test_001_model.test_ds_time_transient(tmpdir)
@@ -63,7 +59,7 @@ def test_ds_check_grid_false(tmpdir):
         cachedir=tmpdir,
         cachename="comb.nc",
     )
-    ds2 = nlmod.mdims.to_model_ds(regis_ds, delr=50.0, delc=50.0)
+    ds2 = nlmod.base.to_model_ds(regis_ds, delr=50.0, delc=50.0)
 
     check = nlmod.cache._check_ds(ds, ds2)
 
@@ -72,7 +68,6 @@ def test_ds_check_grid_false(tmpdir):
 
 @pytest.mark.skip("too slow")
 def test_use_cached_regis(tmpdir):
-
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
     regis_ds1 = nlmod.read.regis.get_regis(extent, cachedir=tmpdir, cachename="reg.nc")
 

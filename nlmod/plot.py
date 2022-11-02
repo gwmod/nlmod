@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 21:32:49 2021.
-
-@author: oebbe
-"""
-
 import os
 import warnings
 
@@ -15,9 +9,9 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
-from ..read import rws
-from ..mdims.resample import get_affine_mod_to_world, get_extent
-from ..mdims.mgrid import get_vertices, modelgrid_from_ds
+from .read import rws
+from .dims.resample import get_affine_mod_to_world, get_extent
+from .dims.grid import get_vertices, modelgrid_from_ds
 
 
 def surface_water(model_ds, ax=None):

@@ -6,9 +6,7 @@ import pytest
 import xarray as xr
 
 tmpdir = tempfile.gettempdir()
-tst_model_dir = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "data"
-)
+tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
 
 
 def test_model_directories(tmpdir):
@@ -20,15 +18,15 @@ def test_model_directories(tmpdir):
 
 def test_ds_time_steady(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
-    ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), modelname, model_ws)
-    ds = nlmod.mdims.set_ds_time(ds, start_time="2015-1-1", steady_state=True)
+    ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)
+    ds = nlmod.time.set_ds_time(ds, start_time="2015-1-1", steady_state=True)
     return ds
 
 
 def test_ds_time_transient(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
-    ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), modelname, model_ws)
-    ds = nlmod.mdims.set_ds_time(
+    ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)
+    ds = nlmod.time.set_ds_time(
         ds,
         start_time="2015-1-1",
         steady_state=False,
@@ -46,11 +44,11 @@ def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
         extent, use_regis=True, use_geotop=True
     )
 
-    ds = nlmod.mdims.to_model_ds(
+    ds = nlmod.base.to_model_ds(
         regis_geotop_ds, model_name, str(tmpdir), delr=100.0, delc=100.0
     )
 
-    ds = nlmod.mdims.set_ds_time(
+    ds = nlmod.time.set_ds_time(
         ds,
         start_time="2015-1-1",
         steady_state=False,
@@ -72,12 +70,12 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
         extent, regis_botm_layer="KRz5", use_regis=True, use_geotop=True
     )
     model_ws = os.path.join(tmpdir, model_name)
-    ds = nlmod.mdims.to_model_ds(
+    ds = nlmod.base.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
     assert ds.dims["layer"] == 5
 
-    ds = nlmod.mdims.set_ds_time(
+    ds = nlmod.time.set_ds_time(
         ds,
         start_time="2015-1-1",
         steady_state=False,
@@ -114,11 +112,11 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
         extent, use_regis=True, use_geotop=True
     )
     model_ws = os.path.join(tmpdir, model_name)
-    ds = nlmod.mdims.to_model_ds(
+    ds = nlmod.base.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
 
-    ds = nlmod.mdims.set_ds_time(
+    ds = nlmod.time.set_ds_time(
         ds,
         start_time="2015-1-1",
         steady_state=False,
@@ -141,7 +139,7 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
         extent, use_regis=True, use_geotop=True
     )
     model_ws = os.path.join(tmpdir, model_name)
-    ds = nlmod.mdims.to_model_ds(
+    ds = nlmod.base.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=50.0, delc=50.0
     )
 
@@ -190,7 +188,7 @@ def test_create_sea_model(tmpdir):
     _ = nlmod.gwf.surface_drain_from_ds(ds, gwf, 0.1)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
     _ = nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
@@ -213,8 +211,8 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     # update current ds with new time dicretisation
     model_ws = os.path.join(tmpdir, "test_model")
-    new_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_ds = nlmod.mdims.set_ds_time(
+    new_ds = nlmod.base.set_ds_attrs(xr.Dataset(), "test", model_ws)
+    new_ds = nlmod.time.set_ds_time(
         new_ds,
         start_time=ds.time.start,
         steady_state=False,
@@ -261,7 +259,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf, 1.0)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
     nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
@@ -284,8 +282,8 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     # update current ds with new time dicretisation
     model_ws = os.path.join(tmpdir, "test_model")
-    new_ds = nlmod.mdims.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_ds = nlmod.mdims.set_ds_time(
+    new_ds = nlmod.base.set_ds_attrs(xr.Dataset(), "test", model_ws)
+    new_ds = nlmod.time.set_ds_time(
         new_ds,
         start_time=ds.time.start,
         steady_state=False,
@@ -331,7 +329,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     nlmod.gwf.surface_drain_from_ds(ds, gwf, 1.0)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.mgrid.mask_model_edge(ds, ds["idomain"]))
+    ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
     nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets

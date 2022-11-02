@@ -6,7 +6,8 @@ import xarray as xr
 from scipy.spatial import cKDTree
 
 from .. import util
-from . import mlayers, resample
+from . import resample
+from .layers import fill_nan_top_botm_kh_kv
 
 logger = logging.getLogger(__name__)
 
@@ -132,14 +133,12 @@ def to_model_ds(
 
     # convert regis dataset to grid
     logger.info("resample layer model data to structured modelgrid")
-    ds = resample.resample_dataset_to_structured_grid(
+    ds = resample.ds_to_structured_grid(
         ds, extent, delr, delc, xorigin=xorigin, yorigin=yorigin, angrot=angrot
     )
 
     # add cell area variable
-    ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
-        (ds.dims["y"], ds.dims["x"])
-    )
+    ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones((ds.dims["y"], ds.dims["x"]))
 
     if extrapolate:
         ds = extrapolate_ds(ds)
@@ -148,7 +147,7 @@ def to_model_ds(
     ds = set_ds_attrs(ds, model_name, model_ws)
 
     # fill nan's and add idomain
-    ds = mlayers.fill_nan_top_botm_kh_kv(
+    ds = fill_nan_top_botm_kh_kv(
         ds,
         anisotropy=anisotropy,
         fill_value_kh=fill_value_kh,

@@ -78,3 +78,8 @@ def test_run_notebook_11_grid_rotation():
 @pytest.mark.notebooks
 def test_run_notebook_12_layer_generation():
     _run_notebook(nbdir, "12_layer_generation.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_13_plot_methods():
+    _run_notebook(nbdir, "13_plot_methods.ipynb")

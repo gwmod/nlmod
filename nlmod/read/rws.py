@@ -9,7 +9,7 @@ import geopandas as gpd
 import nlmod
 import xarray as xr
 
-from .. import cache, mdims, util
+from .. import cache, dims, util
 from . import jarkus
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def get_gdf_surface_water(ds):
     # laad bestanden in
     fname = os.path.join(nlmod.NLMOD_DATADIR, "opp_water.shp")
     gdf_swater = gpd.read_file(fname)
-    extent = mdims.get_extent(ds)
+    extent = dims.get_extent(ds)
     gdf_swater = util.gdf_within_extent(gdf_swater, extent)
 
     return gdf_swater
@@ -60,14 +60,14 @@ def get_surface_water(ds, da_name):
         dataset with modelgrid data.
     """
 
-    modelgrid = mdims.modelgrid_from_ds(ds)
+    modelgrid = dims.modelgrid_from_ds(ds)
     gdf = get_gdf_surface_water(ds)
 
     area = xr.zeros_like(ds["top"])
     cond = xr.zeros_like(ds["top"])
     peil = xr.zeros_like(ds["top"])
     for _, row in gdf.iterrows():
-        area_pol = mdims.polygon_to_area(
+        area_pol = dims.polygon_to_area(
             modelgrid,
             row["geometry"],
             xr.ones_like(ds["top"]),
@@ -126,8 +126,8 @@ def get_northsea(ds, da_name="northsea"):
         )
     ]
 
-    modelgrid = mdims.modelgrid_from_ds(ds)
-    ds_out = mdims.gdf_to_bool_dataset(ds, swater_zee, modelgrid, da_name)
+    modelgrid = dims.modelgrid_from_ds(ds)
+    ds_out = dims.gdf_to_bool_ds(ds, swater_zee, modelgrid, da_name)
 
     return ds_out
 
@@ -148,11 +148,9 @@ def add_northsea(ds, cachedir=None):
     ds.update(get_northsea(ds, cachedir=cachedir, cachename="sea_ds.nc"))
 
     # fill top, bot, kh, kv at sea cells
-    fal = mdims.get_first_active_layer(ds)
+    fal = dims.get_first_active_layer(ds)
     fill_mask = (fal == fal.attrs["_FillValue"]) * ds["northsea"]
-    ds = mdims.fill_top_bot_kh_kv_at_mask(
-        ds, fill_mask, gridtype=ds.attrs["gridtype"]
-    )
+    ds = dims.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
 
     # add bathymetry noordzee
     ds.update(
@@ -164,10 +162,8 @@ def add_northsea(ds, cachedir=None):
         )
     )
 
-    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(
-        ds, ds["bathymetry"], fill_mask
-    )
+    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
 
     # update idomain on adjusted tops and bots
-    ds = mdims.set_idomain(ds)
+    ds = dims.set_idomain(ds)
     return ds

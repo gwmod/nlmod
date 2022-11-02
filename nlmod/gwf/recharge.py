@@ -8,7 +8,7 @@ import flopy
 import numpy as np
 from tqdm import tqdm
 
-from .. import mdims
+from ..dims.grid import da_to_reclist
 from ..sim.sim import get_tdis_perioddata
 
 logger = logging.getLogger(__name__)
@@ -41,14 +41,12 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         mask = ds["recharge"] != 0
         recharge = "recharge"
     else:
-        rch_name_arr, rch_unique_dic = _get_unique_series(
-            ds, "recharge", pname
-        )
+        rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
         ds["rch_name"] = ds["top"].dims, rch_name_arr
         mask = ds["rch_name"] != ""
         recharge = "rch_name"
 
-    spd = mdims.da_to_reclist(
+    spd = da_to_reclist(
         ds,
         mask,
         col1=recharge,
@@ -131,15 +129,13 @@ def model_datasets_to_evt(
         mask = ds["evaporation"] != 0
         rate = "evaporation"
     else:
-        evt_name_arr, evt_unique_dic = _get_unique_series(
-            ds, "evaporation", pname
-        )
+        evt_name_arr, evt_unique_dic = _get_unique_series(ds, "evaporation", pname)
         ds["evt_name"] = ds["top"].dims, evt_name_arr
 
         mask = ds["evt_name"] != ""
         rate = "evt_name"
 
-    spd = mdims.da_to_reclist(
+    spd = da_to_reclist(
         ds,
         mask,
         col1=surface,

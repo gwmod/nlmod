@@ -14,7 +14,9 @@ from rasterio import merge
 from rasterio.io import MemoryFile
 from tqdm import tqdm
 
-from .. import cache, mdims, util
+from ..dims.resample import get_extent, structured_da_to_ds
+from ..util import get_ds_empty
+from .. import cache
 from .webservices import arcrest, wcs, wfs
 
 logger = logging.getLogger(__name__)
@@ -39,8 +41,8 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
             'ahn3_5m_dtm'
         The default is 'ahn3_5m_dtm'.
     method : str, optional
-        Method used to resample ahn to grid of ds. See
-        mdims.resample.structured_da_to_ds for possible values. The default is
+        Method used to resample ahn to grid of ds. See documentation of
+        nlmod.resample.structured_da_to_ds for possible values. The default is
         'average'.
 
     Returns
@@ -50,20 +52,18 @@ def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
     """
 
     url = _infer_url(identifier)
-    extent = mdims.resample.get_extent(ds)
-    ahn_ds_raw = get_ahn_from_wcs(
-        extent=extent, url=url, identifier=identifier
-    )
+    extent = get_extent(ds)
+    ahn_ds_raw = get_ahn_from_wcs(extent=extent, url=url, identifier=identifier)
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
-    ahn_da = mdims.resample.structured_da_to_ds(ahn_ds_raw, ds, method=method)
+    ahn_da = structured_da_to_ds(ahn_ds_raw, ds, method=method)
     ahn_da.attrs["source"] = identifier
     ahn_da.attrs["url"] = url
     ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
     ahn_da.attrs["units"] = "mNAP"
 
-    ds_out = util.get_ds_empty(ds)
+    ds_out = get_ds_empty(ds)
     ds_out["ahn"] = ahn_da
 
     return ds_out
@@ -248,9 +248,7 @@ def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
     merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(
-            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2])
-        )
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         return da
     return memfile
 
@@ -285,8 +283,6 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(
-            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2])
-        )
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         return da
     return memfile

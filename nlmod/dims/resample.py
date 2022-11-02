@@ -19,9 +19,9 @@ from ..util import get_da_from_da_ds
 logger = logging.getLogger(__name__)
 
 
-def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
-    """resample a dataset (xarray) from an structured grid to a new dataset
-    from a vertex grid.
+def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
+    """resample a dataset (xarray) on an structured grid to a new dataset with a vertex
+    grid.
 
     Parameters
     ----------
@@ -29,16 +29,20 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
         dataset with dimensions (layer, y, x). y and x are from the original
         structured grid
     gridprops : dictionary
-        dictionary with grid properties output from gridgen.
+        dictionary with grid properties output from gridgen.  Used as the
+        definition of the vertex grid.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
+    nodata : int, optional
+        integer to represent nodata-values in cell2d array. Defaults to -1.
 
     Returns
     -------
     ds_out : xarray.Dataset
-        dataset with dimensions (layer, icell2d), icell2d are cell id's from the new
-        grid.
+        dataset with dimensions (layer, icell2d).
     """
+
+    logger.info("resample model Dataset to vertex modelgrid")
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
@@ -47,14 +51,34 @@ def resample_dataset_to_vertex_grid(ds_in, gridprops, method="nearest"):
     y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
-        return ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+        ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+    else:
+        ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
 
-    ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
+        # add other variables
+        for data_var in ds_in.data_vars:
+            data_arr = structured_da_to_ds(ds_in[data_var], ds_out, method=method)
+            ds_out[data_var] = data_arr
 
-    # add other variables
-    for data_var in ds_in.data_vars:
-        data_arr = structured_da_to_ds(ds_in[data_var], ds_out, method=method)
-        ds_out[data_var] = data_arr
+    if "area" in gridprops:
+        # only keep the first layer of area
+        area = gridprops["area"][: len(ds_out["icell2d"])]
+        ds_out["area"] = ("icell2d", area)
+
+    # add information about the vertices
+    _, xv, yv = zip(*gridprops["vertices"])
+    ds_out["xv"] = ("iv", np.array(xv))
+    ds_out["yv"] = ("iv", np.array(yv))
+    # and set which nodes use which vertices
+    ncvert_max = np.max([x[3] for x in gridprops["cell2d"]])
+    icvert = np.full((gridprops["ncpl"], ncvert_max), nodata)
+    for i in range(gridprops["ncpl"]):
+        icvert[i, : gridprops["cell2d"][i][3]] = gridprops["cell2d"][i][4:]
+    ds_out["icvert"] = ("icell2d", "nvert"), icvert
+    ds_out["icvert"].attrs["_FillValue"] = nodata
+
+    # then finally change the gridtype in the attributes
+    ds_out.attrs["gridtype"] = "vertex"
 
     return ds_out
 
@@ -145,7 +169,7 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     return x, y
 
 
-def resample_dataset_to_structured_grid(
+def ds_to_structured_grid(
     ds_in,
     extent,
     delr,
@@ -163,7 +187,7 @@ def resample_dataset_to_structured_grid(
     ds_in : xarray.Dataset
         dataset with dimensions (layer, y, x). y and x are from the original
         grid
-    extent : list, tuple or np.array
+    extent : list, tuple or np.array of length 4
         extent (xmin, xmax, ymin, ymax) of the desired grid.
     delr : int or float
         cell size along rows of the desired grid (dx).
@@ -216,6 +240,32 @@ def resample_dataset_to_structured_grid(
 
 
 def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
+    """
+    Internal method to set the properties of the grid in an attribute dictionary.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array of length 4
+        extent (xmin, xmax, ymin, ymax) of the desired grid.
+    xorigin : float
+        x-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0.
+    yorigin : float
+        y-position of the lower-left corner of the model grid. Only used when angrot is
+        not 0.
+    angrot : float
+        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
+        model grid.
+    attrs : dict
+        Attributes of a model dataset.
+
+    Returns
+    -------
+    None.
+
+    """
+    # make sure extent is a list and the original extent is not changed
+    extent = list(extent)
     if angrot == 0.0:
         if xorigin != 0.0:
             extent[0] = extent[0] + xorigin
@@ -243,51 +293,7 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
         attrs["angrot"] = angrot
 
 
-def get_resampled_ml_layer_ds_vertex(raw_ds=None, gridprops=None, nodata=-1):
-    """Project model layer dataset on a vertex model grid.
-
-    Parameters
-    ----------
-    raw_ds : xr.Dataset, optional
-        raw model layer dataset. The default is None.
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. Used as the
-        definition of the vertex grid.
-    nodata : int, optional
-        integer to represent nodata-values. Defaults to -1.
-
-
-    Returns
-    -------
-    ml_layer_ds : xr.dataset
-        model layer dataset projected onto the modelgrid.
-    """
-
-    logger.info("resample model layer data to vertex modelgrid")
-    ml_layer_ds = resample_dataset_to_vertex_grid(raw_ds, gridprops)
-    if "area" in gridprops:
-        # only keep the first layer of area
-        area = gridprops["area"][: len(ml_layer_ds["icell2d"])]
-        ml_layer_ds["area"] = ("icell2d", area)
-    # add information about the vertices
-    _, xv, yv = zip(*gridprops["vertices"])
-    ml_layer_ds["xv"] = ("iv", np.array(xv))
-    ml_layer_ds["yv"] = ("iv", np.array(yv))
-    # and set which nodes use which vertices
-    ncvert_max = np.max([x[3] for x in gridprops["cell2d"]])
-    icvert = np.full((gridprops["ncpl"], ncvert_max), nodata)
-    for i in range(gridprops["ncpl"]):
-        icvert[i, : gridprops["cell2d"][i][3]] = gridprops["cell2d"][i][4:]
-    ml_layer_ds["icvert"] = ("icell2d", "nvert"), icvert
-    ml_layer_ds["icvert"].attrs["_FillValue"] = nodata
-
-    # then finally change the gridtype in the attributes
-    ml_layer_ds.attrs["gridtype"] = "vertex"
-
-    return ml_layer_ds
-
-
-def fillnan_dataarray_structured_grid(xar_in, method="nearest"):
+def fillnan_da_structured_grid(xar_in, method="nearest"):
     """fill not-a-number values in a structured grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
@@ -347,7 +353,7 @@ def fillnan_dataarray_structured_grid(xar_in, method="nearest"):
     return xar_out
 
 
-def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
+def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     """fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
@@ -357,6 +363,8 @@ def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="neare
     ----------
     xar_in : xr.DataArray
         data array with nan values. Shape is (icell2d)
+    ds : xr.Dataset
+        Dataset containing grid-properties
     x : np.array, optional
         x coördinates of the cell centers shape(icell2d), if not defined use x
         from ds.
@@ -402,12 +410,12 @@ def fillnan_dataarray_vertex_grid(xar_in, ds=None, x=None, y=None, method="neare
     return xar_out
 
 
-def fillnan_da(da, method="nearest"):
-    if len(da.y) == da.shape[-2] and len(da.x) == da.shape[-1]:
+def fillnan_da(da, ds=None, method="nearest"):
+    if len(da.shape) > 1 and len(da.y) == da.shape[-2] and len(da.x) == da.shape[-1]:
         # the dataraary is structured
-        return fillnan_dataarray_structured_grid(da, method=method)
+        return fillnan_da_structured_grid(da, method=method)
     else:
-        return fillnan_dataarray_vertex_grid(da, method=method)
+        return fillnan_da_vertex_grid(da, ds, method=method)
 
 
 def vertex_da_to_ds(da, ds, method="nearest"):

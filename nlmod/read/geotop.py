@@ -2,12 +2,12 @@ import datetime as dt
 import logging
 import os
 
-import nlmod
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from .. import cache
+from .. import NLMOD_DATADIR
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ GEOTOP_URL = r"http://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
 
 def get_default_lithoklasse_translation_table():
     return pd.read_csv(
-        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
+        os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
         index_col=0,
     )
 
@@ -52,12 +52,12 @@ def get_geotop(extent, regis_ds, regis_layer="HLc"):
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent, GEOTOP_URL)
 
     litho_translate_df = pd.read_csv(
-        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
+        os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
         index_col=0,
     )
 
     geo_eenheid_translate_df = pd.read_csv(
-        os.path.join(nlmod.NLMOD_DATADIR, "geotop", "geo_eenheden.csv"),
+        os.path.join(NLMOD_DATADIR, "geotop", "geo_eenheden.csv"),
         index_col=0,
         keep_default_na=False,
     )
@@ -215,9 +215,7 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
         ]
 
     geo_names = [
-        geo_eenheid_translate_df.loc[
-            float(geo_eenh), "Code (lagenmodel en boringen)"
-        ]
+        geo_eenheid_translate_df.loc[float(geo_eenh), "Code (lagenmodel en boringen)"]
         for geo_eenh in geo_eenheden
     ]
 
@@ -238,18 +236,14 @@ def get_top_bot_from_geo_eenheid(geotop_ds_raw, geo_eenheid_translate_df):
 
         lay += 1
 
-    geotop_ds_mod = add_stroombanen_and_get_kh(
-        geotop_ds_raw, top, bot, geo_names
-    )
+    geotop_ds_mod = add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names)
 
     geotop_ds_mod.attrs["stroombanen"] = stroombaan_eenheden
 
     return geotop_ds_mod
 
 
-def add_stroombanen_and_get_kh(
-    geotop_ds_raw, top, bot, geo_names, f_anisotropy=0.25
-):
+def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, f_anisotropy=0.25):
     """add stroombanen to tops and bots of geo_eenheden, also computes kh per
     geo_eenheid. Kh is computed by taking the average of all kh's of a
     geo_eenheid within a cell (e.g. if one geo_eenheid has a thickness of 1,5m
@@ -332,9 +326,7 @@ def _add_flow_properties(
     c="c",
 ):
     assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
-    lithok_translation = get_default_lithoklasse_translation_table()[
-        "lithologie"
-    ]
+    lithok_translation = get_default_lithoklasse_translation_table()["lithologie"]
     if isinstance(list(k_dict)[0], str):
         lith2float = {v: k for k, v in lithok_translation.items()}
         k_dict = {lith2float[key]: float(k_dict[key]) for key in k_dict}

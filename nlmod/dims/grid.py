@@ -23,10 +23,11 @@ from scipy.interpolate import griddata
 from shapely.geometry import Point
 from shapely.strtree import STRtree
 from tqdm import tqdm
+import warnings
 
 from .. import cache, util
-from .mbase import extrapolate_ds
-from .mlayers import (
+from .base import extrapolate_ds
+from .layers import (
     fill_nan_top_botm_kh_kv,
     get_first_active_layer,
     set_idomain,
@@ -35,7 +36,7 @@ from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
     get_affine_world_to_mod,
-    get_resampled_ml_layer_ds_vertex,
+    ds_to_gridprops,
     structured_da_to_ds,
 )
 
@@ -297,7 +298,7 @@ def refine(
     g.build()
     gridprops = g.get_gridprops_disv()
     gridprops["area"] = g.get_area()
-    ds = get_resampled_ml_layer_ds_vertex(ds, gridprops=gridprops)
+    ds = ds_to_gridprops(ds, gridprops=gridprops)
     # recalculate idomain, as the interpolation changes idomain to floats
     ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
     return ds
@@ -691,7 +692,7 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
     if polygon.type == "Polygon":
         pass
     elif polygon.type == "MultiPolygon":
-        Warning(
+        warnings.warn(
             "function not tested for MultiPolygon type, can have unexpected results"
         )
     else:
@@ -746,6 +747,11 @@ def gdf_to_data_array_struc(
     da : xarray DataArray
         DESCRIPTION.
     """
+    warnings.warn(
+        "The method gdf_to_data_array_struc is deprecated. Please use gdf_to_da instead",
+        DeprecationWarning,
+    )
+
     x = gwf.modelgrid.get_xcellcenters_for_layer(0)[0]
     y = gwf.modelgrid.get_ycellcenters_for_layer(0)[:, 0]
     da = xr.DataArray(np.nan, dims=("y", "x"), coords={"y": y, "x": x})
@@ -788,8 +794,8 @@ def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
     ----------
     gdf : geopandas.GeoDataframe
         vector data can only contain a single geometry type.
-    gwf : flopy groundwater flow model
-        model with a structured grid.
+    ds : xarray.Dataset
+        model Datset
     column : str
         column name in the geodataframe.
     agg_method : str, optional
@@ -799,6 +805,8 @@ def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
         - length_weighted (lines), max_length (lines),
         - area_weighted (polygon), area_max (polygon).
         The default is 'max'.
+    fill_value : float or int
+        The value to fill in da outside gdf
 
     Returns
     -------
@@ -1054,7 +1062,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     return celldata
 
 
-def gdf_to_bool_data_array(gdf, mfgrid, ds):
+def gdf_to_bool_da(gdf, mfgrid, ds):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
@@ -1109,7 +1117,7 @@ def gdf_to_bool_data_array(gdf, mfgrid, ds):
     return da
 
 
-def gdf_to_bool_dataset(ds, gdf, mfgrid, da_name):
+def gdf_to_bool_ds(ds, gdf, mfgrid, da_name):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1130,7 +1138,7 @@ def gdf_to_bool_dataset(ds, gdf, mfgrid, da_name):
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
     ds_out = util.get_ds_empty(ds)
-    ds_out[da_name] = gdf_to_bool_data_array(gdf, mfgrid, ds)
+    ds_out[da_name] = gdf_to_bool_da(gdf, mfgrid, ds)
 
     return ds_out
 
@@ -1217,8 +1225,9 @@ def get_thickness_from_topbot(top, bot):
         raster with thickness of each cell. dimensions should be (layer, y,x)
         or (layer, icell2d).
     """
-    DeprecationWarning(
-        "function is deprecated please use calculate_thickness function instead"
+    warnings.warn(
+        "The method get_thickness_from_topbot is deprecated. Please use calculate_thickness instead",
+        DeprecationWarning,
     )
 
     if np.ndim(top) > 2:

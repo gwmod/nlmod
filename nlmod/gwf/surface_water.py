@@ -9,9 +9,8 @@ from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
-from ..mdims import mgrid, resample
-
-# from ..mdims.mgrid import gdf_to_grid
+from ..dims.resample import get_extent_polygon
+from ..dims.grid import gdf_to_grid
 from ..read import bgt, waterboard
 
 logger = logging.getLogger(__name__)
@@ -51,9 +50,7 @@ def aggregate(gdf, method, ds=None):
 
     for cid, group in tqdm(gr, desc="Aggregate surface water data"):
 
-        stage, cond, rbot = get_surfacewater_params(
-            group, method, cid=cid, ds=ds
-        )
+        stage, cond, rbot = get_surfacewater_params(group, method, cid=cid, ds=ds)
 
         celldata.loc[cid, "stage"] = stage
         celldata.loc[cid, "cond"] = cond
@@ -63,9 +60,7 @@ def aggregate(gdf, method, ds=None):
     return celldata
 
 
-def get_surfacewater_params(
-    group, method, cid=None, ds=None, delange_params=None
-):
+def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=None):
 
     if method == "area_weighted":
         # stage
@@ -122,9 +117,7 @@ def agg_area_weighted(gdf, col):
 
 
 def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
-    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(
-        ds, cid
-    )
+    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(ds, cid)
 
     rbot = group["botm"].min()
 
@@ -327,9 +320,7 @@ def distribute_cond_over_lays(
     if stage is None or isinstance(stage, str):
         lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
     elif np.isfinite(stage):
-        lays = np.arange(
-            int(np.sum(stage < laybot)), int(np.sum(rivbot < laybot)) + 1
-        )
+        lays = np.arange(int(np.sum(stage < laybot)), int(np.sum(rivbot < laybot)) + 1)
     else:
         lays = np.arange(int(np.sum(rivbot < laybot)) + 1)
     if idomain is not None:
@@ -349,9 +340,7 @@ def distribute_cond_over_lays(
             try:
                 first_active = np.where(idomain > 0)[0][0]
             except IndexError:
-                warnings.warn(
-                    f"No active layers in {cellid}, " "returning NaNs."
-                )
+                warnings.warn(f"No active layers in {cellid}, " "returning NaNs.")
                 return np.nan, np.nan
         else:
             first_active = 0
@@ -421,9 +410,7 @@ def build_spd(
             if np.isnan(rbot):
                 raise ValueError(f"rbot is NaN in cell {cellid}")
         elif pkg == "RIV":
-            raise ValueError(
-                "Column 'rbot' required for building RIV package!"
-            )
+            raise ValueError("Column 'rbot' required for building RIV package!")
         else:
             rbot = np.nan
 
@@ -475,9 +462,7 @@ def build_spd(
                 mask = (stage > botm_cell) & (idomain_cell > 0)
                 if not mask.any():
                     raise (
-                        Exception(
-                            "rbot and stage are below the bottom of the model"
-                        )
+                        Exception("rbot and stage are below the bottom of the model")
                     )
             lays = [np.where(mask)[0][0]]
             conds = [cond]
@@ -608,9 +593,7 @@ def download_watercourses(gdf, extent=None, config=None):
     return wc
 
 
-def add_stages_from_waterboards(
-    gdf, pg=None, extent=None, columns=None, config=None
-):
+def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=None):
     """Add information from level areas (peilgebieden) to bgt-polygons."""
     if pg is None:
         pg = download_level_areas(gdf, extent=extent)
@@ -633,7 +616,7 @@ def add_stages_from_waterboards(
 
 def get_gdf(ds=None, extent=None, fname_ahn=None):
     if extent is None:
-        extent = resample.get_extent_polygon(ds)
+        extent = get_extent_polygon(ds)
     gdf = bgt.get_bgt(extent)
     if fname_ahn is not None:
         from rasterstats import zonal_stats
@@ -645,7 +628,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None):
         extent = [bs[0], bs[2], bs[1], bs[3]]
     gdf = add_stages_from_waterboards(gdf, extent=extent)
     if ds is not None:
-        return mgrid.gdf_to_grid(gdf, ds).set_index("cellid")
+        return gdf_to_grid(gdf, ds).set_index("cellid")
     return gdf
 
 
@@ -745,9 +728,7 @@ def gdf_to_seasonal_pkg(
         # ignore records without a stage
         mask = gdf["stage"].isna()
         if mask.any():
-            logger.warning(
-                f"{mask.sum()} records without an elevation ignored"
-            )
+            logger.warning(f"{mask.sum()} records without an elevation ignored")
         spd.extend(
             build_spd(
                 gdf[~mask],

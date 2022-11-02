@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from .. import cache, util
-from ..mdims.mlayers import get_first_active_layer
-from ..mdims.resample import get_affine_mod_to_world
+from ..dims.layers import get_first_active_layer
+from ..dims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 

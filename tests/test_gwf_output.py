@@ -4,7 +4,7 @@ import tempfile
 import nlmod
 import numpy as np
 from nlmod.gwf import get_heads_da
-from nlmod.mdims import refine
+from nlmod.dims.grid import refine
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
@@ -18,12 +18,12 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
         extent, regis_botm_layer="KRz5", use_regis=True, use_geotop=True
     )
     model_ws = os.path.join(tmpdir, model_name)
-    ds = nlmod.mdims.to_model_ds(
+    ds = nlmod.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
     assert ds.dims["layer"] == 5
 
-    ds = nlmod.mdims.set_ds_time(
+    ds = nlmod.time.set_ds_time(
         ds,
         start_time="2015-1-1",
         steady_state=False,

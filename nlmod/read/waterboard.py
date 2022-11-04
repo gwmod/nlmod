@@ -57,16 +57,17 @@ def get_configuration():
         },
         "level_areas": {
             "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/Vastgestelde_Waterpeilen/MapServer",
-            "layer": 209,
+            "layer": 0,
+            "index": "GPGIDENT",
             "summer_stage": [
-                "ZOMERPEIL",
-                "FLEXIBEL_ZOMERPEIL_BOVENGR",
-                "VAST_PEIL",
+                "GPGZMRPL",
+                "IWS_BOVENGRENS_ZOMERPEIL",
+                "IWS_GPGVASTP",
             ],
             "winter_stage": [
-                "WINTERPEIL",
-                "FLEXIBEL_WINTERPEIL_BOVENGR",
-                "VAST_PEIL",
+                "GPGWNTPL",
+                "OPVAFWWP",
+                "IWS_GPGVASTP",
             ],
         },
     }

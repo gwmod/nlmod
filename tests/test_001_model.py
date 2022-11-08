@@ -36,6 +36,44 @@ def test_ds_time_transient(tmpdir, modelname="test"):
     return ds
 
 
+def test_get_ds():
+    model_ws = os.path.join(tmpdir, "test_model_ds")
+    ds = nlmod.get_ds(
+    [-500, 500, -500, 500],
+    delr=10.0,
+    layer=3,
+    top=0.0,
+    botm=[-10,-20,-30],
+    kh=[100,1,5],
+    kv=[10,0.1, 0.5],
+    model_ws=model_ws,
+    model_name="test_ds",
+    )
+    
+    ds
+    
+    return ds
+
+def test_get_ds_variable_delrc():
+    model_ws = os.path.join(tmpdir, "test_model_ds")
+    ds = nlmod.get_ds(
+    extent=[-500, 500, -500, 500],
+    delr=[100]*5 + [20]*5+[100]*4,
+    delc=[100]*4 + [20]*5+[100]*5,
+    layer=3,
+    top=0.0,
+    botm=[-10,-20,-30],
+    kh=[100,1,5],
+    kv=[10,0.1, 0.5],
+    model_ws=model_ws,
+    model_name="test_ds",
+    )
+    
+    ds
+    
+    
+    return ds
+
 @pytest.mark.slow
 def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
     extent = [95000.0, 105000.0, 494000.0, 500000.0]

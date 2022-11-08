@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import numbers
 
 import numpy as np
 import xarray as xr
@@ -88,10 +89,11 @@ def to_model_ds(
         default is None
     extent : list or tuple of length 4, optional
         The extent of the new grid. Get from ds when None. The default is None.
-    delr : float, optional
-        The gridsize along columns. The default is 100. meter.
-    delc : float, optional
-        The gridsize along rows. Set to delr when None. The default is None.
+    delr : int, float, list, tuple or array, optional
+        The gridsize along columns (dx). The default is 100. meter.
+    delc : None, int, float, list, tuple or array, optional
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr
+        The default is None.
     remove_nan_layers : bool, optional
         if True regis and geotop layers with only nans are removed from the
         model. if False nan layers are kept which might be usefull if you want
@@ -138,8 +140,15 @@ def to_model_ds(
     )
 
     # add cell area variable
-    ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones((ds.dims["y"], ds.dims["x"]))
-
+    if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
+        ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones((ds.dims["y"], ds.dims["x"]))
+    elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
+        ds["area"] = ("y", "x"), np.outer(delc, delr)
+        ds['delr'] = ('x'), delr
+        ds['delc'] = ('y'), delc
+    else:
+        raise TypeError('unexpected type for delr and/or delc')
+    
     if extrapolate:
         ds = extrapolate_ds(ds)
 
@@ -237,10 +246,11 @@ def get_ds(
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : float, optional
-        The gridsize along columns. The default is 100. meter.
-    delc : float, optional
-        The gridsize along rows. Set to delr when None. The default is None.
+    delr : int, float, list, tuple or array, optional
+        The gridsize along columns (dx). The default is 100. meter.
+    delc : None, int, float, list, tuple or array, optional
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr
+        The default is None.
     model_name : str, optional
         name of the model. THe default is None
     model_ws : str, optional
@@ -290,6 +300,13 @@ def get_ds(
     """
     if delc is None:
         delc = delr
+        
+    if isinstance(delr, (tuple, list)):
+        delr = np.asarray(delr)
+    
+    if isinstance(delc, (tuple, list)):
+        delc = np.asarray(delc)
+    
     if attrs is None:
         attrs = {}
     if isinstance(layer, int):

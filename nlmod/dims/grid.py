@@ -106,8 +106,14 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
             raise TypeError(
                 f"extent should be a list, tuple or numpy array, not {type(ds.extent)}"
             )
-        delc = np.array([ds.delc] * ds.dims["y"])
-        delr = np.array([ds.delr] * ds.dims["x"])
+        if 'delc' in ds:
+            delc = ds['delc'].values
+        else:
+            delc = np.array([ds.delc] * ds.dims["y"])
+        if 'delr' in ds:
+            delr = ds['delr'].values
+        else:
+            delr = np.array([ds.delr] * ds.dims["x"])
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,

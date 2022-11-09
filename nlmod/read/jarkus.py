@@ -110,7 +110,7 @@ def get_dataset_jarkus(
     ----------
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid. Should be RD-new
-        coördinates (EPSG:28992)
+        coordinates (EPSG:28992)
 
     Returns
     -------

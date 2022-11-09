@@ -74,8 +74,9 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
 
     # check attributes
     for att in ["delr", "delc"]:
-        if isinstance(ds.attrs[att], np.float32):
-            ds.attrs[att] = float(ds.attrs[att])
+        if att in ds.attrs:
+            if isinstance(ds.attrs[att], np.float32):
+                ds.attrs[att] = float(ds.attrs[att])
 
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         xorigin = ds.attrs["xorigin"]
@@ -96,8 +97,8 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
         nlay=ds.dims["layer"],
         nrow=ds.dims["y"],
         ncol=ds.dims["x"],
-        delr=ds.delr,
-        delc=ds.delc,
+        delr=ds["delr"].values if "delr" in ds else ds.delr,
+        delc=ds["delc"].values if "delc" in ds else ds.delc,
         top=ds["top"].data,
         botm=ds["botm"].data,
         idomain=ds["idomain"].data,

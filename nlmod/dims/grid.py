@@ -60,6 +60,31 @@ def xy_to_icell2d(xy, ds):
     return icell2d
 
 
+def xyz_to_cid(xyz, ds=None, modelgrid=None):
+    """get the icell2d value of a point defined by its x and y coordinates.
+
+    Parameters
+    ----------
+    xyz : list, tuple
+        coordinates of ta point.
+    ds : xarary dataset
+        model dataset.
+    modelgrid : 
+        
+
+    Returns
+    -------
+    cid : tuple
+        (layer, cid) for vertex grid, (layer, row, column) for structured grid.
+    """
+    if modelgrid is None:
+        modelgrid = modelgrid_from_ds(ds)
+    
+    cid = modelgrid.intersect(x=xyz[0], y=xyz[1], z=xyz[2])
+    
+    return cid
+
+
 def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs):
     """Get flopy modelgrid from ds.
 

@@ -239,11 +239,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                         f"{ns}nummeraanduidingreeks"
                     )
                     _read_label(nar, d)
-                elif key in [
-                    "kruinlijnBegroeidTerreindeel",
-                    "kruinlijnOnbegroeidTerreindeel",
-                    "kruinlijnOndersteunendWegdeel",
-                ]:
+                elif key.startswith("kruinlijn"):
                     ns = "{http://www.opengis.net/gml}"
                     if child[0].tag == f"{ns}LineString":
                         ls = child.find(f"{ns}LineString")

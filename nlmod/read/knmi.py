@@ -55,7 +55,6 @@ def get_recharge(ds, method="linear"):
     ds_out.attrs["gridtype"] = ds.gridtype
 
     # get recharge data array
-
     if ds.gridtype == "structured":
         dims = ("y", "x")
     elif ds.gridtype == "vertex":
@@ -127,7 +126,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
         raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
 
     # fill recharge data array
-    model_recharge = pd.Series(index=ds.time.data, dtype=float)
+    model_recharge = pd.Series(index=ds.time, dtype=float)
     for j, ts in enumerate(model_recharge.index):
         if j == 0:
             start = ds.time.start
@@ -141,13 +140,13 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
         model_recharge = model_recharge.fillna(method="bfill")
         if model_recharge.isna().any():
             raise (Exception("There are NaN-values in {variable}"))
-    # add data to ds
-    if ds.gridtype == "structured":
-        for row, col in zip(loc_sel.row, loc_sel.col):
-            ds[variable].data[:row, col] = model_recharge.values
 
+    # add data to ds
+    values = np.repeat(model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)
+    if ds.gridtype == "structured":
+        ds[variable][:, loc_sel.row, loc_sel.col] = values
     elif ds.gridtype == "vertex":
-        ds[variable].loc[: loc_sel.index] = model_recharge.values
+        ds[variable][:, loc_sel.index] = values
 
 
 def get_locations_vertex(ds):

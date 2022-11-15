@@ -609,7 +609,7 @@ def colorbar_inside(
     if isinstance(bbox_labels, dict):
         for label in cb.ax.yaxis.get_ticklabels():
             label.set_bbox(bbox_labels)
-
+        cb.ax.yaxis.get_label().set_bbox(bbox_labels)
     return cb
 
 
@@ -622,7 +622,7 @@ def title_inside(
     verticalalignment="top",
     **kwargs,
 ):
-    """"Place a title inside a matplotlib axes, at the top."""
+    """Place a title inside a matplotlib axes, at the top."""
     if ax is None:
         ax = plt.gca()
     return ax.text(

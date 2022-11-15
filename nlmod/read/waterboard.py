@@ -553,20 +553,32 @@ def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
     if isinstance(from_columns, str):
         from_columns = [from_columns]
     for from_column in from_columns:
-        if from_column not in gdf:
-            logger.warning(
-                f"Cannot find column {from_column} as source for {set_column}"
-            )
-            continue
+        msg = "Cannot find column {} as source for {}"
+        if isinstance(from_column, list):
+            mask = [x not in gdf for x in from_column]
+            if np.any(mask):
+                for i in np.where(mask)[0]:
+                    logger.warning(msg.format(from_column[i], set_column))
+                from_column = list(np.array(from_column)[~np.array(mask)])
+                if len(from_column) == 0:
+                    continue
+        else:
+            if from_column not in gdf:
+                logger.warning(msg.format(from_column, set_column))
+                continue
         mask = gdf[set_column].isna()
         if not mask.any():
             break
-        mask = mask & ~gdf[from_column].isna()
-        if not mask.any():
-            continue
+
         if isinstance(from_column, list):
+            mask = mask & ~gdf[from_column].isna().all(1)
+            if not mask.any():
+                continue
             gdf.loc[mask, set_column] = gdf.loc[mask, from_column].mean(1)
         else:
+            mask = mask & ~gdf[from_column].isna()
+            if not mask.any():
+                continue
             gdf.loc[mask, set_column] = gdf.loc[mask, from_column]
         if nan_values is not None:
             if isinstance(nan_values, (float, int)):

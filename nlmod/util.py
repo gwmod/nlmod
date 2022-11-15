@@ -479,6 +479,12 @@ def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
     head_ar : TYPE
         DESCRIPTION.
     """
+    logger.warning(
+        (
+            "nlmod.util.get_heads_dataarray is deprecated. ",
+            "Please use nlmod.gwf.get_heads_da instead",
+        )
+    )
 
     if fname_hds is None:
         fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")

@@ -377,7 +377,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     Returns
     -------
     xar_out : xr.DataArray
-        data array with nan values. Shape is (icell2d)
+        data array without nan values. Shape is (icell2d)
 
     Notes
     -----
@@ -410,6 +410,29 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
 
 
 def fillnan_da(da, ds=None, method="nearest"):
+    """fill not-a-number values in a DataArray.
+
+    The fill values are determined using the 'nearest' method of the
+    scipy.interpolate.griddata function
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        data array with nan values.
+    ds : xr.Dataset, optional
+        Dataset containing grid-properties. Needed when a Vertex grid is used.
+    method : str, optional
+        method used in scipy.interpolate.griddata to resample. The default is nearest.
+
+    Returns
+    -------
+    xar_out : xr.DataArray
+        data array without nan values.
+
+    Notes
+    -----
+    can be slow if the xar_in is a large raster
+    """
     if len(da.shape) > 1 and len(da.y) == da.shape[-2] and len(da.x) == da.shape[-1]:
         # the dataraary is structured
         return fillnan_da_structured_grid(da, method=method)
@@ -428,7 +451,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         contain other dimensions as well (for example 'layer' or time'' ).
     ds : xarray.Dataset
         The structured model dataset with coordinates x and y.
-    method : TYPE, optional
+    method : str, optional
         The interpolation method, see griddata. The default is "nearest".
 
     Returns

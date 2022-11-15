@@ -144,9 +144,9 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     # add data to ds
     values = np.repeat(model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)
     if ds.gridtype == "structured":
-        ds[variable][:, loc_sel.row, loc_sel.col] = values
+        ds[variable].data[:, loc_sel.row, loc_sel.col] = values
     elif ds.gridtype == "vertex":
-        ds[variable][:, loc_sel.index] = values
+        ds[variable].data[:, loc_sel.index] = values
 
 
 def get_locations_vertex(ds):

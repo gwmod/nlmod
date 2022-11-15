@@ -49,8 +49,7 @@ def get_recharge(ds, method="linear"):
     """
 
     start = pd.Timestamp(ds.time.attrs["start"])
-    # include the end day in the time series.
-    end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
+    end = pd.Timestamp(ds.time.data[-1])
 
     ds_out = util.get_ds_empty(ds)
     ds_out.attrs["gridtype"] = ds.gridtype
@@ -60,8 +59,7 @@ def get_recharge(ds, method="linear"):
         dims = ("y", "x")
     elif ds.gridtype == "vertex":
         dims = ("icell2d",)
-    if not ds.time.steady_state:
-        dims = dims + ("time",)
+    dims = ("time",) + dims
 
     shape = [len(ds_out[dim]) for dim in dims]
 
@@ -123,38 +121,32 @@ def get_recharge(ds, method="linear"):
 
 def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     """Add a timeseries to a variable at location loc_sel in model DataSet."""
-    end = pd.Timestamp(ds.time.data[-1]) + pd.Timedelta(1, "D")
-    if timeseries.index[-1] < pd.Timestamp(ds.time.data[-1]):
+    end = pd.Timestamp(ds.time.data[-1])
+    if timeseries.index[-1] < end:
         raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
 
     # fill recharge data array
-    if ds.time.steady_state:
-        rch_average = timeseries.mean()
-        if ds.gridtype == "structured":
-            # add data to ds
-            for row, col in zip(loc_sel.row, loc_sel.col):
-                ds[variable].data[row, col] = rch_average
-        elif ds.gridtype == "vertex":
-            # add data to ds
-            ds[variable].loc[loc_sel.index] = rch_average
-    else:
-        model_recharge = pd.Series(index=ds.time.data, dtype=float)
-        for j, ts in enumerate(model_recharge.index):
-            if j < (len(model_recharge) - 1):
-                model_recharge.loc[ts] = (
-                    timeseries.loc[ts : model_recharge.index[j + 1]].iloc[:-1].mean()
-                )
-            else:
+    model_recharge = pd.Series(index=ds.time, dtype=float)
+    for j, ts in enumerate(model_recharge.index):
+        if j == 0:
+            start = ds.time.start
+        else:
+            start = model_recharge.index[j - 1]
+        mask = (timeseries.index > start) & (timeseries.index <= ts)
+        model_recharge.loc[ts] = timeseries[mask].mean()
+    if model_recharge.isna().any():
+        # when the model frequency is higher than the timeseries-frequency,
+        # there will be NaN's, which we fill by backfill
+        model_recharge = model_recharge.fillna(method="bfill")
+        if model_recharge.isna().any():
+            raise (Exception("There are NaN-values in {variable}"))
 
-                model_recharge.loc[ts] = timeseries.loc[ts:end].iloc[:-1].mean()
-
-        # add data to ds
-        if ds.gridtype == "structured":
-            for row, col in zip(loc_sel.row, loc_sel.col):
-                ds[variable].data[row, col, :] = model_recharge.values
-
-        elif ds.gridtype == "vertex":
-            ds[variable].loc[loc_sel.index, :] = model_recharge.values
+    # add data to ds
+    values = np.repeat(model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)
+    if ds.gridtype == "structured":
+        ds[variable].data[:, loc_sel.row, loc_sel.col] = values
+    elif ds.gridtype == "vertex":
+        ds[variable].data[:, loc_sel.index] = values
 
 
 def get_locations_vertex(ds):

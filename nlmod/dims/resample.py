@@ -141,9 +141,8 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     """
     if isinstance(delr, (numbers.Number)):
         if not isinstance(delc, (numbers.Number)):
-            raise TypeError('if delr is a number delc should be a number as well')
-        
-        
+            raise TypeError("if delr is a number delc should be a number as well")
+
         # check if extent is valid
         if (extent[1] - extent[0]) % delr != 0.0:
             raise ValueError(
@@ -155,43 +154,43 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
                 "invalid extent, the extent should contain an integer"
                 " number of cells in the y-direction"
             )
-    
+
         # get cell mids
         x_mid_start = extent[0] + 0.5 * delr
         x_mid_end = extent[1] - 0.5 * delr
         y_mid_start = extent[2] + 0.5 * delc
         y_mid_end = extent[3] - 0.5 * delc
-    
+
         ncol = int((extent[1] - extent[0]) / delr)
         nrow = int((extent[3] - extent[2]) / delc)
-    
+
         x = np.linspace(x_mid_start, x_mid_end, ncol)
         if descending_y:
             y = np.linspace(y_mid_end, y_mid_start, nrow)
         else:
             y = np.linspace(y_mid_start, y_mid_end, nrow)
-
         return x, y
-    
+
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         delr = np.asarray(delr)
         delc = np.asarray(delc)
         if (delr.ndim != 1) or (delc.ndim != 1):
-            raise ValueError('excpected 1d array')
-            
+            raise ValueError("excpected 1d array")
+
         x = []
         for i, dx in enumerate(delr):
-            x.append(extent[0] + dx/2 + sum(delr[:i]))
+            x.append(extent[0] + dx / 2 + sum(delr[:i]))
 
+        # you always want descending y in this case, so not using
+        # the keyword argument
         y = []
         for i, dy in enumerate(delc):
-            y.append(extent[2] + dy/2 + sum(delc[:i]))
-        
+            y.append(extent[3] - dy / 2 - sum(delc[:i]))
+
         return x, y
-    
+
     else:
-        raise TypeError('unexpected type for delr and/or delc')
-        
+        raise TypeError("unexpected type for delr and/or delc")
 
 
 def ds_to_structured_grid(

@@ -1231,6 +1231,10 @@ def gdf_to_grid(
             shpn = shp.copy()
             shpn["cellid"] = r["cellids"][i]
             shpn[geometry] = r["ixshapes"][i]
+            if shp[geometry].type == 'LineString':
+                shpn['length'] = r["lengths"][i]
+            elif shp[geometry].type == 'Polygon':
+                shpn['area'] = r["areas"][i]
             shps.append(shpn)
     return gpd.GeoDataFrame(shps, geometry=geometry)
 

@@ -67,6 +67,10 @@ def get_exe_path(exe_name="mf6"):
     exe_path = os.path.join(os.path.dirname(__file__), "bin", exe_name)
     if sys.platform.startswith("win"):
         exe_path += ".exe"
+        
+    if not os.path.exists(exe_path):
+        logger.info(f'executable {exe_path} not found, download the binaries using nlmod.util.download_mfbinaries')
+        
 
     return exe_path
 

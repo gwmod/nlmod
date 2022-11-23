@@ -299,9 +299,7 @@ def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
     if gwf.modelgrid.grid_type == "structured":
         if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
             spd = cellids.stress_period_data.data[0]
-            cellids = [
-                [row[0][1:], row[1][1:]] for row in cellids.stress_period_data.array[0]
-            ]
+            cellids = [[row[0][1:], row[1][1:]] for row in spd]
         for line in cellids:
             pc1 = Polygon(gwf.modelgrid.get_cell_vertices(*line[0]))
             pc2 = Polygon(gwf.modelgrid.get_cell_vertices(*line[1]))

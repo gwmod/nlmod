@@ -781,7 +781,9 @@ def gdf_to_data_array_struc(
     return da
 
 
-def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
+def gdf_to_da(
+    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0
+):
     """Project vector data on a structured grid. Aggregate data if multiple
     geometries are in a single cell. This method replaces
     gdf_to_data_array_struc.
@@ -801,8 +803,11 @@ def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
         - length_weighted (lines), max_length (lines),
         - area_weighted (polygon), area_max (polygon).
         The default is 'max'.
-    fill_value : float or int
-        The value to fill in da outside gdf
+    fill_value : float or int, optional
+        The value to fill in da outside gdf. The default is np.NaN
+    min_total_overlap: float, optional
+        Only assign cells with a gdf-area larger than min_total_overlap * cell-area. The
+        default is 0.0
 
     Returns
     -------
@@ -810,6 +815,13 @@ def gdf_to_da(gdf, ds, column, agg_method=None, fill_value=np.NaN):
         The DataArray with the projected vector data.
     """
     gdf_cellid = gdf_to_grid(gdf, ds)
+    if min_total_overlap > 0:
+        gdf_cellid["area"] = gdf_cellid.area
+        area_sum = gdf_cellid[["cellid", "area"]].groupby("cellid").sum()
+        min_area = min_total_overlap * ds["area"].data[area_sum.index]
+        cellids = area_sum.index[area_sum["area"] > min_area]
+        gdf_cellid = gdf_cellid[gdf_cellid["cellid"].isin(cellids)]
+
     if gdf_cellid.cellid.duplicated().any():
         # aggregate data
         if agg_method is None:

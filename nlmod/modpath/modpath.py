@@ -214,7 +214,7 @@ def mpf(gwf, exe_name=None):
     return mpf
 
 
-def bas(mpf, porosity=0.3):
+def bas(mpf, porosity=0.3, **kwargs):
     """Create the basic package for the modpath model.
 
     Parameters
@@ -230,7 +230,7 @@ def bas(mpf, porosity=0.3):
         modpath bas package.
     """
 
-    mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity)
+    mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity, **kwargs)
 
     return mpfbas
 

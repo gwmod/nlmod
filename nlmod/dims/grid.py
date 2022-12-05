@@ -25,7 +25,7 @@ from shapely.geometry import Point
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
-from .. import cache, util
+from .. import cache, util, gis
 from .base import extrapolate_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
@@ -1442,11 +1442,15 @@ def mask_model_edge(ds, idomain):
             )
 
     elif ds.gridtype == "vertex":
-        mask = np.nonzero([xmin | xmax | ymin | ymax])[1]
-
-        # assign 1 to cells that are on the edge, have an active idomain
-        ds_out["edge_mask"] = xr.zeros_like(idomain)
-        ds_out["edge_mask"].loc[:, mask] = 1
-        ds_out["edge_mask"] = xr.where(idomain == 1, ds_out["edge_mask"], 0)
+        polygons_grid = gis._polygons_from_model_ds(ds)
+        gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
+        extent_edge = util.polygon_from_extent(ds.extent).exterior
+        cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
+        ds_out["edge_mask"] = util.get_da_from_da_ds(ds, 
+                                                     dims=("layer", "icell2d"), 
+                                                     data=0)
+        
+        for lay in ds.layer:
+            ds_out["edge_mask"].loc[lay, cids_edge] = 1
 
     return ds_out

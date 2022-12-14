@@ -475,7 +475,7 @@ def get_map(
         the ax or axes (when ncols/nrows > 1).
     """
     if isinstance(figsize, (float, int)):
-        xh = 0.2
+        xh = 0.0
         if base is None:
             xh = 0.0
         figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh)
@@ -620,11 +620,17 @@ def title_inside(
     y=0.98,
     horizontalalignment="center",
     verticalalignment="top",
+    bbox=True,
     **kwargs,
 ):
     """Place a title inside a matplotlib axes, at the top."""
     if ax is None:
         ax = plt.gca()
+    if isinstance(bbox, bool):
+        if bbox:
+            bbox = dict(facecolor="w", alpha=0.5)
+        else:
+            bbox = None
     return ax.text(
         x,
         y,
@@ -632,5 +638,6 @@ def title_inside(
         horizontalalignment=horizontalalignment,
         verticalalignment=verticalalignment,
         transform=ax.transAxes,
+        bbox=bbox,
         **kwargs,
     )

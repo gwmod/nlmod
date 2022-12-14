@@ -5,7 +5,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LineString, Point, Polygon, MultiLineString
 from shapely.strtree import STRtree
 
 from .dims.grid import get_vertices_arr
@@ -66,6 +66,11 @@ class DatasetCrossSection:
             for ic2d in icell2ds:
                 intersection = line.intersection(polygons[ic2d])
                 if intersection.length == 0:
+                    continue
+                if isinstance(intersection, MultiLineString):
+                    for ix in intersection:
+                        s_cell.append([line.project(Point(ix.coords[0])), 1, ic2d])
+                        s_cell.append([line.project(Point(ix.coords[-1])), 0, ic2d])
                     continue
                 assert isinstance(intersection, LineString)
                 s_cell.append([line.project(Point(intersection.coords[0])), 1, ic2d])
@@ -380,10 +385,10 @@ class DatasetCrossSection:
         else:
             top = top[:, self.rows, self.cols]
             bot = bot[:, self.rows, self.cols]
-        if self.zmin:
+        if self.zmin is not None:
             top[top < self.zmin] = self.zmin
             bot[bot < self.zmin] = self.zmin
-        if self.zmax:
+        if self.zmax is not None:
             top[top > self.zmax] = self.zmax
             bot[bot > self.zmax] = self.zmax
         return top, bot

@@ -31,7 +31,6 @@ from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
-    ds_to_gridprops,
     get_affine_world_to_mod,
     structured_da_to_ds,
 )
@@ -143,8 +142,9 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     """Gridprops is a dictionairy containing keyword arguments needed to
     generate a flopy modelgrid instance."""
-    ds["xv"] = ("iv", [i[1] for i in gridprops["vertices"]])
-    ds["yv"] = ("iv", [i[2] for i in gridprops["vertices"]])
+    _, xv, yv = zip(*gridprops["vertices"])
+    ds["xv"] = ("iv", np.array(xv))
+    ds["yv"] = ("iv", np.array(yv))
 
     cell2d = gridprops["cell2d"]
     ncvert_max = np.max([x[3] for x in cell2d])
@@ -298,6 +298,94 @@ def refine(
     # recalculate idomain, as the interpolation changes idomain to floats
     ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
     return ds
+
+
+def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
+    """resample a dataset (xarray) on an structured grid to a new dataset with
+    a vertex grid.
+
+    Parameters
+    ----------
+    ds_in : xarray.Dataset
+        dataset with dimensions (layer, y, x). y and x are from the original
+        structured grid
+    gridprops : dictionary
+        dictionary with grid properties output from gridgen.  Used as the
+        definition of the vertex grid.
+    method : str, optional
+        type of interpolation used to resample. The default is 'nearest'.
+    nodata : int, optional
+        integer to represent nodata-values in cell2d array. Defaults to -1.
+
+    Returns
+    -------
+    ds_out : xarray.Dataset
+        dataset with dimensions (layer, icell2d).
+    """
+
+    logger.info("resample model Dataset to vertex modelgrid")
+
+    assert isinstance(ds_in, xr.core.dataset.Dataset)
+
+    xyi, _ = get_xyi_icell2d(gridprops)
+    x = xr.DataArray(xyi[:, 0], dims=("icell2d"))
+    y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
+    if method in ["nearest", "linear"]:
+        # resample the entire dataset in one line
+        ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+    else:
+        ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
+
+        # add other variables
+        for data_var in ds_in.data_vars:
+            data_arr = structured_da_to_ds(ds_in[data_var], ds_out, method=method)
+            ds_out[data_var] = data_arr
+
+    if "area" in gridprops:
+        # only keep the first layer of area
+        area = gridprops["area"][: len(ds_out["icell2d"])]
+        ds_out["area"] = ("icell2d", area)
+
+    # add information about the vertices
+    ds_out = gridprops_to_vertex_ds(gridprops, ds_out, nodata=nodata)
+
+    # then finally change the gridtype in the attributes
+    ds_out.attrs["gridtype"] = "vertex"
+
+    return ds_out
+
+
+def get_xyi_icell2d(gridprops=None, ds=None):
+    """Get x and y coördinates of the cell mids from the cellids in the grid
+    properties.
+
+    Parameters
+    ----------
+    gridprops : dictionary, optional
+        dictionary with grid properties output from gridgen. If gridprops is
+        None xyi and icell2d will be obtained from ds.
+    ds : xarray.Dataset
+        dataset with model data. Should have dimension (layer, icell2d).
+
+    Returns
+    -------
+    xyi : numpy.ndarray
+        array with x and y coördinates of cell centers, shape(len(icell2d), 2).
+    icell2d : numpy.ndarray
+        array with cellids, shape(len(icell2d))
+    """
+    if gridprops is not None:
+        xc_gwf = [cell2d[1] for cell2d in gridprops["cell2d"]]
+        yc_gwf = [cell2d[2] for cell2d in gridprops["cell2d"]]
+        xyi = np.vstack((xc_gwf, yc_gwf)).T
+        icell2d = np.array([c[0] for c in gridprops["cell2d"]])
+    elif ds is not None:
+        xyi = np.array(list(zip(ds.x.values, ds.y.values)))
+        icell2d = ds.icell2d.values
+    else:
+        raise ValueError("either gridprops or ds should be specified")
+
+    return xyi, icell2d
 
 
 def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
@@ -801,7 +889,7 @@ def gdf_to_da(
         are:
         - max, min, mean,
         - length_weighted (lines), max_length (lines),
-        - area_weighted (polygon), area_max (polygon).
+        - area_weighted (polygon), max_area (polygon).
         The default is 'max'.
     fill_value : float or int, optional
         The value to fill in da outside gdf. The default is np.NaN
@@ -1024,7 +1112,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
         fields (keys) in the Geodataframe with their aggregation method (items)
         aggregation methods can be:
         max, min, mean, length_weighted (lines), max_length (lines),
-        area_weighted (polygon), area_max (polygon).
+        area_weighted (polygon), max_area (polygon).
     gwf : flopy Groundwater flow model
         only necesary if one of the field methods is 'nearest'
 

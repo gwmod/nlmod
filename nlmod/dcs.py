@@ -127,9 +127,9 @@ class DatasetCrossSection:
     @staticmethod
     def add_intersections(gr_line, cs_line, points):
         intersection = cs_line.intersection(gr_line)
-        if intersection.type == "Point":
+        if intersection.geom_type == "Point":
             points.append(intersection)
-        elif intersection.type == "MultiPoint":
+        elif intersection.geom_type == "MultiPoint":
             for point in intersection.geoms:
                 points.append(point)
 

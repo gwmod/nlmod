@@ -498,16 +498,16 @@ def add_info_to_gdf(
     min_total_overlap=0.5,
     geom_type="Polygon",
 ):
-    """"Add information from gdf_from to gdf_to."""
+    """ "Add information from gdf_from to gdf_to."""
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
-        s = STRtree(gdf_from.geometry, items=gdf_from.index)
+        s = STRtree(gdf_from.geometry)
     for index in tqdm(gdf_to.index, desc=desc, disable=silent):
         geom_to = gdf_to.geometry[index]
-        inds = s.query_items(geom_to)
+        inds = s.query(geom_to)
         if len(inds) == 0:
             continue
         overlap = gdf_from.geometry[inds].intersection(geom_to)

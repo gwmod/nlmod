@@ -480,10 +480,8 @@ def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
         DESCRIPTION.
     """
     logger.warning(
-        (
-            "nlmod.util.get_heads_dataarray is deprecated. ",
-            "Please use nlmod.gwf.get_heads_da instead",
-        )
+        "nlmod.util.get_heads_dataarray is deprecated. "
+        "Please use nlmod.gwf.get_heads_da instead"
     )
 
     if fname_hds is None:
@@ -633,4 +631,6 @@ def get_color_logger(level="INFO"):
     logger.handlers[:] = []
     logger.addHandler(handler)
     logger.setLevel(getattr(logging, level))
+
+    logging.captureWarnings(True)
     return logger

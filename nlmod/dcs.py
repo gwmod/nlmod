@@ -6,9 +6,9 @@ import xarray as xr
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
 from shapely.geometry import LineString, Point, Polygon, MultiLineString
-from shapely.strtree import STRtree
+import flopy
 
-from .dims.grid import get_vertices_arr
+from .dims.grid import modelgrid_from_ds
 
 
 class DatasetCrossSection:
@@ -32,7 +32,6 @@ class DatasetCrossSection:
         layer="layer",
         icell2d="icell2d",
         epsilon=1e-8,
-        vertices=None,
     ):
         if ax is None:
             ax = plt.gca()
@@ -57,14 +56,12 @@ class DatasetCrossSection:
         # first determine where the cross-section crosses grid-lines
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
-            if vertices is None:
-                vertices = get_vertices_arr(ds, rotated=self.rotated, epsilon=epsilon)
-            polygons = [Polygon(x) for x in vertices]
-            tree = STRtree(polygons)
-            icell2ds = tree.query_items(LineString(line))
+            modelgrid = modelgrid_from_ds(ds)
+            gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
+            r = gi.intersect(line)
             s_cell = []
-            for ic2d in icell2ds:
-                intersection = line.intersection(polygons[ic2d])
+            for i, ic2d in enumerate(r["cellids"]):
+                intersection = r["ixshapes"][i]
                 if intersection.length == 0:
                     continue
                 if isinstance(intersection, MultiLineString):

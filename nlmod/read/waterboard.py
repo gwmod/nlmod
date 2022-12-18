@@ -328,8 +328,8 @@ def get_configuration():
             "index": "code",
         },
         "level_areas": {
-            # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_vigerend/FeatureServer",
+            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
+            # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_vigerend/FeatureServer",
             "summer_stage": [
                 "ZOMERPEIL",
                 "MIN_PEIL",

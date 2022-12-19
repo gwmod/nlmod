@@ -257,7 +257,7 @@ def model_dataset_to_vector_file(
     gisdir=None,
     driver="GPKG",
     combine_dic=None,
-    exclude=("x", "y", "time_steps", "area", "vertices", "rch_name"),
+    exclude=("x", "y", "time_steps", "area", "vertices", "rch_name", "icvert"),
 ):
     """Save all data variables in a model dataset to multiple shapefiles.
 
@@ -290,8 +290,8 @@ def model_dataset_to_vector_file(
     # get default combination dictionary
     if combine_dic is None:
         combine_dic = {
-            "idomain": {"first_active_layer", "idomain"},
-            "topbot": {"top", "botm", "thickness"},
+            "idomain": {"idomain"},
+            "topbot": {"top", "botm"},
             "sea": {"northsea", "bathymetry"},
         }
 

@@ -24,7 +24,7 @@ def surface_water(model_ds, ax=None):
     return ax
 
 
-def modelgrid(ds, ax=None, add_surface_water=True):
+def modelgrid(ds, ax=None, add_surface_water=False):
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
     modelgrid = modelgrid_from_ds(ds)

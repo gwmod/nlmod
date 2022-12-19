@@ -773,15 +773,15 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
     area_array : xarray.DataArray
         area of polygon within each modelgrid cell
     """
-    if polygon.type == "Polygon":
+    if polygon.geom_type == "Polygon":
         pass
-    elif polygon.type == "MultiPolygon":
+    elif polygon.geom_type == "MultiPolygon":
         warnings.warn(
             "function not tested for MultiPolygon type, can have unexpected results"
         )
     else:
         raise TypeError(
-            f'input geometry should by of type "Polygon" not {polygon.type}'
+            f'input geometry should by of type "Polygon" not {polygon.geom_type}'
         )
 
     ix = GridIntersect(modelgrid, method="vertex")

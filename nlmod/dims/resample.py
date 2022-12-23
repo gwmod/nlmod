@@ -443,7 +443,7 @@ def fillnan_da(da, ds=None, method="nearest"):
 
 
 def vertex_da_to_ds(da, ds, method="nearest"):
-    """Resample a vertex DataArray to a structured model dataset.
+    """Resample a vertex DataArray to a model dataset.
 
     Parameters
     ----------
@@ -452,8 +452,8 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         dimension, the original DataArray is retured. The DataArray da can
         contain other dimensions as well (for example 'layer' or time'' ).
     ds : xarray.Dataset
-        The structured model dataset with coordinates x and y.
-    method : TYPE, optional
+        The model dataset with coordinates x and y.
+    method : str, optional
         The interpolation method, see griddata. The default is "nearest".
 
     Returns
@@ -461,16 +461,25 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     xarray.DataArray
         THe structured DataArray, with coordinates 'x' and 'y'
     """
-    if ds.gridtype == "vertex":
-        raise (Exception("Resampling from vertex da to vertex ds not supported"))
+    
     if "icell2d" not in da.dims:
         return da
     points = np.array((da.x.data, da.y.data)).T
+    
+    if ds.gridtype == "vertex":
+        if len(da.dims) == 1:
+            xi = [(x,y) for x, y in zip(ds.x.values, ds.y.values)]
+            z = griddata(points, da.values, xi, method=method)
+            coords = {'icell2d':ds.icell2d}
+            return xr.DataArray(z, dims='icell2d', coords=coords)
+        else:
+            raise NotImplementedError("Resampling from multidmensional vertex da to vertex ds not yet supported")
+            
     xg, yg = np.meshgrid(ds.x, ds.y)
     xi = np.stack((xg, yg), axis=2)
 
     if len(da.dims) > 1:
-        # when there are more dimensions than cell2d
+        # when there are more dimensions than icell2d
         z = []
         if method == "nearest":
             # geneterate the tree only once, to increase speed

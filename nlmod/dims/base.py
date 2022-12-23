@@ -141,6 +141,8 @@ def to_model_ds(
     
 
     # add cell area variable
+    if delc is None:
+        delc = delr
     if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
         ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones((ds.dims["y"], ds.dims["x"]))
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):

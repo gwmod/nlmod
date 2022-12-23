@@ -387,7 +387,7 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
         a list, tuple, or np.ndarray is provided a localz position must
         be provided for each partloc. If localz is None, a value of
         0.5 (center of the cell) will be used (default is None). A localz
-        value of 1.0 indicates the top of a cell. 
+        value of 1.0 indicates the top of a cell.
 
     Returns
     -------

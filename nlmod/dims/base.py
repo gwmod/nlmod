@@ -138,20 +138,21 @@ def to_model_ds(
     ds = resample.ds_to_structured_grid(
         ds, extent, delr, delc, xorigin=xorigin, yorigin=yorigin, angrot=angrot
     )
-    
 
     # add cell area variable
     if delc is None:
         delc = delr
     if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
-        ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones((ds.dims["y"], ds.dims["x"]))
+        ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
+            (ds.dims["y"], ds.dims["x"])
+        )
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         ds["area"] = ("y", "x"), np.outer(delc, delr)
-        ds['delr'] = ('x'), delr
-        ds['delc'] = ('y'), delc
+        ds["delr"] = ("x"), delr
+        ds["delc"] = ("y"), delc
     else:
-        raise TypeError('unexpected type for delr and/or delc')
-    
+        raise TypeError("unexpected type for delr and/or delc")
+
     if extrapolate:
         ds = extrapolate_ds(ds)
 
@@ -164,10 +165,11 @@ def to_model_ds(
             ds,
             anisotropy=anisotropy,
             fill_value_kh=fill_value_kh,
-            fill_value_kv=fill_value_kv)
+            fill_value_kv=fill_value_kv,
+        )
     else:
         ds = set_idomain(ds, remove_nan_layers=False)
-        
+
     return ds
 
 
@@ -304,8 +306,8 @@ def get_ds(
         fill_nan_top_botm_kh_kv function. Layers with only nan values in the
         botm are removed.
 
-    
-        
+
+
     **kwargs : dict
         Kwargs are passed into mbase.to_ds. These can be the model_name
         or ds.
@@ -317,27 +319,28 @@ def get_ds(
     """
     if delc is None:
         delc = delr
-        
+
     if isinstance(delr, (tuple, list)):
         delr = np.asarray(delr)
-    
+
     if isinstance(delc, (tuple, list)):
         delc = np.asarray(delc)
-    
+
     if attrs is None:
         attrs = {}
     if isinstance(layer, int):
         layer = np.arange(1, layer + 1)
     if botm is None:
         botm = top - 10 * np.arange(1.0, len(layer) + 1)
-        
+
     # check for nan
     for par in [top, botm, kh, kv]:
         if isinstance(par, numbers.Number):
             if np.isnan(par) and (extrapolate or fill_nan):
-                raise ValueError('extrapolate and remove_nan_layer should be False when setting model parameters to nan')
-                
-    
+                raise ValueError(
+                    "extrapolate and remove_nan_layer should be False when setting model parameters to nan"
+                )
+
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
     x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
     coords = dict(x=x, y=y, layer=layer)

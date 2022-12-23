@@ -68,8 +68,8 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
         coordinates of ta point.
     ds : xarary dataset
         model dataset.
-    modelgrid : 
-        
+    modelgrid :
+
 
     Returns
     -------
@@ -78,9 +78,9 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
     """
     if modelgrid is None:
         modelgrid = modelgrid_from_ds(ds)
-    
+
     cid = modelgrid.intersect(x=xyz[0], y=xyz[1], z=xyz[2])
-    
+
     return cid
 
 
@@ -130,12 +130,12 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
             raise TypeError(
                 f"extent should be a list, tuple or numpy array, not {type(ds.extent)}"
             )
-        if 'delc' in ds:
-            delc = ds['delc'].values
+        if "delc" in ds:
+            delc = ds["delc"].values
         else:
             delc = np.array([ds.delc] * ds.dims["y"])
-        if 'delr' in ds:
-            delr = ds['delr'].values
+        if "delr" in ds:
+            delr = ds["delr"].values
         else:
             delr = np.array([ds.delr] * ds.dims["x"])
         modelgrid = StructuredGrid(
@@ -1331,10 +1331,10 @@ def gdf_to_grid(
             shpn = shp.copy()
             shpn["cellid"] = r["cellids"][i]
             shpn[geometry] = r["ixshapes"][i]
-            if shp[geometry].type == 'LineString':
-                shpn['length'] = r["lengths"][i]
-            elif shp[geometry].type == 'Polygon':
-                shpn['area'] = r["areas"][i]
+            if shp[geometry].type == "LineString":
+                shpn["length"] = r["lengths"][i]
+            elif shp[geometry].type == "Polygon":
+                shpn["area"] = r["areas"][i]
             shps.append(shpn)
     return gpd.GeoDataFrame(shps, geometry=geometry)
 
@@ -1546,10 +1546,10 @@ def mask_model_edge(ds, idomain):
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = util.polygon_from_extent(ds.extent).exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
-        ds_out["edge_mask"] = util.get_da_from_da_ds(ds, 
-                                                     dims=("layer", "icell2d"), 
-                                                     data=0)
-        
+        ds_out["edge_mask"] = util.get_da_from_da_ds(
+            ds, dims=("layer", "icell2d"), data=0
+        )
+
         for lay in ds.layer:
             ds_out["edge_mask"].loc[lay, cids_edge] = 1
 

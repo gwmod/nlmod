@@ -71,9 +71,7 @@ def _polygons_from_model_ds(model_ds):
     return polygons
 
 
-def vertex_da_to_gdf(
-    model_ds, data_variables, polygons=None, dealing_with_time="mean"
-):
+def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
     """Convert one or more DataArrays from a vertex model dataset to a
     Geodataframe.
 
@@ -150,9 +148,7 @@ def vertex_da_to_gdf(
     return gdf
 
 
-def struc_da_to_gdf(
-    model_ds, data_variables, polygons=None, dealing_with_time="mean"
-):
+def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
     """Convert one or more DataArrays from a structured model dataset to a
     Geodataframe.
 

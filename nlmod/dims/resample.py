@@ -19,103 +19,6 @@ from ..util import get_da_from_da_ds
 logger = logging.getLogger(__name__)
 
 
-def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
-    """resample a dataset (xarray) on an structured grid to a new dataset with
-    a vertex grid.
-
-    Parameters
-    ----------
-    ds_in : xarray.Dataset
-        dataset with dimensions (layer, y, x). y and x are from the original
-        structured grid
-    gridprops : dictionary
-        dictionary with grid properties output from gridgen.  Used as the
-        definition of the vertex grid.
-    method : str, optional
-        type of interpolation used to resample. The default is 'nearest'.
-    nodata : int, optional
-        integer to represent nodata-values in cell2d array. Defaults to -1.
-
-    Returns
-    -------
-    ds_out : xarray.Dataset
-        dataset with dimensions (layer, icell2d).
-    """
-
-    logger.info("resample model Dataset to vertex modelgrid")
-
-    assert isinstance(ds_in, xr.core.dataset.Dataset)
-
-    xyi, _ = get_xyi_icell2d(gridprops)
-    x = xr.DataArray(xyi[:, 0], dims=("icell2d"))
-    y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
-    if method in ["nearest", "linear"]:
-        # resample the entire dataset in one line
-        ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
-    else:
-        ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
-
-        # add other variables
-        for data_var in ds_in.data_vars:
-            data_arr = structured_da_to_ds(ds_in[data_var], ds_out, method=method)
-            ds_out[data_var] = data_arr
-
-    if "area" in gridprops:
-        # only keep the first layer of area
-        area = gridprops["area"][: len(ds_out["icell2d"])]
-        ds_out["area"] = ("icell2d", area)
-
-    # add information about the vertices
-    _, xv, yv = zip(*gridprops["vertices"])
-    ds_out["xv"] = ("iv", np.array(xv))
-    ds_out["yv"] = ("iv", np.array(yv))
-    # and set which nodes use which vertices
-    ncvert_max = np.max([x[3] for x in gridprops["cell2d"]])
-    icvert = np.full((gridprops["ncpl"], ncvert_max), nodata)
-    for i in range(gridprops["ncpl"]):
-        icvert[i, : gridprops["cell2d"][i][3]] = gridprops["cell2d"][i][4:]
-    ds_out["icvert"] = ("icell2d", "nvert"), icvert
-    ds_out["icvert"].attrs["_FillValue"] = nodata
-
-    # then finally change the gridtype in the attributes
-    ds_out.attrs["gridtype"] = "vertex"
-
-    return ds_out
-
-
-def get_xyi_icell2d(gridprops=None, ds=None):
-    """Get x and y coördinates of the cell mids from the cellids in the grid
-    properties.
-
-    Parameters
-    ----------
-    gridprops : dictionary, optional
-        dictionary with grid properties output from gridgen. If gridprops is
-        None xyi and icell2d will be obtained from ds.
-    ds : xarray.Dataset
-        dataset with model data. Should have dimension (layer, icell2d).
-
-    Returns
-    -------
-    xyi : numpy.ndarray
-        array with x and y coördinates of cell centers, shape(len(icell2d), 2).
-    icell2d : numpy.ndarray
-        array with cellids, shape(len(icell2d))
-    """
-    if gridprops is not None:
-        xc_gwf = [cell2d[1] for cell2d in gridprops["cell2d"]]
-        yc_gwf = [cell2d[2] for cell2d in gridprops["cell2d"]]
-        xyi = np.vstack((xc_gwf, yc_gwf)).T
-        icell2d = np.array([c[0] for c in gridprops["cell2d"]])
-    elif ds is not None:
-        xyi = np.array(list(zip(ds.x.values, ds.y.values)))
-        icell2d = ds.icell2d.values
-    else:
-        raise ValueError("either gridprops or ds should be specified")
-
-    return xyi, icell2d
-
-
 def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     """Calculates the x and y coordinates of the cell centers of a structured
     grid.
@@ -402,7 +305,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     Returns
     -------
     xar_out : xr.DataArray
-        data array with nan values. Shape is (icell2d)
+        data array without nan values. Shape is (icell2d)
 
     Notes
     -----
@@ -435,6 +338,29 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
 
 
 def fillnan_da(da, ds=None, method="nearest"):
+    """fill not-a-number values in a DataArray.
+
+    The fill values are determined using the 'nearest' method of the
+    scipy.interpolate.griddata function
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        data array with nan values.
+    ds : xr.Dataset, optional
+        Dataset containing grid-properties. Needed when a Vertex grid is used.
+    method : str, optional
+        method used in scipy.interpolate.griddata to resample. The default is nearest.
+
+    Returns
+    -------
+    xar_out : xr.DataArray
+        data array without nan values.
+
+    Notes
+    -----
+    can be slow if the xar_in is a large raster
+    """
     if len(da.shape) > 1 and len(da.y) == da.shape[-2] and len(da.x) == da.shape[-1]:
         # the dataraary is structured
         return fillnan_da_structured_grid(da, method=method)
@@ -461,7 +387,10 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     xarray.DataArray
         THe structured DataArray, with coordinates 'x' and 'y'
     """
-    
+
+    if hasattr(ds.attrs, "gridtype") and ds.gridtype == "vertex":
+        raise (Exception("Resampling from vertex da to vertex ds not supported"))
+
     if "icell2d" not in da.dims:
         return da
     points = np.array((da.x.data, da.y.data)).T

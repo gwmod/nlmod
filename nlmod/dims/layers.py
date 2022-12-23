@@ -677,8 +677,11 @@ def add_kh_kv_from_ml_layer_to_ds(
     return ds
 
 
-def set_model_top(ds, top):
+def set_model_top(ds, top, min_thickness=0.0):
     """Set the model top, changing layer bottoms when necessary as well.
+
+    If the new top is higher than the previous top, the extra thickness is added to the
+    highest layer with a thickness larger than 0.
 
     Parameters
     ----------
@@ -694,21 +697,95 @@ def set_model_top(ds, top):
     """
     if "gridtype" not in ds.attrs:
         raise (Exception("Make sure the Dataset is build by nlmod"))
+    if isinstance(top, (float, int)):
+        top = xr.full_like(ds["top"], top)
     if not top.shape == ds["top"].shape:
         raise (
             Exception("Please make sure the new top has the same shape as the old top")
         )
     if np.any(np.isnan(top)):
-        raise (Exception("PLease make sure the new top does not contain nans"))
+        raise (Exception("Please make sure the new top does not contain nans"))
     # where the botm is equal to the top, the layer is inactive
     # set the botm to the new top at these locations
     ds["botm"] = ds["botm"].where(ds["botm"] != ds["top"], top)
     # make sure the botm is never higher than the new top
-    ds["botm"] = ds["botm"].where(ds["botm"] < top, top)
+    ds["botm"] = ds["botm"].where(top - ds["botm"] > min_thickness, top)
     # change the current top
     ds["top"] = top
     # recalculate idomain
     ds = set_idomain(ds)
+    return ds
+
+
+def set_layer_top(ds, layer, top):
+    """Set the top of a layer"""
+    assert layer in ds.layer
+    lay = np.where(ds.layer == layer)[0][0]
+    if lay == 0:
+        # change the top of the model
+        ds["top"] = top
+        # make sure the botm of all layers is never higher than the new top
+        ds["botm"] = ds["botm"].where(ds["botm"] < top, top)
+    else:
+        # change the botm of the layer above
+        ds["botm"][lay - 1] = top
+        # make sure the top of the layers above is never lower than the new top
+        ds["top"] = ds["top"].where(ds["top"] > top, top)
+        # make sure the botm of the layers above is never higher than the new top
+        ds["botm"][: lay - 1] = ds["botm"][: lay - 1].where(
+            ds["botm"][: lay - 1] > top, top
+        )
+        # make sure the botms of lower layers are lower than top
+        ds["botm"][lay:] = ds["botm"][lay:].where(ds["botm"][lay:] < top, top)
+    ds = set_idomain(ds)
+    return ds
+
+
+def set_layer_botm(ds, layer, botm):
+    """Set the bottom of a layer"""
+    assert layer in ds.layer
+    lay = np.where(ds.layer == layer)[0][0]
+    # if lay > 0 and np.any(botm > ds["botm"][lay - 1]):
+    #    raise (Exception("set_layer_botm cannot change botm of higher layers yet"))
+    ds["botm"][:lay] = ds["botm"][:lay].where(ds["botm"][:lay] > botm, botm)
+    ds["botm"][lay] = botm
+    # make sure the botm of the layers below is never higher than the new botm
+    mask = ds["botm"][lay + 1 :] < botm
+    ds["botm"][lay + 1 :] = ds["botm"][lay + 1 :].where(mask, botm)
+    # make sure the botm of the layers above is lever lower than the new botm
+
+    ds = set_idomain(ds)
+    return ds
+
+
+def set_layer_thickness(ds, layer, thickness, change="botm"):
+    """Set the layer thickness by changing the bottom of the layer"""
+    assert layer in ds.layer
+    assert change == "botm", "Only change=botm allowed for now"
+    lay = np.where(ds.layer == layer)[0][0]
+    if lay == 0:
+        top = ds["top"]
+    else:
+        top = ds["botm"][lay - 1]
+    new_botm = top - thickness
+    ds = set_layer_botm(ds, layer, new_botm)
+    return ds
+
+
+def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
+    """Make sure layer has a minimum thickness by lowering the botm of the layer where neccesary"""
+    assert layer in ds.layer
+    assert change == "botm", "Only change=botm allowed for now"
+    lay = np.where(ds.layer == layer)[0][0]
+    if lay == 0:
+        top = ds["top"]
+    else:
+        top = ds["botm"][lay - 1]
+    botm = ds["botm"][lay]
+
+    mask = (top - botm) > min_thickness
+    new_botm = botm.where(mask, top - min_thickness)
+    ds = set_layer_botm(ds, layer, new_botm)
     return ds
 
 

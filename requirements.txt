@@ -1,6 +1,7 @@
 nbconvert>=6.4.5
 netCDF4==1.5.7
 rasterstats
+geocube
 gdown
 imod
 bottleneck

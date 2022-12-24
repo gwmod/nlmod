@@ -1542,6 +1542,8 @@ def mask_model_edge(ds, idomain):
             )
 
     elif ds.gridtype == "vertex":
+        if not 'vertices' in ds:
+            ds['vertices'] = get_vertices(ds)
         polygons_grid = gis._polygons_from_model_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = util.polygon_from_extent(ds.extent).exterior

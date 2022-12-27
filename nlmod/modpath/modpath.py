@@ -214,7 +214,7 @@ def mpf(gwf, exe_name=None):
     return mpf
 
 
-def bas(mpf, porosity=0.3):
+def bas(mpf, porosity=0.3, **kwargs):
     """Create the basic package for the modpath model.
 
     Parameters
@@ -230,7 +230,7 @@ def bas(mpf, porosity=0.3):
         modpath bas package.
     """
 
-    mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity)
+    mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity, **kwargs)
 
     return mpfbas
 
@@ -385,8 +385,9 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
         Local z-location of the particle in the cell. If a single value is
         provided all particles will have the same localz position. If
         a list, tuple, or np.ndarray is provided a localz position must
-        be provided for each partloc. If localy is None, a value of
-        0.5 (center of the cell) will be used (default is None).
+        be provided for each partloc. If localz is None, a value of
+        0.5 (center of the cell) will be used (default is None). A localz
+        value of 1.0 indicates the top of a cell.
 
     Returns
     -------

@@ -1,5 +1,6 @@
 import flopy as fp
 import numpy as np
+from tqdm import tqdm
 
 
 def wel_from_df(
@@ -18,9 +19,13 @@ def wel_from_df(
     # collect data
     well_lrcd = []
 
-    for _, irow in df.iterrows():
-        cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top])
-        cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm])
+    for _, irow in tqdm(df.iterrows(), total=df.index.size, desc="Adding WELs"):
+        try:
+            cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top], forgive=False)
+            cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm], forgive=False)
+        except Exception:
+            print(f"Warning! well {_} outside of model domain! ({irow[x]}, {irow[y]})")
+            continue
         if len(cid1) == 2:
             kt, icell2d = cid1
         elif len(cid1) == 3:
@@ -73,9 +78,13 @@ def maw_from_df(
     maw_conndata = []
     maw_perdata = []
 
-    for iw, irow in df.iterrows():
-        cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top])
-        cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm])
+    for iw, irow in tqdm(df.iterrows(), total=df.index.size, desc="Adding MAWs"):
+        try:
+            cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top], forgive=False)
+            cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm], forgive=False)
+        except Exception:
+            print(f"Warning! well {iw} outside of model domain! ({irow[x]}, {irow[y]})")
+            continue
         if len(cid1) == 2:
             kt, icell2d = cid1
         elif len(cid1) == 3:

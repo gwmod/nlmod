@@ -25,7 +25,7 @@ from shapely.geometry import Point
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
-from .. import cache, util
+from .. import cache, util, gis
 from .base import extrapolate_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
@@ -57,6 +57,31 @@ def xy_to_icell2d(xy, ds):
     icell2d = (np.abs(ds.x.data - xy[0]) + np.abs(ds.y.data - xy[1])).argmin().item()
 
     return icell2d
+
+
+def xyz_to_cid(xyz, ds=None, modelgrid=None):
+    """get the icell2d value of a point defined by its x and y coordinates.
+
+    Parameters
+    ----------
+    xyz : list, tuple
+        coordinates of ta point.
+    ds : xarary dataset
+        model dataset.
+    modelgrid :
+
+
+    Returns
+    -------
+    cid : tuple
+        (layer, cid) for vertex grid, (layer, row, column) for structured grid.
+    """
+    if modelgrid is None:
+        modelgrid = modelgrid_from_ds(ds)
+
+    cid = modelgrid.intersect(x=xyz[0], y=xyz[1], z=xyz[2])
+
+    return cid
 
 
 def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs):
@@ -105,8 +130,14 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
             raise TypeError(
                 f"extent should be a list, tuple or numpy array, not {type(ds.extent)}"
             )
-        delc = np.array([ds.delc] * ds.dims["y"])
-        delr = np.array([ds.delr] * ds.dims["x"])
+        if "delc" in ds:
+            delc = ds["delc"].values
+        else:
+            delc = np.array([ds.delc] * ds.dims["y"])
+        if "delr" in ds:
+            delr = ds["delr"].values
+        else:
+            delr = np.array([ds.delr] * ds.dims["x"])
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,
@@ -1300,6 +1331,10 @@ def gdf_to_grid(
             shpn = shp.copy()
             shpn["cellid"] = r["cellids"][i]
             shpn[geometry] = r["ixshapes"][i]
+            if shp[geometry].type == "LineString":
+                shpn["length"] = r["lengths"][i]
+            elif shp[geometry].type == "Polygon":
+                shpn["area"] = r["areas"][i]
             shps.append(shpn)
     return gpd.GeoDataFrame(shps, geometry=geometry)
 
@@ -1507,11 +1542,17 @@ def mask_model_edge(ds, idomain):
             )
 
     elif ds.gridtype == "vertex":
-        mask = np.nonzero([xmin | xmax | ymin | ymax])[1]
+        if 'vertices' not in ds:
+            ds['vertices'] = get_vertices(ds)
+        polygons_grid = gis.polygons_from_model_ds(ds)
+        gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
+        extent_edge = util.polygon_from_extent(ds.extent).exterior
+        cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
+        ds_out["edge_mask"] = util.get_da_from_da_ds(
+            ds, dims=("layer", "icell2d"), data=0
+        )
 
-        # assign 1 to cells that are on the edge, have an active idomain
-        ds_out["edge_mask"] = xr.zeros_like(idomain)
-        ds_out["edge_mask"].loc[:, mask] = 1
-        ds_out["edge_mask"] = xr.where(idomain == 1, ds_out["edge_mask"], 0)
+        for lay in ds.layer:
+            ds_out["edge_mask"].loc[lay, cids_edge] = 1
 
     return ds_out

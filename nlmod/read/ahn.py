@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf
 def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
-    """Get a model dataset with ahn variable.    
+    """Get a model dataset with ahn variable.
     Parameters
     ----------
     ds : xr.Dataset

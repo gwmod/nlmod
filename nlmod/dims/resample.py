@@ -4,7 +4,7 @@
 @author: oebbe
 """
 import logging
-
+import numbers
 import numpy as np
 import rasterio
 import xarray as xr
@@ -27,10 +27,10 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     ----------
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
+    delr : int, float, list, tuple or array, optional
+        The gridsize along columns (dx). The default is 100. meter.
+    delc : None, int, float, list, tuple or array, optional
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr
     descending_y : bool, optional
         if True the resulting ymid array is in descending order. This is the
         default for MODFLOW models. default is True.
@@ -42,34 +42,58 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     y : np.array
         y-coordinates of the cell centers shape(nrow)
     """
-    # check if extent is valid
-    if (extent[1] - extent[0]) % delr != 0.0:
-        raise ValueError(
-            "invalid extent, the extent should contain an integer"
-            " number of cells in the x-direction"
-        )
-    if (extent[3] - extent[2]) % delc != 0.0:
-        raise ValueError(
-            "invalid extent, the extent should contain an integer"
-            " number of cells in the y-direction"
-        )
+    if isinstance(delr, (numbers.Number)):
+        if not isinstance(delc, (numbers.Number)):
+            raise TypeError("if delr is a number delc should be a number as well")
 
-    # get cell mids
-    x_mid_start = extent[0] + 0.5 * delr
-    x_mid_end = extent[1] - 0.5 * delr
-    y_mid_start = extent[2] + 0.5 * delc
-    y_mid_end = extent[3] - 0.5 * delc
+        # check if extent is valid
+        if (extent[1] - extent[0]) % delr != 0.0:
+            raise ValueError(
+                "invalid extent, the extent should contain an integer"
+                " number of cells in the x-direction"
+            )
+        if (extent[3] - extent[2]) % delc != 0.0:
+            raise ValueError(
+                "invalid extent, the extent should contain an integer"
+                " number of cells in the y-direction"
+            )
 
-    ncol = int((extent[1] - extent[0]) / delr)
-    nrow = int((extent[3] - extent[2]) / delc)
+        # get cell mids
+        x_mid_start = extent[0] + 0.5 * delr
+        x_mid_end = extent[1] - 0.5 * delr
+        y_mid_start = extent[2] + 0.5 * delc
+        y_mid_end = extent[3] - 0.5 * delc
 
-    x = np.linspace(x_mid_start, x_mid_end, ncol)
-    if descending_y:
-        y = np.linspace(y_mid_end, y_mid_start, nrow)
+        ncol = int((extent[1] - extent[0]) / delr)
+        nrow = int((extent[3] - extent[2]) / delc)
+
+        x = np.linspace(x_mid_start, x_mid_end, ncol)
+        if descending_y:
+            y = np.linspace(y_mid_end, y_mid_start, nrow)
+        else:
+            y = np.linspace(y_mid_start, y_mid_end, nrow)
+        return x, y
+
+    elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
+        delr = np.asarray(delr)
+        delc = np.asarray(delc)
+        if (delr.ndim != 1) or (delc.ndim != 1):
+            raise ValueError("excpected 1d array")
+
+        x = []
+        for i, dx in enumerate(delr):
+            x.append(extent[0] + dx / 2 + sum(delr[:i]))
+
+        # you always want descending y in this case, so not using
+        # the keyword argument
+        y = []
+        for i, dy in enumerate(delc):
+            y.append(extent[3] - dy / 2 - sum(delc[:i]))
+
+        return x, y
+
     else:
-        y = np.linspace(y_mid_start, y_mid_end, nrow)
-
-    return x, y
+        raise TypeError("unexpected type for delr and/or delc")
 
 
 def ds_to_structured_grid(
@@ -126,8 +150,9 @@ def ds_to_structured_grid(
 
     # add new attributes
     attrs["gridtype"] = "structured"
-    attrs["delr"] = delr
-    attrs["delc"] = delc
+    if isinstance(delr, numbers.Number) and isinstance(delc, numbers.Number):
+        attrs["delr"] = delr
+        attrs["delc"] = delc
 
     if method in ["nearest", "linear"] and angrot == 0.0:
         ds_out = ds_in.interp(
@@ -344,7 +369,7 @@ def fillnan_da(da, ds=None, method="nearest"):
 
 
 def vertex_da_to_ds(da, ds, method="nearest"):
-    """Resample a vertex DataArray to a structured model dataset.
+    """Resample a vertex DataArray to a model dataset.
 
     Parameters
     ----------
@@ -353,7 +378,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         dimension, the original DataArray is retured. The DataArray da can
         contain other dimensions as well (for example 'layer' or time'' ).
     ds : xarray.Dataset
-        The structured model dataset with coordinates x and y.
+        The model dataset with coordinates x and y.
     method : str, optional
         The interpolation method, see griddata. The default is "nearest".
 
@@ -362,16 +387,30 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     xarray.DataArray
         THe structured DataArray, with coordinates 'x' and 'y'
     """
+
     if hasattr(ds.attrs, "gridtype") and ds.gridtype == "vertex":
         raise (Exception("Resampling from vertex da to vertex ds not supported"))
+
     if "icell2d" not in da.dims:
         return da
     points = np.array((da.x.data, da.y.data)).T
+
+    if ds.gridtype == "vertex":
+        if len(da.dims) == 1:
+            xi = list(zip(ds.x.values, ds.y.values))
+            z = griddata(points, da.values, xi, method=method)
+            coords = {"icell2d": ds.icell2d}
+            return xr.DataArray(z, dims="icell2d", coords=coords)
+        else:
+            raise NotImplementedError(
+                "Resampling from multidmensional vertex da to vertex ds not yet supported"
+            )
+
     xg, yg = np.meshgrid(ds.x, ds.y)
     xi = np.stack((xg, yg), axis=2)
 
     if len(da.dims) > 1:
-        # when there are more dimensions than cell2d
+        # when there are more dimensions than icell2d
         z = []
         if method == "nearest":
             # geneterate the tree only once, to increase speed

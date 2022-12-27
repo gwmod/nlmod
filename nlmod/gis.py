@@ -11,7 +11,7 @@ from .dims.resample import get_affine_mod_to_world
 logger = logging.getLogger(__name__)
 
 
-def _polygons_from_model_ds(model_ds):
+def polygons_from_model_ds(model_ds):
     """create polygons of each cell in a model dataset.
 
     Parameters
@@ -71,9 +71,7 @@ def _polygons_from_model_ds(model_ds):
     return polygons
 
 
-def vertex_dataarray_to_gdf(
-    model_ds, data_variables, polygons=None, dealing_with_time="mean"
-):
+def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
     """Convert one or more DataArrays from a vertex model dataset to a
     Geodataframe.
 
@@ -142,7 +140,7 @@ def vertex_dataarray_to_gdf(
 
     # create geometries
     if polygons is None:
-        polygons = _polygons_from_model_ds(model_ds)
+        polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
@@ -150,9 +148,7 @@ def vertex_dataarray_to_gdf(
     return gdf
 
 
-def struc_dataarray_to_gdf(
-    model_ds, data_variables, polygons=None, dealing_with_time="mean"
-):
+def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
     """Convert one or more DataArrays from a structured model dataset to a
     Geodataframe.
 
@@ -216,7 +212,7 @@ def struc_dataarray_to_gdf(
 
     # create geometries
     if polygons is None:
-        polygons = _polygons_from_model_ds(model_ds)
+        polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
@@ -246,13 +242,13 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
     None.
     """
     if model_ds.gridtype == "vertex":
-        gdf = vertex_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
+        gdf = vertex_da_to_gdf(model_ds, data_variables, polygons=polygons)
     else:
-        gdf = struc_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
+        gdf = struc_da_to_gdf(model_ds, data_variables, polygons=polygons)
     gdf.to_file(fname)
 
 
-def model_dataset_to_vector_file(
+def ds_to_vector_file(
     model_ds,
     gisdir=None,
     driver="GPKG",
@@ -327,15 +323,15 @@ def model_dataset_to_vector_file(
     da_names -= set(exclude)
 
     # create list of polygons
-    polygons = _polygons_from_model_ds(model_ds)
+    polygons = polygons_from_model_ds(model_ds)
 
     # combine some data variables in one shapefile
     for key, item in combine_dic.items():
         if set(item).issubset(da_names):
             if model_ds.gridtype == "structured":
-                gdf = struc_dataarray_to_gdf(model_ds, item, polygons=polygons)
+                gdf = struc_da_to_gdf(model_ds, item, polygons=polygons)
             elif model_ds.gridtype == "vertex":
-                gdf = vertex_dataarray_to_gdf(model_ds, item, polygons=polygons)
+                gdf = vertex_da_to_gdf(model_ds, item, polygons=polygons)
             if driver == "GPKG":
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
             else:
@@ -351,9 +347,9 @@ def model_dataset_to_vector_file(
     # create unique shapefiles for the other data variables
     for da_name in da_names:
         if model_ds.gridtype == "structured":
-            gdf = struc_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = struc_da_to_gdf(model_ds, (da_name,), polygons=polygons)
         elif model_ds.gridtype == "vertex":
-            gdf = vertex_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons)
         if driver == "GPKG":
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:
@@ -368,7 +364,7 @@ def model_dataset_to_vector_file(
         return fnames
 
 
-def model_dataset_to_ugrid_nc_file(
+def ds_to_ugrid_nc_file(
     model_ds,
     fname,
     variables=None,

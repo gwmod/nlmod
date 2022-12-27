@@ -11,7 +11,7 @@ from .dims.resample import get_affine_mod_to_world
 logger = logging.getLogger(__name__)
 
 
-def _polygons_from_model_ds(model_ds):
+def polygons_from_model_ds(model_ds):
     """create polygons of each cell in a model dataset.
 
     Parameters
@@ -140,7 +140,7 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
 
     # create geometries
     if polygons is None:
-        polygons = _polygons_from_model_ds(model_ds)
+        polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
@@ -212,7 +212,7 @@ def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="
 
     # create geometries
     if polygons is None:
-        polygons = _polygons_from_model_ds(model_ds)
+        polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
@@ -323,7 +323,7 @@ def ds_to_vector_file(
     da_names -= set(exclude)
 
     # create list of polygons
-    polygons = _polygons_from_model_ds(model_ds)
+    polygons = polygons_from_model_ds(model_ds)
 
     # combine some data variables in one shapefile
     for key, item in combine_dic.items():

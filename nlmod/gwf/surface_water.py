@@ -568,6 +568,14 @@ def download_level_areas(gdf, extent=None, config=None):
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
                 pg[wb] = waterboard.get_data(wb, data_kind, extent)
+                mask = ~pg[wb].is_valid
+                if mask.any():
+                    logger.warning(
+                        f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
+                    )
+                    # first copy to prevent ValueError: assignment destination is read-only
+                    pg[wb] = pg[wb].copy()
+                    pg[wb].loc[mask, "geometry"] = pg[wb][mask].buffer(0.0)
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
                     logger.warning(e)

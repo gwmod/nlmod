@@ -48,6 +48,13 @@ def get_recharge(ds, method="linear"):
         dataset with spatial model data including the rch raster
     """
 
+    if "time" not in ds:
+        raise (
+            AttributeError(
+                "'Dataset' object has no attribute 'time'. "
+                "Please run nlmod.time.set_ds_time()"
+            )
+        )
     start = pd.Timestamp(ds.time.attrs["start"])
     end = pd.Timestamp(ds.time.data[-1])
 

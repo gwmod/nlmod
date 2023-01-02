@@ -85,5 +85,8 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
+# add a logo
+html_logo = 'logo_10000_2.png'
+
 # Allow errors in notebooks, so we can see the error online
 nbsphinx_allow_errors = True

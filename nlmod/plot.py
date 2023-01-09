@@ -532,7 +532,7 @@ def _list_contextily_providers():
     return providers
 
 
-def add_background_map(ax, crs=28992, map_provider="OpenStreetMap.Mapnik", **kwargs):
+def add_background_map(ax, crs=28992, map_provider="nlmaps.standaard", **kwargs):
     """Add background map to axes using contextily.
 
     Parameters
@@ -541,7 +541,7 @@ def add_background_map(ax, crs=28992, map_provider="OpenStreetMap.Mapnik", **kwa
         axes to add background map to
     map_provider: str, optional
         name of map provider, see `contextily.providers` for options.
-        Default is 'OpenStreetMap.Mapnik'
+        Default is 'nlmaps.standaard'
     proj: pyproj.Proj or str, optional
         projection for background map, default is 'epsg:28992'
         (RD Amersfoort, a projection for the Netherlands)

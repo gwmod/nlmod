@@ -24,11 +24,11 @@ def surface_water(model_ds, ax=None):
     return ax
 
 
-def modelgrid(ds, ax=None, add_surface_water=False):
+def modelgrid(ds, ax=None, add_surface_water=False, **kwargs):
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
     modelgrid = modelgrid_from_ds(ds)
-    modelgrid.plot(ax=ax)
+    modelgrid.plot(ax=ax, **kwargs)
     ax.axis("scaled")
     if add_surface_water:
         surface_water(ds, ax=ax)

@@ -133,7 +133,7 @@ def to_model_ds(
         for attr in list(ds.attrs):
             del ds.attrs[attr]
 
-    # convert regis dataset to grid
+    # convert dataset to grid
     logger.info("resample layer model data to structured modelgrid")
     ds = resample.ds_to_structured_grid(
         ds, extent, delr, delc, xorigin=xorigin, yorigin=yorigin, angrot=angrot

@@ -78,7 +78,7 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
         delr = np.asarray(delr)
         delc = np.asarray(delc)
         if (delr.ndim != 1) or (delc.ndim != 1):
-            raise ValueError("excpected 1d array")
+            raise ValueError("expected 1d array")
 
         x = []
         for i, dx in enumerate(delr):

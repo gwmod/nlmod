@@ -483,7 +483,7 @@ def get_map(
         figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
     )
     if isinstance(background, bool) and background is True:
-        background = "OpenStreetMap.Mapnik"
+        background = "nlmaps.standaard"
 
     def set_ax_in_map(ax):
         ax.axis("scaled")

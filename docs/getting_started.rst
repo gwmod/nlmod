@@ -34,6 +34,7 @@ from the hydrogeological subsurface model REGIS::
     regis_ds = nlmod.read.regis.get_regis(extent)  # download REGIS data
 
 These methods are accessible through ``nlmod.read``. Supported data sources include:
+
 * REGIS, hydrogeological model (raster)
 * GeoTOP, geological model for the shallow subsurface (raster)
 * AHN, the digital elevation model (raster)

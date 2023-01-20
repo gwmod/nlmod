@@ -10,20 +10,12 @@
 Python package with functions to process, build and visualise MODFLOW models in the Netherlands. 
 
 The functions in nlmod have four main objectives:
-1. Create and adapt the temporal and spatial discretization of a MODFLOW model using an xarray Dataset. These functions are contained in `nlmod.dims`
-2. Read data from external sources, project this data on the modelgrid and add this data to an xarray Dataset. These functions are contained in `nlmod.read`
-3. Use data in an xarray Dataset to build modflow packages using flopy.  The functions for modflow 6 packages are in `nlmod.gwf`, for modpath in `nlmod.modpath`.
-4. Visualise modeldata in Python or GIS software. These functions are contained in `nlmod.plot` and `nlmod.gis`.
+1. Create and adapt the temporal and spatial discretization of a MODFLOW model using an xarray Dataset (`nlmod.dims`).
+2. Download and read data from external sources, project this data on the modelgrid and add this data to an xarray Dataset (`nlmod.read`).
+3. Use data in an xarray Dataset to build modflow packages using FloPy (`nlmod.gwf` for Modflow 6 and `nlmod.modpath` for Modpath).
+4. Visualise modeldata in Python (`nlmod.plot`) or GIS software (`nlmod.gis`).
 
-External data sources that can be read are:
-- AHN, digital elevation model
-- bgt, surface water level geometries
-- Geotop, subsurface model
-- Jarkus, bathymetry
-- KNMI, precipitation and evaporation
-- REGIS, subsurface model
-- Rijkswaterstaat, surface water polygons
-- multiple waterboards, surface water level data
+More information can be found on the documentation-website: https://nlmod.readthedocs.io/.
 
 ## Installation
 

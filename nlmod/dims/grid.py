@@ -426,14 +426,15 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
 
     Parameters
     ----------
-    ds : TYPE
-        DESCRIPTION.
-    layer_ds : TYPE
-        DESCRIPTION.
+    ds : xarray.Dataset
+        dataset with model data. Can have dimension (layer, y, x) or
+        (layer, icell2d).
+    layer_ds : xarray.Dataset
+        dataset with layer data.
     method : str
-        THe method used for resampling layer_ds to the grid of ds
-    **kwargs : TYPE
-        DESCRIPTION.
+        The method used for resampling layer_ds to the grid of ds.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the fill_nan_top_botm_kh_kv-method.
 
     Returns
     -------
@@ -1331,9 +1332,9 @@ def gdf_to_grid(
             shpn = shp.copy()
             shpn["cellid"] = r["cellids"][i]
             shpn[geometry] = r["ixshapes"][i]
-            if shp[geometry].type == "LineString":
+            if shp[geometry].geom_type == "LineString":
                 shpn["length"] = r["lengths"][i]
-            elif shp[geometry].type == "Polygon":
+            elif shp[geometry].geom_type == "Polygon":
                 shpn["area"] = r["areas"][i]
             shps.append(shpn)
     return gpd.GeoDataFrame(shps, geometry=geometry)
@@ -1542,8 +1543,8 @@ def mask_model_edge(ds, idomain):
             )
 
     elif ds.gridtype == "vertex":
-        if 'vertices' not in ds:
-            ds['vertices'] = get_vertices(ds)
+        if "vertices" not in ds:
+            ds["vertices"] = get_vertices(ds)
         polygons_grid = gis.polygons_from_model_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = util.polygon_from_extent(ds.extent).exterior

@@ -395,7 +395,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         return da
     points = np.array((da.x.data, da.y.data)).T
 
-    if ds.gridtype == "vertex":
+    if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         if len(da.dims) == 1:
             xi = list(zip(ds.x.values, ds.y.values))
             z = griddata(points, da.values, xi, method=method)

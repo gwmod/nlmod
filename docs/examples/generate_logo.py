@@ -14,6 +14,7 @@ filled = False
 n = 2
 dx = 10000
 # dx = 20000
+figsize = 5
 
 nederland["geometry"] = nederland.simplify(1000)
 
@@ -27,8 +28,8 @@ elif dx == 20000:
 else:
     raise (Exception(f"Unsupported dx: {dx}"))
 
-f, ax = nlmod.plot.get_map(extent, figsize=5, base=50000)
-nederland.plot(ax=ax, color="k")
+# f, ax = nlmod.plot.get_map(extent, figsize=figsize, base=50000)
+# nederland.plot(ax=ax, color="k")
 
 # %% generate a model dataset
 ds = nlmod.get_ds(extent, dx)
@@ -36,7 +37,7 @@ ds = nlmod.get_ds(extent, dx)
 ds = nlmod.grid.refine(ds, "logo", [(nederland, n)])
 
 # %% plot this
-f, ax = nlmod.plot.get_map(extent, figsize=5, base=50000)
+f, ax = nlmod.plot.get_map(extent, figsize=figsize, base=50000)
 nlmod.plot.data_array(ds["area"] * np.NaN, ds, edgecolor="k", clip_on=False)
 # nlmod.plot.modelgrid(ds, ax=ax)
 # modelgrid = nlmod.grid.modelgrid_from_ds(ds)
@@ -44,8 +45,12 @@ nlmod.plot.data_array(ds["area"] * np.NaN, ds, edgecolor="k", clip_on=False)
 # ax.axis(extent)
 ax.axis("off")
 
+# ax.text(50000, 550000, "nlmod", fontsize=30, ha="center", va="center")
+
 fname = f"logo_{dx}_{n}"
 if filled:
     fname = f"{fname}_filled"
+if figsize != 5:
+    fname = f"{fname}_{figsize}"
 f.savefig(os.path.join("..", "_static", f"{fname}.png"), bbox_inches="tight")
 f.savefig(os.path.join("..", "_static", f"{fname}.svg"), bbox_inches="tight")

@@ -15,15 +15,7 @@ The functions in nlmod have four main objectives:
 3. Use data in an xarray Dataset to build modflow packages using flopy.  The functions for modflow 6 packages are in `nlmod.gwf`, for modpath in `nlmod.modpath`.
 4. Visualise modeldata in Python or GIS software. These functions are contained in `nlmod.plot` and `nlmod.gis`.
 
-External data sources that can be read are:
-- AHN, digital elevation model
-- bgt, surface water level geometries
-- Geotop, subsurface model
-- Jarkus, bathymetry
-- KNMI, precipitation and evaporation
-- REGIS, subsurface model
-- Rijkswaterstaat, surface water polygons
-- multiple waterboards, surface water level data
+More information can be found on the documentation-website: https://nlmod.readthedocs.io/.
 
 ## Installation
 

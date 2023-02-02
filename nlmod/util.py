@@ -69,7 +69,7 @@ def get_exe_path(exe_name="mf6"):
         exe_path += ".exe"
 
     if not os.path.exists(exe_path):
-        logger.info(
+        logger.warning(
             f"executable {exe_path} not found, download the binaries using nlmod.util.download_mfbinaries"
         )
 

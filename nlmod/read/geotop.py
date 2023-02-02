@@ -5,19 +5,66 @@ import os
 import numpy as np
 import pandas as pd
 import xarray as xr
+import matplotlib
+import matplotlib.pyplot as plt
 
 from .. import NLMOD_DATADIR, cache
+from ..dcs import DatasetCrossSection
 
 logger = logging.getLogger(__name__)
 
 GEOTOP_URL = r"http://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
 
 
-def get_default_lithoklasse_translation_table():
-    return pd.read_csv(
+def get_lithok_props(rgb_colors=True):
+    df = pd.read_csv(
         os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
         index_col=0,
     )
+    if rgb_colors:
+        df["color"] = get_lithok_colors()
+    return df
+
+
+def get_lithok_colors():
+    colors = {
+        0: (200, 200, 200),
+        1: (157, 78, 64),
+        2: (0, 146, 0),
+        3: (194, 207, 92),
+        5: (255, 255, 0),
+        6: (243, 225, 6),
+        7: (231, 195, 22),
+        8: (216, 163, 32),
+        9: (95, 95, 255),
+    }
+    for key in colors:
+        colors[key] = tuple([x / 255 for x in colors[key]])
+    return colors
+
+
+def get_lithok_translateion():
+    lithok_translation = {
+        0: "antropogeen",
+        1: "organisch materiaal (veen)",
+        2: "klei",
+        3: "klei zandig, zandige klei en leem",
+        5: "zand fijn",
+        6: "zand midden",
+        7: "zand grof",
+        8: "grind",
+        9: "schelpen",
+    }
+    return lithok_translation
+
+
+def get_strat_props():
+    geo_eenheid_translate_df = pd.read_csv(
+        os.path.join(NLMOD_DATADIR, "geotop", "geo_eenheden.csv"),
+        index_col=0,
+        keep_default_na=False,
+    )
+    return geo_eenheid_translate_df
 
 
 @cache.cache_netcdf
@@ -50,16 +97,8 @@ def get_geotop(extent, regis_ds, regis_layer="HLc"):
     """
     geotop_ds_raw1 = get_geotop_raw_within_extent(extent, GEOTOP_URL)
 
-    litho_translate_df = pd.read_csv(
-        os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
-        index_col=0,
-    )
-
-    geo_eenheid_translate_df = pd.read_csv(
-        os.path.join(NLMOD_DATADIR, "geotop", "geo_eenheden.csv"),
-        index_col=0,
-        keep_default_na=False,
-    )
+    litho_translate_df = get_lithok_props()
+    geo_eenheid_translate_df = get_strat_props()
 
     ds = convert_geotop_to_ml_layers(
         geotop_ds_raw1,
@@ -83,7 +122,7 @@ def get_geotop(extent, regis_ds, regis_layer="HLc"):
     return ds
 
 
-def get_geotop_raw_within_extent(extent, url=GEOTOP_URL):
+def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok
     data variables.
@@ -98,23 +137,23 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL):
 
     Returns
     -------
-    geotop_ds_raw : xarray Dataset
+    gt : xarray Dataset
         slices geotop netcdf.
     """
-    geotop_ds_raw = xr.open_dataset(url)
+    gt = xr.open_dataset(url)
 
     # set x and y dimensions to cell center
     for dim in ["x", "y"]:
-        old_dim = geotop_ds_raw[dim].values
-        geotop_ds_raw[dim] = old_dim + (old_dim[1] - old_dim[0]) / 2
+        old_dim = gt[dim].values
+        gt[dim] = old_dim + (old_dim[1] - old_dim[0]) / 2
 
     # slice extent
-    geotop_ds_raw = geotop_ds_raw.sel(
-        x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3])
-    )
-    geotop_ds_raw = geotop_ds_raw[["strat", "lithok"]]
+    gt = gt.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
-    return geotop_ds_raw
+    if drop_probabilities:
+        gt = gt[["strat", "lithok"]]
+
+    return gt
 
 
 def convert_geotop_to_ml_layers(
@@ -312,20 +351,181 @@ def add_stroombanen_and_get_kh(geotop_ds_raw, top, bot, geo_names, f_anisotropy=
     return geotop_ds_mod
 
 
+def add_top_and_botm(ds):
+    """
+    Adds the top and bottom of the voxels to the geotop Dataset
+
+    This makes sure the structure of the geotop dataset is more like regis, and we can
+    use the cross-section class (DatasetCrossSection from nlmod.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The geotop-dataset.
+
+    Returns
+    -------
+    ds : xr.Dataset
+        The geotop-dataset, with added variables "top" and "botm".
+
+    """
+    # make ready for DataSetCrossSection
+    ds = ds.transpose("z", "y", "x")
+    ds = ds.sortby("z", ascending=False)
+
+    bottom = np.expand_dims(ds.z.data - 0.25, axis=(1, 2))
+    bottom = np.repeat(np.repeat(bottom, len(ds.y), 1), len(ds.x), 2)
+    bottom[np.isnan(ds.strat.data)] = np.NaN
+    ds["botm"] = ("z", "y", "x"), bottom
+
+    top = np.expand_dims(ds.z.data + 0.25, axis=(1, 2))
+    top = np.repeat(np.repeat(top, len(ds.y), 1), len(ds.x), 2)
+    top[np.isnan(ds.strat.data)] = np.NaN
+    ds["top"] = ("z", "y", "x"), top
+    return ds
+
+
+def add_kh_and_kv(
+    gt, df, stochastic=None, kh_method="arithmetic_mean", kv_method="harmonic_mean"
+):
+    if isinstance(stochastic, bool):
+        if stochastic:
+            stochastic = "linear"
+        else:
+            stochastic = None
+    if kh_method not in ["arithmetic_mean", "harmonic_mean"]:
+        raise (Exception("Unknown kh_method: {kh_method}"))
+    if kv_method not in ["arithmetic_mean", "harmonic_mean"]:
+        raise (Exception("Unknown kv_method: {kv_method}"))
+    strat = gt["strat"].data
+    msg = "Determining kh and kv of geotop-data based on lithoclass"
+    if "strat" in df:
+        msg = f"{msg} and stratigraphy"
+    logging.info(msg)
+    if "kh" not in df:
+        raise (Exception("No kh defined in df"))
+    if "kv" not in df:
+        logging.info("Setting ")
+    if stochastic is None:
+        # calculate kh and kv from most likely lithoclass
+        lithok = gt["lithok"].data
+        kh = np.full(lithok.shape, np.NaN)
+        kv = np.full(lithok.shape, np.NaN)
+        if "strat" in df:
+            combs = np.column_stack((strat.ravel(), lithok.ravel()))
+            # drop nans
+            combs = combs[~np.isnan(combs).any(1)].astype(int)
+            # get unique combinations of strat and lithok
+            combs_un = np.unique(combs, axis=0)
+            for istrat, ilithok in combs_un:
+                mask = (strat == istrat) & (lithok == ilithok)
+                kh[mask], kv[mask] = _get_kh_kv_from_df(df, ilithok, istrat)
+        else:
+            for ilithok in np.unique(lithok[~np.isnan(lithok)]):
+                mask = lithok == ilithok
+                kh[mask], kv[mask] = _get_kh_kv_from_df(df, ilithok)
+    elif stochastic == "linear":
+        strat_un = np.unique(strat[~np.isnan(strat)])
+        kh = np.full(strat.shape, 0.0)
+        kv = np.full(strat.shape, 0.0)
+        probality_total = np.full(strat.shape, 0.0)
+        for ilithok in df["lithok"].unique():
+            if ilithok == 0:
+                # there are no probabilities defined for lithoclass 'antropogeen'
+                continue
+            probality = gt[f"kans_{ilithok}"].data
+            if "strat" in df:
+                khi = np.full(strat.shape, np.NaN)
+                kvi = np.full(strat.shape, np.NaN)
+                for istrat in strat_un:
+                    mask = strat == istrat
+                    kh_sel, kv_sel = _get_kh_kv_from_df(df, ilithok, istrat)
+                    if np.isnan(kh_sel):
+                        probality[mask] = 0.0
+                    kh_sel, kv_sel = _handle_nans_in_stochastic_approach(
+                        kh_sel, kv_sel, kh_method, kv_method
+                    )
+                    khi[mask], kvi[mask] = kh_sel, kv_sel
+            else:
+                khi, kvi = _get_kh_kv_from_df(df, ilithok)
+                if np.isnan(khi):
+                    probality[:] = 0.0
+                khi, kvi = _handle_nans_in_stochastic_approach(
+                    khi, kvi, kh_method, kv_method
+                )
+            if kh_method == "arithmetic_mean":
+                kh = kh + probality * khi
+            else:
+                kh = kh + (probality / khi)
+            if kv_method == "arithmetic_mean":
+                kv = kv + probality * kvi
+            else:
+                kv = kv + (probality / kvi)
+            probality_total += probality
+        if kh_method == "arithmetic_mean":
+            kh = kh / probality_total
+        else:
+            kh = probality_total / kh
+        if kv_method == "arithmetic_mean":
+            kv = kv / probality_total
+        else:
+            kv = probality_total / kv
+    else:
+        raise (Exception(f"Unsupported value for stochastic: {stochastic}"))
+
+    dims = gt["strat"].dims
+    gt["kh"] = dims, kh
+    gt["kv"] = dims, kv
+    return gt
+
+
+def _get_kh_kv_from_df(df, ilithok, istrat=None):
+    mask = df["lithok"] == ilithok
+    if istrat is not None:
+        mask = mask & (df["strat"] == istrat)
+    if not np.any(mask):
+        logging.warning(
+            f"No conductivities found for stratigraphy-unit {istrat} and lithoclass "
+            f"{ilithok}"
+        )
+        return np.NaN, np.NaN
+
+    kh = df.loc[mask, "kh"].mean()
+    if "kv" in df:
+        kv = df.loc[mask, "kv"].mean()
+        if np.isnan(kv):
+            kv = kh
+        if np.isnan(kh):
+            kh = kv
+    else:
+        kv = kh
+
+    return kh, kv
+
+
+def _handle_nans_in_stochastic_approach(kh, kv, kh_method, kv_method):
+    if np.isnan(kh):
+        if kh_method == "arithmetic_mean":
+            kh = 0.0
+        else:
+            kh = np.inf
+    if np.isnan(kv):
+        if kv_method == "arithmetic_mean":
+            kv = 0.0
+        else:
+            kv = np.inf
+    return kh, kv
+
+
 def _add_flow_properties(
-    ds,
     gt,
     k_dict,
     kv_dict=None,
-    add_kD_and_c=False,
     stochastic=None,
     kh="kh",
     kv="kv",
-    kd="kD",
-    c="c",
 ):
-    assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
-    lithok_translation = get_default_lithoklasse_translation_table()["lithologie"]
+    lithok_translation = get_lithok_props()["lithologie"]
     if isinstance(list(k_dict)[0], str):
         lith2float = {v: k for k, v in lithok_translation.items()}
         k_dict = {lith2float[key]: float(k_dict[key]) for key in k_dict}
@@ -371,25 +571,33 @@ def _add_flow_properties(
     else:
         raise (Exception(f"Unsupported value for stochastic: {stochastic}"))
 
+
+def aggregate_to_ds(gt, ds, kh="kh", kv="kv", kd="kD", c="c", add_kD_and_c=False):
+    assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
+    msg = "Please add {} to gt-Dataset first, using add_kh_and_kv()"
+    if kh not in gt:
+        raise (Exception(msg.format(kh)))
+    if kv not in gt:
+        raise (Exception(msg.format(kv)))
     kD_ar = []
     c_ar = []
     kh_ar = []
     kv_ar = []
     for layer in ds.layer:
         top = ds["top"].loc[layer]
-        bot = ds["bottom"].loc[layer]
+        bot = ds["botm"].loc[layer]
 
-        gt_top = (gt["z"] + 0.25).broadcast_like(gt_k)
-        gt_bot = (gt["z"] - 0.25).broadcast_like(gt_k)
+        gt_top = (gt["z"] + 0.25).broadcast_like(gt[kh])
+        gt_bot = (gt["z"] - 0.25).broadcast_like(gt[kh])
         gt_top = gt_top.where(gt_top < top, top)
         gt_top = gt_top.where(gt_top > bot, bot)
         gt_bot = gt_bot.where(gt_bot < top, top)
         gt_bot = gt_bot.where(gt_bot > bot, bot)
         gt_thk = gt_top - gt_bot
         # kD is the sum of thickness multiplied by conductivity
-        kD_ar.append((gt_thk * gt_k).sum("z"))
+        kD_ar.append((gt_thk * gt[kh]).sum("z"))
         # c is the sum of thickness devided by conductivity
-        c_ar.append((gt_thk / gt_kv).sum("z"))
+        c_ar.append((gt_thk / gt[kv]).sum("z"))
         # caluclate kh and hv
         D = top - bot
         kh_ar.append(kD_ar[-1] / D)
@@ -399,3 +607,41 @@ def _add_flow_properties(
         ds[c] = xr.concat(c_ar, pd.Index(ds.layer, name="layer"))
     ds[kh] = xr.concat(kh_ar, pd.Index(ds.layer, name="layer"))
     ds[kv] = xr.concat(kv_ar, pd.Index(ds.layer, name="layer"))
+
+
+def plot_cross_section(line, gt=None, ax=None, legend=True, legend_loc=None, **kwargs):
+    if ax is None:
+        ax = plt.gca()
+
+    if gt is None:
+        # download geotop
+        x = [coord[0] for coord in line.coords]
+        y = [coord[1] for coord in line.coords]
+        extent = [min(x), max(x), min(y), max(y)]
+        gt = get_geotop_raw_within_extent(extent)
+
+    if "top" not in gt or "botm" not in gt:
+        gt = add_top_and_botm(gt)
+
+    cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
+    lithoks = gt["lithok"].data
+    lithok_un = np.unique(lithoks[~np.isnan(lithoks)])
+    array = np.full(lithoks.shape, np.NaN)
+    lithok_colors = get_lithok_props()["color"]
+    colors = []
+    for i, lithok in enumerate(lithok_un):
+        array[lithoks == lithok] = i
+        colors.append(lithok_colors[lithok])
+    cmap = matplotlib.colors.ListedColormap(colors)
+    norm = matplotlib.colors.Normalize(-0.5, np.nanmax(array) + 0.5)
+    cs.plot_array(array, norm=norm, cmap=cmap)
+    if legend:
+        # make a legend with dummy handles
+        handles = []
+        lithok_translation = get_lithok_props()["lithologie"]
+        for i, lithok in enumerate(lithok_un):
+            label = lithok_translation[lithok]
+            handles.append(matplotlib.patches.Patch(facecolor=colors[i], label=label))
+        ax.legend(handles=handles, loc=legend_loc)
+
+    return ax

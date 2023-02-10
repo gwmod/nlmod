@@ -204,10 +204,12 @@ def mpf(gwf, exe_name=None):
 
     # create mpf model
     mpf = flopy.modpath.Modpath7(
-        modelname="mp7_" + gwf.name + "_f",
+        modelname="mp7_" + gwf.name,
         flowmodel=gwf,
         exe_name=exe_name,
         model_ws=gwf.model_ws,
+        headfilename=gwf.name + '.hds',
+        budgetfilename=gwf.name + '.cbc',
         verbose=True,
     )
 

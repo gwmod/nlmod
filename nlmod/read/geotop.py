@@ -405,7 +405,7 @@ def add_kh_and_kv(
     if "kh" not in df:
         raise (Exception("No kh defined in df"))
     if "kv" not in df:
-        logging.info("Setting ")
+        logging.info("Setting kv equal to kh")
     if stochastic is None:
         # calculate kh and kv from most likely lithoclass
         lithok = gt["lithok"].data
@@ -583,9 +583,12 @@ def aggregate_to_ds(gt, ds, kh="kh", kv="kv", kd="kD", c="c", add_kD_and_c=False
     c_ar = []
     kh_ar = []
     kv_ar = []
-    for layer in ds.layer:
-        top = ds["top"].loc[layer]
-        bot = ds["botm"].loc[layer]
+    for ilay in range(len(ds.layer)):
+        if ilay == 0:
+            top = ds["top"]
+        else:
+            top = ds["botm"][ilay - 1].drop_vars("layer")
+        bot = ds["botm"][ilay].drop_vars("layer")
 
         gt_top = (gt["z"] + 0.25).broadcast_like(gt[kh])
         gt_bot = (gt["z"] - 0.25).broadcast_like(gt[kh])
@@ -599,14 +602,19 @@ def aggregate_to_ds(gt, ds, kh="kh", kv="kv", kd="kD", c="c", add_kD_and_c=False
         # c is the sum of thickness devided by conductivity
         c_ar.append((gt_thk / gt[kv]).sum("z"))
         # caluclate kh and hv
-        D = top - bot
+        d_gt = gt_top - gt_bot
+        # use only the thickness with valid kh-values
+        D = d_gt.where(~np.isnan(gt["kh"])).sum("z")
         kh_ar.append(kD_ar[-1] / D)
+        # use only the thickness with valid kv-values
+        D = d_gt.where(~np.isnan(gt["kv"])).sum("z")
         kv_ar.append(D / c_ar[-1])
     if add_kD_and_c:
-        ds[kd] = xr.concat(kD_ar, pd.Index(ds.layer, name="layer"))
-        ds[c] = xr.concat(c_ar, pd.Index(ds.layer, name="layer"))
-    ds[kh] = xr.concat(kh_ar, pd.Index(ds.layer, name="layer"))
-    ds[kv] = xr.concat(kv_ar, pd.Index(ds.layer, name="layer"))
+        ds[kd] = xr.concat(kD_ar, ds.layer)
+        ds[c] = xr.concat(c_ar, ds.layer)
+    ds[kh] = xr.concat(kh_ar, ds.layer)
+    ds[kv] = xr.concat(kv_ar, ds.layer)
+    return ds
 
 
 def plot_cross_section(line, gt=None, ax=None, legend=True, legend_loc=None, **kwargs):

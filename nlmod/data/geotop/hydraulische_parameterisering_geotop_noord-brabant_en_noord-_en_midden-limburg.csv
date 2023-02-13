@@ -1,0 +1,398 @@
+Eenheid,strat,Beschrijving,lithok,Lithoklasse,kh,kv
+AAES,1005,"Antropogene afzettingen, esdekken",1,Organisch materiaal (veen) ,0.049,0.049
+AAES,1005,"Antropogene afzettingen, esdekken",2,Klei ,0.004,0.004
+AAES,1005,"Antropogene afzettingen, esdekken",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+AAES,1005,"Antropogene afzettingen, esdekken",5,Fijn zand ,1.38654620920253,0.566129825095818
+AAES,1005,"Antropogene afzettingen, esdekken",6,Midden zand ,1.68810513168277,0.486890770458667
+AAES,1005,"Antropogene afzettingen, esdekken",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+AAES,1005,"Antropogene afzettingen, esdekken",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+AAOP,1000,"Antropogene afzettingen, opgebrachte grond",0,Antropogeen ,1.0,1.0
+BE,4080,Formatie van Beegden,1,Organisch materiaal (veen) ,0.049,0.049
+BE,4080,Formatie van Beegden,2,Klei ,3.38835745416981,0.00826310865323914
+BE,4080,Formatie van Beegden,3,"Kleiig zand, zandige klei en leem ",3.38835745416981,0.00826310865323914
+BE,4080,Formatie van Beegden,5,Fijn zand ,4.199231868,2.10646786974217
+BE,4080,Formatie van Beegden,6,Midden zand ,4.37434787002799,2.10646786974217
+BE,4080,Formatie van Beegden,7,"Grof zand, grind en schelpen ",16.0173957746441,12.1433954600592
+BE,4080,Formatie van Beegden,8,Grind (indien apart gemodelleerd) ,170.0,170.0
+BEOM,4055,"Formatie van Beegden, Laagpakket van Oost-Maarland",1,Organisch materiaal (veen) ,0.049,0.049
+BEOM,4055,"Formatie van Beegden, Laagpakket van Oost-Maarland",2,Klei ,0.119350064610401,0.00941837448093238
+BEOM,4055,"Formatie van Beegden, Laagpakket van Oost-Maarland",3,"Kleiig zand, zandige klei en leem ",0.119350064610401,0.02
+BEOM,4055,"Formatie van Beegden, Laagpakket van Oost-Maarland",5,Fijn zand ,4.199231868,3.871552231
+BEOM,4055,"Formatie van Beegden, Laagpakket van Oost-Maarland",6,Midden zand ,7.5521518,7.589237854
+BEOM,4055,"Formatie van Beegden, Laagpakket van Oost-Maarland",7,"Grof zand, grind en schelpen ",58.0,58.0
+BEOM,4055,"Formatie van Beegden, Laagpakket van Oost-Maarland",8,Grind (indien apart gemodelleerd) ,170.0,170.0
+BEOMga,6005,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",1,Organisch materiaal (veen) ,0.049,0.049
+BEOMga,6005,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",2,Klei ,0.119350064610401,0.00941837448093238
+BEOMga,6005,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",3,"Kleiig zand, zandige klei en leem ",0.119350064610401,0.02
+BEOMga,6005,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",5,Fijn zand ,4.199231868,3.871552231
+BEOMga,6005,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",6,Midden zand ,7.5521518,7.589237854
+BEOMga,6005,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",7,"Grof zand, grind en schelpen ",58.0,58.0
+BEOMga,6005,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",8,Grind (indien apart gemodelleerd) ,170.0,170.0
+BERO,4070,"Formatie van Beegden, Laag van Rosmalen",1,Organisch materiaal (veen) ,0.049,0.049
+BERO,4070,"Formatie van Beegden, Laag van Rosmalen",2,Klei ,0.000463193797377168,1.92702773432065e-05
+BERO,4070,"Formatie van Beegden, Laag van Rosmalen",3,"Kleiig zand, zandige klei en leem ",0.02,0.02
+BERO,4070,"Formatie van Beegden, Laag van Rosmalen",5,Fijn zand ,4.503260185,4.019383198
+BERO,4070,"Formatie van Beegden, Laag van Rosmalen",6,Midden zand ,9.003718377,7.589237854
+BERO,4070,"Formatie van Beegden, Laag van Rosmalen",7,"Grof zand, grind en schelpen ",29.5,29.5
+BERO,4070,"Formatie van Beegden, Laag van Rosmalen",8,Grind (indien apart gemodelleerd) ,170.0,170.0
+BEWY,4060,"Formatie van Beegden, Laag van Wijchen",1,Organisch materiaal (veen) ,0.049,0.049
+BEWY,4060,"Formatie van Beegden, Laag van Wijchen",2,Klei ,0.0100820629495191,3.16125122432287e-05
+BEWY,4060,"Formatie van Beegden, Laag van Wijchen",3,"Kleiig zand, zandige klei en leem ",0.02,0.02
+BEWY,4060,"Formatie van Beegden, Laag van Wijchen",5,Fijn zand ,2.188543727,1.726913572
+BEWY,4060,"Formatie van Beegden, Laag van Wijchen",6,Midden zand ,9.224219039,3.713409936
+BEWY,4060,"Formatie van Beegden, Laag van Wijchen",7,"Grof zand, grind en schelpen ",58.8,58.8
+BEWY,4060,"Formatie van Beegden, Laag van Wijchen",8,Grind (indien apart gemodelleerd) ,170.0,170.0
+BRVI,5180,Formatie van Breda,1,Organisch materiaal (veen) ,1.676e-05,1.676e-05
+BRVI,5180,Formatie van Breda,2,Klei ,0.855857283012776,0.146044501214838
+BRVI,5180,Formatie van Breda,3,"Kleiig zand, zandige klei en leem ",0.855857283012776,0.146044501214838
+BRVI,5180,Formatie van Breda,5,Fijn zand ,0.580559674102038,0.436189740888889
+BRVI,5180,Formatie van Breda,6,Midden zand ,2.00148995705411,1.56597672871734
+BRVI,5180,Formatie van Breda,7,"Grof zand, grind en schelpen ",24.2,24.2
+BRVI,5180,Formatie van Breda,8,Grind (indien apart gemodelleerd) ,24.2,24.2
+BX,3100,Formatie van Boxtel,1,Organisch materiaal (veen) ,0.0356754824785762,0.00426573894089705
+BX,3100,Formatie van Boxtel,2,Klei ,0.714505711729118,0.00149845913963061
+BX,3100,Formatie van Boxtel,3,"Kleiig zand, zandige klei en leem ",0.714505711729118,0.00149845913963061
+BX,3100,Formatie van Boxtel,5,Fijn zand ,0.786227576309262,0.174537220436516
+BX,3100,Formatie van Boxtel,6,Midden zand ,3.18873760998214,1.42612283412274
+BX,3100,Formatie van Boxtel,7,"Grof zand, grind en schelpen ",10.472831171925,7.5619515980503
+BX,3100,Formatie van Boxtel,8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXBS,3090,"Formatie van Boxtel, Laagpakket van Best",1,Organisch materiaal (veen) ,0.049,0.049
+BXBS,3090,"Formatie van Boxtel, Laagpakket van Best",2,Klei ,0.000689126865370383,0.000259858716460823
+BXBS,3090,"Formatie van Boxtel, Laagpakket van Best",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+BXBS,3090,"Formatie van Boxtel, Laagpakket van Best",5,Fijn zand ,0.213536660595521,0.0579000277706742
+BXBS,3090,"Formatie van Boxtel, Laagpakket van Best",6,Midden zand ,0.213536660595521,0.0579000277706742
+BXBS,3090,"Formatie van Boxtel, Laagpakket van Best",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+BXBS,3090,"Formatie van Boxtel, Laagpakket van Best",8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXDE,3040,"Formatie van Boxtel, Laagpakket van Delwijnen",1,Organisch materiaal (veen) ,0.049,0.049
+BXDE,3040,"Formatie van Boxtel, Laagpakket van Delwijnen",2,Klei ,0.004,0.004
+BXDE,3040,"Formatie van Boxtel, Laagpakket van Delwijnen",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+BXDE,3040,"Formatie van Boxtel, Laagpakket van Delwijnen",5,Fijn zand ,2.561153112,1.829919461
+BXDE,3040,"Formatie van Boxtel, Laagpakket van Delwijnen",6,Midden zand ,4.34294368871927,2.79514163741299
+BXDE,3040,"Formatie van Boxtel, Laagpakket van Delwijnen",7,"Grof zand, grind en schelpen ",18.9297498078921,18.4419595051675
+BXDE,3040,"Formatie van Boxtel, Laagpakket van Delwijnen",8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXDEKO,3045,"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk",1,Organisch materiaal (veen) ,0.049,0.049
+BXDEKO,3045,"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk",2,Klei ,0.004,0.004
+BXDEKO,3045,"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+BXDEKO,3045,"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk",5,Fijn zand ,2.561153112,1.829919461
+BXDEKO,3045,"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk",6,Midden zand ,4.34294368871927,2.79514163741299
+BXDEKO,3045,"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk",7,"Grof zand, grind en schelpen ",18.9297498078921,18.4419595051675
+BXKO,3000,"Formatie van Boxtel, Laagpakket van Kootwijk",1,Organisch materiaal (veen) ,0.049,0.049
+BXKO,3000,"Formatie van Boxtel, Laagpakket van Kootwijk",2,Klei ,0.004,0.004
+BXKO,3000,"Formatie van Boxtel, Laagpakket van Kootwijk",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+BXKO,3000,"Formatie van Boxtel, Laagpakket van Kootwijk",5,Fijn zand ,2.561153112,1.829919461
+BXKO,3000,"Formatie van Boxtel, Laagpakket van Kootwijk",6,Midden zand ,8.2442727794426,7.22089296355223
+BXKO,3000,"Formatie van Boxtel, Laagpakket van Kootwijk",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+BXKO,3000,"Formatie van Boxtel, Laagpakket van Kootwijk",8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXLM,3060,"Formatie van Boxtel, Laagpakket van Liempde",1,Organisch materiaal (veen) ,0.049,0.049
+BXLM,3060,"Formatie van Boxtel, Laagpakket van Liempde",2,Klei ,0.00628291186300714,0.000175303532389399
+BXLM,3060,"Formatie van Boxtel, Laagpakket van Liempde",3,"Kleiig zand, zandige klei en leem ",0.00628291186300714,0.004
+BXLM,3060,"Formatie van Boxtel, Laagpakket van Liempde",5,Fijn zand ,2.561153112,1.829919461
+BXLM,3060,"Formatie van Boxtel, Laagpakket van Liempde",6,Midden zand ,4.863951424,4.600268917
+BXLM,3060,"Formatie van Boxtel, Laagpakket van Liempde",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+BXLM,3060,"Formatie van Boxtel, Laagpakket van Liempde",8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXSC,3050,"Formatie van Boxtel, Laagpakket van Schimmert",1,Organisch materiaal (veen) ,0.049,0.049
+BXSC,3050,"Formatie van Boxtel, Laagpakket van Schimmert",2,Klei ,0.016,0.016
+BXSC,3050,"Formatie van Boxtel, Laagpakket van Schimmert",3,"Kleiig zand, zandige klei en leem ",0.016,0.016
+BXSC,3050,"Formatie van Boxtel, Laagpakket van Schimmert",5,Fijn zand ,2.561153112,1.829919461
+BXSC,3050,"Formatie van Boxtel, Laagpakket van Schimmert",6,Midden zand ,4.863951424,4.600268917
+BXSC,3050,"Formatie van Boxtel, Laagpakket van Schimmert",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+BXSC,3050,"Formatie van Boxtel, Laagpakket van Schimmert",8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXSI,3011,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),1,Organisch materiaal (veen) ,0.049,0.049
+BXSI,3011,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),2,Klei ,2.71972226039398,0.0866446039229639
+BXSI,3011,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),3,"Kleiig zand, zandige klei en leem ",2.71972226039398,0.0866446039229639
+BXSI,3011,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),5,Fijn zand ,2.561153112,0.801933888727038
+BXSI,3011,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),6,Midden zand ,4.70316168428883,0.801933888727038
+BXSI,3011,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+BXSI,3011,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXWI,3020,"Formatie van Boxtel, Laagpakket van Wierden",1,Organisch materiaal (veen) ,0.049,0.049
+BXWI,3020,"Formatie van Boxtel, Laagpakket van Wierden",2,Klei ,0.004,0.004
+BXWI,3020,"Formatie van Boxtel, Laagpakket van Wierden",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+BXWI,3020,"Formatie van Boxtel, Laagpakket van Wierden",5,Fijn zand ,1.38654620920253,0.566129825095818
+BXWI,3020,"Formatie van Boxtel, Laagpakket van Wierden",6,Midden zand ,1.68810513168277,0.486890770458667
+BXWI,3020,"Formatie van Boxtel, Laagpakket van Wierden",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+BXWI,3020,"Formatie van Boxtel, Laagpakket van Wierden",8,Grind (indien apart gemodelleerd) ,13.11456074,13.11456074
+BXWIKO,3025,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk",1,Organisch materiaal (veen) ,0.049,0.049
+BXWIKO,3025,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk",2,Klei ,0.004,0.004
+BXWIKO,3025,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+BXWIKO,3025,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk",5,Fijn zand ,1.38654620920253,0.566129825095818
+BXWIKO,3025,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk",6,Midden zand ,1.68810513168277,0.486890770458667
+BXWIKO,3025,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+BXWISIKO,3030,"Formatie van Boxtel, laagpakketten van Wierden, Singraven en Kootwijk",1,Organisch materiaal (veen) ,0.049,0.049
+BXWISIKO,3030,"Formatie van Boxtel, laagpakketten van Wierden, Singraven en Kootwijk",2,Klei ,0.004,0.004
+BXWISIKO,3030,"Formatie van Boxtel, laagpakketten van Wierden, Singraven en Kootwijk",3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+BXWISIKO,3030,"Formatie van Boxtel, laagpakketten van Wierden, Singraven en Kootwijk",5,Fijn zand ,1.38654620920253,0.566129825095818
+BXWISIKO,3030,"Formatie van Boxtel, laagpakketten van Wierden, Singraven en Kootwijk",6,Midden zand ,1.68810513168277,0.486890770458667
+BXWISIKO,3030,"Formatie van Boxtel, laagpakketten van Wierden, Singraven en Kootwijk",7,"Grof zand, grind en schelpen ",12.028216,10.22360777
+DR,5000,Formatie van Drente,1,Organisch materiaal (veen) ,0.049,0.049
+DR,5000,Formatie van Drente,2,Klei ,0.0046,0.0046
+DR,5000,Formatie van Drente,3,"Kleiig zand, zandige klei en leem ",0.04,0.04
+DR,5000,Formatie van Drente,5,Fijn zand ,1.948874049,1.914822689
+DR,5000,Formatie van Drente,6,Midden zand ,10.32039905,7.157790695
+DR,5000,Formatie van Drente,7,"Grof zand, grind en schelpen ",34.1,34.1
+DR,5000,Formatie van Drente,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+DRGI,5010,"Formatie van Drente, Laagpakket van Gieten",1,Organisch materiaal (veen) ,0.049,0.049
+DRGI,5010,"Formatie van Drente, Laagpakket van Gieten",2,Klei ,0.0481353087218994,0.000444466463879532
+DRGI,5010,"Formatie van Drente, Laagpakket van Gieten",3,"Kleiig zand, zandige klei en leem ",0.0481353087218994,0.000444466463879532
+DRGI,5010,"Formatie van Drente, Laagpakket van Gieten",5,Fijn zand ,0.0464733625776641,0.00134877871741091
+DRGI,5010,"Formatie van Drente, Laagpakket van Gieten",6,Midden zand ,0.0464733625776641,0.00134877871741091
+DRGI,5010,"Formatie van Drente, Laagpakket van Gieten",7,"Grof zand, grind en schelpen ",34.1,34.1
+DRGI,5010,"Formatie van Drente, Laagpakket van Gieten",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+EC1,1070,Formatie van Echteld (gedeelte boven NIHO),1,Organisch materiaal (veen) ,0.00553006545538125,6.64450166049668e-05
+EC1,1070,Formatie van Echteld (gedeelte boven NIHO),2,Klei ,0.252419401614129,9.4837952411877e-05
+EC1,1070,Formatie van Echteld (gedeelte boven NIHO),3,"Kleiig zand, zandige klei en leem ",0.252419401614129,9.4837952411877e-05
+EC1,1070,Formatie van Echteld (gedeelte boven NIHO),5,Fijn zand ,3.052346743,1.59382820196623
+EC1,1070,Formatie van Echteld (gedeelte boven NIHO),6,Midden zand ,4.70110165253667,1.59382820196623
+EC1,1070,Formatie van Echteld (gedeelte boven NIHO),7,"Grof zand, grind en schelpen ",21.2348565956226,15.0834039746289
+EC2,2010,Formatie van Echteld,1,Organisch materiaal (veen) ,0.00553006545538125,6.64450166049668e-05
+EC2,2010,Formatie van Echteld,2,Klei ,0.252419401614129,9.4837952411877e-05
+EC2,2010,Formatie van Echteld,3,"Kleiig zand, zandige klei en leem ",0.252419401614129,9.4837952411877e-05
+EC2,2010,Formatie van Echteld,5,Fijn zand ,3.052346743,1.59382820196623
+EC2,2010,Formatie van Echteld,6,Midden zand ,4.70110165253667,1.59382820196623
+EC2,2010,Formatie van Echteld,7,"Grof zand, grind en schelpen ",21.2348565956226,15.0834039746289
+EC2,2010,Formatie van Echteld,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+ECga,6000,Formatie van Echteld (geulafzettingen generatie A),1,Organisch materiaal (veen) ,0.00553006545538125,6.64450166049668e-05
+ECga,6000,Formatie van Echteld (geulafzettingen generatie A),2,Klei ,0.252419401614129,9.4837952411877e-05
+ECga,6000,Formatie van Echteld (geulafzettingen generatie A),3,"Kleiig zand, zandige klei en leem ",0.252419401614129,9.4837952411877e-05
+ECga,6000,Formatie van Echteld (geulafzettingen generatie A),5,Fijn zand ,3.052346743,1.59382820196623
+ECga,6000,Formatie van Echteld (geulafzettingen generatie A),6,Midden zand ,4.70110165253667,1.59382820196623
+ECga,6000,Formatie van Echteld (geulafzettingen generatie A),7,"Grof zand, grind en schelpen ",21.2348565956226,15.0834039746289
+ECga,6000,Formatie van Echteld (geulafzettingen generatie A),8,Grind (indien apart gemodelleerd) ,85.1,85.1
+ECgb,6100,Formatie van Echteld (geulafzettingen generatie B),1,Organisch materiaal (veen) ,0.00553006545538125,6.64450166049668e-05
+ECgb,6100,Formatie van Echteld (geulafzettingen generatie B),2,Klei ,0.252419401614129,9.4837952411877e-05
+ECgb,6100,Formatie van Echteld (geulafzettingen generatie B),3,"Kleiig zand, zandige klei en leem ",0.252419401614129,9.4837952411877e-05
+ECgb,6100,Formatie van Echteld (geulafzettingen generatie B),5,Fijn zand ,3.052346743,1.59382820196623
+ECgb,6100,Formatie van Echteld (geulafzettingen generatie B),6,Midden zand ,4.70110165253667,1.59382820196623
+ECgb,6100,Formatie van Echteld (geulafzettingen generatie B),7,"Grof zand, grind en schelpen ",21.2348565956226,15.0834039746289
+ECgb,6100,Formatie van Echteld (geulafzettingen generatie B),8,Grind (indien apart gemodelleerd) ,85.1,85.1
+ECgc,6200,Formatie van Echteld (geulafzettingen generatie C),1,Organisch materiaal (veen) ,0.00553006545538125,6.64450166049668e-05
+ECgc,6200,Formatie van Echteld (geulafzettingen generatie C),2,Klei ,0.252419401614129,9.4837952411877e-05
+ECgc,6200,Formatie van Echteld (geulafzettingen generatie C),3,"Kleiig zand, zandige klei en leem ",0.252419401614129,9.4837952411877e-05
+ECgc,6200,Formatie van Echteld (geulafzettingen generatie C),5,Fijn zand ,3.052346743,1.59382820196623
+ECgc,6200,Formatie van Echteld (geulafzettingen generatie C),6,Midden zand ,4.70110165253667,1.59382820196623
+ECgc,6200,Formatie van Echteld (geulafzettingen generatie C),7,"Grof zand, grind en schelpen ",21.2348565956226,15.0834039746289
+ECgc,6200,Formatie van Echteld (geulafzettingen generatie C),8,Grind (indien apart gemodelleerd) ,85.1,85.1
+ECgd,6300,Formatie van Echteld (geulafzettingen generatie D),1,Organisch materiaal (veen) ,0.00553006545538125,6.64450166049668e-05
+ECgd,6300,Formatie van Echteld (geulafzettingen generatie D),2,Klei ,0.252419401614129,9.4837952411877e-05
+ECgd,6300,Formatie van Echteld (geulafzettingen generatie D),3,"Kleiig zand, zandige klei en leem ",0.252419401614129,9.4837952411877e-05
+ECgd,6300,Formatie van Echteld (geulafzettingen generatie D),5,Fijn zand ,3.052346743,1.59382820196623
+ECgd,6300,Formatie van Echteld (geulafzettingen generatie D),6,Midden zand ,4.70110165253667,1.59382820196623
+ECgd,6300,Formatie van Echteld (geulafzettingen generatie D),7,"Grof zand, grind en schelpen ",21.2348565956226,15.0834039746289
+ECgd,6300,Formatie van Echteld (geulafzettingen generatie D),8,Grind (indien apart gemodelleerd) ,85.1,85.1
+ECge,6400,Formatie van Echteld (geulafzettingen generatie E),1,Organisch materiaal (veen) ,0.00553006545538125,6.64450166049668e-05
+ECge,6400,Formatie van Echteld (geulafzettingen generatie E),2,Klei ,0.252419401614129,9.4837952411877e-05
+ECge,6400,Formatie van Echteld (geulafzettingen generatie E),3,"Kleiig zand, zandige klei en leem ",0.252419401614129,9.4837952411877e-05
+ECge,6400,Formatie van Echteld (geulafzettingen generatie E),5,Fijn zand ,3.052346743,1.59382820196623
+ECge,6400,Formatie van Echteld (geulafzettingen generatie E),6,Midden zand ,4.70110165253667,1.59382820196623
+ECge,6400,Formatie van Echteld (geulafzettingen generatie E),7,"Grof zand, grind en schelpen ",21.2348565956226,15.0834039746289
+ECge,6400,Formatie van Echteld (geulafzettingen generatie E),8,Grind (indien apart gemodelleerd) ,85.1,85.1
+EE,4110,Eem Formatie,1,Organisch materiaal (veen) ,0.049,0.049
+EE,4110,Eem Formatie,2,Klei ,0.487221707794069,0.000705791252902199
+EE,4110,Eem Formatie,3,"Kleiig zand, zandige klei en leem ",0.487221707794069,0.000705791252902199
+EE,4110,Eem Formatie,5,Fijn zand ,1.26050710263219,0.50184191408328
+EE,4110,Eem Formatie,6,Midden zand ,2.95774195547431,0.111417606661094
+EE,4110,Eem Formatie,7,"Grof zand, grind en schelpen ",11.627343378729,2.96069522597118
+EE,4110,Eem Formatie,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+GE,5020,Door landijs gestuwde afzettingen,1,Organisch materiaal (veen) ,0.049,0.049
+GE,5020,Door landijs gestuwde afzettingen,2,Klei ,0.0046,0.0046
+GE,5020,Door landijs gestuwde afzettingen,3,"Kleiig zand, zandige klei en leem ",0.04,0.04
+GE,5020,Door landijs gestuwde afzettingen,5,Fijn zand ,0.95776731060603,0.585878332996511
+GE,5020,Door landijs gestuwde afzettingen,6,Midden zand ,4.93970442359087,2.05507307826362
+GE,5020,Door landijs gestuwde afzettingen,7,"Grof zand, grind en schelpen ",15.3649972719478,12.4371907751905
+GE,5020,Door landijs gestuwde afzettingen,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+IE,5160,Formatie van Inden,1,Organisch materiaal (veen) ,0.0002,0.0002
+IE,5160,Formatie van Inden,2,Klei ,0.0002,0.0002
+IE,5160,Formatie van Inden,3,"Kleiig zand, zandige klei en leem ",0.004,0.004
+IE,5160,Formatie van Inden,5,Fijn zand ,3.208843907,3.300409096
+IE,5160,Formatie van Inden,6,Midden zand ,10.10057386,8.819849757
+IE,5160,Formatie van Inden,7,"Grof zand, grind en schelpen ",45.0,22.5
+IE,5160,Formatie van Inden,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+KI,5140,Kiezeloöliet Formatie,1,Organisch materiaal (veen) ,0.0105550023884953,0.00281494679820956
+KI,5140,Kiezeloöliet Formatie,2,Klei ,0.234309831295264,0.000137912894666946
+KI,5140,Kiezeloöliet Formatie,3,"Kleiig zand, zandige klei en leem ",0.234309831295264,0.000137912894666946
+KI,5140,Kiezeloöliet Formatie,5,Fijn zand ,1.38850996078748,0.971685396884222
+KI,5140,Kiezeloöliet Formatie,6,Midden zand ,3.58090507313897,1.46242824947368
+KI,5140,Kiezeloöliet Formatie,7,"Grof zand, grind en schelpen ",17.2579481931186,12.5015884743906
+KI,5140,Kiezeloöliet Formatie,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+KR1,4010,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",1,Organisch materiaal (veen) ,0.049,0.049
+KR1,4010,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",2,Klei ,0.843439303902334,0.000535604865666857
+KR1,4010,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",3,"Kleiig zand, zandige klei en leem ",0.843439303902334,0.000535604865666857
+KR1,4010,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",5,Fijn zand ,1.08658915023622,0.639171468163399
+KR1,4010,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",6,Midden zand ,5.57690986116341,3.99595213426517
+KR1,4010,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",7,"Grof zand, grind en schelpen ",20.4783697446951,16.4548205474294
+KR1,4010,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+KRWY,4000,"Formatie van Kreftenheye, Laag van Wijchen",1,Organisch materiaal (veen) ,0.049,0.049
+KRWY,4000,"Formatie van Kreftenheye, Laag van Wijchen",2,Klei ,0.0100820629495191,3.16125122432287e-05
+KRWY,4000,"Formatie van Kreftenheye, Laag van Wijchen",3,"Kleiig zand, zandige klei en leem ",0.02,0.02
+KRWY,4000,"Formatie van Kreftenheye, Laag van Wijchen",5,Fijn zand ,2.188543727,1.726913572
+KRWY,4000,"Formatie van Kreftenheye, Laag van Wijchen",6,Midden zand ,9.224219039,3.713409936
+KRWY,4000,"Formatie van Kreftenheye, Laag van Wijchen",7,"Grof zand, grind en schelpen ",58.8,58.8
+KRWY,4000,"Formatie van Kreftenheye, Laag van Wijchen",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+KW,4090,Formatie van Koewacht,1,Organisch materiaal (veen) ,0.004314807,0.004314807
+KW,4090,Formatie van Koewacht,2,Klei ,0.000341602,0.000341602
+KW,4090,Formatie van Koewacht,3,"Kleiig zand, zandige klei en leem ",0.001297475,0.001297475
+KW,4090,Formatie van Koewacht,5,Fijn zand ,5.487118702,3.169758874
+KW,4090,Formatie van Koewacht,6,Midden zand ,6.23606017260504,5.30699759958756
+KW,4090,Formatie van Koewacht,7,"Grof zand, grind en schelpen ",15.4075775161385,14.173632558081
+KW,4090,Formatie van Koewacht,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+MS,5130,Formatie van Maassluis,1,Organisch materiaal (veen) ,0.0004,0.0004
+MS,5130,Formatie van Maassluis,2,Klei ,0.00439471950795145,7.34500096632917e-05
+MS,5130,Formatie van Maassluis,3,"Kleiig zand, zandige klei en leem ",0.00439471950795145,0.0031
+MS,5130,Formatie van Maassluis,5,Fijn zand ,1.811890286,0.787501107444944
+MS,5130,Formatie van Maassluis,6,Midden zand ,2.33256885832654,0.787501107444944
+MS,5130,Formatie van Maassluis,7,"Grof zand, grind en schelpen ",24.2,17.0
+MS,5130,Formatie van Maassluis,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NAWA2,1050,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",1,Organisch materiaal (veen) ,0.000313921445642591,6.32570035426544e-05
+NAWA2,1050,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",2,Klei ,1.63693755981648,0.0181711648775731
+NAWA2,1050,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",3,"Kleiig zand, zandige klei en leem ",1.63693755981648,0.0181711648775731
+NAWA2,1050,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",5,Fijn zand ,1.12941485466191,0.617086853314213
+NAWA2,1050,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",6,Midden zand ,4.43126523501812,2.49345250449753
+NAWA2,1050,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",7,"Grof zand, grind en schelpen ",14.8135208116406,13.7993741198054
+NAWA2,1050,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NAWAga,6010,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",1,Organisch materiaal (veen) ,0.000313921445642591,6.32570035426544e-05
+NAWAga,6010,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",2,Klei ,1.63693755981648,0.0181711648775731
+NAWAga,6010,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",3,"Kleiig zand, zandige klei en leem ",1.63693755981648,0.0181711648775731
+NAWAga,6010,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",5,Fijn zand ,1.12941485466191,0.617086853314213
+NAWAga,6010,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",6,Midden zand ,4.43126523501812,2.49345250449753
+NAWAga,6010,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",7,"Grof zand, grind en schelpen ",14.8135208116406,13.7993741198054
+NAWAga,6010,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NAWAgb,6110,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",1,Organisch materiaal (veen) ,0.000313921445642591,6.32570035426544e-05
+NAWAgb,6110,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",2,Klei ,1.63693755981648,0.0181711648775731
+NAWAgb,6110,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",3,"Kleiig zand, zandige klei en leem ",1.63693755981648,0.0181711648775731
+NAWAgb,6110,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",5,Fijn zand ,1.12941485466191,0.617086853314213
+NAWAgb,6110,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",6,Midden zand ,4.43126523501812,2.49345250449753
+NAWAgb,6110,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",7,"Grof zand, grind en schelpen ",14.8135208116406,13.7993741198054
+NAWAgb,6110,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NAWO,1100,"Formatie van Naaldwijk, Laagpakket van Wormer",1,Organisch materiaal (veen) ,0.000111560216757591,2.34759570222348e-05
+NAWO,1100,"Formatie van Naaldwijk, Laagpakket van Wormer",2,Klei ,1.63693755981648,0.0181711648775731
+NAWO,1100,"Formatie van Naaldwijk, Laagpakket van Wormer",3,"Kleiig zand, zandige klei en leem ",1.63693755981648,0.0181711648775731
+NAWO,1100,"Formatie van Naaldwijk, Laagpakket van Wormer",5,Fijn zand ,1.12941485466191,0.617086853314213
+NAWO,1100,"Formatie van Naaldwijk, Laagpakket van Wormer",6,Midden zand ,4.43126523501812,2.49345250449753
+NAWO,1100,"Formatie van Naaldwijk, Laagpakket van Wormer",7,"Grof zand, grind en schelpen ",14.8135208116406,13.7993741198054
+NAWO,1100,"Formatie van Naaldwijk, Laagpakket van Wormer",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NAWO en NAWA,-1,,1,Organisch materiaal (veen) ,0.000313921445642591,6.32570035426544e-05
+NAWO en NAWA,-1,,2,Klei ,1.63693755981648,0.0181711648775731
+NAWO en NAWA,-1,,3,"Kleiig zand, zandige klei en leem ",1.63693755981648,0.0181711648775731
+NAWO en NAWA,-1,,5,Fijn zand ,1.12941485466191,0.617086853314213
+NAWO en NAWA,-1,,6,Midden zand ,4.43126523501812,2.49345250449753
+NAWO en NAWA,-1,,7,"Grof zand, grind en schelpen ",14.8135208116406,13.7993741198054
+NIBA,1130,"Formatie van Nieuwkoop, Basisveen Laag",1,Organisch materiaal (veen) ,0.000872274537804805,0.000109995255972973
+NIBA,1130,"Formatie van Nieuwkoop, Basisveen Laag",2,Klei ,0.00291,0.00291
+NIBA,1130,"Formatie van Nieuwkoop, Basisveen Laag",3,"Kleiig zand, zandige klei en leem ",0.0314,0.0314
+NIBA,1130,"Formatie van Nieuwkoop, Basisveen Laag",5,Fijn zand ,0.00453795245970884,0.00123609885987156
+NIBA,1130,"Formatie van Nieuwkoop, Basisveen Laag",6,Midden zand ,0.00453795245970884,0.00123609885987156
+NIBA,1130,"Formatie van Nieuwkoop, Basisveen Laag",7,"Grof zand, grind en schelpen ",12.965,12.692
+NIBA,1130,"Formatie van Nieuwkoop, Basisveen Laag",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NIGR,1010,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",1,Organisch materiaal (veen) ,0.000978951986824535,0.000247176349307907
+NIGR,1010,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",2,Klei ,12.965,12.692
+NIGR,1010,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",3,"Kleiig zand, zandige klei en leem ",0.04,0.04
+NIGR,1010,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",5,Fijn zand ,1.21454638,0.788548671
+NIGR,1010,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",6,Midden zand ,4.599597206,4.570085791
+NIGR,1010,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",7,"Grof zand, grind en schelpen ",12.965,12.692
+NIGR,1010,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NIHO,1090,"Formatie van Nieuwkoop, Hollandveen Laagpakket",1,Organisch materiaal (veen) ,0.00177791246161756,0.000423475579059717
+NIHO,1090,"Formatie van Nieuwkoop, Hollandveen Laagpakket",2,Klei ,0.00349,0.00349
+NIHO,1090,"Formatie van Nieuwkoop, Hollandveen Laagpakket",3,"Kleiig zand, zandige klei en leem ",0.0525,0.0525
+NIHO,1090,"Formatie van Nieuwkoop, Hollandveen Laagpakket",5,Fijn zand ,1.21454638,0.788548671
+NIHO,1090,"Formatie van Nieuwkoop, Hollandveen Laagpakket",6,Midden zand ,4.599597206,4.570085791
+NIHO,1090,"Formatie van Nieuwkoop, Hollandveen Laagpakket",7,"Grof zand, grind en schelpen ",12.965,12.692
+NIHO,1090,"Formatie van Nieuwkoop, Hollandveen Laagpakket",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+NWNZ,1110,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",1,Organisch materiaal (veen) ,0.000111560216757591,2.34759570222348e-05
+NWNZ,1110,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",2,Klei ,1.63693755981648,0.0181711648775731
+NWNZ,1110,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",3,"Kleiig zand, zandige klei en leem ",1.63693755981648,0.0181711648775731
+NWNZ,1110,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",5,Fijn zand ,1.12941485466191,0.617086853314213
+NWNZ,1110,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",6,Midden zand ,4.43126523501812,2.49345250449753
+NWNZ,1110,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",7,"Grof zand, grind en schelpen ",14.8135208116406,13.7993741198054
+NWNZ,1110,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",8,Grind (indien apart gemodelleerd) ,85.1,85.1
+OO,5150,Formatie van Oosterhout,1,Organisch materiaal (veen) ,0.0004,0.0004
+OO,5150,Formatie van Oosterhout,2,Klei ,0.0022,0.0022
+OO,5150,Formatie van Oosterhout,3,"Kleiig zand, zandige klei en leem ",0.0057,0.0057
+OO,5150,Formatie van Oosterhout,5,Fijn zand ,1.639466128,0.788548671
+OO,5150,Formatie van Oosterhout,6,Midden zand ,3.58158293472301,3.29995892667953
+OO,5150,Formatie van Oosterhout,7,"Grof zand, grind en schelpen ",24.2,17.0
+OO,5150,Formatie van Oosterhout,9,Schelpen (indien apart gemodelleerd) ,28.71213973,28.71213973
+PZWA,5120,Formatie van Peize en Formatie van Waalre,1,Organisch materiaal (veen) ,0.00780388242132147,0.000730900641862207
+PZWA,5120,Formatie van Peize en Formatie van Waalre,2,Klei ,0.232749807668561,0.000190023853726446
+PZWA,5120,Formatie van Peize en Formatie van Waalre,3,"Kleiig zand, zandige klei en leem ",0.232749807668561,0.000190023853726446
+PZWA,5120,Formatie van Peize en Formatie van Waalre,5,Fijn zand ,0.828018956092691,0.547132934946566
+PZWA,5120,Formatie van Peize en Formatie van Waalre,6,Midden zand ,3.6444181644955,2.30087480346126
+PZWA,5120,Formatie van Peize en Formatie van Waalre,7,"Grof zand, grind en schelpen ",20.6671037276776,14.1334513799448
+PZWA,5120,Formatie van Peize en Formatie van Waalre,8,Grind (indien apart gemodelleerd) ,125.0,125.0
+ST,5070,Formatie van Sterksel,1,Organisch materiaal (veen) ,0.049,0.049
+ST,5070,Formatie van Sterksel,2,Klei ,1.25084333021367,0.000954664166489149
+ST,5070,Formatie van Sterksel,3,"Kleiig zand, zandige klei en leem ",1.25084333021367,0.000954664166489149
+ST,5070,Formatie van Sterksel,5,Fijn zand ,3.052346743,2.59356194977781
+ST,5070,Formatie van Sterksel,6,Midden zand ,4.31733764192514,2.59356194977781
+ST,5070,Formatie van Sterksel,7,"Grof zand, grind en schelpen ",20.1202208250078,15.7797847248935
+ST,5070,Formatie van Sterksel,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+SY,5090,Formatie van Stramproy,1,Organisch materiaal (veen) ,0.049,0.049
+SY,5090,Formatie van Stramproy,2,Klei ,0.0715513108765599,4.36952536398173e-05
+SY,5090,Formatie van Stramproy,3,"Kleiig zand, zandige klei en leem ",0.0715513108765599,4.36952536398173e-05
+SY,5090,Formatie van Stramproy,5,Fijn zand ,0.892279176179738,0.210018995244024
+SY,5090,Formatie van Stramproy,6,Midden zand ,2.93646706077295,0.87702431206029
+SY,5090,Formatie van Stramproy,7,"Grof zand, grind en schelpen ",7.1075858268199,4.8872136781634
+SY,5090,Formatie van Stramproy,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+UR2,5060,Formatie van Urk,1,Organisch materiaal (veen) ,0.049,0.049
+UR2,5060,Formatie van Urk,2,Klei ,0.0046,0.0046
+UR2,5060,Formatie van Urk,3,"Kleiig zand, zandige klei en leem ",0.04,0.04
+UR2,5060,Formatie van Urk,5,Fijn zand ,0.95776731060603,0.585878332996511
+UR2,5060,Formatie van Urk,6,Midden zand ,4.93970442359087,2.05507307826362
+UR2,5060,Formatie van Urk,7,"Grof zand, grind en schelpen ",15.3649972719478,12.4371907751905
+UR2,5060,Formatie van Urk,8,Grind (indien apart gemodelleerd) ,85.1,85.1
+WA,5110,Formatie van Waalre,1,Organisch materiaal (veen) ,0.00780388242132147,0.000730900641862207
+WA,5110,Formatie van Waalre,2,Klei ,0.232749807668561,0.000190023853726446
+WA,5110,Formatie van Waalre,3,"Kleiig zand, zandige klei en leem ",0.232749807668561,0.000190023853726446
+WA,5110,Formatie van Waalre,5,Fijn zand ,0.828018956092691,0.547132934946566
+WA,5110,Formatie van Waalre,6,Midden zand ,3.6444181644955,2.30087480346126
+WA,5110,Formatie van Waalre,7,"Grof zand, grind en schelpen ",20.6671037276776,14.1334513799448
+WA,5110,Formatie van Waalre,8,Grind (indien apart gemodelleerd) ,125.0,125.0
+USER INPUT,999,Default waarde als stratigrafische eenheid niet voorkomt in tabel,1,Organisch materiaal (veen) ,0.05,0.05
+USER INPUT,999,Default waarde als stratigrafische eenheid niet voorkomt in tabel,2,Klei ,0.005,0.005
+USER INPUT,999,Default waarde als stratigrafische eenheid niet voorkomt in tabel,3,"Kleiig zand, zandige klei en leem ",0.02,0.02
+USER INPUT,999,Default waarde als stratigrafische eenheid niet voorkomt in tabel,5,Fijn zand ,2.5,2.0
+USER INPUT,999,Default waarde als stratigrafische eenheid niet voorkomt in tabel,6,Midden zand ,5.0,5.0
+USER INPUT,999,Default waarde als stratigrafische eenheid niet voorkomt in tabel,7,"Grof zand, grind en schelpen ",25.0,20.0
+USER INPUT,999,Default waarde als stratigrafische eenheid niet voorkomt in tabel,8,Grind (indien apart gemodelleerd) ,85.0,85.0
+USER INPUT,1020,"Formatie van Naaldwijk, Laagpakket van Schoorl",1,Organisch materiaal (veen) ,0.000357318273246172,5.21233653595171e-05
+USER INPUT,1020,"Formatie van Naaldwijk, Laagpakket van Schoorl",2,Klei ,1.83482963361234,0.0192462785505905
+USER INPUT,1020,"Formatie van Naaldwijk, Laagpakket van Schoorl",3,"Kleiig zand, zandige klei en leem ",1.83482963361234,0.0192462785505905
+USER INPUT,1020,"Formatie van Naaldwijk, Laagpakket van Schoorl",5,Fijn zand ,1.1294556370301,0.617086849079981
+USER INPUT,1020,"Formatie van Naaldwijk, Laagpakket van Schoorl",6,Midden zand ,4.31160800362966,2.593007558907
+USER INPUT,1020,"Formatie van Naaldwijk, Laagpakket van Schoorl",7,"Grof zand, grind en schelpen ",14.1905709933868,13.2256282705314
+USER INPUT,1030,"Formatie van Naaldwijk, Laagpakket van Walcheren (gedeelte boven NAZA)",1,Organisch materiaal (veen) ,0.000357318273246172,5.21233653595171e-05
+USER INPUT,1030,"Formatie van Naaldwijk, Laagpakket van Walcheren (gedeelte boven NAZA)",2,Klei ,1.83482963361234,0.0192462785505905
+USER INPUT,1030,"Formatie van Naaldwijk, Laagpakket van Walcheren (gedeelte boven NAZA)",3,"Kleiig zand, zandige klei en leem ",1.83482963361234,0.0192462785505905
+USER INPUT,1030,"Formatie van Naaldwijk, Laagpakket van Walcheren (gedeelte boven NAZA)",5,Fijn zand ,1.1294556370301,0.617086849079981
+USER INPUT,1030,"Formatie van Naaldwijk, Laagpakket van Walcheren (gedeelte boven NAZA)",6,Midden zand ,4.31160800362966,2.593007558907
+USER INPUT,1030,"Formatie van Naaldwijk, Laagpakket van Walcheren (gedeelte boven NAZA)",7,"Grof zand, grind en schelpen ",14.1905709933868,13.2256282705314
+USER INPUT,1040,"Formatie van Naaldwijk, Laagpakket van Zandvoort",1,Organisch materiaal (veen) ,0.000357318273246172,5.21233653595171e-05
+USER INPUT,1040,"Formatie van Naaldwijk, Laagpakket van Zandvoort",2,Klei ,1.83482963361234,0.0192462785505905
+USER INPUT,1040,"Formatie van Naaldwijk, Laagpakket van Zandvoort",3,"Kleiig zand, zandige klei en leem ",1.83482963361234,0.0192462785505905
+USER INPUT,1040,"Formatie van Naaldwijk, Laagpakket van Zandvoort",5,Fijn zand ,1.1294556370301,0.617086849079981
+USER INPUT,1040,"Formatie van Naaldwijk, Laagpakket van Zandvoort",6,Midden zand ,4.31160800362966,2.593007558907
+USER INPUT,1040,"Formatie van Naaldwijk, Laagpakket van Zandvoort",7,"Grof zand, grind en schelpen ",14.1905709933868,13.2256282705314
+USER INPUT,1045,"Formatie van Nieuwkoop, Laag van Nij Beets",1,Organisch materiaal (veen) ,0.000978958601296406,0.000247176350998929
+USER INPUT,1045,"Formatie van Nieuwkoop, Laag van Nij Beets",2,Klei ,1.83482963361234,0.0192462785505905
+USER INPUT,1045,"Formatie van Nieuwkoop, Laag van Nij Beets",3,"Kleiig zand, zandige klei en leem ",0.04,0.04
+USER INPUT,1045,"Formatie van Nieuwkoop, Laag van Nij Beets",5,Fijn zand ,1.21454638,0.788548671
+USER INPUT,1045,"Formatie van Nieuwkoop, Laag van Nij Beets",6,Midden zand ,4.599597206,4.570085791
+USER INPUT,1045,"Formatie van Nieuwkoop, Laag van Nij Beets",7,"Grof zand, grind en schelpen ",14.1905709933868,13.2256282705314
+USER INPUT,1080,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen",1,Organisch materiaal (veen) ,5.03053348549571e-05,1.9303508919502e-05
+USER INPUT,1080,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen",2,Klei ,1.83482963361234,0.0192462785505905
+USER INPUT,1080,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen",3,"Kleiig zand, zandige klei en leem ",1.83482963361234,0.0192462785505905
+USER INPUT,1080,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen",5,Fijn zand ,1.1294556370301,0.617086849079981
+USER INPUT,1080,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen",6,Midden zand ,4.31160800362966,2.593007558907
+USER INPUT,1080,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen",7,"Grof zand, grind en schelpen ",14.1905709933868,13.2256282705314
+USER INPUT,1120,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen",1,Organisch materiaal (veen) ,5.03053348549571e-05,1.9303508919502e-05
+USER INPUT,1120,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen",2,Klei ,1.83482963361234,0.0192462785505905
+USER INPUT,1120,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen",3,"Kleiig zand, zandige klei en leem ",1.83482963361234,0.0192462785505905
+USER INPUT,1120,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen",5,Fijn zand ,1.1294556370301,0.617086849079981
+USER INPUT,1120,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen",6,Midden zand ,4.31160800362966,2.593007558907
+USER INPUT,1120,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen",7,"Grof zand, grind en schelpen ",14.1905709933868,13.2256282705314
+USER INPUT,1130,"Formatie van Nieuwkoop, Basisveen Laag",7,"Grof zand, grind en schelpen ",14.1905709933868,13.2256282705314
+USER INPUT,2000,Formatie van Naaldwijk,1,Organisch materiaal (veen) ,0.000313921445642591,6.32570035426544e-05
+USER INPUT,2000,Formatie van Naaldwijk,2,Klei ,1.63693755981648,0.0181711648775731
+USER INPUT,2000,Formatie van Naaldwijk,3,"Kleiig zand, zandige klei en leem ",1.63693755981648,0.0181711648775731
+USER INPUT,2000,Formatie van Naaldwijk,5,Fijn zand ,1.12941485466191,0.617086853314213
+USER INPUT,2000,Formatie van Naaldwijk,6,Midden zand ,4.43126523501812,2.49345250449753
+USER INPUT,2000,Formatie van Naaldwijk,7,"Grof zand, grind en schelpen ",14.8135208116406,13.7993741198054
+USER INPUT,2000,Formatie van Naaldwijk,8,Grind (indien apart gemodelleerd) ,85.1,85.1

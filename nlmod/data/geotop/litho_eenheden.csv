@@ -1,11 +1,11 @@
-litho_code,lithologie,hor_conductance_default,color
-0,antropogeen,5,Gray
-1,veen,0.001,DarkRed
-2,klei,0.01,Green
-3,kleiig zand,0.1,DarkOliveGreen
-4,onbekend,1,None
-5,fijn zand,5,Yellow
-6,midden zand,10,GoldenRod
-7,grof zand,50,DarkGoldenRod
-8,grind,100,Orange
-9,schelpen,100,Blue
+lithok,lithologie,afkorting,kh,color
+0,antropogeen,a,5,Gray
+1,organisch materiaal (veen),v,0.001,DarkRed
+2,klei,k,0.01,Green
+3,"klei zandig, zandige klei en leem",kz,0.1,DarkOliveGreen
+4,onbekend,o,1.,None
+5,zand fijn,zf,5.,Yellow
+6,zand midden,zm,10.,GoldenRod
+7,zand grof,zg,50.,DarkGoldenRod
+8,grind,g,100.,Orange
+9,schelpen,she,100.,Blue

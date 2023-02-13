@@ -72,9 +72,7 @@ def get_combined_layer_models(
         geotop_ds = geotop.get_geotop(extent, regis_ds)
 
     if use_regis and use_geotop:
-        regis_geotop_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)
-
-        combined_ds = regis_geotop_ds
+        combined_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)
     elif use_regis:
         combined_ds = regis_ds
     else:

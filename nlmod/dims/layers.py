@@ -116,10 +116,8 @@ def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
 
     # loop over original layers
     for i in range(ds[layer].size):
-
         # check if layer should be split
         if i in split_dict:
-
             # set new top based on old top
             if top3d:
                 new_top.data[j] = ds[top].data[i]
@@ -356,7 +354,6 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
 
     # loop over original layers
     for i in range(ds.layer.size):
-
         # check whether to combine layers
         if i in np.concatenate(combine_layers):
             # get indices of layers
@@ -951,7 +948,6 @@ def fill_top_and_bottom(ds):
         else:
             # by setting the botm to the botm of the layer above
             botm[lay, mask] = botm[lay - 1, mask]
-    ds["top"].data = top
     return ds
 
 

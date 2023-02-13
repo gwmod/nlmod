@@ -27,6 +27,7 @@ def get_combined_layer_models(
     use_geotop=True,
     remove_nan_layers=True,
     geotop_layers="HLc",
+    geotop_k=None,
 ):
     """combine layer models into a single layer model.
 
@@ -53,6 +54,9 @@ def get_combined_layer_models(
         The default is True.
     geotop_layers : str or list of strings
         The regis layers to be replaced by geotop-layers
+    geotop_k : pd.DataFrame, optional
+        The DataFrame with information about kh and kv of the GeoTOP-data. This
+        DataFrame must at least contain columns 'lithok' and 'kh'.
 
     Returns
     -------
@@ -77,7 +81,7 @@ def get_combined_layer_models(
 
     if use_regis and use_geotop:
         combined_ds = add_geotop_to_regis_layers(
-            regis_ds, geotop_ds, layers=geotop_layers
+            regis_ds, geotop_ds, layers=geotop_layers, geotop_k=geotop_k
         )
 
     elif use_regis:
@@ -168,7 +172,7 @@ def get_regis(
     return ds
 
 
-def add_geotop_to_regis_layers(rg, gt, layers="HLc"):
+def add_geotop_to_regis_layers(rg, gt, layers="HLc", geotop_k=None):
     """Combine geotop and regis in such a way that the one or more layers in Regis are
     replaced by the geo_eenheden of geotop.
 
@@ -180,6 +184,9 @@ def add_geotop_to_regis_layers(rg, gt, layers="HLc"):
         geotop dataset
     layers : str or list of strings
         The regis layers to be replaced by geotop-layers
+    geotop_k : pd.DataFrame, optional
+        The DataFrame with information about kh and kv of the GeoTOP-data. This
+        DataFrame must at least contain columns 'lithok' and 'kh'.
 
     Returns
     -------
@@ -188,10 +195,13 @@ def add_geotop_to_regis_layers(rg, gt, layers="HLc"):
     """
     if isinstance(layers, str):
         layers = [layers]
+    if geotop_k is None:
+        geotop_k = geotop.get_lithok_props()
     for layer in layers:
         # transform geotop data into layers
         gtl = geotop.convert_geotop_to_ml_layers(gt)
 
+        # only keep the part of layers inside the regis layer
         top = rg["top"].loc[layer]
         bot = rg["botm"].loc[layer]
         gtl["top"] = gtl["top"].where(gtl["top"] < top, top)
@@ -204,8 +214,7 @@ def add_geotop_to_regis_layers(rg, gt, layers="HLc"):
         gtl = gtl.sel(layer=(th > 0).any(th.dims[1:]))
 
         # add kh and kv to geotop
-        df = geotop.get_lithok_props()
-        gt = geotop.add_kh_and_kv(gt, df)
+        gt = geotop.add_kh_and_kv(gt, geotop_k)
 
         # add kh and kv from gt to gtl
         gtl = geotop.aggregate_to_ds(gt, gtl)

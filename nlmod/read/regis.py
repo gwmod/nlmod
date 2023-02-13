@@ -10,6 +10,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import cache
+from ..dims.layers import calculate_thickness
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ def get_combined_layer_models(
     use_regis=True,
     use_geotop=True,
     remove_nan_layers=True,
+    geotop_layers="HLc",
 ):
     """combine layer models into a single layer model.
 
@@ -40,7 +42,7 @@ def get_combined_layer_models(
     regis_botm_layer : binary str, optional
         regis layer that is used as the bottom of the model. This layer is
         included in the model. the Default is 'AKc' which is the bottom
-        layer of regis. call nlmod.regis.get_layer_names() to get a list of
+        layer of regis. call nlmod.read.regis.get_layer_names() to get a list of
         regis names.
     use_regis : bool, optional
         True if part of the layer model should be REGIS. The default is True.
@@ -49,6 +51,8 @@ def get_combined_layer_models(
     remove_nan_layers : bool, optional
         When True, layers which contain only NaNs for the botm array are removed.
         The default is True.
+    geotop_layers : str or list of strings
+        The regis layers to be replaced by geotop-layers
 
     Returns
     -------
@@ -69,10 +73,13 @@ def get_combined_layer_models(
         raise ValueError("layer models without REGIS not supported")
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop(extent, regis_ds)
+        geotop_ds = geotop.geotop.get_geotop_raw_within_extent(extent)
 
     if use_regis and use_geotop:
-        combined_ds = add_geotop_to_regis_hlc(regis_ds, geotop_ds)
+        combined_ds = add_geotop_to_regis_layers(
+            regis_ds, geotop_ds, layers=geotop_layers
+        )
+
     elif use_regis:
         combined_ds = regis_ds
     else:
@@ -125,6 +132,9 @@ def get_regis(
     # make sure layer names are regular strings
     ds["layer"] = ds["layer"].astype(str)
 
+    # make sure y is descending
+    ds = ds.sortby("y", ascending=False)
+
     # slice layers
     if botm_layer is not None:
         ds = ds.sel(layer=slice(botm_layer))
@@ -158,129 +168,63 @@ def get_regis(
     return ds
 
 
-def add_geotop_to_regis_hlc(regis_ds, geotop_ds, float_correction=0.001):
-    """Combine geotop and regis in such a way that the holoceen in Regis is
+def add_geotop_to_regis_layers(rg, gt, layers="HLc"):
+    """Combine geotop and regis in such a way that the one or more layers in Regis are
     replaced by the geo_eenheden of geotop.
 
     Parameters
     ----------
-    regis_ds: xarray.DataSet
+    rg : xarray.DataSet
         regis dataset
-    geotop_ds: xarray.DataSet
+    gt : xarray.DataSet
         geotop dataset
-    float_correction: float
-        due to floating point precision some floating point numbers that are
-        the same are not recognised as the same. Therefore this correction is
-        used.
+    layers : str or list of strings
+        The regis layers to be replaced by geotop-layers
 
     Returns
     -------
-    regis_geotop_ds: xr.DataSet
+    gt: xr.DataSet
         combined dataset
     """
-    regis_geotop_ds = xr.Dataset()
+    if isinstance(layers, str):
+        layers = [layers]
+    for layer in layers:
+        # transform geotop data into layers
+        gtl = geotop.convert_geotop_to_ml_layers(gt)
 
-    # find holoceen (remove all layers above Holoceen)
-    layer_no = np.where((regis_ds.layer == "HLc").values)[0][0]
-    new_layers = np.append(
-        geotop_ds.layer.data, regis_ds.layer.data[layer_no + 1 :].astype("<U8")
-    ).astype("O")
+        top = rg["top"].loc[layer]
+        bot = rg["botm"].loc[layer]
+        gtl["top"] = gtl["top"].where(gtl["top"] < top, top)
+        gtl["top"] = gtl["top"].where(gtl["top"] > bot, bot)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"] < top, top)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"] > bot, bot)
 
-    top = xr.DataArray(
-        dims=("layer", "y", "x"),
-        coords={"y": geotop_ds.y, "x": geotop_ds.x, "layer": new_layers},
-    )
-    bot = xr.DataArray(
-        dims=("layer", "y", "x"),
-        coords={"y": geotop_ds.y, "x": geotop_ds.x, "layer": new_layers},
-    )
-    kh = xr.DataArray(
-        dims=("layer", "y", "x"),
-        coords={"y": geotop_ds.y, "x": geotop_ds.x, "layer": new_layers},
-    )
-    kv = xr.DataArray(
-        dims=("layer", "y", "x"),
-        coords={"y": geotop_ds.y, "x": geotop_ds.x, "layer": new_layers},
-    )
+        # drop layers with a remaining thickness of 0 (or NaN) everywhere
+        th = calculate_thickness(gtl)
+        gtl = gtl.sel(layer=(th > 0).any(th.dims[1:]))
 
-    # haal overlap tussen geotop en regis weg
-    logger.info("cut geotop layer based on regis holoceen")
-    for lay in range(geotop_ds.dims["layer"]):
-        # Alle geotop cellen die onder de onderkant van het holoceen liggen worden inactief
-        mask1 = geotop_ds["top"][lay] <= (regis_ds["botm"][layer_no] - float_correction)
-        geotop_ds["top"][lay] = xr.where(mask1, np.nan, geotop_ds["top"][lay])
-        geotop_ds["botm"][lay] = xr.where(mask1, np.nan, geotop_ds["botm"][lay])
-        geotop_ds["kh"][lay] = xr.where(mask1, np.nan, geotop_ds["kh"][lay])
-        geotop_ds["kv"][lay] = xr.where(mask1, np.nan, geotop_ds["kv"][lay])
+        # add kh and kv to geotop
+        df = geotop.get_lithok_props()
+        gt = geotop.add_kh_and_kv(gt, df)
 
-        # Alle geotop cellen waarvan de bodem onder de onderkant van het holoceen ligt, krijgen als bodem de onderkant van het holoceen
-        mask2 = geotop_ds["botm"][lay] < regis_ds["botm"][layer_no]
-        geotop_ds["botm"][lay] = xr.where(
-            mask2 * (~mask1),
-            regis_ds["botm"][layer_no],
-            geotop_ds["botm"][lay],
-        )
+        # add kh and kv from gt to gtl
+        gtl = geotop.aggregate_to_ds(gt, gtl)
 
-        # Alle geotop cellen die boven de bovenkant van het holoceen liggen worden inactief
-        mask3 = geotop_ds["botm"][lay] >= (regis_ds["top"][layer_no] - float_correction)
-        geotop_ds["top"][lay] = xr.where(mask3, np.nan, geotop_ds["top"][lay])
-        geotop_ds["botm"][lay] = xr.where(mask3, np.nan, geotop_ds["botm"][lay])
-        geotop_ds["kh"][lay] = xr.where(mask3, np.nan, geotop_ds["kh"][lay])
-        geotop_ds["kv"][lay] = xr.where(mask3, np.nan, geotop_ds["kv"][lay])
-
-        # Alle geotop cellen waarvan de top boven de top van het holoceen ligt, krijgen als top het holoceen van regis
-        mask4 = geotop_ds["top"][lay] >= regis_ds["top"][layer_no]
-        geotop_ds["top"][lay] = xr.where(
-            mask4 * (~mask3), regis_ds["top"][layer_no], geotop_ds["top"][lay]
-        )
-
-        # overal waar holoceen inactief is, wordt geotop ook inactief
-        mask5 = regis_ds["botm"][layer_no].isnull()
-        geotop_ds["top"][lay] = xr.where(mask5, np.nan, geotop_ds["top"][lay])
-        geotop_ds["botm"][lay] = xr.where(mask5, np.nan, geotop_ds["botm"][lay])
-        geotop_ds["kh"][lay] = xr.where(mask5, np.nan, geotop_ds["kh"][lay])
-        geotop_ds["kv"][lay] = xr.where(mask5, np.nan, geotop_ds["kv"][lay])
-        if (mask2 * (~mask1)).sum() > 0:
-            logger.info(
-                f"regis holoceen snijdt door laag {geotop_ds.layer[lay].values}"
+        # add gtl-layers to rg-layers
+        if rg.layer.data[0] == layer:
+            layer_order = np.concatenate([gtl.layer, rg.layer])
+        elif rg.layer.data[-1] == layer:
+            layer_order = np.concatenate([rg.layer, gtl.layer])
+        else:
+            lay = np.where(rg.layer == layer)[0][0]
+            layer_order = np.concatenate(
+                [rg.layer[:lay], gtl.layer, rg.layer[lay + 1 :]]
             )
-
-    top[: len(geotop_ds.layer), :, :] = geotop_ds["top"].data
-    top[len(geotop_ds.layer) :, :, :] = regis_ds["top"].data[layer_no + 1 :]
-
-    bot[: len(geotop_ds.layer), :, :] = geotop_ds["botm"].data
-    bot[len(geotop_ds.layer) :, :, :] = regis_ds["botm"].data[layer_no + 1 :]
-
-    kh[: len(geotop_ds.layer), :, :] = geotop_ds["kh"].data
-    kh[len(geotop_ds.layer) :, :, :] = regis_ds["kh"].data[layer_no + 1 :]
-
-    kv[: len(geotop_ds.layer), :, :] = geotop_ds["kv"].data
-    kv[len(geotop_ds.layer) :, :, :] = regis_ds["kv"].data[layer_no + 1 :]
-
-    regis_geotop_ds["top"] = top
-    regis_geotop_ds["botm"] = bot
-    regis_geotop_ds["kh"] = kh
-    regis_geotop_ds["kv"] = kv
-
-    _ = [
-        regis_geotop_ds.attrs.update({key: item})
-        for key, item in regis_ds.attrs.items()
-    ]
-
-    # maak top, bot, kh en kv nan waar de laagdikte 0 is
-    mask = (regis_geotop_ds["top"] - regis_geotop_ds["botm"]) < float_correction
-    for key in ["top", "botm", "kh", "kv"]:
-        regis_geotop_ds[key] = xr.where(mask, np.nan, regis_geotop_ds[key])
-        regis_geotop_ds[key].attrs["source"] = "REGIS/geotop"
-        regis_geotop_ds[key].attrs["regis_url"] = regis_ds[key].url
-        regis_geotop_ds[key].attrs["geotop_url"] = geotop_ds[key].url
-        regis_geotop_ds[key].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
-        if key in ["top", "botm"]:
-            regis_geotop_ds[key].attrs["units"] = "mNAP"
-        elif key in ["kh", "kv"]:
-            regis_geotop_ds[key].attrs["units"] = "m/day"
-
-    return regis_geotop_ds
+        # call xr.concat with rg first, so we keep attributes of rg
+        rg = xr.concat((rg.sel(layer=rg.layer[rg.layer != layer]), gtl), "layer")
+        # we will then make sure the layer order is right
+        rg = rg.reindex({"layer": layer_order})
+    return rg
 
 
 def get_layer_names():

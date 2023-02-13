@@ -66,27 +66,14 @@ def get_kh_kv_table(kind="Brabant"):
 
 
 @cache.cache_netcdf
-def get_geotop(extent, regis_ds, regis_layer="HLc"):
+def get_geotop(extent):
     """get a model layer dataset for modflow from geotop within a certain
     extent and grid.
-
-    if regis_ds and regis_layer are defined the geotop model is only created
-    to replace this regis_layer in a regis layer model.
-
 
     Parameters
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : int or float,
-        cell size along rows, equal to dx
-    delc : int or float,
-        cell size along columns, equal to dy
-    regis_ds: xarray.DataSet
-        regis dataset used to cut geotop to the same x and y coordinates
-    regis_layer: str, optional
-        layer of regis dataset that will be filled with geotop. The default is
-        'HLc'.
 
     Returns
     -------
@@ -100,9 +87,6 @@ def get_geotop(extent, regis_ds, regis_layer="HLc"):
 
     ds = convert_geotop_to_ml_layers(
         gt,
-        regis_ds=regis_ds,
-        regis_layer=regis_layer,
-        litho_translate_df=litho_translate_df,
         geo_eenheid_translate_df=geo_eenheid_translate_df,
     )
 
@@ -160,38 +144,25 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
 
 
 def convert_geotop_to_ml_layers(
-    geotop_ds_raw1,
-    regis_ds=None,
-    regis_layer=None,
-    litho_translate_df=None,
+    geotop_ds_raw,
     geo_eenheid_translate_df=None,
     **kwargs,
 ):
     """
-    Convert geotop data to layers using the Stratography-data.
+    Convert geotop voxel data to layers using the Stratography-data.
 
-    This method does the following steps to obtain model layers based on geotop:
-
-        1. slice by regis layer (if not None)
-        2. create a layer model based on geo-eenheden. This gets the topand botm of each
-        geo-eenheid in geotop dataset.
+    It gets the top and botm of each stratographic unit in the geotop dataset.
 
     Parameters
     ----------
-    geotop_ds_raw1: xr.Dataset
-        dataset with geotop netcdf
-    regis_ds: xarray.DataSet
-        regis dataset used to cut geotop to the same x and y coördinates
-    regis_layer: str, optional
-        layer of regis dataset that will be filled with geotop
-    litho_translate_df: pandas.DataFrame
-        horizontal conductance (kh)
+    geotop_ds_raw: xr.Dataset
+        dataset with geotop voxel data
     geo_eenheid_translate_df: pandas.DataFrame
         dictionary to translate geo_eenheid to a geo name
 
     Returns
     -------
-    geotop_ds_raw: xarray.DataSet
+    geotop_ds_mod: xarray.DataSet
         geotop dataset with top and botm per geo_eenheid
 
     Note
@@ -200,18 +171,6 @@ def convert_geotop_to_ml_layers(
     occur above and/or below any other unit. Therefore these units are not added to the
     dataset, and their thickness is added to the strat-unit below the stroombaan.
     """
-
-    # stap 1
-    if (regis_ds is not None) and (regis_layer is not None):
-        logger.info(f"slice geotop with regis layer {regis_layer}")
-        top_rl = regis_ds["top"].sel(layer=regis_layer)
-        bot_rl = regis_ds["botm"].sel(layer=regis_layer)
-
-        geotop_ds_raw = geotop_ds_raw1.sel(
-            z=slice(np.floor(bot_rl.min().data), np.ceil(top_rl.max().data))
-        )
-    else:
-        geotop_ds_raw = geotop_ds_raw1
 
     # stap 2 maak een laag per geo-eenheid
     if geo_eenheid_translate_df is None:
@@ -230,10 +189,16 @@ def convert_geotop_to_ml_layers(
             1130.0,
         ]
 
-    geo_names = [
-        geo_eenheid_translate_df.loc[float(geo_eenh), "Code (lagenmodel en boringen)"]
-        for geo_eenh in geo_eenheden
-    ]
+    geo_names = []
+    for geo_eenh in geo_eenheden:
+        if float(geo_eenh) in geo_eenheid_translate_df.index:
+            code = geo_eenheid_translate_df.loc[
+                float(geo_eenh), "Code (lagenmodel en boringen)"
+            ]
+        else:
+            logger.warning(f"Unknown strat-value: {geo_eenh}")
+            code = str(geo_eenh)
+        geo_names.append(code)
 
     # fill top and bot
     shape = (len(geo_names), len(geotop_ds_raw.y), len(geotop_ds_raw.x))

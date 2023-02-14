@@ -38,18 +38,14 @@ def get_lithok_colors():
         8: (216, 163, 32),
         9: (95, 95, 255),
     }
-    for key in colors:
-        colors[key] = tuple([x / 255 for x in colors[key]])
+    colors = {key: tuple([x / 255 for x in colors[key]]) for key in colors}
     return colors
 
 
 def get_strat_props():
-    geo_eenheid_translate_df = pd.read_csv(
-        os.path.join(NLMOD_DATADIR, "geotop", "geo_eenheden.csv"),
-        index_col=0,
-        keep_default_na=False,
-    )
-    return geo_eenheid_translate_df
+    fname = os.path.join(NLMOD_DATADIR, "geotop", "geo_eenheden.csv")
+    df = pd.read_csv(fname, index_col=0, keep_default_na=False)
+    return df
 
 
 def get_kh_kv_table(kind="Brabant"):
@@ -66,7 +62,7 @@ def get_kh_kv_table(kind="Brabant"):
 
 
 @cache.cache_netcdf
-def get_geotop(extent):
+def get_geotop(extent, strat_props=None):
     """get a model layer dataset for modflow from geotop within a certain
     extent and grid.
 
@@ -74,6 +70,9 @@ def get_geotop(extent):
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
+    strat_props : pd.DataFrame, optional
+        The properties of the stratigraphic unit. Load with get_strat_props() when None.
+        The default is None.
 
     Returns
     -------
@@ -82,13 +81,10 @@ def get_geotop(extent):
     """
     gt = get_geotop_raw_within_extent(extent, GEOTOP_URL)
 
-    litho_translate_df = get_lithok_props()
-    geo_eenheid_translate_df = get_strat_props()
+    if strat_props is None:
+        strat_props = get_strat_props()
 
-    ds = convert_geotop_to_ml_layers(
-        gt,
-        geo_eenheid_translate_df=geo_eenheid_translate_df,
-    )
+    ds = convert_geotop_to_ml_layers(gt, strat_props=strat_props)
 
     ds.attrs["extent"] = extent
 
@@ -145,7 +141,7 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
 
 def convert_geotop_to_ml_layers(
     geotop_ds_raw,
-    geo_eenheid_translate_df=None,
+    strat_props=None,
     **kwargs,
 ):
     """
@@ -157,8 +153,9 @@ def convert_geotop_to_ml_layers(
     ----------
     geotop_ds_raw: xr.Dataset
         dataset with geotop voxel data
-    geo_eenheid_translate_df: pandas.DataFrame
-        dictionary to translate geo_eenheid to a geo name
+    strat_props: pandas.DataFrame
+        The properties of the stratigraphic unit. Load with get_strat_props() when None.
+        The default is None.
 
     Returns
     -------
@@ -173,8 +170,8 @@ def convert_geotop_to_ml_layers(
     """
 
     # stap 2 maak een laag per geo-eenheid
-    if geo_eenheid_translate_df is None:
-        geo_eenheid_translate_df = get_strat_props()
+    if strat_props is None:
+        strat_props = get_strat_props()
 
     # vindt alle geo-eenheden in model_extent
     geo_eenheden = np.unique(geotop_ds_raw.strat.data)
@@ -191,10 +188,8 @@ def convert_geotop_to_ml_layers(
 
     geo_names = []
     for geo_eenh in geo_eenheden:
-        if float(geo_eenh) in geo_eenheid_translate_df.index:
-            code = geo_eenheid_translate_df.loc[
-                float(geo_eenh), "Code (lagenmodel en boringen)"
-            ]
+        if float(geo_eenh) in strat_props.index:
+            code = strat_props.loc[float(geo_eenh), "Code (lagenmodel en boringen)"]
         else:
             logger.warning(f"Unknown strat-value: {geo_eenh}")
             code = str(geo_eenh)
@@ -245,7 +240,7 @@ def convert_geotop_to_ml_layers(
 
 def add_top_and_botm(ds):
     """
-    Adds the top and bottom of the voxels to the geotop Dataset
+    Add the top and bottom of the voxels to the GeoTOP Dataset.
 
     This makes sure the structure of the geotop dataset is more like regis, and we can
     use the cross-section class (DatasetCrossSection from nlmod.
@@ -289,6 +284,52 @@ def add_kh_and_kv(
     kh_df="kh",
     kv_df="kv",
 ):
+    """
+    Add kh and kv variables to the voxels of the GeoTOP Dataset.
+
+    Parameters
+    ----------
+    gt : xr.Dataset
+        The geotop dataset, at least with variable lithok.
+    df : pd.DataFrame
+        A DataFrame with .
+    stochastic : bool, str or None, optional
+        When stochastic is True or a string, use the stochastic data of GeoTOP. The only
+        supported method right now is "linear", which means kh and kv are determined
+        from a linear weighted mean of the voxels. For kh the method from kh_method is
+        used to calculate the mean. For kv the method from kv_method is used. When
+        stochastic is False or None, the stochastic data of GeoTOP is not used. The
+        default is None.
+    kh_method : str, optional
+        The method to calculate the weighted mean of kh values when stochastic is True
+        or "linear". Allowed values are "arithmetic_mean" and "harmonic_mean". The
+        default is "arithmetic_mean".
+    kv_method : str, optional
+        The method to calculate the weighted mean of kv values when stochastic is True
+        or "linear". Allowed values are "arithmetic_mean" and "harmonic_mean". The
+        default is "arithmetic_mean".
+    anisotropy : float, optional
+        THe anisotropy value used when there are no kv values in df. The default is 1.0.
+    kh : str, optional
+        THe name of the new variable with kh values in gt. The default is "kh".
+    kv : str, optional
+        THe name of the new variable with kv values in gt. The default is "kv".
+    kh_df : str, optional
+        The name of the column with kh values in df. The default is "kh".
+    kv_df : str, optional
+        THe name of the column with kv values in df. The default is "kv".
+
+    Raises
+    ------
+
+        DESCRIPTION.
+
+    Returns
+    -------
+    gt : TYPE
+        DESCRIPTION.
+
+    """
     if isinstance(stochastic, bool):
         if stochastic:
             stochastic = "linear"
@@ -300,7 +341,7 @@ def add_kh_and_kv(
         raise (Exception("Unknown kv_method: {kv_method}"))
     strat = gt["strat"].data
     msg = "Determining kh and kv of geotop-data based on lithoclass"
-    if df.index.name == "lithok" or df.index.name == "strat":
+    if df.index.name in ["lithok", "strat"]:
         df = df.reset_index()
     if "strat" in df:
         msg = f"{msg} and stratigraphy"

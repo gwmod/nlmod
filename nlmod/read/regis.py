@@ -81,7 +81,11 @@ def get_combined_layer_models(
 
     if use_regis and use_geotop:
         combined_ds = add_geotop_to_regis_layers(
-            regis_ds, geotop_ds, layers=geotop_layers, geotop_k=geotop_k
+            regis_ds,
+            geotop_ds,
+            layers=geotop_layers,
+            geotop_k=geotop_k,
+            remove_nan_layers=remove_nan_layers,
         )
 
     elif use_regis:
@@ -172,7 +176,9 @@ def get_regis(
     return ds
 
 
-def add_geotop_to_regis_layers(rg, gt, layers="HLc", geotop_k=None):
+def add_geotop_to_regis_layers(
+    rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True
+):
     """Combine geotop and regis in such a way that the one or more layers in Regis are
     replaced by the geo_eenheden of geotop.
 
@@ -187,6 +193,8 @@ def add_geotop_to_regis_layers(rg, gt, layers="HLc", geotop_k=None):
     geotop_k : pd.DataFrame, optional
         The DataFrame with information about kh and kv of the GeoTOP-data. This
         DataFrame must at least contain columns 'lithok' and 'kh'.
+    remove_nan_layers : bool, optional
+        When True, layers with only 0 or NaN thickness are removed. The default is True.
 
     Returns
     -------
@@ -209,11 +217,12 @@ def add_geotop_to_regis_layers(rg, gt, layers="HLc", geotop_k=None):
         gtl["botm"] = gtl["botm"].where(gtl["botm"] < top, top)
         gtl["botm"] = gtl["botm"].where(gtl["botm"] > bot, bot)
 
-        # drop layers with a remaining thickness of 0 (or NaN) everywhere
-        th = calculate_thickness(gtl)
-        gtl = gtl.sel(layer=(th > 0).any(th.dims[1:]))
+        if remove_nan_layers:
+            # drop layers with a remaining thickness of 0 (or NaN) everywhere
+            th = calculate_thickness(gtl)
+            gtl = gtl.sel(layer=(th > 0).any(th.dims[1:]))
 
-        # add kh and kv to geotop
+        # add kh and kv to gt
         gt = geotop.add_kh_and_kv(gt, geotop_k)
 
         # add kh and kv from gt to gtl
@@ -251,6 +260,8 @@ def get_layer_names():
 
 
 def get_legend():
+    """Get a legend (DataFrame) with the colors of REGIS-layers. These colors can
+    mainly be used in cross-sections."""
     dir_path = os.path.dirname(os.path.realpath(__file__))
     fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
     leg = pd.read_csv(

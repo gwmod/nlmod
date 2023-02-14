@@ -17,10 +17,8 @@ GEOTOP_URL = r"http://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
 
 
 def get_lithok_props(rgb_colors=True):
-    df = pd.read_csv(
-        os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv"),
-        index_col=0,
-    )
+    fname = os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv")
+    df = pd.read_csv(fname, index_col=0)
     if rgb_colors:
         df["color"] = get_lithok_colors()
     return df
@@ -186,17 +184,17 @@ def convert_geotop_to_ml_layers(
             1130.0,
         ]
 
-    geo_names = []
+    strat_codes = []
     for geo_eenh in geo_eenheden:
-        if float(geo_eenh) in strat_props.index:
-            code = strat_props.loc[float(geo_eenh), "Code (lagenmodel en boringen)"]
+        if geo_eenh in strat_props.index:
+            code = strat_props.at[geo_eenh, "code"]
         else:
             logger.warning(f"Unknown strat-value: {geo_eenh}")
             code = str(geo_eenh)
-        geo_names.append(code)
+        strat_codes.append(code)
 
     # fill top and bot
-    shape = (len(geo_names), len(geotop_ds_raw.y), len(geotop_ds_raw.x))
+    shape = (len(strat_codes), len(geotop_ds_raw.y), len(geotop_ds_raw.x))
     top = np.full(shape, np.nan)
     bot = np.full(shape, np.nan)
     lay = 0
@@ -220,9 +218,8 @@ def convert_geotop_to_ml_layers(
             top[lay] = bot[lay - 1]
         bot[lay] = np.where(np.isnan(bot[lay]), top[lay], bot[lay])
 
-    # geotop_ds_mod = add_stroombanen(geotop_ds_raw, top, bot, geo_names)
     dims = ("layer", "y", "x")
-    coords = {"layer": geo_names, "y": geotop_ds_raw.y, "x": geotop_ds_raw.x}
+    coords = {"layer": strat_codes, "y": geotop_ds_raw.y, "x": geotop_ds_raw.x}
     da_top = xr.DataArray(data=top, dims=dims, coords=coords)
     da_bot = xr.DataArray(data=bot, dims=dims, coords=coords)
     geotop_ds_mod = xr.Dataset()
@@ -566,7 +563,9 @@ def aggregate_to_ds(
     return ds
 
 
-def plot_cross_section(line, gt=None, ax=None, legend=True, legend_loc=None, **kwargs):
+def plot_cross_section(
+    line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, **kwargs
+):
     if ax is None:
         ax = plt.gca()
 
@@ -580,24 +579,26 @@ def plot_cross_section(line, gt=None, ax=None, legend=True, legend_loc=None, **k
     if "top" not in gt or "botm" not in gt:
         gt = add_top_and_botm(gt)
 
+    if lithok_props is None:
+        lithok_props = get_lithok_props()
+
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
     lithoks = gt["lithok"].data
     lithok_un = np.unique(lithoks[~np.isnan(lithoks)])
     array = np.full(lithoks.shape, np.NaN)
-    lithok_colors = get_lithok_props()["color"]
+
     colors = []
     for i, lithok in enumerate(lithok_un):
         array[lithoks == lithok] = i
-        colors.append(lithok_colors[lithok])
+        colors.append(lithok_props.at[lithok, "color"])
     cmap = matplotlib.colors.ListedColormap(colors)
     norm = matplotlib.colors.Normalize(-0.5, np.nanmax(array) + 0.5)
     cs.plot_array(array, norm=norm, cmap=cmap)
     if legend:
         # make a legend with dummy handles
         handles = []
-        lithok_translation = get_lithok_props()["lithologie"]
         for i, lithok in enumerate(lithok_un):
-            label = lithok_translation[lithok]
+            label = lithok_props.at[lithok, "name"]
             handles.append(matplotlib.patches.Patch(facecolor=colors[i], label=label))
         ax.legend(handles=handles, loc=legend_loc)
 

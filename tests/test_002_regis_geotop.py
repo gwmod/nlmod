@@ -53,5 +53,5 @@ def test_get_regis_geotop_keep_all_layers(
     regis_geotop_ds = regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True, remove_nan_layers=False
     )
-    assert regis_geotop_ds.dims["layer"] == 135
+    assert regis_geotop_ds.dims["layer"] == 137
     return regis_geotop_ds

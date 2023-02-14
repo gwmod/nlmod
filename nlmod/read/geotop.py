@@ -386,10 +386,15 @@ def add_kh_and_kv(
                 continue
             probality = gt[f"kans_{ilithok}"].data
             if "strat" in df:
-                khi = np.full(strat.shape, np.NaN)
-                kvi = np.full(strat.shape, np.NaN)
+                khi, kvi = _handle_nans_in_stochastic_approach(
+                    np.NaN, np.NaN, kh_method, kv_method
+                )
+                khi = np.full(strat.shape, khi)
+                kvi = np.full(strat.shape, kvi)
                 for istrat in strat_un:
                     mask = (strat == istrat) & (probality > 0)
+                    if not mask.any():
+                        continue
                     kh_sel, kv_sel = _get_kh_kv_from_df(
                         df, ilithok, istrat, anisotropy=anisotropy, mask=mask
                     )

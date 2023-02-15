@@ -5,11 +5,8 @@ import os
 import numpy as np
 import pandas as pd
 import xarray as xr
-import matplotlib
-import matplotlib.pyplot as plt
 
 from .. import NLMOD_DATADIR, cache
-from ..dcs import DatasetCrossSection
 
 logger = logging.getLogger(__name__)
 
@@ -561,45 +558,3 @@ def aggregate_to_ds(
     ds[kh] = xr.concat(kh_ar, ds.layer)
     ds[kv] = xr.concat(kv_ar, ds.layer)
     return ds
-
-
-def plot_cross_section(
-    line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, **kwargs
-):
-    if ax is None:
-        ax = plt.gca()
-
-    if gt is None:
-        # download geotop
-        x = [coord[0] for coord in line.coords]
-        y = [coord[1] for coord in line.coords]
-        extent = [min(x), max(x), min(y), max(y)]
-        gt = get_geotop_raw_within_extent(extent)
-
-    if "top" not in gt or "botm" not in gt:
-        gt = add_top_and_botm(gt)
-
-    if lithok_props is None:
-        lithok_props = get_lithok_props()
-
-    cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
-    lithoks = gt["lithok"].data
-    lithok_un = np.unique(lithoks[~np.isnan(lithoks)])
-    array = np.full(lithoks.shape, np.NaN)
-
-    colors = []
-    for i, lithok in enumerate(lithok_un):
-        array[lithoks == lithok] = i
-        colors.append(lithok_props.at[lithok, "color"])
-    cmap = matplotlib.colors.ListedColormap(colors)
-    norm = matplotlib.colors.Normalize(-0.5, np.nanmax(array) + 0.5)
-    cs.plot_array(array, norm=norm, cmap=cmap)
-    if legend:
-        # make a legend with dummy handles
-        handles = []
-        for i, lithok in enumerate(lithok_un):
-            label = lithok_props.at[lithok, "name"]
-            handles.append(matplotlib.patches.Patch(facecolor=colors[i], label=label))
-        ax.legend(handles=handles, loc=legend_loc)
-
-    return ax

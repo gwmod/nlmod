@@ -502,9 +502,7 @@ def add_info_to_gdf(
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
-        s = STRtree(gdf_from.geometry)
+    s = STRtree(gdf_from.geometry)
     for index in tqdm(gdf_to.index, desc=desc, disable=silent):
         geom_to = gdf_to.geometry[index]
         inds = s.query(geom_to)

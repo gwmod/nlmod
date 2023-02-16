@@ -1,5 +1,6 @@
-Nummer (voxelmode),Code (lagenmodel en boringen),Naam
+strat,code,name
 1000,AAOP,Antropogene afzettingen
+1005,AAES,"Antropogene afzettingen, esdekken"
 1010,NIGR,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen"
 1020,NASC,"Formatie van Naaldwijk, Laagpakket van Schoorl"
 1030,ONAWA,"Formatie van Naaldwijk, Laagpakket van
@@ -22,7 +23,9 @@ Wormer en Zandvoort (gecombineerde eenheid in modelgebied Zeeland)"
 2030,KK,Kreekrak Formatie
 3000,BXKO,"Formatie van Boxtel, Laagpakket van Kootwijk"
 3010,BXSI,"Formatie van Boxtel, Laagpakket van Singraven"
+3011,BXSI,"Formatie van Boxtel Laagpakket van Singraven (bovenste deel)"
 3020,BXWI,"Formatie van Boxtel, Laagpakket van Wierden"
+3025,BXWIKO,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk"
 3030,BXWISIKO,"Formatie van Boxtel, Laagpakketten van Wierden, Singraven en Kootwijk"
 3040,BXDE,"Formatie van Boxtel, Laagpakket van Delwijnen"
 3050,BXSC,"Formatie van Boxtel, Laagpakket van Schimmert"

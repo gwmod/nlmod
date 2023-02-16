@@ -68,7 +68,8 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
         coordinates of ta point.
     ds : xarary dataset
         model dataset.
-    modelgrid :
+    modelgrid : StructuredGrid, VertexGrid, optional
+        A flopy grid-object
 
 
     Returns
@@ -1190,7 +1191,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     return celldata
 
 
-def gdf_to_bool_da(gdf, mfgrid, ds):
+def gdf_to_bool_da(gdf, ds):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
@@ -1199,20 +1200,18 @@ def gdf_to_bool_da(gdf, mfgrid, ds):
     ----------
     gdf : geopandas.GeoDataFrame or shapely.geometry
         shapes that will be rasterised.
-    mfgrid : flopy grid
-        model grid.
     ds : xr.DataSet
         xarray with model data
 
     Returns
     -------
     da : xr.DataArray
-        1 if polygon is in cell, 0 otherwise. Grid dimensions according to
-        ds and mfgrid.
+        1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
     """
+    modelgrid = modelgrid_from_ds(ds)
 
     # build list of gridcells
-    ix = GridIntersect(mfgrid, method="vertex")
+    ix = GridIntersect(modelgrid, method="vertex")
 
     if ds.gridtype == "structured":
         da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
@@ -1229,7 +1228,7 @@ def gdf_to_bool_da(gdf, mfgrid, ds):
     for geom in geoms:
         cids = ix.intersects(geom)["cellids"]
         if ds.gridtype == "structured":
-            ncol = mfgrid.ncol
+            ncol = modelgrid.ncol
             for cid in cids:
                 if version.parse(flopy.__version__) < version.parse("3.3.6"):
                     i, j = cid
@@ -1245,7 +1244,7 @@ def gdf_to_bool_da(gdf, mfgrid, ds):
     return da
 
 
-def gdf_to_bool_ds(ds, gdf, mfgrid, da_name):
+def gdf_to_bool_ds(gdf, ds, da_name):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1254,10 +1253,10 @@ def gdf_to_bool_ds(ds, gdf, mfgrid, da_name):
     ----------
     gdf : geopandas.GeoDataFrame
         polygon shapes with surface water.
-    mfgrid : flopy grid
-        model grid.
     ds : xr.DataSet
         xarray with model data
+    da_name : str
+        The name of the variable with boolean data in the ds_out
 
     Returns
     -------
@@ -1266,7 +1265,7 @@ def gdf_to_bool_ds(ds, gdf, mfgrid, da_name):
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
     ds_out = util.get_ds_empty(ds)
-    ds_out[da_name] = gdf_to_bool_da(gdf, mfgrid, ds)
+    ds_out[da_name] = gdf_to_bool_da(gdf, ds)
 
     return ds_out
 
@@ -1416,9 +1415,6 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
     vertices_arr : numpy array
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
-
-    # obtain
-
     if modelgrid is None:
         modelgrid = modelgrid_from_ds(ds, rotated=rotated)
     xvert = modelgrid.xvertices
@@ -1449,7 +1445,7 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
     return vertices_arr
 
 
-def get_vertices(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
+def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
     """get vertices of a vertex modelgrid from a ds or the modelgrid. Only
     return the 4 corners of each cell and not the corners of adjacent cells
     thus limiting the vertices per cell to 4 points.
@@ -1488,7 +1484,6 @@ def get_vertices(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
 
     vertices_arr = get_vertices_arr(
         ds,
-        modelgrid=modelgrid,
         vert_per_cid=vert_per_cid,
         epsilon=epsilon,
         rotated=rotated,

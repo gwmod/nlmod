@@ -55,9 +55,7 @@ else:
     else:
         linewidth = 1.5
     # only plot the rectangles that are partly in the netherlands
-    modelgrid = nlmod.grid.modelgrid_from_ds(ds)
-    ds["vertices"] = nlmod.grid.get_vertices(ds, modelgrid=modelgrid)
-    ds["nederland"] = nlmod.grid.gdf_to_bool_da(nederland, modelgrid, ds)
+    ds["nederland"] = nlmod.grid.gdf_to_bool_da(nederland, ds)
     gdf = nlmod.gis.vertex_da_to_gdf(ds, "nederland")
     gdf[gdf["nederland"] == 1].plot(
         edgecolor=color, facecolor="none", ax=ax, linewidth=linewidth

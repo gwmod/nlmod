@@ -7,6 +7,7 @@ from shapely.affinity import affine_transform
 from shapely.geometry import Polygon
 
 from .dims.resample import get_affine_mod_to_world
+from .dims.grid import get_vertices
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,11 @@ def polygons_from_model_ds(model_ds):
         ]
 
     elif model_ds.gridtype == "vertex":
-        polygons = [Polygon(vertices) for vertices in model_ds["vertices"].values]
+        if "vertices" in model_ds:
+            vertices = model_ds["vertices"].values
+        else:
+            vertices = get_vertices(model_ds)
+        polygons = [Polygon(v) for v in vertices]
     else:
         raise ValueError(
             f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"

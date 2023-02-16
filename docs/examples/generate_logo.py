@@ -5,23 +5,22 @@ Created on Fri Dec 23 20:40:21 2022
 @author: ruben
 """
 import os
-import numpy as np
 import nlmod
-import flopy
 import art_tools
-import xarray as xr
+import matplotlib.pyplot as plt
 
-nederland = art_tools.shapes.nederland()
 filled = False
 n = 2
 dx = 10_000
 # dx = 20000
-figsize = 5
+figwidth = 5
 
+nederland = art_tools.shapes.nederland()
 nederland["geometry"] = nederland.simplify(1000)
 
+refine = nederland.copy()
 if not filled:
-    nederland["geometry"] = nederland.boundary
+    refine["geometry"] = refine.boundary
 
 if dx == 10000:
     extent = [0, 290000, 295000, 625000]
@@ -35,21 +34,35 @@ else:
 
 # %% generate a model dataset
 ds = nlmod.get_ds(extent, dx)
+ds = nlmod.grid.refine(ds, "logo", [(refine, n)])
 
-ds = nlmod.grid.refine(ds, "logo", [(nederland, n)])
+# %% plot the logo
+figheight = figwidth * (extent[3] - extent[2]) / (extent[1] - extent[0])
+f = plt.figure(figsize=(figwidth, figheight))
+ax = f.add_axes([0, 0, 1, 1])
+ax.axis("equal")
+ax.axis(extent)
 
+# f, ax = nlmod.plot.get_map(extent, figsize=(figwidth, figsize), base=50000)
+color = "darkslategray"
+if False:
+    # filled rectangles
+    nederland.plot(facecolor=color, ax=ax, edgecolor=color)
+    nlmod.plot.modelgrid(ds, color="w", ax=ax, linewidth=1.0)
+else:
+    if figwidth < 5:
+        linewidth = 0.5
+    else:
+        linewidth = 1.5
+    # only plot the rectangles that are partly in the netherlands
+    modelgrid = nlmod.grid.modelgrid_from_ds(ds)
+    ds["vertices"] = nlmod.grid.get_vertices(ds, modelgrid=modelgrid)
+    ds["nederland"] = nlmod.grid.gdf_to_bool_da(nederland, modelgrid, ds)
+    gdf = nlmod.gis.vertex_da_to_gdf(ds, "nederland")
+    gdf[gdf["nederland"] == 1].plot(
+        edgecolor=color, facecolor="none", ax=ax, linewidth=linewidth
+    )
 
-nl2 = art_tools.shapes.nederland()
-ix = flopy.utils.GridIntersect(nlmod.grid.modelgrid_from_ds(ds), method="vertex")
-r = ix.intersect(nl2.geometry.iloc[0])
-in_nl = xr.ones_like(ds["top"])
-in_nl.data[r["cellids"].astype(int)] = np.nan
-
-
-# %% plot this
-f, ax = nlmod.plot.get_map(extent, figsize=5, base=50000)
-nederland.plot(facecolor="k", ax=ax, edgecolor="k")
-nlmod.plot.modelgrid(ds, color="w", ax=ax, linewidth=1.0)
 # nlmod.plot.data_array(in_nl, ds=ds, ax=ax, cmap="RdBu")
 # nlmod.plot.data_array(ds["area"] * np.NaN, ds, edgecolor="k", clip_on=False)  # light plot
 ax.set_xlabel("")
@@ -60,11 +73,13 @@ ax.axis("off")
 # ax.text(50000, 550000, "nlmod", fontsize=30, ha="center", va="center")
 
 fname = f"logo_{dx}_{n}"
+dpi = 150
 if filled:
     fname = f"{fname}_filled"
-if figsize != 5:
-    fname = f"{fname}_{figsize}"
-f.savefig(os.path.join("..", "_static", f"{fname}.png"), bbox_inches="tight", dpi=150)
-f.savefig(os.path.join("..", "_static", f"{fname}.svg"), bbox_inches="tight")
+if figwidth != 5:
+    fname = f"{fname}_{figwidth}"
+    dpi = None
+f.savefig(os.path.join("..", "_static", f"{fname}.png"), dpi=dpi)
+f.savefig(os.path.join("..", "_static", f"{fname}.svg"))
 
 # %%

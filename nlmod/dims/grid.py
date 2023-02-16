@@ -21,17 +21,19 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 from shapely.strtree import STRtree
+from shapely.affinity import affine_transform
 from tqdm import tqdm
 
-from .. import cache, util, gis
+from .. import cache, util
 from .base import extrapolate_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
     get_affine_world_to_mod,
+    get_affine_mod_to_world,
     structured_da_to_ds,
 )
 
@@ -1540,7 +1542,7 @@ def mask_model_edge(ds, idomain):
     elif ds.gridtype == "vertex":
         if "vertices" not in ds:
             ds["vertices"] = get_vertices(ds)
-        polygons_grid = gis.polygons_from_model_ds(ds)
+        polygons_grid = polygons_from_model_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = util.polygon_from_extent(ds.extent).exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
@@ -1552,3 +1554,67 @@ def mask_model_edge(ds, idomain):
             ds_out["edge_mask"].loc[lay, cids_edge] = 1
 
     return ds_out
+
+
+def polygons_from_model_ds(model_ds):
+    """create polygons of each cell in a model dataset.
+
+    Parameters
+    ----------
+    model_ds : xr.DataSet
+        xarray with model data
+
+    Raises
+    ------
+    ValueError
+        for wrong gridtype or inconsistent grid definition.
+
+    Returns
+    -------
+    polygons : list of shapely Polygons
+        list with polygon of each raster cell.
+    """
+
+    if model_ds.gridtype == "structured":
+        # check if coördinates are consistent with delr/delc values
+        delr_x = np.unique(model_ds.x.values[1:] - model_ds.x.values[:-1])
+        delc_y = np.unique(model_ds.y.values[:-1] - model_ds.y.values[1:])
+        if not ((delr_x == model_ds.delr) and (delc_y == model_ds.delc)):
+            raise ValueError(
+                "delr and delc attributes of model_ds inconsistent "
+                "with x and y coordinates"
+            )
+
+        xmins = model_ds.x - (model_ds.delr * 0.5)
+        xmaxs = model_ds.x + (model_ds.delr * 0.5)
+        ymins = model_ds.y - (model_ds.delc * 0.5)
+        ymaxs = model_ds.y + (model_ds.delc * 0.5)
+        polygons = [
+            Polygon(
+                [
+                    (xmins[i], ymins[j]),
+                    (xmins[i], ymaxs[j]),
+                    (xmaxs[i], ymaxs[j]),
+                    (xmaxs[i], ymins[j]),
+                ]
+            )
+            for i in range(len(xmins))
+            for j in range(len(ymins))
+        ]
+
+    elif model_ds.gridtype == "vertex":
+        if "vertices" in model_ds:
+            vertices = model_ds["vertices"].values
+        else:
+            vertices = get_vertices(model_ds)
+        polygons = [Polygon(v) for v in vertices]
+    else:
+        raise ValueError(
+            f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
+        )
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        # rotate the model coordinates to real coordinates
+        affine = get_affine_mod_to_world(model_ds).to_shapely()
+        polygons = [affine_transform(polygon, affine) for polygon in polygons]
+
+    return polygons

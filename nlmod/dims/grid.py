@@ -21,17 +21,19 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 from shapely.strtree import STRtree
+from shapely.affinity import affine_transform
 from tqdm import tqdm
 
-from .. import cache, util, gis
+from .. import cache, util
 from .base import extrapolate_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
     get_affine_world_to_mod,
+    get_affine_mod_to_world,
     structured_da_to_ds,
 )
 
@@ -68,7 +70,8 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
         coordinates of ta point.
     ds : xarary dataset
         model dataset.
-    modelgrid :
+    modelgrid : StructuredGrid, VertexGrid, optional
+        A flopy grid-object
 
 
     Returns
@@ -962,74 +965,6 @@ def gdf_to_da(
     return da
 
 
-def add_info_to_gdf(
-    gdf_to,
-    gdf_from,
-    columns=None,
-    desc="",
-    silent=False,
-    min_total_overlap=0.5,
-    geom_type="Polygon",
-):
-    """Add information from gdf_from to gdf_to.
-
-    Parameters
-    ----------
-    gdf_to : TYPE
-        DESCRIPTION.
-    gdf_from : TYPE
-        DESCRIPTION.
-    columns : TYPE, optional
-        DESCRIPTION. The default is None.
-    desc : TYPE, optional
-        DESCRIPTION. The default is "".
-    silent : TYPE, optional
-        DESCRIPTION. The default is False.
-    min_total_overlap : TYPE, optional
-        DESCRIPTION. The default is 0.5.
-    geom_type : TYPE, optional
-        DESCRIPTION. The default is "Polygon".
-
-    Raises
-    ------
-
-        DESCRIPTION.
-
-    Returns
-    -------
-    gdf_to : TYPE
-        DESCRIPTION.
-    """
-
-    gdf_to = gdf_to.copy()
-    if columns is None:
-        columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
-    s = STRtree(gdf_from.geometry, items=gdf_from.index)
-    for index in tqdm(gdf_to.index, desc=desc, disable=silent):
-        geom_to = gdf_to.geometry[index]
-        inds = s.query_items(geom_to)
-        if len(inds) == 0:
-            continue
-        overlap = gdf_from.geometry[inds].intersection(geom_to)
-        if geom_type is None:
-            geom_type = overlap.geom_type.iloc[0]
-        if geom_type in ["Polygon", "MultiPolygon"]:
-            measure_org = geom_to.area
-            measure = overlap.area
-        elif geom_type in ["LineString", "MultiLineString"]:
-            measure_org = geom_to.length
-            measure = overlap.length
-        else:
-            msg = f"Unsupported geometry type: {geom_type}"
-            raise (Exception(msg))
-
-        if np.any(measure.sum() > min_total_overlap * measure_org):
-            # take the largest
-            ind = measure.idxmax()
-            gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
-    return gdf_to
-
-
 def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
     """interpolate data from a point gdf.
 
@@ -1190,7 +1125,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     return celldata
 
 
-def gdf_to_bool_da(gdf, mfgrid, ds):
+def gdf_to_bool_da(gdf, ds):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
@@ -1199,20 +1134,18 @@ def gdf_to_bool_da(gdf, mfgrid, ds):
     ----------
     gdf : geopandas.GeoDataFrame or shapely.geometry
         shapes that will be rasterised.
-    mfgrid : flopy grid
-        model grid.
     ds : xr.DataSet
         xarray with model data
 
     Returns
     -------
     da : xr.DataArray
-        1 if polygon is in cell, 0 otherwise. Grid dimensions according to
-        ds and mfgrid.
+        1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
     """
+    modelgrid = modelgrid_from_ds(ds)
 
     # build list of gridcells
-    ix = GridIntersect(mfgrid, method="vertex")
+    ix = GridIntersect(modelgrid, method="vertex")
 
     if ds.gridtype == "structured":
         da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
@@ -1229,7 +1162,7 @@ def gdf_to_bool_da(gdf, mfgrid, ds):
     for geom in geoms:
         cids = ix.intersects(geom)["cellids"]
         if ds.gridtype == "structured":
-            ncol = mfgrid.ncol
+            ncol = modelgrid.ncol
             for cid in cids:
                 if version.parse(flopy.__version__) < version.parse("3.3.6"):
                     i, j = cid
@@ -1245,7 +1178,7 @@ def gdf_to_bool_da(gdf, mfgrid, ds):
     return da
 
 
-def gdf_to_bool_ds(ds, gdf, mfgrid, da_name):
+def gdf_to_bool_ds(gdf, ds, da_name):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1254,10 +1187,10 @@ def gdf_to_bool_ds(ds, gdf, mfgrid, da_name):
     ----------
     gdf : geopandas.GeoDataFrame
         polygon shapes with surface water.
-    mfgrid : flopy grid
-        model grid.
     ds : xr.DataSet
         xarray with model data
+    da_name : str
+        The name of the variable with boolean data in the ds_out
 
     Returns
     -------
@@ -1266,7 +1199,7 @@ def gdf_to_bool_ds(ds, gdf, mfgrid, da_name):
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
     ds_out = util.get_ds_empty(ds)
-    ds_out[da_name] = gdf_to_bool_da(gdf, mfgrid, ds)
+    ds_out[da_name] = gdf_to_bool_da(gdf, ds)
 
     return ds_out
 
@@ -1416,9 +1349,6 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
     vertices_arr : numpy array
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
-
-    # obtain
-
     if modelgrid is None:
         modelgrid = modelgrid_from_ds(ds, rotated=rotated)
     xvert = modelgrid.xvertices
@@ -1449,7 +1379,7 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
     return vertices_arr
 
 
-def get_vertices(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
+def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
     """get vertices of a vertex modelgrid from a ds or the modelgrid. Only
     return the 4 corners of each cell and not the corners of adjacent cells
     thus limiting the vertices per cell to 4 points.
@@ -1488,7 +1418,6 @@ def get_vertices(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
 
     vertices_arr = get_vertices_arr(
         ds,
-        modelgrid=modelgrid,
         vert_per_cid=vert_per_cid,
         epsilon=epsilon,
         rotated=rotated,
@@ -1545,7 +1474,7 @@ def mask_model_edge(ds, idomain):
     elif ds.gridtype == "vertex":
         if "vertices" not in ds:
             ds["vertices"] = get_vertices(ds)
-        polygons_grid = gis.polygons_from_model_ds(ds)
+        polygons_grid = polygons_from_model_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = util.polygon_from_extent(ds.extent).exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
@@ -1557,3 +1486,67 @@ def mask_model_edge(ds, idomain):
             ds_out["edge_mask"].loc[lay, cids_edge] = 1
 
     return ds_out
+
+
+def polygons_from_model_ds(model_ds):
+    """create polygons of each cell in a model dataset.
+
+    Parameters
+    ----------
+    model_ds : xr.DataSet
+        xarray with model data
+
+    Raises
+    ------
+    ValueError
+        for wrong gridtype or inconsistent grid definition.
+
+    Returns
+    -------
+    polygons : list of shapely Polygons
+        list with polygon of each raster cell.
+    """
+
+    if model_ds.gridtype == "structured":
+        # check if coördinates are consistent with delr/delc values
+        delr_x = np.unique(model_ds.x.values[1:] - model_ds.x.values[:-1])
+        delc_y = np.unique(model_ds.y.values[:-1] - model_ds.y.values[1:])
+        if not ((delr_x == model_ds.delr) and (delc_y == model_ds.delc)):
+            raise ValueError(
+                "delr and delc attributes of model_ds inconsistent "
+                "with x and y coordinates"
+            )
+
+        xmins = model_ds.x - (model_ds.delr * 0.5)
+        xmaxs = model_ds.x + (model_ds.delr * 0.5)
+        ymins = model_ds.y - (model_ds.delc * 0.5)
+        ymaxs = model_ds.y + (model_ds.delc * 0.5)
+        polygons = [
+            Polygon(
+                [
+                    (xmins[i], ymins[j]),
+                    (xmins[i], ymaxs[j]),
+                    (xmaxs[i], ymaxs[j]),
+                    (xmaxs[i], ymins[j]),
+                ]
+            )
+            for i in range(len(xmins))
+            for j in range(len(ymins))
+        ]
+
+    elif model_ds.gridtype == "vertex":
+        if "vertices" in model_ds:
+            vertices = model_ds["vertices"].values
+        else:
+            vertices = get_vertices(model_ds)
+        polygons = [Polygon(v) for v in vertices]
+    else:
+        raise ValueError(
+            f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
+        )
+    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+        # rotate the model coordinates to real coordinates
+        affine = get_affine_mod_to_world(model_ds).to_shapely()
+        polygons = [affine_transform(polygon, affine) for polygon in polygons]
+
+    return polygons

@@ -6,12 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from matplotlib.collections import PatchCollection
-from matplotlib.patches import Polygon
+from matplotlib.patches import Patch, Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
+from matplotlib.colors import ListedColormap, Normalize
 
 from .dims.grid import get_vertices, modelgrid_from_ds
 from .dims.resample import get_affine_mod_to_world, get_extent
-from .read import rws
+from .read import rws, geotop
+from .dcs import DatasetCrossSection
 
 
 def surface_water(model_ds, ax=None):
@@ -61,7 +63,6 @@ def facet_plot(
     plot_bc=None,
     plot_grid=False,
 ):
-
     if arr.ndim == 4 and plot_dim == "layer":
         nplots = arr.shape[1]
     elif arr.ndim == 4 and plot_dim == "time":
@@ -641,3 +642,76 @@ def title_inside(
         bbox=bbox,
         **kwargs,
     )
+
+
+def geotop_lithok_in_cross_section(
+    line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, **kwargs
+):
+    """
+    PLot the lithoclass-data of GeoTOP in a cross-section
+
+    Parameters
+    ----------
+    line : sahpely.LineString
+        The line along which the GeoTOP data is plotted
+    gt : xr.Dataset, optional
+        The voxel-dataset from GeoTOP. It is downloaded with the method
+        nlmod.read.geaotop.get_geotop_raw_within_extent if None. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes in whcih the cross-section is plotted. Will default to the current axes
+        if None. The default is None.
+    legend : bool, optional
+        When True, add a legend to the plot with the lithology-classes. The default is
+        True.
+    legend_loc : None or str, optional
+        The location of the legend. See matplotlib documentation. The default is None.
+    lithok_props : pd.DataFrame, optional
+        A DataFrame containing the properties of the lithoclasses.
+        Will call nlmod.read.geotop.get_lithok_props() when None. The default is None.
+
+    **kwargs : dict
+        kwargs are passed onto DatasetCrossSection.
+
+    Returns
+    -------
+    cs : DatasetCrossSection
+        The instance of DatasetCrossSection that is used to plot the cross-section.
+
+    """
+    if ax is None:
+        ax = plt.gca()
+
+    if gt is None:
+        # download geotop
+        x = [coord[0] for coord in line.coords]
+        y = [coord[1] for coord in line.coords]
+        extent = [min(x), max(x), min(y), max(y)]
+        gt = geotop.get_geotop_raw_within_extent(extent)
+
+    if "top" not in gt or "botm" not in gt:
+        gt = geotop.add_top_and_botm(gt)
+
+    if lithok_props is None:
+        lithok_props = geotop.get_lithok_props()
+
+    cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
+    lithoks = gt["lithok"].data
+    lithok_un = np.unique(lithoks[~np.isnan(lithoks)])
+    array = np.full(lithoks.shape, np.NaN)
+
+    colors = []
+    for i, lithok in enumerate(lithok_un):
+        array[lithoks == lithok] = i
+        colors.append(lithok_props.at[lithok, "color"])
+    cmap = ListedColormap(colors)
+    norm = Normalize(-0.5, np.nanmax(array) + 0.5)
+    cs.plot_array(array, norm=norm, cmap=cmap)
+    if legend:
+        # make a legend with dummy handles
+        handles = []
+        for i, lithok in enumerate(lithok_un):
+            label = lithok_props.at[lithok, "name"]
+            handles.append(Patch(facecolor=colors[i], label=label))
+        ax.legend(handles=handles, loc=legend_loc)
+
+    return cs

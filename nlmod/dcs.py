@@ -31,7 +31,6 @@ class DatasetCrossSection:
         y="y",
         layer="layer",
         icell2d="icell2d",
-        epsilon=1e-8,
     ):
         if ax is None:
             ax = plt.gca()

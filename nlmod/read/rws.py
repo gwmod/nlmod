@@ -126,8 +126,7 @@ def get_northsea(ds, da_name="northsea"):
         )
     ]
 
-    modelgrid = dims.modelgrid_from_ds(ds)
-    ds_out = dims.gdf_to_bool_ds(ds, swater_zee, modelgrid, da_name)
+    ds_out = dims.gdf_to_bool_ds(swater_zee, ds, da_name)
 
     return ds_out
 

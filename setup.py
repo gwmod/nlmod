@@ -37,7 +37,7 @@ setup(
         "affine>=0.3.1",
         "geopandas",
         "owslib>=0.24.1",
-        "hydropandas>=0.3.0",
+        "hydropandas>=0.7.1",
         "shapely>=2.0.0",
         "netcdf4>=1.5.7",
         "pyshp>=2.1.3",

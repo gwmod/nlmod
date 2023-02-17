@@ -17,14 +17,14 @@ from tqdm import tqdm
 from .. import cache
 from ..dims.resample import get_extent, structured_da_to_ds
 from ..util import get_ds_empty
-from .webservices import arcrest, wcs, wfs
+from .webservices import arcrest, wcs
 
 logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
 def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
-    """Get a model dataset with ahn variable.    
+    """Get a model dataset with ahn variable.
     Parameters
     ----------
     ds : xr.Dataset
@@ -187,13 +187,28 @@ def get_ahn_from_wcs(
     return da
 
 
-def get_ahn3_tiles(extent=None, **kwargs):
-    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame."""
-    url = "https://service.pdok.nl/rws/ahn3/wfs/v1_0?service=wfs"
-    layer = "ahn3_bladindex"
-    gdf = wfs(url, layer, extent=extent, **kwargs)
+def get_ahn2_tiles(extent=None):
+    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame.
+
+    The links in the tiles are cuurently incorrect. Thereore get_ahn3_tiles is used in
+    get_ahn2 and get_ahn1, as the tiles from get_ahn3_tiles also contain information
+    about the tiles of ahn1 and ahn2
+    """
+    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN2/FeatureServer"
+    layer = 0
+    gdf = arcrest(url, layer, extent)
     if not gdf.empty:
-        gdf = gdf.set_index("bladnr")
+        gdf = gdf.set_index("Kaartblad")
+    return gdf
+
+
+def get_ahn3_tiles(extent=None):
+    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame."""
+    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN3/FeatureServer"
+    layer = 0
+    gdf = arcrest(url, layer, extent)
+    if not gdf.empty:
+        gdf = gdf.set_index("Kaartblad")
     return gdf
 
 
@@ -208,7 +223,56 @@ def get_ahn4_tiles(extent=None):
     return gdf
 
 
-def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
+def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
+    """Download AHN1.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : TYPE, optional
+        Only allowed value is 'ahn1_5m'. The default is "ahn1_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    # tiles are equal to that of ahn3
+    tiles = get_ahn3_tiles(extent)
+    da = _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
+    if as_data_array:
+        # original data is in cm. Convert the data to m, which is the unit of other ahns
+        da = da / 100
+    return da
+
+
+def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
+    """Download AHN2.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : TYPE, optional
+        Possible values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The
+        default is "ahn2_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    # tiles are equal to that of ahn3
+    tiles = get_ahn3_tiles(extent)
+    return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
+
+
+def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     """Download AHN3.
 
     Parameters
@@ -216,8 +280,8 @@ def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
     extent : list, tuple or np.array
         extent
     identifier : TYPE, optional
-        Possible values are 'DSM_50cm', 'DTM_50cm', 'DSM_5m' and 'DTM_5m'. The default
-        is "DTM_5m".
+        Possible values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and
+        'AHN3_5m_DTM'. The default is "AHN3_5m_DTM".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
 
@@ -227,30 +291,7 @@ def get_ahn3(extent, identifier="DTM_5m", as_data_array=True):
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
     tiles = get_ahn3_tiles(extent)
-    if tiles.empty:
-        raise (Exception("AHN3 has no data for requested extent"))
-    datasets = []
-    for bladnr in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
-        url = "https://ns_hwh.fundaments.nl/hwh-ahn/AHN3/"
-        if identifier == "DSM_50cm":
-            url = f"{url}DSM_50cm/R_{bladnr.upper()}.zip"
-        elif identifier == "DTM_50cm":
-            url = f"{url}DTM_50cm/M_{bladnr.upper()}.zip"
-        elif identifier == "DSM_5m":
-            url = f"{url}DSM_5m/R5_{bladnr.upper()}.zip"
-        elif identifier == "DTM_5m":
-            url = f"{url}DTM_5m/M5_{bladnr.upper()}.zip"
-        else:
-            raise (Exception(f"Unknown identifier: {identifier}"))
-        path = url.split("/")[-1].replace(".zip", ".TIF")
-        datasets.append(rasterio.open(f"zip+{url}!/{path}"))
-    memfile = MemoryFile()
-    merge.merge(datasets, dst_path=memfile)
-    if as_data_array:
-        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
-        return da
-    return memfile
+    return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
@@ -272,12 +313,19 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
     tiles = get_ahn4_tiles(extent)
+    return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
+
+
+def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
+    """Internal method to download and combine ahn-data"""
     if tiles.empty:
-        raise (Exception("AHN4 has no data for requested extent"))
+        raise (Exception(f"{identifier} has no data for requested extent"))
     datasets = []
     for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[name, identifier]
         path = url.split("/")[-1].replace(".zip", ".TIF")
+        if path.lower().endswith(".tif.tif"):
+            path = path[:-4]
         datasets.append(rasterio.open(f"zip+{url}!/{path}"))
     memfile = MemoryFile()
     merge.merge(datasets, dst_path=memfile)

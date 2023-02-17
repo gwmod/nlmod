@@ -7,7 +7,6 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Polygon
 from shapely.strtree import STRtree
-from shapely.errors import ShapelyDeprecationWarning
 from tqdm import tqdm
 
 
@@ -498,16 +497,14 @@ def add_info_to_gdf(
     min_total_overlap=0.5,
     geom_type="Polygon",
 ):
-    """"Add information from gdf_from to gdf_to."""
+    """ "Add information from gdf_from to gdf_to."""
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
-        s = STRtree(gdf_from.geometry, items=gdf_from.index)
+    s = STRtree(gdf_from.geometry)
     for index in tqdm(gdf_to.index, desc=desc, disable=silent):
         geom_to = gdf_to.geometry[index]
-        inds = s.query_items(geom_to)
+        inds = s.query(geom_to)
         if len(inds) == 0:
             continue
         overlap = gdf_from.geometry[inds].intersection(geom_to)
@@ -568,6 +565,14 @@ def download_level_areas(gdf, extent=None, config=None):
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
                 pg[wb] = waterboard.get_data(wb, data_kind, extent)
+                mask = ~pg[wb].is_valid
+                if mask.any():
+                    logger.warning(
+                        f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
+                    )
+                    # first copy to prevent ValueError: assignment destination is read-only
+                    pg[wb] = pg[wb].copy()
+                    pg[wb].loc[mask, "geometry"] = pg[wb][mask].buffer(0.0)
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
                     logger.warning(e)

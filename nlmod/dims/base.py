@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import numbers
 
 import numpy as np
 import xarray as xr
@@ -7,7 +8,7 @@ from scipy.spatial import cKDTree
 
 from .. import util
 from . import resample
-from .layers import fill_nan_top_botm_kh_kv
+from .layers import fill_nan_top_botm_kh_kv, set_idomain
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ def to_model_ds(
     extent=None,
     delr=100.0,
     delc=None,
-    remove_nan_layers=True,
+    fill_nan=True,
     extrapolate=True,
     anisotropy=10,
     fill_value_kh=1.0,
@@ -88,23 +89,24 @@ def to_model_ds(
         default is None
     extent : list or tuple of length 4, optional
         The extent of the new grid. Get from ds when None. The default is None.
-    delr : float, optional
-        The gridsize along columns. The default is 100. meter.
-    delc : float, optional
-        The gridsize along rows. Set to delr when None. The default is None.
-    remove_nan_layers : bool, optional
-        if True regis and geotop layers with only nans are removed from the
-        model. if False nan layers are kept which might be usefull if you want
-        to keep some layers that exist in other models. The default is True.
+    delr : int, float, list, tuple or array, optional
+        The gridsize along columns (dx). The default is 100. meter.
+    delc : None, int, float, list, tuple or array, optional
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr
+        The default is None.
+    fill_nan : bool, optional
+        if True nan values in the top, botm, kh and kv are filled using the
+        fill_nan_top_botm_kh_kv function. Layers with only nan values in the
+        botm are removed.
     extrapolate : bool, optional
         When true, extrapolate data-variables, into the sea or other areas with
         only nans. THe default is True
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
     fill_value_kh : int or float, optional
-        use this value for kh if there is no data in regis. The default is 1.0.
+        use this value for kh if there is no data. The default is 1.0.
     fill_value_kv : int or float, optional
-        use this value for kv if there is no data in regis. The default is 1.0.
+        use this value for kv if there is no data. The default is 0.1.
     xorigin : int or float, optional
         lower left x coordinate of the model grid only used if angrot != 0.
         Default is 0.0.
@@ -131,14 +133,25 @@ def to_model_ds(
         for attr in list(ds.attrs):
             del ds.attrs[attr]
 
-    # convert regis dataset to grid
+    # convert dataset to grid
     logger.info("resample layer model data to structured modelgrid")
     ds = resample.ds_to_structured_grid(
         ds, extent, delr, delc, xorigin=xorigin, yorigin=yorigin, angrot=angrot
     )
 
     # add cell area variable
-    ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones((ds.dims["y"], ds.dims["x"]))
+    if delc is None:
+        delc = delr
+    if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
+        ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
+            (ds.dims["y"], ds.dims["x"])
+        )
+    elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
+        ds["area"] = ("y", "x"), np.outer(delc, delr)
+        ds["delr"] = ("x"), delr
+        ds["delc"] = ("y"), delc
+    else:
+        raise TypeError("unexpected type for delr and/or delc")
 
     if extrapolate:
         ds = extrapolate_ds(ds)
@@ -147,13 +160,16 @@ def to_model_ds(
     ds = set_ds_attrs(ds, model_name, model_ws)
 
     # fill nan's and add idomain
-    ds = fill_nan_top_botm_kh_kv(
-        ds,
-        anisotropy=anisotropy,
-        fill_value_kh=fill_value_kh,
-        fill_value_kv=fill_value_kv,
-        remove_nan_layers=remove_nan_layers,
-    )
+    if fill_nan:
+        ds = fill_nan_top_botm_kh_kv(
+            ds,
+            anisotropy=anisotropy,
+            fill_value_kh=fill_value_kh,
+            fill_value_kv=fill_value_kv,
+        )
+    else:
+        ds = set_idomain(ds, remove_nan_layers=False)
+
     return ds
 
 
@@ -229,6 +245,8 @@ def get_ds(
     yorigin=0.0,
     angrot=0.0,
     attrs=None,
+    extrapolate=True,
+    fill_nan=True,
     **kwargs,
 ):
     """Create a model dataset from scratch, so without a layer model.
@@ -237,10 +255,11 @@ def get_ds(
     ----------
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
-    delr : float, optional
-        The gridsize along columns. The default is 100. meter.
-    delc : float, optional
-        The gridsize along rows. Set to delr when None. The default is None.
+    delr : int, float, list, tuple or array, optional
+        The gridsize along columns (dx). The default is 100. meter.
+    delc : None, int, float, list, tuple or array, optional
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr
+        The default is None.
     model_name : str, optional
         name of the model. THe default is None
     model_ws : str, optional
@@ -279,6 +298,16 @@ def get_ds(
         model grid. The default is 0.0
     attrs : dict, optional
         Attributes of the model dataset. The default is None.
+    extrapolate : bool, optional
+        When true, extrapolate data-variables, into the sea or other areas with
+        only nans. THe default is True
+    fill_nan : bool, optional
+        if True nan values in the top, botm, kh and kv are filled using the
+        fill_nan_top_botm_kh_kv function. Layers with only nan values in the
+        botm are removed.
+
+
+
     **kwargs : dict
         Kwargs are passed into mbase.to_ds. These can be the model_name
         or ds.
@@ -290,12 +319,28 @@ def get_ds(
     """
     if delc is None:
         delc = delr
+
+    if isinstance(delr, (tuple, list)):
+        delr = np.asarray(delr)
+
+    if isinstance(delc, (tuple, list)):
+        delc = np.asarray(delc)
+
     if attrs is None:
         attrs = {}
     if isinstance(layer, int):
         layer = np.arange(1, layer + 1)
     if botm is None:
         botm = top - 10 * np.arange(1.0, len(layer) + 1)
+
+    # check for nan
+    for par in [top, botm, kh, kv]:
+        if isinstance(par, numbers.Number):
+            if np.isnan(par) and (extrapolate or fill_nan):
+                raise ValueError(
+                    "extrapolate and remove_nan_layer should be False when setting model parameters to nan"
+                )
+
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
     x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
     coords = dict(x=x, y=y, layer=layer)
@@ -329,7 +374,7 @@ def get_ds(
 
     shape = (len(y), len(x))
     top = check_variable(top, shape)
-    shape = (len(layer), len(y), len(x))
+    shape = (len(layer),) + shape
     botm = check_variable(botm, shape)
     kh = check_variable(kh, shape)
     kv = check_variable(kv, shape)
@@ -353,6 +398,8 @@ def get_ds(
         delr=delr,
         delc=delc,
         drop_attributes=False,
+        extrapolate=extrapolate,
+        fill_nan=fill_nan,
         **kwargs,
     )
     ds.rio.set_crs(crs)

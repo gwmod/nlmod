@@ -161,7 +161,7 @@ def layer_to_nodes(mpf, modellayer):
     return nodes
 
 
-def mpf(gwf, exe_name=None):
+def mpf(gwf, exe_name=None, modelname=None):
     """Create a modpath model from a groundwater flow model.
 
     Parameters
@@ -172,6 +172,9 @@ def mpf(gwf, exe_name=None):
         path to modpath executable, default is None, which assumes binaries
         are available in nlmod/bin directory. Binaries can be downloaded
         using `nlmod.util.download_mfbinaries()`.
+    modelname: str or None, optional
+        modelname of the modpath model. If None the name of the groundwaterflow
+        model is used with mp7_ as a prefix. The default value is None.
 
     Raises
     ------
@@ -184,6 +187,8 @@ def mpf(gwf, exe_name=None):
     mpf : flopy.modpath.mp7.Modpath7
         modpath object.
     """
+    if modelname is None:
+        modelname = "mp7_" + gwf.name
 
     # check if the save flows parameter is set in the npf package
     npf = gwf.get_package("npf")
@@ -204,17 +209,19 @@ def mpf(gwf, exe_name=None):
 
     # create mpf model
     mpf = flopy.modpath.Modpath7(
-        modelname="mp7_" + gwf.name + "_f",
+        modelname=modelname,
         flowmodel=gwf,
         exe_name=exe_name,
         model_ws=gwf.model_ws,
+        headfilename=gwf.name + ".hds",
+        budgetfilename=gwf.name + ".cbc",
         verbose=True,
     )
 
     return mpf
 
 
-def bas(mpf, porosity=0.3):
+def bas(mpf, porosity=0.3, **kwargs):
     """Create the basic package for the modpath model.
 
     Parameters
@@ -230,7 +237,7 @@ def bas(mpf, porosity=0.3):
         modpath bas package.
     """
 
-    mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity)
+    mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity, **kwargs)
 
     return mpfbas
 
@@ -266,19 +273,19 @@ def remove_output(mpf):
 
 
 def load_pathline_data(
-    mpf=None, model_ws=None, model_name=None, return_df=False, return_gdf=False
+    mpf=None, model_ws=None, modelname=None, return_df=False, return_gdf=False
 ):
     """Read the pathline data from a modpath model.
 
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
-        modpath object. If None the model_ws and model_name are used to load
+        modpath object. If None the model_ws and modelname are used to load
         the pathline data. The default is None.
     model_ws : str or None, optional
         workspace of the modpath model. This is where modeldata is saved to.
         Only used if mpf is None. The default is None.
-    model_name : str or None, optional
+    modelname : str or None, optional
         name of the modpath model. Only used if mpf is None. The default is
         None.
     return_df : bool, optional
@@ -299,9 +306,14 @@ def load_pathline_data(
         pathline data. By default a numpy array is returned.
     """
     if mpf is None:
-        fpth = os.path.join(model_ws, f"mp7_gwf_{model_name}_f.mppth")
+        if modelname is None:
+            raise ValueError(
+                "if no mpf model is provided a modelname should be provided to load pathline data"
+            )
+        fpth = os.path.join(model_ws, f"{modelname}.mppth")
     else:
         fpth = os.path.join(mpf.model_ws, mpf.name + ".mppth")
+
     p = flopy.utils.PathlineFile(fpth, verbose=False)
     if (not return_df) and (not return_gdf):
         return p._data
@@ -385,8 +397,9 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
         Local z-location of the particle in the cell. If a single value is
         provided all particles will have the same localz position. If
         a list, tuple, or np.ndarray is provided a localz position must
-        be provided for each partloc. If localy is None, a value of
-        0.5 (center of the cell) will be used (default is None).
+        be provided for each partloc. If localz is None, a value of
+        0.5 (center of the cell) will be used (default is None). A localz
+        value of 1.0 indicates the top of a cell.
 
     Returns
     -------

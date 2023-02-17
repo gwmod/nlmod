@@ -68,6 +68,11 @@ def get_exe_path(exe_name="mf6"):
     if sys.platform.startswith("win"):
         exe_path += ".exe"
 
+    if not os.path.exists(exe_path):
+        logger.warning(
+            f"executable {exe_path} not found, download the binaries using nlmod.util.download_mfbinaries"
+        )
+
     return exe_path
 
 
@@ -479,6 +484,10 @@ def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
     head_ar : TYPE
         DESCRIPTION.
     """
+    logger.warning(
+        "nlmod.util.get_heads_dataarray is deprecated. "
+        "Please use nlmod.gwf.get_heads_da instead"
+    )
 
     if fname_hds is None:
         fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
@@ -627,4 +636,6 @@ def get_color_logger(level="INFO"):
     logger.handlers[:] = []
     logger.addHandler(handler)
     logger.setLevel(getattr(logging, level))
+
+    logging.captureWarnings(True)
     return logger

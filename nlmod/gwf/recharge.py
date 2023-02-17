@@ -37,14 +37,10 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         raise ValueError("please remove nan values in recharge data array")
 
     # get stress period data
-    if ds.time.steady_state:
-        mask = ds["recharge"] != 0
-        recharge = "recharge"
-    else:
-        rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
-        ds["rch_name"] = ds["top"].dims, rch_name_arr
-        mask = ds["rch_name"] != ""
-        recharge = "rch_name"
+    rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
+    ds["rch_name"] = ds["top"].dims, rch_name_arr
+    mask = ds["rch_name"] != ""
+    recharge = "rch_name"
 
     spd = da_to_reclist(
         ds,
@@ -64,9 +60,6 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         stress_period_data={0: spd},
         **kwargs,
     )
-
-    if ds.time.steady_state:
-        return rch
 
     # create timeseries packages
     _add_time_series(rch, rch_unique_dic, ds)

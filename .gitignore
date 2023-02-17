@@ -139,6 +139,7 @@ cython_debug/
 
 # vscode
 .vscode
+.code-workspace
 
 # nlmod specific
 nlmod/bin/

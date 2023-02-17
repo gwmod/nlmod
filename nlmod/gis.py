@@ -3,77 +3,14 @@ import os
 
 import geopandas as gpd
 import numpy as np
-from shapely.affinity import affine_transform
-from shapely.geometry import Polygon
 
 from .dims.resample import get_affine_mod_to_world
+from .dims.grid import polygons_from_model_ds
 
 logger = logging.getLogger(__name__)
 
 
-def _polygons_from_model_ds(model_ds):
-    """create polygons of each cell in a model dataset.
-
-    Parameters
-    ----------
-    model_ds : xr.DataSet
-        xarray with model data
-
-    Raises
-    ------
-    ValueError
-        for wrong gridtype or inconsistent grid definition.
-
-    Returns
-    -------
-    polygons : list of shapely Polygons
-        list with polygon of each raster cell.
-    """
-
-    if model_ds.gridtype == "structured":
-        # check if coördinates are consistent with delr/delc values
-        delr_x = np.unique(model_ds.x.values[1:] - model_ds.x.values[:-1])
-        delc_y = np.unique(model_ds.y.values[:-1] - model_ds.y.values[1:])
-        if not ((delr_x == model_ds.delr) and (delc_y == model_ds.delc)):
-            raise ValueError(
-                "delr and delc attributes of model_ds inconsistent "
-                "with x and y coordinates"
-            )
-
-        xmins = model_ds.x - (model_ds.delr * 0.5)
-        xmaxs = model_ds.x + (model_ds.delr * 0.5)
-        ymins = model_ds.y - (model_ds.delc * 0.5)
-        ymaxs = model_ds.y + (model_ds.delc * 0.5)
-        polygons = [
-            Polygon(
-                [
-                    (xmins[i], ymins[j]),
-                    (xmins[i], ymaxs[j]),
-                    (xmaxs[i], ymaxs[j]),
-                    (xmaxs[i], ymins[j]),
-                ]
-            )
-            for i in range(len(xmins))
-            for j in range(len(ymins))
-        ]
-
-    elif model_ds.gridtype == "vertex":
-        polygons = [Polygon(vertices) for vertices in model_ds["vertices"].values]
-    else:
-        raise ValueError(
-            f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
-        )
-    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
-        # rotate the model coordinates to real coordinates
-        affine = get_affine_mod_to_world(model_ds).to_shapely()
-        polygons = [affine_transform(polygon, affine) for polygon in polygons]
-
-    return polygons
-
-
-def vertex_dataarray_to_gdf(
-    model_ds, data_variables, polygons=None, dealing_with_time="mean"
-):
+def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
     """Convert one or more DataArrays from a vertex model dataset to a
     Geodataframe.
 
@@ -142,7 +79,7 @@ def vertex_dataarray_to_gdf(
 
     # create geometries
     if polygons is None:
-        polygons = _polygons_from_model_ds(model_ds)
+        polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
@@ -150,9 +87,7 @@ def vertex_dataarray_to_gdf(
     return gdf
 
 
-def struc_dataarray_to_gdf(
-    model_ds, data_variables, polygons=None, dealing_with_time="mean"
-):
+def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
     """Convert one or more DataArrays from a structured model dataset to a
     Geodataframe.
 
@@ -216,7 +151,7 @@ def struc_dataarray_to_gdf(
 
     # create geometries
     if polygons is None:
-        polygons = _polygons_from_model_ds(model_ds)
+        polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
@@ -246,18 +181,18 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
     None.
     """
     if model_ds.gridtype == "vertex":
-        gdf = vertex_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
+        gdf = vertex_da_to_gdf(model_ds, data_variables, polygons=polygons)
     else:
-        gdf = struc_dataarray_to_gdf(model_ds, data_variables, polygons=polygons)
+        gdf = struc_da_to_gdf(model_ds, data_variables, polygons=polygons)
     gdf.to_file(fname)
 
 
-def model_dataset_to_vector_file(
+def ds_to_vector_file(
     model_ds,
     gisdir=None,
     driver="GPKG",
     combine_dic=None,
-    exclude=("x", "y", "time_steps", "area", "vertices", "rch_name"),
+    exclude=("x", "y", "time_steps", "area", "vertices", "rch_name", "icvert"),
 ):
     """Save all data variables in a model dataset to multiple shapefiles.
 
@@ -290,8 +225,8 @@ def model_dataset_to_vector_file(
     # get default combination dictionary
     if combine_dic is None:
         combine_dic = {
-            "idomain": {"first_active_layer", "idomain"},
-            "topbot": {"top", "botm", "thickness"},
+            "idomain": {"idomain"},
+            "topbot": {"top", "botm"},
             "sea": {"northsea", "bathymetry"},
         }
 
@@ -327,15 +262,15 @@ def model_dataset_to_vector_file(
     da_names -= set(exclude)
 
     # create list of polygons
-    polygons = _polygons_from_model_ds(model_ds)
+    polygons = polygons_from_model_ds(model_ds)
 
     # combine some data variables in one shapefile
     for key, item in combine_dic.items():
         if set(item).issubset(da_names):
             if model_ds.gridtype == "structured":
-                gdf = struc_dataarray_to_gdf(model_ds, item, polygons=polygons)
+                gdf = struc_da_to_gdf(model_ds, item, polygons=polygons)
             elif model_ds.gridtype == "vertex":
-                gdf = vertex_dataarray_to_gdf(model_ds, item, polygons=polygons)
+                gdf = vertex_da_to_gdf(model_ds, item, polygons=polygons)
             if driver == "GPKG":
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
             else:
@@ -351,9 +286,9 @@ def model_dataset_to_vector_file(
     # create unique shapefiles for the other data variables
     for da_name in da_names:
         if model_ds.gridtype == "structured":
-            gdf = struc_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = struc_da_to_gdf(model_ds, (da_name,), polygons=polygons)
         elif model_ds.gridtype == "vertex":
-            gdf = vertex_dataarray_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons)
         if driver == "GPKG":
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:
@@ -368,7 +303,7 @@ def model_dataset_to_vector_file(
         return fnames
 
 
-def model_dataset_to_ugrid_nc_file(
+def ds_to_ugrid_nc_file(
     model_ds,
     fname,
     variables=None,

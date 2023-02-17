@@ -5,10 +5,10 @@ import pandas as pd
 import xarray as xr
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
-from shapely.geometry import LineString, Point, Polygon
-from shapely.strtree import STRtree
+from shapely.geometry import LineString, Point, Polygon, MultiLineString
+import flopy
 
-from .dims.grid import get_vertices_arr
+from .dims.grid import modelgrid_from_ds
 
 
 class DatasetCrossSection:
@@ -31,8 +31,6 @@ class DatasetCrossSection:
         y="y",
         layer="layer",
         icell2d="icell2d",
-        epsilon=1e-8,
-        vertices=None,
     ):
         if ax is None:
             ax = plt.gca()
@@ -57,15 +55,18 @@ class DatasetCrossSection:
         # first determine where the cross-section crosses grid-lines
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
-            if vertices is None:
-                vertices = get_vertices_arr(ds, rotated=self.rotated, epsilon=epsilon)
-            polygons = [Polygon(x) for x in vertices]
-            tree = STRtree(polygons)
-            icell2ds = tree.query_items(LineString(line))
+            modelgrid = modelgrid_from_ds(ds)
+            gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
+            r = gi.intersect(line)
             s_cell = []
-            for ic2d in icell2ds:
-                intersection = line.intersection(polygons[ic2d])
+            for i, ic2d in enumerate(r["cellids"]):
+                intersection = r["ixshapes"][i]
                 if intersection.length == 0:
+                    continue
+                if isinstance(intersection, MultiLineString):
+                    for ix in intersection:
+                        s_cell.append([line.project(Point(ix.coords[0])), 1, ic2d])
+                        s_cell.append([line.project(Point(ix.coords[-1])), 0, ic2d])
                     continue
                 assert isinstance(intersection, LineString)
                 s_cell.append([line.project(Point(intersection.coords[0])), 1, ic2d])
@@ -122,9 +123,9 @@ class DatasetCrossSection:
     @staticmethod
     def add_intersections(gr_line, cs_line, points):
         intersection = cs_line.intersection(gr_line)
-        if intersection.type == "Point":
+        if intersection.geom_type == "Point":
             points.append(intersection)
-        elif intersection.type == "MultiPoint":
+        elif intersection.geom_type == "MultiPoint":
             for point in intersection.geoms:
                 points.append(point)
 
@@ -380,10 +381,10 @@ class DatasetCrossSection:
         else:
             top = top[:, self.rows, self.cols]
             bot = bot[:, self.rows, self.cols]
-        if self.zmin:
+        if self.zmin is not None:
             top[top < self.zmin] = self.zmin
             bot[bot < self.zmin] = self.zmin
-        if self.zmax:
+        if self.zmax is not None:
             top[top > self.zmax] = self.zmax
             bot[bot > self.zmax] = self.zmax
         return top, bot

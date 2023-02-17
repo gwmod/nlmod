@@ -213,8 +213,8 @@ def mpf(gwf, exe_name=None, modelname=None):
         flowmodel=gwf,
         exe_name=exe_name,
         model_ws=gwf.model_ws,
-        headfilename=gwf.name + '.hds',
-        budgetfilename=gwf.name + '.cbc',
+        headfilename=gwf.name + ".hds",
+        budgetfilename=gwf.name + ".cbc",
         verbose=True,
     )
 
@@ -307,11 +307,13 @@ def load_pathline_data(
     """
     if mpf is None:
         if modelname is None:
-            raise ValueError('if no mpf model is provided a modelname should be provided to load pathline data')            
+            raise ValueError(
+                "if no mpf model is provided a modelname should be provided to load pathline data"
+            )
         fpth = os.path.join(model_ws, f"{modelname}.mppth")
     else:
         fpth = os.path.join(mpf.model_ws, mpf.name + ".mppth")
-        
+
     p = flopy.utils.PathlineFile(fpth, verbose=False)
     if (not return_df) and (not return_gdf):
         return p._data

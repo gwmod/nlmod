@@ -17,7 +17,7 @@ from tqdm import tqdm
 from .. import cache
 from ..dims.resample import get_extent, structured_da_to_ds
 from ..util import get_ds_empty
-from .webservices import arcrest, wcs, wfs
+from .webservices import arcrest, wcs
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,6 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Polygon
 from shapely.strtree import STRtree
-from shapely.errors import ShapelyDeprecationWarning
 from tqdm import tqdm
 
 

@@ -22,7 +22,6 @@ from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
 from shapely.geometry import Point, Polygon
-from shapely.strtree import STRtree
 from shapely.affinity import affine_transform
 from tqdm import tqdm
 

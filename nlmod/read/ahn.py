@@ -101,10 +101,8 @@ def _infer_url(identifier=None):
     """
 
     # infer url from identifier
-    if "ahn2" in identifier:
-        url = "https://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS"
-    elif "ahn3" in identifier:
-        url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs?service=WCS"
+    if "ahn3" in identifier:
+        url = "https://service.pdok.nl/rws/ahn3/wcs/v1_0?service=wcs"
     else:
         ValueError(f"unknown identifier -> {identifier}")
 
@@ -128,10 +126,6 @@ def get_ahn_from_wcs(
         extent. The default is None.
     identifier : str, optional
         Possible values for identifier are:
-            'ahn2_05m_int'
-            'ahn2_05m_non'
-            'ahn2_05m_ruw'
-            'ahn2_5m'
             'ahn3_05m_dsm'
             'ahn3_05m_dtm'
             'ahn3_5m_dsm'
@@ -170,12 +164,6 @@ def get_ahn_from_wcs(
     # get url
     if url is None:
         url = _infer_url(identifier)
-    elif url == "ahn2":
-        url = "https://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS"
-    elif url == "ahn3":
-        url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs?service=WCS"
-    elif not url.startswith("https://geodata.nationaalgeoregister.nl"):
-        raise ValueError(f"unknown url -> {url}")
 
     # check resolution
     if res is None:

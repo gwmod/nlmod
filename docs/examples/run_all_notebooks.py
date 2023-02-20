@@ -16,6 +16,7 @@ ep = ExecutePreprocessor()
 elapsed_time = {}
 exceptions = {}
 for notebook in notebook_list:
+    # set nb to None, to make sure we do not overwrite a notebook with data from another
     nb = None
     # get the start time
     logger.info(f"Running {notebook}")

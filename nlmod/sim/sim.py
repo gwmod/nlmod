@@ -33,7 +33,8 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
     ds : xarray.Dataset
         dataset with model data.
     write_ds : bool, optional
-        if True the model dataset is cached. The default is True.
+        if True the model dataset is cached to a file called "full_ds.nc". The default
+        is True.
     nb_path : str or None, optional
         full path of the Jupyter Notebook (.ipynb) with the modelscript. The
         default is None. Preferably this path does not have to be given

@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Fri Jun 12 15:33:03 2020.
-
-@author: ruben
-"""
-
 import datetime as dt
 import logging
 

@@ -103,6 +103,29 @@ def _infer_url(identifier=None):
     return url
 
 
+def get_ahn_at_point(
+    x,
+    y,
+    buffer=0.75,
+    return_da=False,
+    return_mean=False,
+    identifier="ahn3_05m_dtm",
+    res=0.5,
+    **kwargs,
+):
+    extent = [x - buffer, x + buffer, y - buffer, y + buffer]
+    ahn = get_ahn_from_wcs(extent, identifier=identifier, res=res, **kwargs)
+    if return_da:
+        # return a DataArray
+        return ahn
+    if return_mean:
+        # return the mean (usefull when there are NaN's near the center)
+        return float(ahn.mean())
+    else:
+        # return the center pixel
+        return ahn.data[int((ahn.shape[0] - 1) / 2), int((ahn.shape[1] - 1) / 2)]
+
+
 def get_ahn_from_wcs(
     extent=None,
     identifier="ahn3_5m_dtm",

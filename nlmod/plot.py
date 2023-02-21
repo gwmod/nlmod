@@ -398,7 +398,7 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine_mod_to_world(ds)
                 x, y = affine * np.meshgrid(x, y)
-        return ax.pcolormesh(x, y, da, shading="nearest", **kwargs)
+        return ax.pcolormesh(x, y, da, shading="nearest", edgecolor=edgecolor, **kwargs)
 
 
 def get_patches(ds, rotated=False):

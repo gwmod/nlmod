@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Wed Apr 20 17:01:07 2022.
-
-@author: Ruben
-"""
-
 import json
 import time
 import xml.etree.ElementTree as ET

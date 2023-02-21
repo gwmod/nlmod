@@ -33,7 +33,8 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
     ds : xarray.Dataset
         dataset with model data.
     write_ds : bool, optional
-        if True the model dataset is cached. The default is True.
+        if True the model dataset is cached to a NetCDF-file (.nc) with a name equal
+        to its attribute called "model_name". The default is True.
     nb_path : str or None, optional
         full path of the Jupyter Notebook (.ipynb) with the modelscript. The
         default is None. Preferably this path does not have to be given
@@ -56,7 +57,7 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
         ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
             "%Y%m%d_%H:%M:%S"
         )
-        ds.to_netcdf(os.path.join(ds.attrs["cachedir"], "full_ds.nc"))
+        ds.to_netcdf(os.path.join(ds.attrs["cachedir"], f"{ds.model_name}.nc"))
 
     logger.info("write modflow files to model workspace")
     sim.write_simulation(silent=silent)

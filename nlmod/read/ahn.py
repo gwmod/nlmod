@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Fri Jun 12 15:33:03 2020.
-
-@author: ruben
-"""
-
 import datetime as dt
 import logging
 
@@ -23,45 +17,57 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_ahn(ds, identifier="ahn3_5m_dtm", method="average"):
+def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     """Get a model dataset with ahn variable.
     Parameters
     ----------
     ds : xr.Dataset
         dataset with the model information.
     identifier : str, optional
-        Possible values for identifier are:
-            'ahn2_05m_int'
-            'ahn2_05m_non'
-            'ahn2_05m_ruw'
-            'ahn2_5m'
-            'ahn3_05m_dsm'
-            'ahn3_05m_dtm'
-            'ahn3_5m_dsm'
-            'ahn3_5m_dtm'
-        The default is 'ahn3_5m_dtm'.
+        Possible values for the different AHN-versions are (casing is important):
+            AHN1: 'ahn1_5m'
+            AHN2: 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' or 'ahn2_5m'
+            AHN3: 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' or 'AHN3_5m_DTM'
+            AHN4: 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' or 'AHN4_DSM_5m'
+        The default is 'AHN4_DTM_5m'.
     method : str, optional
         Method used to resample ahn to grid of ds. See documentation of
         nlmod.resample.structured_da_to_ds for possible values. The default is
         'average'.
+    extent : list, tuple or np.array, optional
+        extent. The default is None.
 
     Returns
     -------
     ds_out : xr.Dataset
         Dataset with the ahn variable.
     """
-
-    url = _infer_url(identifier)
-    extent = get_extent(ds)
-    ahn_ds_raw = get_ahn_from_wcs(extent=extent, url=url, identifier=identifier)
+    if extent is None and ds is not None:
+        extent = get_extent(ds)
+    version = int(identifier[3])
+    if version == 1:
+        ahn_ds_raw = get_ahn1(extent, identifier=identifier)
+    elif version == 2:
+        ahn_ds_raw = get_ahn2(extent, identifier=identifier)
+    elif version == 3:
+        ahn_ds_raw = get_ahn3(extent, identifier=identifier)
+    elif version == 4:
+        ahn_ds_raw = get_ahn4(extent, identifier=identifier)
+    else:
+        raise (Exception(f"Unknown ahn-version: {version}"))
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
-    ahn_da = structured_da_to_ds(ahn_ds_raw, ds, method=method)
+    if ds is None:
+        ahn_da = ahn_ds_raw
+    else:
+        ahn_da = structured_da_to_ds(ahn_ds_raw, ds, method=method)
     ahn_da.attrs["source"] = identifier
-    ahn_da.attrs["url"] = url
     ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
     ahn_da.attrs["units"] = "mNAP"
+
+    if ds is None:
+        return ahn_da
 
     ds_out = get_ds_empty(ds)
     ds_out["ahn"] = ahn_da
@@ -89,14 +95,35 @@ def _infer_url(identifier=None):
     """
 
     # infer url from identifier
-    if "ahn2" in identifier:
-        url = "https://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS"
-    elif "ahn3" in identifier:
-        url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs?service=WCS"
+    if "ahn3" in identifier:
+        url = "https://service.pdok.nl/rws/ahn3/wcs/v1_0?service=wcs"
     else:
         ValueError(f"unknown identifier -> {identifier}")
 
     return url
+
+
+def get_ahn_at_point(
+    x,
+    y,
+    buffer=0.75,
+    return_da=False,
+    return_mean=False,
+    identifier="ahn3_05m_dtm",
+    res=0.5,
+    **kwargs,
+):
+    extent = [x - buffer, x + buffer, y - buffer, y + buffer]
+    ahn = get_ahn_from_wcs(extent, identifier=identifier, res=res, **kwargs)
+    if return_da:
+        # return a DataArray
+        return ahn
+    if return_mean:
+        # return the mean (usefull when there are NaN's near the center)
+        return float(ahn.mean())
+    else:
+        # return the center pixel
+        return ahn.data[int((ahn.shape[0] - 1) / 2), int((ahn.shape[1] - 1) / 2)]
 
 
 def get_ahn_from_wcs(
@@ -116,10 +143,6 @@ def get_ahn_from_wcs(
         extent. The default is None.
     identifier : str, optional
         Possible values for identifier are:
-            'ahn2_05m_int'
-            'ahn2_05m_non'
-            'ahn2_05m_ruw'
-            'ahn2_5m'
             'ahn3_05m_dsm'
             'ahn3_05m_dtm'
             'ahn3_5m_dsm'
@@ -158,12 +181,6 @@ def get_ahn_from_wcs(
     # get url
     if url is None:
         url = _infer_url(identifier)
-    elif url == "ahn2":
-        url = "https://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS"
-    elif url == "ahn3":
-        url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs?service=WCS"
-    elif not url.startswith("https://geodata.nationaalgeoregister.nl"):
-        raise ValueError(f"unknown url -> {url}")
 
     # check resolution
     if res is None:

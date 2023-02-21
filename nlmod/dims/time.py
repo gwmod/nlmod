@@ -80,8 +80,15 @@ def set_ds_time(
     if time_units.lower() != "days":
         raise NotImplementedError()
     if time is not None:
+        if isinstance(time, str):
+            time = pd.to_datetime(time)
+        if not hasattr(time, "__iter__"):
+            time = [time]
         start_time = time[0]
-        perlen = np.diff(time) / pd.to_timedelta(1, unit=time_units)
+        if len(time) > 1:
+            perlen = np.diff(time) / pd.to_timedelta(1, unit=time_units)
+        else:
+            perlen = []
         if steady_start:
             perlen = np.insert(perlen, 0, steady_start_perlen)
 

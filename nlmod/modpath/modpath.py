@@ -213,8 +213,6 @@ def mpf(gwf, exe_name=None, modelname=None):
         flowmodel=gwf,
         exe_name=exe_name,
         model_ws=gwf.model_ws,
-        headfilename=gwf.name + ".hds",
-        budgetfilename=gwf.name + ".cbc",
         verbose=True,
     )
 

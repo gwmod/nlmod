@@ -265,9 +265,9 @@ def remove_output(mpf):
         fname = os.path.join(mpf.model_ws, f)
         if os.path.exists(fname):
             os.remove(fname)
-            logger.info(f"removed '{f}'")
+            logger.info(f"removed old version of '{f}'")
         else:
-            logger.info(f"could not find '{f}'")
+            logger.debug(f"no old version of '{f}'")
 
 
 def load_pathline_data(

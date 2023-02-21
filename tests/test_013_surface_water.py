@@ -1,9 +1,14 @@
-import nlmod
 import pandas as pd
+import os
+import nlmod
 
 
 def test_gdf_to_seasonal_pkg():
-    ds = nlmod.get_ds([170000, 171000, 550000, 551000], model_ws="sw", model_name="sw")
+    model_name = "sw"
+    model_ws = os.path.join("data", model_name)
+    ds = nlmod.get_ds(
+        [170000, 171000, 550000, 551000], model_ws=model_ws, model_name=model_name
+    )
     ds = nlmod.time.set_ds_time(ds, time=pd.Timestamp.today())
     gdf = nlmod.gwf.surface_water.get_gdf(ds)
 

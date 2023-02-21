@@ -1,9 +1,9 @@
 import nlmod
-from shapely.geometry import LineString
+import util
 
 
 def test_dcs_structured():
-    ds = nlmod.get_ds([0, 1000, 0, 1000])
+    ds = util.get_ds_structured()
     line = [(0, 0), (1000, 1000)]
     dcs = nlmod.dcs.DatasetCrossSection(ds, line)
     dcs.plot_layers()
@@ -12,9 +12,7 @@ def test_dcs_structured():
 
 
 def test_dcs_vertex():
-    ds = nlmod.get_ds([0, 1000, 0, 1000])
-    refinement_features = [([LineString([(0, 1000), (1000, 0)])], "line", 1)]
-    ds = nlmod.grid.refine(ds, "refine", refinement_features=refinement_features)
+    ds = util.get_ds_vertex()
     line = [(0, 0), (1000, 1000)]
     dcs = nlmod.dcs.DatasetCrossSection(ds, line)
     dcs.plot_layers()

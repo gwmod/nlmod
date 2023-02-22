@@ -50,8 +50,6 @@ def test_get_ds():
         model_name="test_ds",
     )
 
-    ds
-
     return ds
 
 
@@ -69,8 +67,6 @@ def test_get_ds_variable_delrc():
         model_ws=model_ws,
         model_name="test_ds",
     )
-
-    ds
 
     return ds
 

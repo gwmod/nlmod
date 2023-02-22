@@ -9,7 +9,6 @@ def get_model_ds():
     ds = nlmod.get_ds(
         [-500, 500, -500, 500],
         delr=10.0,
-        layer=len(kh),
         top=0.0,
         botm=[-10, -15, -30],
         kh=kh,

@@ -5,7 +5,7 @@ import test_001_model
 
 def test_get_recharge():
     # model with sea
-    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
 
     # add knmi recharge to the model dataset
     ds.update(nlmod.read.knmi.get_recharge(ds))
@@ -15,7 +15,7 @@ def test_get_recharge():
 
 def test_get_recharge_steady_state():
     # model with sea
-    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
 
     # modify mtime
     ds = ds.drop_dims("time")
@@ -61,7 +61,7 @@ def test_get_ahn4():
 
 def test_get_ahn():
     # model with sea
-    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
 
     # add ahn data to the model dataset
     ahn_ds = nlmod.read.ahn.get_ahn(ds)
@@ -73,7 +73,7 @@ def test_get_ahn():
 
 def test_get_surface_water_ghb():
     # model with sea
-    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
 
     # create simulation
     sim = nlmod.sim.sim(ds)

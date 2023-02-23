@@ -50,8 +50,6 @@ def test_get_ds():
         model_name="test_ds",
     )
 
-    ds
-
     return ds
 
 
@@ -69,34 +67,6 @@ def test_get_ds_variable_delrc():
         model_ws=model_ws,
         model_name="test_ds",
     )
-
-    ds
-
-    return ds
-
-
-@pytest.mark.slow
-def test_create_seamodel_grid_only_without_northsea(tmpdir, model_name="test"):
-    extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    # extent, _, _ = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
-    regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
-        extent, use_regis=True, use_geotop=True
-    )
-
-    ds = nlmod.base.to_model_ds(
-        regis_geotop_ds, model_name, str(tmpdir), delr=100.0, delc=100.0
-    )
-
-    ds = nlmod.time.set_ds_time(
-        ds,
-        start_time="2015-1-1",
-        steady_state=False,
-        steady_start=True,
-        transient_timesteps=10,
-    )
-
-    # save ds
-    ds.to_netcdf(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
     return ds
 
@@ -164,7 +134,7 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
     )
 
     # save ds
-    ds.to_netcdf(os.path.join(tst_model_dir, "sea_model_grid.nc"))
+    ds.to_netcdf(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
     return ds
 

@@ -235,7 +235,7 @@ def get_ds(
     delc=None,
     model_name=None,
     model_ws=None,
-    layer=10,
+    layer=None,
     top=0.0,
     botm=None,
     kh=10.0,
@@ -266,8 +266,10 @@ def get_ds(
         workspace of the model. This is where modeldata is saved to. The
         default is None
     layer : int, list, tuple or ndarray, optional
-        The layers of the model. When layer is an integer it is the number of
-        layers. The default is 10.
+        The names or index of the layers of the model. When layer is an integer it is
+        the number of layers. When layer is None, the number of layers is caluclated
+        from botm. When botm is None as well, the number of layers is set to 10. The
+        default is None.
     top : float, list or ndarray, optional
         The top of the model. It has to be of shape (len(y), len(x)) or it is
         transformed into that shape if top is a float. The default is 0.0.
@@ -328,6 +330,11 @@ def get_ds(
 
     if attrs is None:
         attrs = {}
+    if layer is None:
+        if botm is None:
+            layer = 10
+        else:
+            layer = len(botm)
     if isinstance(layer, int):
         layer = np.arange(1, layer + 1)
     if botm is None:

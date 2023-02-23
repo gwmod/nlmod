@@ -823,9 +823,8 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
 
     if gridtype == "structured":
         area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0)
-        for opp_row in opp_cells:
-            area = opp_row[-2]
-            area_array[opp_row[0][0], opp_row[0][1]] = area
+        for cellid, area in zip(opp_cells["cellids"], opp_cells["areas"]):
+            area_array[cellid[0], cellid[1]] = area
     elif gridtype == "vertex":
         area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0)
         cids = opp_cells.cellids
@@ -1163,7 +1162,7 @@ def gdf_to_bool_da(gdf, ds):
         if ds.gridtype == "structured":
             ncol = modelgrid.ncol
             for cid in cids:
-                if version.parse(flopy.__version__) < version.parse("3.3.6"):
+                if isinstance(cid, tuple):
                     i, j = cid
                 else:
                     # TODO: temporary fix until flopy intersect on structured

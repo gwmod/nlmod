@@ -14,7 +14,7 @@ def test_get_gdf_opp_water():
 
 def test_surface_water_to_dataset():
     # model with sea
-    ds = test_001_model.test_get_ds_from_cache("sea_model_grid")
+    ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
     name = "surface_water"
     ds_surfwat = nlmod.read.rws.get_surface_water(ds, name)
 

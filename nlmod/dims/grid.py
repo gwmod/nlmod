@@ -482,7 +482,7 @@ def col_to_list(col_in, ds, cellids):
     Parameters
     ----------
     col_in : xarray.DatArray, str, int or float
-        if col_in is a str type it is the name of the column in ds.
+        if col_in is a str type it is the name of the column in ds (if it exists).
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
     ds : xarray.Dataset
@@ -506,7 +506,7 @@ def col_to_list(col_in, ds, cellids):
         raster values from ds presented in a list per cell.
     """
 
-    if isinstance(col_in, str):
+    if isinstance(col_in, str) and col_in in ds:
         col_in = ds[col_in]
     if isinstance(col_in, xr.DataArray):
         if len(cellids) == 3:

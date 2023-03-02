@@ -724,9 +724,9 @@ def gdf_to_seasonal_pkg(
         gdf["boundname"] = gdf[boundname_column]
 
     spd = []
-    for iseason, season in enumerate(["winter", "summer"]):
+    seasons = ["winter", "summer"]
+    for iseason, season in enumerate(seasons):
         # use  a winter and summer level
-
         gdf["stage"] = stages[iseason]
 
         mask = gdf["stage"] < gdf["rbot"]
@@ -780,6 +780,17 @@ def gdf_to_seasonal_pkg(
         **kwargs,
     )
     # add timeseries for the seasons 'winter' and 'summer'
+    add_season_timeseries(ds, package, summer_months=summer_months, seasons=seasons)
+    return package
+
+
+def add_season_timeseries(
+    ds,
+    package,
+    summer_months=(4, 5, 6, 7, 8, 9),
+    filename="season.ts",
+    seasons=("winter", "summer"),
+):
     tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]
@@ -802,10 +813,9 @@ def gdf_to_seasonal_pkg(
     package.ts.initialize(
         filename="season.ts",
         timeseries=ts_data,
-        time_series_namerecord=["winter", "summer"],
+        time_series_namerecord=seasons,
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
-    return package
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):

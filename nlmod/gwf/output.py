@@ -88,15 +88,7 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
 
         # TODO: temporarily only add time for when ds is passed because unable to
         # exactly recreate ds.time from gwf.
-        times = np.array(
-            [
-                pd.Timestamp(ds.time.start)
-                + pd.Timedelta(t, unit=ds.time.time_units[0])
-                for t in headobj.get_times()
-            ],
-            dtype=np.datetime64,
-        )
-        head_ar.coords["time"] = times
+        head_ar.coords["time"] = ds.time
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         affine = get_affine(ds)

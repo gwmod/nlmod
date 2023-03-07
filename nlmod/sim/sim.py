@@ -217,3 +217,7 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
     )
 
     return ims
+
+
+def register_ims_package(sim, model, ims):
+    sim.register_ims_package(ims, [model.name])

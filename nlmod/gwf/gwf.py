@@ -214,7 +214,7 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     return npf
 
 
-def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
+def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
     """get general head boundary from model dataset.
 
     Parameters
@@ -227,6 +227,8 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         name of the ghb files in the model dataset.
     pname : str, optional
         package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
 
     Raises
     ------
@@ -248,11 +250,13 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         first_active_layer=True,
         only_active_cells=False,
         layer=0,
+        aux=auxiliary,
     )
 
     if len(ghb_rec) > 0:
         ghb = flopy.mf6.ModflowGwfghb(
             gwf,
+            auxiliary="CONCENTRATION" if auxiliary is not None else None,
             print_input=True,
             maxbound=len(ghb_rec),
             stress_period_data=ghb_rec,
@@ -370,7 +374,7 @@ def sto(
         return sto
 
 
-def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
+def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", auxiliary=None, **kwargs):
     """get constant head boundary at the model's edges from the model dataset.
 
     Parameters
@@ -387,6 +391,8 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
         cells. The default is 'starting_head'.
     pname : str, optional
         package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
 
     Returns
     -------
@@ -396,10 +402,11 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     logger.info("creating modflow CHD")
 
     # get the stress_period_data
-    chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head)
+    chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head, aux=auxiliary)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
+        auxiliary="CONCENTRATION" if auxiliary is not None else None,
         pname=pname,
         maxbound=len(chd_rec),
         stress_period_data=chd_rec,
@@ -522,6 +529,43 @@ def _set_record(head, budget):
     if budget is not None:
         record.append(("BUDGET", budget))
     return record
+
+
+def buy(ds, gwf, pname="buy", **kwargs):
+    """create buoyancy package from model dataset.
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name, by default "buy"
+
+    Returns
+    -------
+    buy : flopy ModflowGwfbuy
+        buy package
+
+    Raises
+    ------
+    ValueError
+        if transport is not
+    """
+    if not ds.transport:
+        logger.error("BUY package requires a groundwater transport model")
+        raise ValueError("BUY package requires a groundwater transport model")
+
+    drhodc = kwargs.pop("drhodc", ds.drhodc)
+    crhoref = kwargs.pop("crhoref", ds.crhoref)
+    denseref = kwargs.pop("denseref", ds.denseref)
+
+    pdata = [(0, drhodc, crhoref, f"gwt_{ds.model_name}", "none")]
+
+    buy = flopy.mf6.ModflowGwfbuy(
+        gwf, denseref=denseref, nrhospecies=len(pdata), packagedata=pdata, pname=pname
+    )
+    return buy
 
 
 def oc(

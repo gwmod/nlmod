@@ -374,7 +374,9 @@ def sto(
         return sto
 
 
-def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", auxiliary=None, **kwargs):
+def chd(
+    ds, gwf, chd="chd", head="starting_head", pname="chd", auxiliary=None, **kwargs
+):
     """get constant head boundary at the model's edges from the model dataset.
 
     Parameters

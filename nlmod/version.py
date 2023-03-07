@@ -1,12 +1,11 @@
-from platform import python_version
 from importlib import metadata
+from platform import python_version
 
 __version__ = "0.5.2b"
 
 
 def show_versions() -> None:
-    """Method to print the version of dependencies.
-    """
+    """Method to print the version of dependencies."""
 
     msg = (
         f"Python version: {python_version()}\n"

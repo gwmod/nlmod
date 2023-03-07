@@ -1,9 +1,9 @@
 import logging
 import numbers
 
+import flopy
 import numpy as np
 import xarray as xr
-import flopy
 
 from ..dims import grid
 
@@ -100,6 +100,7 @@ def dis(ds, gwt, length_units="METERS", pname="dis", **kwargs):
     )
 
     return dis
+
 
 def disv(ds, gwt, length_units="METERS", pname="disv", **kwargs):
     """create transport discretisation vertices package from the model dataset.
@@ -309,8 +310,9 @@ def ic(ds, gwt, strt="chloride", pname="ic", **kwargs):
 
     return ic
 
+
 def gwfgwt(ds, sim, exgtype="GWF6-GWT6", **kwargs):
-    exgnamea = ds.model_name 
+    exgnamea = ds.model_name
     exgnameb = f"gwt_{ds.model_name}"
     # exchange
     gwfgwt = flopy.mf6.ModflowGwfgwt(

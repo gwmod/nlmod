@@ -172,13 +172,13 @@ def convert_geotop_to_ml_layers(
     geo_eenheden = np.unique(geotop_ds_raw.strat.data)
     geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
     stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
-    geo_eenheden = geo_eenheden[geo_eenheden < 6000]
+    geo_eenheden = geo_eenheden[geo_eenheden < 6000].astype(int)
 
     # geo eenheid 2000 zit boven 1130
-    if (2000.0 in geo_eenheden) and (1130.0 in geo_eenheden):
-        geo_eenheden[(geo_eenheden == 2000.0) + (geo_eenheden == 1130.0)] = [
-            2000.0,
-            1130.0,
+    if (2000 in geo_eenheden) and (1130 in geo_eenheden):
+        geo_eenheden[(geo_eenheden == 2000) + (geo_eenheden == 1130)] = [
+            2000,
+            1130,
         ]
 
     strat_codes = []

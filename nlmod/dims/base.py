@@ -76,7 +76,6 @@ def to_model_ds(
     angrot=0.0,
     drop_attributes=True,
     transport=False,
-
 ):
     """Transform a regis datset to a model dataset with another resolution.
 
@@ -121,7 +120,7 @@ def to_model_ds(
         if True drop the attributes from the layer model dataset. Otherwise
         keep the attributes. Default is True.
     transport : bool, optional
-        flag indicating whether dataset includes data for a groundwater 
+        flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
 
     Returns
@@ -315,7 +314,7 @@ def get_ds(
         fill_nan_top_botm_kh_kv function. Layers with only nan values in the
         botm are removed.
     transport : bool, optional
-        flag indicating whether dataset includes data for a groundwater 
+        flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
 
 

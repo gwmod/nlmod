@@ -15,7 +15,6 @@ def wel_from_df(
     boundnames=None,
     **kwargs,
 ):
-
     # collect data
     well_lrcd = []
 
@@ -73,7 +72,6 @@ def maw_from_df(
     boundnames=None,
     **kwargs,
 ):
-
     maw_pakdata = []
     maw_conndata = []
     maw_perdata = []

@@ -50,7 +50,6 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
 
     # hydchr = 1 / 100  # resistance of 100 days
     for icell2d1, icell2d2 in cells:
-
         # TODO: Improve assumption of the thickness between the cells.
         thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
         topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
@@ -215,7 +214,6 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
 def polygon_to_hfb(
     gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100, add_data=False
 ):
-
     if isinstance(gdf, str):
         da = ds[gdf]
     else:

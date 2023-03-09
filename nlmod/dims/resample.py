@@ -5,6 +5,7 @@
 """
 import logging
 import numbers
+
 import numpy as np
 import rasterio
 import xarray as xr

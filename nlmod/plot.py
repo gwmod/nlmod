@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from matplotlib.collections import PatchCollection
+from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Patch, Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
-from matplotlib.colors import ListedColormap, Normalize
 
+from .dcs import DatasetCrossSection
 from .dims.grid import get_vertices, modelgrid_from_ds
 from .dims.resample import get_affine_mod_to_world, get_extent
-from .read import rws, geotop
-from .dcs import DatasetCrossSection
+from .read import geotop, rws
 
 
 def surface_water(model_ds, ax=None):

@@ -1,3 +1,4 @@
+import flopy
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,8 +6,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
-from shapely.geometry import LineString, Point, Polygon, MultiLineString
-import flopy
+from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
 from .dims.grid import modelgrid_from_ds
 

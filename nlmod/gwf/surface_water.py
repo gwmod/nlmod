@@ -9,7 +9,6 @@ from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
-
 from ..dims.grid import gdf_to_grid
 from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
@@ -50,7 +49,6 @@ def aggregate(gdf, method, ds=None):
     celldata = pd.DataFrame(index=gr.groups.keys())
 
     for cid, group in tqdm(gr, desc="Aggregate surface water data"):
-
         stage, cond, rbot = get_surfacewater_params(group, method, cid=cid, ds=ds)
 
         celldata.loc[cid, "stage"] = stage
@@ -81,7 +79,6 @@ def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=Non
         rbot = group["botm"].min()
 
     elif method == "de_lange":
-
         # get additional requisite parameters
         if delange_params is None:
             delange_params = {}
@@ -393,7 +390,6 @@ def build_spd(
         total=celldata.index.size,
         desc=f"Building stress period data {pkg}",
     ):
-
         # check if there is an active layer for this cell
         if ds.gridtype == "vertex":
             idomain_cell = idomain[:, cellid]

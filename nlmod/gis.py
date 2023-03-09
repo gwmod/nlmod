@@ -4,8 +4,8 @@ import os
 import geopandas as gpd
 import numpy as np
 
-from .dims.resample import get_affine_mod_to_world
 from .dims.grid import polygons_from_model_ds
+from .dims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 

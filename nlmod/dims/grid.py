@@ -21,8 +21,8 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
-from shapely.geometry import Point, Polygon
 from shapely.affinity import affine_transform
+from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
@@ -31,8 +31,8 @@ from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
-    get_affine_world_to_mod,
     get_affine_mod_to_world,
+    get_affine_world_to_mod,
     structured_da_to_ds,
 )
 

@@ -1078,3 +1078,68 @@ def update_idomain_from_thickness(idomain, thickness, mask):
             idomain[ilay] = xr.where(mask3, 1, idomain[ilay])
 
     return idomain
+
+
+def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
+    """Aggregate source data to a model dataset using the weighted mean.
+
+    The weighted average per model layer is calculated for the variable in the
+    source dataset. The datasets must have the same grid.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset containing layer information (x, y, top, botm)
+    source_ds : xr.Dataset
+        dataset containing x, y, top, botm and a data variable to aggregate.
+    var_name : str
+        name of the data array to aggregate
+
+    Returns
+    -------
+    da : xarray.DataArray
+        data array containing aggregated values from source dataset
+
+    Raises
+    ------
+    ValueError
+        if source_ds does not have a layer dimension
+
+    See also
+    --------
+    nlmod.read.geotop.aggregate_to_ds
+
+    """
+    msg = "x and/or y coordinates do not match between 'ds' and 'source_ds'"
+    assert (ds.x == source_ds.x).all() and (ds.y == source_ds.y).all(), msg
+
+    if "layer" in ds["top"].dims:
+        # make sure there is no layer dimension in top
+        ds["top"] = ds["top"].max(dim="layer")
+
+    if "layer" not in source_ds.dims:
+        raise ValueError("Requires 'source_ds' to have a 'layer' dimension!")
+
+    agg_ar = []
+
+    for ilay in range(len(ds.layer)):
+        if ilay == 0:
+            top = ds["top"]
+        else:
+            top = ds["botm"][ilay - 1].drop_vars("layer")
+        bot = ds["botm"][ilay].drop_vars("layer")
+
+        s_top = source_ds.top
+        s_bot = source_ds.bottom
+        s_top = s_top.where(s_top < top, top)
+        s_top = s_top.where(s_top > bot, bot)
+        s_bot = s_bot.where(s_bot < top, top)
+        s_bot = s_bot.where(s_bot > bot, bot)
+        s_thk = s_top - s_bot
+
+        agg_ar.append(
+            (s_thk * source_ds[var_name]).sum("layer")
+            / s_thk.where(~np.isnan(source_ds[var_name])).sum("layer")
+        )
+
+    return xr.concat(agg_ar, ds.layer)

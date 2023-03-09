@@ -531,7 +531,9 @@ def col_to_list(col_in, ds, cellids):
     return col_lst
 
 
-def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None, aux=None):
+def lrc_to_reclist(
+    layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None, aux=None
+):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for structured grids.
@@ -593,7 +595,6 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
     """
     cols = []
 
-
     if col1 is not None:
         cols.append(col_to_list(col1, ds, cellids))
     if col2 is not None and len(cols) == 1:
@@ -607,10 +608,16 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
 
     if aux is not None:
         if isinstance(aux, str):
-            aux=[aux]
+            aux = [aux]
+        elif isinstance(aux, float) or isinstance(aux, int):
+            aux = [aux]
+
         for i_aux in aux:
-            if "layer" in ds[i_aux].dims and len(cellids) != 3:
-                cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+            if isinstance(i_aux, str):
+                if "layer" in ds[i_aux].dims and len(cellids) != 3:
+                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                else:
+                    cols.append(col_to_list(i_aux, ds, cellids))
             else:
                 cols.append(col_to_list(i_aux, ds, cellids))
 
@@ -618,7 +625,15 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
     return reclist
 
 
-def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None, aux=None,):
+def lcid_to_reclist(
+    layers,
+    cellids,
+    ds,
+    col1=None,
+    col2=None,
+    col3=None,
+    aux=None,
+):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for vertex grids.
@@ -674,7 +689,7 @@ def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None, aux=No
         grids.
     """
     cols = []
-    
+
     if col1 is not None:
         cols.append(col_to_list(col1, ds, cellids))
     if col2 is not None and len(cols) == 1:
@@ -688,10 +703,16 @@ def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None, aux=No
 
     if aux is not None:
         if isinstance(aux, str):
-            aux=[aux]
+            aux = [aux]
+        elif isinstance(aux, float) or isinstance(aux, int):
+            aux = [aux]
+
         for i_aux in aux:
-            if "layer" in ds[i_aux].dims and len(cellids) != 2:
-                cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+            if isinstance(i_aux, str):
+                if "layer" in ds[i_aux].dims and len(cellids) != 2:
+                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                else:
+                    cols.append(col_to_list(i_aux, ds, cellids))
             else:
                 cols.append(col_to_list(i_aux, ds, cellids))
 
@@ -784,7 +805,9 @@ def da_to_reclist(
             layers = cellids[0]
             rows = cellids[1]
             columns = cellids[2]
-            return lrc_to_reclist(layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux)
+            return lrc_to_reclist(
+                layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux
+            )
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
@@ -808,7 +831,9 @@ def da_to_reclist(
             rows = cellids[-2]
             columns = cellids[-1]
 
-            return lrc_to_reclist(layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux)
+            return lrc_to_reclist(
+                layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux
+            )
 
 
 def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):

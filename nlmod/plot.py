@@ -16,12 +16,12 @@ from .dims.resample import get_affine_mod_to_world, get_extent
 from .read import geotop, rws
 
 
-def surface_water(model_ds, ax=None):
+def surface_water(model_ds, ax=None, **kwargs):
     surf_water = rws.get_gdf_surface_water(model_ds)
 
     if ax is None:
         _, ax = plt.subplots()
-    surf_water.plot(ax=ax)
+    surf_water.plot(ax=ax, **kwargs)
 
     return ax
 

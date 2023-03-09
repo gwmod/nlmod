@@ -14,7 +14,7 @@ from ..sim.sim import get_tdis_perioddata
 logger = logging.getLogger(__name__)
 
 
-def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
+def model_datasets_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
     """Convert the recharge data in the model dataset to a rch package with
     time series.
 
@@ -24,6 +24,8 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
         groundwater flow model.
     ds : xr.DataSet
         dataset containing relevant model grid information
+    mask : xr.DataArray
+        data array containing mask, recharge is only added where mask is True
     pname : str, optional
         package name. The default is 'rch'.
 
@@ -39,7 +41,11 @@ def model_datasets_to_rch(gwf, ds, pname="rch", **kwargs):
     # get stress period data
     rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
     ds["rch_name"] = ds["top"].dims, rch_name_arr
-    mask = ds["rch_name"] != ""
+    if mask is not None:
+        mask = (ds["rch_name"] != "") & mask
+    else:
+        mask = ds["rch_name"] != ""
+
     recharge = "rch_name"
 
     spd = da_to_reclist(

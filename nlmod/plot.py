@@ -702,7 +702,7 @@ def geotop_lithok_in_cross_section(
     colors = []
     for i, lithok in enumerate(lithok_un):
         array[lithoks == lithok] = i
-        colors.append(lithok_props.at[lithok, "color"])
+        colors.append(lithok_props.at[int(lithok), "color"])
     cmap = ListedColormap(colors)
     norm = Normalize(-0.5, np.nanmax(array) + 0.5)
     cs.plot_array(array, norm=norm, cmap=cmap)

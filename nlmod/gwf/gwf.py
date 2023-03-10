@@ -172,7 +172,7 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
     disv : flopy ModflowGwfdisv
         disv package
     """
-    _disv(ds, gwf, length_units, pname, **kwargs)
+    return _disv(ds, gwf, length_units, pname, **kwargs)
 
 
 def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
@@ -213,7 +213,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     cell2d = grid.get_cell2d_from_ds(ds)
     if model.model_type == "gwf6":
         disv = flopy.mf6.ModflowGwfdisv(
-            gwf,
+            model,
             idomain=ds["idomain"].data,
             xorigin=xorigin,
             yorigin=yorigin,
@@ -231,7 +231,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
         )
     elif model.model_type == "gwt6":
         disv = flopy.mf6.ModflowGwtdisv(
-            gwf,
+            model,
             idomain=ds["idomain"].data,
             xorigin=xorigin,
             yorigin=yorigin,
@@ -252,7 +252,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
         raise ValueError("Unknown model type.")
 
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        gwf.modelgrid.set_coord_info(xoff=xorigin, yoff=yorigin, angrot=angrot)
+        model.modelgrid.set_coord_info(xoff=xorigin, yoff=yorigin, angrot=angrot)
 
     return disv
 

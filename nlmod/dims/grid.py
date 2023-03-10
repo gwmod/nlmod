@@ -704,7 +704,7 @@ def lcid_to_reclist(
     if aux is not None:
         if isinstance(aux, str):
             aux = [aux]
-        elif isinstance(aux, float) or isinstance(aux, int):
+        elif isinstance(aux, (int, float)):
             aux = [aux]
 
         for i_aux in aux:

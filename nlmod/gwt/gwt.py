@@ -2,7 +2,6 @@ import logging
 import numbers
 
 import flopy
-import numpy as np
 import xarray as xr
 
 from ..dims import grid
@@ -11,7 +10,92 @@ from ..gwf.gwf import _set_record, dis, disv
 logger = logging.getLogger(__name__)
 
 
-def gwt(ds, sim, **kwargs):
+def _get_var_from_ds_attr(ds, varname, attr=None, var=None, warn=True):
+    """Internal function to parse variable from dataset attributes.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing model data
+    varname : str
+        name of the variable
+    attr : str, optional
+        name of the attribute in dataset (is sometimes different to varname)
+    var : Any, optional
+        variable value, by default None
+    warn : bool, optional
+        log warning if value not found
+
+    Returns
+    -------
+    var : Any
+        returns variable value, if var was None, attempts to obtain
+        variable from dataset attributes.
+    """
+    if attr is None:
+        attr = varname
+
+    if var is not None and (attr in ds.attrs):
+        logger.info(
+            f"Using user-provided '{varname}' and not stored attribute 'ds.{attr}'"
+        )
+    elif var is None and (attr in ds.attrs):
+        var = ds.attrs[attr]
+    elif var is None:
+        if warn:
+            msg = (
+                f"No value found for '{varname}', passing None to flopy. "
+                f"To fix this error pass '{varname}' to function or set 'ds.{attr}'."
+            )
+            logger.warning(msg)
+        # raise ValueError(msg)
+    return var
+
+
+def _get_var_from_ds_datavar(ds, varname, datavar=None, var=None, warn=True):
+    """Internal function to parse variable from dataset data variables.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing model data
+    varname : str
+        name of the variable
+    datavar : str, optional
+        name of the data variable (is sometimes different to varname) in dataset
+    var : Any, optional
+        variable value, by default None
+    warn : bool, optional
+        log warning if value not found
+
+    Returns
+    -------
+    var : Any
+        returns variable value, if var was None, attempts to obtain
+        variable from dataset data variables.
+    """
+    if datavar is None:
+        datavar = varname
+
+    if (var is not None) and (datavar in ds):
+        logger.info(
+            f"Using user-provided '{varname}' and not"
+            f" stored data variable 'ds.{datavar}'"
+        )
+    elif var is None and (datavar in ds):
+        var = ds[datavar]
+    elif var is None:
+        if warn:
+            msg = (
+                f"No value found for '{varname}', passing None to flopy. "
+                f"To fix this error pass '{varname}' to function or set 'ds.{datavar}'."
+            )
+            logger.warning(msg)
+        # raise ValueError(msg)
+    return var
+
+
+def gwt(ds, sim, modelname=None, **kwargs):
     """create groundwater transport model from the model dataset.
 
     Parameters
@@ -22,6 +106,8 @@ def gwt(ds, sim, **kwargs):
         perlen, nstp, tsmult
     sim : flopy MFSimulation
         simulation object.
+    modelname : str
+        name of the transport model
 
     Returns
     -------
@@ -33,10 +119,12 @@ def gwt(ds, sim, **kwargs):
     logger.info("creating modflow GWT")
 
     # Create the Flopy groundwater flow (gwf) model object
-    model_nam_file = f"{ds.model_name}_gwt.nam"
+    if modelname is None:
+        modelname = f"{ds.model_name}_gwt"
+    model_nam_file = f"{modelname}.nam"
 
     gwt = flopy.mf6.ModflowGwt(
-        sim, modelname=f"{ds.model_name}_gwt", model_nam_file=model_nam_file, **kwargs
+        sim, modelname=modelname, model_nam_file=model_nam_file, **kwargs
     )
 
     return gwt
@@ -61,63 +149,114 @@ def adv(ds, gwt, scheme=None, **kwargs):
         adv package
     """
     logger.info("creating modflow ADV")
-    if scheme is None:
-        scheme = ds.attrs.get("adv_scheme")
-    else:
-        ds.attrs["adv_scheme"] = scheme
+    scheme = _get_var_from_ds_attr(ds, "scheme", "adv_scheme", var=scheme)
     adv = flopy.mf6.ModflowGwtadv(gwt, scheme=scheme, **kwargs)
     return adv
 
 
 def dsp(ds, gwt, **kwargs):
+    """create dispersion package for groundwater transport model.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data
+    gwt : flopy ModflowGwt
+        groundwater transport object
+
+    Returns
+    -------
+    dsp : flopy ModflowGwtdsp
+        dsp package
+    """
     logger.info("creating modflow DSP")
-
-    alh = kwargs.pop("alh", ds.dsp_alh)
-    ath1 = kwargs.pop("ath1", ds.dsp_ath1)
-    atv = kwargs.pop("atv", ds.dsp_atv)
-
-    if "alh" not in kwargs:
-        ds.attrs["dsp_alh"] = alh
-    if "ath1" not in kwargs:
-        ds.attrs["dsp_ath1"] = ath1
-    if "atv" not in kwargs:
-        ds.attrs["dsp_atv"] = atv
-
+    alh = _get_var_from_ds_attr(ds, "alh", "dsp_alh", var=kwargs.pop("alh", None))
+    ath1 = _get_var_from_ds_attr(ds, "ath1", "dsp_ath1", var=kwargs.pop("ath1", None))
+    atv = _get_var_from_ds_attr(ds, "atv", "dsp_atv", var=kwargs.pop("atv", None))
     dsp = flopy.mf6.ModflowGwtdsp(gwt, alh=alh, ath1=ath1, atv=atv, **kwargs)
     return dsp
 
 
-def ssm(ds, gwt, pkg_sources=None, sources=None, **kwargs):
+def ssm(ds, gwt, sources=None, **kwargs):
+    """create source-sink mixing package for groundwater transport model.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data
+    gwt : flopy ModflowGwt
+        groundwater transport object
+    sources : list of tuple, None
+        list of tuple(s) with packages that function as source in model,
+        e.g. [("GHB", "AUX", "CONCENTRATION")]. If None, sources is derived
+        from model dataset attribute `ds.ssm_sources`.
+
+    Returns
+    -------
+    ssm : flopy ModflowGwtssm
+        ssm package
+    """
     logger.info("creating modflow SSM")
 
-    if pkg_sources is not None and sources is None:
-        sources = [(ipkg, "AUX", "CONCENTRATION") for ipkg in pkg_sources]
-        ds.attrs["ssm_sources"] = pkg_sources
-    elif sources is None:
-        sources = [
-            (ipkg.upper(), "AUX", "CONCENTRATION") for ipkg in ds.attrs["ssm_sources"]
-        ]
+    build_tuples = False
+    if sources is None:
+        build_tuples = True
+
+    sources = _get_var_from_ds_attr(ds, "sources", "ssm_sources", var=sources)
+
+    if build_tuples and sources is not None:
+        sources = [(ipkg, "AUX", "CONCENTRATION") for ipkg in sources]
 
     ssm = flopy.mf6.ModflowGwtssm(gwt, sources=sources, **kwargs)
     return ssm
 
 
 def mst(ds, gwt, porosity=None, **kwargs):
+    """create mass storage transfer package for groundwater transport model.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data
+    gwt : flopy ModflowGwt
+        groundwater transport object
+    porosity : Any, optional
+        porosity, can be passed as float, array-like or string. If passed as string
+        data is taken from dataset.
+
+    Returns
+    -------
+    mst : flopy ModflowGwtmst
+        mst package
+    """
     logger.info("creating modflow MST")
-
-    if porosity is None:
-        porosity = ds.porosity
-    else:
-        if isinstance(porosity, float):
-            ds.attrs["porosity"] = porosity
-        else:
-            logger.warn("the porosity passed to mst pkg is not stored in ds")
-
-    mst = flopy.mf6.ModflowGwtmst(gwt, porosity=porosity)
+    if isinstance(porosity, str):
+        porosity = None
+    porosity = _get_var_from_ds_attr(ds, "porosity", var=porosity, warn=False)
+    porosity = _get_var_from_ds_datavar(ds, "porosity", var=porosity)
+    mst = flopy.mf6.ModflowGwtmst(gwt, porosity=porosity, **kwargs)
     return mst
 
 
 def cnc(ds, gwt, da_mask, da_conc, pname="cnc", **kwargs):
+    """create constant concentration package for groundwater transport model.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data
+    gwt : flopy ModflowGwt
+        groundwater transport object
+    da_mask : str
+        data array containing mask where to create constant concentration cells
+    da_conc : str
+        data array containing concentration data
+
+    Returns
+    -------
+    cnc : flopy ModflowGwtcnc
+        cnc package
+    """
     logger.info("creating modflow CNC")
 
     cnc_rec = grid.da_to_reclist(ds, da_mask, col1=da_conc, layer=None)
@@ -138,6 +277,22 @@ def oc(
     pname="oc",
     **kwargs,
 ):
+    """create output control package for groundwater transport model.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwt : flopy ModflowGwt
+        groundwater transport object.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    oc : flopy ModflowGwtoc
+        oc package
+    """
     logger.info("creating modflow OC")
 
     # Create the output control package
@@ -160,8 +315,8 @@ def oc(
     return oc
 
 
-def ic(ds, gwt, strt="chloride", pname="ic", **kwargs):
-    """get initial condictions package from model dataset.
+def ic(ds, gwt, strt, pname="ic", **kwargs):
+    """create initial condictions package for groundwater transport model.
 
     Parameters
     ----------
@@ -169,10 +324,10 @@ def ic(ds, gwt, strt="chloride", pname="ic", **kwargs):
         dataset with model data.
     gwt : flopy ModflowGwf
         groundwater transport object.
-    strt : str, float or int, optional
+    strt : str, float or int
         if type is int or float this is the starting concentration for all cells
         If the type is str the data variable from ds is used as starting
-        concentration. The default is 'chloride'.
+        concentration.
     pname : str, optional
         package name
 
@@ -182,24 +337,36 @@ def ic(ds, gwt, strt="chloride", pname="ic", **kwargs):
         ic package
     """
     logger.info("creating modflow IC")
-
-    if isinstance(strt, str):
-        pass
-    elif isinstance(strt, numbers.Number):
-        ds["gwt_strt"] = strt * xr.ones_like(ds["idomain"])
-        # ds["starting_conc"].attrs["units"] = ""
-        strt = "gwt_strt"
-
+    if isinstance(strt, numbers.Number):
+        strt = strt * xr.ones_like(ds["idomain"])
     ic = flopy.mf6.ModflowGwtic(gwt, strt=ds[strt].data, pname=pname, **kwargs)
 
     return ic
 
 
 def gwfgwt(ds, sim, exgtype="GWF6-GWT6", **kwargs):
-    logger.info("creating modflow exchange GWFGWT")
+    """create GWF-GWT exchange package for modflow simulation.
 
-    exgnamea = ds.model_name
-    exgnameb = f"{ds.model_name}_gwt"
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    sim : flopy MFSimulation
+        simulation object
+    exgtype : str, optional
+        exchange type, by default "GWF6-GWT6"
+
+    Returns
+    -------
+    gwfgwt :
+        _description_
+    """
+    logger.info("creating modflow exchange GWFGWT")
+    type_name_dict = {}
+    for name, mod in sim.model_dict.items():
+        type_name_dict[mod.model_type] = name
+    exgnamea = kwargs.pop("exgnamea", type_name_dict["gwf6"])
+    exgnameb = kwargs.pop("exgnameb", type_name_dict["gwt6"])
     # exchange
     gwfgwt = flopy.mf6.ModflowGwfgwt(
         sim,

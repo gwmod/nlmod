@@ -48,7 +48,29 @@ def gwf(ds, sim, **kwargs):
     return gwf
 
 
-def dis(ds, model, length_units="METERS", pname="dis", **kwargs):
+def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
+    """get discretisation package from the model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object
+    length_units : str, optional
+        length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    dis : flopy ModflowGwfdis
+        discretisation package.
+    """
+    return _dis(ds, gwf, length_units, pname, **kwargs)
+
+
+def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
     """get discretisation package from the model dataset.
 
     Parameters
@@ -131,7 +153,29 @@ def dis(ds, model, length_units="METERS", pname="dis", **kwargs):
     return dis
 
 
-def disv(ds, model, length_units="METERS", pname="disv", **kwargs):
+def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
+    """get discretisation vertices package from the model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    model : flopy ModflowGwf
+        groundwater flow object.
+    length_units : str, optional
+        length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    disv : flopy ModflowGwfdisv
+        disv package
+    """
+    _disv(ds, gwf, length_units, pname, **kwargs)
+
+
+def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     """get discretisation vertices package from the model dataset.
 
     Parameters
@@ -317,7 +361,7 @@ def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
         return ghb
 
     else:
-        logger.warn("no ghb cells added")
+        logger.warning("no ghb cells added")
         return None
 
 
@@ -365,7 +409,7 @@ def drn(ds, gwf, da_name, pname="drn", **kwargs):
         return drn
 
     else:
-        logger.warn("no drn cells added")
+        logger.warning("no drn cells added")
 
         return None
 

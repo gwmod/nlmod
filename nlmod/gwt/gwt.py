@@ -5,7 +5,7 @@ import flopy
 import xarray as xr
 
 from ..dims import grid
-from ..gwf.gwf import _set_record, dis, disv
+from ..gwf.gwf import _dis, _disv, _set_record
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +128,50 @@ def gwt(ds, sim, modelname=None, **kwargs):
     )
 
     return gwt
+
+
+def dis(ds, gwt, length_units="METERS", pname="dis", **kwargs):
+    """create discretisation package from the model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwt : flopy ModflowGwf
+        groundwater transport object
+    length_units : str, optional
+        length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    dis : flopy ModflowGwtdis
+        discretisation package.
+    """
+    return _dis(ds, gwt, length_units, pname, **kwargs)
+
+
+def disv(ds, gwt, length_units="METERS", pname="disv", **kwargs):
+    """create discretisation vertices package from the model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    model : flopy ModflowGwt
+        groundwater transport object.
+    length_units : str, optional
+        length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    disv : flopy ModflowGwtdisv
+        disv package
+    """
+    return _disv(ds, gwt, length_units, pname, **kwargs)
 
 
 def adv(ds, gwt, scheme=None, **kwargs):

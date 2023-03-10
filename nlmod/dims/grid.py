@@ -27,11 +27,14 @@ from tqdm import tqdm
 
 from .. import cache, util
 from .base import extrapolate_ds
-from .layers import (fill_nan_top_botm_kh_kv, get_first_active_layer,
-                     set_idomain)
+from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
-from .resample import (affine_transform_gdf, get_affine_mod_to_world,
-                       get_affine_world_to_mod, structured_da_to_ds)
+from .resample import (
+    affine_transform_gdf,
+    get_affine_mod_to_world,
+    get_affine_world_to_mod,
+    structured_da_to_ds,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -606,7 +609,7 @@ def lrc_to_reclist(
     if aux is not None:
         if isinstance(aux, str):
             aux = [aux]
-        elif isinstance(aux, float) or isinstance(aux, int):
+        elif isinstance(aux, (int, float)):
             aux = [aux]
 
         for i_aux in aux:

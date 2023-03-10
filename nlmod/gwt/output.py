@@ -177,7 +177,6 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
     return ctop
 
 
-
 def freshwater_head(ds, pointwater_head, conc, denseref=None, drhodc=None):
     """Calculate equivalent freshwater head from point water heads.
 
@@ -192,7 +191,7 @@ def freshwater_head(ds, pointwater_head, conc, denseref=None, drhodc=None):
     conc : xarray.DataArray
         data array containing concentration
     denseref : float, optional
-        reference density, by default None, which will use denseref attribute in 
+        reference density, by default None, which will use denseref attribute in
         model dataset.
     drhodc : float, optional
         density-concentration gradient, by default None, which will use drhodc
@@ -211,7 +210,7 @@ def freshwater_head(ds, pointwater_head, conc, denseref=None, drhodc=None):
     if "z" not in ds:
         if "thickness" not in ds:
             thickness = calculate_thickness(ds)
-        z = ds["botm"] + thickness / 2.
+        z = ds["botm"] + thickness / 2.0
     else:
         z = ds["z"]
     hf = density / denseref * pointwater_head - (density - denseref) / denseref * z
@@ -232,7 +231,7 @@ def pointwater_head(ds, freshwater_head, conc, denseref=None, drhodc=None):
     conc : xarray.DataArray
         data array containing concentration
     denseref : float, optional
-        reference density, by default None, which will use denseref attribute in 
+        reference density, by default None, which will use denseref attribute in
         model dataset.
     drhodc : float, optional
         density-concentration gradient, by default None, which will use drhodc
@@ -251,7 +250,7 @@ def pointwater_head(ds, freshwater_head, conc, denseref=None, drhodc=None):
     if "z" not in ds:
         if "thickness" not in ds:
             thickness = calculate_thickness(ds)
-        z = ds["botm"] + thickness / 2.
+        z = ds["botm"] + thickness / 2.0
     else:
         z = ds["z"]
     hp = denseref / density * freshwater_head + (density - denseref) / density * z

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from ..dims.layers import calculate_thickness
 from ..dims.resample import get_affine, get_xy_mid_structured
 
 logger = logging.getLogger(__name__)
@@ -174,3 +175,84 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
         coords["layer"] = (dims, conc_da.layer.data[top_layer])
         ctop = xr.DataArray(ctop, dims=dims, coords=coords)
     return ctop
+
+
+
+def freshwater_head(ds, pointwater_head, conc, denseref=None, drhodc=None):
+    """Calculate equivalent freshwater head from point water heads.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset containing layer elevation/thickness data, and
+        reference density (denseref) relationship between concentration
+        and density (drhodc) if not provided separately
+    pointwater_head : xarray.DataArray
+        data array containing point water heads
+    conc : xarray.DataArray
+        data array containing concentration
+    denseref : float, optional
+        reference density, by default None, which will use denseref attribute in 
+        model dataset.
+    drhodc : float, optional
+        density-concentration gradient, by default None, which will use drhodc
+        attribute in model dataset.
+
+    Returns
+    -------
+    hf : xarray.DataArray
+        data array containing equivalent freshwater heads.
+    """
+    if denseref is None:
+        denseref = ds.denseref
+    if drhodc is None:
+        drhodc = ds.drhodc
+    density = denseref + drhodc * conc
+    if "z" not in ds:
+        if "thickness" not in ds:
+            thickness = calculate_thickness(ds)
+        z = ds["botm"] + thickness / 2.
+    else:
+        z = ds["z"]
+    hf = density / denseref * pointwater_head - (density - denseref) / denseref * z
+    return hf
+
+
+def pointwater_head(ds, freshwater_head, conc, denseref=None, drhodc=None):
+    """Calculate point water head from freshwater heads.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset containing layer elevation/thickness data, and
+        reference density (denseref) relationship between concentration
+        and density (drhodc) if not provided separately
+    freshwater_head : xarray.DataArray
+        data array containing freshwater heads
+    conc : xarray.DataArray
+        data array containing concentration
+    denseref : float, optional
+        reference density, by default None, which will use denseref attribute in 
+        model dataset.
+    drhodc : float, optional
+        density-concentration gradient, by default None, which will use drhodc
+        attribute in model dataset.
+
+    Returns
+    -------
+    hf : xarray.DataArray
+        data array containing point water heads.
+    """
+    if denseref is None:
+        denseref = ds.denseref
+    if drhodc is None:
+        drhodc = ds.drhodc
+    density = denseref + drhodc * conc
+    if "z" not in ds:
+        if "thickness" not in ds:
+            thickness = calculate_thickness(ds)
+        z = ds["botm"] + thickness / 2.
+    else:
+        z = ds["z"]
+    hp = denseref / density * freshwater_head + (density - denseref) / density * z
+    return hp

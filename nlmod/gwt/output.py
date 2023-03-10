@@ -30,14 +30,14 @@ def get_concentration_da(ds=None, gwt=None, fname_conc=None):
     """Reads concentration file given either a dataset or a groundwater flow object.
 
     Note: Calling this function with ds is currently preferred over calling it
-    with gwf, because the layer and time coordinates can not be fully
-    reconstructed from gwf.
+    with gwt, because the layer and time coordinates can not be fully
+    reconstructed from gwt.
 
     Parameters
     ----------
     ds : xarray.Dataset
         Xarray dataset with model data.
-    gwt : flopy ModflowGwf
+    gwt : flopy ModflowGwt
         Flopy groundwater transport object.
     fname_conc : path, optional
         Instead of loading the binary concentration file corresponding to ds or gwf

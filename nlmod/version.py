@@ -12,6 +12,7 @@ def show_versions() -> None:
         f"NumPy version: {metadata.version('numpy')}\n"
         f"Xarray version: {metadata.version('xarray')}\n"
         f"Matplotlib version: {metadata.version('matplotlib')}\n"
+        f"Flopy version: {metadata.version('flopy')}\n"
     )
 
     msg += f"\nnlmod version: {__version__}"

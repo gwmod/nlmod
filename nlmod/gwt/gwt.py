@@ -10,38 +10,38 @@ from ..gwf.gwf import _dis, _disv, _set_record
 logger = logging.getLogger(__name__)
 
 
-def _get_var_from_ds_attr(ds, varname, attr=None, var=None, warn=True):
-    """Internal function to parse variable from dataset attributes.
+def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
+    """Internal function to get value from dataset attributes.
 
     Parameters
     ----------
     ds : xarray.Dataset
         dataset containing model data
     varname : str
-        name of the variable
+        name of the variable in flopy package
     attr : str, optional
         name of the attribute in dataset (is sometimes different to varname)
-    var : Any, optional
+    value : Any, optional
         variable value, by default None
     warn : bool, optional
         log warning if value not found
 
     Returns
     -------
-    var : Any
-        returns variable value, if var was None, attempts to obtain
+    value : Any
+        returns variable value, if value was None, attempts to obtain
         variable from dataset attributes.
     """
     if attr is None:
         attr = varname
 
-    if var is not None and (attr in ds.attrs):
+    if value is not None and (attr in ds.attrs):
         logger.info(
             f"Using user-provided '{varname}' and not stored attribute 'ds.{attr}'"
         )
-    elif var is None and (attr in ds.attrs):
-        var = ds.attrs[attr]
-    elif var is None:
+    elif value is None and (attr in ds.attrs):
+        value = ds.attrs[attr]
+    elif value is None:
         if warn:
             msg = (
                 f"No value found for '{varname}', passing None to flopy. "
@@ -49,42 +49,42 @@ def _get_var_from_ds_attr(ds, varname, attr=None, var=None, warn=True):
             )
             logger.warning(msg)
         # raise ValueError(msg)
-    return var
+    return value
 
 
-def _get_var_from_ds_datavar(ds, varname, datavar=None, var=None, warn=True):
-    """Internal function to parse variable from dataset data variables.
+def _get_value_from_ds_datavar(ds, varname, datavar=None, value=None, warn=True):
+    """Internal function to get value from dataset data variables.
 
     Parameters
     ----------
     ds : xarray.Dataset
         dataset containing model data
     varname : str
-        name of the variable
+        name of the variable in flopy package
     datavar : str, optional
         name of the data variable (is sometimes different to varname) in dataset
-    var : Any, optional
+    value : Any, optional
         variable value, by default None
     warn : bool, optional
         log warning if value not found
 
     Returns
     -------
-    var : Any
-        returns variable value, if var was None, attempts to obtain
+    value : Any
+        returns variable value, if value was None, attempts to obtain
         variable from dataset data variables.
     """
     if datavar is None:
         datavar = varname
 
-    if (var is not None) and (datavar in ds):
+    if (value is not None) and (datavar in ds):
         logger.info(
             f"Using user-provided '{varname}' and not"
             f" stored data variable 'ds.{datavar}'"
         )
-    elif var is None and (datavar in ds):
-        var = ds[datavar]
-    elif var is None:
+    elif value is None and (datavar in ds):
+        value = ds[datavar]
+    elif value is None:
         if warn:
             msg = (
                 f"No value found for '{varname}', passing None to flopy. "
@@ -92,7 +92,7 @@ def _get_var_from_ds_datavar(ds, varname, datavar=None, var=None, warn=True):
             )
             logger.warning(msg)
         # raise ValueError(msg)
-    return var
+    return value
 
 
 def gwt(ds, sim, modelname=None, **kwargs):
@@ -193,7 +193,7 @@ def adv(ds, gwt, scheme=None, **kwargs):
         adv package
     """
     logger.info("creating modflow ADV")
-    scheme = _get_var_from_ds_attr(ds, "scheme", "adv_scheme", var=scheme)
+    scheme = _get_value_from_ds_attr(ds, "scheme", "adv_scheme", value=scheme)
     adv = flopy.mf6.ModflowGwtadv(gwt, scheme=scheme, **kwargs)
     return adv
 
@@ -214,9 +214,11 @@ def dsp(ds, gwt, **kwargs):
         dsp package
     """
     logger.info("creating modflow DSP")
-    alh = _get_var_from_ds_attr(ds, "alh", "dsp_alh", var=kwargs.pop("alh", None))
-    ath1 = _get_var_from_ds_attr(ds, "ath1", "dsp_ath1", var=kwargs.pop("ath1", None))
-    atv = _get_var_from_ds_attr(ds, "atv", "dsp_atv", var=kwargs.pop("atv", None))
+    alh = _get_value_from_ds_attr(ds, "alh", "dsp_alh", value=kwargs.pop("alh", None))
+    ath1 = _get_value_from_ds_attr(
+        ds, "ath1", "dsp_ath1", value=kwargs.pop("ath1", None)
+    )
+    atv = _get_value_from_ds_attr(ds, "atv", "dsp_atv", value=kwargs.pop("atv", None))
     dsp = flopy.mf6.ModflowGwtdsp(gwt, alh=alh, ath1=ath1, atv=atv, **kwargs)
     return dsp
 
@@ -246,7 +248,7 @@ def ssm(ds, gwt, sources=None, **kwargs):
     if sources is None:
         build_tuples = True
 
-    sources = _get_var_from_ds_attr(ds, "sources", "ssm_sources", var=sources)
+    sources = _get_value_from_ds_attr(ds, "sources", "ssm_sources", value=sources)
 
     if build_tuples and sources is not None:
         sources = [(ipkg, "AUX", "CONCENTRATION") for ipkg in sources]
@@ -276,8 +278,12 @@ def mst(ds, gwt, porosity=None, **kwargs):
     logger.info("creating modflow MST")
     if isinstance(porosity, str):
         porosity = None
-    porosity = _get_var_from_ds_attr(ds, "porosity", var=porosity, warn=False)
-    porosity = _get_var_from_ds_datavar(ds, "porosity", var=porosity)
+    # NOTE: attempting to look for porosity in attributes first, then data variables.
+    # If both are defined, the attribute value will be used. The log message in this
+    # case is not entirely correct. This is something we may need to sort out, and 
+    # also think about the order we do this search.
+    porosity = _get_value_from_ds_attr(ds, "porosity", value=porosity, warn=False)
+    porosity = _get_value_from_ds_datavar(ds, "porosity", value=porosity)
     mst = flopy.mf6.ModflowGwtmst(gwt, porosity=porosity, **kwargs)
     return mst
 

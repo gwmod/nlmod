@@ -474,8 +474,12 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         kwargs = {}
         if ds.gridtype == "structured":
             kwargs["fill_value"] = "extrapolate"
+        
         da_out = da.interp(x=ds.x, y=ds.y, method=method, kwargs=kwargs)
-        return da_out
+        
+        # some stuff is added by the interp function that should not be there
+        added_coords = set(da_out.coords) - set(ds.coords)
+        return da_out.drop_vars(added_coords)
     if isinstance(method, rasterio.enums.Resampling):
         resampling = method
     else:
@@ -525,12 +529,19 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
     else:
         raise (Exception(f"Gridtype {ds.gridtype} not supported"))
 
-    # somehow the spatial_ref (jarkus) and band (ahn) coordinates are added by the reproject_match function
-    if "spatial_ref" in da_out.coords:
-        da_out = da_out.drop_vars("spatial_ref")
-        if "grid_mapping" in da_out.encoding:
-            del da_out.encoding["grid_mapping"]
-
+    # some stuff is added by the reproject_match function that should not be there
+    added_coords = set(da_out.coords) - set(ds.coords)
+    da_out = da_out.drop_vars(added_coords)
+    
+    if "grid_mapping" in da_out.encoding:
+        del da_out.encoding["grid_mapping"]
+    
+    # remove the long_name, standard_name and units attributes of the x and y coordinates
+    for coord in ['x', 'y']:
+        for name in ['long_name', 'standard_name', 'units', 'axis']:
+            if name in da_out[coord].attrs.keys():
+                del da_out[coord].attrs[name]
+                
     return da_out
 
 

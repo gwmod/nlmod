@@ -75,6 +75,7 @@ def to_model_ds(
     yorigin=0.0,
     angrot=0.0,
     drop_attributes=True,
+    transport=False,
 ):
     """Transform a regis datset to a model dataset with another resolution.
 
@@ -117,7 +118,10 @@ def to_model_ds(
         the rotation of the grid in counter clockwise degrees, default is 0.0
     drop_attributes : bool, optional
         if True drop the attributes from the layer model dataset. Otherwise
-        keep the attributes. Default is True
+        keep the attributes. Default is True.
+    transport : bool, optional
+        flag indicating whether dataset includes data for a groundwater
+        transport model (GWT). Default is False, no transport.
 
     Returns
     -------
@@ -158,6 +162,7 @@ def to_model_ds(
 
     # add attributes
     ds = set_ds_attrs(ds, model_name, model_ws)
+    ds.attrs["transport"] = int(transport)
 
     # fill nan's and add idomain
     if fill_nan:
@@ -247,6 +252,7 @@ def get_ds(
     attrs=None,
     extrapolate=True,
     fill_nan=True,
+    transport=False,
     **kwargs,
 ):
     """Create a model dataset from scratch, so without a layer model.
@@ -307,7 +313,9 @@ def get_ds(
         if True nan values in the top, botm, kh and kv are filled using the
         fill_nan_top_botm_kh_kv function. Layers with only nan values in the
         botm are removed.
-
+    transport : bool, optional
+        flag indicating whether dataset includes data for a groundwater
+        transport model (GWT). Default is False, no transport.
 
 
     **kwargs : dict
@@ -330,6 +338,8 @@ def get_ds(
 
     if attrs is None:
         attrs = {}
+    attrs["transport"] = int(transport)
+
     if layer is None:
         if botm is None:
             layer = 10
@@ -345,7 +355,8 @@ def get_ds(
         if isinstance(par, numbers.Number):
             if np.isnan(par) and (extrapolate or fill_nan):
                 raise ValueError(
-                    "extrapolate and remove_nan_layer should be False when setting model parameters to nan"
+                    "extrapolate and remove_nan_layer should be "
+                    "False when setting model parameters to nan"
                 )
 
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)

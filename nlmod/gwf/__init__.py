@@ -1,4 +1,4 @@
-from . import surface_water, wells
+from . import output, surface_water, wells
 from .gwf import *
 from .horizontal_flow_barrier import *
 from .output import *

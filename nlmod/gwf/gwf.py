@@ -56,7 +56,7 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
     ds : xarray.Dataset
         dataset with model data.
     gwf : flopy ModflowGwf
-        groundwaterflow object.
+        groundwaterflow object
     length_units : str, optional
         length unit. The default is 'METERS'.
     pname : str, optional
@@ -64,13 +64,35 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
 
     Returns
     -------
-    dis : TYPE
+    dis : flopy ModflowGwfdis
+        discretisation package.
+    """
+    return _dis(ds, gwf, length_units, pname, **kwargs)
+
+
+def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
+    """get discretisation package from the model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    model : flopy ModflowGwf or flopy ModflowGwt
+        groundwaterflow or groundwater transport object
+    length_units : str, optional
+        length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    dis : flopy ModflowGwfdis or flopy ModflowGwtdis
         discretisation package.
     """
     logger.info("creating modflow DIS")
 
     if ds.gridtype == "vertex":
-        return disv(ds, gwf, length_units=length_units)
+        return disv(ds, model, length_units=length_units)
 
     # check attributes
     for att in ["delr", "delc"]:
@@ -87,24 +109,46 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
         yorigin = ds.extent[2]
         angrot = 0.0
 
-    dis = flopy.mf6.ModflowGwfdis(
-        gwf,
-        pname=pname,
-        length_units=length_units,
-        xorigin=xorigin,
-        yorigin=yorigin,
-        angrot=angrot,
-        nlay=ds.dims["layer"],
-        nrow=ds.dims["y"],
-        ncol=ds.dims["x"],
-        delr=ds["delr"].values if "delr" in ds else ds.delr,
-        delc=ds["delc"].values if "delc" in ds else ds.delc,
-        top=ds["top"].data,
-        botm=ds["botm"].data,
-        idomain=ds["idomain"].data,
-        filename=f"{ds.model_name}.dis",
-        **kwargs,
-    )
+    if model.model_type == "gwf6":
+        dis = flopy.mf6.ModflowGwfdis(
+            model,
+            pname=pname,
+            length_units=length_units,
+            xorigin=xorigin,
+            yorigin=yorigin,
+            angrot=angrot,
+            nlay=ds.dims["layer"],
+            nrow=ds.dims["y"],
+            ncol=ds.dims["x"],
+            delr=ds["delr"].values if "delr" in ds else ds.delr,
+            delc=ds["delc"].values if "delc" in ds else ds.delc,
+            top=ds["top"].data,
+            botm=ds["botm"].data,
+            idomain=ds["idomain"].data,
+            filename=f"{ds.model_name}.dis",
+            **kwargs,
+        )
+    elif model.model_type == "gwt6":
+        dis = flopy.mf6.ModflowGwtdis(
+            model,
+            pname=pname,
+            length_units=length_units,
+            xorigin=xorigin,
+            yorigin=yorigin,
+            angrot=angrot,
+            nlay=ds.dims["layer"],
+            nrow=ds.dims["y"],
+            ncol=ds.dims["x"],
+            delr=ds["delr"].values if "delr" in ds else ds.delr,
+            delc=ds["delc"].values if "delc" in ds else ds.delc,
+            top=ds["top"].data,
+            botm=ds["botm"].data,
+            idomain=ds["idomain"].data,
+            filename=f"{ds.model_name}_gwt.dis",
+            **kwargs,
+        )
+    else:
+        raise ValueError("Unknown model type.")
 
     return dis
 
@@ -116,8 +160,8 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
     ----------
     ds : xarray.Dataset
         dataset with model data.
-    gwf : flopy ModflowGwf
-        groundwaterflow object.
+    model : flopy ModflowGwf
+        groundwater flow object.
     length_units : str, optional
         length unit. The default is 'METERS'.
     pname : str, optional
@@ -126,6 +170,28 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
     Returns
     -------
     disv : flopy ModflowGwfdisv
+        disv package
+    """
+    return _disv(ds, gwf, length_units, pname, **kwargs)
+
+
+def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
+    """get discretisation vertices package from the model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    model : flopy ModflowGwf or flopy ModflowGwt
+        groundwater flow or groundwater transport object.
+    length_units : str, optional
+        length unit. The default is 'METERS'.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    disv : flopy ModflowGwfdisv or flopy ModflowGwtdisv
         disv package
     """
     logger.info("creating modflow DISV")
@@ -145,25 +211,48 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
 
     vertices = grid.get_vertices_from_ds(ds)
     cell2d = grid.get_cell2d_from_ds(ds)
-    disv = flopy.mf6.ModflowGwfdisv(
-        gwf,
-        idomain=ds["idomain"].data,
-        xorigin=xorigin,
-        yorigin=yorigin,
-        length_units=length_units,
-        angrot=angrot,
-        nlay=len(ds.layer),
-        ncpl=len(ds.icell2d),
-        nvert=len(ds.iv),
-        top=ds["top"].data,
-        botm=ds["botm"].data,
-        vertices=vertices,
-        cell2d=cell2d,
-        pname=pname,
-        **kwargs,
-    )
+    if model.model_type == "gwf6":
+        disv = flopy.mf6.ModflowGwfdisv(
+            model,
+            idomain=ds["idomain"].data,
+            xorigin=xorigin,
+            yorigin=yorigin,
+            length_units=length_units,
+            angrot=angrot,
+            nlay=len(ds.layer),
+            ncpl=len(ds.icell2d),
+            nvert=len(ds.iv),
+            top=ds["top"].data,
+            botm=ds["botm"].data,
+            vertices=vertices,
+            cell2d=cell2d,
+            pname=pname,
+            **kwargs,
+        )
+    elif model.model_type == "gwt6":
+        disv = flopy.mf6.ModflowGwtdisv(
+            model,
+            idomain=ds["idomain"].data,
+            xorigin=xorigin,
+            yorigin=yorigin,
+            length_units=length_units,
+            angrot=angrot,
+            nlay=len(ds.layer),
+            ncpl=len(ds.icell2d),
+            nvert=len(ds.iv),
+            top=ds["top"].data,
+            botm=ds["botm"].data,
+            vertices=vertices,
+            cell2d=cell2d,
+            pname=pname,
+            filename=f"{ds.model_name}_gwt.disv",
+            **kwargs,
+        )
+    else:
+        raise ValueError("Unknown model type.")
+
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        gwf.modelgrid.set_coord_info(xoff=xorigin, yoff=yorigin, angrot=angrot)
+        model.modelgrid.set_coord_info(xoff=xorigin, yoff=yorigin, angrot=angrot)
 
     return disv
 
@@ -214,7 +303,7 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     return npf
 
 
-def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
+def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
     """get general head boundary from model dataset.
 
     Parameters
@@ -227,6 +316,8 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         name of the ghb files in the model dataset.
     pname : str, optional
         package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
 
     Raises
     ------
@@ -248,11 +339,13 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
         first_active_layer=True,
         only_active_cells=False,
         layer=0,
+        aux=auxiliary,
     )
 
     if len(ghb_rec) > 0:
         ghb = flopy.mf6.ModflowGwfghb(
             gwf,
+            auxiliary="CONCENTRATION" if auxiliary is not None else None,
             print_input=True,
             maxbound=len(ghb_rec),
             stress_period_data=ghb_rec,
@@ -260,10 +353,63 @@ def ghb(ds, gwf, da_name, pname="ghb", **kwargs):
             pname=pname,
             **kwargs,
         )
+        if (auxiliary is not None) and (ds.transport == 1):
+            ssm_sources = ds.attrs["ssm_sources"]
+            if ghb.name not in ssm_sources:
+                ssm_sources += ghb.name
+                ds.attrs["ssm_sources"] = ssm_sources
         return ghb
 
     else:
-        print("no ghb cells added")
+        logger.warning("no ghb cells added")
+        return None
+
+
+def drn(ds, gwf, da_name, pname="drn", **kwargs):
+    """get drain from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    da_name : str
+        name of the drn files in the model dataset
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    drn : flopy ModflowGwfdrn
+        drn package
+    """
+    logger.info("creating modflow DRN")
+
+    drn_rec = grid.da_to_reclist(
+        ds,
+        ds[f"{da_name}_cond"] != 0,
+        col1=f"{da_name}_peil",
+        col2=f"{da_name}_cond",
+        first_active_layer=True,
+        only_active_cells=False,
+        layer=0,
+    )
+
+    if len(drn_rec) > 0:
+        drn = flopy.mf6.ModflowGwfdrn(
+            gwf,
+            print_input=True,
+            maxbound=len(drn_rec),
+            stress_period_data=drn_rec,
+            save_flows=True,
+            pname=pname,
+            **kwargs,
+        )
+        return drn
+
+    else:
+        logger.warning("no drn cells added")
 
         return None
 
@@ -370,7 +516,9 @@ def sto(
         return sto
 
 
-def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
+def chd(
+    ds, gwf, chd="chd", head="starting_head", pname="chd", auxiliary=None, **kwargs
+):
     """get constant head boundary at the model's edges from the model dataset.
 
     Parameters
@@ -387,6 +535,8 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
         cells. The default is 'starting_head'.
     pname : str, optional
         package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
 
     Returns
     -------
@@ -396,16 +546,22 @@ def chd(ds, gwf, chd="chd", head="starting_head", pname="chd", **kwargs):
     logger.info("creating modflow CHD")
 
     # get the stress_period_data
-    chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head)
+    chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head, aux=auxiliary)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
+        auxiliary="CONCENTRATION" if auxiliary is not None else None,
         pname=pname,
         maxbound=len(chd_rec),
         stress_period_data=chd_rec,
         save_flows=True,
         **kwargs,
     )
+    if (auxiliary is not None) and (ds.transport == 1):
+        ssm_sources = ds.attrs["ssm_sources"]
+        if chd.name not in ssm_sources:
+            ssm_sources += chd.name
+            ds.attrs["ssm_sources"] = ssm_sources
 
     return chd
 
@@ -505,15 +661,15 @@ def evt(ds, gwf, pname="evt", **kwargs):
     return evt
 
 
-def _set_record(head, budget):
+def _set_record(out, budget, output="head"):
     record = []
-    if isinstance(head, bool):
-        if head:
-            head = "LAST"
+    if isinstance(out, bool):
+        if out:
+            out = "LAST"
         else:
-            head = None
-    if head is not None:
-        record.append(("HEAD", head))
+            out = None
+    if out is not None:
+        record.append((output.upper(), out))
     if isinstance(budget, bool):
         if budget:
             budget = "LAST"
@@ -522,6 +678,46 @@ def _set_record(head, budget):
     if budget is not None:
         record.append(("BUDGET", budget))
     return record
+
+
+def buy(ds, gwf, pname="buy", **kwargs):
+    """create buoyancy package from model dataset.
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name, by default "buy"
+
+    Returns
+    -------
+    buy : flopy ModflowGwfbuy
+        buy package
+
+    Raises
+    ------
+    ValueError
+        if transport is not
+    """
+    if not ds.transport:
+        logger.error("BUY package requires a groundwater transport model")
+        raise ValueError(
+            "BUY package requires a groundwater transport model. "
+            "Set 'transport' to True in model dataset."
+        )
+
+    drhodc = kwargs.pop("drhodc", ds.drhodc)
+    crhoref = kwargs.pop("crhoref", ds.crhoref)
+    denseref = kwargs.pop("denseref", ds.denseref)
+
+    pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "none")]
+
+    buy = flopy.mf6.ModflowGwfbuy(
+        gwf, denseref=denseref, nrhospecies=len(pdata), packagedata=pdata, pname=pname
+    )
+    return buy
 
 
 def oc(
@@ -557,8 +753,8 @@ def oc(
     head_filerecord = [headfile]
     budgetfile = f"{ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
-    saverecord = _set_record(save_head, save_budget)
-    printrecord = _set_record(print_head, print_budget)
+    saverecord = _set_record(save_head, save_budget, output="head")
+    printrecord = _set_record(print_head, print_budget, output="head")
 
     oc = flopy.mf6.ModflowGwfoc(
         gwf,

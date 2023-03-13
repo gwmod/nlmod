@@ -280,7 +280,7 @@ def mst(ds, gwt, porosity=None, **kwargs):
         porosity = None
     # NOTE: attempting to look for porosity in attributes first, then data variables.
     # If both are defined, the attribute value will be used. The log message in this
-    # case is not entirely correct. This is something we may need to sort out, and 
+    # case is not entirely correct. This is something we may need to sort out, and
     # also think about the order we do this search.
     porosity = _get_value_from_ds_attr(ds, "porosity", value=porosity, warn=False)
     porosity = _get_value_from_ds_datavar(ds, "porosity", value=porosity)

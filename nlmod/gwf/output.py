@@ -118,11 +118,12 @@ def _get_hds(ds=None, gwf=None, fname_hds=None):
 
     if fname_hds is None:
         if ds is None:
-            headobj = gwf.output.head()
+            return gwf.output.head()
         else:
             fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    else:
-        headobj = flopy.utils.HeadFile(fname_hds)
+
+    headobj = flopy.utils.HeadFile(fname_hds)
+
     return headobj
 
 

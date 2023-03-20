@@ -112,15 +112,16 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
 
 
 def _get_hds(ds=None, gwf=None, fname_hds=None):
-    msg = "Load the heads using either the ds or the gwf"
-    assert ((ds is not None) + (gwf is not None)) == 1, msg
+    msg = "Load the heads using either the ds, gwf or fname_hds"
+    assert ((ds is not None) + (gwf is not None) +
+            (fname_hds is not None)) >= 1, msg
 
     if fname_hds is None:
         if ds is None:
             headobj = gwf.output.head()
         else:
             fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    if fname_hds is not None:
+    else:
         headobj = flopy.utils.HeadFile(fname_hds)
     return headobj
 

@@ -339,11 +339,11 @@ def add_kh_and_kv(
         df = df.reset_index()
     if "strat" in df:
         msg = f"{msg} and stratigraphy"
-    logging.info(msg)
+    logger.info(msg)
     if kh_df not in df:
         raise (Exception(f"No {kh_df} defined in df"))
     if kv_df not in df:
-        logging.info(f"Setting kv equal to kh / {anisotropy}")
+        logger.info(f"Setting kv equal to kh / {anisotropy}")
     if stochastic is None:
         # calculate kh and kv from most likely lithoclass
         lithok = gt["lithok"].data
@@ -444,7 +444,7 @@ def _get_kh_kv_from_df(df, ilithok, istrat=None, anisotropy=1.0, mask=None):
             msg = f"{msg}. Setting values of voxels to NaN."
         else:
             msg = f"{msg}. Setting values of {mask.sum()} voxels to NaN."
-        logging.warning(msg)
+        logger.warning(msg)
         return np.NaN, np.NaN
 
     kh = df.loc[mask_df, "kh"].mean()

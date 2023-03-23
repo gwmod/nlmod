@@ -17,7 +17,7 @@ def get_lithok_props(rgb_colors=True):
     fname = os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv")
     df = pd.read_csv(fname, index_col=0)
     if rgb_colors:
-        df["color"] = get_lithok_colors()
+        df["color"] = pd.Series(get_lithok_colors())
     return df
 
 
@@ -172,13 +172,13 @@ def convert_geotop_to_ml_layers(
     geo_eenheden = np.unique(geotop_ds_raw.strat.data)
     geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
     stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
-    geo_eenheden = geo_eenheden[geo_eenheden < 6000].astype(int)
+    geo_eenheden = geo_eenheden[geo_eenheden < 6000]
 
     # geo eenheid 2000 zit boven 1130
-    if (2000 in geo_eenheden) and (1130 in geo_eenheden):
-        geo_eenheden[(geo_eenheden == 2000) + (geo_eenheden == 1130)] = [
-            2000,
-            1130,
+    if (2000.0 in geo_eenheden) and (1130.0 in geo_eenheden):
+        geo_eenheden[(geo_eenheden == 2000.0) + (geo_eenheden == 1130.0)] = [
+            2000.0,
+            1130.0,
         ]
 
     strat_codes = []
@@ -339,11 +339,11 @@ def add_kh_and_kv(
         df = df.reset_index()
     if "strat" in df:
         msg = f"{msg} and stratigraphy"
-    logger.info(msg)
+    logging.info(msg)
     if kh_df not in df:
         raise (Exception(f"No {kh_df} defined in df"))
     if kv_df not in df:
-        logger.info(f"Setting kv equal to kh / {anisotropy}")
+        logging.info(f"Setting kv equal to kh / {anisotropy}")
     if stochastic is None:
         # calculate kh and kv from most likely lithoclass
         lithok = gt["lithok"].data
@@ -399,7 +399,8 @@ def add_kh_and_kv(
                     )
                     khi[mask], kvi[mask] = kh_sel, kv_sel
             else:
-                khi, kvi = _get_kh_kv_from_df(df, ilithok, anisotropy=anisotropy)
+                khi, kvi = _get_kh_kv_from_df(
+                    df, ilithok, anisotropy=anisotropy)
                 if np.isnan(khi):
                     probality[:] = 0.0
                 khi, kvi = _handle_nans_in_stochastic_approach(
@@ -443,7 +444,7 @@ def _get_kh_kv_from_df(df, ilithok, istrat=None, anisotropy=1.0, mask=None):
             msg = f"{msg}. Setting values of voxels to NaN."
         else:
             msg = f"{msg}. Setting values of {mask.sum()} voxels to NaN."
-        logger.warning(msg)
+        logging.warning(msg)
         return np.NaN, np.NaN
 
     kh = df.loc[mask_df, "kh"].mean()

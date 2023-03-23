@@ -9,7 +9,6 @@ from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
-
 from ..dims.grid import gdf_to_grid
 from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
@@ -50,7 +49,6 @@ def aggregate(gdf, method, ds=None):
     celldata = pd.DataFrame(index=gr.groups.keys())
 
     for cid, group in tqdm(gr, desc="Aggregate surface water data"):
-
         stage, cond, rbot = get_surfacewater_params(group, method, cid=cid, ds=ds)
 
         celldata.loc[cid, "stage"] = stage
@@ -81,7 +79,6 @@ def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=Non
         rbot = group["botm"].min()
 
     elif method == "de_lange":
-
         # get additional requisite parameters
         if delange_params is None:
             delange_params = {}
@@ -393,7 +390,6 @@ def build_spd(
         total=celldata.index.size,
         desc=f"Building stress period data {pkg}",
     ):
-
         # check if there is an active layer for this cell
         if ds.gridtype == "vertex":
             idomain_cell = idomain[:, cellid]
@@ -724,9 +720,9 @@ def gdf_to_seasonal_pkg(
         gdf["boundname"] = gdf[boundname_column]
 
     spd = []
-    for iseason, season in enumerate(["winter", "summer"]):
+    seasons = ["winter", "summer"]
+    for iseason, season in enumerate(seasons):
         # use  a winter and summer level
-
         gdf["stage"] = stages[iseason]
 
         mask = gdf["stage"] < gdf["rbot"]
@@ -780,6 +776,17 @@ def gdf_to_seasonal_pkg(
         **kwargs,
     )
     # add timeseries for the seasons 'winter' and 'summer'
+    add_season_timeseries(ds, package, summer_months=summer_months, seasons=seasons)
+    return package
+
+
+def add_season_timeseries(
+    ds,
+    package,
+    summer_months=(4, 5, 6, 7, 8, 9),
+    filename="season.ts",
+    seasons=("winter", "summer"),
+):
     tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]
@@ -802,10 +809,9 @@ def gdf_to_seasonal_pkg(
     package.ts.initialize(
         filename="season.ts",
         timeseries=ts_data,
-        time_series_namerecord=["winter", "summer"],
+        time_series_namerecord=seasons,
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
-    return package
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):

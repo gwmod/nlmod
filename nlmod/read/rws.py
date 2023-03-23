@@ -6,8 +6,9 @@ import logging
 import os
 
 import geopandas as gpd
-import nlmod
 import xarray as xr
+
+import nlmod
 
 from .. import cache, dims, util
 from . import jarkus

@@ -154,7 +154,7 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
         or dry cells.
     layer : string or int, optional
         The name of the layer dimension of head (if head is a DataArray) or the integer
-        of the layer dimsension of head (if head is a numpy array). The default is
+        of the layer dimension of head (if head is a numpy array). The default is
         'layer'.
     botm : xarray.DataArray, optional
         A DataArray with the botm of each model-cell. It can be used to set heads below

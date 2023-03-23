@@ -91,7 +91,6 @@ def cache_netcdf(func):
 
     @functools.wraps(func)
     def decorator(*args, cachedir=None, cachename=None, **kwargs):
-
         # 1 check if cachedir and name are provided
         if cachedir is None or cachename is None:
             return func(*args, **kwargs)

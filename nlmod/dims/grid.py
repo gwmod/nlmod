@@ -21,8 +21,8 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
-from shapely.geometry import Point, Polygon
 from shapely.affinity import affine_transform
+from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
@@ -31,8 +31,8 @@ from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
-    get_affine_world_to_mod,
     get_affine_mod_to_world,
+    get_affine_world_to_mod,
     structured_da_to_ds,
 )
 
@@ -482,7 +482,7 @@ def col_to_list(col_in, ds, cellids):
     Parameters
     ----------
     col_in : xarray.DatArray, str, int or float
-        if col_in is a str type it is the name of the column in ds.
+        if col_in is a str type it is the name of the column in ds (if it exists).
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
     ds : xarray.Dataset
@@ -506,7 +506,7 @@ def col_to_list(col_in, ds, cellids):
         raster values from ds presented in a list per cell.
     """
 
-    if isinstance(col_in, str):
+    if isinstance(col_in, str) and col_in in ds:
         col_in = ds[col_in]
     if isinstance(col_in, xr.DataArray):
         if len(cellids) == 3:
@@ -531,7 +531,9 @@ def col_to_list(col_in, ds, cellids):
     return col_lst
 
 
-def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None):
+def lrc_to_reclist(
+    layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None, aux=None
+):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for structured grids.
@@ -578,6 +580,9 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
         col3 should be the following value for each package (can also be the
             name of a timeseries):
 
+    aux : str or list of str
+        list of auxiliary variables to include in reclist
+
     Raises
     ------
     ValueError
@@ -588,27 +593,47 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
     reclist : list of tuples
         every row consist of ((layer,row,column), col1, col2, col3).
     """
-    if col1 is None:
-        reclist = list(zip(zip(layers, rows, columns)))
-    elif (col1 is not None) and col2 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        reclist = list(zip(zip(layers, rows, columns), col1_lst))
-    elif (col2 is not None) and col3 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        reclist = list(zip(zip(layers, rows, columns), col1_lst, col2_lst))
-    elif col3 is not None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        col3_lst = col_to_list(col3, ds, cellids)
-        reclist = list(zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst))
-    else:
-        raise ValueError("invalid combination of values for col1, col2 and col3")
+    cols = []
 
+    if col1 is not None:
+        cols.append(col_to_list(col1, ds, cellids))
+    if col2 is not None and len(cols) == 1:
+        cols.append(col_to_list(col2, ds, cellids))
+    elif col2 is not None and len(cols) != 1:
+        raise ValueError("col2 is set, but col1 is not!")
+    if col3 is not None and len(cols) == 2:
+        cols.append(col_to_list(col3, ds, cellids))
+    elif col3 is not None and len(cols) != 2:
+        raise ValueError("col3 is set, but col1 and/or col2 are not!")
+
+    if aux is not None:
+        if isinstance(aux, str):
+            aux = [aux]
+        elif isinstance(aux, (int, float)):
+            aux = [aux]
+
+        for i_aux in aux:
+            if isinstance(i_aux, str):
+                if "layer" in ds[i_aux].dims and len(cellids) != 3:
+                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                else:
+                    cols.append(col_to_list(i_aux, ds, cellids))
+            else:
+                cols.append(col_to_list(i_aux, ds, cellids))
+
+    reclist = list(zip(zip(layers, rows, columns), *cols))
     return reclist
 
 
-def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None):
+def lcid_to_reclist(
+    layers,
+    cellids,
+    ds,
+    col1=None,
+    col2=None,
+    col3=None,
+    aux=None,
+):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for vertex grids.
@@ -649,6 +674,9 @@ def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None):
         value for each package (can also be the name of a timeseries):
         -   riv: bottom [L]
 
+    aux : str or list of str
+        list of auxiliary variables to include in reclist
+
     Raises
     ------
     ValueError
@@ -660,23 +688,35 @@ def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None):
         every row consist of ((layer, icell2d), col1, col2, col3)
         grids.
     """
-    if col1 is None:
-        reclist = list(zip(zip(layers, cellids[-1])))
-    elif (col1 is not None) and col2 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        reclist = list(zip(zip(layers, cellids[-1]), col1_lst))
-    elif (col2 is not None) and col3 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        reclist = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst))
-    elif col3 is not None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        col3_lst = col_to_list(col3, ds, cellids)
-        reclist = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst, col3_lst))
-    else:
-        raise ValueError("invalid combination of values for col1, col2 and col3")
+    cols = []
 
+    if col1 is not None:
+        cols.append(col_to_list(col1, ds, cellids))
+    if col2 is not None and len(cols) == 1:
+        cols.append(col_to_list(col2, ds, cellids))
+    elif col2 is not None and len(cols) != 1:
+        raise ValueError("col2 is set, but col1 is not!")
+    if col3 is not None and len(cols) == 2:
+        cols.append(col_to_list(col3, ds, cellids))
+    elif col3 is not None and len(cols) != 2:
+        raise ValueError("col3 is set, but col1 and/or col2 are not!")
+
+    if aux is not None:
+        if isinstance(aux, str):
+            aux = [aux]
+        elif isinstance(aux, (int, float)):
+            aux = [aux]
+
+        for i_aux in aux:
+            if isinstance(i_aux, str):
+                if "layer" in ds[i_aux].dims and len(cellids) != 2:
+                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                else:
+                    cols.append(col_to_list(i_aux, ds, cellids))
+            else:
+                cols.append(col_to_list(i_aux, ds, cellids))
+
+    reclist = list(zip(zip(layers, cellids[-1]), *cols))
     return reclist
 
 
@@ -687,6 +727,7 @@ def da_to_reclist(
     col2=None,
     col3=None,
     layer=0,
+    aux=None,
     first_active_layer=False,
     only_active_cells=True,
 ):
@@ -728,6 +769,8 @@ def da_to_reclist(
         col3 should be the following value for each package (can also be the
             name of a timeseries):
             riv: bottom [L]
+    aux : str or list of str, optional
+        list of auxiliary variables to include in reclist
     layer : int, optional
         layer used in the reclist. Not used if layer is in the dimensions of
         mask or if first_active_layer is True. The default is 0
@@ -757,12 +800,14 @@ def da_to_reclist(
 
         if "icell2d" in mask.dims:
             layers = cellids[0]
-            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3)
+            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3, aux=aux)
         else:
             layers = cellids[0]
             rows = cellids[1]
             columns = cellids[2]
-            return lrc_to_reclist(layers, rows, columns, cellids, ds, col1, col2, col3)
+            return lrc_to_reclist(
+                layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux
+            )
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
@@ -781,12 +826,14 @@ def da_to_reclist(
             layers = col_to_list(layer, ds, cellids)
 
         if "icell2d" in mask.dims:
-            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3)
+            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3, aux=aux)
         else:
             rows = cellids[-2]
             columns = cellids[-1]
 
-            return lrc_to_reclist(layers, rows, columns, cellids, ds, col1, col2, col3)
+            return lrc_to_reclist(
+                layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux
+            )
 
 
 def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):

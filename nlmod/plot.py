@@ -6,22 +6,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from matplotlib.collections import PatchCollection
+from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Patch, Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
-from matplotlib.colors import ListedColormap, Normalize
 
+from .dcs import DatasetCrossSection
 from .dims.grid import get_vertices, modelgrid_from_ds
 from .dims.resample import get_affine_mod_to_world, get_extent
-from .read import rws, geotop
-from .dcs import DatasetCrossSection
+from .read import geotop, rws
 
 
-def surface_water(model_ds, ax=None):
+def surface_water(model_ds, ax=None, **kwargs):
     surf_water = rws.get_gdf_surface_water(model_ds)
 
     if ax is None:
         _, ax = plt.subplots()
-    surf_water.plot(ax=ax)
+    surf_water.plot(ax=ax, **kwargs)
 
     return ax
 
@@ -701,6 +701,7 @@ def geotop_lithok_in_cross_section(
 
     colors = []
     for i, lithok in enumerate(lithok_un):
+        lithok = int(lithok)
         array[lithoks == lithok] = i
         colors.append(lithok_props.at[lithok, "color"])
     cmap = ListedColormap(colors)
@@ -710,7 +711,7 @@ def geotop_lithok_in_cross_section(
         # make a legend with dummy handles
         handles = []
         for i, lithok in enumerate(lithok_un):
-            label = lithok_props.at[lithok, "name"]
+            label = lithok_props.at[int(lithok), "name"]
             handles.append(Patch(facecolor=colors[i], label=label))
         ax.legend(handles=handles, loc=legend_loc)
 

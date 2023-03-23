@@ -146,3 +146,5 @@ nlmod/bin/
 flowchartnlmod.pptx
 tests/data/
 docs/examples/*/
+!docs/examples/data/
+!docs/examples/data/chloride_hbossche.nc

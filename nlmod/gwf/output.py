@@ -3,7 +3,6 @@ import os
 
 import flopy
 import numpy as np
-import pandas as pd
 import xarray as xr
 
 from ..dims.resample import get_affine, get_xy_mid_structured

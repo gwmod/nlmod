@@ -123,13 +123,13 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
     # slice extent
     gt = gt.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
-    # change order of dimensions from x, y, z to z, y, x
-    gt = gt.transpose("z", "y", "x")
-    gt = gt.sortby("z", ascending=False)
-    gt = gt.sortby("y", ascending=False)
-
     if drop_probabilities:
         gt = gt[["strat", "lithok"]]
+
+    # change order of dimensions from x, y, z to z, y, x
+    gt = gt.transpose("z", "y", "x")
+    gt = gt.sortby("z", ascending=False) # uses a lot of RAM
+    gt = gt.sortby("y", ascending=False) # uses a lot of RAM
 
     return gt
 

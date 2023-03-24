@@ -37,6 +37,8 @@ def lake_from_gdf(
     ds,
     recharge=True,
     claktype="VERTICAL",
+    boundname_column='identificatie',
+    obs_type='STAGE',
     surfdep=0.05,
     pname="lak",
     **kwargs,
@@ -50,7 +52,6 @@ def lake_from_gdf(
     gdf : gpd.GeoDataframe
         geodataframe with the cellids as the index and the columns:
             lakeno : with the number of the lake
-            elev : with the bottom of the lake
             strt : with the starting head of the lake
             clake : with the bed resistance of the lake
             optional columns are 'STATUS', 'STAGE', 'RAINFALL', 'EVAPORATION',
@@ -71,6 +72,9 @@ def lake_from_gdf(
     claktype : str, optional
         defines the lake-GWF connection type. For now only VERTICAL is
         supported. The default is 'VERTICAL'.
+    boundname_column : str, optional
+        THe name of the column in gdf to use for the boundnames. The default is
+        "identificatie", which is a unique identifier in the BGT.
     surfdep : float, optional
         Defines the surface depression depth for VERTICAL lake-GWF connections.
         The default is 0.05.
@@ -105,11 +109,6 @@ def lake_from_gdf(
     for iper in range(ds.dims["time"]):
         perioddata[iper] = []
 
-    lake_settings = []
-    for setting in LAKE_KWDS:
-        if setting in gdf.columns:
-            lake_settings.append(setting)
-
     lake_settings = [setting for setting in LAKE_KWDS if setting in gdf.columns]
 
     if "lakeout" in gdf.columns:
@@ -125,8 +124,16 @@ def lake_from_gdf(
     for lakeno, lake_gdf in gdf.groupby("lakeno"):
         nlakeconn = lake_gdf.shape[0]
         strt = lake_gdf["strt"].iloc[0]
-        assert (lake_gdf["strt"] == strt).all(), "a single lake should have single strt"
-        packagedata.append([lakeno, strt, nlakeconn])
+        assert (lake_gdf["strt"] == strt).all(
+        ), "a single lake should have single strt"
+
+        if boundname_column is not None:
+            boundname = lake_gdf[boundname_column].iloc[0]
+            assert (lake_gdf[boundname_column] == boundname).all(
+            ), f"a single lake should have a single {boundname_column}"
+            packagedata.append([lakeno, strt, nlakeconn, boundname])
+        else:
+            packagedata.append([lakeno, strt, nlakeconn])
 
         iconn = 0
         for icell2d, row in lake_gdf.iterrows():
@@ -213,7 +220,8 @@ def lake_from_gdf(
                 datavar = lake_gdf[lake_setting].iloc[0]
                 if not isinstance(datavar, str):
                     if np.isnan(datavar):
-                        logger.debug(f"no {lake_setting} given for lake no {lakeno}")
+                        logger.debug(
+                            f"no {lake_setting} given for lake no {lakeno}")
                         continue
                 if not (lake_gdf[lake_setting] == datavar).all():
                     raise ValueError(
@@ -226,6 +234,14 @@ def lake_from_gdf(
     if use_outlets:
         noutlets = len(outlets)
 
+    if boundname_column is not None:
+        observations = []
+        for boundname in np.unique(gdf[boundname_column]):
+            observations.append((boundname, obs_type, boundname))
+        observations = {f"{pname}_{obs_type}.csv": observations}
+    else:
+        observations = None
+
     lak = flopy.mf6.ModflowGwflak(
         gwf,
         surfdep=surfdep,
@@ -235,6 +251,8 @@ def lake_from_gdf(
         packagedata=packagedata,
         connectiondata=connectiondata,
         perioddata=perioddata,
+        boundnames=boundname_column is not None,
+        observations=observations,
         budget_filerecord=f"{pname}.bgt",
         stage_filerecord=f"{pname}.hds",
         noutlets=noutlets,

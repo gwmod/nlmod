@@ -3,7 +3,6 @@ import os
 
 import flopy
 import numpy as np
-import pandas as pd
 import xarray as xr
 
 from ..dims.resample import get_affine, get_xy_mid_structured
@@ -88,15 +87,7 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
 
         # TODO: temporarily only add time for when ds is passed because unable to
         # exactly recreate ds.time from gwf.
-        times = np.array(
-            [
-                pd.Timestamp(ds.time.start)
-                + pd.Timedelta(t, unit=ds.time.time_units[0])
-                for t in headobj.get_times()
-            ],
-            dtype=np.datetime64,
-        )
-        head_ar.coords["time"] = times
+        head_ar.coords["time"] = ds.time
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         affine = get_affine(ds)
@@ -120,16 +111,18 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
 
 
 def _get_hds(ds=None, gwf=None, fname_hds=None):
-    msg = "Load the heads using either the ds or the gwf"
-    assert ((ds is not None) + (gwf is not None)) == 1, msg
+    msg = "Load the heads using either the ds, gwf or fname_hds"
+    assert ((ds is not None) + (gwf is not None) +
+            (fname_hds is not None)) >= 1, msg
 
     if fname_hds is None:
         if ds is None:
-            headobj = gwf.output.head()
+            return gwf.output.head()
         else:
             fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    if fname_hds is not None:
-        headobj = flopy.utils.HeadFile(fname_hds)
+
+    headobj = flopy.utils.HeadFile(fname_hds)
+
     return headobj
 
 

@@ -17,7 +17,7 @@ def get_lithok_props(rgb_colors=True):
     fname = os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv")
     df = pd.read_csv(fname, index_col=0)
     if rgb_colors:
-        df["color"] = get_lithok_colors()
+        df["color"] = pd.Series(get_lithok_colors())
     return df
 
 
@@ -123,13 +123,13 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
     # slice extent
     gt = gt.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
-    # change order of dimensions from x, y, z to z, y, x
-    gt = gt.transpose("z", "y", "x")
-    gt = gt.sortby("z", ascending=False)
-    gt = gt.sortby("y", ascending=False)
-
     if drop_probabilities:
         gt = gt[["strat", "lithok"]]
+
+    # change order of dimensions from x, y, z to z, y, x
+    gt = gt.transpose("z", "y", "x")
+    gt = gt.sortby("z", ascending=False) # uses a lot of RAM
+    gt = gt.sortby("y", ascending=False) # uses a lot of RAM
 
     return gt
 
@@ -172,13 +172,13 @@ def convert_geotop_to_ml_layers(
     geo_eenheden = np.unique(geotop_ds_raw.strat.data)
     geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
     stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
-    geo_eenheden = geo_eenheden[geo_eenheden < 6000].astype(int)
+    geo_eenheden = geo_eenheden[geo_eenheden < 6000]
 
     # geo eenheid 2000 zit boven 1130
-    if (2000 in geo_eenheden) and (1130 in geo_eenheden):
-        geo_eenheden[(geo_eenheden == 2000) + (geo_eenheden == 1130)] = [
-            2000,
-            1130,
+    if (2000.0 in geo_eenheden) and (1130.0 in geo_eenheden):
+        geo_eenheden[(geo_eenheden == 2000.0) + (geo_eenheden == 1130.0)] = [
+            2000.0,
+            1130.0,
         ]
 
     strat_codes = []
@@ -399,7 +399,8 @@ def add_kh_and_kv(
                     )
                     khi[mask], kvi[mask] = kh_sel, kv_sel
             else:
-                khi, kvi = _get_kh_kv_from_df(df, ilithok, anisotropy=anisotropy)
+                khi, kvi = _get_kh_kv_from_df(
+                    df, ilithok, anisotropy=anisotropy)
                 if np.isnan(khi):
                     probality[:] = 0.0
                 khi, kvi = _handle_nans_in_stochastic_approach(

@@ -206,7 +206,7 @@ def extrapolate_ds(ds, mask=None):
         return ds
     if mask.all():
         raise (Exception("The model only contains NaNs"))
-    if ds.gridtype == "vertex":
+    if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         x = ds.x.data
         y = ds.y.data
         dims = ("icell2d",)

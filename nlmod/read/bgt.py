@@ -14,7 +14,14 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 from ..dims.resample import extent_to_polygon
 
 
-def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=None):
+def get_bgt(
+    extent,
+    layer="waterdeel",
+    cut_by_extent=True,
+    fname=None,
+    geometry=None,
+    remove_expired=True,
+):
     """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
 
@@ -32,20 +39,20 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
         Save the zipfile that is received by the request to file. The default
         is None, which does not save anything to file.
     geometry: string, optional
-        When geometry is specified, the gml inside the received zipfile is read
-        using an xml-reader (instead of fiona). For the layer 'waterdeel' the
-        geometry-field is 'geometrie2dWaterdeel', and for the layer 'pand' the
-        geometry-field is 'geometrie2dGrondvlak'. To determine the geometry
-        field of other layers, use fname to save a response and inspect the
-        gml-file. The default is None, which results in fiona reading the data.
-        This can cause problems when there are multiple geometrie-fields inside
-        each object. This happens in the layer 'pand', where each buidling
-        (polygon) also contains a Point-geometry for the label.
+        When geometry is specified, this attribute is used as the geometry of the
+        resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
+        example is the layer 'pand', where each buidling (polygon) also contains a
+        Point-geometry for the label. When geometry is None, the last attribute starting
+        with the word "geometrie" is used as the geometry. The default is None.
+    remove_expired: bool, optional
+        Remove expired items (that contain a value for 'eindRegistratie') when True. The
+        default is True.
 
     Returns
     -------
-    gdf : GeoPandas GeoDataFrame
-        A GeoDataFrame containing all geometries and properties.
+    gdf : GeoPandas GeoDataFrame or dict of GeoPandas GeoDataFrame
+        A GeoDataFrame (when only one layer is requested) or a dict of GeoDataFrames
+        containing all geometries and properties.
     """
     if layer == "all":
         layer = get_bgt_layers()
@@ -96,38 +103,82 @@ def get_bgt(extent, layer="waterdeel", cut_by_extent=True, fname=None, geometry=
         with open(fname, "wb") as file:
             file.write(response.content)
 
-    gdf = {}
-
     zipfile = BytesIO(response.content)
-    gdf = read_bgt_zipfile(zipfile, geometry=geometry)
+    gdf = read_bgt_zipfile(
+        zipfile,
+        geometry=geometry,
+        cut_by_extent=cut_by_extent,
+        extent=polygon,
+        remove_expired=remove_expired,
+    )
 
-    for key in gdf:
-        if gdf[key] is not None and "eindRegistratie" in gdf[key]:
-            # remove double features
-            # by removing features with an eindRegistratie
-            gdf[key] = gdf[key][gdf[key]["eindRegistratie"].isna()]
-
-        if cut_by_extent and isinstance(gdf[key], gpd.GeoDataFrame):
-            try:
-                gdf[key].geometry = gdf[key].intersection(polygon)
-                gdf[key] = gdf[key][~gdf[key].is_empty]
-            except shapely.geos.TopologicalError:
-                print(f"Cutting by extent failed for {key}")
     if len(layer) == 1:
         gdf = gdf[layer[0]]
     return gdf
 
 
-def read_bgt_zipfile(fname, geometry=None, files=None):
+def read_bgt_zipfile(
+    fname,
+    geometry=None,
+    files=None,
+    cut_by_extent=True,
+    extent=None,
+    remove_expired=True,
+):
+    """
+    Read data from a zipfile that was downloaded using get_bgt().
+
+    Parameters
+    ----------
+    fname : string
+        The filename of the zip-file containing the BGT-data.
+    geometry : str, optional
+        DESCRIPTION. The default is None.
+    files : string of list of strings, optional
+        The files to read from the zipfile. Read all files when files is None. The
+        default is None.
+    cut_by_extent : bool, optional
+        Cut the geoemetries by the supplied extent. When no extent is supplied,
+        cut_by_extent is set to False. The default is True.
+    extent : list or tuple of length 4 or shapely Polygon
+        The extent (xmin, xmax, ymin, ymax) or polygon by which the geometries are
+        clipped. Only used when cut_by_extent is True. The defult is None.
+    remove_expired: bool, optional
+        Remove expired items (that contain a value for 'eindRegistratie') when True. The
+        default is True.
+
+    Returns
+    -------
+    gdf : dict of GeoPandas GeoDataFrame
+        A dict of GeoDataFrames containing all geometries and properties.
+
+    """
     zf = ZipFile(fname)
     gdf = {}
     if files is None:
         files = zf.namelist()
     elif isinstance(files, str):
         files = [files]
+    if extent is None:
+        cut_by_extent = False
+    else:
+        if isinstance(extent, Polygon):
+            polygon = extent
+        else:
+            polygon = extent_to_polygon(extent)
     for file in files:
         key = file[4:-4]
         gdf[key] = read_bgt_gml(zf.open(file), geometry=geometry)
+
+        if remove_expired and gdf[key] is not None and "eindRegistratie" in gdf[key]:
+            # remove double features
+            # by removing features with an eindRegistratie
+            gdf[key] = gdf[key][gdf[key]["eindRegistratie"].isna()]
+
+        if cut_by_extent and isinstance(gdf[key], gpd.GeoDataFrame):
+            gdf[key].geometry = gdf[key].intersection(polygon)
+            gdf[key] = gdf[key][~gdf[key].is_empty]
+
     return gdf
 
 
@@ -173,7 +224,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
     def read_linestring(linestring):
         return get_xy(linestring.find(f"{ns}posList").text)
 
-    def _read_label(child, d):
+    def read_label(child, d):
         ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
         label = child.find(f"{ns}Label")
         d["label"] = label.find(f"{ns}tekst").text
@@ -232,7 +283,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     nar = child.find(f"{ns}Nummeraanduidingreeks").find(
                         f"{ns}nummeraanduidingreeks"
                     )
-                    _read_label(nar, d)
+                    read_label(nar, d)
                 elif key.startswith("kruinlijn"):
                     ns = "{http://www.opengis.net/gml}"
                     if child[0].tag == f"{ns}LineString":
@@ -243,7 +294,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     else:
                         raise (Exception((f"Unsupported tag: {child[0].tag}")))
                 elif key == "openbareRuimteNaam":
-                    _read_label(child, d)
+                    read_label(child, d)
                 else:
                     raise (Exception((f"Unknown key: {key}")))
         data.append(d)

@@ -107,10 +107,10 @@ def arcrest(
                 raise (Exception("Not supported yet"))
             feature["attributes"]["geometry"] = geometry
             data.append(feature["attributes"])
-        gdf = gpd.GeoDataFrame(data)
+        gdf = gpd.GeoDataFrame(data, crs=sr)
     else:
         # for geojson-data we can transform to GeoDataFrame right away
-        gdf = gpd.GeoDataFrame.from_features(features)
+        gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
     return gdf
 
 

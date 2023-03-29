@@ -56,161 +56,6 @@ def calculate_thickness(ds, top="top", bot="botm"):
     return thickness
 
 
-def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
-    """Calculate new tops and bottoms for split layers.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        xarray Dataset containing information about layers
-        (layers, top and bot)
-    split_dict : dict
-        dictionary with index of layers to split as keys and iterable
-        of fractions that add up to 1 to indicate how to split up layer.
-        E.g. {0: [0.25, 0.75]} will split layer 0 into 2 layers, with first
-        layer equal to 0.25 of original thickness and second layer 0.75 of
-        original thickness.
-    layer : str, optional
-        name of layer dimension, by default 'layer'
-    top : str, optional
-        name of data variable containing top of layers, by default 'top'
-    bot : str, optional
-        name of data variable containing bottom of layers, by default 'botm'
-
-    Returns
-    -------
-    new_top, new_bot : xarray.DataArrays
-        DataArrays containing new tops and bottoms after splitting layers.
-    reindexer : OrderedDict
-        dictionary mapping new to old layer indices.
-    """
-
-    # calculate thickness
-    thickness = calculate_thickness(ds, top=top, bot=bot)
-
-    # check if top is 2d or 3d
-    top3d = ds[top].ndim == ds[bot].ndim
-
-    # calculate new number of layers
-    new_nlay = (
-        ds[layer].size + sum((len(sf) for sf in split_dict.values())) - len(split_dict)
-    )
-
-    # create new DataArrays for storing new top/bot
-    new_bot = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
-    new_top = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
-
-    # dict to keep track of old and new layer indices
-    reindexer = OrderedDict()
-
-    j = 0  # new layer index
-    isplit = 0  # split layer index
-
-    # loop over original layers
-    for i in range(ds[layer].size):
-        # check if layer should be split
-        if i in split_dict:
-            # set new top based on old top
-            if top3d:
-                new_top.data[j] = ds[top].data[i]
-            else:
-                if i == 0:
-                    new_top.data[j] = ds[top].data
-                else:
-                    new_top.data[j] = ds[bot].data[i - 1]
-
-            # get split factors
-            sf = split_dict[i]
-
-            # check if factors add up to 1
-            if np.sum(sf) != 1.0:
-                raise ValueError("Sum of split factors for layer must equal 1.0!")
-            logger.debug(
-                f"{i}: Split layer {i} into {len(sf)} layers with fractions: {sf}"
-            )
-
-            # loop over split factors
-            for isf, factor in enumerate(sf):
-                logger.debug(
-                    f"  - {isf}: Calculate new top/bot for new layer index {j}"
-                )
-
-                # calculate new bot and new top
-                new_bot.data[j] = new_top.data[j] - (factor * thickness[i])
-                new_top.data[j + 1] = new_bot.data[j]
-
-                # store new and old layer index
-                reindexer[j] = i
-
-                # increase new index
-                j += 1
-
-            # go to next layer to split
-            isplit += 1
-
-        # no split, remap old layer to new layer index
-        else:
-            logger.debug(f"{i:2d}: No split: map layer {i} to new layer index {j}")
-            if top3d:
-                new_top.data[j] = ds[top].data[i]
-            else:
-                if i == 0:
-                    new_top.data[j] = ds[top].data.squeeze()
-                else:
-                    new_top.data[j] = ds[bot].data[i - 1]
-
-            new_bot.data[j] = ds[bot].data[i]
-            reindexer[j] = i
-            j += 1
-
-    return new_top, new_bot, reindexer
-
-
-def fill_data_split_layers(da, reindexer):
-    """Fill data for split layers with values from original layer.
-
-    Parameters
-    ----------
-    da : xarray.DataArray or numpy.ndarray
-        original array with data
-    reindexer : dict
-        dictionary containing mapping between new layer index and
-        original layer index.
-
-    Returns
-    -------
-    da_new : xarray.DataArray or numpy.ndarray
-        array with filled data for split layers
-    """
-    if isinstance(da, xr.DataArray):
-        da_new = xr.DataArray(
-            data=np.nan,
-            dims=["layer", "y", "x"],
-            coords={
-                "layer": np.arange(list(reindexer.keys())[-1] + 1),
-                "y": da["y"],
-                "x": da["x"],
-            },
-        )
-        for k, v in reindexer.items():
-            da_new.data[k] = da.data[v]
-    elif isinstance(da, np.ndarray):
-        da_new = np.zeros((list(reindexer.keys())[-1] + 1), *da.shape[1:])
-        for k, v in reindexer.items():
-            da_new[k] = da[v]
-    else:
-        raise TypeError(f"Cannot fill type: '{type(da)}'!")
-    return da_new
-
-
 def split_layers_ds(
     ds, split_dict, layer="layer", top="top", bot="botm", kh="kh", kv="kv"
 ):
@@ -219,14 +64,15 @@ def split_layers_ds(
     Parameters
     ----------
     ds : xarray.Dataset
-        xarray Dataset containing information about layers
-        (layers, top and bot)
+        xarray Dataset containing information about layers (layers, top and bot)
     split_dict : dict
-        dictionary with index of layers to split as keys and iterable
-        of fractions that add up to 1 to indicate how to split up layer.
-        E.g. {0: [0.25, 0.75]} will split layer 0 into 2 layers, with first
-        layer equal to 0.25 of original thickness and second layer 0.75 of
-        original thickness.
+        dictionary with name (string) or index (integer) of layers to split as keys.
+        There are two options for the values of the dictionary, to indicate how to split
+        up layer: an iterable of factors. E.g. {'BXk1': [1, 3]} will split layer 'BXk1'
+        into 2 layers, with the first layer equal to 0.25 of the original thickness and
+        the second layer equal to 0.75 of the original thickness.
+        The second option would be to set the value to the number of layers to split the
+        layer into, e.g. {'BXk1': 2}, which is equal to {'BXk1': [0.5, 0.5]}.
     layer : str, optional
         name of layer dimension, by default 'layer'
     top : str, optional
@@ -237,69 +83,75 @@ def split_layers_ds(
         name of data variable containg horizontal hydraulic conductivity,
         by default 'kh'
     kv : str, optional
-        name of data variable containg vertical hydraulic conductivity,
-        by default 'kv'
+        name of data variable containg vertical hydraulic conductivity, by default 'kv'.
 
     Returns
     -------
-    ds_split : xarray.Dataset
-        Dataset with new tops and bottoms taking into account split layers,
-        and filled data for hydraulic conductivities.
+    ds : xarray.Dataset
+        Dataset with new tops and bottoms taking into account split layers, and filled
+        data for other variables.
     """
 
-    parsed_dv = set([top, bot, kh, kv])
+    layers = list(ds.layer.data)
 
-    dropped_dv = set(ds.data_vars.keys()) - parsed_dv
-    if len(dropped_dv) > 0:
-        logger.warning(f"Following data variables will be dropped: {dropped_dv}")
+    # do some input-checking on split_dict
+    for lay0 in list(split_dict):
+        if isinstance(lay0, int) & (ds.layer.dtype != int):
+            # if layer is an integer, and ds.layer is not of integer type
+            # replace lay0 by the name of the layer
+            split_dict[layers[lay0]] = split_dict.pop(lay0)
+            lay0 = layers[lay0]
+        if isinstance(split_dict[lay0], int):
+            # If split_dict[lay0] is of integer type
+            # split the layer in evenly thick layers
+            split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
+        else:
+            # make sure the fractions add up to 1
+            split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
 
-    # calculate new tops/bots
-    logger.info("Calculating new layer tops and bottoms...")
+    logger.info(f"Splitting layers {list(split_dict)}")
 
-    new_top, new_bot, reindexer = layer_split_top_bot(
-        ds, split_dict, layer=layer, top=top, bot=bot
-    )
+    layers_org = layers.copy()
+    # add extra layers (keep the original ones for now, as we will copy data first)
+    for lay0 in split_dict:
+        for i in range(len(split_dict[lay0])):
+            index = layers.index(lay0)
+            layers.insert(index, lay0 + "_" + str(i + 1))
+            layers_org.insert(index, lay0)
+    ds = ds.reindex({"layer": layers})
 
-    # fill kh/kv
-    logger.info(f"Fill value '{kh}' for split layers with value original layer.")
-    da_kh = fill_data_split_layers(ds["kh"], reindexer)
-    logger.info(f"Fill value '{kv}' for split layers with value original layer.")
-    da_kv = fill_data_split_layers(ds["kv"], reindexer)
+    # calclate a new top and botm
+    th = calculate_thickness(ds, top=top, bot=bot)
+    for lay0 in split_dict:
+        fctrs = split_dict[lay0]
+        th0 = th.loc[lay0]
+        for i in range(len(fctrs)):
+            name = lay0 + "_" + str(i + 1)
+            for var in ds:
+                if layer in ds[var].dims:
+                    if var == top:
+                        ds[var].loc[name] = ds[var].loc[lay0] - np.sum(fctrs[:i]) * th0
+                    elif var == bot:
+                        ds[var].loc[name] = (
+                            ds[var].loc[lay0] + np.sum(fctrs[i + 1 :]) * th0
+                        )
+                    else:
+                        if i == 0 and lay0 == list(split_dict)[0]:
+                            logger.info(
+                                f"Fill values of variable '{var}' of splitted layers with the values from the original layer."
+                            )
+                        ds[var].loc[name] = ds[var].loc[lay0]
 
-    # get new layer names
-    layer_names = []
-    for j, i in reindexer.items():
-        layercode = ds[layer].data[i]
-
-        if layercode in layer_names:
-            if isinstance(layercode, str):
-                ilay = (
-                    np.sum([1 for ilay in layer_names if ilay.startswith(layercode)])
-                    + 1
-                )
-                layercode += f"_{ilay}"
-            else:
-                layercode = j
-
-        layer_names.append(layercode)
-
-    # assign new layer names
-    new_top = new_top.assign_coords(layer=layer_names)
-    new_bot = new_bot.assign_coords(layer=layer_names)
-    da_kh = da_kh.assign_coords(layer=layer_names)
-    da_kv = da_kv.assign_coords(layer=layer_names)
+    # drop the original layers
+    ds = ds.drop_sel(layer=list(split_dict))
 
     # add reindexer to attributes
-    attrs = ds.attrs.copy()
-    attrs["split_reindexer"] = reindexer
+    ds.attrs["split_reindexer"] = OrderedDict(zip(layers, layers_org))
 
     # create new dataset
     logger.info("Done! Created new dataset with split layers!")
-    ds_split = xr.Dataset(
-        {top: new_top, bot: new_bot, kh: da_kh, kv: da_kv}, attrs=attrs
-    )
 
-    return ds_split
+    return ds
 
 
 def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="botm"):

@@ -463,6 +463,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         rasterio.enums.Resampling (rasterio.enums.Resampling.average). When
         method is 'linear' or 'nearest' da.interp() is used. Otherwise
         da.rio.reproject_match() is used. The default is "average".
+    nodata : float, optional
+        THe nodata value in input and output. THe default is np.NaN.
 
     Returns
     -------
@@ -489,11 +491,14 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             raise (Exception(f"Unknown resample method: {method}"))
     # fill crs if it is None for da or ds
     if ds.rio.crs is None and da.rio.crs is None:
+        logger.info("No crs in da and ds. Assuming ds and da are both in EPSG:28992")
         ds = ds.rio.write_crs(28992)
         da = da.rio.write_crs(28992)
     elif ds.rio.crs is None:
+        logger.info("No crs in da. Setting crs equal to ds")
         ds = ds.rio.write_crs(da.rio.crs)
     elif da.rio.crs is None:
+        logger.info("No crs in ds. Setting crs equal to da")
         da = da.rio.write_crs(ds.rio.crs)
     if ds.gridtype == "structured":
         if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
@@ -507,6 +512,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
         # in 4
+        # We perform a reproject-match for every refinement-level
         dims = list(da.dims)
         dims.remove("y")
         dims.remove("x")
@@ -517,10 +523,10 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
             da_temp = xr.DataArray(nodata, dims=["y", "x"], coords=dict(x=x, y=y))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-                affine = get_affine(ds)
+                affine = get_affine(ds, sx=dx, sy=-dy)
                 da_temp = da_temp.rio.write_transform(affine, inplace=True)
-            # make sure da_temp has a crs if da has a crs
-            da_temp = da_temp.rio.write_crs(da.rio.crs)
+            # set crs of da_temp equal to crs of ds
+            da_temp = da_temp.rio.write_crs(ds.rio.crs)
             da_temp = da.rio.reproject_match(da_temp, resampling, nodata=nodata)
             mask = ds["area"] == area
             da_out.loc[dict(icell2d=mask)] = da_temp.sel(
@@ -538,6 +544,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
 
     # remove the long_name, standard_name and units attributes of the x and y coordinates
     for coord in ["x", "y"]:
+        if coord not in da_out.coords:
+            continue
         for name in ["long_name", "standard_name", "units", "axis"]:
             if name in da_out[coord].attrs.keys():
                 del da_out[coord].attrs[name]

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_bathymetry(ds, northsea, method="average"):
+def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
@@ -58,8 +58,7 @@ def get_bathymetry(ds, northsea, method="average"):
 
     # try to get bathymetry via opendap
     try:
-        url = "https://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc"
-        jarkus_ds = get_dataset_jarkus(ds.extent, url)
+        jarkus_ds = get_dataset_jarkus(ds.extent, kind=kind)
     except OSError:
         import gdown
 

@@ -84,9 +84,8 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     ds_out["bathymetry"] = xr.where(northsea, da_bathymetry, np.nan)
 
     for datavar in ds_out:
-        ds_out[datavar].attrs["source"] = "Jarkus"
-        ds_out[datavar].attrs["url"] = url
-        ds_out[datavar].attrs["source"] = dt.datetime.now().strftime("%Y%m%d")
+        ds_out[datavar].attrs["source"] = kind
+        ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
         if datavar == "bathymetry":
             ds_out[datavar].attrs["units"] = "mNAP"
 
@@ -94,8 +93,8 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
 
 
 def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
-    """Get bathymetry from Jarkus within a certain extent. If all_tiles is
-    False, the following steps are used:
+    """Get bathymetry from Jarkus within a certain extent. If return_tiles is False, the
+    following actions are performed:
     1. find Jarkus tiles within the extent
     2. download netcdf files of Jarkus tiles
     3. read Jarkus tiles and combine the 'z' parameter of the last time step of each

@@ -56,9 +56,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
     return thickness
 
 
-def split_layers_ds(
-    ds, split_dict, layer="layer", top="top", bot="botm", kh="kh", kv="kv"
-):
+def split_layers_ds(ds, split_dict, layer="layer", top="top", bot="botm"):
     """Split layers based in Dataset.
 
     Parameters
@@ -79,11 +77,6 @@ def split_layers_ds(
         name of data variable containing top of layers, by default 'top'
     bot : str, optional
         name of data variable containing bottom of layers, by default 'botm'
-    kh : str, opti
-        name of data variable containg horizontal hydraulic conductivity,
-        by default 'kh'
-    kv : str, optional
-        name of data variable containg vertical hydraulic conductivity, by default 'kv'.
 
     Returns
     -------
@@ -502,7 +495,7 @@ def add_kh_kv_from_ml_layer_to_ds(
     are ignored at the moment
     """
     warnings.warn(
-        "add_kh_kv_from_ml_layer_to_ds is deprecated. Please use update_ds_from_layer_ds instead.",
+        "add_kh_kv_from_ml_layer_to_ds is deprecated. Please use nlmod.grid.update_ds_from_layer_ds instead.",
         DeprecationWarning,
     )
 

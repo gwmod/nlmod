@@ -8,7 +8,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import requests
-import shapely
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
 from ..dims.resample import extent_to_polygon

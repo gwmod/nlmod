@@ -1193,6 +1193,11 @@ def gdf_to_bool_da(gdf, ds):
     da : xr.DataArray
         1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
     """
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # transform gdf into model coordinates
+        affine = get_affine_world_to_mod(ds)
+        gdf = affine_transform_gdf(gdf, affine)
+
     modelgrid = modelgrid_from_ds(ds)
 
     # build list of gridcells
@@ -1342,7 +1347,7 @@ def get_thickness_from_topbot(top, bot):
         or (layer, icell2d).
     """
     warnings.warn(
-        "The method get_thickness_from_topbot is deprecated. Please use calculate_thickness instead",
+        "The method get_thickness_from_topbot is deprecated. Please use nlmod.layers.calculate_thickness instead",
         DeprecationWarning,
     )
 

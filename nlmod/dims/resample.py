@@ -495,20 +495,22 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         ds = ds.rio.write_crs(28992)
         da = da.rio.write_crs(28992)
     elif ds.rio.crs is None:
-        logger.info("No crs in ds. Setting crs equal to da")
+        logger.info(f"No crs in ds. Setting crs equal to da: {da.rio.crs}")
         ds = ds.rio.write_crs(da.rio.crs)
     elif da.rio.crs is None:
-        logger.info("No crs in da. Setting crs equal to ds")
+        logger.info(f"No crs in da. Setting crs equal to ds: {ds.rio.crs}")
         da = da.rio.write_crs(ds.rio.crs)
     if ds.gridtype == "structured":
-        if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-            affine = get_affine(ds)
-            # save crs as it is deleted by write_transform...
-            crs = ds.rio.crs
-            ds = ds.rio.write_transform(affine)
-            ds = ds.rio.write_crs(crs)
-        da_out = da.rio.reproject_match(ds, resampling, nodata=nodata)
-
+        da_out = da.rio.reproject(
+            dst_crs=ds.rio.crs,
+            shape=(len(ds.y), len(ds.x)),
+            transform=get_affine(ds),
+            resampling=resampling,
+            nodata=nodata,
+        )
+        if "x" not in da_out.coords or "y" not in da_out.coords:
+            # when grid-rotation is used, there are no x and y in coords
+            da_out = da_out.assign_coords(x=ds.x, y=ds.y)
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
         # in 4
@@ -521,13 +523,17 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
-            da_temp = xr.DataArray(nodata, dims=["y", "x"], coords=dict(x=x, y=y))
-            if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-                affine = get_affine(ds, sx=dx, sy=-dy)
-                da_temp = da_temp.rio.write_transform(affine, inplace=True)
-            # set crs of da_temp equal to crs of ds
-            da_temp = da_temp.rio.write_crs(ds.rio.crs)
-            da_temp = da.rio.reproject_match(da_temp, resampling, nodata=nodata)
+            da_temp = da.rio.reproject(
+                dst_crs=ds.rio.crs,
+                shape=(len(y), len(x)),
+                transform=get_affine(ds, sx=dx, sy=-dy),
+                resampling=resampling,
+                nodata=nodata,
+            )
+            if "x" not in da_temp.coords or "y" not in da_temp.coords:
+                # when grid-rotation is used, there are no x and y in coords
+                da_temp = da_temp.assign_coords(x=x, y=y)
+
             mask = ds["area"] == area
             da_out.loc[dict(icell2d=mask)] = da_temp.sel(
                 y=ds["y"][mask], x=ds["x"][mask]
@@ -622,19 +628,25 @@ def get_affine_world_to_mod(ds):
 def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates."""
     attrs = _get_attrs(ds)
-    xorigin = attrs["xorigin"]
-    yorigin = attrs["yorigin"]
-    angrot = -attrs["angrot"]
-    # xorigin and yorigin represent the lower left corner, while for the transform we
-    # need the upper left
-    dy = attrs["extent"][3] - attrs["extent"][2]
-    xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
-    yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
-
     if sx is None:
         sx = attrs["delr"]
     if sy is None:
         sy = -attrs["delc"]
-    return (
-        Affine.translation(xoff, yoff) * Affine.scale(sx, sy) * Affine.rotation(angrot)
-    )
+    if "angrot" in attrs:
+        xorigin = attrs["xorigin"]
+        yorigin = attrs["yorigin"]
+        angrot = -attrs["angrot"]
+        # xorigin and yorigin represent the lower left corner, while for the transform we
+        # need the upper left
+        dy = attrs["extent"][3] - attrs["extent"][2]
+        xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
+        yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
+        return (
+            Affine.translation(xoff, yoff)
+            * Affine.scale(sx, sy)
+            * Affine.rotation(angrot)
+        )
+    else:
+        xoff = attrs["extent"][0]
+        yoff = attrs["extent"][3]
+        return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)

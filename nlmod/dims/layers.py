@@ -113,27 +113,18 @@ def split_layers_ds(ds, split_dict, layer="layer", top="top", bot="botm"):
             layers_org.insert(index, lay0)
     ds = ds.reindex({"layer": layers})
 
-    # calclate a new top and botm
+    # calclate a new top and botm, and fill other variables with original data
     th = calculate_thickness(ds, top=top, bot=bot)
     for lay0 in split_dict:
-        fctrs = split_dict[lay0]
         th0 = th.loc[lay0]
-        for i in range(len(fctrs)):
-            name = lay0 + "_" + str(i + 1)
-            for var in ds:
-                if layer in ds[var].dims:
-                    if var == top:
-                        ds[var].loc[name] = ds[var].loc[lay0] - np.sum(fctrs[:i]) * th0
-                    elif var == bot:
-                        ds[var].loc[name] = (
-                            ds[var].loc[lay0] + np.sum(fctrs[i + 1 :]) * th0
-                        )
-                    else:
-                        if i == 0 and lay0 == list(split_dict)[0]:
-                            logger.info(
-                                f"Fill values of variable '{var}' of splitted layers with the values from the original layer."
-                            )
-                        ds[var].loc[name] = ds[var].loc[lay0]
+        for var in ds:
+            if layer not in ds[var].dims:
+                continue
+            if lay0 == list(split_dict)[0] and var not in [top, bot]:
+                logger.info(
+                    f"Fill values of variable '{var}' of splitted layers with the values from the original layer."
+                )
+            ds = _split_var(ds, var, lay0, th0, split_dict[lay0], top, bot)
 
     # drop the original layers
     ds = ds.drop_sel(layer=list(split_dict))
@@ -141,9 +132,22 @@ def split_layers_ds(ds, split_dict, layer="layer", top="top", bot="botm"):
     # add reindexer to attributes
     ds.attrs["split_reindexer"] = OrderedDict(zip(layers, layers_org))
 
-    # create new dataset
-    logger.info("Done! Created new dataset with split layers!")
+    return ds
 
+
+def _split_var(ds, var, layer, thickness, fctrs, top, bot):
+    """Internal method to split a variable of one layer in multiple layers"""
+    for i in range(len(fctrs)):
+        name = layer + "_" + str(i + 1)
+        if var == top:
+            # take orignal top and subtract thickness of higher splitted layers
+            ds[var].loc[name] = ds[var].loc[layer] - np.sum(fctrs[:i]) * thickness
+        elif var == bot:
+            # take original bottom and add thickness of lower splitted layers
+            ds[var].loc[name] = ds[var].loc[layer] + np.sum(fctrs[i + 1 :]) * thickness
+        else:
+            # take data from the orignal layer
+            ds[var].loc[name] = ds[var].loc[layer]
     return ds
 
 

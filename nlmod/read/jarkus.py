@@ -13,6 +13,7 @@ import logging
 import os
 
 import numpy as np
+import pandas as pd
 import requests
 import xarray as xr
 
@@ -115,8 +116,9 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
         non-NaN-value for each pixel. This can take a while, as all tiles need to be
         checked. When time is an integer, it is used as the time index. When set to -1,
         this then downloads the last time available in each tile  (which can contain
-        large areas with NaN-values). When time is a pandas Timestamp, only data on this
-        exact time are downloaded. The default is -1.
+        large areas with NaN-values). When time is a string (other than "last_non_nan")
+        or a pandas Timestamp, only data on this exact time are downloaded. The default
+        is -1.
 
     Returns
     -------
@@ -142,13 +144,23 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
             # only use the last timestep
             tiles = [tile.isel(time=time) for tile in tiles]
         else:
+            time = pd.to_datetime(time)
             tiles_left = []
             for tile in tiles:
-                try:
-                    tile = tile.sel(time=time)
-                    tiles_left.appenfd(tile)
-                except:
-                    print(f"no {time} in tile")
+                if time in tile.time:
+                    tiles_left.append(tile.sel(time=time))
+                else:
+                    extent_tile = list(
+                        np.hstack(
+                            (
+                                tile.attrs["projectionCoverage_x"],
+                                tile.attrs["projectionCoverage_y"],
+                            )
+                        )
+                    )
+                    logger.info(
+                        f"no time={time} in {kind}-tile with extent {extent_tile}"
+                    )
             tiles = tiles_left
     z_dataset = xr.combine_by_coords(tiles, combine_attrs="drop")
     return z_dataset
@@ -218,7 +230,7 @@ def get_netcdf_tiles(kind="jarkus"):
         url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/vaklodingen/catalog.nc.ascii"
     else:
         raise (Exception(f"Unsupported kind: {kind}"))
-    req = requests.get(url)
+    req = requests.get(url, timeout=5)
     s = req.content.decode("ascii")
     start = s.find("urlPath", s.find("urlPath") + 1)
     end = s.find("projectionCoverage_x", s.find("projectionCoverage_x") + 1)

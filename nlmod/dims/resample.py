@@ -495,10 +495,10 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         ds = ds.rio.write_crs(28992)
         da = da.rio.write_crs(28992)
     elif ds.rio.crs is None:
-        logger.info("No crs in da. Setting crs equal to ds")
+        logger.info("No crs in ds. Setting crs equal to da")
         ds = ds.rio.write_crs(da.rio.crs)
     elif da.rio.crs is None:
-        logger.info("No crs in ds. Setting crs equal to da")
+        logger.info("No crs in da. Setting crs equal to ds")
         da = da.rio.write_crs(ds.rio.crs)
     if ds.gridtype == "structured":
         if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:

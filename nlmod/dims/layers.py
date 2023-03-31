@@ -820,8 +820,8 @@ def set_idomain(ds, remove_nan_layers=True):
 
     Returns
     -------
-    ds : TYPE
-        DESCRIPTION.
+    ds : xr.Dataset
+        Dataset with added idomain-variable.
     """
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
@@ -845,7 +845,7 @@ def get_first_active_layer(ds, **kwargs):
     Parameters
     ----------
     ds : xr.DataSet
-        DESCRIPTION.
+        Model Dataset with a variable idomain.
     **kwargs : dict
         Kwargs are passed on to get_first_active_layer_from_idomain.
 

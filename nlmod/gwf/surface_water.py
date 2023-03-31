@@ -710,10 +710,16 @@ def gdf_to_seasonal_pkg(
         gdf["rbot"] = np.NaN
     mask = gdf["rbot"].isna()
     if mask.any():
+        logger.info(
+            f"Filling {mask.sum()} NaN's in rbot using a water depth of {default_water_depth} meter."
+        )
         min_stage = pd.concat(stages, axis=1).min(axis=1)
         gdf.loc[mask, "rbot"] = min_stage - default_water_depth
 
     if "cond" not in gdf:
+        logger.info(
+            f"Calcluating {pkg}-conductance based on as resistance of {c0} days."
+        )
         gdf["cond"] = gdf.geometry.area / c0
 
     if boundname_column is not None:

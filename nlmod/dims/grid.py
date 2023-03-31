@@ -1268,15 +1268,14 @@ def gdf_to_grid(
     desc="Intersecting with grid",
     **kwargs,
 ):
-    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This
-    method is just a wrapper around the GridIntersect method from flopy.
+    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method is a
+    wrapper around the GridIntersect method from flopy.
 
     Parameters
     ----------
     gdf : geopandas.GeoDataFrame
-        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can
-        consist of multiple types (Point, LineString, Polygon and the Multi-
-        variants).
+        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can consist of
+        multiple types (Point, LineString, Polygon and the Multi-variants).
     ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf or xarray.Dataset, optional
         The flopy model or xarray dataset that defines the grid. When a Dataset is
         supplied, and the grid is rotated, the geodataframe is transformed in model
@@ -1290,7 +1289,7 @@ def gdf_to_grid(
 
     Returns
     -------
-    geopandas.GeoDataFrame
+    gdfg : geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
     """
     if ml is None and ix is None:
@@ -1326,7 +1325,9 @@ def gdf_to_grid(
             elif shp[geometry].geom_type == "Polygon":
                 shpn["area"] = r["areas"][i]
             shps.append(shpn)
-    return gpd.GeoDataFrame(shps, geometry=geometry)
+    gdfg = gpd.GeoDataFrame(shps, geometry=geometry, crs=gdf.crs)
+    gdfg.index.name = gdf.index.name
+    return gdfg
 
 
 def get_thickness_from_topbot(top, bot):

@@ -386,14 +386,11 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     Returns
     -------
     xarray.DataArray
-        THe structured DataArray, with coordinates 'x' and 'y'
+        A DataArray, with the same gridtype as ds.
     """
 
-    if hasattr(ds.attrs, "gridtype") and ds.gridtype == "vertex":
-        raise (Exception("Resampling from vertex da to vertex ds not supported"))
-
     if "icell2d" not in da.dims:
-        return da
+        return structured_da_to_ds(da, ds, method=method)
     points = np.array((da.x.data, da.y.data)).T
 
     if "gridtype" in ds.attrs and ds.gridtype == "vertex":

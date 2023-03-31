@@ -56,7 +56,9 @@ def calculate_thickness(ds, top="top", bot="botm"):
     return thickness
 
 
-def split_layers_ds(ds, split_dict, layer="layer", top="top", bot="botm"):
+def split_layers_ds(
+    ds, split_dict, layer="layer", top="top", bot="botm", return_reindexer=False
+):
     """Split layers based in Dataset.
 
     Parameters
@@ -77,6 +79,9 @@ def split_layers_ds(ds, split_dict, layer="layer", top="top", bot="botm"):
         name of data variable containing top of layers, by default 'top'
     bot : str, optional
         name of data variable containing bottom of layers, by default 'botm'
+    return_reindexer : bool, optional
+        Return a OrderedDict that can be used to reindex variables from the original
+        layer-dimension to the new layer-dimension when True. The default is False.
 
     Returns
     -------
@@ -129,9 +134,12 @@ def split_layers_ds(ds, split_dict, layer="layer", top="top", bot="botm"):
     # drop the original layers
     ds = ds.drop_sel(layer=list(split_dict))
 
-    # add reindexer to attributes
-    ds.attrs["split_reindexer"] = OrderedDict(zip(layers, layers_org))
-
+    if return_reindexer:
+        # determine reindexer
+        reindexer = OrderedDict(zip(layers, layers_org))
+        for lay0 in split_dict:
+            reindexer.pop(lay0)
+        return ds, reindexer
     return ds
 
 

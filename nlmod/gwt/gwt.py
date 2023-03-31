@@ -387,9 +387,9 @@ def ic(ds, gwt, strt, pname="ic", **kwargs):
         ic package
     """
     logger.info("creating modflow IC")
-    if isinstance(strt, numbers.Number):
-        strt = strt * xr.ones_like(ds["idomain"])
-    ic = flopy.mf6.ModflowGwtic(gwt, strt=ds[strt].data, pname=pname, **kwargs)
+    if not isinstance(strt, numbers.Number):
+        strt = ds[strt].data
+    ic = flopy.mf6.ModflowGwtic(gwt, strt=strt, pname=pname, **kwargs)
 
     return ic
 

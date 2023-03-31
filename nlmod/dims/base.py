@@ -308,7 +308,7 @@ def get_ds(
         Attributes of the model dataset. The default is None.
     extrapolate : bool, optional
         When true, extrapolate data-variables, into the sea or other areas with
-        only nans. THe default is True
+        only nans. The default is True
     fill_nan : bool, optional
         if True nan values in the top, botm, kh and kv are filled using the
         fill_nan_top_botm_kh_kv function. Layers with only nan values in the
@@ -338,7 +338,6 @@ def get_ds(
 
     if attrs is None:
         attrs = {}
-    attrs["transport"] = int(transport)
 
     if layer is None:
         if botm is None:
@@ -418,6 +417,7 @@ def get_ds(
         drop_attributes=False,
         extrapolate=extrapolate,
         fill_nan=fill_nan,
+        transport=transport,
         **kwargs,
     )
     ds.rio.set_crs(crs)

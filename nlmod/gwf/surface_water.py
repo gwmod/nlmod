@@ -714,7 +714,7 @@ def gdf_to_seasonal_pkg(
             f"Filling {mask.sum()} NaN's in rbot using a water depth of {default_water_depth} meter."
         )
         min_stage = pd.concat(stages, axis=1).min(axis=1)
-        gdf.loc[mask, "rbot"] = min_stage - default_water_depth
+        gdf.loc[mask, "rbot"] = min_stage[mask] - default_water_depth
 
     if "cond" not in gdf:
         logger.info(

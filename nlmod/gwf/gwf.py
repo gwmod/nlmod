@@ -365,7 +365,7 @@ def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
         return None
 
 
-def drn(ds, gwf, da_name, pname="drn", **kwargs):
+def drn(ds, gwf, da_name, pname="drn", layer=None, **kwargs):
     """get drain from model dataset.
 
     Parameters
@@ -386,14 +386,16 @@ def drn(ds, gwf, da_name, pname="drn", **kwargs):
     """
     logger.info("creating modflow DRN")
 
+    first_active_layer = layer is None
+
     drn_rec = grid.da_to_reclist(
         ds,
         ds[f"{da_name}_cond"] != 0,
         col1=f"{da_name}_peil",
         col2=f"{da_name}_cond",
-        first_active_layer=True,
+        first_active_layer=first_active_layer,
         only_active_cells=False,
-        layer=0,
+        layer=layer,
     )
 
     if len(drn_rec) > 0:
@@ -715,7 +717,12 @@ def buy(ds, gwf, pname="buy", **kwargs):
     pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "none")]
 
     buy = flopy.mf6.ModflowGwfbuy(
-        gwf, denseref=denseref, nrhospecies=len(pdata), packagedata=pdata, pname=pname
+        gwf,
+        denseref=denseref,
+        nrhospecies=len(pdata),
+        packagedata=pdata,
+        pname=pname,
+        **kwargs,
     )
     return buy
 

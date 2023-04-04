@@ -2,7 +2,6 @@ import logging
 import numbers
 
 import flopy
-import xarray as xr
 
 from ..dims import grid
 from ..gwf.gwf import _dis, _disv, _set_record

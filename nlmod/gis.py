@@ -428,16 +428,13 @@ def _break_down_dimension(ds, variables, dim):
             stacked = ds[var]
             for value in stacked[dim].values:
                 name = f"{var}_{value}"
-
                 ds[name] = stacked.sel({dim: value}, drop=True)
                 if "long_name" in ds[name].attrs:
-                    ds[name].attrs["long_name"] = "{} {}".format(
-                        ds[name].attrs["long_name"], value
-                    )
+                    long_name = ds[name].attrs["long_name"]
+                    ds[name].attrs["long_name"] = f"{long_name} {value}"
                 if "standard_name" in ds[name].attrs:
-                    ds[name].attrs["standard_name"] = "{}_{}".format(
-                        ds[name].attrs["standard_name"], value
-                    )
+                    standard_name = ds[name].attrs["standard_name"]
+                    ds[name].attrs["standard_name"] = f"{standard_name}_{value}"
                 keep_vars.append(name)
         else:
             keep_vars.append(var)

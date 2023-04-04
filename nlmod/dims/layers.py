@@ -826,7 +826,7 @@ def set_idomain(ds, remove_nan_layers=True):
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
     # drop attributes inherited from botm
-    ds["idoamin"].attrs.clear()
+    ds["idomain"].attrs.clear()
     # set idomain of cells  with a positive thickness to 1
     thickness = calculate_thickness(ds)
     ds["idomain"].data[thickness.data > 0.0] = 1

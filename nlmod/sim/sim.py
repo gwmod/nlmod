@@ -108,7 +108,7 @@ def get_tdis_perioddata(ds):
     else:
         tsmult = [ds.time.tsmult] * len(perlen)
 
-    tdis_perioddata = [(p, n, t) for p, n, t in zip(perlen, nstp, tsmult)]
+    tdis_perioddata = list(zip(perlen, nstp, tsmult))
 
     return tdis_perioddata
 

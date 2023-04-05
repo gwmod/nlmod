@@ -307,7 +307,7 @@ def gdf_within_extent(gdf, extent):
     return gdf
 
 
-def get_google_drive_filename(fid):
+def get_google_drive_filename(fid, timeout=120):
     """get the filename of a google drive file.
 
     Parameters
@@ -329,7 +329,7 @@ def get_google_drive_filename(fid):
         response = id
     else:
         url = "https://drive.google.com/uc?export=download&id=" + fid
-        response = requests.get(url)
+        response = requests.get(url, timeout=timeout)
     header = response.headers["Content-Disposition"]
     file_name = re.search(r'filename="(.*)"', header).group(1)
     return file_name

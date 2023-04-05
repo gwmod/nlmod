@@ -9,11 +9,11 @@ import pytest
 
 
 def test_download_polygons():
-    return nlmod.read.waterboard.get_polygons()
+    nlmod.read.waterboard.get_polygons()
 
 
 def test_get_config():
-    return nlmod.read.waterboard.get_configuration()
+    nlmod.read.waterboard.get_configuration()
 
 
 def test_bgt_waterboards():
@@ -21,7 +21,6 @@ def test_bgt_waterboards():
     bgt = nlmod.read.bgt.get_bgt(extent)
     pg = nlmod.gwf.surface_water.download_level_areas(bgt, extent=extent)
     bgt = nlmod.gwf.surface_water.add_stages_from_waterboards(bgt, pg=pg)
-    return bgt
 
 
 @pytest.mark.skip("too slow")

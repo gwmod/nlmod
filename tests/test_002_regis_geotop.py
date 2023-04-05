@@ -13,8 +13,6 @@ def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
 
     assert regis_ds.dims["layer"] == 20
 
-    return regis_ds
-
 
 # @pytest.mark.skip(reason="too slow")
 def test_get_regis_botm_layer_BEk1(
@@ -24,7 +22,6 @@ def test_get_regis_botm_layer_BEk1(
     regis_ds = nlmod.read.regis.get_regis(extent, botm_layer)
     assert regis_ds.dims["layer"] == 15
     assert regis_ds.layer.values[-1] == botm_layer
-    return regis_ds
 
 
 def test_get_geotop_raw(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
@@ -32,13 +29,11 @@ def test_get_geotop_raw(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     line = [(extent[0], extent[2]), (extent[1], extent[3])]
     # also test the plot-method
     nlmod.plot.geotop_lithok_in_cross_section(line, geotop_ds)
-    return geotop_ds
 
 
 # @pytest.mark.skip(reason="too slow")
 def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
-    geotop_ds = nlmod.read.geotop.get_geotop(extent)
-    return geotop_ds
+    nlmod.read.geotop.get_geotop(extent)
 
 
 # @pytest.mark.skip(reason="too slow")
@@ -48,7 +43,6 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     )
     regis_geotop_ds = nlmod.base.to_model_ds(regis_geotop_ds)
     assert regis_geotop_ds.dims["layer"] == 24
-    return regis_geotop_ds
 
 
 # @pytest.mark.skip(reason="too slow")
@@ -59,4 +53,3 @@ def test_get_regis_geotop_keep_all_layers(
         extent, use_regis=True, use_geotop=True, remove_nan_layers=False
     )
     assert regis_geotop_ds.dims["layer"] == 137
-    return regis_geotop_ds

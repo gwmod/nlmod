@@ -5,14 +5,12 @@ import os
 
 def test_struc_da_to_gdf():
     ds = util.get_ds_structured()
-    gdf = nlmod.gis.struc_da_to_gdf(ds, "top")
-    return gdf
+    nlmod.gis.struc_da_to_gdf(ds, "top")
 
 
 def test_vertex_da_to_gdf():
     ds = util.get_ds_vertex()
-    gdf = nlmod.gis.vertex_da_to_gdf(ds, "top")
-    return gdf
+    nlmod.gis.vertex_da_to_gdf(ds, "top")
 
 
 def test_ds_to_ugrid_nc_file():

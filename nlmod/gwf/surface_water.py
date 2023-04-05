@@ -549,8 +549,33 @@ def get_gdf_stage(gdf, season="winter"):
     return stage
 
 
-def download_level_areas(gdf, extent=None, config=None):
-    """Download level areas (peilgebieden) of bronhouders."""
+def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
+    """
+    Download level areas (peilgebieden) of bronhouders.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, containing the column "bronhouder".
+    extent : list, tuple or np.array
+        Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
+        water boards in gdf are downloaded downloaded.
+    config : dict, optional
+        A dictionary with information about the webservices of the water boards. When
+        config is None, it is created with nlmod.read.waterboard.get_configuration().
+        The default is None.
+    raise_exceptions : bool, optional
+        Raises exceptions, mostly caused by a webservice that is offline. When
+        raise_exceptions is False, the error is raised as a warning. The default is
+        True.
+
+    Returns
+    -------
+    pg : dict
+        A dictionary with the name of the waterboards as keys and GeoDataFrames with
+        level areas as values.
+
+    """
     if config is None:
         config = waterboard.get_configuration()
     bronhouders = gdf["bronhouder"].unique()
@@ -572,13 +597,40 @@ def download_level_areas(gdf, extent=None, config=None):
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
                     logger.warning(e)
-                else:
+                elif raise_exceptions:
                     raise
+                else:
+                    logger.warning(e)
     return pg
 
 
-def download_watercourses(gdf, extent=None, config=None):
-    """Download watercourses of bronhouders."""
+def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
+    """
+    Download watercourses of bronhouders.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, containing the column "bronhouder".
+    extent : list, tuple or np.array
+        Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
+        water boards in gdf are downloaded downloaded.
+    config : dict, optional
+        A dictionary with information about the webservices of the water boards. When
+        config is None, it is created with nlmod.read.waterboard.get_configuration().
+        The default is None.
+    raise_exceptions : bool, optional
+        Raises exceptions, mostly caused by a webservice that is offline. When
+        raise_exceptions is False, the error is raised as a warning. The default is
+        True.
+
+    Returns
+    -------
+    wc : dict
+        A dictionary with the name of the waterboards as keys and GeoDataFrames with
+        watercourses as values.
+
+    """
     if config is None:
         config = waterboard.get_configuration()
     bronhouders = gdf["bronhouder"].unique()
@@ -592,8 +644,10 @@ def download_watercourses(gdf, extent=None, config=None):
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
                     logger.warning(e)
-                else:
+                elif raise_exceptions:
                     raise
+                else:
+                    logger.warning(e)
     return wc
 
 

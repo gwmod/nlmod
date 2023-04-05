@@ -200,25 +200,27 @@ def test_create_sea_model(tmpdir):
 def test_create_sea_model_perlen_list(tmpdir):
     ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
+    # update model_ws
+    model_ws = os.path.join(tmpdir, "test_model_perlen_list")
+    ds = nlmod.base.set_ds_attrs(ds, ds.model_name, model_ws)
+
     # create transient with perlen list
     perlen = [3650, 14, 10, 11]  # length of the time steps
     transient_timesteps = 3
+    start_time = ds.time.start
+
+    # drop time dimension before setting time
+    ds = ds.drop_dims("time")
 
     # update current ds with new time dicretisation
-    model_ws = os.path.join(tmpdir, "test_model")
-    new_ds = nlmod.base.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_ds = nlmod.time.set_ds_time(
-        new_ds,
-        start_time=ds.time.start,
+    ds = nlmod.time.set_ds_time(
+        ds,
+        start_time=start_time,
         steady_state=False,
         steady_start=True,
         perlen=perlen,
         transient_timesteps=transient_timesteps,
     )
-
-    # modfiy time
-    ds = ds.drop_dims("time")
-    ds.update(new_ds)
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -269,24 +271,27 @@ def test_create_sea_model_perlen_list(tmpdir):
 def test_create_sea_model_perlen_14(tmpdir):
     ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
+    # update model_ws
+    model_ws = os.path.join(tmpdir, "test_model_perlen_14")
+    ds = nlmod.base.set_ds_attrs(ds, ds.model_name, model_ws)
+
     # create transient with perlen list
     perlen = 14  # length of the time steps
     transient_timesteps = 3
+    start_time = ds.time.start
+
+    # drop time dimension before setting time
+    ds = ds.drop_dims("time")
 
     # update current ds with new time dicretisation
-    model_ws = os.path.join(tmpdir, "test_model")
-    new_ds = nlmod.base.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_ds = nlmod.time.set_ds_time(
-        new_ds,
-        start_time=ds.time.start,
+    ds = nlmod.time.set_ds_time(
+        ds,
+        start_time=start_time,
         steady_state=False,
         steady_start=True,
         perlen=perlen,
         transient_timesteps=transient_timesteps,
     )
-
-    ds = ds.drop_dims("time")
-    ds.update(new_ds)
 
     # create simulation
     sim = nlmod.sim.sim(ds)

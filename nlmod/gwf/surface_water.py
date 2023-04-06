@@ -654,7 +654,9 @@ def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
     return wc
 
 
-def add_stages_from_waterboards(gdf, la=None, extent=None, columns=None, config=None):
+def add_stages_from_waterboards(
+    gdf, la=None, extent=None, columns=None, config=None, min_total_overlap=0.0
+):
     """
     Add information from level areas (peilgebieden) to bgt-polygons.
 
@@ -676,6 +678,10 @@ def add_stages_from_waterboards(gdf, la=None, extent=None, columns=None, config=
         A dictionary with information about the webservices of the water boards. When
         config is None, it is created with nlmod.read.waterboard.get_configuration().
         The default is None.
+    min_total_overlap : float, optional
+        Only add data from waterboards to gdf when the total overlap between a feature
+        in gdf with all the features from the waterboard is larger than the fraction
+        min_total_overlap. The default is 0.0.
 
     Returns
     -------
@@ -696,14 +702,14 @@ def add_stages_from_waterboards(gdf, la=None, extent=None, columns=None, config=
             la[wb],
             gdf[mask],
             columns=columns,
-            min_total_overlap=0.0,
+            min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
         )
     return gdf
 
 
 def add_bottom_height_from_waterboards(
-    gdf, wc, extent=None, columns=None, config=None, min_total_overlap=0.0
+    gdf, wc=None, extent=None, columns=None, config=None, min_total_overlap=0.0
 ):
     """
     Add information from watercourses to bgt-polygons.
@@ -726,6 +732,10 @@ def add_bottom_height_from_waterboards(
         A dictionary with information about the webservices of the water boards. When
         config is None, it is created with nlmod.read.waterboard.get_configuration().
         The default is None.
+    min_total_overlap : float, optional
+        Only add data from waterboards to gdf when the total overlap between a feature
+        in gdf with all the features from the waterboard is larger than the fraction
+        min_total_overlap. The default is 0.0.
 
     Returns
     -------
@@ -746,7 +756,7 @@ def add_bottom_height_from_waterboards(
             wc[wb],
             gdf[mask],
             columns=columns,
-            min_total_overlap=0.0,
+            min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
         )
     return gdf
@@ -796,7 +806,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
     if ahn is None:
         if fname_ahn is not None:
             logger.warning("Data from {fname_ahn} is overwritten by data from ahn")
-        gdf = add_min_ahn_to_gdf(bgt, ahn, buffer=buffer)
+        gdf = add_min_ahn_to_gdf(gdf, ahn, buffer=buffer)
     if isinstance(extent, Polygon):
         bs = extent.bounds
         extent = [bs[0], bs[2], bs[1], bs[3]]

@@ -219,7 +219,7 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
         A DataArray with dimensions (time, layer).
 
     """
-    if "icell2d" in head.sims:
+    if "icell2d" in head.dims:
         if gi is None:
             gi = flopy.utils.GridIntersect(modelgrid_from_ds(ds), method="vertex")
         icelld2 = gi.intersect(Point(x, y))["cellids"][0]

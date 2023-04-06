@@ -264,13 +264,13 @@ def get_ds(
     delr : int, float, list, tuple or array, optional
         The gridsize along columns (dx). The default is 100. meter.
     delc : None, int, float, list, tuple or array, optional
-        The gridsize along rows (dy). Set to delr when None. If None delc=delr
-        The default is None.
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr. The
+        default is None.
     model_name : str, optional
         name of the model. THe default is None
     model_ws : str, optional
-        workspace of the model. This is where modeldata is saved to. The
-        default is None
+        workspace of the model. This is where modeldata is saved to. The default is
+        None.
     layer : int, list, tuple or ndarray, optional
         The names or index of the layers of the model. When layer is an integer it is
         the number of layers. When layer is None, the number of layers is caluclated

@@ -17,7 +17,7 @@ from . import recharge
 logger = logging.getLogger(__name__)
 
 
-def gwf(ds, sim, **kwargs):
+def gwf(ds, sim, under_relaxation=False, **kwargs):
     """create groundwater flow model from the model dataset.
 
     Parameters
@@ -41,8 +41,17 @@ def gwf(ds, sim, **kwargs):
     # Create the Flopy groundwater flow (gwf) model object
     model_nam_file = f"{ds.model_name}.nam"
 
+    if under_relaxation:
+        newtonoptions = "under_relaxation"
+    else:
+        newtonoptions = None
+
     gwf = flopy.mf6.ModflowGwf(
-        sim, modelname=ds.model_name, model_nam_file=model_nam_file, **kwargs
+        sim,
+        modelname=ds.model_name,
+        model_nam_file=model_nam_file,
+        newtonoptions=newtonoptions,
+        **kwargs,
     )
 
     return gwf
@@ -474,7 +483,7 @@ def sto(
     ss : float, optional
         specific storage. The default is 0.000001.
     iconvert : int, optional
-        See description in ModflowGwfsto. The default is 1.
+        See description in ModflowGwfsto. The default is 1 (differs from FloPY).
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfsto() to determine if flows
         should be saved to the cbb file. Default is False
@@ -776,7 +785,7 @@ def oc(
     return oc
 
 
-def ds_to_gwf(ds):
+def ds_to_gwf(ds, complexity="MODERATE", icelltype=0, under_relaxation=False):
     """Generate Simulation and GWF model from model DataSet.
 
     Builds the following packages:
@@ -809,10 +818,10 @@ def ds_to_gwf(ds):
     tdis(ds, mf_sim)
 
     # create ims
-    ims(mf_sim)
+    ims(mf_sim, complexity=complexity)
 
     # create groundwater flow model
-    mf_gwf = gwf(ds, mf_sim)
+    mf_gwf = gwf(ds, mf_sim, under_relaxation=under_relaxation)
 
     # Create discretization
     if ds.gridtype == "structured":
@@ -823,7 +832,7 @@ def ds_to_gwf(ds):
         raise TypeError("gridtype not recognized.")
 
     # create node property flow
-    npf(ds, mf_gwf)
+    npf(ds, mf_gwf, icelltype=icelltype)
 
     # Create the initial conditions package
     starting_head = "starting_head"

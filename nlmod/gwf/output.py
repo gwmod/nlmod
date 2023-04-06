@@ -4,8 +4,10 @@ import os
 import flopy
 import numpy as np
 import xarray as xr
+from shapely.geometry import Point
 
 from ..dims.resample import get_affine, get_xy_mid_structured
+from ..dims.grid import modelgrid_from_ds
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +114,7 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
 
 def _get_hds(ds=None, gwf=None, fname_hds=None):
     msg = "Load the heads using either the ds, gwf or fname_hds"
-    assert ((ds is not None) + (gwf is not None) +
-            (fname_hds is not None)) >= 1, msg
+    assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
 
     if fname_hds is None:
         if ds is None:
@@ -187,3 +188,45 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
         coords["layer"] = (dims, head_da.layer.data[top_layer])
         gwl = xr.DataArray(gwl, dims=dims, coords=coords)
     return gwl
+
+
+def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
+    """
+    Get the head at a certain point from a head DataArray for all cells.
+
+    Parameters
+    ----------
+    head : xarray.DataArray
+        A DataArray of heads, with dimensions (time, layer, y, x) or (time, layer,
+        icell2d).
+    x : float
+        The x-coordinate of the requested head.
+    y : float
+        The y-coordinate of the requested head.
+    ds : xarray.Dataset, optional
+        Xarray dataset with model data. Only used when a Vertex grid is used, and gi is
+        not supplied. The default is None.
+    gi : flopy.utils.GridIntersect, optional
+        A GridIntersect class, to determine the cell at point x,y. Only used when a
+        Vertex grid is used, and it is determined from ds when None. The default is
+        None.
+    drop_nan_layers : bool, optional
+        Drop layers that are NaN at all timesteps. The default is True.
+
+    Returns
+    -------
+    head_point : xarray.DataArray
+        A DataArray with dimensions (time, layer).
+
+    """
+    if "icell2d" in head.sims:
+        if gi is None:
+            gi = flopy.utils.GridIntersect(modelgrid_from_ds(ds), method="vertex")
+        icelld2 = gi.intersect(Point(x, y))["cellids"][0]
+        head_point = head[:, :, icelld2]
+    else:
+        head_point = head.interp(x=x, y=y, method="nearest")
+    if drop_nan_layers:
+        # only keep layers that are active at this location
+        head_point = head_point[:, ~head_point.isnull().all("time")]
+    return head_point

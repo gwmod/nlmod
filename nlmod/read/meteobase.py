@@ -218,13 +218,13 @@ def read_meteobase_ascii(
 
 
 def read_meteobase(
-    path: Path | str, meteobase_type: Optional[str] = None
+    path: Union[Path, str], meteobase_type: Optional[str] = None
 ) -> List[DataArray]:
     """Read Meteobase zipfile with ASCII data
 
     Parameters
     ----------
-    path : Path | str
+    path : Union[Path,str]
         Path to meteobase .zipfile
     meteobase_type : Optional[str], optional
         Must be one of 'NEERSLAG', 'MAKKINK', 'PENMAN', 'EVAPOTRANSPIRATIE',

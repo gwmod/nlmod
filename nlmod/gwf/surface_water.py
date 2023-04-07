@@ -884,26 +884,25 @@ def gdf_to_seasonal_pkg(
     layer_method="lay_of_rbot",
     **kwargs,
 ):
-    """Add a  surface water package to a groundwater-model, based on input from
-    a GeoDataFrame. This method adds two boundary conditions for each record in
-    the geodataframe: one for the winter_stage and one for the summer_stage.
-    The conductance of each record is a time-series called 'winter' or 'summer'
-    with values of either 0 or 1. These conductance values are multiplied by an
-    auxiliary variable that contains the actual conductance.
+    """Add a surface water package to a groundwater-model, based on input from a
+    GeoDataFrame. This method adds two boundary conditions for each record in the
+    GeoDataFrame: one for the winter_stage and one for the summer_stage.
+    The conductance of each record is a time-series called 'winter' or 'summer' with
+    values of either 0 or 1. These conductance values are multiplied by an auxiliary
+    variable that contains the actual conductance.
 
     Parameters
     ----------
     gdf : GeoDataFrame
-        A GeoDataFrame with Polygon-data. Cellid must be the index (it will be
-        calculated if it is not) and must have columns 'winter_stage' and
-        'summer_stage'.
+        A GeoDataFrame with Polygon-data. Cellid must be the index and must have columns
+        'winter_stage' and 'summer_stage'.
     gwf : flopy ModflowGwf
         groundwaterflow object.
     ds : xarray.Dataset
         Dataset with model data
     pkg: str, optional
         The package to generate. Possible options are 'DRN', 'RIV' and 'GHB'.
-        The default is pkg.
+        The default is 'DRN'.
     default_water_depth : float, optional
         The default water depth, only used when there is no 'rbot' column in
         gdf or when this column contains nans. The default is 0.5.
@@ -921,7 +920,7 @@ def gdf_to_seasonal_pkg(
         values are 'lay_of_rbot' and 'distribute_cond_over_lays'. The default
         is "lay_of_rbot".
     **kwargs : dict
-        Kwargs are passed onto ModflowGwfdrn.
+        Kwargs are passed onto ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb.
 
     Returns
     -------

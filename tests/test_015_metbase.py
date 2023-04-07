@@ -1,7 +1,7 @@
 import nlmod
 from pathlib import Path
 
-data_path = Path(__file__).parent / "data"
+data_path = Path(__file__) / "data"
 
 
 def test_read_meteobase() -> None:

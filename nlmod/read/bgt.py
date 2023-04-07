@@ -17,6 +17,7 @@ def get_bgt(
     extent,
     layer="waterdeel",
     cut_by_extent=True,
+    make_valid=False,
     fname=None,
     geometry=None,
     remove_expired=True,
@@ -34,6 +35,9 @@ def get_bgt(
     cut_by_extent : bool, optional
         Only return the intersection with the extent if True. The default is
         True
+    make_valid : bool, optional
+        Make geometries valid by appying a buffer of 0 m when True. THe defaults is
+        False.
     fname : string, optional
         Save the zipfile that is received by the request to file. The default
         is None, which does not save anything to file.
@@ -107,6 +111,7 @@ def get_bgt(
         zipfile,
         geometry=geometry,
         cut_by_extent=cut_by_extent,
+        make_valid=make_valid,
         extent=polygon,
         remove_expired=remove_expired,
     )
@@ -121,6 +126,7 @@ def read_bgt_zipfile(
     geometry=None,
     files=None,
     cut_by_extent=True,
+    make_valid=False,
     extent=None,
     remove_expired=True,
 ):
@@ -139,6 +145,9 @@ def read_bgt_zipfile(
     cut_by_extent : bool, optional
         Cut the geoemetries by the supplied extent. When no extent is supplied,
         cut_by_extent is set to False. The default is True.
+    make_valid : bool, optional
+        Make geometries valid by appying a buffer of 0 m when True. THe defaults is
+        False.
     extent : list or tuple of length 4 or shapely Polygon
         The extent (xmin, xmax, ymin, ymax) or polygon by which the geometries are
         clipped. Only used when cut_by_extent is True. The defult is None.
@@ -173,6 +182,9 @@ def read_bgt_zipfile(
             # remove double features
             # by removing features with an eindRegistratie
             gdf[key] = gdf[key][gdf[key]["eindRegistratie"].isna()]
+
+        if make_valid:
+            gdf[key].geometry = gdf[key].geometry.buffer(0.0)
 
         if cut_by_extent and isinstance(gdf[key], gpd.GeoDataFrame):
             gdf[key].geometry = gdf[key].intersection(polygon)

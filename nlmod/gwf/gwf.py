@@ -41,7 +41,9 @@ def gwf(ds, sim, under_relaxation=False, **kwargs):
     # Create the Flopy groundwater flow (gwf) model object
     model_nam_file = f"{ds.model_name}.nam"
 
-    if under_relaxation:
+    if "newtonoptions" in kwargs:
+        newtonoptions = kwargs.pop("newtonoptions")
+    elif under_relaxation:
         newtonoptions = "under_relaxation"
     else:
         newtonoptions = None

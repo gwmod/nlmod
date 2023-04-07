@@ -643,7 +643,9 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
     return ds
 
 
-def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
+def get_kh_kv(
+    kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0, idomain=None
+):
     """create kh en kv grid data for flopy from existing kh, kv and anistropy
     grids with nan values (typically from REGIS).
 
@@ -675,6 +677,7 @@ def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
     fill_value_kv : int or float, optional
         use this value for kv if there is no data in kv_in, kh_in and
         anisotropy. The default is 1.0.
+    idomain :
 
     Returns
     -------
@@ -689,14 +692,28 @@ def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
         elif ~np.all(np.isnan(kv_in.loc[layer])):
             logger.debug(f"layer {layer} has a kv")
         else:
-            logger.debug(f"kv and kh both undefined in layer {layer}")
-
+            logger.info(f"kv and kh both undefined in layer {layer}")
     kh_out = kh_in.where(~np.isnan(kh_in), kv_in * anisotropy)
-    kh_out = kh_out.where(~np.isnan(kh_out), fill_value_kh)
-
     kv_out = kv_in.where(~np.isnan(kv_in), kh_in / anisotropy)
-    kv_out = kv_out.where(~np.isnan(kv_out), fill_value_kv)
+    mask = np.isnan(kh_out)
+    if mask.any():
+        kh_out = kh_out.where(~mask, fill_value_kh)
+        if idomain is not None:
+            mask = mask & (idomain > 0)
+            if mask.any():
+                logger.info(
+                    f"Filling {int(mask.sum())} values of kh in active cells with a value of {fill_value_kh} {kh_in.units}"
+                )
 
+    mask = np.isnan(kv_out)
+    if mask.any():
+        kv_out = kv_out.where(~mask, fill_value_kv)
+        if idomain is not None:
+            mask = mask & (idomain > 0)
+            if mask.any():
+                logger.info(
+                    f"Filling {int(mask.sum())} values of kv in active cells with a value of {fill_value_kv} {kv_in.units}"
+                )
     return kh_out, kv_out
 
 
@@ -786,6 +803,7 @@ def fill_nan_top_botm_kh_kv(
         anisotropy,
         fill_value_kh=fill_value_kh,
         fill_value_kv=fill_value_kv,
+        idomain=ds["idomain"],
     )
     return ds
 

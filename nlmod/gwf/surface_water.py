@@ -588,7 +588,11 @@ def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
         if config[wb]["bgt_code"] in bronhouders:
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
-                la[wb] = waterboard.get_data(wb, data_kind, extent)
+                lawb = waterboard.get_data(wb, data_kind, extent)
+                if len(lawb) == 0:
+                    logger.info(f"No {data_kind} for {wb} found within model area")
+                    continue
+                la[wb] = lawb
                 mask = ~la[wb].is_valid
                 if mask.any():
                     logger.warning(
@@ -643,7 +647,11 @@ def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
         if config[wb]["bgt_code"] in bronhouders:
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
-                wc[wb] = waterboard.get_data(wb, data_kind, extent)
+                wcwb = waterboard.get_data(wb, data_kind, extent)
+                if len(wcwb) == 0:
+                    logger.info(f"No {data_kind} for {wb} found within model area")
+                    continue
+                wc[wb] = wcwb
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
                     logger.warning(e)
@@ -697,6 +705,8 @@ def add_stages_from_waterboards(
         columns = ["summer_stage", "winter_stage"]
     gdf[columns] = np.NaN
     for wb in la.keys():
+        if len(la[wb]) == 0:
+            continue
         mask = gdf["bronhouder"] == config[wb]["bgt_code"]
         gdf[mask] = add_info_to_gdf(
             la[wb],
@@ -751,6 +761,8 @@ def add_bottom_height_from_waterboards(
         columns = ["bottom_height"]
     gdf[columns] = np.NaN
     for wb in wc.keys():
+        if len(wc[wb]) == 0:
+            continue
         mask = gdf["bronhouder"] == config[wb]["bgt_code"]
         gdf[mask] = add_info_to_gdf(
             wc[wb],

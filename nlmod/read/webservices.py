@@ -110,7 +110,11 @@ def arcrest(
         gdf = gpd.GeoDataFrame(data, crs=sr)
     else:
         # for geojson-data we can transform to GeoDataFrame right away
-        gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
+        if len(features) == 0:
+            # Assigning CRS to a GeoDataFrame without a geometry column is not supported
+            gdf = gpd.GeoDataFrame()
+        else:
+            gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
     return gdf
 
 

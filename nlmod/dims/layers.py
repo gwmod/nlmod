@@ -702,11 +702,15 @@ def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=
     kv = _fill_var(kv, kh / anisotropy, idomain, msg_suffix)
 
     # fill kh by fill_value_kh
-    msg_suffix = f" of kh with a value of {fill_value_kh} {kh.units}"
+    msg_suffix = f" of kh with a value of {fill_value_kh}"
+    if "units" in kh.attrs:
+        msg_suffix = f"{msg_suffix} {kh.units}"
     kh = _fill_var(kh, fill_value_kh, idomain, msg_suffix)
 
     # fill kv by fill_value_kv
-    msg_suffix = f" of kv with a value of {fill_value_kv} {kv.units}"
+    msg_suffix = f" of kv with a value of {fill_value_kv}"
+    if "units" in kv.attrs:
+        msg_suffix = f"{msg_suffix} {kv.units}"
     kv = _fill_var(kv, fill_value_kv, idomain, msg_suffix)
 
     return kh, kv

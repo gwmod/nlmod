@@ -643,78 +643,90 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
     return ds
 
 
-def get_kh_kv(
-    kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0, idomain=None
-):
+def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=None):
     """create kh en kv grid data for flopy from existing kh, kv and anistropy
     grids with nan values (typically from REGIS).
 
-    fill kh grid in these steps:
-    1. take kh from kh_in, if kh_in has nan values:
-    2. take kv from kv_in and multiply by anisotropy, if this is nan:
-    3. take fill_value_kh
+    fill nans in kh grid in these steps:
+    1. take kv and multiply by anisotropy, if this is nan:
+    2. take fill_value_kh
 
-    fill kv grid in these steps:
-    1. take kv from kv_in, if kv_in has nan values:
-    2. take kh from kh_in and divide by anisotropy, if this is nan:
-    3. take fill_value_kv
+    fill nans in kv grid in these steps:
+    1. take kh and divide by anisotropy, if this is nan:
+    2. take fill_value_kv
 
     Supports structured and vertex grids.
 
     Parameters
     ----------
-    kh_in : np.ndarray
+    kh : xarray.DataArray
         kh from regis with nan values shape(nlay, nrow, ncol) or
         shape(nlay, len(icell2d))
-    kv_in : np.ndarray
+    kv : xarray.DataArray
         kv from regis with nan values shape(nlay, nrow, ncol) or
         shape(nlay, len(icell2d))
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
     fill_value_kh : int or float, optional
-        use this value for kh if there is no data in kh_in, kv_in and
+        use this value for kh if there is no data in kh, kv and
         anisotropy. The default is 1.0.
     fill_value_kv : int or float, optional
-        use this value for kv if there is no data in kv_in, kh_in and
+        use this value for kv if there is no data in kv, kh and
         anisotropy. The default is 1.0.
-    idomain :
+    idomain : xarray.DataArray, optional
+        The idomain DataArray, used in log-messages, to report the number of active
+        cells that are filled. When idomain is None, the total number of cells that are
+        filled is reported, and not just the active cells. The default is None.
 
     Returns
     -------
-    kh_out : np.ndarray
+    kh : np.ndarray
         kh without nan values (nlay, nrow, ncol) or shape(nlay, len(icell2d))
-    kv_out : np.ndarray
+    kv : np.ndarray
         kv without nan values (nlay, nrow, ncol) or shape(nlay, len(icell2d))
     """
-    for layer in kh_in.layer.data:
-        if ~np.all(np.isnan(kh_in.loc[layer])):
+    for layer in kh.layer.data:
+        if ~np.all(np.isnan(kh.loc[layer])):
             logger.debug(f"layer {layer} has a kh")
-        elif ~np.all(np.isnan(kv_in.loc[layer])):
+        elif ~np.all(np.isnan(kv.loc[layer])):
             logger.debug(f"layer {layer} has a kv")
         else:
             logger.info(f"kv and kh both undefined in layer {layer}")
-    kh_out = kh_in.where(~np.isnan(kh_in), kv_in * anisotropy)
-    kv_out = kv_in.where(~np.isnan(kv_in), kh_in / anisotropy)
-    mask = np.isnan(kh_out)
-    if mask.any():
-        kh_out = kh_out.where(~mask, fill_value_kh)
-        if idomain is not None:
-            mask = mask & (idomain > 0)
-            if mask.any():
-                logger.info(
-                    f"Filling {int(mask.sum())} values of kh in active cells with a value of {fill_value_kh} {kh_in.units}"
-                )
 
-    mask = np.isnan(kv_out)
+    # fill kh by kv * anisotropy
+    msg_suffix = f" of kh by multipying kv by an anisotropy of {anisotropy}"
+    kh = _fill_var(kh, kv * anisotropy, idomain, msg_suffix)
+
+    # fill kv by kh / anisotropy
+    msg_suffix = f" of kv by dividing kh by an anisotropy of {anisotropy}"
+    kv = _fill_var(kv, kh / anisotropy, idomain, msg_suffix)
+
+    # fill kh by fill_value_kh
+    msg_suffix = f" of kh with a value of {fill_value_kh} {kh.units}"
+    kh = _fill_var(kh, fill_value_kh, idomain, msg_suffix)
+
+    # fill kv by fill_value_kv
+    msg_suffix = f" of kv with a value of {fill_value_kv} {kv.units}"
+    kv = _fill_var(kv, fill_value_kv, idomain, msg_suffix)
+
+    return kh, kv
+
+
+def _fill_var(var, by, idomain, msg_suffix=""):
+    mask = np.isnan(var)
+    if isinstance(by, xr.DataArray):
+        mask = mask & (~np.isnan(by))
     if mask.any():
-        kv_out = kv_out.where(~mask, fill_value_kv)
+        var = var.where(~mask, by)
         if idomain is not None:
             mask = mask & (idomain > 0)
             if mask.any():
                 logger.info(
-                    f"Filling {int(mask.sum())} values of kv in active cells with a value of {fill_value_kv} {kv_in.units}"
+                    f"Filling {int(mask.sum())} values in active cells{msg_suffix}"
                 )
-    return kh_out, kv_out
+        else:
+            logger.info(f"Filling {int(mask.sum())} values {msg_suffix}")
+    return var
 
 
 def fill_top_bot_kh_kv_at_mask(ds, fill_mask):

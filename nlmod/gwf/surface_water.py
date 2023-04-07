@@ -803,7 +803,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
 
         stats = zonal_stats(gdf.geometry.buffer(buffer), fname_ahn, stats="min")
         gdf["ahn_min"] = [x["min"] for x in stats]
-    if ahn is None:
+    if ahn is not None:
         if fname_ahn is not None:
             logger.warning("Data from {fname_ahn} is overwritten by data from ahn")
         gdf = add_min_ahn_to_gdf(gdf, ahn, buffer=buffer)

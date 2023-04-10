@@ -770,6 +770,7 @@ def add_bottom_height_from_waterboards(
             columns=columns,
             min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
+            geom_type=None,
         )
     return gdf
 

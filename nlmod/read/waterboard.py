@@ -351,6 +351,7 @@ def get_configuration():
             "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Legger_Oppervlaktewaterlichamen_Vastgesteld/MapServer",
             "layer": 6,
             "index": "OAFIDENT",
+            "bottom_height": "OAFBODHG",
         },
         "level_areas": {
             "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",

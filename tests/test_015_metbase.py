@@ -1,9 +1,8 @@
-import os
-
 import nlmod
+from pathlib import Path
 
-metbase_path = os.path.join("data", "Meteobase_ASCII_test.zip")
+data_path = Path(__file__).parent / "data"
 
 
 def test_read_meteobase() -> None:
-    _ = nlmod.read.meteobase.read_meteobase(metbase_path)
+    _ = nlmod.read.meteobase.read_meteobase(data_path / "Meteobase_ASCII_test.zip")

@@ -40,7 +40,7 @@ def read_leesmij(fo: FileIO) -> Dict[str, Dict[str, str]]:
         if any(x for x in [e.value for e in MeteobaseType] if x in line):
             mtype = line.strip()
             submeta["type"] = mtype
-            meta_idx = MeteobaseType(mtype)._name_
+            meta_idx = MeteobaseType(mtype).name
         elif ":" in line:  # regel met metadata
             l1, l2 = line.split(":")
             if "coordinaat" in l1:

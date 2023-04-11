@@ -191,7 +191,7 @@ def read_meteobase_ascii(
                 data, ascii_meta = read_ascii(fo)
                 if data_array is None:
                     meta = meta | ascii_meta
-                    data_array = np.empty(
+                    data_array = np.zeros(
                         shape=(len(fnames), ascii_meta["nrows"], ascii_meta["ncols"]),
                         dtype=float,
                     )

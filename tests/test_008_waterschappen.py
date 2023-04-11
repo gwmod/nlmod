@@ -76,7 +76,7 @@ def test_download_waterlopen(plot=True):
         return extent
 
     data_kind = "watercourses"
-    # data_kind = "peilgebieden"
+    # data_kind = "level_areas"
     waterboards = nlmod.read.waterboard.get_polygons()
     gdf = {}
     for wb in waterboards.index:

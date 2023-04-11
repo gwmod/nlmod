@@ -64,7 +64,8 @@ def get_datetime_from_fname(fname: str) -> np.datetime64:
         day = int(match[6:8])
 
     hour = 0
-    hourstr = re.search("(_[0-9]{2})", fname)  # assumes _HH
+    fname_wo_date = fname.replace(match, "")
+    hourstr = re.search("(_[0-9]{2})", fname_wo_date)  # assumes _HH
     if hourstr is not None:
         match = hourstr.group(0)
         hour = int(match.replace("_", ""))

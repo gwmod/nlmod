@@ -1045,7 +1045,7 @@ def add_season_timeseries(
             ts_data.append((time, 1.0, 0.0))
 
     package.ts.initialize(
-        filename="season.ts",
+        filename=filename,
         timeseries=ts_data,
         time_series_namerecord=seasons,
         interpolation_methodrecord=["stepwise", "stepwise"],

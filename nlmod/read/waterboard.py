@@ -78,6 +78,8 @@ def get_configuration():
             # legger
             "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Vastgestelde_Legger_Oppervlaktewaterlichamen/FeatureServer",
             "layer": 11,  # categorie A
+            "bottom_width": "WS_BODEMBREEDTE_L",
+            "bottom_height": [["WS_BH_BENEDENSTROOMS_L", "WS_BH_BOVENSTROOMS_L"]],
             # "layer": 12,  # categorie B
             # beheer
             # "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Beheerregister_Waterlopen_en_Kunstwerken/FeatureServer",
@@ -86,23 +88,18 @@ def get_configuration():
             # "layer": 15,  # categorie C
         },
         "level_areas": {
-            # "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Beheerregister_Waterlopen_en_Kunstwerken/FeatureServer",
-            # "layer": 19,
-            "url": "https://maps.brabantsedelta.nl/arcgis/rest/services/Extern/Legger/MapServer",
-            "layer": 6,
+            "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Peilbesluiten/MapServer",
+            "layer": 0,  # Peilgebied vigerend
+            # "layer": 1, # Peilgebied praktijk
             "summer_stage": [
                 "WS_ZOMERPEIL",
                 "WS_VAST_PEIL",
-                "WS_STREEFPEIL",
-                "WS_MAXIMUM_PEIL",
-                "WS_MINIMUM_PEIL",
+                "WS_MAXIMUM",
             ],
             "winter_stage": [
                 "WS_WINTERPEIL",
                 "WS_VAST_PEIL",
-                "WS_STREEFPEIL",
-                "WS_MINIMUM_PEIL",
-                "WS_MAXIMUM_PEIL",
+                "WS_MINIMUM",
             ],
         },
     }

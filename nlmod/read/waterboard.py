@@ -112,6 +112,7 @@ def get_configuration():
         "watercourses": {
             "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LW_2021_20211110/FeatureServer",
             "layer": 9,  # LOW_2021_A_Water
+            "index": "LOKAALID",
             # "layer": 10,  # LOW_2021_A_Water_Afw_Afv
             # "layer": 11,  # LOW_2021_B_Water
             # "layer": 2,  # LOW_2021_Profielpunt

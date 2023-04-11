@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from pandas import Timestamp
 from enum import Enum
 from io import FileIO
 from pathlib import Path
@@ -54,8 +54,8 @@ def read_leesmij(fo: FileIO) -> Dict[str, Dict[str, str]]:
     return meta
 
 
-def get_datetime_from_fname(fname: str) -> np.datetime64:
-    """Get the datetime from a filename (with some assumptions about the fomratting)"""
+def get_timestamp_from_fname(fname: str) -> Timestamp:
+    """Get the Timestamp from a filename (with some assumptions about the formatting)"""
     datestr = re.search("([0-9]{8})", fname)  # assumes YYYYMMDD
     if datestr is not None:
         match = datestr.group(0)
@@ -70,7 +70,7 @@ def get_datetime_from_fname(fname: str) -> np.datetime64:
         match = hourstr.group(0)
         hour = int(match.replace("_", ""))
 
-    dtime = np.datetime64(datetime(year=year, month=month, day=day, hour=hour))
+    dtime = Timestamp(year=year, month=month, day=day, hour=hour)
     return dtime
 
 
@@ -184,7 +184,7 @@ def read_meteobase_ascii(
     """
     fnames = [x for x in zfile.namelist() if f"{foldername}/" in x]
     if meta["Bestandsformaat"] == ".ASC (Arc/Info-raster)":
-        times = np.array([], dtype=np.datetime64)
+        times = []
         for i, fname in enumerate(fnames):
             data_array = None
             with zfile.open(fname) as fo:
@@ -197,7 +197,7 @@ def read_meteobase_ascii(
                     )
                 data_array[i] = data
 
-                times = np.append(times, get_datetime_from_fname(fname))
+                times.append(get_timestamp_from_fname(fname))
 
         x, y = get_xy_from_ascii_meta(ascii_meta)
 

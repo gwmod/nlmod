@@ -385,6 +385,12 @@ def build_spd(
     idomain = ds.idomain.data
     kh = ds.kh.data
 
+    # ignore records without a stage
+    mask = celldata["stage"].isna()
+    if mask.any():
+        logger.warning(f"{mask.sum()} records without a stage ignored")
+        celldata = celldata[~mask]
+
     for cellid, row in tqdm(
         celldata.iterrows(),
         total=celldata.index.size,
@@ -412,9 +418,6 @@ def build_spd(
 
         # stage
         stage = row["stage"]
-
-        if np.isnan(stage):
-            raise ValueError(f"stage is NaN in cell {cellid}")
 
         if (stage < rbot) and np.isfinite(rbot):
             logger.warning(
@@ -549,36 +552,92 @@ def get_gdf_stage(gdf, season="winter"):
     return stage
 
 
-def download_level_areas(gdf, extent=None, config=None):
-    """Download level areas (peilgebieden) of bronhouders."""
+def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
+    """
+    Download level areas (peilgebieden) of bronhouders.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, containing the column "bronhouder".
+    extent : list, tuple or np.array
+        Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
+        water boards in gdf are downloaded downloaded.
+    config : dict, optional
+        A dictionary with information about the webservices of the water boards. When
+        config is None, it is created with nlmod.read.waterboard.get_configuration().
+        The default is None.
+    raise_exceptions : bool, optional
+        Raises exceptions, mostly caused by a webservice that is offline. When
+        raise_exceptions is False, the error is raised as a warning. The default is
+        True.
+
+    Returns
+    -------
+    la : dict
+        A dictionary with the name of the waterboards as keys and GeoDataFrames with
+        level areas as values.
+
+    """
     if config is None:
         config = waterboard.get_configuration()
     bronhouders = gdf["bronhouder"].unique()
-    pg = {}
+    la = {}
     data_kind = "level_areas"
     for wb in config.keys():
         if config[wb]["bgt_code"] in bronhouders:
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
-                pg[wb] = waterboard.get_data(wb, data_kind, extent)
-                mask = ~pg[wb].is_valid
+                lawb = waterboard.get_data(wb, data_kind, extent)
+                if len(lawb) == 0:
+                    logger.info(f"No {data_kind} for {wb} found within model area")
+                    continue
+                la[wb] = lawb
+                mask = ~la[wb].is_valid
                 if mask.any():
                     logger.warning(
                         f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
                     )
                     # first copy to prevent ValueError: assignment destination is read-only
-                    pg[wb] = pg[wb].copy()
-                    pg[wb].loc[mask, "geometry"] = pg[wb][mask].buffer(0.0)
+                    la[wb] = la[wb].copy()
+                    la[wb].loc[mask, "geometry"] = la[wb][mask].buffer(0.0)
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
                     logger.warning(e)
-                else:
+                elif raise_exceptions:
                     raise
-    return pg
+                else:
+                    logger.warning(e)
+    return la
 
 
-def download_watercourses(gdf, extent=None, config=None):
-    """Download watercourses of bronhouders."""
+def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
+    """
+    Download watercourses of bronhouders.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, containing the column "bronhouder".
+    extent : list, tuple or np.array
+        Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
+        water boards in gdf are downloaded downloaded.
+    config : dict, optional
+        A dictionary with information about the webservices of the water boards. When
+        config is None, it is created with nlmod.read.waterboard.get_configuration().
+        The default is None.
+    raise_exceptions : bool, optional
+        Raises exceptions, mostly caused by a webservice that is offline. When
+        raise_exceptions is False, the error is raised as a warning. The default is
+        True.
+
+    Returns
+    -------
+    wc : dict
+        A dictionary with the name of the waterboards as keys and GeoDataFrames with
+        watercourses as values.
+
+    """
     if config is None:
         config = waterboard.get_configuration()
     bronhouders = gdf["bronhouder"].unique()
@@ -588,51 +647,229 @@ def download_watercourses(gdf, extent=None, config=None):
         if config[wb]["bgt_code"] in bronhouders:
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
-                wc[wb] = waterboard.get_data(wb, data_kind, extent)
+                wcwb = waterboard.get_data(wb, data_kind, extent)
+                if len(wcwb) == 0:
+                    logger.info(f"No {data_kind} for {wb} found within model area")
+                    continue
+                wc[wb] = wcwb
             except Exception as e:
                 if str(e) == f"{data_kind} not available for {wb}":
                     logger.warning(e)
-                else:
+                elif raise_exceptions:
                     raise
+                else:
+                    logger.warning(e)
     return wc
 
 
-def add_stages_from_waterboards(gdf, pg=None, extent=None, columns=None, config=None):
-    """Add information from level areas (peilgebieden) to bgt-polygons."""
-    if pg is None:
-        pg = download_level_areas(gdf, extent=extent)
+def add_stages_from_waterboards(
+    gdf, la=None, extent=None, columns=None, config=None, min_total_overlap=0.0
+):
+    """
+    Add information from level areas (peilgebieden) to bgt-polygons.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, containing the column "bronhouder".
+    la : dict, optional
+        A dictionary with the name of the waterboards as keys and GeoDataFrames with
+        level areas as values. It is generated by download_level_areas when None.
+        The default is None.
+    extent : list, tuple or np.array
+        Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
+        water boards in gdf are downloaded downloaded.
+    columns : TYPE, optional
+        The columns that are added to gdf. Columns defaults to 'summer_stage' and
+        'winter_stage' when None. The default is None.
+    config : dict, optional
+        A dictionary with information about the webservices of the water boards. When
+        config is None, it is created with nlmod.read.waterboard.get_configuration().
+        The default is None.
+    min_total_overlap : float, optional
+        Only add data from waterboards to gdf when the total overlap between a feature
+        in gdf with all the features from the waterboard is larger than the fraction
+        min_total_overlap. The default is 0.0.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, with the added columns
+
+    """
     if config is None:
         config = waterboard.get_configuration()
+    if la is None:
+        la = download_level_areas(gdf, extent=extent, config=config)
     if columns is None:
         columns = ["summer_stage", "winter_stage"]
     gdf[columns] = np.NaN
-    for wb in pg.keys():
+    for wb in la.keys():
+        if len(la[wb]) == 0:
+            continue
         mask = gdf["bronhouder"] == config[wb]["bgt_code"]
         gdf[mask] = add_info_to_gdf(
-            pg[wb],
+            la[wb],
             gdf[mask],
             columns=columns,
-            min_total_overlap=0.0,
+            min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
         )
     return gdf
 
 
-def get_gdf(ds=None, extent=None, fname_ahn=None):
+def add_bottom_height_from_waterboards(
+    gdf, wc=None, extent=None, columns=None, config=None, min_total_overlap=0.0
+):
+    """
+    Add information from watercourses to bgt-polygons.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, containing the column "bronhouder".
+    wc : dict, optional
+        A dictionary with the name of the waterboards as keys and GeoDataFrames with
+        watercourses as values. It is generated by download_watercourses when None.
+        The default is None.
+    extent : list, tuple or np.array
+        Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
+        water boards in gdf are downloaded downloaded.
+    columns : TYPE, optional
+        The columns that are added to gdf. Columns defaults to 'bottom_height' when
+        None. The default is None.
+    config : dict, optional
+        A dictionary with information about the webservices of the water boards. When
+        config is None, it is created with nlmod.read.waterboard.get_configuration().
+        The default is None.
+    min_total_overlap : float, optional
+        Only add data from waterboards to gdf when the total overlap between a feature
+        in gdf with all the features from the waterboard is larger than the fraction
+        min_total_overlap. The default is 0.0.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, with the added columns
+
+    """
+    if config is None:
+        config = waterboard.get_configuration()
+    if wc is None:
+        wc = download_watercourses(gdf, extent=extent, config=config)
+    if columns is None:
+        columns = ["bottom_height"]
+    gdf[columns] = np.NaN
+    for wb in wc.keys():
+        if len(wc[wb]) == 0:
+            continue
+        mask = gdf["bronhouder"] == config[wb]["bgt_code"]
+        gdf[mask] = add_info_to_gdf(
+            wc[wb],
+            gdf[mask],
+            columns=columns,
+            min_total_overlap=min_total_overlap,
+            desc=f"Adding {columns} from {wb}",
+            geom_type=None,
+        )
+    return gdf
+
+
+def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
+    """
+    Generate a GeoDataFrame based on BGT-data and data from waterboards.
+
+    Parameters
+    ----------
+    ds : TYPE, optional
+        The Model Dataset, used to determine the extent (when None) and to grid the
+        surface level features. The default is None.
+    extent : list, tuple or np.array
+        Model extent (xmin, xmax, ymin, ymax). When extent is None, extent is extracted
+        from ds
+    fname_ahn : str, optional
+        When not None, fname_ahn is the path to a tiff-file with ahn-data, to calculate
+        the minimum height of the surface level near the surface water features. The
+        default is None.
+    ahn : xarray.DataArray, optional
+        When not None, ahn is a DataArray containing the height of the surface level and
+        is used to calculate the minimum height of the surface level near the surface
+        water features. The default is None.
+    buffer : float, optional
+        The buffer that is applied around surface water features to calculate the
+        minimum surface level near these features. The default is 0.0.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, with added columns from waterboards
+        and gridded to the model grid (when ds is aupplied)
+
+    """
     if extent is None:
+        if ds is None:
+            raise (Exception("Please supply either ds or extent to get_gdf"))
         extent = get_extent_polygon(ds)
     gdf = bgt.get_bgt(extent)
     if fname_ahn is not None:
         from rasterstats import zonal_stats
 
-        stats = zonal_stats(gdf.geometry.buffer(1.0), fname_ahn, stats="min")
+        stats = zonal_stats(gdf.geometry.buffer(buffer), fname_ahn, stats="min")
         gdf["ahn_min"] = [x["min"] for x in stats]
+    if ahn is not None:
+        if fname_ahn is not None:
+            logger.warning("Data from {fname_ahn} is overwritten by data from ahn")
+        gdf = add_min_ahn_to_gdf(gdf, ahn, buffer=buffer)
     if isinstance(extent, Polygon):
         bs = extent.bounds
         extent = [bs[0], bs[2], bs[1], bs[3]]
     gdf = add_stages_from_waterboards(gdf, extent=extent)
+    gdf = add_bottom_height_from_waterboards(gdf, extent=extent)
     if ds is not None:
         return gdf_to_grid(gdf, ds).set_index("cellid")
+    return gdf
+
+
+def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
+    """
+    Add a column names with the minimum surface level height near surface water features
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features
+    ahn : xarray.DataArray
+        A DataArray containing the height of the surface level.
+    buffer : float, optional
+        The buffer that is applied around surface water features to calculate the
+        minimum surface level near these features. The default is 0.0.
+    column : string, optional
+        The name of the new column in gdf containing the minimum surface level height.
+        The default is 'ahn_min'.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with surface water features, with an added column containing the
+        minimum surface level height near the features.
+
+    """
+    from geocube.api.core import make_geocube
+    from functools import partial
+    from geocube.rasterize import rasterize_image
+
+    # use geocube
+    gc = make_geocube(
+        vector_data=gdf.buffer(buffer).reset_index().rename_geometry("geometry"),
+        measurements=["index"],
+        like=ahn,  # ensure the data are on the same grid
+        rasterize_function=partial(rasterize_image, all_touched=True),
+    )
+    gc["ahn"] = ahn
+
+    ahn_min = gc.groupby("index").min()["ahn"].to_pandas()
+    ahn_min.index = ahn_min.index.astype(int)
+    gdf[column] = ahn_min
     return gdf
 
 
@@ -648,26 +885,25 @@ def gdf_to_seasonal_pkg(
     layer_method="lay_of_rbot",
     **kwargs,
 ):
-    """Add a  surface water package to a groundwater-model, based on input from
-    a GeoDataFrame. This method adds two boundary conditions for each record in
-    the geodataframe: one for the winter_stage and one for the summer_stage.
-    The conductance of each record is a time-series called 'winter' or 'summer'
-    with values of either 0 or 1. These conductance values are multiplied by an
-    auxiliary variable that contains the actual conductance.
+    """Add a surface water package to a groundwater-model, based on input from a
+    GeoDataFrame. This method adds two boundary conditions for each record in the
+    GeoDataFrame: one for the winter_stage and one for the summer_stage.
+    The conductance of each record is a time-series called 'winter' or 'summer' with
+    values of either 0 or 1. These conductance values are multiplied by an auxiliary
+    variable that contains the actual conductance.
 
     Parameters
     ----------
     gdf : GeoDataFrame
-        A GeoDataFrame with Polygon-data. Cellid must be the index (it will be
-        calculated if it is not) and must have columns 'winter_stage' and
-        'summer_stage'.
+        A GeoDataFrame with Polygon-data. Cellid must be the index and must have columns
+        'winter_stage' and 'summer_stage'.
     gwf : flopy ModflowGwf
         groundwaterflow object.
     ds : xarray.Dataset
         Dataset with model data
     pkg: str, optional
         The package to generate. Possible options are 'DRN', 'RIV' and 'GHB'.
-        The default is pkg.
+        The default is 'DRN'.
     default_water_depth : float, optional
         The default water depth, only used when there is no 'rbot' column in
         gdf or when this column contains nans. The default is 0.5.
@@ -685,7 +921,7 @@ def gdf_to_seasonal_pkg(
         values are 'lay_of_rbot' and 'distribute_cond_over_lays'. The default
         is "lay_of_rbot".
     **kwargs : dict
-        Kwargs are passed onto ModflowGwfdrn.
+        Kwargs are passed onto ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb.
 
     Returns
     -------
@@ -710,10 +946,16 @@ def gdf_to_seasonal_pkg(
         gdf["rbot"] = np.NaN
     mask = gdf["rbot"].isna()
     if mask.any():
+        logger.info(
+            f"Filling {mask.sum()} NaN's in rbot using a water depth of {default_water_depth} meter."
+        )
         min_stage = pd.concat(stages, axis=1).min(axis=1)
-        gdf.loc[mask, "rbot"] = min_stage - default_water_depth
+        gdf.loc[mask, "rbot"] = min_stage[mask] - default_water_depth
 
     if "cond" not in gdf:
+        logger.info(
+            f"Calcluating {pkg}-conductance based on as resistance of {c0} days."
+        )
         gdf["cond"] = gdf.geometry.area / c0
 
     if boundname_column is not None:
@@ -729,13 +971,9 @@ def gdf_to_seasonal_pkg(
         gdf.loc[mask, "stage"] = gdf.loc[mask, "rbot"]
         gdf["aux"] = season
 
-        # ignore records without a stage
-        mask = gdf["stage"].isna()
-        if mask.any():
-            logger.warning(f"{mask.sum()} records without an elevation ignored")
         spd.extend(
             build_spd(
-                gdf[~mask],
+                gdf,
                 pkg,
                 ds,
                 layer_method=layer_method,

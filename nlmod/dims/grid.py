@@ -234,14 +234,15 @@ def refine(
     Parameters
     ----------
     ds : xarray.Datset
-        A structured model datset.
+        A structured model Dataset.
     model_ws : str, optional
         The working directory fpr GridGen. Get from ds when model_ws is None.
         The default is None.
-    refinement_features : list of tuple of length 2, optional
+    refinement_features : list of tuples of length 2 or 3, optional
         List of tuples containing refinement features. Each tuple must be of
-        the form (GeoDataFrame, level) or (geometry, shape_type, level). The
-        default is None.
+        the form (GeoDataFrame, level) or (geometry, shape_type, level). When
+        refinement_features is None, no refinement is added, but the structured model
+        Dataset is transformed to a Vertex Dataset. The default is None.
     exe_name : str, optional
         Filepath to the gridgen executable. The file path within nlmod is chose
         if exe_name is None. The default is None.
@@ -257,7 +258,7 @@ def refine(
     Returns
     -------
     xarray.Dataset
-        The refined model dataset.
+        A Vertex model Dataset
     """
     assert ds.gridtype == "structured", "Can only refine a structured grid"
     logger.info("create vertex grid using gridgen")
@@ -440,8 +441,8 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
 
     Returns
     -------
-    ds : TYPE
-        DESCRIPTION.
+    ds : xarray.Dataset
+        Dataset with variables from layer_ds.
     """
     if not layer_ds.layer.equals(ds.layer):
         # do not change the original Dataset
@@ -458,10 +459,15 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
         if len(drop_vars) > 0:
             ds = ds.drop_vars(drop_vars)
         ds = ds.assign_coords({"layer": layer_ds.layer})
+    has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if method in ["nearest", "linear"]:
-        layer_ds = layer_ds.interp(
-            x=ds.x, y=ds.y, method="nearest", kwargs={"fill_value": None}
-        )
+        if has_rotation:
+            x = ds.xc
+            y = ds.yc
+        else:
+            x = ds.x
+            y = ds.y
+        layer_ds = layer_ds.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
         for var in layer_ds.data_vars:
             ds[var] = layer_ds[var]
     else:
@@ -1187,6 +1193,11 @@ def gdf_to_bool_da(gdf, ds):
     da : xr.DataArray
         1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
     """
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # transform gdf into model coordinates
+        affine = get_affine_world_to_mod(ds)
+        gdf = affine_transform_gdf(gdf, affine)
+
     modelgrid = modelgrid_from_ds(ds)
 
     # build list of gridcells
@@ -1257,15 +1268,14 @@ def gdf_to_grid(
     desc="Intersecting with grid",
     **kwargs,
 ):
-    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This
-    method is just a wrapper around the GridIntersect method from flopy.
+    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method is a
+    wrapper around the GridIntersect method from flopy.
 
     Parameters
     ----------
     gdf : geopandas.GeoDataFrame
-        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can
-        consist of multiple types (Point, LineString, Polygon and the Multi-
-        variants).
+        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can consist of
+        multiple types (Point, LineString, Polygon and the Multi-variants).
     ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf or xarray.Dataset, optional
         The flopy model or xarray dataset that defines the grid. When a Dataset is
         supplied, and the grid is rotated, the geodataframe is transformed in model
@@ -1279,7 +1289,7 @@ def gdf_to_grid(
 
     Returns
     -------
-    geopandas.GeoDataFrame
+    gdfg : geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
     """
     if ml is None and ix is None:
@@ -1315,7 +1325,9 @@ def gdf_to_grid(
             elif shp[geometry].geom_type == "Polygon":
                 shpn["area"] = r["areas"][i]
             shps.append(shpn)
-    return gpd.GeoDataFrame(shps, geometry=geometry)
+    gdfg = gpd.GeoDataFrame(shps, geometry=geometry, crs=gdf.crs)
+    gdfg.index.name = gdf.index.name
+    return gdfg
 
 
 def get_thickness_from_topbot(top, bot):
@@ -1336,7 +1348,7 @@ def get_thickness_from_topbot(top, bot):
         or (layer, icell2d).
     """
     warnings.warn(
-        "The method get_thickness_from_topbot is deprecated. Please use calculate_thickness instead",
+        "The method get_thickness_from_topbot is deprecated. Please use nlmod.layers.calculate_thickness instead",
         DeprecationWarning,
     )
 

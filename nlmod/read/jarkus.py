@@ -13,6 +13,7 @@ import logging
 import os
 
 import numpy as np
+import pandas as pd
 import requests
 import xarray as xr
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf
-def get_bathymetry(ds, northsea, method="average"):
+def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     """get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
@@ -58,8 +59,7 @@ def get_bathymetry(ds, northsea, method="average"):
 
     # try to get bathymetry via opendap
     try:
-        url = "https://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc"
-        jarkus_ds = get_dataset_jarkus(ds.extent, url)
+        jarkus_ds = get_dataset_jarkus(ds.extent, kind=kind)
     except OSError:
         import gdown
 
@@ -85,54 +85,89 @@ def get_bathymetry(ds, northsea, method="average"):
     ds_out["bathymetry"] = xr.where(northsea, da_bathymetry, np.nan)
 
     for datavar in ds_out:
-        ds_out[datavar].attrs["source"] = "Jarkus"
-        ds_out[datavar].attrs["url"] = url
-        ds_out[datavar].attrs["source"] = dt.datetime.now().strftime("%Y%m%d")
+        ds_out[datavar].attrs["source"] = kind
+        ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
         if datavar == "bathymetry":
             ds_out[datavar].attrs["units"] = "mNAP"
 
     return ds_out
 
 
-def get_dataset_jarkus(
-    extent,
-    url="http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc",
-):
-    """Get bathymetry from Jarkus within a certain extent. The following steps
-    are used:
-
-       1. find Jarkus tiles within the extent
-       2. combine netcdf urls of Jarkus tiles
-       3. read Jarkus tiles and combine the 'z' parameter of the last time step
-          of each tile, to a dataarray.
+def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
+    """Get bathymetry from Jarkus within a certain extent. If return_tiles is False, the
+    following actions are performed:
+    1. find Jarkus tiles within the extent
+    2. download netcdf files of Jarkus tiles
+    3. read Jarkus tiles and combine the 'z' parameter of the last time step of each
+    tile (when time=1), to a dataarray.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid. Should be RD-new
-        coordinates (EPSG:28992)
+        coördinates (EPSG:28992)
+    kind : str, optional
+        The kind of data. Can be "jarkus", "kusthoogte" or "vaklodingen". The default is
+        "jarkus".
+    return_tiles : bool, optional
+        Return the individual tiles when True. The default is False.
+    time : str, int or pd.TimeStamp, optional
+        The time to return data for. When time="last_non_nan", this returns the last
+        non-NaN-value for each pixel. This can take a while, as all tiles need to be
+        checked. When time is an integer, it is used as the time index. When set to -1,
+        this then downloads the last time available in each tile  (which can contain
+        large areas with NaN-values). When time is a string (other than "last_non_nan")
+        or a pandas Timestamp, only data on this exact time are downloaded. The default
+        is -1.
 
     Returns
     -------
     z : xr.DataSet
         dataset containing bathymetry data
+
     """
 
     extent = [int(x) for x in extent]
-    netcdf_tile_names = get_jarkus_tilenames(extent, url=url)
-    tiles = [xr.open_dataset(name) for name in netcdf_tile_names]
-    # only use the last timestep
-    tiles = [tile.isel(time=-1) for tile in tiles]
-    z_dataset = xr.combine_by_coords(tiles, combine_attrs="drop")
 
+    netcdf_tile_names = get_jarkus_tilenames(extent, kind)
+    tiles = [xr.open_dataset(name.strip()) for name in netcdf_tile_names]
+    if return_tiles:
+        return tiles
+    if time is not None:
+        if time == "last_non_nan":
+            tiles_last = []
+            for tile in tiles:
+                time = (~np.isnan(tile["z"])).cumsum("time").argmax("time")
+                tiles_last.append(tile.isel(time=time))
+            tiles = tiles_last
+        elif isinstance(time, int):
+            # only use the last timestep
+            tiles = [tile.isel(time=time) for tile in tiles]
+        else:
+            time = pd.to_datetime(time)
+            tiles_left = []
+            for tile in tiles:
+                if time in tile.time:
+                    tiles_left.append(tile.sel(time=time))
+                else:
+                    extent_tile = list(
+                        np.hstack(
+                            (
+                                tile.attrs["projectionCoverage_x"],
+                                tile.attrs["projectionCoverage_y"],
+                            )
+                        )
+                    )
+                    logger.info(
+                        f"no time={time} in {kind}-tile with extent {extent_tile}"
+                    )
+            tiles = tiles_left
+    z_dataset = xr.combine_by_coords(tiles, combine_attrs="drop")
     return z_dataset
 
 
-def get_jarkus_tilenames(
-    extent,
-    url="http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc",
-):
-    """Find all Jarkus tilenames within a certain extent.
+def get_jarkus_tilenames(extent, kind="jarkus"):
+    """Find all Jarkus tilenames within a certain extent
 
     Parameters
     ----------
@@ -144,23 +179,33 @@ def get_jarkus_tilenames(
     -------
     netcdf_urls : list of str
         list of the urls of all netcdf files of the tiles with Jarkus data.
+
     """
+    if kind == "jarkus":
+        url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc"
+    elif kind == "kusthoogte":
+        url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/kusthoogte/catalog.nc"
+    elif kind == "vaklodingen":
+        url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/vaklodingen/catalog.nc"
+    else:
+        raise (Exception(f"Unsupported kind: {kind}"))
+
     ds_jarkus_catalog = xr.open_dataset(url)
-    ew_x = ds_jarkus_catalog["projectionCoverage_x"]
-    sn_y = ds_jarkus_catalog["projectionCoverage_y"]
+    ew_x = ds_jarkus_catalog["projectionCoverage_x"].values
+    sn_y = ds_jarkus_catalog["projectionCoverage_y"].values
 
     mask_ew = (ew_x[:, 1] > extent[0]) & (ew_x[:, 0] < extent[1])
     mask_sn = (sn_y[:, 1] > extent[2]) & (sn_y[:, 0] < extent[3])
 
     indices_tiles = np.where(mask_ew & mask_sn)[0]
-    all_netcdf_tilenames = get_netcdf_tiles()
+    all_netcdf_tilenames = get_netcdf_tiles(kind)
 
     netcdf_tile_names = [all_netcdf_tilenames[i] for i in indices_tiles]
 
     return netcdf_tile_names
 
 
-def get_netcdf_tiles():
+def get_netcdf_tiles(kind="jarkus"):
     """Find all Jarkus netcdf tile names.
 
     Returns
@@ -177,8 +222,15 @@ def get_netcdf_tiles():
     named 'urlPath' in the catalog. However the dataarray of 'urlPath' has the
     same string for each tile.
     """
-    url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc.ascii"
-    req = requests.get(url, timeout=1200)  # 20 minutes time out
+    if kind == "jarkus":
+        url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc.ascii"
+    elif kind == "kusthoogte":
+        url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/kusthoogte/catalog.nc.ascii"
+    elif kind == "vaklodingen":
+        url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/vaklodingen/catalog.nc.ascii"
+    else:
+        raise (Exception(f"Unsupported kind: {kind}"))
+    req = requests.get(url, timeout=5)
     s = req.content.decode("ascii")
     start = s.find("urlPath", s.find("urlPath") + 1)
     end = s.find("projectionCoverage_x", s.find("projectionCoverage_x") + 1)

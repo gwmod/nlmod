@@ -128,8 +128,8 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
 
     # change order of dimensions from x, y, z to z, y, x
     gt = gt.transpose("z", "y", "x")
-    gt = gt.sortby("z", ascending=False) # uses a lot of RAM
-    gt = gt.sortby("y", ascending=False) # uses a lot of RAM
+    gt = gt.sortby("z", ascending=False)  # uses a lot of RAM
+    gt = gt.sortby("y", ascending=False)  # uses a lot of RAM
 
     return gt
 
@@ -286,7 +286,10 @@ def add_kh_and_kv(
     gt : xr.Dataset
         The geotop dataset, at least with variable lithok.
     df : pd.DataFrame
-        A DataFrame with .
+        A DataFrame with information about the kh and optionally kv, for different
+        lithoclasses or stratigraphic units. The DataFrame must contain the columns
+        'lithok' and 'kh', and optionally 'strat' and 'kv'. As an example see
+        nlmod.read.geotop.get_kh_kv_table().
     stochastic : bool, str or None, optional
         When stochastic is True or a string, use the stochastic data of GeoTOP. The only
         supported method right now is "linear", which means kh and kv are determined
@@ -320,8 +323,8 @@ def add_kh_and_kv(
 
     Returns
     -------
-    gt : TYPE
-        DESCRIPTION.
+    gt : xr.Dataset
+        Datset with voxel-data, with the added variables 'kh' and 'kv'.
 
     """
     if isinstance(stochastic, bool):
@@ -399,8 +402,7 @@ def add_kh_and_kv(
                     )
                     khi[mask], kvi[mask] = kh_sel, kv_sel
             else:
-                khi, kvi = _get_kh_kv_from_df(
-                    df, ilithok, anisotropy=anisotropy)
+                khi, kvi = _get_kh_kv_from_df(df, ilithok, anisotropy=anisotropy)
                 if np.isnan(khi):
                     probality[:] = 0.0
                 khi, kvi = _handle_nans_in_stochastic_approach(
@@ -437,7 +439,7 @@ def _get_kh_kv_from_df(df, ilithok, istrat=None, anisotropy=1.0, mask=None):
     if istrat is not None:
         mask_df = mask_df & (df["strat"] == istrat)
     if not np.any(mask_df):
-        msg = f"No conductivities found for stratigraphy-unit {istrat}"
+        msg = f"No conductivities found for stratigraphic unit {istrat}"
         if istrat is not None:
             msg = f"{msg} and lithoclass {ilithok}"
         if mask is None:

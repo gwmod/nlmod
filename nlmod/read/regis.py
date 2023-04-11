@@ -137,6 +137,10 @@ def get_regis(
     # slice extent
     ds = ds.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
+    if len(ds.x) == 0 or len(ds.y) == 0:
+        msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
+        raise (Exception(msg))
+
     # make sure layer names are regular strings
     ds["layer"] = ds["layer"].astype(str)
 
@@ -153,6 +157,9 @@ def get_regis(
     if remove_nan_layers:
         # only keep layers with at least one active cell
         ds = ds.sel(layer=~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:]))
+        if len(ds.layer) == 0:
+            msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
+            raise (Exception(msg))
 
     # slice data vars
     ds = ds[list(variables)]

@@ -206,7 +206,7 @@ def extrapolate_ds(ds, mask=None):
         return ds
     if mask.all():
         raise (Exception("The model only contains NaNs"))
-    if ds.gridtype == "vertex":
+    if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         x = ds.x.data
         y = ds.y.data
         dims = ("icell2d",)
@@ -264,13 +264,13 @@ def get_ds(
     delr : int, float, list, tuple or array, optional
         The gridsize along columns (dx). The default is 100. meter.
     delc : None, int, float, list, tuple or array, optional
-        The gridsize along rows (dy). Set to delr when None. If None delc=delr
-        The default is None.
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr. The
+        default is None.
     model_name : str, optional
         name of the model. THe default is None
     model_ws : str, optional
-        workspace of the model. This is where modeldata is saved to. The
-        default is None
+        workspace of the model. This is where modeldata is saved to. The default is
+        None.
     layer : int, list, tuple or ndarray, optional
         The names or index of the layers of the model. When layer is an integer it is
         the number of layers. When layer is None, the number of layers is caluclated
@@ -308,7 +308,7 @@ def get_ds(
         Attributes of the model dataset. The default is None.
     extrapolate : bool, optional
         When true, extrapolate data-variables, into the sea or other areas with
-        only nans. THe default is True
+        only nans. The default is True
     fill_nan : bool, optional
         if True nan values in the top, botm, kh and kv are filled using the
         fill_nan_top_botm_kh_kv function. Layers with only nan values in the
@@ -338,7 +338,6 @@ def get_ds(
 
     if attrs is None:
         attrs = {}
-    attrs["transport"] = int(transport)
 
     if layer is None:
         if botm is None:
@@ -418,6 +417,7 @@ def get_ds(
         drop_attributes=False,
         extrapolate=extrapolate,
         fill_nan=fill_nan,
+        transport=transport,
         **kwargs,
     )
     ds.rio.set_crs(crs)

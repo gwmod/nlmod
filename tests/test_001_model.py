@@ -13,17 +13,15 @@ def test_model_directories(tmpdir):
     model_ws = os.path.join(tmpdir, "test_model")
     figdir, cachedir = nlmod.util.get_model_dirs(model_ws)
 
-    return model_ws, figdir, cachedir
 
-
-def test_ds_time_steady(tmpdir, modelname="test"):
+def get_ds_time_steady(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)
     ds = nlmod.time.set_ds_time(ds, start_time="2015-1-1", steady_state=True)
     return ds
 
 
-def test_ds_time_transient(tmpdir, modelname="test"):
+def get_ds_time_transient(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)
     ds = nlmod.time.set_ds_time(
@@ -38,7 +36,7 @@ def test_ds_time_transient(tmpdir, modelname="test"):
 
 def test_get_ds():
     model_ws = os.path.join(tmpdir, "test_model_ds")
-    ds = nlmod.get_ds(
+    nlmod.get_ds(
         [-500, 500, -500, 500],
         delr=10.0,
         layer=3,
@@ -50,12 +48,10 @@ def test_get_ds():
         model_name="test_ds",
     )
 
-    return ds
-
 
 def test_get_ds_variable_delrc():
     model_ws = os.path.join(tmpdir, "test_model_ds")
-    ds = nlmod.get_ds(
+    nlmod.get_ds(
         extent=[-500, 500, -500, 500],
         delr=[100] * 5 + [20] * 5 + [100] * 4,
         delc=[100] * 4 + [20] * 5 + [100] * 5,
@@ -67,8 +63,6 @@ def test_get_ds_variable_delrc():
         model_ws=model_ws,
         model_name="test_ds",
     )
-
-    return ds
 
 
 @pytest.mark.slow
@@ -110,8 +104,6 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     # save ds
     ds.to_netcdf(os.path.join(tst_model_dir, "small_model.nc"))
 
-    return ds, gwf
-
 
 @pytest.mark.slow
 def test_create_sea_model_grid_only(tmpdir, model_name="test"):
@@ -136,12 +128,10 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
     # save ds
     ds.to_netcdf(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
-    return ds
-
 
 @pytest.mark.slow
 def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
-    ds = test_ds_time_transient(tmpdir)
+    ds = get_ds_time_transient(tmpdir)
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
     # extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 50.0, 50.0)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
@@ -154,8 +144,6 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
 
     # save ds
     ds.to_netcdf(os.path.join(tst_model_dir, "sea_model_grid_50.nc"))
-
-    return ds
 
 
 @pytest.mark.slow
@@ -207,32 +195,32 @@ def test_create_sea_model(tmpdir):
 
     _ = nlmod.sim.write_and_run(sim, ds)
 
-    return ds, gwf
-
 
 @pytest.mark.slow
 def test_create_sea_model_perlen_list(tmpdir):
     ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
+    # update model_ws
+    model_ws = os.path.join(tmpdir, "test_model_perlen_list")
+    ds = nlmod.base.set_ds_attrs(ds, ds.model_name, model_ws)
+
     # create transient with perlen list
     perlen = [3650, 14, 10, 11]  # length of the time steps
     transient_timesteps = 3
+    start_time = ds.time.start
+
+    # drop time dimension before setting time
+    ds = ds.drop_dims("time")
 
     # update current ds with new time dicretisation
-    model_ws = os.path.join(tmpdir, "test_model")
-    new_ds = nlmod.base.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_ds = nlmod.time.set_ds_time(
-        new_ds,
-        start_time=ds.time.start,
+    ds = nlmod.time.set_ds_time(
+        ds,
+        start_time=start_time,
         steady_state=False,
         steady_start=True,
         perlen=perlen,
         transient_timesteps=transient_timesteps,
     )
-
-    # modfiy time
-    ds = ds.drop_dims("time")
-    ds.update(new_ds)
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -277,32 +265,33 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.gwf.rch(ds, gwf)
 
     nlmod.sim.write_and_run(sim, ds)
-
-    return ds, gwf
 
 
 @pytest.mark.slow
 def test_create_sea_model_perlen_14(tmpdir):
     ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
+    # update model_ws
+    model_ws = os.path.join(tmpdir, "test_model_perlen_14")
+    ds = nlmod.base.set_ds_attrs(ds, ds.model_name, model_ws)
+
     # create transient with perlen list
     perlen = 14  # length of the time steps
     transient_timesteps = 3
+    start_time = ds.time.start
+
+    # drop time dimension before setting time
+    ds = ds.drop_dims("time")
 
     # update current ds with new time dicretisation
-    model_ws = os.path.join(tmpdir, "test_model")
-    new_ds = nlmod.base.set_ds_attrs(xr.Dataset(), "test", model_ws)
-    new_ds = nlmod.time.set_ds_time(
-        new_ds,
-        start_time=ds.time.start,
+    ds = nlmod.time.set_ds_time(
+        ds,
+        start_time=start_time,
         steady_state=False,
         steady_start=True,
         perlen=perlen,
         transient_timesteps=transient_timesteps,
     )
-
-    ds = ds.drop_dims("time")
-    ds.update(new_ds)
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -348,13 +337,10 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     nlmod.sim.write_and_run(sim, ds)
 
-    return ds, gwf
-
 
 # obtaining the test models
-def test_get_ds_from_cache(name="small_model"):
+def get_ds_from_cache(name="small_model"):
     ds = xr.open_dataset(os.path.join(tst_model_dir, name + ".nc"))
-
     return ds
 
 

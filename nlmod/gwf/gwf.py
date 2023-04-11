@@ -17,7 +17,7 @@ from . import recharge
 logger = logging.getLogger(__name__)
 
 
-def gwf(ds, sim, **kwargs):
+def gwf(ds, sim, under_relaxation=False, **kwargs):
     """create groundwater flow model from the model dataset.
 
     Parameters
@@ -41,8 +41,19 @@ def gwf(ds, sim, **kwargs):
     # Create the Flopy groundwater flow (gwf) model object
     model_nam_file = f"{ds.model_name}.nam"
 
+    if "newtonoptions" in kwargs:
+        newtonoptions = kwargs.pop("newtonoptions")
+    elif under_relaxation:
+        newtonoptions = "under_relaxation"
+    else:
+        newtonoptions = None
+
     gwf = flopy.mf6.ModflowGwf(
-        sim, modelname=ds.model_name, model_nam_file=model_nam_file, **kwargs
+        sim,
+        modelname=ds.model_name,
+        model_nam_file=model_nam_file,
+        newtonoptions=newtonoptions,
+        **kwargs,
     )
 
     return gwf
@@ -365,7 +376,7 @@ def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
         return None
 
 
-def drn(ds, gwf, da_name, pname="drn", **kwargs):
+def drn(ds, gwf, da_name, pname="drn", layer=None, **kwargs):
     """get drain from model dataset.
 
     Parameters
@@ -386,14 +397,16 @@ def drn(ds, gwf, da_name, pname="drn", **kwargs):
     """
     logger.info("creating modflow DRN")
 
+    first_active_layer = layer is None
+
     drn_rec = grid.da_to_reclist(
         ds,
         ds[f"{da_name}_cond"] != 0,
         col1=f"{da_name}_peil",
         col2=f"{da_name}_cond",
-        first_active_layer=True,
+        first_active_layer=first_active_layer,
         only_active_cells=False,
-        layer=0,
+        layer=layer,
     )
 
     if len(drn_rec) > 0:
@@ -472,7 +485,7 @@ def sto(
     ss : float, optional
         specific storage. The default is 0.000001.
     iconvert : int, optional
-        See description in ModflowGwfsto. The default is 1.
+        See description in ModflowGwfsto. The default is 1 (differs from FloPY).
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfsto() to determine if flows
         should be saved to the cbb file. Default is False
@@ -715,7 +728,12 @@ def buy(ds, gwf, pname="buy", **kwargs):
     pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "none")]
 
     buy = flopy.mf6.ModflowGwfbuy(
-        gwf, denseref=denseref, nrhospecies=len(pdata), packagedata=pdata, pname=pname
+        gwf,
+        denseref=denseref,
+        nrhospecies=len(pdata),
+        packagedata=pdata,
+        pname=pname,
+        **kwargs,
     )
     return buy
 
@@ -769,7 +787,7 @@ def oc(
     return oc
 
 
-def ds_to_gwf(ds):
+def ds_to_gwf(ds, complexity="MODERATE", icelltype=0, under_relaxation=False):
     """Generate Simulation and GWF model from model DataSet.
 
     Builds the following packages:
@@ -802,10 +820,10 @@ def ds_to_gwf(ds):
     tdis(ds, mf_sim)
 
     # create ims
-    ims(mf_sim)
+    ims(mf_sim, complexity=complexity)
 
     # create groundwater flow model
-    mf_gwf = gwf(ds, mf_sim)
+    mf_gwf = gwf(ds, mf_sim, under_relaxation=under_relaxation)
 
     # Create discretization
     if ds.gridtype == "structured":
@@ -816,7 +834,7 @@ def ds_to_gwf(ds):
         raise TypeError("gridtype not recognized.")
 
     # create node property flow
-    npf(ds, mf_gwf)
+    npf(ds, mf_gwf, icelltype=icelltype)
 
     # Create the initial conditions package
     starting_head = "starting_head"

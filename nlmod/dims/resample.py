@@ -386,14 +386,11 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     Returns
     -------
     xarray.DataArray
-        THe structured DataArray, with coordinates 'x' and 'y'
+        A DataArray, with the same gridtype as ds.
     """
 
-    if hasattr(ds.attrs, "gridtype") and ds.gridtype == "vertex":
-        raise (Exception("Resampling from vertex da to vertex ds not supported"))
-
     if "icell2d" not in da.dims:
-        return da
+        return structured_da_to_ds(da, ds, method=method)
     points = np.array((da.x.data, da.y.data)).T
 
     if "gridtype" in ds.attrs and ds.gridtype == "vertex":
@@ -463,6 +460,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         rasterio.enums.Resampling (rasterio.enums.Resampling.average). When
         method is 'linear' or 'nearest' da.interp() is used. Otherwise
         da.rio.reproject_match() is used. The default is "average".
+    nodata : float, optional
+        THe nodata value in input and output. THe default is np.NaN.
 
     Returns
     -------
@@ -489,24 +488,30 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             raise (Exception(f"Unknown resample method: {method}"))
     # fill crs if it is None for da or ds
     if ds.rio.crs is None and da.rio.crs is None:
+        logger.info("No crs in da and ds. Assuming ds and da are both in EPSG:28992")
         ds = ds.rio.write_crs(28992)
         da = da.rio.write_crs(28992)
     elif ds.rio.crs is None:
+        logger.info(f"No crs in ds. Setting crs equal to da: {da.rio.crs}")
         ds = ds.rio.write_crs(da.rio.crs)
     elif da.rio.crs is None:
+        logger.info(f"No crs in da. Setting crs equal to ds: {ds.rio.crs}")
         da = da.rio.write_crs(ds.rio.crs)
     if ds.gridtype == "structured":
-        if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-            affine = get_affine(ds)
-            # save crs as it is deleted by write_transform...
-            crs = ds.rio.crs
-            ds = ds.rio.write_transform(affine)
-            ds = ds.rio.write_crs(crs)
-        da_out = da.rio.reproject_match(ds, resampling, nodata=nodata)
-
+        da_out = da.rio.reproject(
+            dst_crs=ds.rio.crs,
+            shape=(len(ds.y), len(ds.x)),
+            transform=get_affine(ds),
+            resampling=resampling,
+            nodata=nodata,
+        )
+        if "x" not in da_out.coords or "y" not in da_out.coords:
+            # when grid-rotation is used, there are no x and y in coords
+            da_out = da_out.assign_coords(x=ds.x, y=ds.y)
     elif ds.gridtype == "vertex":
         # assume the grid is a quadtree grid, where cells are refined by splitting them
         # in 4
+        # We perform a reproject-match for every refinement-level
         dims = list(da.dims)
         dims.remove("y")
         dims.remove("x")
@@ -515,13 +520,17 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
-            da_temp = xr.DataArray(nodata, dims=["y", "x"], coords=dict(x=x, y=y))
-            if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-                affine = get_affine(ds)
-                da_temp = da_temp.rio.write_transform(affine, inplace=True)
-            # make sure da_temp has a crs if da has a crs
-            da_temp = da_temp.rio.write_crs(da.rio.crs)
-            da_temp = da.rio.reproject_match(da_temp, resampling, nodata=nodata)
+            da_temp = da.rio.reproject(
+                dst_crs=ds.rio.crs,
+                shape=(len(y), len(x)),
+                transform=get_affine(ds, sx=dx, sy=-dy),
+                resampling=resampling,
+                nodata=nodata,
+            )
+            if "x" not in da_temp.coords or "y" not in da_temp.coords:
+                # when grid-rotation is used, there are no x and y in coords
+                da_temp = da_temp.assign_coords(x=x, y=y)
+
             mask = ds["area"] == area
             da_out.loc[dict(icell2d=mask)] = da_temp.sel(
                 y=ds["y"][mask], x=ds["x"][mask]
@@ -538,6 +547,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
 
     # remove the long_name, standard_name and units attributes of the x and y coordinates
     for coord in ["x", "y"]:
+        if coord not in da_out.coords:
+            continue
         for name in ["long_name", "standard_name", "units", "axis"]:
             if name in da_out[coord].attrs.keys():
                 del da_out[coord].attrs[name]
@@ -614,19 +625,25 @@ def get_affine_world_to_mod(ds):
 def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates."""
     attrs = _get_attrs(ds)
-    xorigin = attrs["xorigin"]
-    yorigin = attrs["yorigin"]
-    angrot = -attrs["angrot"]
-    # xorigin and yorigin represent the lower left corner, while for the transform we
-    # need the upper left
-    dy = attrs["extent"][3] - attrs["extent"][2]
-    xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
-    yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
-
     if sx is None:
         sx = attrs["delr"]
     if sy is None:
         sy = -attrs["delc"]
-    return (
-        Affine.translation(xoff, yoff) * Affine.scale(sx, sy) * Affine.rotation(angrot)
-    )
+    if "angrot" in attrs:
+        xorigin = attrs["xorigin"]
+        yorigin = attrs["yorigin"]
+        angrot = -attrs["angrot"]
+        # xorigin and yorigin represent the lower left corner, while for the transform we
+        # need the upper left
+        dy = attrs["extent"][3] - attrs["extent"][2]
+        xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
+        yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
+        return (
+            Affine.translation(xoff, yoff)
+            * Affine.scale(sx, sy)
+            * Affine.rotation(angrot)
+        )
+    else:
+        xoff = attrs["extent"][0]
+        yoff = attrs["extent"][3]
+        return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)

@@ -30,7 +30,6 @@ setup(
     platforms="Windows, Mac OS-X",
     install_requires=[
         "flopy>=3.3.6",
-        "mfpymake",
         "xarray>=0.16.1",
         "rasterio>=1.1.0",
         "rioxarray",

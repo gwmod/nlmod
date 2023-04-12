@@ -515,11 +515,17 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         )
     else:
         raise (Exception("Unknown server-kind: {server_kind}"))
+    if len(gdf) == 0:
+        return gdf
+
+    # set index
     if index is not None:
         if index not in gdf:
             logger.warning(f"Cannot find {index} in {data_kind} of {wb}")
         else:
             gdf = gdf.set_index(index)
+
+    # set a value for summer_stage and winter_stage or bottom_height and water_depth
     if data_kind == "level_areas":
         summer_stage = []
         if "summer_stage" in conf:

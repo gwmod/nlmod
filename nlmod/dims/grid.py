@@ -1313,7 +1313,7 @@ def gdf_to_grid(
     if ix is None:
         ix = flopy.utils.GridIntersect(modelgrid, method=method)
     shps = []
-    geometry = gdf._geometry_column_name
+    geometry = gdf.geometry.name
     for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
         r = ix.intersect(shp[geometry], **kwargs)
         for i in range(r.shape[0]):
@@ -1363,11 +1363,11 @@ def get_thickness_from_topbot(top, bot):
     else:
         raise ValueError("function only support structured or vertex gridtypes")
 
-    for lay in range(len(bot)):
+    for lay, botlay in enumerate(bot):
         if lay == 0:
-            thickness[lay] = top - bot[lay]
+            thickness[lay] = top - botlay
         else:
-            thickness[lay] = bot[lay - 1] - bot[lay]
+            thickness[lay] = bot[lay - 1] - botlay
 
     return thickness
 

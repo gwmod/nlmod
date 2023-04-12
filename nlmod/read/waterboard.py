@@ -78,6 +78,8 @@ def get_configuration():
             # legger
             "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Vastgestelde_Legger_Oppervlaktewaterlichamen/FeatureServer",
             "layer": 11,  # categorie A
+            "bottom_width": "WS_BODEMBREEDTE_L",
+            "bottom_height": [["WS_BH_BENEDENSTROOMS_L", "WS_BH_BOVENSTROOMS_L"]],
             # "layer": 12,  # categorie B
             # beheer
             # "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Beheerregister_Waterlopen_en_Kunstwerken/FeatureServer",
@@ -86,23 +88,18 @@ def get_configuration():
             # "layer": 15,  # categorie C
         },
         "level_areas": {
-            # "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Beheerregister_Waterlopen_en_Kunstwerken/FeatureServer",
-            # "layer": 19,
-            "url": "https://maps.brabantsedelta.nl/arcgis/rest/services/Extern/Legger/MapServer",
-            "layer": 6,
+            "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Peilbesluiten/MapServer",
+            "layer": 0,  # Peilgebied vigerend
+            # "layer": 1, # Peilgebied praktijk
             "summer_stage": [
                 "WS_ZOMERPEIL",
                 "WS_VAST_PEIL",
-                "WS_STREEFPEIL",
-                "WS_MAXIMUM_PEIL",
-                "WS_MINIMUM_PEIL",
+                "WS_MAXIMUM",
             ],
             "winter_stage": [
                 "WS_WINTERPEIL",
                 "WS_VAST_PEIL",
-                "WS_STREEFPEIL",
-                "WS_MINIMUM_PEIL",
-                "WS_MAXIMUM_PEIL",
+                "WS_MINIMUM",
             ],
         },
     }
@@ -112,6 +109,7 @@ def get_configuration():
         "watercourses": {
             "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LW_2021_20211110/FeatureServer",
             "layer": 9,  # LOW_2021_A_Water
+            "index": "LOKAALID",
             # "layer": 10,  # LOW_2021_A_Water_Afw_Afv
             # "layer": 11,  # LOW_2021_B_Water
             # "layer": 2,  # LOW_2021_Profielpunt
@@ -351,6 +349,7 @@ def get_configuration():
             "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Legger_Oppervlaktewaterlichamen_Vastgesteld/MapServer",
             "layer": 6,
             "index": "OAFIDENT",
+            "bottom_height": "OAFBODHG",
         },
         "level_areas": {
             "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",

@@ -56,250 +56,107 @@ def calculate_thickness(ds, top="top", bot="botm"):
     return thickness
 
 
-def layer_split_top_bot(ds, split_dict, layer="layer", top="top", bot="botm"):
-    """Calculate new tops and bottoms for split layers.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        xarray Dataset containing information about layers
-        (layers, top and bot)
-    split_dict : dict
-        dictionary with index of layers to split as keys and iterable
-        of fractions that add up to 1 to indicate how to split up layer.
-        E.g. {0: [0.25, 0.75]} will split layer 0 into 2 layers, with first
-        layer equal to 0.25 of original thickness and second layer 0.75 of
-        original thickness.
-    layer : str, optional
-        name of layer dimension, by default 'layer'
-    top : str, optional
-        name of data variable containing top of layers, by default 'top'
-    bot : str, optional
-        name of data variable containing bottom of layers, by default 'botm'
-
-    Returns
-    -------
-    new_top, new_bot : xarray.DataArrays
-        DataArrays containing new tops and bottoms after splitting layers.
-    reindexer : OrderedDict
-        dictionary mapping new to old layer indices.
-    """
-
-    # calculate thickness
-    thickness = calculate_thickness(ds, top=top, bot=bot)
-
-    # check if top is 2d or 3d
-    top3d = ds[top].ndim == ds[bot].ndim
-
-    # calculate new number of layers
-    new_nlay = (
-        ds[layer].size + sum((len(sf) for sf in split_dict.values())) - len(split_dict)
-    )
-
-    # create new DataArrays for storing new top/bot
-    new_bot = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
-    new_top = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
-
-    # dict to keep track of old and new layer indices
-    reindexer = OrderedDict()
-
-    j = 0  # new layer index
-    isplit = 0  # split layer index
-
-    # loop over original layers
-    for i in range(ds[layer].size):
-        # check if layer should be split
-        if i in split_dict:
-            # set new top based on old top
-            if top3d:
-                new_top.data[j] = ds[top].data[i]
-            else:
-                if i == 0:
-                    new_top.data[j] = ds[top].data
-                else:
-                    new_top.data[j] = ds[bot].data[i - 1]
-
-            # get split factors
-            sf = split_dict[i]
-
-            # check if factors add up to 1
-            if np.sum(sf) != 1.0:
-                raise ValueError("Sum of split factors for layer must equal 1.0!")
-            logger.debug(
-                f"{i}: Split layer {i} into {len(sf)} layers with fractions: {sf}"
-            )
-
-            # loop over split factors
-            for isf, factor in enumerate(sf):
-                logger.debug(
-                    f"  - {isf}: Calculate new top/bot for new layer index {j}"
-                )
-
-                # calculate new bot and new top
-                new_bot.data[j] = new_top.data[j] - (factor * thickness[i])
-                new_top.data[j + 1] = new_bot.data[j]
-
-                # store new and old layer index
-                reindexer[j] = i
-
-                # increase new index
-                j += 1
-
-            # go to next layer to split
-            isplit += 1
-
-        # no split, remap old layer to new layer index
-        else:
-            logger.debug(f"{i:2d}: No split: map layer {i} to new layer index {j}")
-            if top3d:
-                new_top.data[j] = ds[top].data[i]
-            else:
-                if i == 0:
-                    new_top.data[j] = ds[top].data.squeeze()
-                else:
-                    new_top.data[j] = ds[bot].data[i - 1]
-
-            new_bot.data[j] = ds[bot].data[i]
-            reindexer[j] = i
-            j += 1
-
-    return new_top, new_bot, reindexer
-
-
-def fill_data_split_layers(da, reindexer):
-    """Fill data for split layers with values from original layer.
-
-    Parameters
-    ----------
-    da : xarray.DataArray or numpy.ndarray
-        original array with data
-    reindexer : dict
-        dictionary containing mapping between new layer index and
-        original layer index.
-
-    Returns
-    -------
-    da_new : xarray.DataArray or numpy.ndarray
-        array with filled data for split layers
-    """
-    if isinstance(da, xr.DataArray):
-        da_new = xr.DataArray(
-            data=np.nan,
-            dims=["layer", "y", "x"],
-            coords={
-                "layer": np.arange(list(reindexer.keys())[-1] + 1),
-                "y": da["y"],
-                "x": da["x"],
-            },
-        )
-        for k, v in reindexer.items():
-            da_new.data[k] = da.data[v]
-    elif isinstance(da, np.ndarray):
-        da_new = np.zeros((list(reindexer.keys())[-1] + 1), *da.shape[1:])
-        for k, v in reindexer.items():
-            da_new[k] = da[v]
-    else:
-        raise TypeError(f"Cannot fill type: '{type(da)}'!")
-    return da_new
-
-
 def split_layers_ds(
-    ds, split_dict, layer="layer", top="top", bot="botm", kh="kh", kv="kv"
+    ds, split_dict, layer="layer", top="top", bot="botm", return_reindexer=False
 ):
     """Split layers based in Dataset.
 
     Parameters
     ----------
     ds : xarray.Dataset
-        xarray Dataset containing information about layers
-        (layers, top and bot)
+        xarray Dataset containing information about layers (layers, top and bot)
     split_dict : dict
-        dictionary with index of layers to split as keys and iterable
-        of fractions that add up to 1 to indicate how to split up layer.
-        E.g. {0: [0.25, 0.75]} will split layer 0 into 2 layers, with first
-        layer equal to 0.25 of original thickness and second layer 0.75 of
-        original thickness.
+        dictionary with name (string) or index (integer) of layers to split as keys.
+        There are two options for the values of the dictionary, to indicate how to split
+        up layer: an iterable of factors. E.g. {'BXk1': [1, 3]} will split layer 'BXk1'
+        into 2 layers, with the first layer equal to 0.25 of the original thickness and
+        the second layer equal to 0.75 of the original thickness.
+        The second option would be to set the value to the number of layers to split the
+        layer into, e.g. {'BXk1': 2}, which is equal to {'BXk1': [0.5, 0.5]}.
     layer : str, optional
         name of layer dimension, by default 'layer'
     top : str, optional
         name of data variable containing top of layers, by default 'top'
     bot : str, optional
         name of data variable containing bottom of layers, by default 'botm'
-    kh : str, opti
-        name of data variable containg horizontal hydraulic conductivity,
-        by default 'kh'
-    kv : str, optional
-        name of data variable containg vertical hydraulic conductivity,
-        by default 'kv'
+    return_reindexer : bool, optional
+        Return a OrderedDict that can be used to reindex variables from the original
+        layer-dimension to the new layer-dimension when True. The default is False.
 
     Returns
     -------
-    ds_split : xarray.Dataset
-        Dataset with new tops and bottoms taking into account split layers,
-        and filled data for hydraulic conductivities.
+    ds : xarray.Dataset
+        Dataset with new tops and bottoms taking into account split layers, and filled
+        data for other variables.
     """
 
-    parsed_dv = set([top, bot, kh, kv])
+    layers = list(ds.layer.data)
 
-    dropped_dv = set(ds.data_vars.keys()) - parsed_dv
-    if len(dropped_dv) > 0:
-        logger.warning(f"Following data variables will be dropped: {dropped_dv}")
+    # do some input-checking on split_dict
+    for lay0 in list(split_dict):
+        if isinstance(lay0, int) & (ds.layer.dtype != int):
+            # if layer is an integer, and ds.layer is not of integer type
+            # replace lay0 by the name of the layer
+            split_dict[layers[lay0]] = split_dict.pop(lay0)
+            lay0 = layers[lay0]
+        if isinstance(split_dict[lay0], int):
+            # If split_dict[lay0] is of integer type
+            # split the layer in evenly thick layers
+            split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
+        else:
+            # make sure the fractions add up to 1
+            split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
 
-    # calculate new tops/bots
-    logger.info("Calculating new layer tops and bottoms...")
+    logger.info(f"Splitting layers {list(split_dict)}")
 
-    new_top, new_bot, reindexer = layer_split_top_bot(
-        ds, split_dict, layer=layer, top=top, bot=bot
-    )
+    layers_org = layers.copy()
+    # add extra layers (keep the original ones for now, as we will copy data first)
+    for lay0 in split_dict:
+        for i in range(len(split_dict[lay0])):
+            index = layers.index(lay0)
+            layers.insert(index, lay0 + "_" + str(i + 1))
+            layers_org.insert(index, lay0)
+    ds = ds.reindex({"layer": layers})
 
-    # fill kh/kv
-    logger.info(f"Fill value '{kh}' for split layers with value original layer.")
-    da_kh = fill_data_split_layers(ds["kh"], reindexer)
-    logger.info(f"Fill value '{kv}' for split layers with value original layer.")
-    da_kv = fill_data_split_layers(ds["kv"], reindexer)
-
-    # get new layer names
-    layer_names = []
-    for j, i in reindexer.items():
-        layercode = ds[layer].data[i]
-
-        if layercode in layer_names:
-            if isinstance(layercode, str):
-                ilay = (
-                    np.sum([1 for ilay in layer_names if ilay.startswith(layercode)])
-                    + 1
+    # calclate a new top and botm, and fill other variables with original data
+    th = calculate_thickness(ds, top=top, bot=bot)
+    for lay0 in split_dict:
+        th0 = th.loc[lay0]
+        for var in ds:
+            if layer not in ds[var].dims:
+                continue
+            if lay0 == list(split_dict)[0] and var not in [top, bot]:
+                logger.info(
+                    f"Fill values of variable '{var}' of splitted layers with the values from the original layer."
                 )
-                layercode += f"_{ilay}"
-            else:
-                layercode = j
+            ds = _split_var(ds, var, lay0, th0, split_dict[lay0], top, bot)
 
-        layer_names.append(layercode)
+    # drop the original layers
+    ds = ds.drop_sel(layer=list(split_dict))
 
-    # assign new layer names
-    new_top = new_top.assign_coords(layer=layer_names)
-    new_bot = new_bot.assign_coords(layer=layer_names)
-    da_kh = da_kh.assign_coords(layer=layer_names)
-    da_kv = da_kv.assign_coords(layer=layer_names)
+    if return_reindexer:
+        # determine reindexer
+        reindexer = OrderedDict(zip(layers, layers_org))
+        for lay0 in split_dict:
+            reindexer.pop(lay0)
+        return ds, reindexer
+    return ds
 
-    # add reindexer to attributes
-    attrs = ds.attrs.copy()
-    attrs["split_reindexer"] = reindexer
 
-    # create new dataset
-    logger.info("Done! Created new dataset with split layers!")
-    ds_split = xr.Dataset(
-        {top: new_top, bot: new_bot, kh: da_kh, kv: da_kv}, attrs=attrs
-    )
-
-    return ds_split
+def _split_var(ds, var, layer, thickness, fctrs, top, bot):
+    """Internal method to split a variable of one layer in multiple layers"""
+    for i in range(len(fctrs)):
+        name = layer + "_" + str(i + 1)
+        if var == top:
+            # take orignal top and subtract thickness of higher splitted layers
+            ds[var].loc[name] = ds[var].loc[layer] - np.sum(fctrs[:i]) * thickness
+        elif var == bot:
+            # take original bottom and add thickness of lower splitted layers
+            ds[var].loc[name] = ds[var].loc[layer] + np.sum(fctrs[i + 1 :]) * thickness
+        else:
+            # take data from the orignal layer
+            ds[var].loc[name] = ds[var].loc[layer]
+    return ds
 
 
 def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="botm"):
@@ -650,7 +507,7 @@ def add_kh_kv_from_ml_layer_to_ds(
     are ignored at the moment
     """
     warnings.warn(
-        "add_kh_kv_from_ml_layer_to_ds is deprecated. Please use update_ds_from_layer_ds instead.",
+        "add_kh_kv_from_ml_layer_to_ds is deprecated. Please use nlmod.grid.update_ds_from_layer_ds instead.",
         DeprecationWarning,
     )
 
@@ -786,61 +643,94 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
     return ds
 
 
-def get_kh_kv(kh_in, kv_in, anisotropy, fill_value_kh=1.0, fill_value_kv=1.0):
+def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=None):
     """create kh en kv grid data for flopy from existing kh, kv and anistropy
     grids with nan values (typically from REGIS).
 
-    fill kh grid in these steps:
-    1. take kh from kh_in, if kh_in has nan values:
-    2. take kv from kv_in and multiply by anisotropy, if this is nan:
-    3. take fill_value_kh
+    fill nans in kh grid in these steps:
+    1. take kv and multiply by anisotropy, if this is nan:
+    2. take fill_value_kh
 
-    fill kv grid in these steps:
-    1. take kv from kv_in, if kv_in has nan values:
-    2. take kh from kh_in and divide by anisotropy, if this is nan:
-    3. take fill_value_kv
+    fill nans in kv grid in these steps:
+    1. take kh and divide by anisotropy, if this is nan:
+    2. take fill_value_kv
 
     Supports structured and vertex grids.
 
     Parameters
     ----------
-    kh_in : np.ndarray
+    kh : xarray.DataArray
         kh from regis with nan values shape(nlay, nrow, ncol) or
         shape(nlay, len(icell2d))
-    kv_in : np.ndarray
+    kv : xarray.DataArray
         kv from regis with nan values shape(nlay, nrow, ncol) or
         shape(nlay, len(icell2d))
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
     fill_value_kh : int or float, optional
-        use this value for kh if there is no data in kh_in, kv_in and
+        use this value for kh if there is no data in kh, kv and
         anisotropy. The default is 1.0.
     fill_value_kv : int or float, optional
-        use this value for kv if there is no data in kv_in, kh_in and
+        use this value for kv if there is no data in kv, kh and
         anisotropy. The default is 1.0.
+    idomain : xarray.DataArray, optional
+        The idomain DataArray, used in log-messages, to report the number of active
+        cells that are filled. When idomain is None, the total number of cells that are
+        filled is reported, and not just the active cells. The default is None.
 
     Returns
     -------
-    kh_out : np.ndarray
+    kh : np.ndarray
         kh without nan values (nlay, nrow, ncol) or shape(nlay, len(icell2d))
-    kv_out : np.ndarray
+    kv : np.ndarray
         kv without nan values (nlay, nrow, ncol) or shape(nlay, len(icell2d))
     """
-    for layer in kh_in.layer.data:
-        if ~np.all(np.isnan(kh_in.loc[layer])):
+    for layer in kh.layer.data:
+        if ~np.all(np.isnan(kh.loc[layer])):
             logger.debug(f"layer {layer} has a kh")
-        elif ~np.all(np.isnan(kv_in.loc[layer])):
+        elif ~np.all(np.isnan(kv.loc[layer])):
             logger.debug(f"layer {layer} has a kv")
         else:
-            logger.debug(f"kv and kh both undefined in layer {layer}")
+            logger.info(f"kv and kh both undefined in layer {layer}")
 
-    kh_out = kh_in.where(~np.isnan(kh_in), kv_in * anisotropy)
-    kh_out = kh_out.where(~np.isnan(kh_out), fill_value_kh)
+    # fill kh by kv * anisotropy
+    msg_suffix = f" of kh by multipying kv by an anisotropy of {anisotropy}"
+    kh = _fill_var(kh, kv * anisotropy, idomain, msg_suffix)
 
-    kv_out = kv_in.where(~np.isnan(kv_in), kh_in / anisotropy)
-    kv_out = kv_out.where(~np.isnan(kv_out), fill_value_kv)
+    # fill kv by kh / anisotropy
+    msg_suffix = f" of kv by dividing kh by an anisotropy of {anisotropy}"
+    kv = _fill_var(kv, kh / anisotropy, idomain, msg_suffix)
 
-    return kh_out, kv_out
+    # fill kh by fill_value_kh
+    msg_suffix = f" of kh with a value of {fill_value_kh}"
+    if "units" in kh.attrs:
+        msg_suffix = f"{msg_suffix} {kh.units}"
+    kh = _fill_var(kh, fill_value_kh, idomain, msg_suffix)
+
+    # fill kv by fill_value_kv
+    msg_suffix = f" of kv with a value of {fill_value_kv}"
+    if "units" in kv.attrs:
+        msg_suffix = f"{msg_suffix} {kv.units}"
+    kv = _fill_var(kv, fill_value_kv, idomain, msg_suffix)
+
+    return kh, kv
+
+
+def _fill_var(var, by, idomain, msg_suffix=""):
+    mask = np.isnan(var)
+    if isinstance(by, xr.DataArray):
+        mask = mask & (~np.isnan(by))
+    if mask.any():
+        var = var.where(~mask, by)
+        if idomain is not None:
+            mask = mask & (idomain > 0)
+            if mask.any():
+                logger.info(
+                    f"Filling {int(mask.sum())} values in active cells{msg_suffix}"
+                )
+        else:
+            logger.info(f"Filling {int(mask.sum())} values {msg_suffix}")
+    return var
 
 
 def fill_top_bot_kh_kv_at_mask(ds, fill_mask):
@@ -929,6 +819,7 @@ def fill_nan_top_botm_kh_kv(
         anisotropy,
         fill_value_kh=fill_value_kh,
         fill_value_kv=fill_value_kv,
+        idomain=ds["idomain"],
     )
     return ds
 
@@ -963,11 +854,13 @@ def set_idomain(ds, remove_nan_layers=True):
 
     Returns
     -------
-    ds : TYPE
-        DESCRIPTION.
+    ds : xr.Dataset
+        Dataset with added idomain-variable.
     """
     # set idomain with a default of -1 (pass-through)
     ds["idomain"] = xr.full_like(ds["botm"], -1, int)
+    # drop attributes inherited from botm
+    ds["idomain"].attrs.clear()
     # set idomain of cells  with a positive thickness to 1
     thickness = calculate_thickness(ds)
     ds["idomain"].data[thickness.data > 0.0] = 1
@@ -988,7 +881,7 @@ def get_first_active_layer(ds, **kwargs):
     Parameters
     ----------
     ds : xr.DataSet
-        DESCRIPTION.
+        Model Dataset with a variable idomain.
     **kwargs : dict
         Kwargs are passed on to get_first_active_layer_from_idomain.
 
@@ -1078,3 +971,68 @@ def update_idomain_from_thickness(idomain, thickness, mask):
             idomain[ilay] = xr.where(mask3, 1, idomain[ilay])
 
     return idomain
+
+
+def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
+    """Aggregate source data to a model dataset using the weighted mean.
+
+    The weighted average per model layer is calculated for the variable in the
+    source dataset. The datasets must have the same grid.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset containing layer information (x, y, top, botm)
+    source_ds : xr.Dataset
+        dataset containing x, y, top, botm and a data variable to aggregate.
+    var_name : str
+        name of the data array to aggregate
+
+    Returns
+    -------
+    da : xarray.DataArray
+        data array containing aggregated values from source dataset
+
+    Raises
+    ------
+    ValueError
+        if source_ds does not have a layer dimension
+
+    See also
+    --------
+    nlmod.read.geotop.aggregate_to_ds
+
+    """
+    msg = "x and/or y coordinates do not match between 'ds' and 'source_ds'"
+    assert (ds.x == source_ds.x).all() and (ds.y == source_ds.y).all(), msg
+
+    if "layer" in ds["top"].dims:
+        # make sure there is no layer dimension in top
+        ds["top"] = ds["top"].max(dim="layer")
+
+    if "layer" not in source_ds.dims:
+        raise ValueError("Requires 'source_ds' to have a 'layer' dimension!")
+
+    agg_ar = []
+
+    for ilay in range(len(ds.layer)):
+        if ilay == 0:
+            top = ds["top"]
+        else:
+            top = ds["botm"][ilay - 1].drop_vars("layer")
+        bot = ds["botm"][ilay].drop_vars("layer")
+
+        s_top = source_ds.top
+        s_bot = source_ds.bottom
+        s_top = s_top.where(s_top < top, top)
+        s_top = s_top.where(s_top > bot, bot)
+        s_bot = s_bot.where(s_bot < top, top)
+        s_bot = s_bot.where(s_bot > bot, bot)
+        s_thk = s_top - s_bot
+
+        agg_ar.append(
+            (s_thk * source_ds[var_name]).sum("layer")
+            / s_thk.where(~np.isnan(source_ds[var_name])).sum("layer")
+        )
+
+    return xr.concat(agg_ar, ds.layer)

@@ -28,8 +28,8 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
 
     Parameters
     ----------
-    sim : flopy.mf6.MFSimulation
-        MF6 Simulation object.
+    sim : flopy.mf6.MFSimulation or flopy.mf6.ModflowGwf
+        MF6 Simulation or MF6 Groundwater Flow object.
     ds : xarray.Dataset
         dataset with model data.
     write_ds : bool, optional
@@ -43,6 +43,8 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
     silent : bool, optional
         write and run model silently
     """
+    if isinstance(sim, flopy.mf6.ModflowGwf):
+        sim = sim.simulation
 
     if nb_path is not None:
         new_nb_fname = (
@@ -108,7 +110,7 @@ def get_tdis_perioddata(ds):
     else:
         tsmult = [ds.time.tsmult] * len(perlen)
 
-    tdis_perioddata = [(p, n, t) for p, n, t in zip(perlen, nstp, tsmult)]
+    tdis_perioddata = list(zip(perlen, nstp, tsmult))
 
     return tdis_perioddata
 
@@ -208,7 +210,7 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
     logger.info("creating modflow IMS")
 
     # Create the Flopy iterative model solver (ims) Package object
-    ims = flopy.mf6.modflow.mfims.ModflowIms(
+    ims = flopy.mf6.ModflowIms(
         sim,
         pname=pname,
         print_option="summary",
@@ -217,3 +219,7 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
     )
 
     return ims
+
+
+def register_ims_package(sim, model, ims):
+    sim.register_ims_package(ims, [model.name])

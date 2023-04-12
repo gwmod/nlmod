@@ -139,10 +139,12 @@ cython_debug/
 
 # vscode
 .vscode
-.code-workspace
+*.code-workspace
 
 # nlmod specific
 nlmod/bin/
 flowchartnlmod.pptx
 tests/data/
 docs/examples/*/
+!docs/examples/data/
+!docs/examples/data/chloride_hbossche.nc

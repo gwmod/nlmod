@@ -21,8 +21,8 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
-from shapely.geometry import Point, Polygon
 from shapely.affinity import affine_transform
+from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
@@ -31,8 +31,8 @@ from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
-    get_affine_world_to_mod,
     get_affine_mod_to_world,
+    get_affine_world_to_mod,
     structured_da_to_ds,
 )
 
@@ -234,14 +234,15 @@ def refine(
     Parameters
     ----------
     ds : xarray.Datset
-        A structured model datset.
+        A structured model Dataset.
     model_ws : str, optional
         The working directory fpr GridGen. Get from ds when model_ws is None.
         The default is None.
-    refinement_features : list of tuple of length 2, optional
+    refinement_features : list of tuples of length 2 or 3, optional
         List of tuples containing refinement features. Each tuple must be of
-        the form (GeoDataFrame, level) or (geometry, shape_type, level). The
-        default is None.
+        the form (GeoDataFrame, level) or (geometry, shape_type, level). When
+        refinement_features is None, no refinement is added, but the structured model
+        Dataset is transformed to a Vertex Dataset. The default is None.
     exe_name : str, optional
         Filepath to the gridgen executable. The file path within nlmod is chose
         if exe_name is None. The default is None.
@@ -257,7 +258,7 @@ def refine(
     Returns
     -------
     xarray.Dataset
-        The refined model dataset.
+        A Vertex model Dataset
     """
     assert ds.gridtype == "structured", "Can only refine a structured grid"
     logger.info("create vertex grid using gridgen")
@@ -440,8 +441,8 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
 
     Returns
     -------
-    ds : TYPE
-        DESCRIPTION.
+    ds : xarray.Dataset
+        Dataset with variables from layer_ds.
     """
     if not layer_ds.layer.equals(ds.layer):
         # do not change the original Dataset
@@ -458,10 +459,15 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
         if len(drop_vars) > 0:
             ds = ds.drop_vars(drop_vars)
         ds = ds.assign_coords({"layer": layer_ds.layer})
+    has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if method in ["nearest", "linear"]:
-        layer_ds = layer_ds.interp(
-            x=ds.x, y=ds.y, method="nearest", kwargs={"fill_value": None}
-        )
+        if has_rotation:
+            x = ds.xc
+            y = ds.yc
+        else:
+            x = ds.x
+            y = ds.y
+        layer_ds = layer_ds.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
         for var in layer_ds.data_vars:
             ds[var] = layer_ds[var]
     else:
@@ -482,7 +488,7 @@ def col_to_list(col_in, ds, cellids):
     Parameters
     ----------
     col_in : xarray.DatArray, str, int or float
-        if col_in is a str type it is the name of the column in ds.
+        if col_in is a str type it is the name of the column in ds (if it exists).
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
     ds : xarray.Dataset
@@ -506,7 +512,7 @@ def col_to_list(col_in, ds, cellids):
         raster values from ds presented in a list per cell.
     """
 
-    if isinstance(col_in, str):
+    if isinstance(col_in, str) and col_in in ds:
         col_in = ds[col_in]
     if isinstance(col_in, xr.DataArray):
         if len(cellids) == 3:
@@ -531,7 +537,9 @@ def col_to_list(col_in, ds, cellids):
     return col_lst
 
 
-def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None):
+def lrc_to_reclist(
+    layers, rows, columns, cellids, ds, col1=None, col2=None, col3=None, aux=None
+):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for structured grids.
@@ -578,6 +586,9 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
         col3 should be the following value for each package (can also be the
             name of a timeseries):
 
+    aux : str or list of str
+        list of auxiliary variables to include in reclist
+
     Raises
     ------
     ValueError
@@ -588,27 +599,47 @@ def lrc_to_reclist(layers, rows, columns, cellids, ds, col1=None, col2=None, col
     reclist : list of tuples
         every row consist of ((layer,row,column), col1, col2, col3).
     """
-    if col1 is None:
-        reclist = list(zip(zip(layers, rows, columns)))
-    elif (col1 is not None) and col2 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        reclist = list(zip(zip(layers, rows, columns), col1_lst))
-    elif (col2 is not None) and col3 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        reclist = list(zip(zip(layers, rows, columns), col1_lst, col2_lst))
-    elif col3 is not None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        col3_lst = col_to_list(col3, ds, cellids)
-        reclist = list(zip(zip(layers, rows, columns), col1_lst, col2_lst, col3_lst))
-    else:
-        raise ValueError("invalid combination of values for col1, col2 and col3")
+    cols = []
 
+    if col1 is not None:
+        cols.append(col_to_list(col1, ds, cellids))
+    if col2 is not None and len(cols) == 1:
+        cols.append(col_to_list(col2, ds, cellids))
+    elif col2 is not None and len(cols) != 1:
+        raise ValueError("col2 is set, but col1 is not!")
+    if col3 is not None and len(cols) == 2:
+        cols.append(col_to_list(col3, ds, cellids))
+    elif col3 is not None and len(cols) != 2:
+        raise ValueError("col3 is set, but col1 and/or col2 are not!")
+
+    if aux is not None:
+        if isinstance(aux, str):
+            aux = [aux]
+        elif isinstance(aux, (int, float)):
+            aux = [aux]
+
+        for i_aux in aux:
+            if isinstance(i_aux, str):
+                if "layer" in ds[i_aux].dims and len(cellids) != 3:
+                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                else:
+                    cols.append(col_to_list(i_aux, ds, cellids))
+            else:
+                cols.append(col_to_list(i_aux, ds, cellids))
+
+    reclist = list(zip(zip(layers, rows, columns), *cols))
     return reclist
 
 
-def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None):
+def lcid_to_reclist(
+    layers,
+    cellids,
+    ds,
+    col1=None,
+    col2=None,
+    col3=None,
+    aux=None,
+):
     """Create a reclist for stress period data from a set of cellids.
 
     Used for vertex grids.
@@ -649,6 +680,9 @@ def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None):
         value for each package (can also be the name of a timeseries):
         -   riv: bottom [L]
 
+    aux : str or list of str
+        list of auxiliary variables to include in reclist
+
     Raises
     ------
     ValueError
@@ -660,23 +694,35 @@ def lcid_to_reclist(layers, cellids, ds, col1=None, col2=None, col3=None):
         every row consist of ((layer, icell2d), col1, col2, col3)
         grids.
     """
-    if col1 is None:
-        reclist = list(zip(zip(layers, cellids[-1])))
-    elif (col1 is not None) and col2 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        reclist = list(zip(zip(layers, cellids[-1]), col1_lst))
-    elif (col2 is not None) and col3 is None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        reclist = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst))
-    elif col3 is not None:
-        col1_lst = col_to_list(col1, ds, cellids)
-        col2_lst = col_to_list(col2, ds, cellids)
-        col3_lst = col_to_list(col3, ds, cellids)
-        reclist = list(zip(zip(layers, cellids[-1]), col1_lst, col2_lst, col3_lst))
-    else:
-        raise ValueError("invalid combination of values for col1, col2 and col3")
+    cols = []
 
+    if col1 is not None:
+        cols.append(col_to_list(col1, ds, cellids))
+    if col2 is not None and len(cols) == 1:
+        cols.append(col_to_list(col2, ds, cellids))
+    elif col2 is not None and len(cols) != 1:
+        raise ValueError("col2 is set, but col1 is not!")
+    if col3 is not None and len(cols) == 2:
+        cols.append(col_to_list(col3, ds, cellids))
+    elif col3 is not None and len(cols) != 2:
+        raise ValueError("col3 is set, but col1 and/or col2 are not!")
+
+    if aux is not None:
+        if isinstance(aux, str):
+            aux = [aux]
+        elif isinstance(aux, (int, float)):
+            aux = [aux]
+
+        for i_aux in aux:
+            if isinstance(i_aux, str):
+                if "layer" in ds[i_aux].dims and len(cellids) != 2:
+                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                else:
+                    cols.append(col_to_list(i_aux, ds, cellids))
+            else:
+                cols.append(col_to_list(i_aux, ds, cellids))
+
+    reclist = list(zip(zip(layers, cellids[-1]), *cols))
     return reclist
 
 
@@ -687,6 +733,7 @@ def da_to_reclist(
     col2=None,
     col3=None,
     layer=0,
+    aux=None,
     first_active_layer=False,
     only_active_cells=True,
 ):
@@ -728,6 +775,8 @@ def da_to_reclist(
         col3 should be the following value for each package (can also be the
             name of a timeseries):
             riv: bottom [L]
+    aux : str or list of str, optional
+        list of auxiliary variables to include in reclist
     layer : int, optional
         layer used in the reclist. Not used if layer is in the dimensions of
         mask or if first_active_layer is True. The default is 0
@@ -757,12 +806,14 @@ def da_to_reclist(
 
         if "icell2d" in mask.dims:
             layers = cellids[0]
-            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3)
+            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3, aux=aux)
         else:
             layers = cellids[0]
             rows = cellids[1]
             columns = cellids[2]
-            return lrc_to_reclist(layers, rows, columns, cellids, ds, col1, col2, col3)
+            return lrc_to_reclist(
+                layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux
+            )
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
@@ -781,12 +832,14 @@ def da_to_reclist(
             layers = col_to_list(layer, ds, cellids)
 
         if "icell2d" in mask.dims:
-            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3)
+            return lcid_to_reclist(layers, cellids, ds, col1, col2, col3, aux=aux)
         else:
             rows = cellids[-2]
             columns = cellids[-1]
 
-            return lrc_to_reclist(layers, rows, columns, cellids, ds, col1, col2, col3)
+            return lrc_to_reclist(
+                layers, rows, columns, cellids, ds, col1, col2, col3, aux=aux
+            )
 
 
 def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
@@ -823,9 +876,8 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
 
     if gridtype == "structured":
         area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0)
-        for opp_row in opp_cells:
-            area = opp_row[-2]
-            area_array[opp_row[0][0], opp_row[0][1]] = area
+        for cellid, area in zip(opp_cells["cellids"], opp_cells["areas"]):
+            area_array[cellid[0], cellid[1]] = area
     elif gridtype == "vertex":
         area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0)
         cids = opp_cells.cellids
@@ -1141,6 +1193,11 @@ def gdf_to_bool_da(gdf, ds):
     da : xr.DataArray
         1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
     """
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # transform gdf into model coordinates
+        affine = get_affine_world_to_mod(ds)
+        gdf = affine_transform_gdf(gdf, affine)
+
     modelgrid = modelgrid_from_ds(ds)
 
     # build list of gridcells
@@ -1163,7 +1220,7 @@ def gdf_to_bool_da(gdf, ds):
         if ds.gridtype == "structured":
             ncol = modelgrid.ncol
             for cid in cids:
-                if version.parse(flopy.__version__) < version.parse("3.3.6"):
+                if isinstance(cid, tuple):
                     i, j = cid
                 else:
                     # TODO: temporary fix until flopy intersect on structured
@@ -1211,15 +1268,14 @@ def gdf_to_grid(
     desc="Intersecting with grid",
     **kwargs,
 ):
-    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This
-    method is just a wrapper around the GridIntersect method from flopy.
+    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method is a
+    wrapper around the GridIntersect method from flopy.
 
     Parameters
     ----------
     gdf : geopandas.GeoDataFrame
-        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can
-        consist of multiple types (Point, LineString, Polygon and the Multi-
-        variants).
+        A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can consist of
+        multiple types (Point, LineString, Polygon and the Multi-variants).
     ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf or xarray.Dataset, optional
         The flopy model or xarray dataset that defines the grid. When a Dataset is
         supplied, and the grid is rotated, the geodataframe is transformed in model
@@ -1233,7 +1289,7 @@ def gdf_to_grid(
 
     Returns
     -------
-    geopandas.GeoDataFrame
+    gdfg : geopandas.GeoDataFrame
         The GeoDataFrame with the geometries per grid-cell.
     """
     if ml is None and ix is None:
@@ -1257,7 +1313,7 @@ def gdf_to_grid(
     if ix is None:
         ix = flopy.utils.GridIntersect(modelgrid, method=method)
     shps = []
-    geometry = gdf._geometry_column_name
+    geometry = gdf.geometry.name
     for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
         r = ix.intersect(shp[geometry], **kwargs)
         for i in range(r.shape[0]):
@@ -1269,7 +1325,9 @@ def gdf_to_grid(
             elif shp[geometry].geom_type == "Polygon":
                 shpn["area"] = r["areas"][i]
             shps.append(shpn)
-    return gpd.GeoDataFrame(shps, geometry=geometry)
+    gdfg = gpd.GeoDataFrame(shps, geometry=geometry, crs=gdf.crs)
+    gdfg.index.name = gdf.index.name
+    return gdfg
 
 
 def get_thickness_from_topbot(top, bot):
@@ -1290,7 +1348,7 @@ def get_thickness_from_topbot(top, bot):
         or (layer, icell2d).
     """
     warnings.warn(
-        "The method get_thickness_from_topbot is deprecated. Please use calculate_thickness instead",
+        "The method get_thickness_from_topbot is deprecated. Please use nlmod.layers.calculate_thickness instead",
         DeprecationWarning,
     )
 
@@ -1305,11 +1363,11 @@ def get_thickness_from_topbot(top, bot):
     else:
         raise ValueError("function only support structured or vertex gridtypes")
 
-    for lay in range(len(bot)):
+    for lay, botlay in enumerate(bot):
         if lay == 0:
-            thickness[lay] = top - bot[lay]
+            thickness[lay] = top - botlay
         else:
-            thickness[lay] = bot[lay - 1] - bot[lay]
+            thickness[lay] = bot[lay - 1] - botlay
 
     return thickness
 

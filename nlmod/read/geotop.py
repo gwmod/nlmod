@@ -17,7 +17,7 @@ def get_lithok_props(rgb_colors=True):
     fname = os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv")
     df = pd.read_csv(fname, index_col=0)
     if rgb_colors:
-        df["color"] = get_lithok_colors()
+        df["color"] = pd.Series(get_lithok_colors())
     return df
 
 
@@ -123,13 +123,13 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
     # slice extent
     gt = gt.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
-    # change order of dimensions from x, y, z to z, y, x
-    gt = gt.transpose("z", "y", "x")
-    gt = gt.sortby("z", ascending=False)
-    gt = gt.sortby("y", ascending=False)
-
     if drop_probabilities:
         gt = gt[["strat", "lithok"]]
+
+    # change order of dimensions from x, y, z to z, y, x
+    gt = gt.transpose("z", "y", "x")
+    gt = gt.sortby("z", ascending=False)  # uses a lot of RAM
+    gt = gt.sortby("y", ascending=False)  # uses a lot of RAM
 
     return gt
 
@@ -286,7 +286,10 @@ def add_kh_and_kv(
     gt : xr.Dataset
         The geotop dataset, at least with variable lithok.
     df : pd.DataFrame
-        A DataFrame with .
+        A DataFrame with information about the kh and optionally kv, for different
+        lithoclasses or stratigraphic units. The DataFrame must contain the columns
+        'lithok' and 'kh', and optionally 'strat' and 'kv'. As an example see
+        nlmod.read.geotop.get_kh_kv_table().
     stochastic : bool, str or None, optional
         When stochastic is True or a string, use the stochastic data of GeoTOP. The only
         supported method right now is "linear", which means kh and kv are determined
@@ -320,8 +323,8 @@ def add_kh_and_kv(
 
     Returns
     -------
-    gt : TYPE
-        DESCRIPTION.
+    gt : xr.Dataset
+        Datset with voxel-data, with the added variables 'kh' and 'kv'.
 
     """
     if isinstance(stochastic, bool):
@@ -339,11 +342,11 @@ def add_kh_and_kv(
         df = df.reset_index()
     if "strat" in df:
         msg = f"{msg} and stratigraphy"
-    logging.info(msg)
+    logger.info(msg)
     if kh_df not in df:
         raise (Exception(f"No {kh_df} defined in df"))
     if kv_df not in df:
-        logging.info(f"Setting kv equal to kh / {anisotropy}")
+        logger.info(f"Setting kv equal to kh / {anisotropy}")
     if stochastic is None:
         # calculate kh and kv from most likely lithoclass
         lithok = gt["lithok"].data
@@ -436,14 +439,14 @@ def _get_kh_kv_from_df(df, ilithok, istrat=None, anisotropy=1.0, mask=None):
     if istrat is not None:
         mask_df = mask_df & (df["strat"] == istrat)
     if not np.any(mask_df):
-        msg = f"No conductivities found for stratigraphy-unit {istrat}"
+        msg = f"No conductivities found for stratigraphic unit {istrat}"
         if istrat is not None:
             msg = f"{msg} and lithoclass {ilithok}"
         if mask is None:
             msg = f"{msg}. Setting values of voxels to NaN."
         else:
             msg = f"{msg}. Setting values of {mask.sum()} voxels to NaN."
-        logging.warning(msg)
+        logger.warning(msg)
         return np.NaN, np.NaN
 
     kh = df.loc[mask_df, "kh"].mean()

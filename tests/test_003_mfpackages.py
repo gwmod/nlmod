@@ -4,13 +4,11 @@
 @author: oebbe
 """
 import nlmod
-import pytest
-
 import test_001_model
 
 
-def test_sim_tdis_gwf_ims_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("basic_sea_model")
+def sim_tdis_gwf_ims_from_ds(tmpdir):
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -28,87 +26,62 @@ def test_sim_tdis_gwf_ims_from_ds(tmpdir):
 
 
 def dis_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("small_model")
+    ds = test_001_model.get_ds_from_cache("small_model")
 
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
 
-    dis = nlmod.gwf.dis(ds, gwf)
-
-    return dis
-
-
-@pytest.mark.slow
-def disv_from_ds(tmpdir):
-    ds, gwf, gridprops = test_001_model.test_create_inf_panden_model(tmpdir)
-
-    disv = nlmod.gwf.disv(ds, gwf, gridprops)
-
-    return disv
+    nlmod.gwf.dis(ds, gwf)
 
 
 def npf_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("small_model")
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
+    ds = test_001_model.get_ds_from_cache("small_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     nlmod.gwf.dis(ds)
-    npf = nlmod.gwf.npf(ds, gwf)
-
-    return npf
+    nlmod.gwf.npf(ds, gwf)
 
 
 def oc_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("small_model")
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
-    oc = nlmod.gwf.oc(ds, gwf)
-
-    return oc
+    ds = test_001_model.get_ds_from_cache("small_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+    nlmod.gwf.oc(ds, gwf)
 
 
 def sto_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("small_model")
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
-    sto = nlmod.gwf.sto(ds, gwf)
-
-    return sto
+    ds = test_001_model.get_ds_from_cache("small_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+    nlmod.gwf.sto(ds, gwf)
 
 
 def ghb_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("full_sea_model")
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
+    ds = test_001_model.get_ds_from_cache("full_sea_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
 
-    ghb = nlmod.gwf.ghb(ds, gwf, "surface_water")
-
-    return ghb
+    nlmod.gwf.ghb(ds, gwf, "surface_water")
 
 
 def rch_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("full_sea_model")
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
+    ds = test_001_model.get_ds_from_cache("full_sea_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
 
-    rch = nlmod.gwf.rch(ds, gwf)
-
-    return rch
+    nlmod.gwf.rch(ds, gwf)
 
 
 def drn_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("full_sea_model")
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
+    ds = test_001_model.get_ds_from_cache("full_sea_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
-    drn = nlmod.gwf.surface_drain_from_ds(ds, gwf, 1.0)
-
-    return drn
+    nlmod.gwf.surface_drain_from_ds(ds, gwf, 1.0)
 
 
 def chd_from_ds(tmpdir):
-    ds = test_001_model.test_get_ds_from_cache("small_model")
-    _, gwf = test_sim_tdis_gwf_ims_from_ds(tmpdir)
+    ds = test_001_model.get_ds_from_cache("small_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
 
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
 
     # add constant head cells at model boundaries
     ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
-    chd = nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
-
-    return chd
+    nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")

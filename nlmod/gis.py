@@ -4,8 +4,8 @@ import os
 import geopandas as gpd
 import numpy as np
 
-from .dims.resample import get_affine_mod_to_world
 from .dims.grid import polygons_from_model_ds
+from .dims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 
@@ -305,7 +305,7 @@ def ds_to_vector_file(
 
 def ds_to_ugrid_nc_file(
     model_ds,
-    fname,
+    fname=None,
     variables=None,
     dummy_var="mesh_topology",
     xv="xv",
@@ -318,9 +318,11 @@ def ds_to_ugrid_nc_file(
     Parameters
     ----------
     model_ds : xr.DataSet
-        xarray with model data
-    fname : str
-        filename of the UGRID NetCDF-file, preferably with the extension .nc.
+        xarray Dataset with model data
+    fname : str, optional
+        filename of the UGRID NetCDF-file, preferably with the extension .nc. When fname
+        is None,only a ugird-ready Dataset is created, without saving this Dataset to
+        file. The defaults is None.
     variables : str or list of str, optional
         THe variables to be saved in the NetCDF file. The default is None,
         which means all variables will be saved in the file.
@@ -398,29 +400,45 @@ def ds_to_ugrid_nc_file(
     for var in variables:
         if np.issubdtype(ds[var].dtype, bool):
             ds[var].encoding["dtype"] = np.int
-        if np.issubdtype(ds[var].dtype, str):
+        elif np.issubdtype(ds[var].dtype, str) or np.issubdtype(ds[var].dtype, object):
             # convert the string to an index of unique strings
-            index = np.unique(model_ds[var], return_inverse=True)[1]
+            index = np.unique(ds[var], return_inverse=True)[1]
             ds[var] = ds[var].dims, index
         if np.issubdtype(ds[var].dtype, np.int64):
             ds[var].encoding["dtype"] = np.int32
 
     # Breaks down variables with a layer dimension into separate variables.
-    # Copied from imod-python.
-    for var in variables:
-        if "layer" in ds[var].dims:
-            stacked = ds[var]
-            ds = ds.drop_vars(var)
-            for layer in stacked["layer"].values:
-                name = f"{var}_layer_{layer}"
-                ds[name] = stacked.sel(layer=layer, drop=True)
-                variables.append(name)
-            variables.remove(var)
-    if "layer" in ds.coords:
-        ds = ds.drop_vars("layer")
+    ds, variables = _break_down_dimension(ds, variables, "layer")
+    # Breaks down variables with a time dimension into separate variables.
+    ds, variables = _break_down_dimension(ds, variables, "time")
 
     # only keep the selected variables
     ds = ds[variables + [dummy_var, xv, yv, face_node_connectivity]]
-    # and save to file
-    ds.to_netcdf(fname)
+    if fname is not None:
+        # and save to file
+        ds.to_netcdf(fname)
     return ds
+
+
+def _break_down_dimension(ds, variables, dim):
+    # Copied and altered from imod-python.
+    keep_vars = []
+    for var in variables:
+        if dim in ds[var].dims:
+            stacked = ds[var]
+            for value in stacked[dim].values:
+                name = f"{var}_{value}"
+                ds[name] = stacked.sel({dim: value}, drop=True)
+                if "long_name" in ds[name].attrs:
+                    long_name = ds[name].attrs["long_name"]
+                    ds[name].attrs["long_name"] = f"{long_name} {value}"
+                if "standard_name" in ds[name].attrs:
+                    standard_name = ds[name].attrs["standard_name"]
+                    ds[name].attrs["standard_name"] = f"{standard_name}_{value}"
+                keep_vars.append(name)
+        else:
+            keep_vars.append(var)
+    if dim in ds.coords:
+        ds = ds.drop_vars(dim)
+
+    return ds, keep_vars

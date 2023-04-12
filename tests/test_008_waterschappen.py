@@ -9,19 +9,20 @@ import pytest
 
 
 def test_download_polygons():
-    return nlmod.read.waterboard.get_polygons()
+    nlmod.read.waterboard.get_polygons()
 
 
 def test_get_config():
-    return nlmod.read.waterboard.get_configuration()
+    nlmod.read.waterboard.get_configuration()
 
 
 def test_bgt_waterboards():
     extent = [116500, 120000, 439000, 442000]
     bgt = nlmod.read.bgt.get_bgt(extent)
-    pg = nlmod.gwf.surface_water.download_level_areas(bgt, extent=extent)
-    bgt = nlmod.gwf.surface_water.add_stages_from_waterboards(bgt, pg=pg)
-    return bgt
+    la = nlmod.gwf.surface_water.download_level_areas(
+        bgt, extent=extent, raise_exceptions=False
+    )
+    bgt = nlmod.gwf.surface_water.add_stages_from_waterboards(bgt, la=la)
 
 
 @pytest.mark.skip("too slow")
@@ -75,7 +76,7 @@ def test_download_waterlopen(plot=True):
         return extent
 
     data_kind = "watercourses"
-    # data_kind = "peilgebieden"
+    # data_kind = "level_areas"
     waterboards = nlmod.read.waterboard.get_polygons()
     gdf = {}
     for wb in waterboards.index:

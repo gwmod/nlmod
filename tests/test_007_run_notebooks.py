@@ -20,6 +20,11 @@ def _run_notebook(nbdir, fname):
 
 
 @pytest.mark.notebooks
+def test_run_notebook_00_model_from_scratch():
+    _run_notebook(nbdir, "00_model_from_scratch.ipynb")
+
+
+@pytest.mark.notebooks
 def test_run_notebook_01_basic_model():
     _run_notebook(nbdir, "01_basic_model.ipynb")
 
@@ -35,7 +40,6 @@ def test_run_notebook_03_local_grid_refinement():
 
 
 @pytest.mark.notebooks
-@pytest.mark.skip("requires art_tools")
 def test_run_notebook_04_modifying_layermodels():
     _run_notebook(nbdir, "04_modifying_layermodels.ipynb")
 
@@ -48,6 +52,11 @@ def test_run_notebook_05_caching():
 @pytest.mark.notebooks
 def test_run_notebook_06_compare_layermodels():
     _run_notebook(nbdir, "06_compare_layermodels.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_07_gridding_vector_data():
+    _run_notebook(nbdir, "07_gridding_vector_data.ipynb")
 
 
 @pytest.mark.notebooks
@@ -83,3 +92,18 @@ def test_run_notebook_12_layer_generation():
 @pytest.mark.notebooks
 def test_run_notebook_13_plot_methods():
     _run_notebook(nbdir, "13_plot_methods.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_14_stromingen_example():
+    _run_notebook(nbdir, "14_stromingen_example.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_15_geotop():
+    _run_notebook(nbdir, "15_geotop.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_16_groundwater_transport():
+    _run_notebook(nbdir, "16_groundwater_transport.ipynb")

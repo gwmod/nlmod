@@ -1,5 +1,6 @@
 import os
 import tempfile
+import test_001_model
 
 import nlmod
 import numpy as np
@@ -128,3 +129,9 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
     da = get_heads_da(ds=None, gwf=gwf_unstr, fname_hds=fname_hds)
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
+
+
+def test_gxg():
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    head = nlmod.gwf.get_heads_da(ds)
+    nlmod.gwf.calculate_gxg(head)

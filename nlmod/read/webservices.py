@@ -24,7 +24,7 @@ def arcrest(
     sr=28992,
     f="geojson",
     max_record_count=None,
-    timeout=1200,
+    timeout=120,
 ):
     """Download data from an arcgis rest FeatureServer."""
     params = {
@@ -107,17 +107,21 @@ def arcrest(
                 raise (Exception("Not supported yet"))
             feature["attributes"]["geometry"] = geometry
             data.append(feature["attributes"])
-        gdf = gpd.GeoDataFrame(data)
+        gdf = gpd.GeoDataFrame(data, crs=sr)
     else:
         # for geojson-data we can transform to GeoDataFrame right away
-        gdf = gpd.GeoDataFrame.from_features(features)
+        if len(features) == 0:
+            # Assigning CRS to a GeoDataFrame without a geometry column is not supported
+            gdf = gpd.GeoDataFrame()
+        else:
+            gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
     return gdf
 
 
-def _get_data(url, params, timeout=1200):
+def _get_data(url, params, timeout=120):
     r = requests.get(url, params=params, timeout=timeout)
     if not r.ok:
-        raise (Exception("Request not successful"))
+        raise (Exception(f"Request not successful: {r.url}"))
     data = r.json()
     if "error" in data:
         code = data["error"]["code"]
@@ -146,9 +150,9 @@ def wfs(
     if paged:
         # wfs = WebFeatureService(url)
         # get the maximum number of features
-        r = requests.get(f"{url}&request=getcapabilities", timeout=1200)
+        r = requests.get(f"{url}&request=getcapabilities", timeout=120)
         if not r.ok:
-            raise (Exception("Request not successful"))
+            raise (Exception(f"Request not successful: {r.url}"))
         root = ET.fromstring(r.text)
         ns = {"ows": "http://www.opengis.net/ows/1.1"}
 
@@ -187,7 +191,7 @@ def wfs(
 
         # get the number of features
         params["resultType"] = "hits"
-        r = requests.get(url, params=params, timeout=1200)
+        r = requests.get(url, params=params, timeout=120)
         params.pop("resultType")
         root = ET.fromstring(r.text)
         if "ExceptionReport" in root.tag:

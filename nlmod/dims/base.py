@@ -75,6 +75,7 @@ def to_model_ds(
     yorigin=0.0,
     angrot=0.0,
     drop_attributes=True,
+    transport=False,
 ):
     """Transform a regis datset to a model dataset with another resolution.
 
@@ -117,7 +118,10 @@ def to_model_ds(
         the rotation of the grid in counter clockwise degrees, default is 0.0
     drop_attributes : bool, optional
         if True drop the attributes from the layer model dataset. Otherwise
-        keep the attributes. Default is True
+        keep the attributes. Default is True.
+    transport : bool, optional
+        flag indicating whether dataset includes data for a groundwater
+        transport model (GWT). Default is False, no transport.
 
     Returns
     -------
@@ -158,6 +162,7 @@ def to_model_ds(
 
     # add attributes
     ds = set_ds_attrs(ds, model_name, model_ws)
+    ds.attrs["transport"] = int(transport)
 
     # fill nan's and add idomain
     if fill_nan:
@@ -201,7 +206,7 @@ def extrapolate_ds(ds, mask=None):
         return ds
     if mask.all():
         raise (Exception("The model only contains NaNs"))
-    if ds.gridtype == "vertex":
+    if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         x = ds.x.data
         y = ds.y.data
         dims = ("icell2d",)
@@ -235,7 +240,7 @@ def get_ds(
     delc=None,
     model_name=None,
     model_ws=None,
-    layer=10,
+    layer=None,
     top=0.0,
     botm=None,
     kh=10.0,
@@ -247,6 +252,7 @@ def get_ds(
     attrs=None,
     extrapolate=True,
     fill_nan=True,
+    transport=False,
     **kwargs,
 ):
     """Create a model dataset from scratch, so without a layer model.
@@ -258,16 +264,18 @@ def get_ds(
     delr : int, float, list, tuple or array, optional
         The gridsize along columns (dx). The default is 100. meter.
     delc : None, int, float, list, tuple or array, optional
-        The gridsize along rows (dy). Set to delr when None. If None delc=delr
-        The default is None.
+        The gridsize along rows (dy). Set to delr when None. If None delc=delr. The
+        default is None.
     model_name : str, optional
         name of the model. THe default is None
     model_ws : str, optional
-        workspace of the model. This is where modeldata is saved to. The
-        default is None
+        workspace of the model. This is where modeldata is saved to. The default is
+        None.
     layer : int, list, tuple or ndarray, optional
-        The layers of the model. When layer is an integer it is the number of
-        layers. The default is 10.
+        The names or index of the layers of the model. When layer is an integer it is
+        the number of layers. When layer is None, the number of layers is caluclated
+        from botm. When botm is None as well, the number of layers is set to 10. The
+        default is None.
     top : float, list or ndarray, optional
         The top of the model. It has to be of shape (len(y), len(x)) or it is
         transformed into that shape if top is a float. The default is 0.0.
@@ -300,12 +308,14 @@ def get_ds(
         Attributes of the model dataset. The default is None.
     extrapolate : bool, optional
         When true, extrapolate data-variables, into the sea or other areas with
-        only nans. THe default is True
+        only nans. The default is True
     fill_nan : bool, optional
         if True nan values in the top, botm, kh and kv are filled using the
         fill_nan_top_botm_kh_kv function. Layers with only nan values in the
         botm are removed.
-
+    transport : bool, optional
+        flag indicating whether dataset includes data for a groundwater
+        transport model (GWT). Default is False, no transport.
 
 
     **kwargs : dict
@@ -328,6 +338,12 @@ def get_ds(
 
     if attrs is None:
         attrs = {}
+
+    if layer is None:
+        if botm is None:
+            layer = 10
+        else:
+            layer = len(botm)
     if isinstance(layer, int):
         layer = np.arange(1, layer + 1)
     if botm is None:
@@ -338,7 +354,8 @@ def get_ds(
         if isinstance(par, numbers.Number):
             if np.isnan(par) and (extrapolate or fill_nan):
                 raise ValueError(
-                    "extrapolate and remove_nan_layer should be False when setting model parameters to nan"
+                    "extrapolate and remove_nan_layer should be "
+                    "False when setting model parameters to nan"
                 )
 
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
@@ -400,6 +417,7 @@ def get_ds(
         drop_attributes=False,
         extrapolate=extrapolate,
         fill_nan=fill_nan,
+        transport=transport,
         **kwargs,
     )
     ds.rio.set_crs(crs)

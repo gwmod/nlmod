@@ -307,7 +307,7 @@ def gdf_within_extent(gdf, extent):
     return gdf
 
 
-def get_google_drive_filename(fid):
+def get_google_drive_filename(fid, timeout=120):
     """get the filename of a google drive file.
 
     Parameters
@@ -329,7 +329,7 @@ def get_google_drive_filename(fid):
         response = id
     else:
         url = "https://drive.google.com/uc?export=download&id=" + fid
-        response = requests.get(url)
+        response = requests.get(url, timeout=timeout)
     header = response.headers["Content-Disposition"]
     file_name = re.search(r'filename="(.*)"', header).group(1)
     return file_name
@@ -385,85 +385,6 @@ def download_file_from_google_drive(fid, destination=None):
             destination = os.path.join(destination, filename)
 
     save_response_content(response, destination)
-
-
-# %% helper functions (from USGS)
-
-
-def get_platform(pltfrm):
-    """Determine the platform in order to construct the zip file name.
-
-    Source: USGS
-
-    Parameters
-    ----------
-    pltfrm : str, optional
-        check if platform string is correct for downloading binaries,
-        default is None and will determine platform string based on system
-
-    Returns
-    -------
-    pltfrm : str
-        return platform string
-    """
-    if pltfrm is None:
-        if sys.platform.lower() == "darwin":
-            pltfrm = "mac"
-        elif sys.platform.lower().startswith("linux"):
-            pltfrm = "linux"
-        elif "win" in sys.platform.lower():
-            is_64bits = sys.maxsize > 2**32
-            if is_64bits:
-                pltfrm = "win64"
-            else:
-                pltfrm = "win32"
-        else:
-            errmsg = "Could not determine platform" f".  sys.platform is {sys.platform}"
-            raise Exception(errmsg)
-    else:
-        assert pltfrm in ["mac", "linux", "win32", "win64"]
-    return pltfrm
-
-
-def getmfexes(pth=".", version="", pltfrm=None):
-    """Get the latest MODFLOW binary executables from a github site
-    (https://github.com/MODFLOW-USGS/executables) for the specified operating
-    system and put them in the specified path.
-
-    Source: USGS
-
-    Parameters
-    ----------
-    pth : str
-        Location to put the executables (default is current working directory)
-
-    version : str
-        Version of the MODFLOW-USGS/executables release to use.
-
-    pltfrm : str
-        Platform that will run the executables.  Valid values include mac,
-        linux, win32 and win64.  If platform is None, then routine will
-        download the latest appropriate zipfile from the github repository
-        based on the platform running this script.
-    """
-    try:
-        import pymake
-    except ModuleNotFoundError as e:
-        print(
-            "Install pymake with "
-            "`pip install "
-            "https://github.com/modflowpy/pymake/zipball/master`"
-        )
-        raise e
-    # Determine the platform in order to construct the zip file name
-    pltfrm = get_platform(pltfrm)
-    zipname = f"{pltfrm}.zip"
-
-    # Determine path for file download and then download and unzip
-    url = "https://github.com/MODFLOW-USGS/executables/" f"releases/download/{version}/"
-    assets = {p: url + p for p in ["mac.zip", "linux.zip", "win32.zip", "win64.zip"]}
-    download_url = assets[zipname]
-    pymake.download_and_unzip(download_url, pth)
 
 
 def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
@@ -539,6 +460,10 @@ def get_heads_array(fname_hds, fill_nans=False):
     head_ar : np.ndarray
         heads array.
     """
+    logger.warning(
+        "nlmod.util.get_heads_array is deprecated. "
+        "Please use nlmod.gwf.get_heads_da instead"
+    )
     hdobj = flopy.utils.HeadFile(fname_hds)
     head = hdobj.get_alldata()
     head[head == 1e30] = np.nan
@@ -551,7 +476,7 @@ def get_heads_array(fname_hds, fill_nans=False):
     return head
 
 
-def download_mfbinaries(binpath=None, version="8.0"):
+def download_mfbinaries(bindir=None):
     """Download and unpack platform-specific modflow binaries.
 
     Source: USGS
@@ -564,11 +489,12 @@ def download_mfbinaries(binpath=None, version="8.0"):
     version : str, optional
         version string, by default 8.0
     """
-    if binpath is None:
-        binpath = os.path.join(os.path.dirname(__file__), "bin")
-    pltfrm = get_platform(None)
-    # Download and unpack mf6 exes
-    getmfexes(pth=binpath, version=version, pltfrm=pltfrm)
+
+    if bindir is None:
+        bindir = os.path.join(os.path.dirname(__file__), "bin")
+    if not os.path.isdir(bindir):
+        os.makedirs(bindir)
+    flopy.utils.get_modflow(bindir)
 
 
 def check_presence_mfbinaries(exe_name="mf6", binpath=None):

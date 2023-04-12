@@ -708,7 +708,7 @@ def add_stages_from_waterboards(
         if len(la[wb]) == 0:
             continue
         mask = gdf["bronhouder"] == config[wb]["bgt_code"]
-        gdf[mask] = add_info_to_gdf(
+        gdf.loc[mask] = add_info_to_gdf(
             la[wb],
             gdf[mask],
             columns=columns,
@@ -764,7 +764,7 @@ def add_bottom_height_from_waterboards(
         if len(wc[wb]) == 0:
             continue
         mask = gdf["bronhouder"] == config[wb]["bgt_code"]
-        gdf[mask] = add_info_to_gdf(
+        gdf.loc[mask] = add_info_to_gdf(
             wc[wb],
             gdf[mask],
             columns=columns,

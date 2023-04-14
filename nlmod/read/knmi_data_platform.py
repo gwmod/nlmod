@@ -7,6 +7,7 @@ Created on Fri Apr 14 10:53:17 2023
 
 import os
 import requests
+from typing import Optional, List
 import logging
 from tqdm import tqdm
 import xarray as xr
@@ -20,11 +21,11 @@ base_url = "https://api.dataplatform.knmi.nl/open-data"
 
 
 def get_list_of_files(
-    dataset_name,
-    dataset_version,
-    max_keys=500,
-    start_after_filename=None,
-):
+    dataset_name: str,
+    dataset_version: str,
+    max_keys: int = 500,
+    start_after_filename: Optional[str] = None,
+) -> List[str]:
     # Make sure to send the API key with every HTTP request
     files = []
     is_trucated = True
@@ -44,8 +45,13 @@ def get_list_of_files(
 
 
 def download_file(
-    dataset_name, dataset_version, filename, dirname="", read=True, hour=None
-):
+    dataset_name: str,
+    dataset_version: str,
+    filename: str,
+    dirname: str = "",
+    read: bool = True,
+    hour: Optional[int] = None,
+) -> None:
     url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files/{filename}/url"
     r = requests.get(url, headers={"Authorization": api_key})
     if not os.path.isdir(dirname):
@@ -66,7 +72,7 @@ def download_file(
             logger.warning("Unknow file type: {filename}")
 
 
-def read_dataset_from_zip(fname, hour=None):
+def read_dataset_from_zip(fname: str, hour: Optional[int] = None) -> xr.Dataset():
     from zipfile import ZipFile
 
     with ZipFile(fname) as zipf:

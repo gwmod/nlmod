@@ -48,7 +48,7 @@ def download_file(
     dataset_name: str,
     dataset_version: str,
     filename: str,
-    dirname: str = "",
+    dirname: str = ".",
     read: bool = True,
     hour: Optional[int] = None,
 ) -> None:

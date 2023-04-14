@@ -27,7 +27,8 @@ def get_list_of_files(
 ):
     # Make sure to send the API key with every HTTP request
     files = []
-    while True:
+    is_trucated = True
+    while is_trucated:
         url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files"
         r = requests.get(url, headers={"Authorization": api_key})
         params = {"maxKeys": f"{max_keys}"}
@@ -36,29 +37,33 @@ def get_list_of_files(
         r = requests.get(url, params=params, headers={"Authorization": api_key})
         json = r.json()
         files.extend([x["filename"] for x in json["files"]])
-        if json["isTruncated"]:
-            start_after_filename = files[-1]
-            print(start_after_filename)
-        else:
-            return files
+        is_trucated = json["isTruncated"]
+        start_after_filename = files[-1]
+        logger.debug(f"Listed files untill {start_after_filename}")
+    return files
 
 
-def download_file(dataset_name, dataset_version, filename, dirname="."):
+def download_file(
+    dataset_name, dataset_version, filename, dirname="", read=True, hour=None
+):
     url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files/{filename}/url"
     r = requests.get(url, headers={"Authorization": api_key})
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
     fname = os.path.join(dirname, filename)
-    try:
-        with requests.get(r.json()["temporaryDownloadUrl"], stream=True) as r:
-            r.raise_for_status()
-            with open(fname, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-    except Exception:
-        logger.exception(f"Unable to download file {filename} using download URL")
-
+    with requests.get(r.json()["temporaryDownloadUrl"], stream=True) as r:
+        r.raise_for_status()
+        with open(fname, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
     logger.info(f"Successfully downloaded dataset file to {filename}")
+    if read:
+        if fname.endswith(".nc"):
+            return xr.open_dataset(fname)
+        elif fname.endswith(".zip"):
+            return read_dataset_from_zip(fname, hour=hour)
+        else:
+            logger.warning("Unknow file type: {filename}")
 
 
 def read_dataset_from_zip(fname, hour=None):

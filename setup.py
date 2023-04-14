@@ -26,6 +26,7 @@ setup(
         "Intended Audience :: Other Audience",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
+        "Topic :: Scientific/Engineering :: Hydrology",
     ],
     platforms="Windows, Mac OS-X",
     install_requires=[

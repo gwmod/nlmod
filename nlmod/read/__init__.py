@@ -5,6 +5,7 @@ from . import (
     geotop,
     jarkus,
     knmi,
+    knmi_data_platform,
     meteobase,
     regis,
     rws,

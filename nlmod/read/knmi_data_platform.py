@@ -56,13 +56,16 @@ def download_file(
     r = requests.get(url, headers={"Authorization": api_key})
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
+    logger.info("Download {filename} to {dirname}")
     fname = os.path.join(dirname, filename)
-    with requests.get(r.json()["temporaryDownloadUrl"], stream=True) as r:
+    data = r.json()
+    if "temporaryDownloadUrl" not in data:
+        raise (Exception(f"{filename} not found"))
+    with requests.get(data["temporaryDownloadUrl"], stream=True) as r:
         r.raise_for_status()
         with open(fname, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
-    logger.info(f"Successfully downloaded dataset file to {filename}")
     if read:
         if fname.endswith(".nc"):
             return xr.open_dataset(fname)
@@ -70,6 +73,29 @@ def download_file(
             return read_dataset_from_zip(fname, hour=hour)
         else:
             logger.warning("Unknow file type: {filename}")
+
+
+def download_files(
+    dataset_name: str,
+    dataset_version: str,
+    filenames: list,
+    read: bool = True,
+    **kwargs,
+):
+    data = []
+    for filename in tqdm(filenames):
+        data.append(
+            download_file(
+                dataset_name=dataset_name,
+                dataset_version=dataset_version,
+                filename=filename,
+                read=read,
+                **kwargs,
+            )
+        )
+
+    if read:
+        return xr.concat(data, dim="time")
 
 
 def read_dataset_from_zip(fname: str, hour: Optional[int] = None) -> xr.Dataset():

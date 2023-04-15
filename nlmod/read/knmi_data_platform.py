@@ -1,31 +1,58 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 14 10:53:17 2023
-
-@author: Ruben
-"""
-
-import os
-import requests
-from typing import Optional, List
 import logging
-from tqdm import tqdm
-import xarray as xr
+import os
+from typing import List, Optional
+from zipfile import ZipFile
 
+import requests
+import xarray as xr
+from pandas import Timestamp, read_html
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-api_key = "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI4ZWZlOTZkNDk2ZjQ3ZmE5YjMzNWY5NDU3NWQyMzViIiwiaCI6Im11cm11cjEyOCJ9"  # knmi
 # base_url = "https://api.dataplatform.knmi.nl/dataset-content/v1/datasets"
 base_url = "https://api.dataplatform.knmi.nl/open-data"
+
+
+def get_anonymous_api_key() -> str:
+    try:
+        url = "https://developer.dataplatform.knmi.nl/get-started"
+        tables = read_html(url)  # get all tables from url
+        for table in tables:
+            for coln in table.columns:
+                if "KEY" in coln.upper():  # look for columns with key
+                    api_key_str = table.iloc[0].loc[
+                        coln
+                    ]  # get entry with key (first row)
+                    api_key = max(
+                        api_key_str.split(), key=len
+                    )  # get key base on str length
+                    logger.info(f"Retrieved anonymous API Key from {url}")
+                    return api_key
+    except Exception as exc:
+        if Timestamp.today() < Timestamp("2023-07-01"):
+            logger.info("Retrieved anonymous API Key from memory")
+            return (
+                "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI4ZWZl"
+                "OTZkNDk2ZjQ3ZmE5YjMzNWY5NDU3NWQyMzViIiwiaCI6Im11cm11cjEyOCJ9"
+            )
+        else:
+            logger.error(
+                f"Could not retrieve anonymous API Key from {url}, please"
+                " create your own at https://api.dataplatform.knmi.nl/"
+            )
+            raise exc
 
 
 def get_list_of_files(
     dataset_name: str,
     dataset_version: str,
     max_keys: int = 500,
+    api_key: Optional[str] = None,
     start_after_filename: Optional[str] = None,
 ) -> List[str]:
+    if api_key is None:
+        api_key = get_anonymous_api_key()
     # Make sure to send the API key with every HTTP request
     files = []
     is_trucated = True
@@ -49,9 +76,12 @@ def download_file(
     dataset_version: str,
     filename: str,
     dirname: str = ".",
+    api_key: Optional[str] = None,
     read: bool = True,
     hour: Optional[int] = None,
 ) -> None:
+    if api_key is None:
+        api_key = get_anonymous_api_key()
     url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files/{filename}/url"
     r = requests.get(url, headers={"Authorization": api_key})
     if not os.path.isdir(dirname):
@@ -98,9 +128,7 @@ def download_files(
         return xr.concat(data, dim="time")
 
 
-def read_dataset_from_zip(fname: str, hour: Optional[int] = None) -> xr.Dataset():
-    from zipfile import ZipFile
-
+def read_dataset_from_zip(fname: str, hour: Optional[int] = None) -> xr.Dataset:
     with ZipFile(fname) as zipf:
         data = []
         for file in tqdm(zipf.namelist()):

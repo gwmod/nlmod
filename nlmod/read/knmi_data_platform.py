@@ -32,10 +32,11 @@ def get_anonymous_api_key() -> str:
     except Exception as exc:
         if Timestamp.today() < Timestamp("2023-07-01"):
             logger.info("Retrieved anonymous API Key from memory")
-            return (
+            api_key = (
                 "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI4ZWZl"
                 "OTZkNDk2ZjQ3ZmE5YjMzNWY5NDU3NWQyMzViIiwiaCI6Im11cm11cjEyOCJ9"
             )
+            return api_key
         else:
             logger.error(
                 f"Could not retrieve anonymous API Key from {url}, please"
@@ -47,8 +48,8 @@ def get_anonymous_api_key() -> str:
 def get_list_of_files(
     dataset_name: str,
     dataset_version: str,
-    max_keys: int = 500,
     api_key: Optional[str] = None,
+    max_keys: int = 500,
     start_after_filename: Optional[str] = None,
 ) -> List[str]:
     if api_key is None:
@@ -82,7 +83,10 @@ def download_file(
 ) -> None:
     if api_key is None:
         api_key = get_anonymous_api_key()
-    url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files/{filename}/url"
+    url = (
+        f"{base_url}/datasets/{dataset_name}/versions/"
+        f"{dataset_version}/files/{filename}/url"
+    )
     r = requests.get(url, headers={"Authorization": api_key})
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
@@ -110,8 +114,8 @@ def download_files(
     dataset_version: str,
     filenames: list,
     read: bool = True,
-    **kwargs,
-):
+    **kwargs: dict,
+) -> xr.Dataset:
     data = []
     for filename in tqdm(filenames):
         data.append(

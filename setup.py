@@ -49,5 +49,5 @@ setup(
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*", "data/geotop/*", "data/shapes/*"]},
     include_package_data=True,
-    extras_require={"full": ["gdown"]},
+    extras_require={"full": ["gdown", "cfgrib", "ecmwflibs"]},
 )

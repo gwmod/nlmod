@@ -1,9 +1,9 @@
 import logging
 import os
 import re
+import zipfile
 from io import FileIO
 from typing import Any, Dict, List, Optional, Tuple, Union
-from zipfile import ZipFile
 
 import requests
 import xarray as xr
@@ -137,9 +137,8 @@ def download_files(
         return xr.concat(data, dim="time")
 
 
-def read_nc_knmi(fo: Union[str, FileIO]) -> xr.Dataset:
-    ds = xr.open_dataset(fo, engine="h5netcdf")
-    return ds
+def read_nc_knmi(filename_or_obj: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
+    return xr.open_dataset(filename_or_obj, engine="h5netcdf", **kwargs)
 
 
 def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
@@ -192,50 +191,63 @@ def read_h5_contents(fo: h5File) -> Tuple[h5Dataset, Dict[str, Any]]:
     return data, meta
 
 
-def read_h5_knmi(file: Union[str, FileIO]) -> xr.Dataset:
-    with h5File(file) as fo:
-        data, meta = read_h5_contents(fo)
+def read_h5_knmi(fo: Union[str, FileIO]) -> xr.Dataset:
+    if isinstance(fo, str):
+        fo = h5File(fo)
 
-        cols = meta["geographic/geo_number_columns"]
-        dx = meta["geographic/geo_pixel_size_x"]
-        rows = meta["geographic/geo_number_rows"]
-        dy = meta["geographic/geo_pixel_size_y"]
-        x = arange(0 + dx / 2, cols + dx / 2, dx)
-        y = arange(rows + dy / 2, 0 + dy / 2, dy)
-        t = Timestamp(meta["overview/product_datetime_start"])
+    data, meta = read_h5_contents(fo)
+    fo.close()
 
-        ds = xr.Dataset(
-            data_vars=dict(data=(["y", "x"], array(data, dtype=float))),
-            coords=dict(
-                x=x,
-                y=y,
-                time=t,
-            ),
-            attrs=meta,
-        )
+    cols = meta["geographic/geo_number_columns"]
+    dx = meta["geographic/geo_pixel_size_x"]
+    rows = meta["geographic/geo_number_rows"]
+    dy = meta["geographic/geo_pixel_size_y"]
+    x = arange(0 + dx / 2, cols + dx / 2, dx)
+    y = arange(rows + dy / 2, 0 + dy / 2, dy)
+    t = Timestamp(meta["overview/product_datetime_start"])
+
+    ds = xr.Dataset(
+        data_vars=dict(data=(["y", "x"], array(data, dtype=float))),
+        coords=dict(
+            x=x,
+            y=y,
+            time=t,
+        ),
+        attrs=meta,
+    )
+
     return ds
 
 
 def read_dataset_from_zip(fname: str, hour: Optional[int] = None) -> xr.Dataset:
-    with ZipFile(fname) as zipf:
-        data = []
-        fnames = sorted([x for x in zipf.namelist() if not x.endswith("/")])
-        if hour is not None:
-            fnames = [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
-        for file in tqdm(fnames):
-            if file.endswith(".nc"):
-                with zipf.open(file) as fo:
-                    ds_ = read_nc_knmi(fo)
-            elif file.endswith(".h5"):
-                ds_ = read_h5_knmi(file)
-            else:
-                raise Exception(f"Can't read file {file}")
-            data.append(ds_)
-        ds = xr.concat(data, dim="time")
+    if fname.endswith(".zip"):
+        zipfo = zipfile.open(fname)
+        fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
+
+    if hour is not None:
+        fnames = [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
+
+    ds = get_dataset_from_zip(zipfo=zipfo, fnames=fnames)
+    zipfo.close()
     return ds
 
 
 # %%
+def get_dataset_from_zip(
+    zipfo: Union[zipfile.ZipFile, tarfile.TarFile],
+    fnames: List[str],
+    **kwargs: dict,
+) -> xr.Dataset:
+    data = []
+    for file in tqdm(fnames):
+        if file.endswith(".nc"):
+            with zipfo.open(file) as fo:
+                ds = read_nc_knmi(fo, **kwargs)
+        elif file.endswith(".h5"):
+            ds = read_h5_knmi(file, **kwargs)
+        else:
+            raise Exception(f"Can't read file {file}")
+        data.append(ds)
 
 if __name__ == "__main__":
     dataset_name = "zonneschijnduur_en_straling"
@@ -246,3 +258,4 @@ if __name__ == "__main__":
     fname = "harm40_v1_p3_2023041300.tar"
     ds = read_dataset_from_zip(fname)
     # zipf = ZipFile(fname)
+    return xr.concat(data, dim="time")

@@ -44,6 +44,7 @@ setup(
         "matplotlib",
         "dask",
         "colorama",
+        "h5netcdf",
     ],
     packages=find_packages(exclude=[]),
     package_data={"nlmod": ["data/*", "data/geotop/*", "data/shapes/*"]},

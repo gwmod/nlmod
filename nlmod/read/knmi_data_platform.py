@@ -1,8 +1,10 @@
 import logging
 import os
 import re
+import tarfile
 import zipfile
 from io import FileIO
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
@@ -219,20 +221,53 @@ def read_h5_knmi(fo: Union[str, FileIO]) -> xr.Dataset:
     return ds
 
 
-def read_dataset_from_zip(fname: str, hour: Optional[int] = None) -> xr.Dataset:
+def read_grib_knmi(
+    fo: Union[str, FileIO], filter_by_keys=None, **kwargs: dict
+) -> xr.Dataset:
+    if kwargs is None:
+        kwargs = {}
+
+    if filter_by_keys is not None:
+        if "backend_kwargs" not in kwargs.keys():
+            kwargs["backend_kwargs"] = {}
+        kwargs["backend_kwargs"]["filter_by_keys"] = filter_by_keys
+        if "errors" not in kwargs["backend_kwargs"]:
+            kwargs["backend_kwargs"]["errors"] = "ignore"
+
+    return xr.open_dataset(
+        fo,
+        engine="cfgrib",
+        **kwargs,
+    )
+
+
+def read_dataset_from_zip(
+    fname: str, hour: Optional[int] = None, **kwargs: dict
+) -> xr.Dataset:
     if fname.endswith(".zip"):
         zipfo = zipfile.open(fname)
         fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
+    elif fname.endswith(".tar"):
+        zipfo = tarfile.open(fname)
+        tempdir = TemporaryDirectory()
+        logger.info(f"Created temporary dir {tempdir}")
+        zipfo.extractall(tempdir.name)
+        fnames = sorted(
+            [
+                os.path.join(tempdir.name, x)
+                for x in zipfo.getnames()
+                if not x.endswith("/")
+            ]
+        )
 
     if hour is not None:
         fnames = [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
 
-    ds = get_dataset_from_zip(zipfo=zipfo, fnames=fnames)
+    ds = get_dataset_from_zip(zipfo=zipfo, fnames=fnames, **kwargs)
     zipfo.close()
     return ds
 
 
-# %%
 def get_dataset_from_zip(
     zipfo: Union[zipfile.ZipFile, tarfile.TarFile],
     fnames: List[str],
@@ -244,18 +279,31 @@ def get_dataset_from_zip(
             with zipfo.open(file) as fo:
                 ds = read_nc_knmi(fo, **kwargs)
         elif file.endswith(".h5"):
-            ds = read_h5_knmi(file, **kwargs)
+            with zipfo.open(file) as fo:
+                ds = read_h5_knmi(fo, **kwargs)
+        elif "_GB" in file:
+            pass
+            if isinstance(zipfo, tarfile.TarFile):
+                # memb = zipfo.getmember(file)
+                # fo = zipfo.extractfile(memb)
+                # yields TypeError: 'ExFileObject' object is not subscriptable
+                # alternative is to unpack in termporary directory
+                ds = read_grib_knmi(file, **kwargs)
+            elif isinstance(zipfo, zipfile.ZipFile):
+                with zipfo.open(file) as fo:
+                    ds = read_grib_knmi(fo, **kwargs)
+
         else:
             raise Exception(f"Can't read file {file}")
         data.append(ds)
 
-if __name__ == "__main__":
-    dataset_name = "zonneschijnduur_en_straling"
-    dataset_version = "1.0"
-    # list_files = get_list_of_files(dataset_name, dataset_version)
-    # fname = list_files[0]
-    fname = "RADNL_CLIM_test.zip"
-    fname = "harm40_v1_p3_2023041300.tar"
-    ds = read_dataset_from_zip(fname)
-    # zipf = ZipFile(fname)
     return xr.concat(data, dim="time")
+
+
+if __name__ == "__main__":
+    fname = "harm40_v1_p3_2023041300.tar"
+    # tarf = tarfile.open(fname)
+    read_dataset_from_zip(
+        fname,
+        filter_by_keys={"stepType": "instant", "typeOfLevel": "heightAboveGround"},
+    )

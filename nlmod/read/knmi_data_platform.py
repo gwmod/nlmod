@@ -1,10 +1,15 @@
 import logging
 import os
-from typing import List, Optional
+import re
+from io import FileIO
+from typing import Any, Dict, List, Optional, Tuple, Union
 from zipfile import ZipFile
 
 import requests
 import xarray as xr
+from h5py import Dataset as h5Dataset
+from h5py import File as h5File
+from numpy import arange, array, ndarray
 from pandas import Timestamp, read_html
 from tqdm import tqdm
 
@@ -80,7 +85,7 @@ def download_file(
     api_key: Optional[str] = None,
     read: bool = True,
     hour: Optional[int] = None,
-) -> None:
+) -> Union[xr.Dataset, None]:
     if api_key is None:
         api_key = get_anonymous_api_key()
     url = (
@@ -102,7 +107,7 @@ def download_file(
                 f.write(chunk)
     if read:
         if fname.endswith(".nc"):
-            return xr.open_dataset(fname)
+            return read_nc_knmi(fname)
         elif fname.endswith(".zip"):
             return read_dataset_from_zip(fname, hour=hour)
         else:
@@ -115,7 +120,7 @@ def download_files(
     filenames: list,
     read: bool = True,
     **kwargs: dict,
-) -> xr.Dataset:
+) -> Union[xr.Dataset, None]:
     data = []
     for filename in tqdm(filenames):
         data.append(
@@ -132,17 +137,112 @@ def download_files(
         return xr.concat(data, dim="time")
 
 
+def read_nc_knmi(fo: Union[str, FileIO]) -> xr.Dataset:
+    ds = xr.open_dataset(fo, engine="h5netcdf")
+    return ds
+
+
+def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
+    """Get the Timestamp from a filename (with some assumptions about the formatting)"""
+    datestr = re.search("(_[0-9]{12})", fname)  # assumes YYYYMMDDHHMM
+    if datestr is not None:
+        match = datestr.group(0)
+        year = int(match[0:4])
+        month = int(match[4:6])
+        day = int(match[6:8])
+        hour = int(match[8:10])
+        minute = int(match[8:10])
+        dtime = Timestamp(year=year, month=month, day=day, hour=hour, minute=minute)
+        return dtime
+
+
+def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str, Any]:
+    def cleanup(val: Any) -> Any:
+        if isinstance(val, (ndarray, list)):
+            if len(val) == 1:
+                val = val[0]
+
+        if isinstance(val, (bytes, bytearray)):
+            val = str(val, encoding="utf-8")
+
+        return val
+
+    if hasattr(h5obj, "attrs"):
+        attrs = getattr(h5obj, "attrs")
+        submeta = {f"{orig_ky}/{ky}": cleanup(val) for ky, val in attrs.items()}
+        return meta | submeta
+    else:
+        return meta
+
+
+def read_h5_contents(fo: h5File) -> Tuple[h5Dataset, Dict[str, Any]]:
+    data = None
+    meta = {}
+    for ky in fo.keys():
+        group = fo[ky]
+        meta = add_h5_meta(meta, group, f"{ky}")
+        for gky in group.keys():
+            member = group[gky]
+            meta = add_h5_meta(meta, member, f"{ky}/{gky}")
+            if isinstance(member, h5Dataset):
+                if data is None:
+                    data = member
+                else:
+                    raise Exception("h5 contains multiple Datasets")
+    return data, meta
+
+
+def read_h5_knmi(file: Union[str, FileIO]) -> xr.Dataset:
+    with h5File(file) as fo:
+        data, meta = read_h5_contents(fo)
+
+        cols = meta["geographic/geo_number_columns"]
+        dx = meta["geographic/geo_pixel_size_x"]
+        rows = meta["geographic/geo_number_rows"]
+        dy = meta["geographic/geo_pixel_size_y"]
+        x = arange(0 + dx / 2, cols + dx / 2, dx)
+        y = arange(rows + dy / 2, 0 + dy / 2, dy)
+        t = Timestamp(meta["overview/product_datetime_start"])
+
+        ds = xr.Dataset(
+            data_vars=dict(data=(["y", "x"], array(data, dtype=float))),
+            coords=dict(
+                x=x,
+                y=y,
+                time=t,
+            ),
+            attrs=meta,
+        )
+    return ds
+
+
 def read_dataset_from_zip(fname: str, hour: Optional[int] = None) -> xr.Dataset:
     with ZipFile(fname) as zipf:
         data = []
-        for file in tqdm(zipf.namelist()):
-            if hour is not None:
-                if not file.endswith(f"{hour:02d}00.nc"):
-                    continue
+        fnames = sorted([x for x in zipf.namelist() if not x.endswith("/")])
+        if hour is not None:
+            fnames = [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
+        for file in tqdm(fnames):
+            if file.endswith(".nc"):
+                with zipf.open(file) as fo:
+                    ds_ = read_nc_knmi(fo)
+            elif file.endswith(".h5"):
+                ds_ = read_h5_knmi(file)
             else:
-                if not file.endswith(".nc"):
-                    continue
-            fo = zipf.open(file)
-            data.append(xr.open_dataset(fo))
-        ds = xr.concat(data, dim="time").sortby("time")
+                raise Exception(f"Can't read file {file}")
+            data.append(ds_)
+        ds = xr.concat(data, dim="time")
     return ds
+
+
+# %%
+
+if __name__ == "__main__":
+    dataset_name = "zonneschijnduur_en_straling"
+    dataset_version = "1.0"
+    # list_files = get_list_of_files(dataset_name, dataset_version)
+    # fname = list_files[0]
+    fname = "RADNL_CLIM_test.zip"
+    fname = "harm40_v1_p3_2023041300.tar"
+    ds = read_dataset_from_zip(fname)
+    # zipf = ZipFile(fname)

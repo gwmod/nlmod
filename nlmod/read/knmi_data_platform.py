@@ -150,12 +150,6 @@ def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
         raise Exception("Could not fine timestamp formatted as YYYYMMDDHHMM from fname")
 
 
-def check_hour(fnames: List[str], hour: int) -> List[str]:
-    if hour == 24:
-        hour = 0
-    return [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
-
-
 def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str, Any]:
     def cleanup(val: Any) -> Any:
         if isinstance(val, (ndarray, list)):
@@ -239,8 +233,6 @@ def read_dataset_from_zip(
     if fname.endswith(".zip"):
         with ZipFile(fname) as zipfo:
             fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
-            if hour is not None:
-                fnames = check_hour(fnames=fnames, hour=hour)
             ds = read_dataset(fnames=fnames, zipfo=zipfo, **kwargs)
 
     elif fname.endswith(".tar"):
@@ -255,17 +247,22 @@ def read_dataset_from_zip(
                     if not x.endswith("/")
                 ]
             )
-            if hour is not None:
-                fnames = check_hour(fnames, hour=hour)
-            ds = read_dataset(fnames=fnames, zipfo=tarfo, **kwargs)
+            ds = read_dataset(fnames=fnames, zipfo=tarfo, hour=hour, **kwargs)
     return ds
 
 
 def read_dataset(
     fnames: List[str],
     zipfo: Union[None, ZipFile, tarfile.TarFile] = None,
+    hour: Optional[int] = None,
     **kwargs: dict,
 ) -> xr.Dataset:
+
+    if hour is not None:
+        if hour == 24:
+            hour = 0
+        fnames = [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
+
     data = []
     for file in tqdm(fnames):
         if zipfo is not None:

@@ -407,6 +407,8 @@ def get_configuration():
             "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/Legger_publiek_Vastgesteld_Openbaar/FeatureServer",
             "layer": 11,
             "index": "GLOBALID",
+            "bottom_height": [["IWS_AVVHOBES_L", "IWS_AVVHOBOS_L"]],
+            "bottom_width": "AVVBODDR",
         },
         "level_areas": {
             "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/WBP_Peilen/FeatureServer",
@@ -417,6 +419,20 @@ def get_configuration():
             "nan_values": 0,
             # "layer": 1,  # Peilregister voormalig Regge en Dinkel
             # "index": None,
+        },
+        "weirs": {
+            "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/Legger_publiek_Vastgesteld_Openbaar/FeatureServer",
+            "layer": 5,
+            "index": "KSTIDENT",
+            "summer_stage": "IWS_KSTZMRPL",
+            "winter_stage": "IWS_KSTWTPL",
+        },
+        "culverts": {
+            "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/Legger_publiek_Vastgesteld_Openbaar/FeatureServer",
+            "layer": 8,
+            "index": "KDUIDENT",
+            "bottom_height": [["KDUBHBO", "KDUBHBE"]],
+            "bottom_width": "KDUBREED_L",
         },
     }
 

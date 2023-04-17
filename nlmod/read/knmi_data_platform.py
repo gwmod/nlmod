@@ -57,13 +57,13 @@ def get_list_of_files(
     dataset_version: str,
     api_key: Optional[str] = None,
     max_keys: int = 500,
-    start_after_filename: Optional[str] = None,
 ) -> List[str]:
     if api_key is None:
         api_key = get_anonymous_api_key()
     # Make sure to send the API key with every HTTP request
     files = []
     is_trucated = True
+    start_after_filename = None
     while is_trucated:
         url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files"
         r = requests.get(url, headers={"Authorization": api_key})
@@ -82,7 +82,7 @@ def get_list_of_files(
 def download_file(
     dataset_name: str,
     dataset_version: str,
-    filename: str,
+    fname: str,
     dirname: str = ".",
     api_key: Optional[str] = None,
 ) -> None:
@@ -90,16 +90,16 @@ def download_file(
         api_key = get_anonymous_api_key()
     url = (
         f"{base_url}/datasets/{dataset_name}/versions/"
-        f"{dataset_version}/files/{filename}/url"
+        f"{dataset_version}/files/{fname}/url"
     )
     r = requests.get(url, headers={"Authorization": api_key})
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
-    logger.info("Download {filename} to {dirname}")
-    fname = os.path.join(dirname, filename)
+    logger.info(f"Download {fname} to {dirname}")
+    fname = os.path.join(dirname, fname)
     data = r.json()
     if "temporaryDownloadUrl" not in data:
-        raise (Exception(f"{filename} not found"))
+        raise (Exception(f"{fname} not found"))
     with requests.get(data["temporaryDownloadUrl"], stream=True) as r:
         r.raise_for_status()
         with open(fname, "wb") as f:
@@ -110,24 +110,24 @@ def download_file(
 def download_files(
     dataset_name: str,
     dataset_version: str,
-    filenames: list,
+    fnames: list,
     **kwargs: dict,
 ) -> None:
     data = []
-    for filename in tqdm(filenames):
+    for fname in tqdm(fnames):
         data.append(
             download_file(
                 dataset_name=dataset_name,
                 dataset_version=dataset_version,
-                filename=filename,
+                fname=fname,
                 **kwargs,
             )
         )
 
 
-def read_nc_knmi(filename_or_obj: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
+def read_nc_knmi(fo: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
     # could help to provide argument: engine="h5netcdf"
-    return xr.open_dataset(filename_or_obj, **kwargs)
+    return xr.open_dataset(fo, **kwargs)
 
 
 def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:

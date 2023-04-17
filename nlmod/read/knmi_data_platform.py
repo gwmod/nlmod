@@ -85,9 +85,7 @@ def download_file(
     filename: str,
     dirname: str = ".",
     api_key: Optional[str] = None,
-    read: bool = True,
-    hour: Optional[int] = None,
-) -> Union[xr.Dataset, None]:
+) -> None:
     if api_key is None:
         api_key = get_anonymous_api_key()
     url = (
@@ -107,22 +105,14 @@ def download_file(
         with open(fname, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
-    if read:
-        if fname.endswith(".nc"):
-            return read_nc_knmi(fname)
-        elif fname.endswith(".zip"):
-            return read_dataset_from_zip(fname, hour=hour)
-        else:
-            logger.warning("Unknow file type: {filename}")
 
 
 def download_files(
     dataset_name: str,
     dataset_version: str,
     filenames: list,
-    read: bool = True,
     **kwargs: dict,
-) -> Union[xr.Dataset, None]:
+) -> None:
     data = []
     for filename in tqdm(filenames):
         data.append(
@@ -130,13 +120,9 @@ def download_files(
                 dataset_name=dataset_name,
                 dataset_version=dataset_version,
                 filename=filename,
-                read=read,
                 **kwargs,
             )
         )
-
-    if read:
-        return xr.concat(data, dim="time")
 
 
 def read_nc_knmi(filename_or_obj: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
@@ -190,7 +176,7 @@ def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str
         return meta
 
 
-def read_h5_contents(h5fo: h5File) -> Tuple[h5Dataset, Dict[str, Any]]:
+def read_h5_contents(h5fo: h5File) -> Tuple[ndarray, Dict[str, Any]]:
     data = None
     meta = {}
     for ky in h5fo.keys():
@@ -285,21 +271,21 @@ def get_dataset_from_zip(
     for file in tqdm(fnames):
         if file.endswith(".nc"):
             with zipfo.open(file) as fo:
-                ds = read_nc_knmi(fo, **kwargs)
+                data.append(read_nc_knmi(fo, **kwargs))
         elif file.endswith(".h5"):
             with zipfo.open(file) as fo:
-                ds = read_h5_knmi(fo, **kwargs)
+                data.append(read_h5_knmi(fo, **kwargs))
         elif "_GB" in file:
             if isinstance(zipfo, tarfile.TarFile):
                 # memb = zipfo.getmember(file)
                 # fo = zipfo.extractfile(memb)
                 # yields TypeError: 'ExFileObject' object is not subscriptable
                 # alternative is to unpack in termporary directory
-                ds = read_grib_knmi(file, **kwargs)
+                data.append(read_grib_knmi(file, **kwargs))
             elif isinstance(zipfo, ZipFile):
                 with zipfo.open(file) as fo:
-                    ds = read_grib_knmi(fo, **kwargs)
+                    data.append(read_grib_knmi(fo, **kwargs))
         else:
             raise Exception(f"Can't read file {file}")
-        data.append(ds)
+
     return xr.concat(data, dim="time")

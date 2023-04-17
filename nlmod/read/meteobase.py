@@ -1,5 +1,4 @@
 import re
-from pandas import Timestamp
 from enum import Enum
 from io import FileIO
 from pathlib import Path
@@ -7,6 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from zipfile import ZipFile
 
 import numpy as np
+from pandas import Timestamp
 from xarray import DataArray
 
 

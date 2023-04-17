@@ -140,7 +140,8 @@ def download_files(
 
 
 def read_nc_knmi(filename_or_obj: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
-    return xr.open_dataset(filename_or_obj, engine="h5netcdf", **kwargs)
+    # could help to provide argument: engine="h5netcdf"
+    return xr.open_dataset(filename_or_obj, **kwargs)
 
 
 def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:

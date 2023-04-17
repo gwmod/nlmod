@@ -147,7 +147,7 @@ def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
     """Get the Timestamp from a filename (with some assumptions about the formatting)"""
     datestr = re.search("(_[0-9]{12})", fname)  # assumes YYYYMMDDHHMM
     if datestr is not None:
-        match = datestr.group(0)
+        match = datestr.group(0).replace("_", "")
         year = int(match[0:4])
         month = int(match[4:6])
         day = int(match[6:8])
@@ -155,6 +155,8 @@ def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
         minute = int(match[8:10])
         dtime = Timestamp(year=year, month=month, day=day, hour=hour, minute=minute)
         return dtime
+    else:
+        raise Exception("Could not fine timestamp formatted as YYYYMMDDHHMM from fname")
 
 
 def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str, Any]:
@@ -176,29 +178,26 @@ def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str
         return meta
 
 
-def read_h5_contents(fo: h5File) -> Tuple[h5Dataset, Dict[str, Any]]:
+def read_h5_contents(h5fo: h5File) -> Tuple[h5Dataset, Dict[str, Any]]:
     data = None
     meta = {}
-    for ky in fo.keys():
-        group = fo[ky]
+    for ky in h5fo.keys():
+        group = h5fo[ky]
         meta = add_h5_meta(meta, group, f"{ky}")
         for gky in group.keys():
             member = group[gky]
             meta = add_h5_meta(meta, member, f"{ky}/{gky}")
             if isinstance(member, h5Dataset):
                 if data is None:
-                    data = member
+                    data = member[:]
                 else:
                     raise Exception("h5 contains multiple Datasets")
     return data, meta
 
 
 def read_h5_knmi(fo: Union[str, FileIO]) -> xr.Dataset:
-    if isinstance(fo, str):
-        fo = h5File(fo)
-
-    data, meta = read_h5_contents(fo)
-    fo.close()
+    with h5File(fo) as h5fo:
+        data, meta = read_h5_contents(h5fo)
 
     cols = meta["geographic/geo_number_columns"]
     dx = meta["geographic/geo_pixel_size_x"]
@@ -234,11 +233,7 @@ def read_grib_knmi(
         if "errors" not in kwargs["backend_kwargs"]:
             kwargs["backend_kwargs"]["errors"] = "ignore"
 
-    return xr.open_dataset(
-        fo,
-        engine="cfgrib",
-        **kwargs,
-    )
+    return xr.open_dataset(fo, engine="cfgrib", **kwargs)
 
 
 def read_dataset_from_zip(

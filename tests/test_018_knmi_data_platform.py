@@ -1,7 +1,13 @@
+import os
+from pathlib import Path
+
 from nlmod.read import knmi_data_platform
 
 
-def test_download_multiple_nc_files():
+data_path = Path(__file__).parent / "data"
+
+
+def test_download_multiple_nc_files() -> None:
     dataset_name = "EV24"
     dataset_version = "2"
 
@@ -14,15 +20,19 @@ def test_download_multiple_nc_files():
     )
 
     # download the last 10 files
-    ds = knmi_data_platform.download_files(
-        dataset_name, dataset_version, files[-10:], dirname="download"
+    fnames = files[-10:]
+    dirname = "download"
+    knmi_data_platform.download_files(
+        dataset_name, dataset_version, files[-10:], dirname=dirname
     )
+
+    ds = knmi_data_platform.read_nc(os.path.join(dirname, fnames[0]))
 
     # plot the mean evaporation
     ds["prediction"].mean("time").plot()
 
 
-def test_download_zip_file():
+def test_download_read_zip_file() -> None:
     dataset_name = "rad_nl25_rac_mfbs_24h_netcdf4"
     dataset_version = "2.0"
 
@@ -31,9 +41,28 @@ def test_download_zip_file():
 
     # download the last file and only read the last hour of every day
     # as the data represents the precipitation in the last 24 hours
-    ds = knmi_data_platform.download_file(
-        dataset_name, dataset_version, files[-1], hour=24, dirname="download"
+    dirname = "download"
+    fname = files[-1]
+    knmi_data_platform.download_file(
+        dataset_name, dataset_version, fname=fname, dirname=dirname
+    )
+
+    ds = knmi_data_platform.read_dataset_from_zip(
+        os.path.join(dirname, files[-1]), hour=24
     )
 
     # plot the mean precipitation
     ds["image1_image_data"].mean("time").plot(size=10)
+
+
+def test_read_h5() -> None:
+    fname = data_path / "KNMI_Data_Platform_H5.zip"
+    _ = knmi_data_platform.read_dataset_from_zip(str(fname))
+
+
+def test_read_grib() -> None:
+    fname = data_path / "KNMI_Data_Platform_GRIB.tar"
+    _ = knmi_data_platform.read_dataset_from_zip(
+        str(fname),
+        filter_by_keys={"stepType": "instant", "typeOfLevel": "heightAboveGround"},
+    )

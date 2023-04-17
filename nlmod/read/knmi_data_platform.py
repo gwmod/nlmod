@@ -12,7 +12,7 @@ import xarray as xr
 from h5py import Dataset as h5Dataset
 from h5py import File as h5File
 from numpy import arange, array, ndarray
-from pandas import Timestamp, read_html
+from pandas import Timedelta, Timestamp, read_html
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -153,10 +153,21 @@ def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
         day = int(match[6:8])
         hour = int(match[8:10])
         minute = int(match[8:10])
-        dtime = Timestamp(year=year, month=month, day=day, hour=hour, minute=minute)
+        if hour == 24:
+            dtime = Timestamp(
+                year=year, month=month, day=day, hour=0, minute=minute
+            ) + Timedelta(days=1)
+        else:
+            dtime = Timestamp(year=year, month=month, day=day, hour=hour, minute=minute)
         return dtime
     else:
         raise Exception("Could not fine timestamp formatted as YYYYMMDDHHMM from fname")
+
+
+def check_hour(fnames: List[str], hour: int) -> List[str]:
+    if hour == 24:
+        hour = 0
+    return [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
 
 
 def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str, Any]:
@@ -240,26 +251,27 @@ def read_dataset_from_zip(
     fname: str, hour: Optional[int] = None, **kwargs: dict
 ) -> xr.Dataset:
     if fname.endswith(".zip"):
-        zipfo = ZipFile(fname)
-        fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
+        with ZipFile(fname) as zipfo:
+            fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
+            if hour is not None:
+                fnames = check_hour(fnames=fnames, hour=hour)
+            ds = get_dataset_from_zip(zipfo=zipfo, fnames=fnames, **kwargs)
+
     elif fname.endswith(".tar"):
-        zipfo = tarfile.open(fname)
-        tempdir = TemporaryDirectory()
-        logger.info(f"Created temporary dir {tempdir}")
-        zipfo.extractall(tempdir.name)
-        fnames = sorted(
-            [
-                os.path.join(tempdir.name, x)
-                for x in zipfo.getnames()
-                if not x.endswith("/")
-            ]
-        )
-
-    if hour is not None:
-        fnames = [x for x in fnames if get_timestamp_from_fname(x).hour == hour]
-
-    ds = get_dataset_from_zip(zipfo=zipfo, fnames=fnames, **kwargs)
-    zipfo.close()
+        with tarfile.open(fname) as tarfo:
+            tempdir = TemporaryDirectory()
+            logger.info(f"Created temporary dir {tempdir}")
+            tarfo.extractall(tempdir.name)
+            fnames = sorted(
+                [
+                    os.path.join(tempdir.name, x)
+                    for x in tarfo.getnames()
+                    if not x.endswith("/")
+                ]
+            )
+            if hour is not None:
+                fnames = check_hour(fnames, hour=hour)
+            ds = get_dataset_from_zip(zipfo=tarfo, fnames=fnames, **kwargs)
     return ds
 
 
@@ -277,7 +289,6 @@ def get_dataset_from_zip(
             with zipfo.open(file) as fo:
                 ds = read_h5_knmi(fo, **kwargs)
         elif "_GB" in file:
-            pass
             if isinstance(zipfo, tarfile.TarFile):
                 # memb = zipfo.getmember(file)
                 # fo = zipfo.extractfile(memb)
@@ -287,9 +298,7 @@ def get_dataset_from_zip(
             elif isinstance(zipfo, ZipFile):
                 with zipfo.open(file) as fo:
                     ds = read_grib_knmi(fo, **kwargs)
-
         else:
             raise Exception(f"Can't read file {file}")
         data.append(ds)
-
     return xr.concat(data, dim="time")

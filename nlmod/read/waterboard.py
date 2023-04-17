@@ -420,7 +420,7 @@ def get_configuration():
         "watercourses": {
             "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/Legger_publiek_Vastgesteld_Openbaar/FeatureServer",
             "layer": 11,
-            "index": "GLOBALID",
+            "index": "OVKIDENT",
             "bottom_height": [["IWS_AVVHOBES_L", "IWS_AVVHOBOS_L"]],
             "bottom_width": "AVVBODDR",
         },

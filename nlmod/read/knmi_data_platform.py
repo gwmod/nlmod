@@ -2,10 +2,10 @@ import logging
 import os
 import re
 import tarfile
-import zipfile
 from io import FileIO
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple, Union
+from zipfile import ZipFile
 
 import requests
 import xarray as xr
@@ -245,7 +245,7 @@ def read_dataset_from_zip(
     fname: str, hour: Optional[int] = None, **kwargs: dict
 ) -> xr.Dataset:
     if fname.endswith(".zip"):
-        zipfo = zipfile.open(fname)
+        zipfo = ZipFile(fname)
         fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
     elif fname.endswith(".tar"):
         zipfo = tarfile.open(fname)
@@ -269,7 +269,7 @@ def read_dataset_from_zip(
 
 
 def get_dataset_from_zip(
-    zipfo: Union[zipfile.ZipFile, tarfile.TarFile],
+    zipfo: Union[ZipFile, tarfile.TarFile],
     fnames: List[str],
     **kwargs: dict,
 ) -> xr.Dataset:
@@ -289,7 +289,7 @@ def get_dataset_from_zip(
                 # yields TypeError: 'ExFileObject' object is not subscriptable
                 # alternative is to unpack in termporary directory
                 ds = read_grib_knmi(file, **kwargs)
-            elif isinstance(zipfo, zipfile.ZipFile):
+            elif isinstance(zipfo, ZipFile):
                 with zipfo.open(file) as fo:
                     ds = read_grib_knmi(fo, **kwargs)
 
@@ -298,12 +298,3 @@ def get_dataset_from_zip(
         data.append(ds)
 
     return xr.concat(data, dim="time")
-
-
-if __name__ == "__main__":
-    fname = "harm40_v1_p3_2023041300.tar"
-    # tarf = tarfile.open(fname)
-    read_dataset_from_zip(
-        fname,
-        filter_by_keys={"stepType": "instant", "typeOfLevel": "heightAboveGround"},
-    )

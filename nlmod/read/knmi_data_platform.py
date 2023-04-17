@@ -109,18 +109,17 @@ def download_file(
 def download_files(
     dataset_name: str,
     dataset_version: str,
-    fnames: list,
-    **kwargs: dict,
+    fnames: List[str],
+    dirname: str = ".",
+    api_key: Optional[str] = None,
 ) -> None:
-    data = []
     for fname in tqdm(fnames):
-        data.append(
-            download_file(
-                dataset_name=dataset_name,
-                dataset_version=dataset_version,
-                fname=fname,
-                **kwargs,
-            )
+        download_file(
+            dataset_name=dataset_name,
+            dataset_version=dataset_version,
+            fname=fname,
+            dirname=dirname,
+            api_key=api_key,
         )
 
 
@@ -257,7 +256,6 @@ def read_dataset(
     hour: Optional[int] = None,
     **kwargs: dict,
 ) -> xr.Dataset:
-
     if hour is not None:
         if hour == 24:
             hour = 0

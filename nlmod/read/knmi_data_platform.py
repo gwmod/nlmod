@@ -57,13 +57,12 @@ def get_list_of_files(
     dataset_version: str,
     api_key: Optional[str] = None,
     max_keys: int = 500,
+    start_after_filename: Optional[str] = None,
 ) -> List[str]:
     if api_key is None:
         api_key = get_anonymous_api_key()
-    # Make sure to send the API key with every HTTP request
     files = []
     is_trucated = True
-    start_after_filename = None
     while is_trucated:
         url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files"
         r = requests.get(url, headers={"Authorization": api_key})
@@ -71,9 +70,9 @@ def get_list_of_files(
         if start_after_filename is not None:
             params["startAfterFilename"] = start_after_filename
         r = requests.get(url, params=params, headers={"Authorization": api_key})
-        json = r.json()
-        files.extend([x["filename"] for x in json["files"]])
-        is_trucated = json["isTruncated"]
+        rjson = r.json()
+        files.extend([x["filename"] for x in rjson["files"]])
+        is_trucated = rjson["isTruncated"]
         start_after_filename = files[-1]
         logger.debug(f"Listed files untill {start_after_filename}")
     return files
@@ -125,7 +124,7 @@ def download_files(
         )
 
 
-def read_nc_knmi(fo: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
+def read_nc(fo: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
     # could help to provide argument: engine="h5netcdf"
     return xr.open_dataset(fo, **kwargs)
 
@@ -193,7 +192,7 @@ def read_h5_contents(h5fo: h5File) -> Tuple[ndarray, Dict[str, Any]]:
     return data, meta
 
 
-def read_h5_knmi(fo: Union[str, FileIO]) -> xr.Dataset:
+def read_h5(fo: Union[str, FileIO]) -> xr.Dataset:
     with h5File(fo) as h5fo:
         data, meta = read_h5_contents(h5fo)
 
@@ -218,7 +217,7 @@ def read_h5_knmi(fo: Union[str, FileIO]) -> xr.Dataset:
     return ds
 
 
-def read_grib_knmi(
+def read_grib(
     fo: Union[str, FileIO], filter_by_keys=None, **kwargs: dict
 ) -> xr.Dataset:
     if kwargs is None:
@@ -242,7 +241,7 @@ def read_dataset_from_zip(
             fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
             if hour is not None:
                 fnames = check_hour(fnames=fnames, hour=hour)
-            ds = get_dataset_from_zip(zipfo=zipfo, fnames=fnames, **kwargs)
+            ds = read_dataset(fnames=fnames, zipfo=zipfo, **kwargs)
 
     elif fname.endswith(".tar"):
         with tarfile.open(fname) as tarfo:
@@ -258,33 +257,35 @@ def read_dataset_from_zip(
             )
             if hour is not None:
                 fnames = check_hour(fnames, hour=hour)
-            ds = get_dataset_from_zip(zipfo=tarfo, fnames=fnames, **kwargs)
+            ds = read_dataset(fnames=fnames, zipfo=tarfo, **kwargs)
     return ds
 
 
-def get_dataset_from_zip(
-    zipfo: Union[ZipFile, tarfile.TarFile],
+def read_dataset(
     fnames: List[str],
+    zipfo: Union[None, ZipFile, tarfile.TarFile] = None,
     **kwargs: dict,
 ) -> xr.Dataset:
     data = []
     for file in tqdm(fnames):
+        if zipfo is not None:
+            if isinstance(zipfo, ZipFile):
+                fo = zipfo.open(file)
+        else:
+            fo = file
         if file.endswith(".nc"):
-            with zipfo.open(file) as fo:
-                data.append(read_nc_knmi(fo, **kwargs))
+            data.append(read_nc(fo, **kwargs))
         elif file.endswith(".h5"):
-            with zipfo.open(file) as fo:
-                data.append(read_h5_knmi(fo, **kwargs))
+            data.append(read_h5(fo, **kwargs))
         elif "_GB" in file:
             if isinstance(zipfo, tarfile.TarFile):
                 # memb = zipfo.getmember(file)
                 # fo = zipfo.extractfile(memb)
                 # yields TypeError: 'ExFileObject' object is not subscriptable
                 # alternative is to unpack in termporary directory
-                data.append(read_grib_knmi(file, **kwargs))
+                data.append(read_grib(file, **kwargs))
             elif isinstance(zipfo, ZipFile):
-                with zipfo.open(file) as fo:
-                    data.append(read_grib_knmi(fo, **kwargs))
+                data.append(read_grib(fo, **kwargs))
         else:
             raise Exception(f"Can't read file {file}")
 

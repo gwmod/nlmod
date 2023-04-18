@@ -32,6 +32,7 @@ setup(
     install_requires=[
         "flopy>=3.3.6",
         "xarray>=0.16.1",
+        "netcdf4>=1.5.7",
         "rasterio>=1.1.0",
         "rioxarray",
         "affine>=0.3.1",
@@ -39,7 +40,6 @@ setup(
         "owslib>=0.24.1",
         "hydropandas>=0.7.1",
         "shapely>=2.0.0",
-        "netcdf4>=1.5.7",
         "pyshp>=2.1.3",
         "rtree>=0.9.7",
         "matplotlib",

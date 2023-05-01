@@ -56,10 +56,10 @@ documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 full = ["gdown", "rasterstats", "geocube", "gdown", "bottleneck", "contextily"]
-test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
+test = ["pytest>=7", "pytest-cov", "pytest-dependency", "nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]
 ci = ["nlmod[full,lint,test]"]
-rtd = ["nbconvert>6.4.5", "netCDF4==1.5.7"]
+rtd = ["nbsphinx", "nbconvert>6.4.5", "netCDF4==1.5.7"]
 
 [tool.setuptools.dynamic]
 version = { attr = "nlmod.version.__version__" }

@@ -307,7 +307,11 @@ def get_structured_grid_ds(
 
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
 
-    coords = dict(x=xcenters, y=ycenters, layer=range(nlay))
+    coords = {
+        "x": xcenters,
+        "y": ycenters,
+        "layer": range(nlay),
+    }
     if angrot != 0.0:
         affine = resample.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(xcenters, ycenters)
@@ -407,7 +411,7 @@ def get_vertex_grid_ds(
     else:
         layers = nlay
 
-    coords = dict(x=x, y=y, layer=layers)
+    coords = {"x": x, "y": y, "layer": layers}
     dims = ("layer", "icell2d")
     ds = xr.Dataset(
         data_vars=dict(

@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 
 import flopy
 import numpy as np
@@ -7,10 +8,8 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Point
 
-import warnings
-
-from ..dims.resample import get_affine, get_xy_mid_structured
 from ..dims.grid import modelgrid_from_ds
+from ..dims.resample import get_affine, get_xy_mid_structured
 
 logger = logging.getLogger(__name__)
 
@@ -145,8 +144,7 @@ def _get_cbc(ds=None, gwf=None, fname_cbc=None):
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):
-    """
-    Get the groundwater level from a multi-dimensional head array where dry
+    """Get the groundwater level from a multi-dimensional head array where dry
     cells are NaN. This methods finds the most upper non-nan-value of each cell
     or timestep.
 
@@ -167,7 +165,6 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
     -------
     gwl : numpy-array
         An array of the groundwater-level, without the layer-dimension.
-
     """
     if isinstance(head, xr.DataArray):
         head_da = head
@@ -194,8 +191,7 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
 
 
 def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
-    """
-    Get the head at a certain point from a head DataArray for all cells.
+    """Get the head at a certain point from a head DataArray for all cells.
 
     Parameters
     ----------
@@ -220,7 +216,6 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
     -------
     head_point : xarray.DataArray
         A DataArray with dimensions (time, layer).
-
     """
     if "icell2d" in head.dims:
         if gi is None:
@@ -335,8 +330,7 @@ def calculate_gxg(
     below_surfacelevel: bool = False,
     tolerance: pd.Timedelta = pd.Timedelta(days=7),
 ) -> xr.DataArray:
-    """
-    Calculate GxG groundwater characteristics from head time series.
+    """Calculate GxG groundwater characteristics from head time series.
 
     GLG and GHG (average lowest and average highest groundwater level respectively) are
     calculated as the average of the three lowest (GLG) or highest (GHG) head values per
@@ -350,7 +344,7 @@ def calculate_gxg(
 
     This method is copied from imod-python, and edited so that head-DataArray does not
     need to contain dimensions 'x' and 'y', so this method also works for refined grids.
-    THe original method can be found in:
+    The original method can be found in:
     https://gitlab.com/deltares/imod/imod-python/-/blob/master/imod/evaluate/head.py
 
     Parameters
@@ -380,7 +374,6 @@ def calculate_gxg(
     >>> import nlmod
     >>> head = nlmod.gwf.get_heads_da(ds)
     >>> gxg = nlmod.evaluate.calculate_gxg(head)
-
     """
     # if not head.dims == ("time", "y", "x"):
     #    raise ValueError('Dimensions must be ("time", "y", "x")')

@@ -1,5 +1,4 @@
 import re
-from pandas import Timestamp
 from enum import Enum
 from io import FileIO
 from pathlib import Path
@@ -7,11 +6,13 @@ from typing import Dict, List, Optional, Tuple, Union
 from zipfile import ZipFile
 
 import numpy as np
+from pandas import Timestamp
 from xarray import DataArray
 
 
 class MeteobaseType(Enum):
-    """Enum class to couple folder names to observation type (from in LEESMIJ.txt)"""
+    """Enum class to couple folder names to observation type (from in
+    LEESMIJ.txt)"""
 
     NEERSLAG = "Neerslagradargegevens in Arc/Info-formaat."
     MAKKINK = "Verdampingsgegevens volgens Makkink."
@@ -21,7 +22,7 @@ class MeteobaseType(Enum):
 
 
 def read_leesmij(fo: FileIO) -> Dict[str, Dict[str, str]]:
-    """Read LEESMIJ.TXT file
+    """Read LEESMIJ.TXT file.
 
     Parameters
     ----------
@@ -55,7 +56,8 @@ def read_leesmij(fo: FileIO) -> Dict[str, Dict[str, str]]:
 
 
 def get_timestamp_from_fname(fname: str) -> Timestamp:
-    """Get the Timestamp from a filename (with some assumptions about the formatting)"""
+    """Get the Timestamp from a filename (with some assumptions about the
+    formatting)"""
     datestr = re.search("([0-9]{8})", fname)  # assumes YYYYMMDD
     if datestr is not None:
         match = datestr.group(0)
@@ -75,7 +77,7 @@ def get_timestamp_from_fname(fname: str) -> Timestamp:
 
 
 def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
-    """Read Esri ASCII raster format file
+    """Read Esri ASCII raster format file.
 
     Parameters
     ----------
@@ -86,7 +88,6 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
     -------
     Union[np.ndarray, dict]
         Numpy array with data and header meta
-
     """
     # read file
     lines = fo.readlines()
@@ -119,7 +120,7 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
 def get_xy_from_ascii_meta(
     meta: Dict[str, Union[int, float]]
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Get the xy coordinates Esri ASCII raster format header
+    """Get the xy coordinates Esri ASCII raster format header.
 
     Parameters
     ----------
@@ -135,7 +136,6 @@ def get_xy_from_ascii_meta(
     -------
     Tuple[np.ndarray, np.ndarray]
         Tuple with the the x and y coordinates as numpy array
-
     """
 
     if "xllcorner" in meta.keys():
@@ -167,7 +167,7 @@ def get_xy_from_ascii_meta(
 def read_meteobase_ascii(
     zfile: ZipFile, foldername: str, meta: Dict[str, str]
 ) -> DataArray:
-    """Read list of .asc files in a meteobase zipfile
+    """Read list of .asc files in a meteobase zipfile.
 
     Parameters
     ----------
@@ -221,7 +221,7 @@ def read_meteobase_ascii(
 def read_meteobase(
     path: Union[Path, str], meteobase_type: Optional[str] = None
 ) -> List[DataArray]:
-    """Read Meteobase zipfile with ASCII data
+    """Read Meteobase zipfile with ASCII data.
 
     Parameters
     ----------

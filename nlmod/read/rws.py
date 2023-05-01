@@ -31,7 +31,7 @@ def get_gdf_surface_water(ds):
         surface water geodataframe.
     """
     # laad bestanden in
-    fname = os.path.join(nlmod.NLMOD_DATADIR, "opp_water.shp")
+    fname = os.path.join(nlmod.NLMOD_DATADIR, "shapes", "opp_water.shp")
     gdf_swater = gpd.read_file(fname)
     extent = dims.get_extent(ds)
     gdf_swater = util.gdf_within_extent(gdf_swater, extent)

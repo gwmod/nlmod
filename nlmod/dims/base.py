@@ -78,7 +78,7 @@ def to_model_ds(
     transport=False,
 ):
     """Transform an input dataset to a groundwater model dataset.
-    
+
     Optionally select a different grid size.
 
     Parameters
@@ -294,7 +294,7 @@ def get_structured_grid_ds(
         The dataset also includes the attributes specified in the `attrs`
         dictionary, and a coordinate reference system specified by `crs`, if
         provided.
-    """    
+    """
 
     if attrs is None:
         attrs = {}

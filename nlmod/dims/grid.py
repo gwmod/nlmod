@@ -1329,8 +1329,9 @@ def gdf_to_grid(
     desc="Intersecting with grid",
     **kwargs,
 ):
-    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method is a
-    wrapper around the GridIntersect method from flopy.
+    """Intersect a geodataframe with the grid of a MODFLOW model. 
+    
+    Note: This method is a wrapper around the GridIntersect method in flopy.
 
     Parameters
     ----------

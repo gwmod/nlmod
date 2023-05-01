@@ -26,7 +26,7 @@ from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
-from .base import extrapolate_ds
+from .base import extrapolate_ds, get_structured_grid_ds, get_vertex_grid_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
@@ -169,6 +169,67 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     ds["icvert"] = ("icell2d", "icv"), icvert
     ds["icvert"].attrs["_FillValue"] = nodata
+    return ds
+
+
+def modelgrid_to_ds(mg):
+    """Create Dataset from flopy modelgrid object.
+
+    Parameters
+    ----------
+    mg : flopy.discretization.Grid
+        flopy modelgrid object
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        Dataset containing grid information
+    """
+    if mg.grid_type == "structured":
+        x, y = mg.xyedges
+
+        ds = get_structured_grid_ds(
+            xedges=x,
+            yedges=y,
+            nlay=mg.nlay,
+            botm=mg.botm,
+            top=mg.top,
+            xorigin=0.0,
+            yorigin=0.0,
+            angrot=mg.angrot,
+            attrs=None,
+            crs=None,
+        )
+    elif mg.grid_type == "vertex":
+        nodata = -1  # no data value for vertex indices
+
+        ds = get_vertex_grid_ds(
+            x=mg.xcellcenters,
+            y=mg.ycellcenters,
+            xv=mg.verts[:, 0],
+            yv=mg.verts[:, 1],
+            extent=mg.extent,
+            nlay=mg.nlay,
+            angrot=mg.angrot,
+            xorigin=np.min(mg.xvertices),
+            yorigin=np.min(mg.yvertices),
+            botm=mg.botm,
+            top=mg.top,
+            attrs=None,
+            crs=None,
+        )
+
+        # set extra grid information
+        cell2d = mg.cell2d
+        ncvert_max = np.max([x[3] for x in cell2d])
+        icvert = np.full((mg.ncpl, ncvert_max), nodata)
+        for i in range(mg.ncpl):
+            icvert[i, : cell2d[i][3]] = cell2d[i][4:]
+        ds["icvert"] = ("icell2d", "icv"), icvert
+        ds["icvert"].attrs["_FillValue"] = nodata
+    else:
+        raise NotImplementedError(f"Grid type '{mg.grid_type}' not supported!")
+
     return ds
 
 
@@ -390,7 +451,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
 
 
 def get_xyi_icell2d(gridprops=None, ds=None):
-    """Get x and y coördinates of the cell mids from the cellids in the grid
+    """Get x and y coordinates of the cell mids from the cellids in the grid
     properties.
 
     Parameters

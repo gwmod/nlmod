@@ -89,15 +89,30 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
     Union[np.ndarray, dict]
         Numpy array with data and header meta
     """
+    ascii_header_keys = [
+        "ncols",
+        "nrows",
+        "nodata_value",
+        "xllcorner",
+        "yllcorner",
+        "cellsize",
+        "xllcenter",
+        "yllcenter",
+    ]
+
     # read file
     lines = fo.readlines()
 
     # extract header
     meta = {}
-    for line in lines[0:6]:
-        l1, l2 = str(line, encoding="utf-8").split()
+    line_cnt = 0
+    for line in lines:
+        linestr = str(line, encoding="utf-8").lower()
+        if not any([x for x in ascii_header_keys if x in str(linestr)]):
+            break
+        l1, l2 = linestr.split()
         if l1.lower() in ("ncols", "nrows", "nodata_value"):
-            l2 = int(l2)
+            meta[l1] = int(l2)
         elif l1.lower() in (
             "xllcorner",
             "yllcorner",
@@ -105,14 +120,11 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
             "xllcenter",
             "yllcenter",
         ):
-            l2 = float(l2)
-        else:
-            raise ValueError(f"Found unknown key '{l1}' in ASCII header")
-
-        meta[l1.lower()] = l2
+            meta[l1] = float(l2)
+        line_cnt += 1
 
     # extract data
-    data = np.array([x.split() for x in lines[6:]], dtype=float)
+    data = np.array([x.split() for x in lines[line_cnt:]], dtype=float)
 
     return data, meta
 

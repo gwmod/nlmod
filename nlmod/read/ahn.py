@@ -207,9 +207,10 @@ def get_ahn_from_wcs(
 def get_ahn2_tiles(extent=None):
     """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame.
 
-    The links in the tiles are cuurently incorrect. Thereore get_ahn3_tiles is used in
-    get_ahn2 and get_ahn1, as the tiles from get_ahn3_tiles also contain information
-    about the tiles of ahn1 and ahn2
+    The links in the tiles are cuurently incorrect. Thereore
+    get_ahn3_tiles is used in get_ahn2 and get_ahn1, as the tiles from
+    get_ahn3_tiles also contain information about the tiles of ahn1 and
+    ahn2
     """
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN2/FeatureServer"
     layer = 0
@@ -334,7 +335,7 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
 
 
 def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
-    """Internal method to download and combine ahn-data"""
+    """Internal method to download and combine ahn-data."""
     if tiles.empty:
         raise (Exception(f"{identifier} has no data for requested extent"))
     datasets = []

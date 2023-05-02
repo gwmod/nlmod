@@ -173,7 +173,7 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
 
 
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
-    """Gridprops is a dictionairy containing keyword arguments needed to
+    """Gridprops is a dictionary containing keyword arguments needed to
     generate a flopy modelgrid instance."""
     _, xv, yv = zip(*gridprops["vertices"])
     ds["xv"] = ("iv", np.array(xv))

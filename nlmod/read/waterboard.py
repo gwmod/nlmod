@@ -287,8 +287,22 @@ def get_configuration():
             "layer": 10,
             "index": "OVKIDENT",
             # "f": "json",
-            "bottom_height": ["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"],
+            "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
             "bottom_width": "AVVBODDR",
+        },
+        "culverts": {
+            "url": "https://opengeo.wrij.nl/arcgis/rest/services/VigerendeLegger/MapServer",
+            "layer": 7,
+            "index": "KDUIDENT",
+            "bottom_height": [["KDUBOKBO_L", "KDUBOKBE_L"]],
+            "bottom_width": "KDUBREED_L",
+        },
+        "weirs": {
+            "url": "https://opengeo.wrij.nl/arcgis/rest/services/VigerendeLegger/MapServer",
+            "layer": 5,
+            "index": "KSTIDENT",
+            "summer_stage": "IWS_KSTZMRPL",
+            "winter_stage": "IWS_KSTWTPL",
         },
     }
 
@@ -406,7 +420,9 @@ def get_configuration():
         "watercourses": {
             "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/Legger_publiek_Vastgesteld_Openbaar/FeatureServer",
             "layer": 11,
-            "index": "GLOBALID",
+            "index": "OVKIDENT",
+            "bottom_height": [["IWS_AVVHOBES_L", "IWS_AVVHOBOS_L"]],
+            "bottom_width": "AVVBODDR",
         },
         "level_areas": {
             "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/WBP_Peilen/FeatureServer",
@@ -417,6 +433,20 @@ def get_configuration():
             "nan_values": 0,
             # "layer": 1,  # Peilregister voormalig Regge en Dinkel
             # "index": None,
+        },
+        "weirs": {
+            "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/Legger_publiek_Vastgesteld_Openbaar/FeatureServer",
+            "layer": 5,
+            "index": "KSTIDENT",
+            "summer_stage": "IWS_KSTZMRPL",
+            "winter_stage": "IWS_KSTWTPL",
+        },
+        "culverts": {
+            "url": "https://services1.arcgis.com/3RkP6F5u2r7jKHC9/arcgis/rest/services/Legger_publiek_Vastgesteld_Openbaar/FeatureServer",
+            "layer": 8,
+            "index": "KDUIDENT",
+            "bottom_height": [["KDUBHBO", "KDUBHBE"]],
+            "bottom_width": "KDUBREED_L",
         },
     }
 
@@ -526,24 +556,16 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
             gdf = gdf.set_index(index)
 
     # set a value for summer_stage and winter_stage or bottom_height and water_depth
-    if data_kind == "level_areas":
-        summer_stage = []
-        if "summer_stage" in conf:
-            summer_stage = conf["summer_stage"]
-        gdf = _set_column_from_columns(gdf, "summer_stage", summer_stage)
-        winter_stage = []
-        if "winter_stage" in conf:
-            winter_stage = conf["winter_stage"]
-        gdf = _set_column_from_columns(gdf, "winter_stage", winter_stage)
-    elif data_kind == "watercourses":
-        bottom_height = []
-        if "bottom_height" in conf:
-            bottom_height = conf["bottom_height"]
-        gdf = _set_column_from_columns(gdf, "bottom_height", bottom_height)
-        water_depth = []
-        if "water_depth" in conf:
-            water_depth = conf["water_depth"]
-        gdf = _set_column_from_columns(gdf, "water_depth", water_depth)
+    if data_kind in ["level_areas", "weirs"]:
+        set_columns = ["summer_stage", "winter_stage"]
+    elif data_kind in ["watercourses", "culverts"]:
+        set_columns = ["bottom_height", "water_depth"]
+    else:
+        set_columns = []
+
+    for set_column in set_columns:
+        from_columns = conf[set_column] if set_column in conf else []
+        gdf = _set_column_from_columns(gdf, set_column, from_columns)
     return gdf
 
 

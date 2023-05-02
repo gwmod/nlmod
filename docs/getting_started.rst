@@ -102,17 +102,23 @@ these packages during installation, refer to
 `this page <https://github.com/ArtesiaWater/hydropandas#dependencies>`_ for
 potential solutions.
 
-- xarray
-- geopandas
-- shapely
 - flopy
+- xarray
+- netcdf4
 - rasterio
 - rioxarray
 - affine
+- geopandas
 - owslib
-- netcdf4
-- mfpymake
 - hydropandas
+- shapely
+- pyshp
+- rtree
+- matplotlib
 - dask
 - colorama
-- matplotlib
+
+On top of that there are some optional dependecies, only needed (and imported) in a single method:
+
+- bottleneck (used in calculate_gxg)
+-  geocube (used in add_min_ahn_to_gdf)

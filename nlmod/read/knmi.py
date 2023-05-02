@@ -98,10 +98,8 @@ def get_recharge(ds, method="linear"):
             ]
 
             # calculate recharge time series
-            prec = oc_knmi_prec.loc[prec_stn,
-                                    "obs"]["RD"].resample('D').nearest()
-            evap = oc_knmi_evap.loc[evap_stn,
-                                    "obs"]["EV24"].resample('D').nearest()
+            prec = oc_knmi_prec.loc[prec_stn, "obs"]["RD"].resample("D").nearest()
+            evap = oc_knmi_evap.loc[evap_stn, "obs"]["EV24"].resample("D").nearest()
             ts = (prec - evap).dropna()
             ts.name = f"{prec.name}-{evap.name}"
 
@@ -132,8 +130,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     """Add a timeseries to a variable at location loc_sel in model DataSet."""
     end = pd.Timestamp(ds.time.data[-1])
     if timeseries.index[-1] < end:
-        raise ValueError(
-            f"no recharge available at {timeseries.name} for date {end}")
+        raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
 
     # fill recharge data array
     model_recharge = pd.Series(index=ds.time, dtype=float)
@@ -152,8 +149,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
             raise (Exception("There are NaN-values in {variable}"))
 
     # add data to ds
-    values = np.repeat(
-        model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)
+    values = np.repeat(model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)
     if ds.gridtype == "structured":
         ds[variable].data[:, loc_sel.row, loc_sel.col] = values
     elif ds.gridtype == "vertex":

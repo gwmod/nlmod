@@ -134,10 +134,9 @@ def get_concentration_da(ds=None, gwt=None, fname_conc=None):
 
 
 def get_concentration_at_gw_surface(conc, layer="layer"):
-    """
-    Get the concentration level from a multi-dimensional concentration array
-    where dry or inactive cells are NaN. This methods finds the most upper
-    non-nan-value of each cell or timestep.
+    """Get the concentration level from a multi-dimensional concentration array
+    where dry or inactive cells are NaN. This methods finds the most upper non-
+    nan-value of each cell or timestep.
 
     Parameters
     ----------
@@ -153,7 +152,6 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
     -------
     ctop : numpy-array or xr.DataArray
         an array of the top level concentration, without the layer-dimension.
-
     """
     if isinstance(conc, xr.DataArray):
         conc_da = conc

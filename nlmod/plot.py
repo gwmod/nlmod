@@ -198,7 +198,8 @@ def facet_plot_ds(
     for key in plot_bc:
         if key not in gwf.get_package_list():
             raise ValueError(
-                f"cannot plot boundary condition {key} because it is not in the package list"
+                f"cannot plot boundary condition {key} "
+                "because it is not in the package list"
             )
 
     nlay = len(model_ds.layer)
@@ -402,8 +403,7 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
 
 
 def get_patches(ds, rotated=False):
-    """Get the matplotlib patches for a vertex grid, which can be used in
-    da()"""
+    """Get the matplotlib patches for a vertex grid."""
     assert "icell2d" in ds.dims
     xy = np.column_stack((ds["xv"].data, ds["yv"].data))
     if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
@@ -647,8 +647,7 @@ def title_inside(
 def geotop_lithok_in_cross_section(
     line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, **kwargs
 ):
-    """
-    PLot the lithoclass-data of GeoTOP in a cross-section
+    """PLot the lithoclass-data of GeoTOP in a cross-section.
 
     Parameters
     ----------
@@ -676,7 +675,6 @@ def geotop_lithok_in_cross_section(
     -------
     cs : DatasetCrossSection
         The instance of DatasetCrossSection that is used to plot the cross-section.
-
     """
     if ax is None:
         ax = plt.gca()

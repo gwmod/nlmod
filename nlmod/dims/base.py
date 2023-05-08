@@ -298,9 +298,16 @@ def get_structured_grid_ds(
 
     if attrs is None:
         attrs = {}
+    attrs.update({"gridtype": "structured"})
 
     # get extent from local grid edge coordinates
-    extent = [np.min(xedges), np.max(xedges), np.min(yedges), np.max(yedges)]
+    extent = [
+        np.min(xedges),
+        np.max(xedges),
+        np.min(yedges),
+        np.max(yedges),
+    ]
+
     # calculate centers
     xcenters = xedges[:-1] + np.diff(xedges) / 2.0
     ycenters = yedges[:-1] + np.diff(yedges) / 2.0
@@ -308,8 +315,8 @@ def get_structured_grid_ds(
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
 
     coords = {
-        "x": xcenters,
-        "y": ycenters,
+        "x": xorigin + xcenters,
+        "y": yorigin + ycenters,
         "layer": range(nlay),
     }
     if angrot != 0.0:
@@ -327,6 +334,18 @@ def get_structured_grid_ds(
         coords=coords,
         attrs=attrs,
     )
+    # set delr and delc
+    delr = np.diff(xedges)
+    if len(np.unique(delr)) == 1:
+        ds.attrs["delr"] = np.unique(delr)[0]
+    else:
+        ds["delr"] = ("x"), delr
+    delc = -np.diff(yedges)
+    if len(np.unique(delc)) == 1:
+        ds.attrs["delc"] = np.unique(delc)[0]
+    else:
+        ds["delc"] = ("y"), delc
+
     if crs is not None:
         ds.rio.set_crs(crs)
     return ds
@@ -403,7 +422,13 @@ def get_vertex_grid_ds(
         attrs = {}
 
     attrs.update(
-        {"extent": extent, "angrot": angrot, "xorigin": xorigin, "yorigin": yorigin}
+        {
+            "extent": extent,
+            "angrot": angrot,
+            "xorigin": xorigin,
+            "yorigin": yorigin,
+            "gridtype": "vertex",
+        }
     )
 
     if isinstance(nlay, int):

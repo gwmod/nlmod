@@ -1,6 +1,6 @@
 import logging
 import xml.etree.ElementTree as ET
-
+from io import BytesIO
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -209,13 +209,13 @@ def wfs(
         params["count"] = max_record_count
         for ip in range(int(np.ceil(n / max_record_count))):
             params["startindex"] = ip * max_record_count
-            req_url = requests.Request("GET", url, params=params).prepare().url
-            gdfs.append(gpd.read_file(req_url, driver=driver))
+            request = requests.get(url, params=params)
+            gdfs.append(gpd.read_file(BytesIO(request.content), driver=driver))
         gdf = pd.concat(gdfs).reset_index(drop=True)
     else:
         # download all features in one go
-        req_url = requests.Request("GET", url, params=params).prepare().url
-        gdf = gpd.read_file(req_url, driver=driver)
+        request = requests.get(url, params=params)
+        gdf = gpd.read_file(BytesIO(request.content), driver=driver)
 
     return gdf
 

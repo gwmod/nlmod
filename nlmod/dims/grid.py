@@ -8,7 +8,7 @@
 """
 import logging
 import warnings
-
+import os
 import flopy
 import geopandas as gpd
 import numpy as np
@@ -267,7 +267,9 @@ def refine(
         exe_name = util.get_exe_path("gridgen")
 
     if model_ws is None:
-        model_ws = ds.model_ws
+        model_ws = os.path.join(ds.model_ws, "gridgen")
+    if not os.path.isdir(model_ws):
+        os.makedirs(model_ws)
 
     if version.parse(flopy.__version__) < version.parse("3.3.6"):
         sim = flopy.mf6.MFSimulation()

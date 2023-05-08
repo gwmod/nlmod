@@ -94,7 +94,7 @@ def get_recharge(ds, method="linear", most_common_station=False):
             # calculate recharge time series
             index = oc_knmi_prec.index[oc_knmi_prec.station == stn_rd][0]
             prec = oc_knmi_prec.loc[index, "obs"]["RD"].resample("D").nearest()
-            index = oc_knmi_evap.index[oc_knmi_evap.station == stn_rd][0]
+            index = oc_knmi_evap.index[oc_knmi_evap.station == stn_ev24][0]
             evap = oc_knmi_evap.loc[index, "obs"]["EV24"].resample("D").nearest()
             ts = (prec - evap).dropna()
             ts.name = f"{prec.name}-{evap.name}"

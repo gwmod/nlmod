@@ -55,7 +55,7 @@ def get_recharge(ds, method="linear", most_common_station=False):
     if "time" not in ds:
         raise (
             AttributeError(
-                "'Dataset' object has no attribute 'time'. "
+                "'Dataset' object has no 'time' dimension. "
                 "Please run nlmod.time.set_ds_time()"
             )
         )
@@ -261,12 +261,14 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
     locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="EV24")
     if most_common_station:
         if ds.gridtype == "structured":
-            raise (
-                Exception("Most_common_station not yet supported for structured grids")
-            )
-        locations["area"] = ds["area"].loc[locations.index]
-        locations["stn_rd"] = locations.groupby("stn_rd").sum()["area"].idxmax()
-        locations["stn_ev24"] = locations.groupby("stn_ev24").sum()["area"].idxmax()
+            # set the most common station to all locations
+            locations["stn_rd"] = locations["stn_rd"].value_counts().idxmax()
+            locations["stn_ev24"] = locations["stn_ev24"].value_counts().idxmax()
+        else:
+            # set the station with the largest area to all locations
+            locations["area"] = ds["area"].loc[locations.index]
+            locations["stn_rd"] = locations.groupby("stn_rd").sum()["area"].idxmax()
+            locations["stn_ev24"] = locations.groupby("stn_ev24").sum()["area"].idxmax()
 
     stns_rd = locations["stn_rd"].unique()
     stns_ev24 = locations["stn_ev24"].unique()

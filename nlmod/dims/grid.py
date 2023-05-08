@@ -7,6 +7,7 @@
 -   fill, interpolate and resample grid data
 """
 import logging
+import os
 import warnings
 
 import flopy
@@ -194,8 +195,8 @@ def modelgrid_to_ds(mg):
             nlay=mg.nlay,
             botm=mg.botm,
             top=mg.top,
-            xorigin=0.0,
-            yorigin=0.0,
+            xorigin=mg.xoffset,
+            yorigin=mg.yoffset,
             angrot=mg.angrot,
             attrs=None,
             crs=None,
@@ -297,7 +298,7 @@ def refine(
     ds : xarray.Datset
         A structured model Dataset.
     model_ws : str, optional
-        The working directory fpr GridGen. Get from ds when model_ws is None.
+        The working directory for GridGen. Get from ds when model_ws is None.
         The default is None.
     refinement_features : list of tuples of length 2 or 3, optional
         List of tuples containing refinement features. Each tuple must be of
@@ -328,7 +329,8 @@ def refine(
         exe_name = util.get_exe_path("gridgen")
 
     if model_ws is None:
-        model_ws = ds.model_ws
+        model_ws = os.path.join(ds.model_ws, "gridgen")
+        os.makedirs(model_ws, exist_ok=True)
 
     if version.parse(flopy.__version__) < version.parse("3.3.6"):
         sim = flopy.mf6.MFSimulation()
@@ -1329,8 +1331,8 @@ def gdf_to_grid(
     desc="Intersecting with grid",
     **kwargs,
 ):
-    """Intersect a geodataframe with the grid of a MODFLOW model. 
-    
+    """Intersect a geodataframe with the grid of a MODFLOW model.
+
     Note: This method is a wrapper around the GridIntersect method in flopy.
 
     Parameters

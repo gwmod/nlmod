@@ -3,7 +3,6 @@ Ipython
 ipykernel
 nbsphinx
 netCDF4==1.5.7
-rasterstats
 geocube
 bottleneck
 contextily

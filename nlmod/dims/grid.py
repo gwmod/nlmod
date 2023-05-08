@@ -268,6 +268,8 @@ def refine(
 
     if model_ws is None:
         model_ws = os.path.join(ds.model_ws, "gridgen")
+    if not os.path.isdir(model_ws):
+        os.makedirs(model_ws)
 
     if version.parse(flopy.__version__) < version.parse("3.3.6"):
         sim = flopy.mf6.MFSimulation()

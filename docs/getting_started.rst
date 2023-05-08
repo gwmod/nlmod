@@ -121,4 +121,4 @@ potential solutions.
 On top of that there are some optional dependecies, only needed (and imported) in a single method:
 
 - bottleneck (used in calculate_gxg)
--  geocube (used in add_min_ahn_to_gdf)
+- geocube (used in add_min_ahn_to_gdf)

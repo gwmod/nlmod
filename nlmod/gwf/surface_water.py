@@ -495,8 +495,9 @@ def add_info_to_gdf(
     silent=False,
     min_total_overlap=0.5,
     geom_type="Polygon",
+    add_index_from_column=None,
 ):
-    """ "Add information from gdf_from to gdf_to."""
+    """Add information from 'gdf_from' to 'gdf_to', based on the spatial intersection."""
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
@@ -523,6 +524,8 @@ def add_info_to_gdf(
             # take the largest
             ind = measure.idxmax()
             gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
+            if add_index_from_column:
+                gdf_to.loc[index, add_index_from_column] = ind
     return gdf_to
 
 
@@ -553,8 +556,7 @@ def get_gdf_stage(gdf, season="winter"):
 
 
 def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
-    """
-    Download level areas (peilgebieden) of bronhouders.
+    """Download level areas (peilgebieden) of bronhouders.
 
     Parameters
     ----------
@@ -577,7 +579,6 @@ def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
     la : dict
         A dictionary with the name of the waterboards as keys and GeoDataFrames with
         level areas as values.
-
     """
     if config is None:
         config = waterboard.get_configuration()
@@ -612,8 +613,7 @@ def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
 
 
 def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
-    """
-    Download watercourses of bronhouders.
+    """Download watercourses of bronhouders.
 
     Parameters
     ----------
@@ -636,7 +636,6 @@ def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
     wc : dict
         A dictionary with the name of the waterboards as keys and GeoDataFrames with
         watercourses as values.
-
     """
     if config is None:
         config = waterboard.get_configuration()
@@ -665,8 +664,7 @@ def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
 def add_stages_from_waterboards(
     gdf, la=None, extent=None, columns=None, config=None, min_total_overlap=0.0
 ):
-    """
-    Add information from level areas (peilgebieden) to bgt-polygons.
+    """Add information from level areas (peilgebieden) to bgt-polygons.
 
     Parameters
     ----------
@@ -695,7 +693,6 @@ def add_stages_from_waterboards(
     -------
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame with surface water features, with the added columns
-
     """
     if config is None:
         config = waterboard.get_configuration()
@@ -721,8 +718,7 @@ def add_stages_from_waterboards(
 def add_bottom_height_from_waterboards(
     gdf, wc=None, extent=None, columns=None, config=None, min_total_overlap=0.0
 ):
-    """
-    Add information from watercourses to bgt-polygons.
+    """Add information from watercourses to bgt-polygons.
 
     Parameters
     ----------
@@ -751,7 +747,6 @@ def add_bottom_height_from_waterboards(
     -------
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame with surface water features, with the added columns
-
     """
     if config is None:
         config = waterboard.get_configuration()
@@ -770,14 +765,13 @@ def add_bottom_height_from_waterboards(
             columns=columns,
             min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
-            geom_type=None,
+            geom_type="LineString",
         )[columns]
     return gdf
 
 
 def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
-    """
-    Generate a GeoDataFrame based on BGT-data and data from waterboards.
+    """Generate a GeoDataFrame based on BGT-data and data from waterboards.
 
     Parameters
     ----------
@@ -804,7 +798,6 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame with surface water features, with added columns from waterboards
         and gridded to the model grid (when ds is aupplied)
-
     """
     if extent is None:
         if ds is None:
@@ -831,8 +824,8 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
 
 
 def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
-    """
-    Add a column names with the minimum surface level height near surface water features
+    """Add a column names with the minimum surface level height near surface
+    water features.
 
     Parameters
     ----------
@@ -852,10 +845,10 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
-
     """
-    from geocube.api.core import make_geocube
     from functools import partial
+
+    from geocube.api.core import make_geocube
     from geocube.rasterize import rasterize_image
 
     # use geocube

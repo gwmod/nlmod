@@ -186,8 +186,8 @@ def get_regis(
 def add_geotop_to_regis_layers(
     rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True
 ):
-    """Combine geotop and regis in such a way that the one or more layers in Regis are
-    replaced by the geo_eenheden of geotop.
+    """Combine geotop and regis in such a way that the one or more layers in
+    Regis are replaced by the geo_eenheden of geotop.
 
     Parameters
     ----------
@@ -267,8 +267,10 @@ def get_layer_names():
 
 
 def get_legend():
-    """Get a legend (DataFrame) with the colors of REGIS-layers. These colors can
-    mainly be used in cross-sections."""
+    """Get a legend (DataFrame) with the colors of REGIS-layers.
+
+    These colors can be used when plotting cross-sections.
+    """
     dir_path = os.path.dirname(os.path.realpath(__file__))
     fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
     leg = pd.read_csv(

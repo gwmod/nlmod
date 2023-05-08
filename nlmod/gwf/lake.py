@@ -37,13 +37,13 @@ def lake_from_gdf(
     ds,
     recharge=True,
     claktype="VERTICAL",
-    boundname_column='identificatie',
-    obs_type='STAGE',
+    boundname_column="identificatie",
+    obs_type="STAGE",
     surfdep=0.05,
     pname="lak",
     **kwargs,
 ):
-    """add a lake from a geodataframe
+    """Add a lake from a geodataframe.
 
     Parameters
     ----------
@@ -90,7 +90,6 @@ def lake_from_gdf(
     Returns
     -------
     lak : flopy lake package
-
     """
     if claktype != "VERTICAL":
         raise NotImplementedError("function only tested for claktype=VERTICAL")
@@ -124,13 +123,13 @@ def lake_from_gdf(
     for lakeno, lake_gdf in gdf.groupby("lakeno"):
         nlakeconn = lake_gdf.shape[0]
         strt = lake_gdf["strt"].iloc[0]
-        assert (lake_gdf["strt"] == strt).all(
-        ), "a single lake should have single strt"
+        assert (lake_gdf["strt"] == strt).all(), "a single lake should have single strt"
 
         if boundname_column is not None:
             boundname = lake_gdf[boundname_column].iloc[0]
-            assert (lake_gdf[boundname_column] == boundname).all(
-            ), f"a single lake should have a single {boundname_column}"
+            assert (
+                lake_gdf[boundname_column] == boundname
+            ).all(), f"a single lake should have a single {boundname_column}"
             packagedata.append([lakeno, strt, nlakeconn, boundname])
         else:
             packagedata.append([lakeno, strt, nlakeconn])
@@ -220,8 +219,7 @@ def lake_from_gdf(
                 datavar = lake_gdf[lake_setting].iloc[0]
                 if not isinstance(datavar, str):
                     if np.isnan(datavar):
-                        logger.debug(
-                            f"no {lake_setting} given for lake no {lakeno}")
+                        logger.debug(f"no {lake_setting} given for lake no {lakeno}")
                         continue
                 if not (lake_gdf[lake_setting] == datavar).all():
                     raise ValueError(

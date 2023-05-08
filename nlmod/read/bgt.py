@@ -130,8 +130,7 @@ def read_bgt_zipfile(
     extent=None,
     remove_expired=True,
 ):
-    """
-    Read data from a zipfile that was downloaded using get_bgt().
+    """Read data from a zipfile that was downloaded using get_bgt().
 
     Parameters
     ----------
@@ -159,7 +158,6 @@ def read_bgt_zipfile(
     -------
     gdf : dict of GeoPandas GeoDataFrame
         A dict of GeoDataFrames containing all geometries and properties.
-
     """
     zf = ZipFile(fname)
     gdf = {}

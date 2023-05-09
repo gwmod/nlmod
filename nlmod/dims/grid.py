@@ -7,6 +7,7 @@
 -   fill, interpolate and resample grid data
 """
 import logging
+import os
 import warnings
 import os
 import flopy
@@ -26,7 +27,7 @@ from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
-from .base import extrapolate_ds
+from .base import extrapolate_ds, get_structured_grid_ds, get_vertex_grid_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
@@ -172,6 +173,67 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     return ds
 
 
+def modelgrid_to_ds(mg):
+    """Create Dataset from flopy modelgrid object.
+
+    Parameters
+    ----------
+    mg : flopy.discretization.Grid
+        flopy modelgrid object
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        Dataset containing grid information
+    """
+    if mg.grid_type == "structured":
+        x, y = mg.xyedges
+
+        ds = get_structured_grid_ds(
+            xedges=x,
+            yedges=y,
+            nlay=mg.nlay,
+            botm=mg.botm,
+            top=mg.top,
+            xorigin=mg.xoffset,
+            yorigin=mg.yoffset,
+            angrot=mg.angrot,
+            attrs=None,
+            crs=None,
+        )
+    elif mg.grid_type == "vertex":
+        nodata = -1  # no data value for vertex indices
+
+        ds = get_vertex_grid_ds(
+            x=mg.xcellcenters,
+            y=mg.ycellcenters,
+            xv=mg.verts[:, 0],
+            yv=mg.verts[:, 1],
+            extent=mg.extent,
+            nlay=mg.nlay,
+            angrot=mg.angrot,
+            xorigin=np.concatenate(mg.xvertices).min(),
+            yorigin=np.concatenate(mg.yvertices).min(),
+            botm=mg.botm,
+            top=mg.top,
+            attrs=None,
+            crs=None,
+        )
+
+        # set extra grid information
+        cell2d = mg.cell2d
+        ncvert_max = np.max([x[3] for x in cell2d])
+        icvert = np.full((mg.ncpl, ncvert_max), nodata)
+        for i in range(mg.ncpl):
+            icvert[i, : cell2d[i][3]] = cell2d[i][4:]
+        ds["icvert"] = ("icell2d", "icv"), icvert
+        ds["icvert"].attrs["_FillValue"] = nodata
+    else:
+        raise NotImplementedError(f"Grid type '{mg.grid_type}' not supported!")
+
+    return ds
+
+
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     """Gridprops is a dictionary containing keyword arguments needed to
     generate a flopy modelgrid instance."""
@@ -236,7 +298,7 @@ def refine(
     ds : xarray.Datset
         A structured model Dataset.
     model_ws : str, optional
-        The working directory fpr GridGen. Get from ds when model_ws is None.
+        The working directory for GridGen. Get from ds when model_ws is None.
         The default is None.
     refinement_features : list of tuples of length 2 or 3, optional
         List of tuples containing refinement features. Each tuple must be of
@@ -268,8 +330,7 @@ def refine(
 
     if model_ws is None:
         model_ws = os.path.join(ds.model_ws, "gridgen")
-    if not os.path.isdir(model_ws):
-        os.makedirs(model_ws)
+        os.makedirs(model_ws, exist_ok=True)
 
     if version.parse(flopy.__version__) < version.parse("3.3.6"):
         sim = flopy.mf6.MFSimulation()
@@ -392,7 +453,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
 
 
 def get_xyi_icell2d(gridprops=None, ds=None):
-    """Get x and y coördinates of the cell mids from the cellids in the grid
+    """Get x and y coordinates of the cell mids from the cellids in the grid
     properties.
 
     Parameters
@@ -1270,8 +1331,9 @@ def gdf_to_grid(
     desc="Intersecting with grid",
     **kwargs,
 ):
-    """Cut a geodataframe gdf by the grid of a flopy modflow model ml. This method is a
-    wrapper around the GridIntersect method from flopy.
+    """Intersect a geodataframe with the grid of a MODFLOW model.
+
+    Note: This method is a wrapper around the GridIntersect method in flopy.
 
     Parameters
     ----------

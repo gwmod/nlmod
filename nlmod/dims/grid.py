@@ -9,7 +9,7 @@
 import logging
 import os
 import warnings
-import os
+
 import flopy
 import geopandas as gpd
 import numpy as np

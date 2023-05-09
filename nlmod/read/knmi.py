@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 
 import hydropandas as hpd
+from hydropandas.io import knmi as hpd_knmi
 import numpy as np
 import pandas as pd
 from hydropandas.io import knmi as hpd_knmi

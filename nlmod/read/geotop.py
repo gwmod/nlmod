@@ -196,7 +196,7 @@ def convert_geotop_to_ml_layers(
     lay = 0
     logger.info("creating top and bot per geo eenheid")
     for geo_eenheid in geo_eenheden:
-        logger.debug(geo_eenheid)
+        logger.debug(int(geo_eenheid))
 
         mask = geotop_ds_raw.strat == geo_eenheid
         geo_z = xr.where(mask, geotop_ds_raw.z, np.NaN)

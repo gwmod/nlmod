@@ -230,7 +230,7 @@ class DatasetCrossSection:
         horizontal=True,
         vertical=True,
         ilayers=None,
-        **kwargs
+        **kwargs,
     ):
         lines = []
         if ilayers is None:

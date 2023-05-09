@@ -135,9 +135,9 @@ def get_northsea(ds, da_name="northsea"):
 def add_northsea(ds, cachedir=None):
     """Add datavariable bathymetry to model dataset.
 
-    Performs the following steps:     
+    Performs the following steps:
 
-    a) get cells from modelgrid that are within the northsea, add data 
+    a) get cells from modelgrid that are within the northsea, add data
        variable 'northsea' to ds
     b) fill top, bot, kh and kv add northsea cell by extrapolation
     c) get bathymetry (northsea depth) from jarkus.

@@ -25,6 +25,6 @@ python:
     - method: pip
       path: .
       extra_requirements:
-        - ci
+        - nbtest
         - rtd
 

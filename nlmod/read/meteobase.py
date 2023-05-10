@@ -108,7 +108,7 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
     line_cnt = 0
     for line in lines:
         linestr = str(line, encoding="utf-8").lower()
-        if not any([x for x in ascii_header_keys if x in str(linestr)]):
+        if not any((x for x in ascii_header_keys if x in str(linestr))):
             break
         l1, l2 = linestr.split()
         if l1.lower() in ("ncols", "nrows", "nodata_value"):

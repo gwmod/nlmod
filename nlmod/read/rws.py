@@ -31,7 +31,7 @@ def get_gdf_surface_water(ds):
         surface water geodataframe.
     """
     # laad bestanden in
-    fname = os.path.join(nlmod.NLMOD_DATADIR, "opp_water.shp")
+    fname = os.path.join(nlmod.NLMOD_DATADIR, "shapes", "opp_water.shp")
     gdf_swater = gpd.read_file(fname)
     extent = dims.get_extent(ds)
     gdf_swater = util.gdf_within_extent(gdf_swater, extent)
@@ -135,9 +135,9 @@ def get_northsea(ds, da_name="northsea"):
 def add_northsea(ds, cachedir=None):
     """Add datavariable bathymetry to model dataset.
 
-    Performs the following steps:     
+    Performs the following steps:
 
-    a) get cells from modelgrid that are within the northsea, add data 
+    a) get cells from modelgrid that are within the northsea, add data
        variable 'northsea' to ds
     b) fill top, bot, kh and kv add northsea cell by extrapolation
     c) get bathymetry (northsea depth) from jarkus.

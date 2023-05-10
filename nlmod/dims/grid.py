@@ -27,7 +27,7 @@ from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
-from .base import extrapolate_ds, get_structured_grid_ds, get_vertex_grid_ds
+from .base import extrapolate_ds, _get_structured_grid_ds, _get_vertex_grid_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
@@ -189,7 +189,7 @@ def modelgrid_to_ds(mg):
     if mg.grid_type == "structured":
         x, y = mg.xyedges
 
-        ds = get_structured_grid_ds(
+        ds = _get_structured_grid_ds(
             xedges=x,
             yedges=y,
             nlay=mg.nlay,
@@ -202,13 +202,13 @@ def modelgrid_to_ds(mg):
             crs=None,
         )
     elif mg.grid_type == "vertex":
-        nodata = -1  # no data value for vertex indices
-
-        ds = get_vertex_grid_ds(
+        
+        ds = _get_vertex_grid_ds(
             x=mg.xcellcenters,
             y=mg.ycellcenters,
             xv=mg.verts[:, 0],
             yv=mg.verts[:, 1],
+            cell2d=mg.cell2d,
             extent=mg.extent,
             nlay=mg.nlay,
             angrot=mg.angrot,
@@ -219,15 +219,6 @@ def modelgrid_to_ds(mg):
             attrs=None,
             crs=None,
         )
-
-        # set extra grid information
-        cell2d = mg.cell2d
-        ncvert_max = np.max([x[3] for x in cell2d])
-        icvert = np.full((mg.ncpl, ncvert_max), nodata)
-        for i in range(mg.ncpl):
-            icvert[i, : cell2d[i][3]] = cell2d[i][4:]
-        ds["icvert"] = ("icell2d", "icv"), icvert
-        ds["icvert"].attrs["_FillValue"] = nodata
     else:
         raise NotImplementedError(f"Grid type '{mg.grid_type}' not supported!")
 

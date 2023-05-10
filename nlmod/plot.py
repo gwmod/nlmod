@@ -435,6 +435,7 @@ def get_map(
     crs=28992,
     background=False,
     alpha=0.5,
+    tight_layout=True,
 ):
     """Generate a motplotlib Figure with a map with the axis set to extent.
 
@@ -467,6 +468,8 @@ def get_map(
         THe defaults is False.
     alpha: float, optional
         The alpha value of the background. The default is 0.5.
+    tight_layout : bool, optional
+        set tight_layout, default is True. Set to False for e.g. saving animations.
 
     Returns
     -------
@@ -503,7 +506,8 @@ def get_map(
     else:
         for ax in axes.ravel():
             set_ax_in_map(ax)
-    f.tight_layout(pad=0.0)
+    if tight_layout:
+        f.tight_layout(pad=0.0)
     return f, axes
 
 

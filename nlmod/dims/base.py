@@ -236,7 +236,7 @@ def extrapolate_ds(ds, mask=None):
     return ds
 
 
-def get_structured_grid_ds(
+def _get_structured_grid_ds(
     xedges,
     yedges,
     nlay=1,
@@ -351,11 +351,12 @@ def get_structured_grid_ds(
     return ds
 
 
-def get_vertex_grid_ds(
+def _get_vertex_grid_ds(
     x,
     y,
     xv,
     yv,
+    cell2d,
     extent,
     nlay=1,
     top=np.nan,
@@ -378,6 +379,8 @@ def get_vertex_grid_ds(
         A 1D array of the x coordinates of the grid vertices.
     yv : array_like
         A 1D array of the y coordinates of the grid vertices.
+    cell2d : array-like
+        array-like with vertex grid cell2d info
     extent : list
         A list of [xmin, xmax, ymin, ymax] defining the extent of the model grid.
     nlay : int or sequence of ints, optional
@@ -450,6 +453,16 @@ def get_vertex_grid_ds(
     # add extra modelgrid information to ds
     ds["xv"] = ("iv", xv)
     ds["yv"] = ("iv", yv)
+
+    # set extra grid information
+    nodata = -1
+    ncpl = len(x)
+    ncvert_max = np.max([x[3] for x in cell2d])
+    icvert = np.full((ncpl, ncvert_max), nodata)
+    for i in range(ncpl):
+        icvert[i, : cell2d[i][3]] = cell2d[i][4:]
+    ds["icvert"] = ("icell2d", "icv"), icvert
+    ds["icvert"].attrs["_FillValue"] = nodata
 
     if crs is not None:
         ds.rio.set_crs(crs)

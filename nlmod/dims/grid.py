@@ -27,7 +27,7 @@ from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
-from .base import extrapolate_ds, _get_structured_grid_ds, _get_vertex_grid_ds
+from .base import _get_structured_grid_ds, _get_vertex_grid_ds, extrapolate_ds
 from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
 from .rdp import rdp
 from .resample import (
@@ -202,7 +202,6 @@ def modelgrid_to_ds(mg):
             crs=None,
         )
     elif mg.grid_type == "vertex":
-        
         ds = _get_vertex_grid_ds(
             x=mg.xcellcenters,
             y=mg.ycellcenters,

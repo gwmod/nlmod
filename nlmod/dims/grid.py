@@ -416,8 +416,8 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
     assert isinstance(ds_in, xr.core.dataset.Dataset)
 
     xyi, _ = get_xyi_icell2d(gridprops)
-    x = xr.DataArray(xyi[:, 0], dims=("icell2d"))
-    y = xr.DataArray(xyi[:, 1], dims=("icell2d"))
+    x = xr.DataArray(xyi[:, 0], dims=("icell2d",))
+    y = xr.DataArray(xyi[:, 1], dims=("icell2d",))
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
         ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
@@ -430,6 +430,8 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
             ds_out[data_var] = data_arr
 
     if "area" in gridprops:
+        if "area" in ds_out:
+            ds_out = ds_out.drop_vars("area")
         # only keep the first layer of area
         area = gridprops["area"][: len(ds_out["icell2d"])]
         ds_out["area"] = ("icell2d", area)

@@ -205,7 +205,7 @@ def mpf(gwf, exe_name=None, modelname=None):
 
     # get executable
     if exe_name is None:
-        exe_name = util.get_exe_path("mp7")
+        exe_name = util.get_exe_path("mp7_2_002_provisonal")
 
     # create mpf model
     mpf = flopy.modpath.Modpath7(

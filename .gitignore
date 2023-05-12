@@ -144,7 +144,7 @@ cython_debug/
 # nlmod specific
 nlmod/bin/*
 !nlmod/bin/
-!nlmod/bin/mp7_2_002_provisonal
+!nlmod/bin/mp7_2_002_provisional
 flowchartnlmod.pptx
 tests/data/
 docs/examples/*/

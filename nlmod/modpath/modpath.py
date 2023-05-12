@@ -161,7 +161,7 @@ def layer_to_nodes(mpf, modellayer):
     return nodes
 
 
-def mpf(gwf, exe_name=None, modelname=None):
+def mpf(gwf, exe_name=None, modelname=None, model_ws=None):
     """Create a modpath model from a groundwater flow model.
 
     Parameters
@@ -190,6 +190,9 @@ def mpf(gwf, exe_name=None, modelname=None):
     if modelname is None:
         modelname = "mp7_" + gwf.name
 
+    if model_ws is None:
+        model_ws = os.path.join(gwf.model_ws, "modpath")
+
     # check if the save flows parameter is set in the npf package
     npf = gwf.get_package("npf")
     if not npf.save_flows.array:
@@ -212,9 +215,23 @@ def mpf(gwf, exe_name=None, modelname=None):
         modelname=modelname,
         flowmodel=gwf,
         exe_name=exe_name,
-        model_ws=gwf.model_ws,
+        model_ws=model_ws,
         verbose=True,
     )
+
+    if model_ws != gwf.model_ws:
+        mpf.grbdis_file = os.path.relpath(
+            os.path.join(gwf.model_ws, mpf.grbdis_file), model_ws
+        )
+        mpf.headfilename = os.path.relpath(
+            os.path.join(gwf.model_ws, mpf.headfilename), model_ws
+        )
+        mpf.budgetfilename = os.path.relpath(
+            os.path.join(gwf.model_ws, mpf.budgetfilename), model_ws
+        )
+        mpf.tdis_file = os.path.relpath(
+            os.path.join(gwf.model_ws, mpf.tdis_file), model_ws
+        )
 
     return mpf
 

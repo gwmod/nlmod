@@ -60,7 +60,7 @@ test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]
 ci = ["nlmod[full,lint,test,nbtest]", "netCDF4==1.5.7"]
-rtd = ["ipython", "ipykernel", "nbsphinx", "nbconvert>6.4.5"]
+rtd = ["ipython", "ipykernel", "nbsphinx", "nbconvert>6.4.5", "netCDF4==1.5.7"]
 
 [tool.setuptools.dynamic]
 version = { attr = "nlmod.version.__version__" }

@@ -1,8 +1,0 @@
-sphinx_rtd_theme==1.0.0
-Ipython
-ipykernel
-nbsphinx
-netCDF4==1.5.7
-geocube
-bottleneck
-contextily

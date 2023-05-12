@@ -495,6 +495,22 @@ def download_mfbinaries(bindir=None):
     if not os.path.isdir(bindir):
         os.makedirs(bindir)
     flopy.utils.get_modflow(bindir)
+    if sys.platform.startswith("win"):
+        # download the provisional version of modpath from Github
+        download_modpath_provisional_exe(bindir)
+
+
+def download_modpath_provisional_exe(bindir=None, timeout=120):
+    """Downlaod the provisional version of modpath to the folder with binaries"""
+    if bindir is None:
+        bindir = os.path.join(os.path.dirname(__file__), "bin")
+    if not os.path.isdir(bindir):
+        os.makedirs(bindir)
+    url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL/mpath7_PROVISIONAL_2022-08-23_9ac760f.exe"
+    r = requests.get(url, allow_redirects=True, timeout=timeout)
+    fname = os.path.join(bindir, "mp7_2_002_provisional.exe")
+    with open(fname, "wb") as file:
+        file.write(r.content)
 
 
 def check_presence_mfbinaries(exe_name="mf6", binpath=None):

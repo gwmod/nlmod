@@ -75,6 +75,7 @@ include-package-data = true
 "nlmod.data" = ["*.gleg"]
 "nlmod.data.geotop" = ["*.csv"]
 "nlmod.data.shapes" = ["*"]
+"nlmod.bin" = ["mp7_2_002_provisional"]
 
 [tool.black]
 line-length = 88

@@ -1,14 +1,18 @@
 import os
 import warnings
+from functools import partial
 
 import flopy
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import xarray as xr
+from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Patch, Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from .dcs import DatasetCrossSection
 from .dims.grid import get_vertices, modelgrid_from_ds
@@ -718,3 +722,209 @@ def geotop_lithok_in_cross_section(
         ax.legend(handles=handles, loc=legend_loc)
 
     return cs
+
+
+def animate_map(
+    da,
+    ds=None,
+    ilay=0,
+    xlabel="X",
+    ylabel="Y",
+    title="",
+    datefmt="%Y-%m",
+    cmap="viridis",
+    vmin=None,
+    vmax=None,
+    norm=None,
+    levels=None,
+    colorbar=True,
+    colorbar_label="",
+    plot_grid=True,
+    backgroundmap=False,
+    figsize=(10, 10),
+    ax=None,
+    add_to_plot=None,
+    save=True,
+    fname=None,
+):
+    """Animates a map visualization using a DataArray.
+
+    Parameters
+    ----------
+    da : DataArray, str
+        The DataArray containing the data to be animated. If passed as a string,
+        and the model dataset `ds` is also provided, the DataArray will be
+        obtained from the model dataset: `da = ds[da]`.
+    ds : Dataset, optional
+        The model Dataset containing grid information, etc.
+    ilay : int, optional
+        The index of the layer to be visualized.
+    xlabel : str, optional
+        The label for the x-axis. Default is "X".
+    ylabel : str, optional
+        The label for the y-axis. Default is "Y".
+    title : str, optional
+        The title of the plot. Default is an empty string.
+    datefmt : str, optional
+        The date format string for the title. Default is "%Y-%m".
+    cmap : str, optional
+        The colormap to be used for the visualization. Default is "viridis".
+    vmin : float, optional
+        The minimum value for the colormap normalization. Default is None.
+    vmax : float, optional
+        The maximum value for the colormap normalization. Default is None.
+    norm : Normalize, optional
+        The normalization object for the colormap. Default is None.
+    levels : array-like, optional
+        levels for colorbar
+    colorbar : bool, optional
+        Whether to show a colorbar. Default is True.
+    colorbar_label : str, optional
+        The label for the colorbar. Default is an empty string.
+    plot_grid : bool, optional
+        Whether to plot the model grid. Default is True.
+    backgroundmap : bool, optional
+        Whether to add a background map. Default is False.
+    figsize : tuple, optional
+        figure size in inches, default is (10, 10).
+    ax : Axes, optional
+        The matplotlib Axes object to be used for the plot.
+        If None, a new figure and Axes will be created.
+    add_to_plot : list, optional
+        A list of functions that accept `ax` as an argument that add
+        additional elements to the plot. Default is None.
+    save : bool, optional
+        Whether to save the animation as an mp4 file. Default is True.
+    fname : str, optional
+        The filename to save the animation. Required if save is True.
+
+    Raises
+    ------
+    ValueError :
+        If the DataArray does not have a time dimension.
+    ValueError :
+        If plotting modelgrid is requested but no model Dataset is provided.
+
+    Returns
+    -------
+    f : Figure
+        matplotlib figure handle
+    anim : FuncAnimation
+        The matplotlib FuncAnimation object representing the animation.
+    """
+    # if da is a string and ds is provided select data array from model dataset
+    if isinstance(da, str) and ds is not None:
+        da = ds[da]
+
+    # check da
+    if "time" not in ds.dims:
+        raise ValueError("DataArray needs to have time dimension!")
+
+    # select layer
+    try:
+        nlay = da["layer"].shape[0]
+    except IndexError:
+        nlay = 1
+    if nlay > 1:
+        layer = da["layer"].isel(layer=ilay).values[()]
+        da = da.isel(layer=ilay)
+    else:
+        ilay = 0
+        layer = ds["layer"].values[()]
+
+    # figure
+    if ax is not None:
+        f = ax.figure
+    else:
+        if ds is None:
+            extent = [
+                da.x.values.min(),
+                da.x.values.max(),
+                da.y.values.min(),
+                da.y.values.max(),
+            ]
+        else:
+            extent = ds.extent
+        base = 10 ** int(np.log10(extent[1] - extent[0]))
+        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False)
+        ax.set_aspect("equal", adjustable="box")
+
+    # get normalization if vmin/vmax are passed
+    if vmin is not None or vmax is not None:
+        norm = Normalize(vmin=vmin, vmax=vmax)
+
+    # plot initial data
+    pc = data_array(da.isel(time=0), ds=ds, norm=norm, cmap=cmap)
+
+    # plot modelgrid
+    if plot_grid:
+        if ds is None:
+            raise ValueError("Plotting modelgrid requires model Dataset!")
+        modelgrid(ds, ax=ax, lw=0.25, alpha=0.5, color="k")
+
+    if add_to_plot is not None:
+        for fplot in add_to_plot:
+            fplot(ax)
+
+    # axes properties
+    axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
+    ax.set(**axprops)
+
+    # add updating title
+    t = pd.Timestamp(da.time.values[0])
+    title = title_inside(
+        f"Layer {layer}, t = {t.strftime(datefmt)}",
+        ax,
+        x=0.025,
+        bbox={"facecolor": "w"},
+        horizontalalignment="left",
+    )
+    # tight layout
+    f.tight_layout()
+
+    if colorbar:
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)
+        cbar = f.colorbar(pc, cax=cax)
+        if levels is not None:
+            cbar.set_ticks(levels)
+        cbar.set_label(colorbar_label)
+
+    # bgmap
+    if backgroundmap:
+        add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
+
+    # write update func
+    def update(iper, pc, title):
+        # select timestep
+        da_i = da.isel(time=iper)
+
+        # update pcolormesh
+        pc.set_array(da_i.values.ravel())
+
+        # update title
+        t = pd.Timestamp(da.time.values[iper])
+        title.set_text(f"Layer {ilay}, t = {t.strftime(datefmt)}")
+
+        return pc, title
+
+    # create animation
+    anim = FuncAnimation(
+        f,
+        partial(update, pc=pc, title=title),
+        frames=da["time"].shape[0],
+        blit=False,
+        interval=100,
+    )
+
+    # save animation as mp4
+    if save:
+        writer = FFMpegWriter(
+            fps=10,
+            bitrate=-1,
+            extra_args=["-pix_fmt", "yuv420p"],
+            codec="libx264",
+        )
+        anim.save(fname, writer=writer)
+
+    return f, anim

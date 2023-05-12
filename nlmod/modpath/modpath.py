@@ -219,19 +219,19 @@ def mpf(gwf, exe_name=None, modelname=None, model_ws=None):
         verbose=True,
     )
 
-    if model_ws != gwf.model_ws:
-        mpf.grbdis_file = os.path.relpath(
-            os.path.join(gwf.model_ws, mpf.grbdis_file), model_ws
-        )
-        mpf.headfilename = os.path.relpath(
-            os.path.join(gwf.model_ws, mpf.headfilename), model_ws
-        )
-        mpf.budgetfilename = os.path.relpath(
-            os.path.join(gwf.model_ws, mpf.budgetfilename), model_ws
-        )
-        mpf.tdis_file = os.path.relpath(
-            os.path.join(gwf.model_ws, mpf.tdis_file), model_ws
-        )
+    # if model_ws != gwf.model_ws:
+    #     mpf.grbdis_file = os.path.relpath(
+    #         os.path.join(gwf.model_ws, mpf.grbdis_file), model_ws
+    #     )
+    #     mpf.headfilename = os.path.relpath(
+    #         os.path.join(gwf.model_ws, mpf.headfilename), model_ws
+    #     )
+    #     mpf.budgetfilename = os.path.relpath(
+    #         os.path.join(gwf.model_ws, mpf.budgetfilename), model_ws
+    #     )
+    #     mpf.tdis_file = os.path.relpath(
+    #         os.path.join(gwf.model_ws, mpf.tdis_file), model_ws
+    #     )
 
     return mpf
 

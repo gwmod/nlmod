@@ -236,8 +236,10 @@ def ds_time_from_model(gwf):
     start_datetime = gwf.simulation.get_package("TDIS").start_date_time.data
 
     if start_datetime is not None:
+        time_units = gwf.dimensions.simulation_time.get_time_units()
         dt = pd.to_timedelta(
-            np.cumsum(gwf.dimensions.simulation_time.get_perioddata()["perlen"]), "D"
+            np.cumsum(gwf.dimensions.simulation_time.get_perioddata()["perlen"]),
+            time_units,
         )
         times = pd.Timestamp(start_datetime) + dt
 

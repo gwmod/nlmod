@@ -182,7 +182,7 @@ def tdis(ds, sim, pname="tdis"):
         pname=pname,
         time_units=ds.time.time_units,
         nper=len(ds.time),
-        # start_date_time=ds.time.start, # disable until fix in modpath
+        start_date_time=pd.Timestamp(ds.time.start).isoformat(),
         perioddata=tdis_perioddata,
     )
 

@@ -10,6 +10,7 @@ from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine, get_xy_mid_structured
+from ..dims.time import ds_time_from_model
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 def get_heads_da(ds=None, gwf=None, fname_hds=None):
     """Reads heads file given either a dataset or a groundwater flow object.
 
-    Note: Calling this function with ds is currently prevered over calling it
+    Note: Calling this function with ds is currently preferred over calling it
     with gwf, because the layer and time coordinates can not be fully
     reconstructed from gwf.
 
@@ -86,11 +87,12 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
     else:
         assert 0, "Gridtype not supported"
 
-    if ds is not None:
+    # set layer and time coordinates
+    if gwf is not None:
+        head_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
+        head_ar.coords["time"] = ds_time_from_model(gwf)
+    else:
         head_ar.coords["layer"] = ds.layer
-
-        # TODO: temporarily only add time for when ds is passed because unable to
-        # exactly recreate ds.time from gwf.
         head_ar.coords["time"] = ds.time
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
@@ -114,6 +116,96 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
     return head_ar
 
 
+def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
+    """Reads budget file given either a dataset or a groundwater flow object.
+
+    Parameters
+    ----------
+    text : str
+        record to get from budget file
+    ds : xarray.Dataset, optional
+        xarray dataset with model data. One of ds or gwf must be provided.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname_cbc : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
+
+    Returns
+    -------
+    q_ar : xarray.DataArray
+        budget data array.
+    """
+    cbcobj = _get_cbc(ds=ds, gwf=gwf, fname_cbc=fname_cbc)
+
+    q = cbcobj.get_data(text=text, kstpkper=kstpkper, full3D=True)
+    q = np.stack(q)
+
+    if gwf is not None:
+        gridtype = gwf.modelgrid.grid_type
+    else:
+        gridtype = ds.gridtype
+
+    if gridtype == "vertex":
+        q_ar = xr.DataArray(
+            data=q,
+            dims=("time", "layer", "icell2d"),
+            coords={},
+            attrs={"units": "m3/d"},
+        )
+
+    elif gridtype == "structured":
+        if gwf is not None:
+            delr = np.unique(gwf.modelgrid.delr).item()
+            delc = np.unique(gwf.modelgrid.delc).item()
+            extent = gwf.modelgrid.extent
+            x, y = get_xy_mid_structured(extent, delr, delc)
+
+        else:
+            x = ds.x
+            y = ds.y
+
+        q_ar = xr.DataArray(
+            data=q,
+            dims=("time", "layer", "y", "x"),
+            coords={
+                "x": x,
+                "y": y,
+            },
+            attrs={"units": "m3/d"},
+        )
+    else:
+        assert 0, "Gridtype not supported"
+
+    # set layer and time coordinates
+    if gwf is not None:
+        q_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
+        q_ar.coords["time"] = ds_time_from_model(gwf)
+    else:
+        q_ar.coords["layer"] = ds.layer
+        q_ar.coords["time"] = ds.time
+
+    if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        affine = get_affine(ds)
+        q_ar.rio.write_transform(affine, inplace=True)
+
+    elif gwf is not None and gwf.modelgrid.angrot != 0.0:
+        attrs = dict(
+            delr=np.unique(gwf.modelgrid.delr).item(),
+            delc=np.unique(gwf.modelgrid.delc).item(),
+            xorigin=gwf.modelgrid.xoffset,
+            yorigin=gwf.modelgrid.yoffset,
+            angrot=gwf.modelgrid.angrot,
+            extent=gwf.modelgrid.extent,
+        )
+        affine = get_affine(attrs)
+        q_ar.rio.write_transform(affine, inplace=True)
+
+    q_ar.rio.write_crs("EPSG:28992", inplace=True)
+
+    return q_ar
+
+
 def _get_hds(ds=None, gwf=None, fname_hds=None):
     msg = "Load the heads using either the ds, gwf or fname_hds"
     assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
@@ -135,12 +227,12 @@ def _get_cbc(ds=None, gwf=None, fname_cbc=None):
 
     if fname_cbc is None:
         if ds is None:
-            cbf = gwf.output.budget()
+            cbc = gwf.output.budget()
         else:
             fname_cbc = os.path.join(ds.model_ws, ds.model_name + ".cbc")
     if fname_cbc is not None:
-        cbf = flopy.utils.CellBudgetFile(fname_cbc)
-    return cbf
+        cbc = flopy.utils.CellBudgetFile(fname_cbc)
+    return cbc
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):

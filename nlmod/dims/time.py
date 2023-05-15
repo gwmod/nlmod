@@ -9,6 +9,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+from xarray import IndexVariable
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +146,7 @@ def estimate_nstp(
     ----------
     forcing : array-like
         Array with a forcing value for each stress period. Forcing can be
-        for example a pumping rate of a rainfall intensity.
+        for example a pumping rate or a rainfall intensity.
     perlen : float or array of floats (nper)
         An array of the stress period lengths.
     tsmult : float or array of floats (nper)
@@ -216,3 +217,38 @@ def estimate_nstp(
 
     else:
         return nstp_ceiled
+
+
+def ds_time_from_model(gwf):
+    """Get time index variable from model (gwf or gwt).
+
+    Parameters
+    ----------
+    gwf : flopy MFModel object
+        groundwater flow or groundwater transport model
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
+
+    start_datetime = gwf.simulation.get_package("TDIS").start_date_time.data
+
+    if start_datetime is not None:
+        time_units = gwf.dimensions.simulation_time.get_time_units()
+        dt = pd.to_timedelta(
+            np.cumsum(gwf.dimensions.simulation_time.get_perioddata()["perlen"]),
+            time_units,
+        )
+        times = pd.Timestamp(start_datetime) + dt
+
+    else:
+        times = np.cumsum(gwf.dimensions.simulation_time.get_perioddata()["perlen"])
+
+    time = IndexVariable(["time"], times)
+    time.attrs["time_units"] = gwf.dimensions.simulation_time.get_time_units()
+    if start_datetime is not None:
+        time.attrs["start"] = str(start_datetime)
+
+    return time

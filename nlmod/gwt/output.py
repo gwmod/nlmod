@@ -3,11 +3,11 @@ import os
 
 import flopy
 import numpy as np
-import pandas as pd
 import xarray as xr
 
 from ..dims.layers import calculate_thickness
 from ..dims.resample import get_affine, get_xy_mid_structured
+from ..dims.time import ds_time_from_model
 
 logger = logging.getLogger(__name__)
 
@@ -97,20 +97,13 @@ def get_concentration_da(ds=None, gwt=None, fname_conc=None):
     else:
         assert 0, "Gridtype not supported"
 
-    if ds is not None:
+    # set layer and time coordinates
+    if gwt is not None:
+        conc_ar.coords["layer"] = np.arange(gwt.modelgrid.nlay)
+        conc_ar.coords["time"] = ds_time_from_model(gwt)
+    else:
         conc_ar.coords["layer"] = ds.layer
-
-        # TODO: temporarily only add time for when ds is passed because unable to
-        # exactly recreate ds.time from gwt.
-        times = np.array(
-            [
-                pd.Timestamp(ds.time.start)
-                + pd.Timedelta(t, unit=ds.time.time_units[0])
-                for t in concobj.get_times()
-            ],
-            dtype=np.datetime64,
-        )
-        conc_ar.coords["time"] = times
+        conc_ar.coords["time"] = ds.time
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         affine = get_affine(ds)

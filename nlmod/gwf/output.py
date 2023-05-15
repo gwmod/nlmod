@@ -10,6 +10,7 @@ from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine, get_xy_mid_structured
+from ..dims.time import ds_time_from_model
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 def get_heads_da(ds=None, gwf=None, fname_hds=None):
     """Reads heads file given either a dataset or a groundwater flow object.
 
-    Note: Calling this function with ds is currently prevered over calling it
+    Note: Calling this function with ds is currently preferred over calling it
     with gwf, because the layer and time coordinates can not be fully
     reconstructed from gwf.
 
@@ -86,11 +87,12 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
     else:
         assert 0, "Gridtype not supported"
 
-    if ds is not None:
+    # set layer and time coordinates
+    if gwf is not None:
+        head_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
+        head_ar.coords["time"] = ds_time_from_model(gwf)
+    else:
         head_ar.coords["layer"] = ds.layer
-
-        # TODO: temporarily only add time for when ds is passed because unable to
-        # exactly recreate ds.time from gwf.
         head_ar.coords["time"] = ds.time
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:

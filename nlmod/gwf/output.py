@@ -113,6 +113,95 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
 
     return head_ar
 
+def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
+    """Reads budget file given either a dataset or a groundwater flow object.
+
+    Parameters
+    ----------
+    text : str
+        record to get from budget file
+    ds : xarray.Dataset, optional
+        xarray dataset with model data. One of ds or gwf must be provided.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname_cbc : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
+
+    Returns
+    -------
+    q_ar : xarray.DataArray
+        budget data array.
+    """
+    cbfobj = _get_cbf(ds=ds, gwf=gwf, fname_cbc=fname_cbc)
+
+    q = cbfobj.get_data(text=text, kstpkper=kstpkper, full3D=True)
+    q = np.stack(q)
+
+    if gwf is not None:
+        gridtype = gwf.modelgrid.grid_type
+    else:
+        gridtype = ds.gridtype
+
+    if gridtype == "vertex":
+        q_ar = xr.DataArray(
+            data=q,
+            dims=("time", "layer", "icell2d"),
+            coords={},
+            attrs={"units": "m3/d"},
+        )
+
+    elif gridtype == "structured":
+        if gwf is not None:
+            delr = np.unique(gwf.modelgrid.delr).item()
+            delc = np.unique(gwf.modelgrid.delc).item()
+            extent = gwf.modelgrid.extent
+            x, y = get_xy_mid_structured(extent, delr, delc)
+
+        else:
+            x = ds.x
+            y = ds.y
+
+        q_ar = xr.DataArray(
+            data=q,
+            dims=("time", "layer", "y", "x"),
+            coords={
+                "x": x,
+                "y": y,
+            },
+            attrs={"units": "m3/d"},
+        )
+    else:
+        assert 0, "Gridtype not supported"
+
+    # set layer and time coordinates
+    if gwf is not None:
+        q_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
+        q_ar.coords["time"] = ds_time_from_model(gwf)
+    else:
+        q_ar.coords["layer"] = ds.layer
+        q_ar.coords["time"] = ds.time
+
+    if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        affine = get_affine(ds)
+        q_ar.rio.write_transform(affine, inplace=True)
+
+    elif gwf is not None and gwf.modelgrid.angrot != 0.0:
+        attrs = dict(
+            delr=np.unique(gwf.modelgrid.delr).item(),
+            delc=np.unique(gwf.modelgrid.delc).item(),
+            xorigin=gwf.modelgrid.xoffset,
+            yorigin=gwf.modelgrid.yoffset,
+            angrot=gwf.modelgrid.angrot,
+            extent=gwf.modelgrid.extent,
+        )
+        affine = get_affine(attrs)
+        q_ar.rio.write_transform(affine, inplace=True)
+
+    q_ar.rio.write_crs("EPSG:28992", inplace=True)
+
+    return q_ar
+
 
 def _get_hds(ds=None, gwf=None, fname_hds=None):
     msg = "Load the heads using either the ds, gwf or fname_hds"

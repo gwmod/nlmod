@@ -232,7 +232,7 @@ def ds_time_from_model(gwf):
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-    
+
     start_datetime = gwf.simulation.get_package("TDIS").start_date_time.data
 
     if start_datetime is not None:

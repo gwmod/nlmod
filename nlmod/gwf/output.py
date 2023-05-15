@@ -136,9 +136,9 @@ def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
     q_ar : xarray.DataArray
         budget data array.
     """
-    cbfobj = _get_cbf(ds=ds, gwf=gwf, fname_cbc=fname_cbc)
+    cbcobj = _get_cbc(ds=ds, gwf=gwf, fname_cbc=fname_cbc)
 
-    q = cbfobj.get_data(text=text, kstpkper=kstpkper, full3D=True)
+    q = cbcobj.get_data(text=text, kstpkper=kstpkper, full3D=True)
     q = np.stack(q)
 
     if gwf is not None:
@@ -221,18 +221,18 @@ def _get_hds(ds=None, gwf=None, fname_hds=None):
     return headobj
 
 
-def _get_cbf(ds=None, gwf=None, fname_cbc=None):
+def _get_cbc(ds=None, gwf=None, fname_cbc=None):
     msg = "Load the budgets using either the ds or the gwf"
     assert ((ds is not None) + (gwf is not None)) == 1, msg
 
     if fname_cbc is None:
         if ds is None:
-            cbf = gwf.output.budget()
+            cbc = gwf.output.budget()
         else:
             fname_cbc = os.path.join(ds.model_ws, ds.model_name + ".cbc")
     if fname_cbc is not None:
-        cbf = flopy.utils.CellBudgetFile(fname_cbc)
-    return cbf
+        cbc = flopy.utils.CellBudgetFile(fname_cbc)
+    return cbc
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):

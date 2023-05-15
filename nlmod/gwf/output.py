@@ -218,7 +218,7 @@ def _get_hds(ds=None, gwf=None, fname_hds=None):
     return headobj
 
 
-def _get_cbc(ds=None, gwf=None, fname_cbc=None):
+def _get_cbf(ds=None, gwf=None, fname_cbc=None):
     msg = "Load the budgets using either the ds or the gwf"
     assert ((ds is not None) + (gwf is not None)) == 1, msg
 

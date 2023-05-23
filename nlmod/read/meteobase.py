@@ -194,7 +194,7 @@ def read_meteobase_ascii(
     -------
     DataArray
     """
-    fnames = [x for x in zfile.namelist() if f"{foldername}/" in x]
+    fnames = [x for x in zfile.namelist() if f"{foldername}/" in x and x.endswith(".ASC")]
     if meta["Bestandsformaat"] == ".ASC (Arc/Info-raster)":
         times = []
         for i, fname in enumerate(fnames):

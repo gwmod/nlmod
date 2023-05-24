@@ -215,6 +215,7 @@ def read_meteobase_ascii(
 
                 times.append(get_timestamp_from_fname(fname))
 
+        meta["units"] = meta["Eenheid gegevens"]
         x, y = get_xy_from_ascii_meta(ascii_meta)
 
         da = DataArray(

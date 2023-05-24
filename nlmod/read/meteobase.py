@@ -7,7 +7,7 @@ from zipfile import ZipFile
 
 import numpy as np
 from pandas import Timestamp
-import rioxarray as rio
+import rioxarray  # noqa # pylint: disable=unused-import
 from xarray import DataArray
 
 

@@ -127,6 +127,9 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
     # extract data
     data = np.array([x.split() for x in lines[line_cnt:]], dtype=float)
 
+    if "nodata_value" in meta:
+        data[data == meta["nodata_value"]] = np.nan
+
     return data, meta
 
 

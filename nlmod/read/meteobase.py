@@ -7,6 +7,7 @@ from zipfile import ZipFile
 
 import numpy as np
 from pandas import Timestamp
+import rioxarray as rio
 from xarray import DataArray
 
 
@@ -224,6 +225,9 @@ def read_meteobase_ascii(
             attrs=meta,
             name=foldername,
         )
+
+        da.rio.write_crs("EPSG:28992", inplace=True)
+
         return da
 
     else:

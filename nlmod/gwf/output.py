@@ -9,8 +9,8 @@ import xarray as xr
 from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
-from ..dims.resample import get_affine, get_xy_mid_structured
-from ..dims.time import ds_time_from_model
+from ..dims.resample import get_affine_mod_to_world, get_xy_mid_structured
+from ..dims.time import ds_time_idx
 
 logger = logging.getLogger(__name__)
 
@@ -66,10 +66,14 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
 
     elif gridtype == "structured":
         if gwf is not None:
-            delr = np.unique(gwf.modelgrid.delr).item()
-            delc = np.unique(gwf.modelgrid.delc).item()
-            extent = gwf.modelgrid.extent
-            x, y = get_xy_mid_structured(extent, delr, delc)
+            try:
+                delr = np.unique(gwf.modelgrid.delr).item()
+                delc = np.unique(gwf.modelgrid.delc).item()
+                extent = gwf.modelgrid.extent
+                x, y = get_xy_mid_structured(extent, delr, delc)
+            except ValueError:
+                # x, y in local coords
+                x, y = gwf.modelgrid.xycenters
 
         else:
             x = ds.x
@@ -90,25 +94,34 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
     # set layer and time coordinates
     if gwf is not None:
         head_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
-        head_ar.coords["time"] = ds_time_from_model(gwf)
+        head_ar.coords["time"] = ds_time_idx(
+            headobj.get_times(),
+            start_datetime=gwf.modeltime.start_datetime,
+            time_units=gwf.modeltime.time_units,
+        )
     else:
         head_ar.coords["layer"] = ds.layer
-        head_ar.coords["time"] = ds.time
+        head_ar.coords["time"] = ds_time_idx(
+            headobj.get_times(),
+            start_datetime=ds.time.attrs["start_datetime"],
+            time_units=ds.time.attrs["time_units"],
+        )
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds)
+        # affine = get_affine(ds)
+        affine = get_affine_mod_to_world(ds)
         head_ar.rio.write_transform(affine, inplace=True)
 
     elif gwf is not None and gwf.modelgrid.angrot != 0.0:
         attrs = dict(
-            delr=np.unique(gwf.modelgrid.delr).item(),
-            delc=np.unique(gwf.modelgrid.delc).item(),
+            # delr=np.unique(gwf.modelgrid.delr).item(),
+            # delc=np.unique(gwf.modelgrid.delc).item(),
             xorigin=gwf.modelgrid.xoffset,
             yorigin=gwf.modelgrid.yoffset,
             angrot=gwf.modelgrid.angrot,
             extent=gwf.modelgrid.extent,
         )
-        affine = get_affine(attrs)
+        affine = get_affine_mod_to_world(attrs)
         head_ar.rio.write_transform(affine, inplace=True)
 
     head_ar.rio.write_crs("EPSG:28992", inplace=True)
@@ -180,13 +193,22 @@ def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
     # set layer and time coordinates
     if gwf is not None:
         q_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
-        q_ar.coords["time"] = ds_time_from_model(gwf)
+        # q_ar.coords["time"] = ds_time_from_model(gwf)
+        q_ar.coords["time"] = ds_time_idx(
+            cbcobj.get_times(),
+            start_datetime=gwf.modeltime.start_datetime,
+            time_units=gwf.modeltime.time_units,
+        )
     else:
         q_ar.coords["layer"] = ds.layer
-        q_ar.coords["time"] = ds.time
-
+        q_ar.coords["time"] = ds_time_idx(
+            cbcobj.get_times(),
+            start_datetime=ds.time.attrs["start_datetime"],
+            time_units=ds.time.attrs["time_units"],
+        )
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds)
+        # affine = get_affine(ds)  # TODO: determine which is needed?
+        affine = get_affine_mod_to_world(ds)
         q_ar.rio.write_transform(affine, inplace=True)
 
     elif gwf is not None and gwf.modelgrid.angrot != 0.0:
@@ -198,7 +220,7 @@ def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
             angrot=gwf.modelgrid.angrot,
             extent=gwf.modelgrid.extent,
         )
-        affine = get_affine(attrs)
+        affine = get_affine_mod_to_world(attrs)
         q_ar.rio.write_transform(affine, inplace=True)
 
     q_ar.rio.write_crs("EPSG:28992", inplace=True)

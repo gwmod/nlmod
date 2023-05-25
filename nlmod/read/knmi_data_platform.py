@@ -37,17 +37,17 @@ def get_anonymous_api_key() -> str:
                     logger.info(f"Retrieved anonymous API Key from {url}")
                     return api_key
     except Exception as exc:
-        if Timestamp.today() < Timestamp("2023-07-01"):
+        if Timestamp.today() < Timestamp("2024-07-01"):
             logger.info("Retrieved anonymous API Key from memory")
             api_key = (
-                "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6IjI4ZWZl"
-                "OTZkNDk2ZjQ3ZmE5YjMzNWY5NDU3NWQyMzViIiwiaCI6Im11cm11cjEyOCJ9"
+                "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6ImE1OGI5"
+                "NGZmMDY5NDRhZDNhZjFkMDBmNDBmNTQyNjBkIiwiaCI6Im11cm11cjEyOCJ9"
             )
             return api_key
         else:
             logger.error(
                 f"Could not retrieve anonymous API Key from {url}, please"
-                " create your own at https://api.dataplatform.knmi.nl/"
+                " create your own at https://developer.dataplatform.knmi.nl/"
             )
             raise exc
 
@@ -58,18 +58,22 @@ def get_list_of_files(
     api_key: Optional[str] = None,
     max_keys: int = 500,
     start_after_filename: Optional[str] = None,
+    timeout: int = 120,
 ) -> List[str]:
+    """Download list of files from KNMI data platform"""
     if api_key is None:
         api_key = get_anonymous_api_key()
     files = []
     is_trucated = True
     while is_trucated:
         url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files"
-        r = requests.get(url, headers={"Authorization": api_key})
+        r = requests.get(url, headers={"Authorization": api_key}, timeout=timeout)
         params = {"maxKeys": f"{max_keys}"}
         if start_after_filename is not None:
             params["startAfterFilename"] = start_after_filename
-        r = requests.get(url, params=params, headers={"Authorization": api_key})
+        r = requests.get(
+            url, params=params, headers={"Authorization": api_key}, timeout=timeout
+        )
         rjson = r.json()
         files.extend([x["filename"] for x in rjson["files"]])
         is_trucated = rjson["isTruncated"]
@@ -84,22 +88,24 @@ def download_file(
     fname: str,
     dirname: str = ".",
     api_key: Optional[str] = None,
+    timeout: int = 120,
 ) -> None:
+    """Download file from KNMI data platform"""
     if api_key is None:
         api_key = get_anonymous_api_key()
     url = (
         f"{base_url}/datasets/{dataset_name}/versions/"
         f"{dataset_version}/files/{fname}/url"
     )
-    r = requests.get(url, headers={"Authorization": api_key})
+    r = requests.get(url, headers={"Authorization": api_key}, timeout=timeout)
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
     logger.info(f"Download {fname} to {dirname}")
     fname = os.path.join(dirname, fname)
     data = r.json()
     if "temporaryDownloadUrl" not in data:
-        raise (Exception(f"{fname} not found"))
-    with requests.get(data["temporaryDownloadUrl"], stream=True) as r:
+        raise FileNotFoundError(f"{fname} not found")
+    with requests.get(data["temporaryDownloadUrl"], stream=True, timeout=timeout) as r:
         r.raise_for_status()
         with open(fname, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -112,7 +118,9 @@ def download_files(
     fnames: List[str],
     dirname: str = ".",
     api_key: Optional[str] = None,
+    timeout: int = 120,
 ) -> None:
+    """Download multiple files from KNMI data platform"""
     for fname in tqdm(fnames):
         download_file(
             dataset_name=dataset_name,
@@ -120,10 +128,12 @@ def download_files(
             fname=fname,
             dirname=dirname,
             api_key=api_key,
+            timeout=timeout,
         )
 
 
 def read_nc(fo: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
+    """Read netcdf (.nc) file to xarray Dataset"""
     # could help to provide argument: engine="h5netcdf"
     return xr.open_dataset(fo, **kwargs)
 
@@ -146,10 +156,14 @@ def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
             dtime = Timestamp(year=year, month=month, day=day, hour=hour, minute=minute)
         return dtime
     else:
-        raise Exception("Could not fine timestamp formatted as YYYYMMDDHHMM from fname")
+        raise FileNotFoundError(
+            "Could not find filename with timestamp formatted as YYYYMMDDHHMM"
+        )
 
 
 def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str, Any]:
+    """Read metadata from hdf5 (.h5) file and add to existing metadata dictionary"""
+
     def cleanup(val: Any) -> Any:
         if isinstance(val, (ndarray, list)):
             if len(val) == 1:
@@ -163,29 +177,35 @@ def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str
     if hasattr(h5obj, "attrs"):
         attrs = getattr(h5obj, "attrs")
         submeta = {f"{orig_ky}/{ky}": cleanup(val) for ky, val in attrs.items()}
-        return meta | submeta
+        return meta.update(submeta)
     else:
         return meta
 
 
+class MultipleDatasetsFound(Exception):
+    pass
+
+
 def read_h5_contents(h5fo: h5File) -> Tuple[ndarray, Dict[str, Any]]:
+    """Read contents from a hdf5 (.h5) file"""
     data = None
     meta = {}
-    for ky in h5fo.keys():
+    for ky in h5fo:
         group = h5fo[ky]
         meta = add_h5_meta(meta, group, f"{ky}")
-        for gky in group.keys():
+        for gky in group:
             member = group[gky]
             meta = add_h5_meta(meta, member, f"{ky}/{gky}")
             if isinstance(member, h5Dataset):
                 if data is None:
                     data = member[:]
                 else:
-                    raise Exception("h5 contains multiple Datasets")
+                    raise MultipleDatasetsFound("h5 contains multiple datasets")
     return data, meta
 
 
 def read_h5(fo: Union[str, FileIO]) -> xr.Dataset:
+    """Read hdf5 (.h5) file to xarray Dataset"""
     with h5File(fo) as h5fo:
         data, meta = read_h5_contents(h5fo)
 
@@ -198,26 +218,22 @@ def read_h5(fo: Union[str, FileIO]) -> xr.Dataset:
     t = Timestamp(meta["overview/product_datetime_start"])
 
     ds = xr.Dataset(
-        data_vars=dict(data=(["y", "x"], array(data, dtype=float))),
-        coords=dict(
-            x=x,
-            y=y,
-            time=t,
-        ),
+        data_vars={"data": (["y", "x"], array(data, dtype=float))},
+        coords={"x": x, "y": y, "time": t},
         attrs=meta,
     )
-
     return ds
 
 
 def read_grib(
     fo: Union[str, FileIO], filter_by_keys=None, **kwargs: dict
 ) -> xr.Dataset:
+    """Read GRIB file to xarray Dataset"""
     if kwargs is None:
         kwargs = {}
 
     if filter_by_keys is not None:
-        if "backend_kwargs" not in kwargs.keys():
+        if "backend_kwargs" not in kwargs:
             kwargs["backend_kwargs"] = {}
         kwargs["backend_kwargs"]["filter_by_keys"] = filter_by_keys
         if "errors" not in kwargs["backend_kwargs"]:
@@ -229,6 +245,7 @@ def read_grib(
 def read_dataset_from_zip(
     fname: str, hour: Optional[int] = None, **kwargs: dict
 ) -> xr.Dataset:
+    """Read KNMI data platfrom .zip file to xarray Dataset"""
     if fname.endswith(".zip"):
         with ZipFile(fname) as zipfo:
             fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
@@ -256,6 +273,7 @@ def read_dataset(
     hour: Optional[int] = None,
     **kwargs: dict,
 ) -> xr.Dataset:
+    """Read xarray dataset from different file types; .nc, .h5 or grib file"""
     if hour is not None:
         if hour == 24:
             hour = 0
@@ -282,6 +300,6 @@ def read_dataset(
             elif isinstance(zipfo, ZipFile):
                 data.append(read_grib(fo, **kwargs))
         else:
-            raise Exception(f"Can't read file {file}")
+            raise ValueError(f"Can't read/handle file {file}")
 
     return xr.concat(data, dim="time")

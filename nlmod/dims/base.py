@@ -77,14 +77,16 @@ def to_model_ds(
     drop_attributes=True,
     transport=False,
 ):
-    """Transform a regis datset to a model dataset with another resolution.
+    """Transform an input dataset to a groundwater model dataset.
+
+    Optionally select a different grid size.
 
     Parameters
     ----------
     ds : xarray.dataset
         A layer model dataset.
     model_name : str, optional
-        name of the model. THe default is None
+        name of the model. The default is None
     model_ws : str, optional
         workspace of the model. This is where modeldata is saved to. The
         default is None
@@ -101,7 +103,7 @@ def to_model_ds(
         botm are removed.
     extrapolate : bool, optional
         When true, extrapolate data-variables, into the sea or other areas with
-        only nans. THe default is True
+        only nans. The default is True
     anisotropy : int or float
         factor to calculate kv from kh or the other way around
     fill_value_kh : int or float, optional
@@ -234,6 +236,239 @@ def extrapolate_ds(ds, mask=None):
     return ds
 
 
+def _get_structured_grid_ds(
+    xedges,
+    yedges,
+    nlay=1,
+    top=np.nan,
+    botm=np.nan,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0,
+    attrs=None,
+    crs=None,
+):
+    """Create an xarray dataset with structured grid geometry.
+
+    Parameters
+    ----------
+    xedges : array_like
+        A 1D array of the x coordinates of the grid edges.
+    yedges : array_like
+        A 1D array of the y coordinates of the grid edges.
+    nlay : int, optional
+        The number of layers in the grid. Default is 1.
+    top : array_like, optional
+        A 2D array of the top elevation of the grid cells. Default is NaN.
+    botm : array_like, optional
+        A 3D array of the bottom elevation of the grid cells. Default is NaN.
+    xorigin : float, optional
+        The x-coordinate origin of the grid. Default is 0.0.
+    yorigin : float, optional
+        The y-coordinate origin of the grid. Default is 0.0.
+    angrot : float, optional
+        The counter-clockwise rotation angle of the grid, in degrees.
+        Default is 0.
+    attrs : dict, optional
+        A dictionary of attributes to add to the xarray dataset. Default is an
+        empty dictionary.
+    crs : dict or str, optional
+        A dictionary or string describing the coordinate reference system of
+        the grid. Default is None.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        An xarray dataset with the following data variables and coordinates:
+
+        - top : a 2D array of the top elevation of the grid cells
+        - botm : a 3D array of the bottom elevation of the grid cells
+        - x : a 1D array of the x coordinates of the grid cell centers
+        - y : a 1D array of the y coordinates of the grid cell centers
+        - layer : a 1D array of the layer indices
+        - xc : a 2D array of the x coordinates of the grid cell centers, after
+          rotation if `angrot` is not 0.0 (optional)
+        - yc : a 2D array of the y coordinates of the grid cell centers, after
+          rotation if `angrot` is not 0.0 (optional)
+
+        The dataset also includes the attributes specified in the `attrs`
+        dictionary, and a coordinate reference system specified by `crs`, if
+        provided.
+    """
+
+    if attrs is None:
+        attrs = {}
+    attrs.update({"gridtype": "structured"})
+
+    # get extent from local grid edge coordinates
+    extent = [
+        np.min(xedges),
+        np.max(xedges),
+        np.min(yedges),
+        np.max(yedges),
+    ]
+
+    # calculate centers
+    xcenters = xedges[:-1] + np.diff(xedges) / 2.0
+    ycenters = yedges[:-1] + np.diff(yedges) / 2.0
+
+    resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
+
+    coords = {
+        "x": xorigin + xcenters,
+        "y": yorigin + ycenters,
+        "layer": range(nlay),
+    }
+    if angrot != 0.0:
+        affine = resample.get_affine_mod_to_world(attrs)
+        xc, yc = affine * np.meshgrid(xcenters, ycenters)
+        coords["xc"] = (("y", "x"), xc)
+        coords["yc"] = (("y", "x"), yc)
+
+    dims = ("layer", "y", "x")
+    ds = xr.Dataset(
+        data_vars=dict(
+            top=(dims[1:], top),
+            botm=(dims, botm),
+        ),
+        coords=coords,
+        attrs=attrs,
+    )
+    # set delr and delc
+    delr = np.diff(xedges)
+    if len(np.unique(delr)) == 1:
+        ds.attrs["delr"] = np.unique(delr)[0]
+    else:
+        ds["delr"] = ("x"), delr
+    delc = -np.diff(yedges)
+    if len(np.unique(delc)) == 1:
+        ds.attrs["delc"] = np.unique(delc)[0]
+    else:
+        ds["delc"] = ("y"), delc
+
+    if crs is not None:
+        ds.rio.set_crs(crs)
+    return ds
+
+
+def _get_vertex_grid_ds(
+    x,
+    y,
+    xv,
+    yv,
+    cell2d,
+    extent,
+    nlay=1,
+    top=np.nan,
+    botm=np.nan,
+    xorigin=0.0,
+    yorigin=0.0,
+    angrot=0.0,
+    attrs=None,
+    crs=None,
+):
+    """Create an xarray dataset with vertex-based grid geometry.
+
+    Parameters
+    ----------
+    x : array_like
+        A 1D array of the x coordinates of the grid cell centers.
+    y : array_like
+        A 1D array of the y coordinates of the grid cell centers.
+    xv : array_like
+        A 1D array of the x coordinates of the grid vertices.
+    yv : array_like
+        A 1D array of the y coordinates of the grid vertices.
+    cell2d : array-like
+        array-like with vertex grid cell2d info
+    extent : list
+        A list of [xmin, xmax, ymin, ymax] defining the extent of the model grid.
+    nlay : int or sequence of ints, optional
+        The number of layers in the grid, or a sequence of layer indices.
+        Default is 1.
+    top : array_like, optional
+        A 2D array of the top elevation of the grid cells. Default is NaN.
+    botm : array_like, optional
+        A 3D array of the bottom elevation of the grid cells. Default is NaN.
+    xorigin : float, optional
+        The x-coordinate origin of the grid. Default is 0.0.
+    yorigin : float, optional
+        The y-coordinate origin of the grid. Default is 0.0.
+    angrot : float, optional
+        The counter-clockwise rotation angle of the grid, in degrees.
+        Default is 0.0.
+    attrs : dict, optional
+        A dictionary of attributes to add to the xarray dataset. Default is an
+        empty dictionary.
+    crs : dict or str, optional
+        A dictionary or string describing the coordinate reference system of
+        the grid. Default is None.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        An xarray dataset with the following data variables and coordinates:
+
+        - top : a 2D array of the top elevation of the grid cells
+        - botm : a 3D array of the bottom elevation of the grid cells
+        - x : a 1D array of the x coordinates of the grid cell centers
+        - y : a 1D array of the y coordinates of the grid cell centers
+        - layer : a 1D array of the layer indices
+        - xv : a 1D array of the x coordinates of the grid vertices
+        - yv : a 1D array of the y coordinates of the grid vertices
+
+        The dataset also includes the attributes specified in the `attrs`
+        dictionary, and a coordinate reference system specified by `crs`, if
+        provided.
+    """
+    if attrs is None:
+        attrs = {}
+
+    attrs.update(
+        {
+            "extent": extent,
+            "angrot": angrot,
+            "xorigin": xorigin,
+            "yorigin": yorigin,
+            "gridtype": "vertex",
+        }
+    )
+
+    if isinstance(nlay, int):
+        layers = range(nlay)
+    else:
+        layers = nlay
+
+    coords = {"x": x, "y": y, "layer": layers}
+    dims = ("layer", "icell2d")
+    ds = xr.Dataset(
+        data_vars=dict(
+            top=(dims[1:], top),
+            botm=(dims, botm),
+        ),
+        coords=coords,
+        attrs=attrs,
+    )
+
+    # add extra modelgrid information to ds
+    ds["xv"] = ("iv", xv)
+    ds["yv"] = ("iv", yv)
+
+    # set extra grid information
+    nodata = -1
+    ncpl = len(x)
+    ncvert_max = np.max([x[3] for x in cell2d])
+    icvert = np.full((ncpl, ncvert_max), nodata)
+    for i in range(ncpl):
+        icvert[i, : cell2d[i][3]] = cell2d[i][4:]
+    ds["icvert"] = ("icell2d", "icv"), icvert
+    ds["icvert"].attrs["_FillValue"] = nodata
+
+    if crs is not None:
+        ds.rio.set_crs(crs)
+    return ds
+
+
 def get_ds(
     extent,
     delr=100.0,
@@ -255,7 +490,7 @@ def get_ds(
     transport=False,
     **kwargs,
 ):
-    """Create a model dataset from scratch, so without a layer model.
+    """Create a model dataset from scratch.
 
     Parameters
     ----------
@@ -267,7 +502,7 @@ def get_ds(
         The gridsize along rows (dy). Set to delr when None. If None delc=delr. The
         default is None.
     model_name : str, optional
-        name of the model. THe default is None
+        name of the model. The default is None
     model_ws : str, optional
         workspace of the model. This is where modeldata is saved to. The default is
         None.
@@ -294,7 +529,7 @@ def get_ds(
         (len(layer), len(y), len(x)) or it is transformed to that shape if kv
         is a float or a list/array of len(layer). The default is 1.0.
     crs : int, optional
-        THe coordinate reference system of the model. The default is 28992.
+        The coordinate reference system of the model. The default is 28992.
     xorigin : float, optional
         x-position of the lower-left corner of the model grid. Only used when angrot is
         not 0. The defauls is 0.0.
@@ -354,8 +589,8 @@ def get_ds(
         if isinstance(par, numbers.Number):
             if np.isnan(par) and (extrapolate or fill_nan):
                 raise ValueError(
-                    "extrapolate and remove_nan_layer should be "
-                    "False when setting model parameters to nan"
+                    "'extrapolate' and 'remove_nan_layer' should be "
+                    "False when setting model parameters to NaN"
                 )
 
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)

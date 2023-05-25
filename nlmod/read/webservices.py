@@ -1,5 +1,6 @@
 import logging
 import xml.etree.ElementTree as ET
+from io import BytesIO
 
 import geopandas as gpd
 import numpy as np
@@ -138,6 +139,7 @@ def wfs(
     paged=True,
     max_record_count=None,
     driver="GML",
+    timeout=120,
 ):
     """Download data from a wfs server."""
     params = dict(version=version, request="GetFeature")
@@ -191,7 +193,9 @@ def wfs(
 
         # get the number of features
         params["resultType"] = "hits"
-        r = requests.get(url, params=params, timeout=120)
+        r = requests.get(url, params=params, timeout=timeout)
+        if not r.ok:
+            raise (Exception(f"Request not successful: {r.url}"))
         params.pop("resultType")
         root = ET.fromstring(r.text)
         if "ExceptionReport" in root.tag:
@@ -209,13 +213,17 @@ def wfs(
         params["count"] = max_record_count
         for ip in range(int(np.ceil(n / max_record_count))):
             params["startindex"] = ip * max_record_count
-            req_url = requests.Request("GET", url, params=params).prepare().url
-            gdfs.append(gpd.read_file(req_url, driver=driver))
+            r = requests.get(url, params=params, timeout=timeout)
+            if not r.ok:
+                raise (Exception(f"Request not successful: {r.url}"))
+            gdfs.append(gpd.read_file(BytesIO(r.content), driver=driver))
         gdf = pd.concat(gdfs).reset_index(drop=True)
     else:
         # download all features in one go
-        req_url = requests.Request("GET", url, params=params).prepare().url
-        gdf = gpd.read_file(req_url, driver=driver)
+        r = requests.get(url, params=params, timeout=timeout)
+        if not r.ok:
+            raise (Exception(f"Request not successful: {r.url}"))
+        gdf = gpd.read_file(BytesIO(r.content), driver=driver)
 
     return gdf
 

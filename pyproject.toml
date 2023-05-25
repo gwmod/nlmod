@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=64.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "nlmod"
+dynamic = ["version"]
+description = "nlmod is an open-source Python package for building Modflow 6 groundwater models from online data sources in The Netherlands"
+license = { file = "LICENSE" }
+readme = "README.md"
+authors = [
+    { name = "O. Ebbens" },
+    { name = "R. Caljé" },
+    { name = "D.A. Brakenhoff" },
+]
+maintainers = [
+    { name = "O. Ebbens", email = "o.ebbens@artesia-water.nl" },
+    { name = "R. Calje", email = "r.calje@artesia-water.nl" },
+    { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
+]
+requires-python = ">= 3.8"
+dependencies = [
+    "flopy>=3.3.6",
+    "xarray>=0.16.1",
+    "netcdf4>=1.5.7",
+    "rasterio>=1.1.0",
+    "rioxarray",
+    "affine>=0.3.1",
+    "geopandas",
+    "owslib>=0.24.1",
+    "hydropandas>=0.7.1",
+    "shapely>=2.0.0",
+    "pyshp>=2.1.3",
+    "matplotlib",
+    "dask",
+    "colorama",
+]
+keywords = ["hydrology", "groundwater", "modeling", "Modflow 6", "flopy"]
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Science/Research',
+    'Intended Audience :: Other Audience',
+    'License :: OSI Approved :: MIT License',
+    'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Topic :: Scientific/Engineering :: Hydrology',
+]
+
+[project.urls]
+homepage = "https://github.com/ArtesiaWater/nlmod"
+repository = "https://github.com/ArtesiaWater/nlmod"
+documentation = "https://nlmod.readthedocs.io/en/latest/"
+
+[project.optional-dependencies]
+full = ["gdown", "geocube", "bottleneck", "contextily"]
+test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
+nbtest = ["nbformat", "nbconvert>6.4.5"]
+lint = ["flake8", "isort", "black[jupyter]"]
+ci = ["nlmod[full,lint,test,nbtest]", "netCDF4==1.5.7"]
+rtd = [
+    "nlmod[full]",
+    "ipython",
+    "ipykernel",
+    "nbsphinx",
+    "sphinx_rtd_theme==1.0.0",
+    "nbconvert>6.4.5",
+    "netCDF4==1.5.7",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "nlmod.version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"nlmod.data" = ["*.gleg"]
+"nlmod.data.geotop" = ["*.csv"]
+"nlmod.data.shapes" = ["*"]
+"nlmod.bin" = ["mp7_2_002_provisional"]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --durations=0"
+markers = ["notebooks: run notebooks"]

@@ -495,8 +495,9 @@ def add_info_to_gdf(
     silent=False,
     min_total_overlap=0.5,
     geom_type="Polygon",
+    add_index_from_column=None,
 ):
-    """Add information from 'gdf_from' to 'gdf_to'."""
+    """Add information from 'gdf_from' to 'gdf_to', based on the spatial intersection."""
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
@@ -523,6 +524,8 @@ def add_info_to_gdf(
             # take the largest
             ind = measure.idxmax()
             gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
+            if add_index_from_column:
+                gdf_to.loc[index, add_index_from_column] = ind
     return gdf_to
 
 
@@ -762,7 +765,7 @@ def add_bottom_height_from_waterboards(
             columns=columns,
             min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
-            geom_type=None,
+            geom_type="LineString",
         )[columns]
     return gdf
 

@@ -20,7 +20,11 @@ sphinx:
 
 # Optionally declare the Python requirements required to build your docs
 python:
+  system_packages: true
   install:
-    - requirements: docs/requirements.txt
-    - method: setuptools
+    - method: pip
       path: .
+      extra_requirements:
+        - nbtest
+        - rtd
+

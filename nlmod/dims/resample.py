@@ -375,11 +375,12 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     Parameters
     ----------
     da : xaray.DataArray
-        A vertex DataArray. When the DataArray does not have 'icell2d' as a
-        dimension, the original DataArray is retured. The DataArray da can
-        contain other dimensions as well (for example 'layer' or time'' ).
+        A vertex DataArray. When the DataArray does not have 'icell2d' as a dimension,
+        the original DataArray is retured. The DataArray da can contain other dimensions
+        as well (for example 'layer' or time'' ).
     ds : xarray.Dataset
-        The model dataset with coordinates x and y.
+        The model dataset to which the DataArray needs to be resampled, with coordinates
+        x and y.
     method : str, optional
         The interpolation method, see griddata. The default is "nearest".
 

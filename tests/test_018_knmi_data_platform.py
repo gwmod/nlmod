@@ -39,20 +39,17 @@ def test_download_read_zip_file() -> None:
     # list the files
     files = knmi_data_platform.get_list_of_files(dataset_name, dataset_version)
 
-    # download the last file and only read the last hour of every day
-    # as the data represents the precipitation in the last 24 hours
+    # download the last file
     dirname = "download"
     fname = files[-1]
     knmi_data_platform.download_file(
         dataset_name, dataset_version, fname=fname, dirname=dirname
     )
 
-    ds = knmi_data_platform.read_dataset_from_zip(
-        os.path.join(dirname, files[-1]), hour=24
-    )
 
-    # plot the mean precipitation
-    ds["image1_image_data"].mean("time").plot(size=10)
+def test_read_zip_file() -> None:
+    fname = data_path / "KNMI_Data_Platform_NETCDF.zip"
+    _ = knmi_data_platform.read_dataset_from_zip(str(fname), hour=24)
 
 
 def test_read_h5() -> None:

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 base_url = "https://api.dataplatform.knmi.nl/open-data"
 
 
-def get_anonymous_api_key() -> str:
+def get_anonymous_api_key() -> Union[str, None]:
     try:
         url = "https://developer.dataplatform.knmi.nl/get-started"
         tables = read_html(url)  # get all tables from url
@@ -177,9 +177,9 @@ def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str
     if hasattr(h5obj, "attrs"):
         attrs = getattr(h5obj, "attrs")
         submeta = {f"{orig_ky}/{ky}": cleanup(val) for ky, val in attrs.items()}
-        return meta.update(submeta)
-    else:
-        return meta
+        meta.update(submeta)
+
+    return meta
 
 
 class MultipleDatasetsFound(Exception):

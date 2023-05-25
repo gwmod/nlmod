@@ -35,6 +35,7 @@ dependencies = [
     "matplotlib",
     "dask",
     "colorama",
+    "h5netcdf",
 ]
 keywords = ["hydrology", "groundwater", "modeling", "Modflow 6", "flopy"]
 classifiers = [
@@ -55,7 +56,7 @@ repository = "https://github.com/ArtesiaWater/nlmod"
 documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
-full = ["gdown", "geocube", "bottleneck", "contextily"]
+full = ["gdown", "geocube", "bottleneck", "contextily", "cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]

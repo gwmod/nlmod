@@ -26,6 +26,7 @@ def map_array(
     vmax=None,
     levels=None,
     cmap="viridis",
+    alpha=1.0,
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
@@ -61,7 +62,7 @@ def map_array(
         norm = Normalize(vmin=vmin, vmax=vmax)
 
     pmv = flopy.plot.PlotMapView(gwf, layer=ilay, ax=ax)
-    qm = pmv.plot_array(arr, cmap=cmap, norm=norm)
+    qm = pmv.plot_array(arr, cmap=cmap, norm=norm, alpha=alpha)
 
     # bgmap
     if backgroundmap:
@@ -86,7 +87,8 @@ def map_array(
     if colorbar:
         cax = divider.append_axes("right", size="5%", pad=0.1)
         cbar = f.colorbar(qm, cax=cax)
-        cbar.set_ticks(levels)
+        if levels is not None:
+            cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
 
     if save:

@@ -403,6 +403,8 @@ def map_array(
 
     if save:
         f.savefig(fname, bbox_inches="tight", dpi=150)
+    
+    return ax
 
 
 def animate_map(

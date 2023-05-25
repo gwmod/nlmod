@@ -7,6 +7,7 @@ from zipfile import ZipFile
 
 import numpy as np
 from pandas import Timestamp
+import rioxarray  # noqa # pylint: disable=unused-import
 from xarray import DataArray
 
 
@@ -177,7 +178,7 @@ def get_xy_from_ascii_meta(
 
 
 def read_meteobase_ascii(
-    zfile: ZipFile, foldername: str, meta: Dict[str, str]
+    zfile: ZipFile, foldername: str, meta: Dict[str, str], replace_na: bool = False
 ) -> DataArray:
     """Read list of .asc files in a meteobase zipfile.
 
@@ -189,12 +190,18 @@ def read_meteobase_ascii(
         foldername where specific observation type is stored
     meta : Dict[str, str]
         relevant metadata for DataArray
+    replace_na : bool
+        replace nodata_value with numpy.nan
 
     Returns
     -------
     DataArray
     """
-    fnames = [x for x in zfile.namelist() if f"{foldername}/" in x]
+    fnames = [
+        x
+        for x in zfile.namelist()
+        if f"{foldername}/" in x and x.upper().endswith(".ASC")
+    ]
     if meta["Bestandsformaat"] == ".ASC (Arc/Info-raster)":
         times = []
         for i, fname in enumerate(fnames):
@@ -202,7 +209,7 @@ def read_meteobase_ascii(
             with zfile.open(fname) as fo:
                 data, ascii_meta = read_ascii(fo)
                 if data_array is None:
-                    meta = meta | ascii_meta
+                    meta.update(ascii_meta)
                     data_array = np.zeros(
                         shape=(len(fnames), ascii_meta["nrows"], ascii_meta["ncols"]),
                         dtype=float,
@@ -210,6 +217,12 @@ def read_meteobase_ascii(
                 data_array[i] = data
 
                 times.append(get_timestamp_from_fname(fname))
+
+        if "Eenheid gegevens" in meta.keys():
+            meta["units"] = meta["Eenheid gegevens"]
+
+        if "nodata_value" in meta.keys() and replace_na:
+            data_array[data_array == meta["nodata_value"]] = np.nan
 
         x, y = get_xy_from_ascii_meta(ascii_meta)
 
@@ -224,6 +237,7 @@ def read_meteobase_ascii(
             attrs=meta,
             name=foldername,
         )
+
         return da
 
     else:
@@ -231,7 +245,9 @@ def read_meteobase_ascii(
 
 
 def read_meteobase(
-    path: Union[Path, str], meteobase_type: Optional[str] = None
+    path: Union[Path, str],
+    meteobase_type: Optional[str] = None,
+    replace_na: bool = False,
 ) -> List[DataArray]:
     """Read Meteobase zipfile with ASCII data.
 
@@ -243,6 +259,8 @@ def read_meteobase(
         Must be one of 'NEERSLAG', 'MAKKINK', 'PENMAN', 'EVAPOTRANSPIRATIE',
         'VERDAMPINGSTEKORT', by default None which reads all data from the
         zipfile.
+    replace_na : bool
+        replace nodata_value with numpy.nan
 
     Returns
     -------
@@ -258,7 +276,15 @@ def read_meteobase(
 
         da_list = []
         for mb_type in meteo_basetype:
-            da = read_meteobase_ascii(zfile, mb_type.upper(), meta[mb_type.upper()])
+            da = read_meteobase_ascii(
+                zfile, mb_type.upper(), meta[mb_type.upper()], replace_na=replace_na
+            )
+            if "Projectie" in meta[mb_type.upper()].keys():
+                if (
+                    meta[mb_type.upper()]["Projectie"]
+                    == "RD new (Amersfoort, rijksdriehoekstelsel)"
+                ):
+                    da.rio.write_crs("EPSG:28992", inplace=True)
             da_list.append(da)
 
     return da_list

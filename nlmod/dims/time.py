@@ -233,21 +233,56 @@ def ds_time_from_model(gwf):
         time coordinate for xarray data-array or dataset
     """
 
-    start_datetime = gwf.simulation.get_package("TDIS").start_date_time.data
+    return ds_time_from_modeltime(gwf.modeltime)
 
+
+def ds_time_from_modeltime(modeltime):
+    """Get time index variable from modeltime object.
+
+    Parameters
+    ----------
+    modeltime : flopy ModelTime object
+        modeltime object (e.g. gwf.modeltime)
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
+
+    return ds_time_idx(
+        np.cumsum(modeltime.perlen),
+        start_datetime=modeltime.start_datetime,
+        time_units=modeltime.time_units,
+    )
+
+
+def ds_time_idx(t, start_datetime=None, time_units="D"):
+    """Get time index variable from elapsed time array.
+
+    Parameters
+    ----------
+    t : np.array
+        array containing elapsed time, usually in days
+    start_datetime : str, pd.Timestamp, optional
+        starting datetime
+    time_units : str, optional
+        time units, default is days
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
     if start_datetime is not None:
-        time_units = gwf.dimensions.simulation_time.get_time_units()
-        dt = pd.to_timedelta(
-            np.cumsum(gwf.dimensions.simulation_time.get_perioddata()["perlen"]),
-            time_units,
-        )
+        dt = pd.to_timedelta(t, time_units)
         times = pd.Timestamp(start_datetime) + dt
 
     else:
-        times = np.cumsum(gwf.dimensions.simulation_time.get_perioddata()["perlen"])
+        times = t
 
     time = IndexVariable(["time"], times)
-    time.attrs["time_units"] = gwf.dimensions.simulation_time.get_time_units()
+    time.attrs["time_units"] = time_units
     if start_datetime is not None:
         time.attrs["start"] = str(start_datetime)
 

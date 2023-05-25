@@ -1148,7 +1148,7 @@ def _get_aggregates_values(group, fields_methods, gwf=None):
     agg_dic = {}
     for field, method in fields_methods.items():
         # aggregation is only necesary if group shape is greater than 1
-        if( group.shape[0] == 1) or (method == "first"):
+        if (group.shape[0] == 1) or (method == "first"):
             agg_dic[field] = group[field].values[0]
         elif method == "max":
             agg_dic[field] = group[field].max()

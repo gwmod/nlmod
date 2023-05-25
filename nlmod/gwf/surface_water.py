@@ -467,6 +467,7 @@ def build_spd(
             conds = [cond]
         else:
             raise (Exception(f"Method {layer_method} unknown"))
+
         auxlist = []
         if "aux" in row:
             auxlist.append(row["aux"])

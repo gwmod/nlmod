@@ -9,8 +9,6 @@ from zipfile import ZipFile
 
 import requests
 import xarray as xr
-from h5py import Dataset as h5Dataset
-from h5py import File as h5File
 from numpy import arange, array, ndarray
 from pandas import Timedelta, Timestamp, read_html
 from tqdm import tqdm
@@ -186,8 +184,10 @@ class MultipleDatasetsFound(Exception):
     pass
 
 
-def read_h5_contents(h5fo: h5File) -> Tuple[ndarray, Dict[str, Any]]:
+def read_h5_contents(h5fo: FileIO) -> Tuple[ndarray, Dict[str, Any]]:
     """Read contents from a hdf5 (.h5) file"""
+    from h5py import Dataset as h5Dataset
+
     data = None
     meta = {}
     for ky in h5fo:
@@ -206,6 +206,8 @@ def read_h5_contents(h5fo: h5File) -> Tuple[ndarray, Dict[str, Any]]:
 
 def read_h5(fo: Union[str, FileIO]) -> xr.Dataset:
     """Read hdf5 (.h5) file to xarray Dataset"""
+    from h5py import File as h5File
+
     with h5File(fo) as h5fo:
         data, meta = read_h5_contents(h5fo)
 

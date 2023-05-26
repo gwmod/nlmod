@@ -94,5 +94,5 @@ line-length = 88
 profile = "black"
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --durations=0"
-markers = ["notebooks: run notebooks"]
+addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"
+markers = ["notebooks: run notebooks", "slow: slow tests", "skip: skip tests"]

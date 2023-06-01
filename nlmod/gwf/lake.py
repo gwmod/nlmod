@@ -62,7 +62,7 @@ def lake_from_gdf(
             lakeout : the lake number of the outlet, if this is -1 the water
             is removed from the model.
             optinal columns are 'couttype', 'outlet_invert', 'outlet_width',
-            'outlet_rough' and 'outlet_slope. These column should contain a
+            'outlet_rough' and 'outlet_slope'. These columns should contain a
             unique value for each outlet.
     ds : xr.DataSet
         dataset containing relevant model grid and time information
@@ -123,7 +123,8 @@ def lake_from_gdf(
     for lakeno, lake_gdf in gdf.groupby("lakeno"):
         nlakeconn = lake_gdf.shape[0]
         strt = lake_gdf["strt"].iloc[0]
-        assert (lake_gdf["strt"] == strt).all(), "a single lake should have single strt"
+        assert (lake_gdf["strt"] == strt).all(
+        ), "a single lake should have single strt"
 
         if boundname_column is not None:
             boundname = lake_gdf[boundname_column].iloc[0]
@@ -219,7 +220,8 @@ def lake_from_gdf(
                 datavar = lake_gdf[lake_setting].iloc[0]
                 if not isinstance(datavar, str):
                     if np.isnan(datavar):
-                        logger.debug(f"no {lake_setting} given for lake no {lakeno}")
+                        logger.debug(
+                            f"no {lake_setting} given for lake no {lakeno}")
                         continue
                 if not (lake_gdf[lake_setting] == datavar).all():
                     raise ValueError(

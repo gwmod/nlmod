@@ -1,4 +1,5 @@
 from . import flopy
+from .dcs import DatasetCrossSection
 from .plot import (
     animate_map,
     data_array,
@@ -17,5 +18,3 @@ from .plotutil import (
     rotate_yticklabels,
     title_inside,
 )
-
-from .dcs import DatasetCrossSection

@@ -11,10 +11,10 @@ from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .dcs import DatasetCrossSection
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine_mod_to_world, get_extent
 from ..read import geotop, rws
+from .dcs import DatasetCrossSection
 from .plotutil import (
     add_background_map,
     get_figsize,
@@ -119,8 +119,7 @@ def facet_plot(
         iax = axes.ravel()[ilay]
         mp = fp.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
         # mp.plot_grid()
-        qm = mp.plot_array(plot_arr[ilay].values,
-                           cmap="viridis", vmin=vmin, vmax=vmax)
+        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax)
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)

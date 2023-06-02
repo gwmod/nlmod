@@ -43,8 +43,7 @@ def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
             "Kwarg 'fname_hds' was renamed to 'fname_heads'. Please update your code."
         )
         fname_heads = fname_hds
-    head_da = _get_output_da(
-        _get_heads, ds=ds, gwf_or_gwt=gwf, fname=fname_heads)
+    head_da = _get_output_da(_get_heads, ds=ds, gwf_or_gwt=gwf, fname=fname_heads)
     head_da.attrs["units"] = "m NAP"
     return head_da
 
@@ -85,8 +84,7 @@ def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
 
 def _get_heads(ds=None, gwf=None, fname_hds=None):
     msg = "Load the heads using either the ds, gwf or fname_hds"
-    assert ((ds is not None) + (gwf is not None) +
-            (fname_hds is not None)) >= 1, msg
+    assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
 
     if fname_hds is None:
         if ds is None:
@@ -191,8 +189,7 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
         if gi is None:
             if ds is None:
                 raise (Exception("Please supply either gi or ds for a vertex grid"))
-            gi = flopy.utils.GridIntersect(
-                modelgrid_from_ds(ds), method="vertex")
+            gi = flopy.utils.GridIntersect(modelgrid_from_ds(ds), method="vertex")
         icelld2 = gi.intersect(Point(x, y))["cellids"][0]
         head_point = head[:, :, icelld2]
     else:
@@ -271,10 +268,8 @@ def _calculate_gxg(
     if gxg_data.chunks is not None:
         # If data is lazily loaded/chunked, process data of one year at a time.
         gxg_data = gxg_data.chunk({"hydroyear": 1})
-        lg3 = xr.map_blocks(lowest3_mean, gxg_data,
-                            template=gxg_data.isel(bimonth=0))
-        hg3 = xr.map_blocks(highest3_mean, gxg_data,
-                            template=gxg_data.isel(bimonth=0))
+        lg3 = xr.map_blocks(lowest3_mean, gxg_data, template=gxg_data.isel(bimonth=0))
+        hg3 = xr.map_blocks(highest3_mean, gxg_data, template=gxg_data.isel(bimonth=0))
     else:
         # Otherwise, just compute it in a single go.
         lg3 = lowest3_mean(gxg_data)
@@ -356,10 +351,8 @@ def calculate_gxg(
     # Reindex to GxG frequency date_range: every 14th and 28th of the month.
     start = f"{int(head['time'][0].dt.year)}-01-01"
     end = f"{int(head['time'][-1].dt.year)}-12-31"
-    dates = pd.date_range(start=start, end=end,
-                          freq="SMS") + pd.DateOffset(days=13)
-    head_bimonthly = head.reindex(
-        time=dates, method="nearest", tolerance=tolerance)
+    dates = pd.date_range(start=start, end=end, freq="SMS") + pd.DateOffset(days=13)
+    head_bimonthly = head.reindex(time=dates, method="nearest", tolerance=tolerance)
 
     gxg = _calculate_gxg(head_bimonthly, below_surfacelevel)
     return gxg

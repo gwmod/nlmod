@@ -115,14 +115,14 @@ def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
         da.rio.write_transform(affine, inplace=True)
 
     elif gwf_or_gwt is not None and gwf_or_gwt.modelgrid.angrot != 0.0:
-        attrs = dict(
-            # delr=np.unique(gwf_or_gwt.modelgrid.delr).item(),
-            # delc=np.unique(gwf_or_gwt.modelgrid.delc).item(),
-            xorigin=gwf_or_gwt.modelgrid.xoffset,
-            yorigin=gwf_or_gwt.modelgrid.yoffset,
-            angrot=gwf_or_gwt.modelgrid.angrot,
-            extent=gwf_or_gwt.modelgrid.extent,
-        )
+        attrs = {
+            # "delr": np.unique(gwf_or_gwt.modelgrid.delr).item(),
+            # "delc": np.unique(gwf_or_gwt.modelgrid.delc).item(),
+            "xorigin": gwf_or_gwt.modelgrid.xoffset,
+            "yorigin": gwf_or_gwt.modelgrid.yoffset,
+            "angrot": gwf_or_gwt.modelgrid.angrot,
+            "extent": gwf_or_gwt.modelgrid.extent,
+        }
         affine = get_affine_mod_to_world(attrs)
         da.rio.write_transform(affine, inplace=True)
 

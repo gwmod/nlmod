@@ -1,11 +1,12 @@
 import os
 import tempfile
+
+import numpy as np
 import test_001_model
 
 import nlmod
-import numpy as np
-from nlmod.gwf import get_heads_da
 from nlmod.dims.grid import refine
+from nlmod.gwf import get_heads_da
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")

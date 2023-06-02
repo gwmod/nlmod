@@ -1,9 +1,10 @@
 import os
 import tempfile
 
-import nlmod
 import pytest
 import xarray as xr
+
+import nlmod
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")

@@ -1,5 +1,6 @@
-import nlmod
 import util
+
+import nlmod
 
 
 def test_dcs_structured():

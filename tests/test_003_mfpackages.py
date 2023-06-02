@@ -3,8 +3,9 @@
 
 @author: oebbe
 """
-import nlmod
 import test_001_model
+
+import nlmod
 
 
 def sim_tdis_gwf_ims_from_ds(tmpdir):

@@ -1,6 +1,8 @@
-import nlmod
-import util
 import os
+
+import util
+
+import nlmod
 
 
 def test_struc_da_to_gdf():

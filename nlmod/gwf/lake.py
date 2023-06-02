@@ -2,6 +2,7 @@ import logging
 
 import flopy
 import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def lake_from_gdf(
             'RUNOFF', 'INFLOW', 'WITHDRAWAL', 'AUXILIARY', 'RATE', 'INVERT',
             'WIDTH', 'SLOPE', 'ROUGH'. These columns should contain the name
             of a dataarray in ds with the dimension time.
-        if the lake have any outlets they should be specified in the columns
+        if the lake has any outlets they should be specified in the columns
             lakeout : the lake number of the outlet, if this is -1 the water
             is removed from the model.
             optinal columns are 'couttype', 'outlet_invert', 'outlet_width',
@@ -182,14 +183,15 @@ def lake_from_gdf(
                     setval = default_value
                 else:
                     setval = lake_gdf[outset].iloc[0]
-                    if np.isnan(setval):
+                    if pd.notna(setval):
+                        if not (lake_gdf[outset] == setval).all():
+                            raise ValueError(
+                                f"expected single data variable for {outset} and lake number {lakeno}, got {lake_gdf[outset]}"
+                            )
+                    else:  # setval is nan or None
                         setval = default_value
                         logger.debug(
                             f"no value specified for {outset} and lake no {lakeno}, using default value {default_value}"
-                        )
-                    elif not (lake_gdf[outset] == setval).all():
-                        raise ValueError(
-                            f"expected single data variable for {outset} and lake number {lakeno}, got {lake_gdf[outset]}"
                         )
                 if outset == "outlet_invert" and isinstance(setval, str):
                     if setval == "use_elevation":
@@ -218,11 +220,10 @@ def lake_from_gdf(
             # add other time variant settings to lake
             for lake_setting in lake_settings:
                 datavar = lake_gdf[lake_setting].iloc[0]
-                if not isinstance(datavar, str):
-                    if np.isnan(datavar):
-                        logger.debug(
-                            f"no {lake_setting} given for lake no {lakeno}")
-                        continue
+                if not pd.notna(datavar):  # None or nan
+                    logger.debug(
+                        f"no {lake_setting} given for lake no {lakeno}")
+                    continue
                 if not (lake_gdf[lake_setting] == datavar).all():
                     raise ValueError(
                         f"expected single data variable for {lake_setting} and lake number {lakeno}, got {lake_gdf[lake_setting]}"

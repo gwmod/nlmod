@@ -165,8 +165,11 @@ class DatasetCrossSection:
         if isinstance(colors, (dict, pd.Series)):
             colors = [colors[layer] for layer in self.layer]
 
+        if colors == "none":
+            colors = ["none"] * len(self.layer)
+
         polygons = []
-        for i in range(len(self.layer)):
+        for i, _ in enumerate(self.layer):
             if np.all(np.isnan(self.bot[i]) | (self.bot[i] == self.zmax)):
                 continue
             if np.all(np.isnan(self.top[i]) | (self.top[i] == self.zmin)):

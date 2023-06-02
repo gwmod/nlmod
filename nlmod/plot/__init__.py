@@ -17,3 +17,5 @@ from .plotutil import (
     rotate_yticklabels,
     title_inside,
 )
+
+from .dcs import DatasetCrossSection

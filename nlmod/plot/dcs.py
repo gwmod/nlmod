@@ -8,7 +8,7 @@ from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
-from .dims.grid import modelgrid_from_ds
+from ..dims.grid import modelgrid_from_ds
 
 
 class DatasetCrossSection:

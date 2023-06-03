@@ -151,7 +151,7 @@ class DatasetCrossSection:
             xys.append([point.x, point.y, cs_line.project(point)])
         xys = np.array(xys)
         if xys.size == 0:
-            raise (Exception("The line does not instersect with the dataset"))
+            raise ValueError("The line does not instersect with the dataset")
         # sort the points along the line
         xys = xys[xys[:, -1].argsort()]
         return xys
@@ -283,7 +283,7 @@ class DatasetCrossSection:
             self.ax.add_collection(line_collection)
             return line_collection
         if vertical and not horizontal:
-            raise (Exception("Not implemented yet. Why would you want this!?"))
+            raise NotImplementedError("Why would you want this!?")
         patches = []
         for i in range(self.top.shape[0]):
             for j in range(self.bot.shape[1]):

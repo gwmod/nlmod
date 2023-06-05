@@ -225,6 +225,7 @@ def read_meteobase_ascii(
 
         if "nodata_value" in meta.keys() and replace_na:
             data_array[data_array == meta["nodata_value"]] = np.nan
+            del meta["nodata_value"]
 
         x, y = get_xy_from_ascii_meta(ascii_meta)
 

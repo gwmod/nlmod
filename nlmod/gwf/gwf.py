@@ -5,6 +5,7 @@
 """
 import logging
 import numbers
+import warnings
 
 import flopy
 import numpy as np
@@ -12,6 +13,7 @@ import xarray as xr
 
 from ..dims import grid
 from ..sim import ims, sim, tdis
+from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
 from . import recharge
 
 logger = logging.getLogger(__name__)
@@ -268,7 +270,9 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     return disv
 
 
-def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
+def npf(
+    ds, gwf, k="kh", k33="kv", icelltype=0, save_flows=False, pname="npf", **kwargs
+):
     """get node property flow package from model dataset.
 
     Parameters
@@ -280,6 +284,12 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     icelltype : int or str, optional
         celltype, if int the icelltype for all layer, if str the icelltype from
         the model ds is used. The default is 0.
+    k : str or array-like
+        horizontal hydraulic conductivity, when passed as string, the array
+        is obtained from ds. By default assumes data is stored as "kh".
+    k33 : str or array-like
+        vertical hydraulic conductivity, when passed as string, the array
+        is obtained from ds. By default assumes data is stored as "kv".
     save_flows : bool, optional
         value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by
         cell flows should be saved to the cbb file. Default is False
@@ -301,12 +311,15 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     if isinstance(icelltype, str):
         icelltype = ds[icelltype]
 
+    k = _get_value_from_ds_datavar(ds, "k", k)
+    k33 = _get_value_from_ds_datavar(ds, "k33", k33)
+
     npf = flopy.mf6.ModflowGwfnpf(
         gwf,
         pname=pname,
         icelltype=icelltype,
-        k=ds["kh"].data,
-        k33=ds["kv"].data,
+        k=k.data,
+        k33=k33.data,
         save_flows=save_flows,
         **kwargs,
     )
@@ -314,7 +327,16 @@ def npf(ds, gwf, icelltype=0, save_flows=False, pname="npf", **kwargs):
     return npf
 
 
-def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
+def ghb(
+    ds,
+    gwf,
+    bhead=None,
+    cond=None,
+    da_name=None,
+    pname="ghb",
+    auxiliary=None,
+    **kwargs,
+):
     """get general head boundary from model dataset.
 
     Parameters
@@ -323,6 +345,14 @@ def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
+    bhead : str or xarray.DataArray, optional
+        ghb boundary head, either as string pointing to data
+        array in ds or as data array. By default None, which assumes
+        data array is stored under "ghb_bhead".
+    cond : str or xarray.DataArray, optional
+        ghb conductance, either as string pointing to data
+        array in ds or as data array. By default None, which assumes
+        data array is stored under "ghb_cond".
     da_name : str
         name of the ghb files in the model dataset.
     pname : str, optional
@@ -342,11 +372,23 @@ def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
     """
     logger.info("creating modflow GHB")
 
+    if da_name is not None:
+        warnings.warn(
+            "the kwarg 'da_name' is no longer supported, "
+            "specify 'bhead' and 'cond' explicitly!",
+            DeprecationWarning,
+        )
+        bhead = f"{da_name}_peil"
+        cond = f"{da_name}_cond"
+
+    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond)
+    mask = mask_arr != 0
+
     ghb_rec = grid.da_to_reclist(
         ds,
-        ds[f"{da_name}_cond"] != 0,
-        col1=f"{da_name}_peil",
-        col2=f"{da_name}_cond",
+        mask,
+        col1=bhead,
+        col2=cond,
         first_active_layer=True,
         only_active_cells=False,
         layer=0,
@@ -373,11 +415,20 @@ def ghb(ds, gwf, da_name, pname="ghb", auxiliary=None, **kwargs):
         return ghb
 
     else:
-        logger.warning("no ghb cells added")
+        logger.warning("no ghb pkg added")
         return None
 
 
-def drn(ds, gwf, da_name, pname="drn", layer=None, **kwargs):
+def drn(
+    ds,
+    gwf,
+    elev="drn_elev",
+    cond="drn_cond",
+    da_name=None,
+    pname="drn",
+    layer=None,
+    **kwargs,
+):
     """get drain from model dataset.
 
     Parameters
@@ -386,8 +437,16 @@ def drn(ds, gwf, da_name, pname="drn", layer=None, **kwargs):
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    da_name : str
-        name of the drn files in the model dataset
+    elev : str or xarray.DataArray, optional
+        drain elevation, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "drn_elev".
+    cond : str or xarray.DataArray, optional
+        drain conductance, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "drn_cond".
+    da_name : str, deprecated
+        this is deprecated, name of the drn files in the model dataset
     pname : str, optional
         package name
 
@@ -398,13 +457,25 @@ def drn(ds, gwf, da_name, pname="drn", layer=None, **kwargs):
     """
     logger.info("creating modflow DRN")
 
+    if da_name is not None:
+        warnings.warn(
+            "the kwarg 'da_name' is no longer supported, "
+            "specify 'elev' and 'cond' explicitly!",
+            DeprecationWarning,
+        )
+        elev = f"{da_name}_peil"
+        cond = f"{da_name}_cond"
+
+    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond)
+    mask = mask_arr != 0
+
     first_active_layer = layer is None
 
     drn_rec = grid.da_to_reclist(
         ds,
-        ds[f"{da_name}_cond"] != 0,
-        col1=f"{da_name}_peil",
-        col2=f"{da_name}_cond",
+        mask=mask,
+        col1=elev,
+        col2=cond,
         first_active_layer=first_active_layer,
         only_active_cells=False,
         layer=layer,
@@ -423,7 +494,7 @@ def drn(ds, gwf, da_name, pname="drn", layer=None, **kwargs):
         return drn
 
     else:
-        logger.warning("no drn cells added")
+        logger.warning("no drn pkg added")
 
         return None
 
@@ -451,14 +522,14 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
     """
     logger.info("creating modflow IC")
 
-    if isinstance(starting_head, str):
-        pass
-    elif isinstance(starting_head, numbers.Number):
+    if isinstance(starting_head, numbers.Number):
+        logger.info("adding 'starting_head' data array to ds")
         ds["starting_head"] = starting_head * xr.ones_like(ds["idomain"])
         ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
-    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=ds[starting_head].data, **kwargs)
+    strt = _get_value_from_ds_datavar(ds, "starting_head", starting_head)
+    ic = flopy.mf6.ModflowGwfic(gwf, pname=pname, strt=strt, **kwargs)
 
     return ic
 
@@ -510,11 +581,8 @@ def sto(
             sts_spd = None
             trn_spd = {0: True}
 
-        if "sy" in ds:
-            sy = ds["sy"].data
-
-        if "ss" in ds:
-            ss = ds["ss"].data
+        sy = _get_value_from_ds_datavar(ds, "sy", sy)
+        ss = _get_value_from_ds_datavar(ds, "ss", ss)
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,
@@ -531,7 +599,7 @@ def sto(
 
 
 def chd(
-    ds, gwf, chd="chd", head="starting_head", pname="chd", auxiliary=None, **kwargs
+    ds, gwf, mask="chd_mask", head="chd_head", pname="chd", auxiliary=None, **kwargs
 ):
     """get constant head boundary at the model's edges from the model dataset.
 
@@ -541,16 +609,18 @@ def chd(
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    chd : str, optional
+    mask : str, optional
         name of data variable in ds that is 1 for cells with a constant
-        head and zero for all other cells. The default is 'chd'.
+        head and zero for all other cells. The default is 'chd_mask'.
     head : str, optional
         name of data variable in ds that is used as the head in the chd
-        cells. The default is 'starting_head'.
+        cells. By default, assumes head data is stored as 'chd_head'.
     pname : str, optional
         package name
     auxiliary : str or list of str
         name(s) of data arrays to include as auxiliary data to reclist
+    chd : str, optional
+        deprecated, the new argument is 'mask'
 
     Returns
     -------
@@ -559,8 +629,18 @@ def chd(
     """
     logger.info("creating modflow CHD")
 
+    if "chd" in kwargs:
+        warnings.warn(
+            "the 'chd' kwarg has been renamed to 'mask'!",
+            DeprecationWarning,
+        )
+        mask = kwargs.pop("chd")
+
+    maskarr = _get_value_from_ds_datavar(ds, "mask", mask)
+    mask = maskarr != 0
+
     # get the stress_period_data
-    chd_rec = grid.da_to_reclist(ds, ds[chd] != 0, col1=head, aux=auxiliary)
+    chd_rec = grid.da_to_reclist(ds, mask, col1=head, aux=auxiliary)
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,
@@ -578,10 +658,14 @@ def chd(
             ssm_sources += [chd.package_name]
             ds.attrs["ssm_sources"] = ssm_sources
 
-    return chd
+    if len(chd_rec) > 0:
+        return chd
+    else:
+        logger.warning("no chd pkg added")
+        return None
 
 
-def surface_drain_from_ds(ds, gwf, resistance, pname="drn", **kwargs):
+def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs):
     """get surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
@@ -592,8 +676,12 @@ def surface_drain_from_ds(ds, gwf, resistance, pname="drn", **kwargs):
     gwf : flopy ModflowGwf
         groundwaterflow object.
     resistance : int or float
-        resistance of the surface drain, scaled with cell area to
-        calculate drain conductance.
+        resistance of the surface drain. This value is used to
+        calculate drain conductance by scaling with cell area.
+    elev : str or xarray.DataArray
+        name pointing to the data array containing surface drain elevation
+        data, or pass the data array directly. By default assumes
+        the elevation data is stored under "ahn".
     pname : str, optional
         package name
 
@@ -604,11 +692,14 @@ def surface_drain_from_ds(ds, gwf, resistance, pname="drn", **kwargs):
     """
 
     ds.attrs["surface_drn_resistance"] = resistance
-    mask = ds["ahn"].notnull()
+
+    maskarr = _get_value_from_ds_datavar(ds, "elev", elev)
+    mask = maskarr.notnull()
+
     drn_rec = grid.da_to_reclist(
         ds,
         mask,
-        col1="ahn",
+        col1=elev,
         col2=ds["area"] / ds.surface_drn_resistance,
         first_active_layer=True,
         only_active_cells=False,
@@ -646,7 +737,7 @@ def rch(ds, gwf, pname="rch", **kwargs):
     """
     logger.info("creating modflow RCH")
     # create recharge package
-    rch = recharge.model_datasets_to_rch(gwf, ds, pname=pname, **kwargs)
+    rch = recharge.ds_to_rch(gwf, ds, pname=pname, **kwargs)
 
     return rch
 
@@ -671,7 +762,7 @@ def evt(ds, gwf, pname="evt", **kwargs):
     logger.info("creating modflow EVT")
 
     # create recharge package
-    evt = recharge.model_datasets_to_evt(gwf, ds, pname=pname, **kwargs)
+    evt = recharge.ds_to_evt(gwf, ds, pname=pname, **kwargs)
 
     return evt
 
@@ -723,9 +814,15 @@ def buy(ds, gwf, pname="buy", **kwargs):
             "Set 'transport' to True in model dataset."
         )
 
-    drhodc = kwargs.pop("drhodc", ds.drhodc)
-    crhoref = kwargs.pop("crhoref", ds.crhoref)
-    denseref = kwargs.pop("denseref", ds.denseref)
+    drhodc = _get_value_from_ds_attr(
+        ds, "drhodc", attr="drhodc", value=kwargs.pop("drhodc", None)
+    )
+    crhoref = _get_value_from_ds_attr(
+        ds, "crhoref", attr="crhoref", value=kwargs.pop("crhoref", None)
+    )
+    denseref = _get_value_from_ds_attr(
+        ds, "denseref", attr="denseref", value=kwargs.pop("denseref", None)
+    )
 
     pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "none")]
 
@@ -789,7 +886,7 @@ def oc(
     return oc
 
 
-def ds_to_gwf(ds, complexity="MODERATE", icelltype=0, under_relaxation=False):
+def ds_to_gwf(ds, complexity="SIMPLE", icelltype=0, under_relaxation=False):
     """Generate Simulation and GWF model from model DataSet.
 
     Builds the following packages:

@@ -125,7 +125,7 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
         line_cnt += 1
 
     # extract data
-    data = np.array([x.split() for x in lines[line_cnt:]], dtype=float)
+    data = np.array([x.split() for x in lines[line_cnt:]], dtype=float)[::-1]
 
     return data, meta
 
@@ -204,10 +204,12 @@ def read_meteobase_ascii(
     ]
     if meta["Bestandsformaat"] == ".ASC (Arc/Info-raster)":
         times = []
+        data_array = None
+
         for i, fname in enumerate(fnames):
-            data_array = None
             with zfile.open(fname) as fo:
                 data, ascii_meta = read_ascii(fo)
+
                 if data_array is None:
                     meta.update(ascii_meta)
                     data_array = np.zeros(
@@ -285,6 +287,7 @@ def read_meteobase(
                     == "RD new (Amersfoort, rijksdriehoekstelsel)"
                 ):
                     da.rio.write_crs("EPSG:28992", inplace=True)
+
             da_list.append(da)
 
     return da_list

@@ -1,5 +1,7 @@
-from shapely.geometry import LineString
 import os
+
+from shapely.geometry import LineString
+
 import nlmod
 
 

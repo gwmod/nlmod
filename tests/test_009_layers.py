@@ -1,8 +1,10 @@
 import os
+
 import matplotlib.pyplot as plt
+from shapely.geometry import LineString
+
 import nlmod
 from nlmod.dcs import DatasetCrossSection
-from shapely.geometry import LineString
 
 
 def get_regis_horstermeer():

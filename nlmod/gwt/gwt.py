@@ -198,7 +198,11 @@ def mst(ds, gwt, porosity=None, **kwargs):
     # also think about the order we do this search.
     if isinstance(porosity, str):
         value = None
-    porosity = _get_value_from_ds_attr(ds, "porosity", porosity, value=None, warn=False)
+    else:
+        value = porosity
+    porosity = _get_value_from_ds_attr(
+        ds, "porosity", porosity, value=value, warn=False
+    )
     porosity = _get_value_from_ds_datavar(ds, "porosity", porosity)
     mst = flopy.mf6.ModflowGwtmst(gwt, porosity=porosity, **kwargs)
     return mst

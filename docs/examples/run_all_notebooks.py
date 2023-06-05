@@ -1,3 +1,4 @@
+# %%
 from glob import glob
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
@@ -44,3 +45,5 @@ for notebook in notebook_list:
     os.system(
         f"jupyter nbconvert --clear-output --inplace --ClearMetadataPreprocessor.enabled=True {notebook}"
     )
+
+# %%

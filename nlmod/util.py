@@ -7,7 +7,6 @@ from typing import Dict, Optional
 
 import flopy
 import geopandas as gpd
-import numpy as np
 import requests
 import xarray as xr
 from colorama import Back, Fore, Style
@@ -385,95 +384,6 @@ def download_file_from_google_drive(fid, destination=None):
             destination = os.path.join(destination, filename)
 
     save_response_content(response, destination)
-
-
-def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
-    """reads the heads from a modflow .hds file and returns an xarray
-    DataArray.
-
-    Parameters
-    ----------
-    ds : TYPE
-        DESCRIPTION.
-    fill_nans : bool, optional
-        if True the nan values are filled with the heads in the cells below
-    fname_hds : TYPE, optional
-        DESCRIPTION. The default is None.
-
-    Returns
-    -------
-    head_ar : TYPE
-        DESCRIPTION.
-    """
-    logger.warning(
-        "nlmod.util.get_heads_dataarray is deprecated. "
-        "Please use nlmod.gwf.get_heads_da instead"
-    )
-
-    if fname_hds is None:
-        fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-
-    head = get_heads_array(fname_hds, fill_nans=fill_nans)
-
-    if ds.gridtype == "vertex":
-        head_ar = xr.DataArray(
-            data=head[:, :, 0],
-            dims=("time", "layer", "icell2d"),
-            coords={
-                "icell2d": ds.icell2d,
-                "layer": ds.layer,
-                "time": ds.time,
-            },
-        )
-    elif ds.gridtype == "structured":
-        head_ar = xr.DataArray(
-            data=head,
-            dims=("time", "layer", "y", "x"),
-            coords={
-                "x": ds.x,
-                "y": ds.y,
-                "layer": ds.layer,
-                "time": ds.time,
-            },
-        )
-
-    return head_ar
-
-
-def get_heads_array(fname_hds, fill_nans=False):
-    """reads the heads from a modflow .hds file and returns a numpy array.
-
-    assumes the dimensions of the heads file are:
-        structured: time, layer, icell2d
-        vertex: time, layer, nrow, ncol
-
-
-    Parameters
-    ----------
-    fname_hds : TYPE, optional
-        DESCRIPTION. The default is None.
-    fill_nans : bool, optional
-        if True the nan values are filled with the heads in the cells below
-
-    Returns
-    -------
-    head_ar : np.ndarray
-        heads array.
-    """
-    logger.warning(
-        "nlmod.util.get_heads_array is deprecated. "
-        "Please use nlmod.gwf.get_heads_da instead"
-    )
-    hdobj = flopy.utils.HeadFile(fname_hds)
-    head = hdobj.get_alldata()
-    head[head == 1e30] = np.nan
-
-    if fill_nans:
-        for lay in range(head.shape[1] - 2, -1, -1):
-            head[:, lay] = np.where(
-                np.isnan(head[:, lay]), head[:, lay + 1], head[:, lay]
-            )
-    return head
 
 
 def download_mfbinaries(bindir=None):

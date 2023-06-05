@@ -4,8 +4,9 @@
 @author: Ruben
 """
 
-import nlmod
 import pytest
+
+import nlmod
 
 
 def test_download_polygons():

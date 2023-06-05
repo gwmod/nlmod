@@ -8,7 +8,7 @@ from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
-from .dims.grid import modelgrid_from_ds
+from ..dims.grid import modelgrid_from_ds
 
 
 class DatasetCrossSection:
@@ -151,7 +151,7 @@ class DatasetCrossSection:
             xys.append([point.x, point.y, cs_line.project(point)])
         xys = np.array(xys)
         if xys.size == 0:
-            raise (Exception("The line does not instersect with the dataset"))
+            raise ValueError("The line does not instersect with the dataset")
         # sort the points along the line
         xys = xys[xys[:, -1].argsort()]
         return xys
@@ -165,8 +165,11 @@ class DatasetCrossSection:
         if isinstance(colors, (dict, pd.Series)):
             colors = [colors[layer] for layer in self.layer]
 
+        if colors == "none":
+            colors = ["none"] * len(self.layer)
+
         polygons = []
-        for i in range(len(self.layer)):
+        for i, _ in enumerate(self.layer):
             if np.all(np.isnan(self.bot[i]) | (self.bot[i] == self.zmax)):
                 continue
             if np.all(np.isnan(self.top[i]) | (self.top[i] == self.zmin)):
@@ -280,7 +283,7 @@ class DatasetCrossSection:
             self.ax.add_collection(line_collection)
             return line_collection
         if vertical and not horizontal:
-            raise (Exception("Not implemented yet. Why would you want this!?"))
+            raise NotImplementedError("Why would you want this!?")
         patches = []
         for i in range(self.top.shape[0]):
             for j in range(self.bot.shape[1]):

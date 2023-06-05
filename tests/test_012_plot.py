@@ -1,5 +1,6 @@
-import nlmod
 import util
+
+import nlmod
 
 
 def test_plot_modelgrid():

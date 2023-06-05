@@ -1,4 +1,5 @@
 from . import flopy
+from .dcs import DatasetCrossSection
 from .plot import (
     animate_map,
     data_array,

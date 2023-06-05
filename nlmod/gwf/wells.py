@@ -18,19 +18,24 @@ def wel_from_df(
     # collect data
     well_lrcd = []
 
-    for _, irow in tqdm(df.iterrows(), total=df.index.size, desc="Adding WELs"):
+    for wnam, irow in tqdm(df.iterrows(), total=df.index.size, desc="Adding WELs"):
         try:
             cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top], forgive=False)
             cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm], forgive=False)
         except Exception:
-            print(f"Warning! well {_} outside of model domain! ({irow[x]}, {irow[y]})")
+            print(
+                f"Warning! well {wnam} outside of model domain! ({irow[x]}, {irow[y]})"
+            )
             continue
+        kb = cid2[0]
         if len(cid1) == 2:
             kt, icell2d = cid1
+            idomain_mask = gwf.modelgrid.idomain[kt : kb + 1, icell2d] > 0
         elif len(cid1) == 3:
             kt, i, j = cid1
-        kb = cid2[0]
-        wlayers = np.arange(kt, kb + 1)
+            idomain_mask = gwf.modelgrid.idomain[kt : kb + 1, i, j] > 0
+        # mask only active cells
+        wlayers = np.arange(kt, kb + 1)[idomain_mask]
         for k in wlayers:
             if len(cid1) == 2:
                 wdata = [(k, icell2d), irow[Q] / len(wlayers)]
@@ -38,15 +43,16 @@ def wel_from_df(
                 wdata = [(k, i, j), irow[Q] / len(wlayers)]
 
             if aux is not None:
-                wdata.append(irow[aux])
+                if not isinstance(aux, list):
+                    aux = [aux]
+                for iaux in aux:
+                    wdata.append(irow[iaux])
             if boundnames is not None:
                 wdata.append(irow[boundnames])
             well_lrcd.append(wdata)
 
     wel_spd = {0: well_lrcd}
 
-    if aux is not None:
-        aux = True
     wel = fp.mf6.ModflowGwfwel(
         gwf,
         stress_period_data=wel_spd,
@@ -83,12 +89,15 @@ def maw_from_df(
         except Exception:
             print(f"Warning! well {iw} outside of model domain! ({irow[x]}, {irow[y]})")
             continue
+        kb = cid2[0]
         if len(cid1) == 2:
             kt, icell2d = cid1
+            idomain_mask = gwf.modelgrid.idomain[kt : kb + 1, icell2d] > 0
         elif len(cid1) == 3:
             kt, i, j = cid1
-        kb = cid2[0]
-        wlayers = np.arange(kt, kb + 1)
+            idomain_mask = gwf.modelgrid.idomain[kt : kb + 1, i, j] > 0
+
+        wlayers = np.arange(kt, kb + 1)[idomain_mask]
 
         # <wellno> <radius> <bottom> <strt> <condeqn> <ngwfnodes>
         pakdata = [iw, irow[rw], irow[top], strt, condeqn, len(wlayers)]

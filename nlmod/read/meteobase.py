@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Tuple, Union
 from zipfile import ZipFile
 
 import numpy as np
-from pandas import Timestamp
 import rioxarray  # noqa # pylint: disable=unused-import
+from pandas import Timestamp
 from xarray import DataArray
 
 

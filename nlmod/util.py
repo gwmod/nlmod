@@ -581,3 +581,110 @@ def get_color_logger(level="INFO"):
 
     logging.captureWarnings(True)
     return logger
+
+
+def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
+    """Internal function to get value from dataset attributes.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing model data
+    varname : str
+        name of the variable in flopy package
+    attr : str, optional
+        name of the attribute in dataset (is sometimes different to varname)
+    value : Any, optional
+        variable value, by default None
+    warn : bool, optional
+        log warning if value not found
+
+    Returns
+    -------
+    value : Any
+        returns variable value, if value was None, attempts to obtain
+        variable from dataset attributes.
+    """
+    if attr is None:
+        attr = varname
+
+    if value is not None and (attr in ds.attrs):
+        logger.info(
+            f"Using user-provided '{varname}' and not stored attribute 'ds.{attr}'"
+        )
+    elif value is None and (attr in ds.attrs):
+        logger.debug(f"Using stored data attribute '{attr}' for '{varname}'")
+        value = ds.attrs[attr]
+    elif value is None:
+        if warn:
+            msg = (
+                f"No value found for '{varname}', returning None. "
+                f"To fix this error pass '{varname}' to function or set 'ds.{attr}'."
+            )
+            logger.warning(msg)
+        # raise ValueError(msg)
+    return value
+
+
+def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True):
+    """Internal function to get value from dataset data variables.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing model data
+    varname : str
+        name of the variable in flopy package
+    datavar : Any, optional
+        if str, treated as the name of the data variable (which can be
+        different to varname) in dataset, if not provided is assumed to be
+        the same as varname. If not passed as string, it is treated as data
+    warn : bool, optional
+        log warning if value not found
+
+    Returns
+    -------
+    value : Any
+        returns variable value, if value is None or str, attempts to obtain
+        variable from dataset data variables.
+
+    Note
+    ----
+    For optional data, use warn=False, e.g.::
+
+        _get_value_from_ds_datavar(ds, "ss", datavar=None, warn=False)
+    """
+    # parsing datavar to check things:
+    # - varname is the name of the variable in the original function/flopy package
+    # - datavar is converted to str or None, used to check for presence in dataset
+    # - value is used to store value
+    if isinstance(datavar, xr.DataArray):
+        value = datavar
+        datavar = datavar.name
+    elif isinstance(datavar, str):
+        value = datavar
+    else:
+        value = datavar
+        datavar = None
+
+    # inform user that user-provided variable is used over stored copy
+    if (value is not None and not isinstance(value, str)) and (datavar in ds):
+        logger.info(
+            f"Using user-provided '{varname}' and not"
+            f" stored data variable 'ds.{datavar}'"
+        )
+    # get datavar from dataset if value is None or value is string
+    elif ((value is None) or isinstance(value, str)) and (datavar in ds):
+        logger.debug(f"Using stored data variable '{datavar}' for '{varname}'")
+        value = ds[datavar]
+    # warn if value is None
+    elif isinstance(value, str):
+        value = None
+        if warn:
+            msg = (
+                f"No value found for '{varname}', returning None. "
+                f"To silence this warning pass '{varname}' data directly "
+                f"to function or check whether 'ds.{datavar}' was set correctly."
+            )
+            logger.warning(msg)
+    return value

@@ -178,7 +178,7 @@ def get_xy_from_ascii_meta(
 
 
 def read_meteobase_ascii(
-    zfile: ZipFile, foldername: str, meta: Dict[str, str], replace_na: bool = False
+    zfile: ZipFile, foldername: str, meta: Dict[str, str], replace_na: bool = True
 ) -> DataArray:
     """Read list of .asc files in a meteobase zipfile.
 
@@ -249,7 +249,7 @@ def read_meteobase_ascii(
 def read_meteobase(
     path: Union[Path, str],
     meteobase_type: Optional[str] = None,
-    replace_na: bool = False,
+    replace_na: bool = True,
 ) -> List[DataArray]:
     """Read Meteobase zipfile with ASCII data.
 

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import LineString
 
 import nlmod
-from nlmod.dcs import DatasetCrossSection
+from nlmod.plot import DatasetCrossSection
 
 
 def get_regis_horstermeer():

@@ -467,6 +467,7 @@ def build_spd(
             conds = [cond]
         else:
             raise (Exception(f"Method {layer_method} unknown"))
+
         auxlist = []
         if "aux" in row:
             auxlist.append(row["aux"])
@@ -555,7 +556,9 @@ def get_gdf_stage(gdf, season="winter"):
     return stage
 
 
-def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
+def download_level_areas(
+    gdf, extent=None, config=None, raise_exceptions=True, **kwargs
+):
     """Download level areas (peilgebieden) of bronhouders.
 
     Parameters
@@ -589,7 +592,7 @@ def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
         if config[wb]["bgt_code"] in bronhouders:
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
-                lawb = waterboard.get_data(wb, data_kind, extent)
+                lawb = waterboard.get_data(wb, data_kind, extent, **kwargs)
                 if len(lawb) == 0:
                     logger.info(f"No {data_kind} for {wb} found within model area")
                     continue
@@ -612,7 +615,9 @@ def download_level_areas(gdf, extent=None, config=None, raise_exceptions=True):
     return la
 
 
-def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
+def download_watercourses(
+    gdf, extent=None, config=None, raise_exceptions=True, **kwargs
+):
     """Download watercourses of bronhouders.
 
     Parameters
@@ -646,7 +651,7 @@ def download_watercourses(gdf, extent=None, config=None, raise_exceptions=True):
         if config[wb]["bgt_code"] in bronhouders:
             logger.info(f"Downloading {data_kind} for {wb}")
             try:
-                wcwb = waterboard.get_data(wb, data_kind, extent)
+                wcwb = waterboard.get_data(wb, data_kind, extent, **kwargs)
                 if len(wcwb) == 0:
                     logger.info(f"No {data_kind} for {wb} found within model area")
                     continue

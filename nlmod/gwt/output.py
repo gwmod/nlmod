@@ -6,8 +6,7 @@ import numpy as np
 import xarray as xr
 
 from ..dims.layers import calculate_thickness
-from ..dims.resample import get_affine, get_xy_mid_structured
-from ..dims.time import ds_time_from_model
+from ..mfoutput import _get_output_da
 
 logger = logging.getLogger(__name__)
 
@@ -46,84 +45,14 @@ def get_concentration_da(ds=None, gwt=None, fname_conc=None):
 
     Returns
     -------
-    conc_ar : xarray.DataArray
+    conc_da : xarray.DataArray
         concentration data array.
     """
-    concobj = _get_concentration(ds=ds, gwt=gwt, fname_conc=fname_conc)
-    conc = concobj.get_alldata()
-
-    if gwt is not None:
-        hdry = gwt.hdry
-        hnoflo = gwt.hnoflo
-    else:
-        hdry = -1e30
-        hnoflo = 1e30
-    conc[conc == hdry] = np.nan
-    conc[conc == hnoflo] = np.nan
-
-    if gwt is not None:
-        gridtype = gwt.modelgrid.grid_type
-    else:
-        gridtype = ds.gridtype
-
-    if gridtype == "vertex":
-        conc_ar = xr.DataArray(
-            data=conc[:, :, 0],
-            dims=("time", "layer", "icell2d"),
-            coords={},
-            attrs={"units": "mNAP"},
-        )
-
-    elif gridtype == "structured":
-        if gwt is not None:
-            delr = np.unique(gwt.modelgrid.delr).item()
-            delc = np.unique(gwt.modelgrid.delc).item()
-            extent = gwt.modelgrid.extent
-            x, y = get_xy_mid_structured(extent, delr, delc)
-
-        else:
-            x = ds.x
-            y = ds.y
-
-        conc_ar = xr.DataArray(
-            data=conc,
-            dims=("time", "layer", "y", "x"),
-            coords={
-                "x": x,
-                "y": y,
-            },
-            attrs={"units": "concentration"},
-        )
-    else:
-        assert 0, "Gridtype not supported"
-
-    # set layer and time coordinates
-    if gwt is not None:
-        conc_ar.coords["layer"] = np.arange(gwt.modelgrid.nlay)
-        conc_ar.coords["time"] = ds_time_from_model(gwt)
-    else:
-        conc_ar.coords["layer"] = ds.layer
-        conc_ar.coords["time"] = ds.time
-
-    if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds)
-        conc_ar.rio.write_transform(affine, inplace=True)
-
-    elif gwt is not None and gwt.modelgrid.angrot != 0.0:
-        attrs = dict(
-            delr=np.unique(gwt.modelgrid.delr).item(),
-            delc=np.unique(gwt.modelgrid.delc).item(),
-            xorigin=gwt.modelgrid.xoffset,
-            yorigin=gwt.modelgrid.yoffset,
-            angrot=gwt.modelgrid.angrot,
-            extent=gwt.modelgrid.extent,
-        )
-        affine = get_affine(attrs)
-        conc_ar.rio.write_transform(affine, inplace=True)
-
-    conc_ar.rio.write_crs("EPSG:28992", inplace=True)
-
-    return conc_ar
+    conc_da = _get_output_da(
+        _get_concentration, ds=ds, gwf_or_gwt=gwt, fname=fname_conc
+    )
+    conc_da.attrs["units"] = "concentration"
+    return conc_da
 
 
 def get_concentration_at_gw_surface(conc, layer="layer"):
@@ -168,7 +97,7 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
     return ctop
 
 
-def freshwater_head(ds, pointwater_head, conc, denseref=None, drhodc=None):
+def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
     """Calculate equivalent freshwater head from point water heads.
 
     Parameters
@@ -177,7 +106,7 @@ def freshwater_head(ds, pointwater_head, conc, denseref=None, drhodc=None):
         model dataset containing layer elevation/thickness data, and
         reference density (denseref) relationship between concentration
         and density (drhodc) if not provided separately
-    pointwater_head : xarray.DataArray
+    hp : xarray.DataArray
         data array containing point water heads
     conc : xarray.DataArray
         data array containing concentration
@@ -204,11 +133,11 @@ def freshwater_head(ds, pointwater_head, conc, denseref=None, drhodc=None):
         z = ds["botm"] + thickness / 2.0
     else:
         z = ds["z"]
-    hf = density / denseref * pointwater_head - (density - denseref) / denseref * z
+    hf = density / denseref * hp - (density - denseref) / denseref * z
     return hf
 
 
-def pointwater_head(ds, freshwater_head, conc, denseref=None, drhodc=None):
+def pointwater_head(ds, hf, conc, denseref=None, drhodc=None):
     """Calculate point water head from freshwater heads.
 
     Parameters
@@ -217,7 +146,7 @@ def pointwater_head(ds, freshwater_head, conc, denseref=None, drhodc=None):
         model dataset containing layer elevation/thickness data, and
         reference density (denseref) relationship between concentration
         and density (drhodc) if not provided separately
-    freshwater_head : xarray.DataArray
+    hf : xarray.DataArray
         data array containing freshwater heads
     conc : xarray.DataArray
         data array containing concentration
@@ -244,5 +173,5 @@ def pointwater_head(ds, freshwater_head, conc, denseref=None, drhodc=None):
         z = ds["botm"] + thickness / 2.0
     else:
         z = ds["z"]
-    hp = denseref / density * freshwater_head + (density - denseref) / density * z
+    hp = denseref / density * hf + (density - denseref) / density * z
     return hp

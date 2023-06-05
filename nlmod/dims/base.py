@@ -315,8 +315,8 @@ def _get_structured_grid_ds(
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
 
     coords = {
-        "x": xorigin + xcenters,
-        "y": yorigin + ycenters,
+        "x": xcenters,
+        "y": ycenters,
         "layer": range(nlay),
     }
     if angrot != 0.0:
@@ -327,10 +327,10 @@ def _get_structured_grid_ds(
 
     dims = ("layer", "y", "x")
     ds = xr.Dataset(
-        data_vars=dict(
-            top=(dims[1:], top),
-            botm=(dims, botm),
-        ),
+        data_vars={
+            "top": (dims[1:], top),
+            "botm": (dims, botm),
+        },
         coords=coords,
         attrs=attrs,
     )

@@ -9,13 +9,12 @@ import xarray as xr
 from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
-from ..dims.resample import get_affine, get_xy_mid_structured
-from ..dims.time import ds_time_from_model
+from ..mfoutput import _get_output_da
 
 logger = logging.getLogger(__name__)
 
 
-def get_heads_da(ds=None, gwf=None, fname_hds=None):
+def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
     """Reads heads file given either a dataset or a groundwater flow object.
 
     Note: Calling this function with ds is currently preferred over calling it
@@ -28,92 +27,25 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
         Xarray dataset with model data.
     gwf : flopy ModflowGwf
         Flopy groundwaterflow object.
-    fname_hds : path, optional
+    fname_heads : path, optional
         Instead of loading the binary heads file corresponding to ds or gwf
         load the heads from
-
+    fname_hds : path, optional, Deprecated
+        please use fname_heads instead.
 
     Returns
     -------
-    head_ar : xarray.DataArray
-        heads array.
+    head_da : xarray.DataArray
+        heads data array.
     """
-    headobj = _get_hds(ds=ds, gwf=gwf, fname_hds=fname_hds)
-
-    if gwf is not None:
-        hdry = gwf.hdry
-        hnoflo = gwf.hnoflo
-    else:
-        hdry = -1e30
-        hnoflo = 1e30
-
-    heads = headobj.get_alldata()
-    heads[heads == hdry] = np.nan
-    heads[heads == hnoflo] = np.nan
-
-    if gwf is not None:
-        gridtype = gwf.modelgrid.grid_type
-    else:
-        gridtype = ds.gridtype
-
-    if gridtype == "vertex":
-        head_ar = xr.DataArray(
-            data=heads[:, :, 0],
-            dims=("time", "layer", "icell2d"),
-            coords={},
-            attrs={"units": "mNAP"},
+    if fname_hds is not None:
+        logger.warning(
+            "Kwarg 'fname_hds' was renamed to 'fname_heads'. Please update your code."
         )
-
-    elif gridtype == "structured":
-        if gwf is not None:
-            delr = np.unique(gwf.modelgrid.delr).item()
-            delc = np.unique(gwf.modelgrid.delc).item()
-            extent = gwf.modelgrid.extent
-            x, y = get_xy_mid_structured(extent, delr, delc)
-
-        else:
-            x = ds.x
-            y = ds.y
-
-        head_ar = xr.DataArray(
-            data=heads,
-            dims=("time", "layer", "y", "x"),
-            coords={
-                "x": x,
-                "y": y,
-            },
-            attrs={"units": "mNAP"},
-        )
-    else:
-        assert 0, "Gridtype not supported"
-
-    # set layer and time coordinates
-    if gwf is not None:
-        head_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
-        head_ar.coords["time"] = ds_time_from_model(gwf)
-    else:
-        head_ar.coords["layer"] = ds.layer
-        head_ar.coords["time"] = ds.time
-
-    if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds)
-        head_ar.rio.write_transform(affine, inplace=True)
-
-    elif gwf is not None and gwf.modelgrid.angrot != 0.0:
-        attrs = dict(
-            delr=np.unique(gwf.modelgrid.delr).item(),
-            delc=np.unique(gwf.modelgrid.delc).item(),
-            xorigin=gwf.modelgrid.xoffset,
-            yorigin=gwf.modelgrid.yoffset,
-            angrot=gwf.modelgrid.angrot,
-            extent=gwf.modelgrid.extent,
-        )
-        affine = get_affine(attrs)
-        head_ar.rio.write_transform(affine, inplace=True)
-
-    head_ar.rio.write_crs("EPSG:28992", inplace=True)
-
-    return head_ar
+        fname_heads = fname_hds
+    head_da = _get_output_da(_get_heads, ds=ds, gwf_or_gwt=gwf, fname=fname_heads)
+    head_da.attrs["units"] = "m NAP"
+    return head_da
 
 
 def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
@@ -133,80 +65,24 @@ def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
 
     Returns
     -------
-    q_ar : xarray.DataArray
+    q_da : xarray.DataArray
         budget data array.
     """
-    cbcobj = _get_cbc(ds=ds, gwf=gwf, fname_cbc=fname_cbc)
+    q_da = _get_output_da(
+        _get_cbc,
+        ds=ds,
+        gwf_or_gwt=gwf,
+        fname=fname_cbc,
+        text=text,
+        kstpkper=kstpkper,
+        full3D=True,
+    )
+    q_da.attrs["units"] = "m3/d"
 
-    q = cbcobj.get_data(text=text, kstpkper=kstpkper, full3D=True)
-    q = np.stack(q)
-
-    if gwf is not None:
-        gridtype = gwf.modelgrid.grid_type
-    else:
-        gridtype = ds.gridtype
-
-    if gridtype == "vertex":
-        q_ar = xr.DataArray(
-            data=q,
-            dims=("time", "layer", "icell2d"),
-            coords={},
-            attrs={"units": "m3/d"},
-        )
-
-    elif gridtype == "structured":
-        if gwf is not None:
-            delr = np.unique(gwf.modelgrid.delr).item()
-            delc = np.unique(gwf.modelgrid.delc).item()
-            extent = gwf.modelgrid.extent
-            x, y = get_xy_mid_structured(extent, delr, delc)
-
-        else:
-            x = ds.x
-            y = ds.y
-
-        q_ar = xr.DataArray(
-            data=q,
-            dims=("time", "layer", "y", "x"),
-            coords={
-                "x": x,
-                "y": y,
-            },
-            attrs={"units": "m3/d"},
-        )
-    else:
-        assert 0, "Gridtype not supported"
-
-    # set layer and time coordinates
-    if gwf is not None:
-        q_ar.coords["layer"] = np.arange(gwf.modelgrid.nlay)
-        q_ar.coords["time"] = ds_time_from_model(gwf)
-    else:
-        q_ar.coords["layer"] = ds.layer
-        q_ar.coords["time"] = ds.time
-
-    if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds)
-        q_ar.rio.write_transform(affine, inplace=True)
-
-    elif gwf is not None and gwf.modelgrid.angrot != 0.0:
-        attrs = dict(
-            delr=np.unique(gwf.modelgrid.delr).item(),
-            delc=np.unique(gwf.modelgrid.delc).item(),
-            xorigin=gwf.modelgrid.xoffset,
-            yorigin=gwf.modelgrid.yoffset,
-            angrot=gwf.modelgrid.angrot,
-            extent=gwf.modelgrid.extent,
-        )
-        affine = get_affine(attrs)
-        q_ar.rio.write_transform(affine, inplace=True)
-
-    q_ar.rio.write_crs("EPSG:28992", inplace=True)
-
-    return q_ar
+    return q_da
 
 
-def _get_hds(ds=None, gwf=None, fname_hds=None):
+def _get_heads(ds=None, gwf=None, fname_hds=None):
     msg = "Load the heads using either the ds, gwf or fname_hds"
     assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
 

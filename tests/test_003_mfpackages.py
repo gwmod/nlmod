@@ -3,7 +3,6 @@
 
 @author: oebbe
 """
-import numpy as np
 import test_001_model
 import xarray as xr
 

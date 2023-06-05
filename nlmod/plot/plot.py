@@ -11,16 +11,15 @@ from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from ..dcs import DatasetCrossSection
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine_mod_to_world, get_extent
 from ..read import geotop, rws
+from .dcs import DatasetCrossSection
 from .plotutil import (
     add_background_map,
     get_figsize,
     get_map,
     get_patches,
-    rd_ticks,
     title_inside,
 )
 
@@ -275,28 +274,57 @@ def geotop_lithok_in_cross_section(
     return cs
 
 
+def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True):
+    # figure
+    if ax is not None:
+        f = ax.figure
+    else:
+        if ds is None:
+            extent = [
+                da.x.values.min(),
+                da.x.values.max(),
+                da.y.values.min(),
+                da.y.values.max(),
+            ]
+        else:
+            extent = get_extent(ds, rotated=rotated)
+
+        if figsize is None:
+            figsize = get_figsize(extent)
+            # try to ensure pixel size is divisible by 2
+            figsize = (figsize[0], np.round(figsize[1] / 0.02, 0) * 0.02)
+
+        base = 10 ** int(np.log10(extent[1] - extent[0]))
+        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False)
+        ax.set_aspect("equal", adjustable="box")
+    return f, ax
+
+
 def map_array(
     da,
     ds,
     ilay=0,
     iper=0,
+    extent=None,
     ax=None,
     title="",
     xlabel="X [km RD]",
     ylabel="Y [km RD]",
+    date_fmt="%Y-%m-%d",
     norm=None,
     vmin=None,
     vmax=None,
     levels=None,
     cmap="viridis",
+    alpha=1.0,
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
+    rotated=True,
     add_to_plot=None,
     backgroundmap=False,
     figsize=None,
-    save=False,
-    fname=None,
+    animate=False,
 ):
     # get data
     if isinstance(da, str):
@@ -306,45 +334,47 @@ def map_array(
     try:
         nlay = da["layer"].shape[0]
     except IndexError:
-        nlay = 1
+        nlay = 1  # only one layer
+    except KeyError:
+        nlay = -1  # no dim layer
     if nlay > 1:
         layer = da["layer"].isel(layer=ilay).item()
         da = da.isel(layer=ilay)
+    elif nlay < 0:
+        ilay = None
     else:
         ilay = 0
-        layer = ds["layer"].item()
+        layer = da["layer"].item()
 
     # select time
-    if "time" in da:
+    if "time" in da.dims:
         try:
             nper = da["time"].shape[0]
         except IndexError:
             nper = 1
         if nper > 1:
-            t = da["time"].isel(time=iper).item()
+            t = pd.Timestamp(da["time"].isel(time=iper).item())
             da = da.isel(time=iper)
         else:
             iper = 0
-            t = ds["time"].item()
+            t = pd.Timestamp(ds["time"].item())
     else:
         t = None
 
-    # figure
-    if ax is not None:
-        f = ax.figure
-    else:
-        if figsize is None:
-            figsize = get_figsize(ds.extent)
-        f, ax = plt.subplots(1, 1, figsize=figsize)
-        rd_ticks(ax, base=1e4, fmt="{:.0f}")
-        plt.yticks(rotation=90, va="center")
-        ax.set_aspect("equal", adjustable="box")
+    f, ax = _get_figure(ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated)
 
-        # get normalization if vmin/vmax are passed
+    # get normalization if vmin/vmax are passed
     if vmin is not None or vmax is not None:
         norm = Normalize(vmin=vmin, vmax=vmax)
 
-    qm = data_array(da, cmap=cmap, norm=norm)
+    # plot data
+    pc = data_array(
+        da, ds=ds, cmap=cmap, alpha=alpha, norm=norm, ax=ax, rotated=rotated
+    )
+
+    # set extent
+    if extent is not None:
+        ax.axis(extent)
 
     # bgmap
     if backgroundmap:
@@ -353,15 +383,19 @@ def map_array(
     # add other info to plot
     if add_to_plot is not None:
         for fplot in add_to_plot:
-            fplot(ax)
+            fplot(ax=ax)
 
+    # plot modelgrid
     if plot_grid:
-        modelgrid(ds, ax=ax, lw=0.25, alpha=0.5)
+        if ds is None:
+            raise ValueError("Plotting modelgrid requires model Dataset!")
+        modelgrid(ds, ax=ax, lw=0.25, alpha=0.5, color="k")
 
     # axes properties
-    title += f" (layer={layer})"
+    if ilay is not None:
+        title += f" (layer={layer})"
     if t is not None:
-        title += f" (t={t})"
+        title += f" (t={t.strftime(date_fmt)})"
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
 
@@ -371,14 +405,15 @@ def map_array(
     divider = make_axes_locatable(ax)
     if colorbar:
         cax = divider.append_axes("right", size="5%", pad=0.1)
-        cbar = f.colorbar(qm, cax=cax)
-        cbar.set_ticks(levels)
+        cbar = f.colorbar(pc, cax=cax)
+        if levels is not None:
+            cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
 
-    if save:
-        f.savefig(fname, bbox_inches="tight", dpi=150)
-
-    return ax
+    if animate:
+        return f, ax, pc
+    else:
+        return ax
 
 
 def animate_map(
@@ -388,8 +423,9 @@ def animate_map(
     xlabel="X",
     ylabel="Y",
     title="",
-    datefmt="%Y-%m",
+    date_fmt="%Y-%m-%d",
     cmap="viridis",
+    alpha=1.0,
     vmin=None,
     vmax=None,
     norm=None,
@@ -397,6 +433,7 @@ def animate_map(
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
+    rotated=True,
     backgroundmap=False,
     figsize=None,
     ax=None,
@@ -422,10 +459,12 @@ def animate_map(
         The label for the y-axis. Default is "Y".
     title : str, optional
         The title of the plot. Default is an empty string.
-    datefmt : str, optional
-        The date format string for the title. Default is "%Y-%m".
+    date_fmt : str, optional
+        The date format string for the title. Default is "%Y-%m-%d".
     cmap : str, optional
         The colormap to be used for the visualization. Default is "viridis".
+    alpha : float, optional
+        transparency, default is 1.0 (not transparent)
     vmin : float, optional
         The minimum value for the colormap normalization. Default is None.
     vmax : float, optional
@@ -440,6 +479,8 @@ def animate_map(
         The label for the colorbar. Default is an empty string.
     plot_grid : bool, optional
         Whether to plot the model grid. Default is True.
+    rotated : bool, optional
+        Whether to plot rotated model, if applicable. Default is True.
     backgroundmap : bool, optional
         Whether to add a background map. Default is False.
     figsize : tuple, optional
@@ -474,84 +515,48 @@ def animate_map(
         da = ds[da]
 
     # check da
-    if "time" not in ds.dims:
+    if "time" not in da.dims:
         raise ValueError("DataArray needs to have time dimension!")
 
-    # select layer
-    try:
-        nlay = da["layer"].shape[0]
-    except IndexError:
-        nlay = 1
-    if nlay > 1:
-        layer = da["layer"].isel(layer=ilay).item()
-        da = da.isel(layer=ilay)
-    else:
-        ilay = 0
-        layer = ds["layer"].item()
-
-    # figure
-    if ax is not None:
-        f = ax.figure
-    else:
-        if ds is None:
-            extent = [
-                da.x.values.min(),
-                da.x.values.max(),
-                da.y.values.min(),
-                da.y.values.max(),
-            ]
-        else:
-            extent = ds.extent
-        base = 10 ** int(np.log10(extent[1] - extent[0]))
-        if figsize is None:
-            figsize = get_figsize(ds.extent)
-        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False)
-        ax.set_aspect("equal", adjustable="box")
-
-    # get normalization if vmin/vmax are passed
-    if vmin is not None or vmax is not None:
-        norm = Normalize(vmin=vmin, vmax=vmax)
-
-    # plot initial data
-    pc = data_array(da.isel(time=0), ds=ds, norm=norm, cmap=cmap)
-
-    # plot modelgrid
-    if plot_grid:
-        if ds is None:
-            raise ValueError("Plotting modelgrid requires model Dataset!")
-        modelgrid(ds, ax=ax, lw=0.25, alpha=0.5, color="k")
-
-    if add_to_plot is not None:
-        for fplot in add_to_plot:
-            fplot(ax)
-
-    # axes properties
-    axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
-    ax.set(**axprops)
+    # plot base image
+    f, ax, pc = map_array(
+        da=da,
+        ds=ds,
+        ilay=ilay,
+        iper=0,
+        ax=ax,
+        title=title,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        date_fmt=date_fmt,
+        norm=norm,
+        vmin=vmin,
+        vmax=vmax,
+        levels=levels,
+        cmap=cmap,
+        alpha=alpha,
+        colorbar=colorbar,
+        colorbar_label=colorbar_label,
+        plot_grid=plot_grid,
+        rotated=rotated,
+        add_to_plot=add_to_plot,
+        backgroundmap=backgroundmap,
+        figsize=figsize,
+        animate=True,
+    )
+    # remove timestamp from title
+    axtitle = ax.get_title()
+    axtitle.set_title(axtitle.replace("(t=", "(tstart="))
 
     # add updating title
     t = pd.Timestamp(da.time.values[0])
     title = title_inside(
-        f"Layer {layer}, t = {t.strftime(datefmt)}",
+        f"t = {t.strftime(date_fmt)}",
         ax,
         x=0.025,
         bbox={"facecolor": "w"},
         horizontalalignment="left",
     )
-    # tight layout
-    f.tight_layout()
-
-    if colorbar:
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.1)
-        cbar = f.colorbar(pc, cax=cax)
-        if levels is not None:
-            cbar.set_ticks(levels)
-        cbar.set_label(colorbar_label)
-
-    # bgmap
-    if backgroundmap:
-        add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # write update func
     def update(iper, pc, title):
@@ -563,7 +568,7 @@ def animate_map(
 
         # update title
         t = pd.Timestamp(da.time.values[iper])
-        title.set_text(f"Layer {ilay}, t = {t.strftime(datefmt)}")
+        title.set_text(f"Layer {ilay}, t = {t.strftime(date_fmt)}")
 
         return pc, title
 

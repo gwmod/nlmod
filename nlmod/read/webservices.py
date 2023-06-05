@@ -26,6 +26,7 @@ def arcrest(
     f="geojson",
     max_record_count=None,
     timeout=120,
+    **kwargs,
 ):
     """Download data from an arcgis rest FeatureServer."""
     params = {
@@ -40,7 +41,7 @@ def arcrest(
         params["geometry"] = f"{xmin},{ymin},{xmax},{ymax}"
         params["geometryType"] = "esriGeometryEnvelope"
         params["inSR"] = sr
-    props = _get_data(url, {"f": "json"}, timeout=timeout)
+    props = _get_data(url, {"f": "json"}, timeout=timeout, **kwargs)
     if max_record_count is None:
         max_record_count = props["maxRecordCount"]
     else:
@@ -48,7 +49,7 @@ def arcrest(
 
     params["returnIdsOnly"] = True
     url_query = f"{url}/{layer}/query"
-    props = _get_data(url_query, params, timeout=timeout)
+    props = _get_data(url_query, params, timeout=timeout, **kwargs)
     params.pop("returnIdsOnly")
     if "objectIds" in props:
         object_ids = props["objectIds"]
@@ -71,11 +72,11 @@ def arcrest(
                 object_ids[i_max],
             )
             params["where"] = where
-            data = _get_data(url_query, params, timeout=timeout)
+            data = _get_data(url_query, params, timeout=timeout, **kwargs)
             features.extend(data["features"])
     else:
         # download all data in one go
-        data = _get_data(url_query, params, timeout=timeout)
+        data = _get_data(url_query, params, timeout=timeout, **kwargs)
         features = data["features"]
     if f == "json" or f == "pjson":
         # Interpret the geometry field
@@ -119,8 +120,8 @@ def arcrest(
     return gdf
 
 
-def _get_data(url, params, timeout=120):
-    r = requests.get(url, params=params, timeout=timeout)
+def _get_data(url, params, timeout=120, **kwargs):
+    r = requests.get(url, params=params, timeout=timeout, **kwargs)
     if not r.ok:
         raise (Exception(f"Request not successful: {r.url}"))
     data = r.json()

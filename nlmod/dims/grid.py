@@ -1149,14 +1149,16 @@ def _get_aggregates_values(group, fields_methods, gwf=None):
     agg_dic = {}
     for field, method in fields_methods.items():
         # aggregation is only necesary if group shape is greater than 1
-        if group.shape[0] == 1:
+        if (group.shape[0] == 1) or (method == "first"):
             agg_dic[field] = group[field].values[0]
-        if method == "max":
+        elif method == "max":
             agg_dic[field] = group[field].max()
         elif method == "min":
             agg_dic[field] = group[field].min()
         elif method == "mean":
             agg_dic[field] = group[field].mean()
+        elif method == "sum":
+            agg_dic[field] = group[field].sum()
         elif method == "nearest":
             agg_dic[field] = _agg_nearest(group, field, gwf)
         elif method == "length_weighted":  # only for lines
@@ -1185,7 +1187,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     fields_methods: dict
         fields (keys) in the Geodataframe with their aggregation method (items)
         aggregation methods can be:
-        max, min, mean, length_weighted (lines), max_length (lines),
+        max, min, mean, sum, length_weighted (lines), max_length (lines),
         area_weighted (polygon), max_area (polygon).
     gwf : flopy Groundwater flow model
         only necesary if one of the field methods is 'nearest'
@@ -1377,9 +1379,9 @@ def gdf_to_grid(
             shpn = shp.copy()
             shpn["cellid"] = r["cellids"][i]
             shpn[geometry] = r["ixshapes"][i]
-            if shp[geometry].geom_type == "LineString":
+            if shp[geometry].geom_type == ["LineString", "MultiLineString"]:
                 shpn["length"] = r["lengths"][i]
-            elif shp[geometry].geom_type == "Polygon":
+            elif shp[geometry].geom_type in ["Polygon", "MultiPolygon"]:
                 shpn["area"] = r["areas"][i]
             shps.append(shpn)
     gdfg = gpd.GeoDataFrame(shps, geometry=geometry, crs=gdf.crs)

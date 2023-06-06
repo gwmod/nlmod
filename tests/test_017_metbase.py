@@ -1,5 +1,6 @@
-import nlmod
 from pathlib import Path
+
+import nlmod
 
 data_path = Path(__file__).parent / "data"
 

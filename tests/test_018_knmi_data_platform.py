@@ -3,7 +3,6 @@ from pathlib import Path
 
 from nlmod.read import knmi_data_platform
 
-
 data_path = Path(__file__).parent / "data"
 
 

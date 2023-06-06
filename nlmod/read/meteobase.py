@@ -7,7 +7,6 @@ from zipfile import ZipFile
 
 import numpy as np
 from pandas import Timestamp
-import rioxarray  # noqa # pylint: disable=unused-import
 from xarray import DataArray
 
 
@@ -206,7 +205,6 @@ def read_meteobase_ascii(
     if meta["Bestandsformaat"] == ".ASC (Arc/Info-raster)":
         times = []
         data_array = None
-
         for i, fname in enumerate(fnames):
             with zfile.open(fname) as fo:
                 data, ascii_meta = read_ascii(fo)
@@ -288,6 +286,8 @@ def read_meteobase(
                     meta[mb_type.upper()]["Projectie"]
                     == "RD new (Amersfoort, rijksdriehoekstelsel)"
                 ):
+                    import rioxarray  # noqa # pylint: disable=unused-import
+
                     da.rio.write_crs("EPSG:28992", inplace=True)
 
             da_list.append(da)

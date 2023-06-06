@@ -125,7 +125,7 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
         line_cnt += 1
 
     # extract data
-    data = np.array([x.split() for x in lines[line_cnt:]], dtype=float)[::-1]
+    data = np.array([x.split() for x in lines[line_cnt:]], dtype=float)
 
     return data, meta
 
@@ -150,7 +150,6 @@ def get_xy_from_ascii_meta(
     Tuple[np.ndarray, np.ndarray]
         Tuple with the the x and y coordinates as numpy array
     """
-
     if "xllcorner" in meta.keys():
         xstart = meta["xllcorner"] + meta["cellsize"] / 2
     elif "xllcenter" in meta.keys():
@@ -168,11 +167,13 @@ def get_xy_from_ascii_meta(
     elif "yllcenter" in meta.keys():
         ystart = meta["yllcenter"]
 
-    y = np.linspace(
-        ystart,
-        ystart + meta["cellsize"] * meta["nrows"],
-        meta["nrows"],
-        endpoint=False,
+    y = np.flip(
+        np.linspace(
+            ystart,
+            ystart + meta["cellsize"] * meta["nrows"],
+            meta["nrows"],
+            endpoint=True,
+        )
     )
     return x, y
 
@@ -225,7 +226,7 @@ def read_meteobase_ascii(
 
         if "nodata_value" in meta.keys() and replace_na:
             data_array[data_array == meta["nodata_value"]] = np.nan
-            del meta["nodata_value"]
+            meta["nodata_value"] = str(np.nan)
 
         x, y = get_xy_from_ascii_meta(ascii_meta)
 

@@ -7,7 +7,6 @@ from zipfile import ZipFile
 
 import numpy as np
 from pandas import Timestamp
-import rioxarray  # noqa # pylint: disable=unused-import
 from xarray import DataArray
 
 
@@ -150,7 +149,6 @@ def get_xy_from_ascii_meta(
     Tuple[np.ndarray, np.ndarray]
         Tuple with the the x and y coordinates as numpy array
     """
-
     if "xllcorner" in meta.keys():
         xstart = meta["xllcorner"] + meta["cellsize"] / 2
     elif "xllcenter" in meta.keys():
@@ -168,17 +166,19 @@ def get_xy_from_ascii_meta(
     elif "yllcenter" in meta.keys():
         ystart = meta["yllcenter"]
 
-    y = np.linspace(
-        ystart,
-        ystart + meta["cellsize"] * meta["nrows"],
-        meta["nrows"],
-        endpoint=False,
+    y = np.flip(
+        np.linspace(
+            ystart,
+            ystart + meta["cellsize"] * meta["nrows"],
+            meta["nrows"],
+            endpoint=True,
+        )
     )
     return x, y
 
 
 def read_meteobase_ascii(
-    zfile: ZipFile, foldername: str, meta: Dict[str, str], replace_na: bool = False
+    zfile: ZipFile, foldername: str, meta: Dict[str, str], replace_na: bool = True
 ) -> DataArray:
     """Read list of .asc files in a meteobase zipfile.
 
@@ -204,10 +204,11 @@ def read_meteobase_ascii(
     ]
     if meta["Bestandsformaat"] == ".ASC (Arc/Info-raster)":
         times = []
+        data_array = None
         for i, fname in enumerate(fnames):
-            data_array = None
             with zfile.open(fname) as fo:
                 data, ascii_meta = read_ascii(fo)
+
                 if data_array is None:
                     meta.update(ascii_meta)
                     data_array = np.zeros(
@@ -223,6 +224,7 @@ def read_meteobase_ascii(
 
         if "nodata_value" in meta.keys() and replace_na:
             data_array[data_array == meta["nodata_value"]] = np.nan
+            meta["nodata_value"] = str(np.nan)
 
         x, y = get_xy_from_ascii_meta(ascii_meta)
 
@@ -247,7 +249,7 @@ def read_meteobase_ascii(
 def read_meteobase(
     path: Union[Path, str],
     meteobase_type: Optional[str] = None,
-    replace_na: bool = False,
+    replace_na: bool = True,
 ) -> List[DataArray]:
     """Read Meteobase zipfile with ASCII data.
 
@@ -284,7 +286,10 @@ def read_meteobase(
                     meta[mb_type.upper()]["Projectie"]
                     == "RD new (Amersfoort, rijksdriehoekstelsel)"
                 ):
+                    import rioxarray  # noqa # pylint: disable=unused-import
+
                     da.rio.write_crs("EPSG:28992", inplace=True)
+
             da_list.append(da)
 
     return da_list

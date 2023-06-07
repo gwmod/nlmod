@@ -1,7 +1,7 @@
 from importlib import metadata
 from platform import python_version
 
-__version__ = "0.5.4b"
+__version__ = "0.5.4"
 
 
 def show_versions() -> None:

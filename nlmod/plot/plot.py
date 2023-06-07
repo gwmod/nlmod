@@ -1,4 +1,4 @@
-import os
+import warnings
 from functools import partial
 
 import flopy as fp
@@ -46,10 +46,9 @@ def modelgrid(ds, ax=None, **kwargs):
 def facet_plot(
     gwf,
     ds,
-    figdir,
-    plot_var="bot",
+    plot_var,
     plot_time=None,
-    plot_bc=("CHD",),
+    plot_bc=None,
     color="k",
     grid=False,
     xlim=None,
@@ -65,8 +64,8 @@ def facet_plot(
         model dataset.
     figdir : str
         file path figures.
-    plot_var : str, optional
-        variable in ds. The default is 'bot'.
+    plot_var : str
+        variable in ds
     plot_time : int, optional
         time step if plot_var is time variant. The default is None.
     plot_bc : list of str, optional
@@ -88,12 +87,19 @@ def facet_plot(
     axes : TYPE
         DESCRIPTION.
     """
-    for key in plot_bc:
-        if key not in gwf.get_package_list():
-            raise ValueError(
-                f"cannot plot boundary condition {key} "
-                "because it is not in the package list"
-            )
+
+    warnings.warn(
+        "this function is out of date and will probably be removed in a future version",
+        DeprecationWarning,
+    )
+
+    if plot_bc is not None:
+        for key in plot_bc:
+            if key not in gwf.get_package_list():
+                raise ValueError(
+                    f"cannot plot boundary condition {key} "
+                    "because it is not in the package list"
+                )
 
     nlay = len(ds.layer)
 
@@ -116,15 +122,16 @@ def facet_plot(
     vmin = plot_arr.min()
     vmax = plot_arr.max()
     for ilay in range(nlay):
-        iax = axes.ravel()[ilay]
+        iax = axes.flat[ilay]
         mp = fp.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
         # mp.plot_grid()
         qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax)
         # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
         # mp.plot_ibound()
         # plt.colorbar(qm)
-        for bc_var in plot_bc:
-            mp.plot_bc(bc_var, kper=0, color=color)
+        if plot_bc is not None:
+            for bc_var in plot_bc:
+                mp.plot_bc(bc_var, color=color, kper=0)
 
         iax.set_aspect("equal", adjustable="box")
         iax.set_title(f"Layer {ilay}")
@@ -135,18 +142,13 @@ def facet_plot(
         if ylim is not None:
             iax.set_ylim(ylim)
 
-    for iax in axes.ravel()[nlay:]:
+    for iax in axes.flat[nlay:]:
         iax.set_visible(False)
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(f"{plot_var}", rotation=270)
     fig.suptitle(f"{plot_var} Time = {(ds.nper*ds.perlen)/365} year")
     fig.tight_layout()
-    fig.savefig(
-        os.path.join(figdir, f"{plot_var}_per_layer.png"),
-        dpi=150,
-        bbox_inches="tight",
-    )
 
     return fig, axes
 

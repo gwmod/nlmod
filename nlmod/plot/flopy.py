@@ -235,7 +235,6 @@ def facet_plot(
     xlim=None,
     ylim=None,
     grid=False,
-    figdir=None,
     figsize=(10, 8),
     plot_bc=None,
     plot_grid=False,
@@ -316,12 +315,5 @@ def facet_plot(
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(lbl)
-
-    if figdir:
-        fig.savefig(
-            os.path.join(figdir, f"{lbl}_per_{plot_dim}.png"),
-            dpi=150,
-            bbox_inches="tight",
-        )
 
     return fig, axes

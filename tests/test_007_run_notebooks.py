@@ -50,13 +50,8 @@ def test_run_notebook_05_caching():
 
 
 @pytest.mark.notebooks
-def test_run_notebook_06_compare_layermodels():
-    _run_notebook(nbdir, "06_compare_layermodels.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_07_gridding_vector_data():
-    _run_notebook(nbdir, "07_gridding_vector_data.ipynb")
+def test_run_notebook_06_gridding_vector_data():
+    _run_notebook(nbdir, "06_gridding_vector_data.ipynb")
 
 
 @pytest.mark.notebooks

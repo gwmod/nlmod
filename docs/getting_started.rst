@@ -75,7 +75,7 @@ MODFLOW 6 model given a model dataset::
 Running the model requires the modflow binaries provided by the USGS. Those can
 be downloaded with::
 
-    nlmod.util.download_mfbinaries()
+    nlmod.download_mfbinaries()
 
 Writing and running the model can then be done using::
 

@@ -37,6 +37,6 @@ Please see the [dependencies](https://github.com/ArtesiaWater/hydropandas#depend
 If you are using nlmod for the first time you need to download the MODFLOW executables. You can easily download these executables by running this Python code:
 
     import nlmod
-	nlmod.util.download_mfbinaries()
+	nlmod.download_mfbinaries()
 
 After you've downloaded the executables you can run the Jupyter Notebooks in the examples folder. These notebooks illustrate how you to use the nlmod package.

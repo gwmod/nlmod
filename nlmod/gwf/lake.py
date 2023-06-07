@@ -101,6 +101,8 @@ def lake_from_gdf(
     assert ds.time.time_units.lower() == "days", "expected time unit days"
     time_conversion = 86400.0
     # length unit is always meters in nlmod
+    # TODO: Let's add a check for a length unit of meters if we ever add a length unit
+    # to ds
     length_conversion = 1.0
 
     packagedata = []
@@ -124,8 +126,7 @@ def lake_from_gdf(
     for lakeno, lake_gdf in gdf.groupby("lakeno"):
         nlakeconn = lake_gdf.shape[0]
         strt = lake_gdf["strt"].iloc[0]
-        assert (lake_gdf["strt"] == strt).all(
-        ), "a single lake should have single strt"
+        assert (lake_gdf["strt"] == strt).all(), "a single lake should have single strt"
 
         if boundname_column is not None:
             boundname = lake_gdf[boundname_column].iloc[0]
@@ -221,8 +222,7 @@ def lake_from_gdf(
             for lake_setting in lake_settings:
                 datavar = lake_gdf[lake_setting].iloc[0]
                 if not pd.notna(datavar):  # None or nan
-                    logger.debug(
-                        f"no {lake_setting} given for lake no {lakeno}")
+                    logger.debug(f"no {lake_setting} given for lake no {lakeno}")
                     continue
                 if not (lake_gdf[lake_setting] == datavar).all():
                     raise ValueError(

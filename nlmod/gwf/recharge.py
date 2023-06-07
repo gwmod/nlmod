@@ -14,7 +14,7 @@ from ..sim.sim import get_tdis_perioddata
 logger = logging.getLogger(__name__)
 
 
-def model_datasets_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
+def ds_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
     """Convert the recharge data in the model dataset to a rch package with
     time series.
 
@@ -73,9 +73,7 @@ def model_datasets_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
     return rch
 
 
-def model_datasets_to_evt(
-    gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs
-):
+def ds_to_evt(gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs):
     """Convert the evaporation data in the model dataset to a evt package with
     time series.
 

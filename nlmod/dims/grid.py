@@ -508,7 +508,8 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
             if "layer" in ds[var].dims:
                 if var not in layer_ds.data_vars:
                     logger.info(
-                        f"Variable {var} is dropped, as it has dimension layer, but is not defined in layer_ds"
+                        f"Variable {var} is dropped, as it has dimension layer, "
+                        "but is not defined in layer_ds"
                     )
                 drop_vars.append(var)
         if len(drop_vars) > 0:

@@ -40,20 +40,20 @@ def get_gdf_surface_water(ds):
 
 
 @cache.cache_netcdf
-def get_surface_water(ds, da_name):
+def get_surface_water(ds, da_basename):
     """create 3 data-arrays from the shapefile with surface water:
 
-    - area: with the area of the shape in the cell
-    - cond: with the conductance based on the area and bweerstand column in shapefile
-    - peil: with the surface water lvl based on the peil column in the shapefile
+    - area: area of the shape in the cell
+    - cond: conductance based on the area and "bweerstand" column in shapefile
+    - stage: surface water level based on the "peil" column in the shapefile
 
     Parameters
     ----------
     ds : xr.DataSet
         xarray with model data
-    da_name : str
-        name of the polygon shapes, name is used to store data arrays in
-        ds
+    da_basename : str
+        name of the polygon shapes, name is used as a prefix
+        to store data arrays in ds
 
     Returns
     -------
@@ -79,12 +79,12 @@ def get_surface_water(ds, da_name):
         area = xr.where(area_pol > area, area_pol, area)
 
     ds_out = util.get_ds_empty(ds)
-    ds_out[f"{da_name}_area"] = area
-    ds_out[f"{da_name}_area"].attrs["units"] = "m2"
-    ds_out[f"{da_name}_cond"] = cond
-    ds_out[f"{da_name}_cond"].attrs["units"] = "m2/day"
-    ds_out[f"{da_name}_peil"] = peil
-    ds_out[f"{da_name}_peil"].attrs["units"] = "mNAP"
+    ds_out[f"{da_basename}_area"] = area
+    ds_out[f"{da_basename}_area"].attrs["units"] = "m2"
+    ds_out[f"{da_basename}_cond"] = cond
+    ds_out[f"{da_basename}_cond"].attrs["units"] = "m2/day"
+    ds_out[f"{da_basename}_stage"] = peil
+    ds_out[f"{da_basename}_stage"].attrs["units"] = "mNAP"
 
     for datavar in ds_out:
         ds_out[datavar].attrs["source"] = "RWS"

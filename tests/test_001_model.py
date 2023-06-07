@@ -1,9 +1,10 @@
 import os
 import tempfile
 
-import nlmod
 import pytest
 import xarray as xr
+
+import nlmod
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
@@ -178,7 +179,7 @@ def test_create_sea_model(tmpdir):
     # voeg grote oppervlaktewaterlichamen toe
     da_name = "surface_water"
     ds.update(nlmod.read.rws.get_surface_water(ds, da_name))
-    _ = nlmod.gwf.ghb(ds, gwf, da_name)
+    _ = nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
 
     # surface level drain
     ds.update(nlmod.read.ahn.get_ahn(ds))
@@ -186,7 +187,7 @@ def test_create_sea_model(tmpdir):
 
     # add constant head cells at model boundaries
     ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
-    _ = nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
+    _ = nlmod.gwf.chd(ds, gwf, mask="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
     ds.update(nlmod.read.knmi.get_recharge(ds))
@@ -249,7 +250,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     # voeg grote oppervlaktewaterlichamen toe
     da_name = "surface_water"
     ds.update(nlmod.read.rws.get_surface_water(ds, da_name))
-    nlmod.gwf.ghb(ds, gwf, da_name)
+    nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
 
     # surface level drain
     ds.update(nlmod.read.ahn.get_ahn(ds))
@@ -257,7 +258,7 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     # add constant head cells at model boundaries
     ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
-    nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
+    nlmod.gwf.chd(ds, gwf, mask="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
     ds.update(nlmod.read.knmi.get_recharge(ds))
@@ -320,7 +321,7 @@ def test_create_sea_model_perlen_14(tmpdir):
     # voeg grote oppervlaktewaterlichamen toe
     da_name = "surface_water"
     ds.update(nlmod.read.rws.get_surface_water(ds, da_name))
-    nlmod.gwf.ghb(ds, gwf, da_name)
+    nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
 
     # surface level drain
     ds.update(nlmod.read.ahn.get_ahn(ds))
@@ -328,7 +329,7 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     # add constant head cells at model boundaries
     ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
-    nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
+    nlmod.gwf.chd(ds, gwf, mask="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
     ds.update(nlmod.read.knmi.get_recharge(ds))

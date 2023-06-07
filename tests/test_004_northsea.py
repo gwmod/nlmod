@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import nlmod
-
 import test_001_model
+
+import nlmod
 
 
 def test_get_gdf_opp_water():

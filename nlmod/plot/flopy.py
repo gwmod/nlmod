@@ -10,13 +10,33 @@ from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .plot import add_background_map, get_figsize, rd_ticks, title_inside
+from .plotutil import add_background_map, get_figsize, get_map, title_inside
+
+
+def _get_figure(ax=None, gwf=None, figsize=None):
+    # figure
+    if ax is not None:
+        f = ax.figure
+    else:
+        if figsize is None:
+            figsize = get_figsize(gwf.modelgrid.extent)
+            # try to ensure pixel size is divisible by 2
+            figsize = (figsize[0], np.round(figsize[1] / 0.02, 0) * 0.02)
+
+        base = 10 ** int(np.log10(gwf.modelgrid.extent[1] - gwf.modelgrid.extent[0]))
+        f, ax = get_map(
+            gwf.modelgrid.extent, base=base, figsize=figsize, tight_layout=False
+        )
+        ax.set_aspect("equal", adjustable="box")
+    return f, ax
 
 
 def map_array(
     arr,
     gwf,
     ilay=0,
+    iper=0,
+    extent=None,
     ax=None,
     title="",
     xlabel="X [km RD]",
@@ -26,42 +46,37 @@ def map_array(
     vmax=None,
     levels=None,
     cmap="viridis",
+    alpha=1.0,
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
     add_to_plot=None,
     backgroundmap=False,
     figsize=None,
-    save=False,
-    fname=None,
+    animate=False,
 ):
     # get data
     if isinstance(arr, xr.DataArray):
         arr = arr.values
 
-    # get correct layer if need be
-    if len(arr.shape) == 3 and arr.shape[0] > 1:
+    # get correct timestep and layer if need be
+    if len(arr.shape) == 4:
+        arr = arr[iper]
+    if len(arr.shape) == 3:
         arr = arr[ilay]
-    elif len(arr.shape) > 3:
-        raise ValueError("Array has too many dimensions!")
 
-    # figure
-    if ax is not None:
-        f = ax.figure
-    else:
-        if figsize is None:
-            figsize = get_figsize(gwf.modelgrid.extent)
-        f, ax = plt.subplots(1, 1, figsize=figsize)
-        rd_ticks(ax, base=1e4, fmt="{:.0f}")
-        plt.yticks(rotation=90, va="center")
-        ax.set_aspect("equal", adjustable="box")
+    # get figure
+    f, ax = _get_figure(ax=ax, gwf=gwf, figsize=figsize)
 
-        # get normalization if vmin/vmax are passed
+    # get normalization if vmin/vmax are passed
     if vmin is not None or vmax is not None:
         norm = Normalize(vmin=vmin, vmax=vmax)
 
-    pmv = flopy.plot.PlotMapView(gwf, layer=ilay, ax=ax)
-    qm = pmv.plot_array(arr, cmap=cmap, norm=norm)
+    # get plot obj
+    pmv = flopy.plot.PlotMapView(gwf, layer=ilay, ax=ax, extent=extent)
+
+    # plot data
+    qm = pmv.plot_array(arr, cmap=cmap, norm=norm, alpha=alpha)
 
     # bgmap
     if backgroundmap:
@@ -86,13 +101,123 @@ def map_array(
     if colorbar:
         cax = divider.append_axes("right", size="5%", pad=0.1)
         cbar = f.colorbar(qm, cax=cax)
-        cbar.set_ticks(levels)
+        if levels is not None:
+            cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
 
-    if save:
-        f.savefig(fname, bbox_inches="tight", dpi=150)
+    if animate:
+        return f, ax, qm
+    else:
+        return ax
 
-    return ax
+
+def animate_map(
+    arr,
+    times,
+    gwf,
+    ilay=0,
+    extent=None,
+    ax=None,
+    title="",
+    xlabel="X [km RD]",
+    ylabel="Y [km RD]",
+    datefmt="%Y-%m",
+    norm=None,
+    vmin=None,
+    vmax=None,
+    levels=None,
+    cmap="viridis",
+    alpha=1.0,
+    colorbar=True,
+    colorbar_label="",
+    plot_grid=True,
+    add_to_plot=None,
+    backgroundmap=False,
+    figsize=(9.24, 10.042),
+    save=False,
+    fname=None,
+):
+    # get data
+    if isinstance(arr, xr.DataArray):
+        arr = arr.values
+
+    # get correct layer if need be
+    if isinstance(arr, list):
+        arr = np.stack(arr)
+    if len(arr.shape) == 4 and arr.shape[1] > 1:
+        arr = arr[:, ilay]
+    elif len(arr.shape) < 3:
+        raise ValueError("Array has too few dimensions!")
+
+    # plot base image
+    f, ax, qm = map_array(
+        arr,
+        gwf,
+        ilay=ilay,
+        iper=0,
+        extent=extent,
+        ax=ax,
+        title=title,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        norm=norm,
+        vmin=vmin,
+        vmax=vmax,
+        levels=levels,
+        cmap=cmap,
+        alpha=alpha,
+        colorbar=colorbar,
+        colorbar_label=colorbar_label,
+        plot_grid=plot_grid,
+        add_to_plot=add_to_plot,
+        backgroundmap=backgroundmap,
+        figsize=figsize,
+        animate=True,
+    )
+    # add updating title
+    t = pd.Timestamp(times[0])
+    title = title_inside(
+        f"Layer {ilay}, t = {t.strftime(datefmt)}",
+        ax,
+        x=0.025,
+        bbox={"facecolor": "w"},
+        horizontalalignment="left",
+    )
+
+    # write update func
+    def update(iper, qm, title):
+        # select timestep
+        ai = arr[iper]
+
+        # update quadmesh
+        qm.set_array(ai.ravel())
+
+        # update title
+        t = pd.Timestamp(times[iper])
+        title.set_text(f"Layer {ilay}, t = {t.strftime(datefmt)}")
+
+        return qm, title
+
+    # create animation
+    anim = FuncAnimation(
+        f,
+        partial(update, qm=qm, title=title),
+        frames=len(times),
+        blit=False,
+        interval=100,
+    )
+
+    # save animation as mp4
+    if save:
+        writer = FFMpegWriter(
+            fps=10,
+            bitrate=-1,
+            extra_args=["-pix_fmt", "yuv420p"],
+            codec="libx264",
+        )
+        anim.save(fname, writer=writer)
+
+    return f, anim
 
 
 def facet_plot(
@@ -110,7 +235,6 @@ def facet_plot(
     xlim=None,
     ylim=None,
     grid=False,
-    figdir=None,
     figsize=(10, 8),
     plot_bc=None,
     plot_grid=False,
@@ -192,136 +316,4 @@ def facet_plot(
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(lbl)
 
-    if figdir:
-        fig.savefig(
-            os.path.join(figdir, f"{lbl}_per_{plot_dim}.png"),
-            dpi=150,
-            bbox_inches="tight",
-        )
-
     return fig, axes
-
-
-def animate_map(
-    arr,
-    times,
-    gwf,
-    ilay=0,
-    ax=None,
-    title="",
-    xlabel="X [km RD]",
-    ylabel="Y [km RD]",
-    datefmt="%Y-%m",
-    norm=None,
-    vmin=None,
-    vmax=None,
-    levels=None,
-    cmap="viridis",
-    colorbar=True,
-    colorbar_label="",
-    plot_grid=True,
-    add_to_plot=None,
-    backgroundmap=False,
-    figsize=(9.24, 10.042),
-    save=False,
-    fname=None,
-):
-    # get data
-    if isinstance(arr, xr.DataArray):
-        arr = arr.values
-
-    # get correct layer if need be
-    if isinstance(arr, list):
-        arr = np.stack(arr)
-    if len(arr.shape) == 4 and arr.shape[1] > 1:
-        arr = arr[:, ilay]
-    elif len(arr.shape) < 3:
-        raise ValueError("Array has too few dimensions!")
-
-    # figure
-    if ax is not None:
-        f = ax.figure
-    else:
-        f, ax = plt.subplots(1, 1, figsize=figsize)
-        rd_ticks(ax, base=1e4, fmt="{:.0f}")
-        plt.yticks(rotation=90, va="center")
-        ax.set_aspect("equal", adjustable="box")
-
-        # get normalization if vmin/vmax are passed
-    if vmin is not None or vmax is not None:
-        norm = Normalize(vmin=vmin, vmax=vmax)
-
-    pmv = flopy.plot.PlotMapView(gwf, layer=ilay, ax=ax)
-    qm = pmv.plot_array(arr, cmap=cmap, norm=norm)
-
-    # add other info to plot
-    if add_to_plot is not None:
-        for fplot in add_to_plot:
-            fplot(ax)
-
-    if plot_grid:
-        pmv.plot_grid(lw=0.25, alpha=0.5)
-
-    # axes properties
-    axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
-    ax.set(**axprops)
-
-    # add updating title
-    t = pd.Timestamp(times[0])
-    title = title_inside(
-        f"Layer {ilay}, t = {t.strftime(datefmt)}",
-        ax,
-        x=0.025,
-        bbox={"facecolor": "w"},
-        horizontalalignment="left",
-    )
-
-    f.tight_layout()
-
-    # colorbar
-    divider = make_axes_locatable(ax)
-    if colorbar:
-        cax = divider.append_axes("right", size="5%", pad=0.1)
-        cbar = f.colorbar(qm, cax=cax)
-        if levels is not None:
-            cbar.set_ticks(levels)
-        cbar.set_label(colorbar_label)
-
-    # bgmap
-    if backgroundmap:
-        add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
-
-    # write update func
-    def update(iper, qm, title):
-        # select timestep
-        ai = arr[iper]
-
-        # update quadmesh
-        qm.set_array(ai.ravel())
-
-        # update title
-        t = pd.Timestamp(times[iper])
-        title.set_text(f"Layer {ilay}, t = {t.strftime(datefmt)}")
-
-        return qm, title
-
-    # create animation
-    anim = FuncAnimation(
-        f,
-        partial(update, qm=qm, title=title),
-        frames=len(times),
-        blit=False,
-        interval=100,
-    )
-
-    # save animation as mp4
-    if save:
-        writer = FFMpegWriter(
-            fps=10,
-            bitrate=-1,
-            extra_args=["-pix_fmt", "yuv420p"],
-            codec="libx264",
-        )
-        anim.save(fname, writer=writer)
-
-    return f, anim

@@ -225,7 +225,13 @@ def get_configuration():
     config["Hollandse Delta"] = {
         "bgt_code": "W0655",
         "watercourses": {
-            "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Geoportaal/Legger2014waterbeheersing_F_transparant/FeatureServer",
+            # "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Geoportaal/Legger2014waterbeheersing_F_transparant/FeatureServer",
+            "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Watersysteem/MapServer",
+            "layer": 15,  # Waterlopen
+            "bottom_height": [
+                ["BODEMHOOGTE_BOVENSTROOMS", "BODEMHOOGTE_BENEDENSTROOMS"]
+            ],
+            "bottom_width": "BODEMBREEDTE",
         },
         "level_areas": {
             "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Peilgebieden/MapServer",
@@ -360,13 +366,14 @@ def get_configuration():
     config["Scheldestromen"] = {
         "bgt_code": "W0661",
         "watercourses": {
-            "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Legger_Oppervlaktewaterlichamen_Vastgesteld/MapServer",
+            "url": "http://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Legger_Oppervlaktewaterlichamen_Vastgesteld/MapServer",
             "layer": 6,
             "index": "OAFIDENT",
             "bottom_height": "OAFBODHG",
+            "bottom_width": "OAFBODBR",
         },
         "level_areas": {
-            "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",
+            "url": "http://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",
             "layer": 14,  # Peilgebieden (praktijk)
             "index": "GPGIDENT",
             # "layer": 15,  # Peilgebieden (juridisch)
@@ -562,10 +569,15 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         set_columns = ["bottom_height", "water_depth"]
     else:
         set_columns = []
+    nan_values = None
+    if "nan_values" in conf:
+        nan_values = conf["nan_values"]
 
     for set_column in set_columns:
         from_columns = conf[set_column] if set_column in conf else []
-        gdf = _set_column_from_columns(gdf, set_column, from_columns)
+        gdf = _set_column_from_columns(
+            gdf, set_column, from_columns, nan_values=nan_values
+        )
     return gdf
 
 

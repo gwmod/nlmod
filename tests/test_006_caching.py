@@ -6,10 +6,10 @@
 
 import tempfile
 
-import nlmod
 import pytest
-
 import test_001_model
+
+import nlmod
 
 tmpdir = tempfile.gettempdir()
 

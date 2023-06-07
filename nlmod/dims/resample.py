@@ -39,9 +39,9 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     Returns
     -------
     x : np.array
-        x-coordinates of the cell centers shape(ncol)
+        x-coordinates of the cell centers shape (ncol)
     y : np.array
-        y-coordinates of the cell centers shape(nrow)
+        y-coordinates of the cell centers shape (nrow)
     """
     if isinstance(delr, (numbers.Number)):
         if not isinstance(delc, (numbers.Number)):
@@ -630,6 +630,7 @@ def get_affine(ds, sx=None, sy=None):
         sx = attrs["delr"]
     if sy is None:
         sy = -attrs["delc"]
+
     if "angrot" in attrs:
         xorigin = attrs["xorigin"]
         yorigin = attrs["yorigin"]

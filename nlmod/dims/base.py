@@ -580,7 +580,7 @@ def get_ds(
         else:
             layer = len(botm)
     if isinstance(layer, int):
-        layer = np.arange(1, layer + 1)
+        layer = np.arange(0, layer)
     if botm is None:
         botm = top - 10 * np.arange(1.0, len(layer) + 1)
 

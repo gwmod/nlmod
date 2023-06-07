@@ -167,7 +167,7 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
 
 
 def get_jarkus_tilenames(extent, kind="jarkus"):
-    """Find all Jarkus tilenames within a certain extent
+    """Find all Jarkus tilenames within a certain extent.
 
     Parameters
     ----------
@@ -179,7 +179,6 @@ def get_jarkus_tilenames(extent, kind="jarkus"):
     -------
     netcdf_urls : list of str
         list of the urls of all netcdf files of the tiles with Jarkus data.
-
     """
     if kind == "jarkus":
         url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/jarkus/grids/catalog.nc"

@@ -7,7 +7,6 @@ from typing import Dict, Optional
 
 import flopy
 import geopandas as gpd
-import numpy as np
 import requests
 import xarray as xr
 from colorama import Back, Fore, Style
@@ -387,95 +386,6 @@ def download_file_from_google_drive(fid, destination=None):
     save_response_content(response, destination)
 
 
-def get_heads_dataarray(ds, fill_nans=False, fname_hds=None):
-    """reads the heads from a modflow .hds file and returns an xarray
-    DataArray.
-
-    Parameters
-    ----------
-    ds : TYPE
-        DESCRIPTION.
-    fill_nans : bool, optional
-        if True the nan values are filled with the heads in the cells below
-    fname_hds : TYPE, optional
-        DESCRIPTION. The default is None.
-
-    Returns
-    -------
-    head_ar : TYPE
-        DESCRIPTION.
-    """
-    logger.warning(
-        "nlmod.util.get_heads_dataarray is deprecated. "
-        "Please use nlmod.gwf.get_heads_da instead"
-    )
-
-    if fname_hds is None:
-        fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-
-    head = get_heads_array(fname_hds, fill_nans=fill_nans)
-
-    if ds.gridtype == "vertex":
-        head_ar = xr.DataArray(
-            data=head[:, :, 0],
-            dims=("time", "layer", "icell2d"),
-            coords={
-                "icell2d": ds.icell2d,
-                "layer": ds.layer,
-                "time": ds.time,
-            },
-        )
-    elif ds.gridtype == "structured":
-        head_ar = xr.DataArray(
-            data=head,
-            dims=("time", "layer", "y", "x"),
-            coords={
-                "x": ds.x,
-                "y": ds.y,
-                "layer": ds.layer,
-                "time": ds.time,
-            },
-        )
-
-    return head_ar
-
-
-def get_heads_array(fname_hds, fill_nans=False):
-    """reads the heads from a modflow .hds file and returns a numpy array.
-
-    assumes the dimensions of the heads file are:
-        structured: time, layer, icell2d
-        vertex: time, layer, nrow, ncol
-
-
-    Parameters
-    ----------
-    fname_hds : TYPE, optional
-        DESCRIPTION. The default is None.
-    fill_nans : bool, optional
-        if True the nan values are filled with the heads in the cells below
-
-    Returns
-    -------
-    head_ar : np.ndarray
-        heads array.
-    """
-    logger.warning(
-        "nlmod.util.get_heads_array is deprecated. "
-        "Please use nlmod.gwf.get_heads_da instead"
-    )
-    hdobj = flopy.utils.HeadFile(fname_hds)
-    head = hdobj.get_alldata()
-    head[head == 1e30] = np.nan
-
-    if fill_nans:
-        for lay in range(head.shape[1] - 2, -1, -1):
-            head[:, lay] = np.where(
-                np.isnan(head[:, lay]), head[:, lay + 1], head[:, lay]
-            )
-    return head
-
-
 def download_mfbinaries(bindir=None):
     """Download and unpack platform-specific modflow binaries.
 
@@ -495,6 +405,22 @@ def download_mfbinaries(bindir=None):
     if not os.path.isdir(bindir):
         os.makedirs(bindir)
     flopy.utils.get_modflow(bindir)
+    if sys.platform.startswith("win"):
+        # download the provisional version of modpath from Github
+        download_modpath_provisional_exe(bindir)
+
+
+def download_modpath_provisional_exe(bindir=None, timeout=120):
+    """Downlaod the provisional version of modpath to the folder with binaries"""
+    if bindir is None:
+        bindir = os.path.join(os.path.dirname(__file__), "bin")
+    if not os.path.isdir(bindir):
+        os.makedirs(bindir)
+    url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL/mpath7_PROVISIONAL_2022-08-23_9ac760f.exe"
+    r = requests.get(url, allow_redirects=True, timeout=timeout)
+    fname = os.path.join(bindir, "mp7_2_002_provisional.exe")
+    with open(fname, "wb") as file:
+        file.write(r.content)
 
 
 def check_presence_mfbinaries(exe_name="mf6", binpath=None):
@@ -565,3 +491,110 @@ def get_color_logger(level="INFO"):
 
     logging.captureWarnings(True)
     return logger
+
+
+def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
+    """Internal function to get value from dataset attributes.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing model data
+    varname : str
+        name of the variable in flopy package
+    attr : str, optional
+        name of the attribute in dataset (is sometimes different to varname)
+    value : Any, optional
+        variable value, by default None
+    warn : bool, optional
+        log warning if value not found
+
+    Returns
+    -------
+    value : Any
+        returns variable value, if value was None, attempts to obtain
+        variable from dataset attributes.
+    """
+    if attr is None:
+        attr = varname
+
+    if value is not None and (attr in ds.attrs):
+        logger.info(
+            f"Using user-provided '{varname}' and not stored attribute 'ds.{attr}'"
+        )
+    elif value is None and (attr in ds.attrs):
+        logger.debug(f"Using stored data attribute '{attr}' for '{varname}'")
+        value = ds.attrs[attr]
+    elif value is None:
+        if warn:
+            msg = (
+                f"No value found for '{varname}', returning None. "
+                f"To fix this error pass '{varname}' to function or set 'ds.{attr}'."
+            )
+            logger.warning(msg)
+        # raise ValueError(msg)
+    return value
+
+
+def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True):
+    """Internal function to get value from dataset data variables.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing model data
+    varname : str
+        name of the variable in flopy package
+    datavar : Any, optional
+        if str, treated as the name of the data variable (which can be
+        different to varname) in dataset, if not provided is assumed to be
+        the same as varname. If not passed as string, it is treated as data
+    warn : bool, optional
+        log warning if value not found
+
+    Returns
+    -------
+    value : Any
+        returns variable value, if value is None or str, attempts to obtain
+        variable from dataset data variables.
+
+    Note
+    ----
+    For optional data, use warn=False, e.g.::
+
+        _get_value_from_ds_datavar(ds, "ss", datavar=None, warn=False)
+    """
+    # parsing datavar to check things:
+    # - varname is the name of the variable in the original function/flopy package
+    # - datavar is converted to str or None, used to check for presence in dataset
+    # - value is used to store value
+    if isinstance(datavar, xr.DataArray):
+        value = datavar
+        datavar = datavar.name
+    elif isinstance(datavar, str):
+        value = datavar
+    else:
+        value = datavar
+        datavar = None
+
+    # inform user that user-provided variable is used over stored copy
+    if (value is not None and not isinstance(value, str)) and (datavar in ds):
+        logger.info(
+            f"Using user-provided '{varname}' and not"
+            f" stored data variable 'ds.{datavar}'"
+        )
+    # get datavar from dataset if value is None or value is string
+    elif ((value is None) or isinstance(value, str)) and (datavar in ds):
+        logger.debug(f"Using stored data variable '{datavar}' for '{varname}'")
+        value = ds[datavar]
+    # warn if value is None
+    elif isinstance(value, str):
+        value = None
+        if warn:
+            msg = (
+                f"No value found for '{varname}', returning None. "
+                f"To silence this warning pass '{varname}' data directly "
+                f"to function or check whether 'ds.{datavar}' was set correctly."
+            )
+            logger.warning(msg)
+    return value

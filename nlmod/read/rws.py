@@ -31,7 +31,7 @@ def get_gdf_surface_water(ds):
         surface water geodataframe.
     """
     # laad bestanden in
-    fname = os.path.join(nlmod.NLMOD_DATADIR, "opp_water.shp")
+    fname = os.path.join(nlmod.NLMOD_DATADIR, "shapes", "opp_water.shp")
     gdf_swater = gpd.read_file(fname)
     extent = dims.get_extent(ds)
     gdf_swater = util.gdf_within_extent(gdf_swater, extent)
@@ -40,20 +40,20 @@ def get_gdf_surface_water(ds):
 
 
 @cache.cache_netcdf
-def get_surface_water(ds, da_name):
+def get_surface_water(ds, da_basename):
     """create 3 data-arrays from the shapefile with surface water:
 
-    - area: with the area of the shape in the cell
-    - cond: with the conductance based on the area and bweerstand column in shapefile
-    - peil: with the surface water lvl based on the peil column in the shapefile
+    - area: area of the shape in the cell
+    - cond: conductance based on the area and "bweerstand" column in shapefile
+    - stage: surface water level based on the "peil" column in the shapefile
 
     Parameters
     ----------
     ds : xr.DataSet
         xarray with model data
-    da_name : str
-        name of the polygon shapes, name is used to store data arrays in
-        ds
+    da_basename : str
+        name of the polygon shapes, name is used as a prefix
+        to store data arrays in ds
 
     Returns
     -------
@@ -79,12 +79,12 @@ def get_surface_water(ds, da_name):
         area = xr.where(area_pol > area, area_pol, area)
 
     ds_out = util.get_ds_empty(ds)
-    ds_out[f"{da_name}_area"] = area
-    ds_out[f"{da_name}_area"].attrs["units"] = "m2"
-    ds_out[f"{da_name}_cond"] = cond
-    ds_out[f"{da_name}_cond"].attrs["units"] = "m2/day"
-    ds_out[f"{da_name}_peil"] = peil
-    ds_out[f"{da_name}_peil"].attrs["units"] = "mNAP"
+    ds_out[f"{da_basename}_area"] = area
+    ds_out[f"{da_basename}_area"].attrs["units"] = "m2"
+    ds_out[f"{da_basename}_cond"] = cond
+    ds_out[f"{da_basename}_cond"].attrs["units"] = "m2/day"
+    ds_out[f"{da_basename}_stage"] = peil
+    ds_out[f"{da_basename}_stage"].attrs["units"] = "mNAP"
 
     for datavar in ds_out:
         ds_out[datavar].attrs["source"] = "RWS"
@@ -133,15 +133,19 @@ def get_northsea(ds, da_name="northsea"):
 
 
 def add_northsea(ds, cachedir=None):
-    """a) get cells from modelgrid that are within the northsea, add data
-    variable 'northsea' to ds b) fill top, bot, kh and kv add northsea cell by
-    extrapolation c) get bathymetry (northsea depth) from jarkus.
+    """Add datavariable bathymetry to model dataset.
 
-    Add datavariable bathymetry to model dataset
+    Performs the following steps:
+
+    a) get cells from modelgrid that are within the northsea, add data
+       variable 'northsea' to ds
+    b) fill top, bot, kh and kv add northsea cell by extrapolation
+    c) get bathymetry (northsea depth) from jarkus.
     """
 
     logger.info(
-        "nan values at the northsea are filled using the bathymetry from jarkus"
+        "Filling NaN values in top/botm and kh/kv in "
+        "North Sea using bathymetry data from jarkus"
     )
 
     # find grid cells with northsea

@@ -13,7 +13,7 @@ of Python.
 Installing nlmod
 ----------------
 Install the module by typing::
-  
+
     pip install nlmod
 
 
@@ -75,7 +75,7 @@ MODFLOW 6 model given a model dataset::
 Running the model requires the modflow binaries provided by the USGS. Those can
 be downloaded with::
 
-    nlmod.util.download_mfbinaries()
+    nlmod.download_mfbinaries()
 
 Writing and running the model can then be done using::
 
@@ -88,7 +88,7 @@ The output from a model can be read using::
 And plotting the mean head in the top model layer::
 
     nlmod.plot.data_array(head.sel(layer=0).mean("time"))
-   
+
 This was a very brief overview of some of the features in nlmod. There is a lot
 more to discover, so we recommend taking a look at :ref:`examples` section for
 more detailed examples.
@@ -97,22 +97,32 @@ Dependencies
 ------------
 
 This module has the following dependencies that should be installed
-automatically when installing nlmod. If you run into any trouble with any of 
-these packages during installation, refer to 
+automatically when installing nlmod. If you run into any trouble with any of
+these packages during installation, refer to
 `this page <https://github.com/ArtesiaWater/hydropandas#dependencies>`_ for
 potential solutions.
 
-- xarray
-- geopandas
-- shapely
 - flopy
+- xarray
+- netcdf4
 - rasterio
 - rioxarray
 - affine
+- geopandas
 - owslib
-- netcdf4
-- mfpymake
 - hydropandas
+- shapely
+- pyshp
+- rtree
+- matplotlib
 - dask
 - colorama
-- matplotlib
+
+On top of that there are some optional dependecies:
+
+- bottleneck (used in calculate_gxg)
+- geocube (used in add_min_ahn_to_gdf)
+- h5netcdf (used for the hdf5 backend of xarray)
+
+These dependencies are only needed (and imported) in a single method or function.
+They can be installed using ``pip install nlmod[full]`` or ``pip install -e .[full]``.

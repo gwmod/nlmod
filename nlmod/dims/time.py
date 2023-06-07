@@ -9,6 +9,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+from xarray import IndexVariable
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +146,7 @@ def estimate_nstp(
     ----------
     forcing : array-like
         Array with a forcing value for each stress period. Forcing can be
-        for example a pumping rate of a rainfall intensity.
+        for example a pumping rate or a rainfall intensity.
     perlen : float or array of floats (nper)
         An array of the stress period lengths.
     tsmult : float or array of floats (nper)
@@ -216,3 +217,73 @@ def estimate_nstp(
 
     else:
         return nstp_ceiled
+
+
+def ds_time_from_model(gwf):
+    """Get time index variable from model (gwf or gwt).
+
+    Parameters
+    ----------
+    gwf : flopy MFModel object
+        groundwater flow or groundwater transport model
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
+
+    return ds_time_from_modeltime(gwf.modeltime)
+
+
+def ds_time_from_modeltime(modeltime):
+    """Get time index variable from modeltime object.
+
+    Parameters
+    ----------
+    modeltime : flopy ModelTime object
+        modeltime object (e.g. gwf.modeltime)
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
+
+    return ds_time_idx(
+        np.cumsum(modeltime.perlen),
+        start_datetime=modeltime.start_datetime,
+        time_units=modeltime.time_units,
+    )
+
+
+def ds_time_idx(t, start_datetime=None, time_units="D"):
+    """Get time index variable from elapsed time array.
+
+    Parameters
+    ----------
+    t : np.array
+        array containing elapsed time, usually in days
+    start_datetime : str, pd.Timestamp, optional
+        starting datetime
+    time_units : str, optional
+        time units, default is days
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
+    if start_datetime is not None:
+        dt = pd.to_timedelta(t, time_units)
+        times = pd.Timestamp(start_datetime) + dt
+
+    else:
+        times = t
+
+    time = IndexVariable(["time"], times)
+    time.attrs["time_units"] = time_units
+    if start_datetime is not None:
+        time.attrs["start"] = str(start_datetime)
+
+    return time

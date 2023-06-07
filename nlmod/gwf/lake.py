@@ -2,6 +2,7 @@ import logging
 
 import flopy
 import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +38,13 @@ def lake_from_gdf(
     ds,
     recharge=True,
     claktype="VERTICAL",
-    boundname_column='identificatie',
-    obs_type='STAGE',
+    boundname_column="identificatie",
+    obs_type="STAGE",
     surfdep=0.05,
     pname="lak",
     **kwargs,
 ):
-    """add a lake from a geodataframe
+    """Add a lake from a geodataframe.
 
     Parameters
     ----------
@@ -58,11 +59,11 @@ def lake_from_gdf(
             'RUNOFF', 'INFLOW', 'WITHDRAWAL', 'AUXILIARY', 'RATE', 'INVERT',
             'WIDTH', 'SLOPE', 'ROUGH'. These columns should contain the name
             of a dataarray in ds with the dimension time.
-        if the lake have any outlets they should be specified in the columns
+        if the lake has any outlets they should be specified in the columns
             lakeout : the lake number of the outlet, if this is -1 the water
             is removed from the model.
             optinal columns are 'couttype', 'outlet_invert', 'outlet_width',
-            'outlet_rough' and 'outlet_slope. These column should contain a
+            'outlet_rough' and 'outlet_slope'. These columns should contain a
             unique value for each outlet.
     ds : xr.DataSet
         dataset containing relevant model grid and time information
@@ -90,7 +91,6 @@ def lake_from_gdf(
     Returns
     -------
     lak : flopy lake package
-
     """
     if claktype != "VERTICAL":
         raise NotImplementedError("function only tested for claktype=VERTICAL")
@@ -101,6 +101,8 @@ def lake_from_gdf(
     assert ds.time.time_units.lower() == "days", "expected time unit days"
     time_conversion = 86400.0
     # length unit is always meters in nlmod
+    # TODO: Let's add a check for a length unit of meters if we ever add a length unit
+    # to ds
     length_conversion = 1.0
 
     packagedata = []
@@ -124,13 +126,13 @@ def lake_from_gdf(
     for lakeno, lake_gdf in gdf.groupby("lakeno"):
         nlakeconn = lake_gdf.shape[0]
         strt = lake_gdf["strt"].iloc[0]
-        assert (lake_gdf["strt"] == strt).all(
-        ), "a single lake should have single strt"
+        assert (lake_gdf["strt"] == strt).all(), "a single lake should have single strt"
 
         if boundname_column is not None:
             boundname = lake_gdf[boundname_column].iloc[0]
-            assert (lake_gdf[boundname_column] == boundname).all(
-            ), f"a single lake should have a single {boundname_column}"
+            assert (
+                lake_gdf[boundname_column] == boundname
+            ).all(), f"a single lake should have a single {boundname_column}"
             packagedata.append([lakeno, strt, nlakeconn, boundname])
         else:
             packagedata.append([lakeno, strt, nlakeconn])
@@ -182,14 +184,15 @@ def lake_from_gdf(
                     setval = default_value
                 else:
                     setval = lake_gdf[outset].iloc[0]
-                    if np.isnan(setval):
+                    if pd.notna(setval):
+                        if not (lake_gdf[outset] == setval).all():
+                            raise ValueError(
+                                f"expected single data variable for {outset} and lake number {lakeno}, got {lake_gdf[outset]}"
+                            )
+                    else:  # setval is nan or None
                         setval = default_value
                         logger.debug(
                             f"no value specified for {outset} and lake no {lakeno}, using default value {default_value}"
-                        )
-                    elif not (lake_gdf[outset] == setval).all():
-                        raise ValueError(
-                            f"expected single data variable for {outset} and lake number {lakeno}, got {lake_gdf[outset]}"
                         )
                 if outset == "outlet_invert" and isinstance(setval, str):
                     if setval == "use_elevation":
@@ -218,11 +221,9 @@ def lake_from_gdf(
             # add other time variant settings to lake
             for lake_setting in lake_settings:
                 datavar = lake_gdf[lake_setting].iloc[0]
-                if not isinstance(datavar, str):
-                    if np.isnan(datavar):
-                        logger.debug(
-                            f"no {lake_setting} given for lake no {lakeno}")
-                        continue
+                if not pd.notna(datavar):  # None or nan
+                    logger.debug(f"no {lake_setting} given for lake no {lakeno}")
+                    continue
                 if not (lake_gdf[lake_setting] == datavar).all():
                     raise ValueError(
                         f"expected single data variable for {lake_setting} and lake number {lakeno}, got {lake_gdf[lake_setting]}"

@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 
 import flopy
 import numpy as np
@@ -7,18 +8,16 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Point
 
-import warnings
-
-from ..dims.resample import get_affine, get_xy_mid_structured
 from ..dims.grid import modelgrid_from_ds
+from ..mfoutput import _get_output_da
 
 logger = logging.getLogger(__name__)
 
 
-def get_heads_da(ds=None, gwf=None, fname_hds=None):
+def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
     """Reads heads file given either a dataset or a groundwater flow object.
 
-    Note: Calling this function with ds is currently prevered over calling it
+    Note: Calling this function with ds is currently preferred over calling it
     with gwf, because the layer and time coordinates can not be fully
     reconstructed from gwf.
 
@@ -28,94 +27,62 @@ def get_heads_da(ds=None, gwf=None, fname_hds=None):
         Xarray dataset with model data.
     gwf : flopy ModflowGwf
         Flopy groundwaterflow object.
-    fname_hds : path, optional
+    fname_heads : path, optional
         Instead of loading the binary heads file corresponding to ds or gwf
         load the heads from
-
+    fname_hds : path, optional, Deprecated
+        please use fname_heads instead.
 
     Returns
     -------
-    head_ar : xarray.DataArray
-        heads array.
+    head_da : xarray.DataArray
+        heads data array.
     """
-    headobj = _get_hds(ds=ds, gwf=gwf, fname_hds=fname_hds)
-
-    if gwf is not None:
-        hdry = gwf.hdry
-        hnoflo = gwf.hnoflo
-    else:
-        hdry = -1e30
-        hnoflo = 1e30
-
-    heads = headobj.get_alldata()
-    heads[heads == hdry] = np.nan
-    heads[heads == hnoflo] = np.nan
-
-    if gwf is not None:
-        gridtype = gwf.modelgrid.grid_type
-    else:
-        gridtype = ds.gridtype
-
-    if gridtype == "vertex":
-        head_ar = xr.DataArray(
-            data=heads[:, :, 0],
-            dims=("time", "layer", "icell2d"),
-            coords={},
-            attrs={"units": "mNAP"},
+    if fname_hds is not None:
+        logger.warning(
+            "Kwarg 'fname_hds' was renamed to 'fname_heads'. Please update your code."
         )
-
-    elif gridtype == "structured":
-        if gwf is not None:
-            delr = np.unique(gwf.modelgrid.delr).item()
-            delc = np.unique(gwf.modelgrid.delc).item()
-            extent = gwf.modelgrid.extent
-            x, y = get_xy_mid_structured(extent, delr, delc)
-
-        else:
-            x = ds.x
-            y = ds.y
-
-        head_ar = xr.DataArray(
-            data=heads,
-            dims=("time", "layer", "y", "x"),
-            coords={
-                "x": x,
-                "y": y,
-            },
-            attrs={"units": "mNAP"},
-        )
-    else:
-        assert 0, "Gridtype not supported"
-
-    if ds is not None:
-        head_ar.coords["layer"] = ds.layer
-
-        # TODO: temporarily only add time for when ds is passed because unable to
-        # exactly recreate ds.time from gwf.
-        head_ar.coords["time"] = ds.time
-
-    if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        affine = get_affine(ds)
-        head_ar.rio.write_transform(affine, inplace=True)
-
-    elif gwf is not None and gwf.modelgrid.angrot != 0.0:
-        attrs = dict(
-            delr=np.unique(gwf.modelgrid.delr).item(),
-            delc=np.unique(gwf.modelgrid.delc).item(),
-            xorigin=gwf.modelgrid.xoffset,
-            yorigin=gwf.modelgrid.yoffset,
-            angrot=gwf.modelgrid.angrot,
-            extent=gwf.modelgrid.extent,
-        )
-        affine = get_affine(attrs)
-        head_ar.rio.write_transform(affine, inplace=True)
-
-    head_ar.rio.write_crs("EPSG:28992", inplace=True)
-
-    return head_ar
+        fname_heads = fname_hds
+    head_da = _get_output_da(_get_heads, ds=ds, gwf_or_gwt=gwf, fname=fname_heads)
+    head_da.attrs["units"] = "m NAP"
+    return head_da
 
 
-def _get_hds(ds=None, gwf=None, fname_hds=None):
+def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
+    """Reads budget file given either a dataset or a groundwater flow object.
+
+    Parameters
+    ----------
+    text : str
+        record to get from budget file
+    ds : xarray.Dataset, optional
+        xarray dataset with model data. One of ds or gwf must be provided.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname_cbc : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
+
+    Returns
+    -------
+    q_da : xarray.DataArray
+        budget data array.
+    """
+    q_da = _get_output_da(
+        _get_cbc,
+        ds=ds,
+        gwf_or_gwt=gwf,
+        fname=fname_cbc,
+        text=text,
+        kstpkper=kstpkper,
+        full3D=True,
+    )
+    q_da.attrs["units"] = "m3/d"
+
+    return q_da
+
+
+def _get_heads(ds=None, gwf=None, fname_hds=None):
     msg = "Load the heads using either the ds, gwf or fname_hds"
     assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
 
@@ -136,17 +103,16 @@ def _get_cbc(ds=None, gwf=None, fname_cbc=None):
 
     if fname_cbc is None:
         if ds is None:
-            cbf = gwf.output.budget()
+            cbc = gwf.output.budget()
         else:
             fname_cbc = os.path.join(ds.model_ws, ds.model_name + ".cbc")
     if fname_cbc is not None:
-        cbf = flopy.utils.CellBudgetFile(fname_cbc)
-    return cbf
+        cbc = flopy.utils.CellBudgetFile(fname_cbc)
+    return cbc
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):
-    """
-    Get the groundwater level from a multi-dimensional head array where dry
+    """Get the groundwater level from a multi-dimensional head array where dry
     cells are NaN. This methods finds the most upper non-nan-value of each cell
     or timestep.
 
@@ -167,7 +133,6 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
     -------
     gwl : numpy-array
         An array of the groundwater-level, without the layer-dimension.
-
     """
     if isinstance(head, xr.DataArray):
         head_da = head
@@ -194,8 +159,7 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
 
 
 def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
-    """
-    Get the head at a certain point from a head DataArray for all cells.
+    """Get the head at a certain point from a head DataArray for all cells.
 
     Parameters
     ----------
@@ -220,7 +184,6 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
     -------
     head_point : xarray.DataArray
         A DataArray with dimensions (time, layer).
-
     """
     if "icell2d" in head.dims:
         if gi is None:
@@ -335,8 +298,7 @@ def calculate_gxg(
     below_surfacelevel: bool = False,
     tolerance: pd.Timedelta = pd.Timedelta(days=7),
 ) -> xr.DataArray:
-    """
-    Calculate GxG groundwater characteristics from head time series.
+    """Calculate GxG groundwater characteristics from head time series.
 
     GLG and GHG (average lowest and average highest groundwater level respectively) are
     calculated as the average of the three lowest (GLG) or highest (GHG) head values per
@@ -350,7 +312,7 @@ def calculate_gxg(
 
     This method is copied from imod-python, and edited so that head-DataArray does not
     need to contain dimensions 'x' and 'y', so this method also works for refined grids.
-    THe original method can be found in:
+    The original method can be found in:
     https://gitlab.com/deltares/imod/imod-python/-/blob/master/imod/evaluate/head.py
 
     Parameters
@@ -380,7 +342,6 @@ def calculate_gxg(
     >>> import nlmod
     >>> head = nlmod.gwf.get_heads_da(ds)
     >>> gxg = nlmod.evaluate.calculate_gxg(head)
-
     """
     # if not head.dims == ("time", "y", "x"):
     #    raise ValueError('Dimensions must be ("time", "y", "x")')

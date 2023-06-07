@@ -39,9 +39,9 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     Returns
     -------
     x : np.array
-        x-coordinates of the cell centers shape(ncol)
+        x-coordinates of the cell centers shape (ncol)
     y : np.array
-        y-coordinates of the cell centers shape(nrow)
+        y-coordinates of the cell centers shape (nrow)
     """
     if isinstance(delr, (numbers.Number)):
         if not isinstance(delc, (numbers.Number)):
@@ -375,11 +375,12 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     Parameters
     ----------
     da : xaray.DataArray
-        A vertex DataArray. When the DataArray does not have 'icell2d' as a
-        dimension, the original DataArray is retured. The DataArray da can
-        contain other dimensions as well (for example 'layer' or time'' ).
+        A vertex DataArray. When the DataArray does not have 'icell2d' as a dimension,
+        the original DataArray is retured. The DataArray da can contain other dimensions
+        as well (for example 'layer' or time'' ).
     ds : xarray.Dataset
-        The model dataset with coordinates x and y.
+        The model dataset to which the DataArray needs to be resampled, with coordinates
+        x and y.
     method : str, optional
         The interpolation method, see griddata. The default is "nearest".
 
@@ -629,6 +630,7 @@ def get_affine(ds, sx=None, sy=None):
         sx = attrs["delr"]
     if sy is None:
         sy = -attrs["delc"]
+
     if "angrot" in attrs:
         xorigin = attrs["xorigin"]
         yorigin = attrs["yorigin"]

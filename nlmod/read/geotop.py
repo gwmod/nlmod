@@ -139,10 +139,9 @@ def convert_geotop_to_ml_layers(
     strat_props=None,
     **kwargs,
 ):
-    """
-    Convert geotop voxel data to layers using the Stratography-data.
+    """Convert geotop voxel data to layers using the stratigraphy-data.
 
-    It gets the top and botm of each stratographic unit in the geotop dataset.
+    It gets the top and botm of each stratigraphic unit in the geotop dataset.
 
     Parameters
     ----------
@@ -183,8 +182,8 @@ def convert_geotop_to_ml_layers(
 
     strat_codes = []
     for geo_eenh in geo_eenheden:
-        if geo_eenh in strat_props.index:
-            code = strat_props.at[geo_eenh, "code"]
+        if int(geo_eenh) in strat_props.index:
+            code = strat_props.at[int(geo_eenh), "code"]
         else:
             logger.warning(f"Unknown strat-value: {geo_eenh}")
             code = str(geo_eenh)
@@ -197,7 +196,7 @@ def convert_geotop_to_ml_layers(
     lay = 0
     logger.info("creating top and bot per geo eenheid")
     for geo_eenheid in geo_eenheden:
-        logger.debug(geo_eenheid)
+        logger.debug(int(geo_eenheid))
 
         mask = geotop_ds_raw.strat == geo_eenheid
         geo_z = xr.where(mask, geotop_ds_raw.z, np.NaN)
@@ -233,8 +232,7 @@ def convert_geotop_to_ml_layers(
 
 
 def add_top_and_botm(ds):
-    """
-    Add the top and bottom of the voxels to the GeoTOP Dataset.
+    """Add the top and bottom of the voxels to the GeoTOP Dataset.
 
     This makes sure the structure of the geotop dataset is more like regis, and we can
     use the cross-section class (DatasetCrossSection from nlmod.
@@ -248,7 +246,6 @@ def add_top_and_botm(ds):
     -------
     ds : xr.Dataset
         The geotop-dataset, with added variables "top" and "botm".
-
     """
     # make ready for DataSetCrossSection
     # ds = ds.transpose("z", "y", "x")
@@ -278,8 +275,7 @@ def add_kh_and_kv(
     kh_df="kh",
     kv_df="kv",
 ):
-    """
-    Add kh and kv variables to the voxels of the GeoTOP Dataset.
+    """Add kh and kv variables to the voxels of the GeoTOP Dataset.
 
     Parameters
     ----------
@@ -325,7 +321,6 @@ def add_kh_and_kv(
     -------
     gt : xr.Dataset
         Datset with voxel-data, with the added variables 'kh' and 'kv'.
-
     """
     if isinstance(stochastic, bool):
         if stochastic:
@@ -479,9 +474,8 @@ def _handle_nans_in_stochastic_approach(kh, kv, kh_method, kv_method):
 def aggregate_to_ds(
     gt, ds, kh="kh", kv="kv", kd="kD", c="c", kh_gt="kh", kv_gt="kv", add_kd_and_c=False
 ):
-    """
-    Aggregate voxels from GeoTOP to layers in a model DataSet with top and botm, to
-    calculate kh and kv
+    """Aggregate voxels from GeoTOP to layers in a model DataSet with top and
+    botm, to calculate kh and kv.
 
     Parameters
     ----------
@@ -514,7 +508,6 @@ def aggregate_to_ds(
     -------
     ds : xr.Dataset
         The Dataset ds, with added variables kh and kv (and optionally kd and c).
-
     """
     assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
     msg = "Please add {} to geotop-Dataset first, using add_kh_and_kv()"

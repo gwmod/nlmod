@@ -47,6 +47,10 @@ def calculate_thickness(ds, top="top", bot="botm"):
         else:
             raise ValueError("2d top should have same last dimension as bot")
     if isinstance(ds[bot], xr.DataArray):
+        if hasattr(ds[bot], "long_name"):
+            thickness.attrs["long_name"] = "thickness"
+        if hasattr(ds[bot], "standard_name"):
+            thickness.attrs["standard_name"] = "thickness_of_layer"
         if hasattr(ds[bot], "units"):
             if ds[bot].units == "mNAP":
                 thickness.attrs["units"] = "m"
@@ -144,7 +148,7 @@ def split_layers_ds(
 
 
 def _split_var(ds, var, layer, thickness, fctrs, top, bot):
-    """Internal method to split a variable of one layer in multiple layers"""
+    """Internal method to split a variable of one layer in multiple layers."""
     for i in range(len(fctrs)):
         name = layer + "_" + str(i + 1)
         if var == top:
@@ -572,7 +576,7 @@ def set_model_top(ds, top, min_thickness=0.0):
 
 
 def set_layer_top(ds, layer, top):
-    """Set the top of a layer"""
+    """Set the top of a layer."""
     assert layer in ds.layer
     lay = np.where(ds.layer == layer)[0][0]
     if lay == 0:
@@ -596,7 +600,7 @@ def set_layer_top(ds, layer, top):
 
 
 def set_layer_botm(ds, layer, botm):
-    """Set the bottom of a layer"""
+    """Set the bottom of a layer."""
     assert layer in ds.layer
     lay = np.where(ds.layer == layer)[0][0]
     # if lay > 0 and np.any(botm > ds["botm"][lay - 1]):
@@ -613,7 +617,7 @@ def set_layer_botm(ds, layer, botm):
 
 
 def set_layer_thickness(ds, layer, thickness, change="botm"):
-    """Set the layer thickness by changing the bottom of the layer"""
+    """Set the layer thickness by changing the bottom of the layer."""
     assert layer in ds.layer
     assert change == "botm", "Only change=botm allowed for now"
     lay = np.where(ds.layer == layer)[0][0]
@@ -627,7 +631,8 @@ def set_layer_thickness(ds, layer, thickness, change="botm"):
 
 
 def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
-    """Make sure layer has a minimum thickness by lowering the botm of the layer where neccesary"""
+    """Make sure layer has a minimum thickness by lowering the botm of the
+    layer where neccesary."""
     assert layer in ds.layer
     assert change == "botm", "Only change=botm allowed for now"
     lay = np.where(ds.layer == layer)[0][0]
@@ -1001,7 +1006,6 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
     See also
     --------
     nlmod.read.geotop.aggregate_to_ds
-
     """
     msg = "x and/or y coordinates do not match between 'ds' and 'source_ds'"
     assert (ds.x == source_ds.x).all() and (ds.y == source_ds.y).all(), msg

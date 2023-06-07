@@ -1,6 +1,6 @@
-import nlmod
-
 import test_001_model
+
+import nlmod
 
 
 def test_get_recharge():
@@ -9,6 +9,14 @@ def test_get_recharge():
 
     # add knmi recharge to the model dataset
     ds.update(nlmod.read.knmi.get_recharge(ds))
+
+
+def test_get_reacharge_most_common():
+    # model with sea
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+
+    # add knmi recharge to the model dataset
+    ds.update(nlmod.read.knmi.get_recharge(ds, most_common_station=True))
 
 
 def test_get_recharge_steady_state():

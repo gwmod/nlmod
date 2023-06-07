@@ -1,5 +1,8 @@
-import pandas as pd
 import os
+
+import pandas as pd
+import geopandas as gpd
+
 import nlmod
 
 
@@ -22,3 +25,62 @@ def test_gdf_to_seasonal_pkg():
     nlmod.gwf.oc(ds, gwf)
 
     nlmod.gwf.surface_water.gdf_to_seasonal_pkg(gdf, gwf, ds, pkg="DRN")
+
+
+def test_gdf_lake():
+    model_name = "la"
+    model_ws = os.path.join("data", model_name)
+    ds = nlmod.get_ds(
+        [170000, 171000, 550000, 551000], model_ws=model_ws, model_name=model_name
+    )
+    ds = nlmod.time.set_ds_time(ds, time=pd.Timestamp.today())
+    ds = nlmod.dims.refine(ds)
+
+    sim = nlmod.sim.sim(ds)
+    nlmod.sim.tdis(ds, sim)
+    nlmod.sim.ims(sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    nlmod.gwf.dis(ds, gwf)
+
+    ds['evap'] = (('time',), [0.0004])
+
+    # add lake with outlet and evaporation
+    gdf_lake = gpd.GeoDataFrame(
+        {
+            "name": ["0", "0", "1"],
+
+            "lakeno": [0, 0, 1],
+            "strt": [1.0, 1.0, 2.0],
+            "clake": [10.0, 10.0, 10.0],
+            'EVAPORATION': ['evap', 'evap', 'evap'],
+            "lakeout": [1, 1, None],
+            "outlet_invert": ["use_elevation", "use_elevation", None],
+        },
+        index=[14, 15, 16],
+    )
+
+    nlmod.gwf.lake_from_gdf(
+        gwf, gdf_lake, ds, boundname_column="name", recharge=False)
+    
+    # remove lake package
+    gwf.remove_package('LAK_0')
+
+
+    # add lake with outlet and inflow
+    ds['inflow'] = (('time',), [100.])
+    gdf_lake = gpd.GeoDataFrame(
+        {
+            "name": ["0", "0", "1"],
+            "lakeno": [0, 0, 1],
+            "strt": [1.0, 1.0, 2.0],
+            "clake": [10.0, 10.0, 10.0],
+            'INFLOW': ['inflow', 'inflow', None],
+            "lakeout": [1, 1, -1], # lake 0 overflows in lake 1, the outlet from lake 1 is removed from the model
+            "outlet_invert": [0, 0, None],
+        },
+        index=[14, 15, 16],
+    )
+
+    nlmod.gwf.lake_from_gdf(
+        gwf, gdf_lake, ds, boundname_column="name", recharge=False)
+

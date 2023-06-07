@@ -1,11 +1,12 @@
 import os
 import tempfile
+
+import numpy as np
 import test_001_model
 
 import nlmod
-import numpy as np
-from nlmod.gwf import get_heads_da
 from nlmod.dims.grid import refine
+from nlmod.gwf import get_heads_da
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
@@ -55,7 +56,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.oc(ds, gwf)
 
     ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
-    nlmod.gwf.chd(ds, gwf, chd="edge_mask", head="starting_head")
+    nlmod.gwf.chd(ds, gwf, mask="edge_mask", head="starting_head")
 
     nlmod.sim.write_and_run(sim, ds)
 
@@ -109,7 +110,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.oc(ds_unstr, gwf_unstr)
 
     ds_unstr.update(nlmod.grid.mask_model_edge(ds_unstr, ds_unstr["idomain"]))
-    nlmod.gwf.chd(ds_unstr, gwf_unstr, chd="edge_mask", head="starting_head")
+    nlmod.gwf.chd(ds_unstr, gwf_unstr, mask="edge_mask", head="starting_head")
 
     nlmod.sim.write_and_run(sim, ds_unstr)
 

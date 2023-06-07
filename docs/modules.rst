@@ -112,6 +112,34 @@ gwf
    :undoc-members:
    :private-members:
 
+.. automodule:: nlmod.gwf.lake
+   :members:
+   :undoc-members:
+   :private-members:
+
+.. automodule:: nlmod.gwf.output
+   :members:
+   :undoc-members:
+   :private-members:
+
+gwt
+^^^
+
+.. automodule:: nlmod.gwt.gwt
+   :members:
+   :undoc-members:
+   :private-members:
+
+.. automodule:: nlmod.gwt.prepare
+   :members:
+   :undoc-members:
+   :private-members:
+
+.. automodule:: nlmod.gwt.output
+   :members:
+   :undoc-members:
+   :private-members:
+
 plot
 ^^^^
 
@@ -124,14 +152,6 @@ gis
 ^^^
 
 .. automodule:: nlmod.gis
-   :members:
-   :undoc-members:
-   :private-members:
-
-DatasetCrossSection
-^^^^^^^^^^^^^^^^^^^
-
-.. automodule:: nlmod.dcs
    :members:
    :undoc-members:
    :private-members:

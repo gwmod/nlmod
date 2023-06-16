@@ -16,6 +16,7 @@ import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
+from dask.diagnostics import ProgressBar
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,14 @@ def cache_netcdf(func):
                 cached_ds.close()
 
             # write netcdf cache
-            result.to_netcdf(fname_cache)
+            # check if dataset is chunked for writing with dask.delayed
+            first_data_var = list(result.data_vars.keys())[0]
+            if result[first_data_var].chunks:
+                delayed = result.to_netcdf(fname_cache, compute=False)
+                with ProgressBar():
+                    delayed.compute()
+            else:
+                result.to_netcdf(fname_cache)
 
             # add netcdf hash to function arguments dic, see #66
             temp = xr.open_dataset(fname_cache, mask_and_scale=False)

@@ -7,6 +7,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
+from ..dims.resample import get_extent
 
 logger = logging.getLogger(__name__)
 
@@ -273,10 +274,6 @@ def add_top_and_botm(ds):
     ds : xr.Dataset
         The geotop-dataset, with added variables "top" and "botm".
     """
-    # make ready for DataSetCrossSection
-    # ds = ds.transpose("z", "y", "x")
-    # ds = ds.sortby("z", ascending=False)
-
     bottom = np.expand_dims(ds.z.data - 0.25, axis=(1, 2))
     bottom = np.repeat(np.repeat(bottom, len(ds.y), 1), len(ds.x), 2)
     bottom[np.isnan(ds.strat.data)] = np.NaN

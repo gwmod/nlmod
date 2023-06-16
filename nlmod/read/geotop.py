@@ -162,7 +162,7 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
 
 
 def convert_geotop_to_ml_layers(
-    geotop_ds_raw,
+    geotop_ds,
     strat_props=None,
     **kwargs,
 ):
@@ -195,8 +195,8 @@ def convert_geotop_to_ml_layers(
         strat_props = get_strat_props()
 
     # vindt alle geo-eenheden in model_extent
-    geo_eenheden = np.unique(geotop_ds_raw.strat.data)
-    geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds_raw.strat.missing_value)]
+    geo_eenheden = np.unique(geotop_ds.strat.values)
+    geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds.strat.missing_value)]
     geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
     stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
     geo_eenheden = geo_eenheden[geo_eenheden < 6000]
@@ -218,7 +218,7 @@ def convert_geotop_to_ml_layers(
         strat_codes.append(code)
 
     # fill top and bot
-    shape = (len(strat_codes), len(geotop_ds_raw.y), len(geotop_ds_raw.x))
+    shape = (len(strat_codes), len(geotop_ds.y), len(geotop_ds.x))
     top = np.full(shape, np.nan)
     bot = np.full(shape, np.nan)
     lay = 0
@@ -226,8 +226,8 @@ def convert_geotop_to_ml_layers(
     for geo_eenheid in geo_eenheden:
         logger.debug(int(geo_eenheid))
 
-        mask = geotop_ds_raw.strat == geo_eenheid
-        geo_z = xr.where(mask, geotop_ds_raw.z, np.NaN)
+        mask = geotop_ds.strat == geo_eenheid
+        geo_z = xr.where(mask, geotop_ds.z, np.NaN)
 
         top[lay] = geo_z.max(dim="z") + 0.25
         bot[lay] = geo_z.min(dim="z") - 0.25
@@ -243,7 +243,7 @@ def convert_geotop_to_ml_layers(
         bot[lay] = np.where(np.isnan(bot[lay]), top[lay], bot[lay])
 
     dims = ("layer", "y", "x")
-    coords = {"layer": strat_codes, "y": geotop_ds_raw.y, "x": geotop_ds_raw.x}
+    coords = {"layer": strat_codes, "y": geotop_ds.y, "x": geotop_ds.x}
     da_top = xr.DataArray(data=top, dims=dims, coords=coords)
     da_bot = xr.DataArray(data=bot, dims=dims, coords=coords)
     geotop_ds_mod = xr.Dataset()
@@ -253,8 +253,8 @@ def convert_geotop_to_ml_layers(
 
     geotop_ds_mod.attrs["stroombanen"] = stroombaan_eenheden
 
-    if "kh" in geotop_ds_raw and "kv" in geotop_ds_raw:
-        aggregate_to_ds(geotop_ds_raw, geotop_ds_mod, **kwargs)
+    if "kh" in geotop_ds and "kv" in geotop_ds:
+        aggregate_to_ds(geotop_ds, geotop_ds_mod, **kwargs)
 
     return geotop_ds_mod
 

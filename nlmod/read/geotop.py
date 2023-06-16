@@ -196,6 +196,7 @@ def convert_geotop_to_ml_layers(
 
     # vindt alle geo-eenheden in model_extent
     geo_eenheden = np.unique(geotop_ds_raw.strat.data)
+    geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds_raw.strat.missing_value)]
     geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
     stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
     geo_eenheden = geo_eenheden[geo_eenheden < 6000]

@@ -95,7 +95,8 @@ def get_geotop(extent, strat_props=None):
     return ds
 
 
-def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True):
+@cache.cache_netcdf
+def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok
     data variables.
@@ -107,31 +108,55 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
     url : str, optional
         url of geotop netcdf file. The default is
         http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
+    probabilities : bool, optional
+        if True, download probability data
 
     Returns
     -------
     gt : xarray Dataset
         slices geotop netcdf.
     """
-    gt = xr.open_dataset(url)
+    gt = xr.open_dataset(url, chunks="auto")
+
+    # only download requisite data
+    data_vars = ["strat", "lithok"]
+    if probabilities:
+        data_vars += [
+            "kans_1",
+            "kans_2",
+            "kans_3",
+            "kans_4",
+            "kans_5",
+            "kans_6",
+            "kans_7",
+            "kans_8",
+            "kans_9",
+            "onz_lk",
+            "onz_ls",
+        ]
 
     # set x and y dimensions to cell center
     for dim in ["x", "y"]:
         old_dim = gt[dim].values
         gt[dim] = old_dim + (old_dim[1] - old_dim[0]) / 2
 
-    # slice extent
-    gt = gt.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
-
-    if drop_probabilities:
-        gt = gt[["strat", "lithok"]]
+    # get data vars and slice extent
+    gt = gt[data_vars].sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
     # change order of dimensions from x, y, z to z, y, x
     gt = gt.transpose("z", "y", "x")
-    gt = gt.sortby("z", ascending=False)  # uses a lot of RAM
-    gt = gt.sortby("y", ascending=False)  # uses a lot of RAM
+
+    # flip z, and y coordinates
+    gt = gt.isel(z=slice(None, None, -1), y=slice(None, None, -1))
 
     return gt
+
+
+def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True):
+    DeprecationWarning(
+        "This function is deprecated, use the equivalent `get_geotop()`!"
+    )
+    return get_geotop(extent=extent, url=url, drop_probabilities=drop_probabilities)
 
 
 def convert_geotop_to_ml_layers(

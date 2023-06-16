@@ -77,7 +77,7 @@ def get_combined_layer_models(
         raise ValueError("layer models without REGIS not supported")
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop_raw_within_extent(extent)
+        geotop_ds = geotop.get_geotop(extent)
 
     if use_regis and use_geotop:
         combined_ds = add_geotop_to_regis_layers(
@@ -145,7 +145,8 @@ def get_regis(
     ds["layer"] = ds["layer"].astype(str)
 
     # make sure y is descending
-    ds = ds.sortby("y", ascending=False)
+    if (ds["y"].diff("y") > 0).all():
+        ds = ds.isel(y=slice(None, None, -1))
 
     # slice layers
     if botm_layer is not None:

@@ -57,31 +57,32 @@ def get_kh_kv_table(kind="Brabant"):
 
 
 @cache.cache_netcdf
-def get_geotop(extent, strat_props=None):
-    """get a model layer dataset for modflow from geotop within a certain
-    extent and grid.
+def geotop_to_layermodel(geotop_ds, strat_props=None):
+    """Convert geotop dataset to layermodel dataset.
+
+    Converts geotop data to dataset with layer elevations and hydraulic
+    conductivities. Uses hydraulic conductivities provided by a
 
     Parameters
     ----------
-    extent : list, tuple or np.array
-        desired model extent (xmin, xmax, ymin, ymax)
+    geotop_ds : xr.DataSet
+        geotop dataset (download using `get_geotop(extent)`)
     strat_props : pd.DataFrame, optional
         The properties of the stratigraphic unit. Load with get_strat_props() when None.
         The default is None.
 
     Returns
     -------
-    geotop_ds: xr.DataSet
-        geotop dataset with top, bot, kh and kv per geo_eenheid
+    ds: xr.DataSet
+        dataset with top, bot, kh and kv per geotop layer
     """
-    gt = get_geotop_raw_within_extent(extent, GEOTOP_URL)
 
     if strat_props is None:
         strat_props = get_strat_props()
 
-    ds = convert_geotop_to_ml_layers(gt, strat_props=strat_props)
+    ds = convert_geotop_to_ml_layers(geotop_ds, strat_props=strat_props)
 
-    ds.attrs["extent"] = extent
+    ds.attrs["extent"] = get_extent(ds)
 
     for datavar in ds:
         ds[datavar].attrs["source"] = "Geotop"

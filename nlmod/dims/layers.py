@@ -125,13 +125,15 @@ def split_layers_ds(
     # calclate a new top and botm, and fill other variables with original data
     th = calculate_thickness(ds, top=top, bot=bot)
     for lay0 in split_dict:
+        logger.info(f"Split '{lay0}' into {len(split_dict[lay0])} sub-layers")
         th0 = th.loc[lay0]
         for var in ds:
             if layer not in ds[var].dims:
                 continue
             if lay0 == list(split_dict)[0] and var not in [top, bot]:
                 logger.info(
-                    f"Fill values of variable '{var}' of splitted layers with the values from the original layer."
+                    f"Fill values of variable '{var}' of split"
+                    " layers with the values from the original layer."
                 )
             ds = _split_var(ds, var, lay0, th0, split_dict[lay0], top, bot)
 

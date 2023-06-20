@@ -151,6 +151,9 @@ def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
     # flip z, and y coordinates
     gt = gt.isel(z=slice(None, None, -1), y=slice(None, None, -1))
 
+    # add missing value
+    # gt.strat.attrs["missing_value"] = -127
+
     return gt
 
 
@@ -196,7 +199,7 @@ def convert_geotop_to_ml_layers(
 
     # vindt alle geo-eenheden in model_extent
     geo_eenheden = np.unique(geotop_ds.strat.values)
-    geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds.strat.missing_value)]
+    # geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds.strat.missing_value)]
     geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
     stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
     geo_eenheden = geo_eenheden[geo_eenheden < 6000]
@@ -275,14 +278,14 @@ def add_top_and_botm(ds):
     ds : xr.Dataset
         The geotop-dataset, with added variables "top" and "botm".
     """
-    bottom = np.expand_dims(ds.z.data - 0.25, axis=(1, 2))
+    bottom = np.expand_dims(ds.z.values - 0.25, axis=(1, 2))
     bottom = np.repeat(np.repeat(bottom, len(ds.y), 1), len(ds.x), 2)
-    bottom[np.isnan(ds.strat.data)] = np.NaN
+    bottom[np.isnan(ds.strat.values)] = np.NaN
     ds["botm"] = ("z", "y", "x"), bottom
 
-    top = np.expand_dims(ds.z.data + 0.25, axis=(1, 2))
+    top = np.expand_dims(ds.z.values + 0.25, axis=(1, 2))
     top = np.repeat(np.repeat(top, len(ds.y), 1), len(ds.x), 2)
-    top[np.isnan(ds.strat.data)] = np.NaN
+    top[np.isnan(ds.strat.values)] = np.NaN
     ds["top"] = ("z", "y", "x"), top
     return ds
 
@@ -355,7 +358,7 @@ def add_kh_and_kv(
         raise (Exception("Unknown kh_method: {kh_method}"))
     if kv_method not in ["arithmetic_mean", "harmonic_mean"]:
         raise (Exception("Unknown kv_method: {kv_method}"))
-    strat = gt["strat"].data
+    strat = gt["strat"].values
     msg = "Determining kh and kv of geotop-data based on lithoclass"
     if df.index.name in ["lithok", "strat"]:
         df = df.reset_index()
@@ -368,7 +371,7 @@ def add_kh_and_kv(
         logger.info(f"Setting kv equal to kh / {anisotropy}")
     if stochastic is None:
         # calculate kh and kv from most likely lithoclass
-        lithok = gt["lithok"].data
+        lithok = gt["lithok"].values
         kh_ar = np.full(lithok.shape, np.NaN)
         kv_ar = np.full(lithok.shape, np.NaN)
         if "strat" in df:
@@ -400,7 +403,7 @@ def add_kh_and_kv(
             if ilithok == 0:
                 # there are no probabilities defined for lithoclass 'antropogeen'
                 continue
-            probality = gt[f"kans_{ilithok}"].data
+            probality = gt[f"kans_{ilithok}"].values
             if "strat" in df:
                 khi, kvi = _handle_nans_in_stochastic_approach(
                     np.NaN, np.NaN, kh_method, kv_method

@@ -171,6 +171,10 @@ def cache_netcdf(func):
                 delayed = result.to_netcdf(fname_cache, compute=False)
                 with ProgressBar():
                     delayed.compute()
+                # close and reopen dataset to ensure data is read from
+                # disk, and not from opendap
+                result.close()
+                result = xr.open_dataset(fname_cache, chunks="auto")
             else:
                 result.to_netcdf(fname_cache)
 

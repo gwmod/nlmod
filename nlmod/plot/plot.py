@@ -215,7 +215,7 @@ def geotop_lithok_in_cross_section(
         The line along which the GeoTOP data is plotted
     gt : xr.Dataset, optional
         The voxel-dataset from GeoTOP. It is downloaded with the method
-        nlmod.read.geaotop.get_geotop_raw_within_extent if None. The default is None.
+        `nlmod.read.geotop.get_geotop()` if None. The default is None.
     ax : matplotlib.Axes, optional
         The axes in whcih the cross-section is plotted. Will default to the current axes
         if None. The default is None.
@@ -244,7 +244,7 @@ def geotop_lithok_in_cross_section(
         x = [coord[0] for coord in line.coords]
         y = [coord[1] for coord in line.coords]
         extent = [min(x), max(x), min(y), max(y)]
-        gt = geotop.get_geotop_raw_within_extent(extent)
+        gt = geotop.get_geotop(extent)
 
     if "top" not in gt or "botm" not in gt:
         gt = geotop.add_top_and_botm(gt)
@@ -253,7 +253,7 @@ def geotop_lithok_in_cross_section(
         lithok_props = geotop.get_lithok_props()
 
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
-    lithoks = gt["lithok"].data
+    lithoks = gt["lithok"].values
     lithok_un = np.unique(lithoks[~np.isnan(lithoks)])
     array = np.full(lithoks.shape, np.NaN)
 

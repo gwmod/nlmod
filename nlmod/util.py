@@ -468,8 +468,12 @@ class ColoredFormatter(logging.Formatter):
 
 
 def get_color_logger(level="INFO"):
+    if level == "DEBUG":
+        FORMAT = "{color}{levelname}:{name}.{funcName}:{lineno}:{message}{reset}"
+    else:
+        FORMAT = "{color}{levelname}:{name}.{funcName}:{message}{reset}"
     formatter = ColoredFormatter(
-        "{color}{levelname}:{name}:{message}{reset}",
+        FORMAT,
         style="{",
         datefmt="%Y-%m-%d %H:%M:%S",
         colors={

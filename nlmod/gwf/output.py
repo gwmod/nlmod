@@ -14,7 +14,24 @@ from ..mfoutput import _get_output_da
 logger = logging.getLogger(__name__)
 
 
-def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
+def _get_heads(ds=None, gwf=None, fname_hds=None):
+    msg = "Load the heads using either the ds, gwf or fname_hds"
+    assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
+
+    if fname_hds is None:
+        if ds is None:
+            return gwf.output.head()
+        else:
+            fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
+
+    headobj = flopy.utils.HeadFile(fname_hds)
+
+    return headobj
+
+
+def get_heads_da(
+    ds=None, gwf=None, fname_heads=None, fname_hds=None, delayed=False, chunked=False
+):
     """Reads heads file given either a dataset or a groundwater flow object.
 
     Note: Calling this function with ds is currently preferred over calling it
@@ -32,6 +49,10 @@ def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
         load the heads from
     fname_hds : path, optional, Deprecated
         please use fname_heads instead.
+    delayed : bool, optional
+        if delayed is True, do not load output data into memory, default is False.
+    chunked : bool, optional
+        chunk data array containing output, default is False.
 
     Returns
     -------
@@ -40,61 +61,19 @@ def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
     """
     if fname_hds is not None:
         logger.warning(
-            "Kwarg 'fname_hds' was renamed to 'fname_heads'. Please update your code."
+            "kwarg 'fname_hds' was renamed to 'fname_heads'. Please update your code."
         )
         fname_heads = fname_hds
-    head_da = _get_output_da(_get_heads, ds=ds, gwf_or_gwt=gwf, fname=fname_heads)
-    head_da.attrs["units"] = "m NAP"
-    return head_da
-
-
-def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
-    """Reads budget file given either a dataset or a groundwater flow object.
-
-    Parameters
-    ----------
-    text : str
-        record to get from budget file
-    ds : xarray.Dataset, optional
-        xarray dataset with model data. One of ds or gwf must be provided.
-    gwf : flopy ModflowGwf, optional
-        Flopy groundwaterflow object. One of ds or gwf must be provided.
-    fname_cbc : path, optional
-        specify the budget file to load, if not provided budget file will
-        be obtained from ds or gwf.
-
-    Returns
-    -------
-    q_da : xarray.DataArray
-        budget data array.
-    """
-    q_da = _get_output_da(
-        _get_cbc,
+    head_da = _get_output_da(
+        _get_heads,
         ds=ds,
         gwf_or_gwt=gwf,
-        fname=fname_cbc,
-        text=text,
-        kstpkper=kstpkper,
-        full3D=True,
+        fname=fname_heads,
+        delayed=delayed,
+        chunked=chunked,
     )
-    q_da.attrs["units"] = "m3/d"
-
-    return q_da
-
-
-def _get_heads(ds=None, gwf=None, fname_hds=None):
-    msg = "Load the heads using either the ds, gwf or fname_hds"
-    assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
-
-    if fname_hds is None:
-        if ds is None:
-            return gwf.output.head()
-        else:
-            fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-
-    headobj = flopy.utils.HeadFile(fname_hds)
-
-    return headobj
+    head_da.attrs["units"] = "m NAP"
+    return head_da
 
 
 def _get_cbc(ds=None, gwf=None, fname_cbc=None):
@@ -109,6 +88,48 @@ def _get_cbc(ds=None, gwf=None, fname_cbc=None):
     if fname_cbc is not None:
         cbc = flopy.utils.CellBudgetFile(fname_cbc)
     return cbc
+
+
+def get_budget_da(
+    text, ds=None, gwf=None, fname_cbc=None, kstpkper=None, delayed=False, chunked=False
+):
+    """Reads budget file given either a dataset or a groundwater flow object.
+
+    Parameters
+    ----------
+    text : str
+        record to get from budget file
+    ds : xarray.Dataset, optional
+        xarray dataset with model data. One of ds or gwf must be provided.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname_cbc : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
+    delayed : bool, optional
+        if delayed is True, do not load output data into memory, default is False.
+    chunked : bool, optional
+        chunk data array containing output, default is False.
+
+    Returns
+    -------
+    q_da : xarray.DataArray
+        budget data array.
+    """
+    q_da = _get_output_da(
+        _get_cbc,
+        ds=ds,
+        gwf_or_gwt=gwf,
+        fname=fname_cbc,
+        text=text,
+        kstpkper=kstpkper,
+        full3D=True,
+        delayed=delayed,
+        chunked=chunked,
+    )
+    q_da.attrs["units"] = "m3/d"
+
+    return q_da
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):
@@ -341,7 +362,7 @@ def calculate_gxg(
 
     >>> import nlmod
     >>> head = nlmod.gwf.get_heads_da(ds)
-    >>> gxg = nlmod.evaluate.calculate_gxg(head)
+    >>> gxg = nlmod.gwf.output.calculate_gxg(head)
     """
     # if not head.dims == ("time", "y", "x"):
     #    raise ValueError('Dimensions must be ("time", "y", "x")')

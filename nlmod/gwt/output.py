@@ -25,7 +25,9 @@ def _get_concentration(ds=None, gwt=None, fname_conc=None):
     return concobj
 
 
-def get_concentration_da(ds=None, gwt=None, fname_conc=None):
+def get_concentration_da(
+    ds=None, gwt=None, fname_conc=None, delayed=False, chunked=False
+):
     """Reads concentration file given either a dataset or a groundwater flow object.
 
     Note: Calling this function with ds is currently preferred over calling it
@@ -41,7 +43,10 @@ def get_concentration_da(ds=None, gwt=None, fname_conc=None):
     fname_conc : path, optional
         Instead of loading the binary concentration file corresponding to ds or gwf
         load the concentration from this file.
-
+    delayed : bool, optional
+        if delayed is True, do not load output data into memory, default is False.
+    chunked : bool, optional
+        chunk data array containing output, default is False.
 
     Returns
     -------
@@ -49,7 +54,12 @@ def get_concentration_da(ds=None, gwt=None, fname_conc=None):
         concentration data array.
     """
     conc_da = _get_output_da(
-        _get_concentration, ds=ds, gwf_or_gwt=gwt, fname=fname_conc
+        _get_concentration,
+        ds=ds,
+        gwf_or_gwt=gwt,
+        fname=fname_conc,
+        delayed=delayed,
+        chunked=chunked,
     )
     conc_da.attrs["units"] = "concentration"
     return conc_da

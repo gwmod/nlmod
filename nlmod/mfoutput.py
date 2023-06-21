@@ -1,8 +1,8 @@
 import logging
 
+import dask
 import numpy as np
 import xarray as xr
-from flopy.utils import CellBudgetFile, HeadFile
 
 from .dims.resample import get_affine_mod_to_world, get_xy_mid_structured
 from .dims.time import ds_time_idx
@@ -10,12 +10,16 @@ from .dims.time import ds_time_idx
 logger = logging.getLogger(__name__)
 
 
-def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
+def _get_output_da(
+    reader_func,
+    ds=None,
+    gwf_or_gwt=None,
+    fname=None,
+    delayed=False,
+    chunked=False,
+    **kwargs,
+):
     """Reads mf6 output file given either a dataset or a gwf or gwt object.
-
-    Note: Calling this function with ds is currently preferred over calling it
-    with gwf/gwt, because the layer and time coordinates can not be fully
-    reconstructed from gwf/gwt.
 
     Parameters
     ----------
@@ -26,6 +30,10 @@ def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
     fname : path, optional
         instead of loading the binary concentration file corresponding to ds or
         gwf/gwt load the concentration from this file.
+    delayed : bool, optional
+        if delayed is True, do not load output data into memory, default is False.
+    chunked : bool, optional
+        chunk data array containing output, default is False.
 
 
     Returns
@@ -42,19 +50,18 @@ def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
         hdry = -1e30
         hnoflo = 1e30
 
-    # check whether out_obj is BudgetFile or HeadFile based on passed kwargs
-    if isinstance(out_obj, CellBudgetFile):
-        arr = out_obj.get_data(**kwargs)
-    elif isinstance(out_obj, HeadFile):
-        arr = out_obj.get_alldata(**kwargs)
+    if "kstpkper" in kwargs:
+        kstpkper = kwargs.pop("kstpkper")
     else:
-        raise TypeError(f"Don't know how to deal with {type(out_obj)}!")
+        kstpkper = out_obj.get_kstpkper()
 
-    if isinstance(arr, list):
-        arr = np.stack(arr)
+    result = []
+    for ki in kstpkper:
+        d = dask.delayed(out_obj.get_data)(kstpkper=ki, **kwargs)
+        arr = dask.array.from_delayed(d, shape=out_obj.mg.shape, dtype=float)
+        result.append(arr)
 
-    arr[arr == hdry] = np.nan
-    arr[arr == hnoflo] = np.nan
+    stacked_arr = dask.array.stack(result)
 
     if gwf_or_gwt is not None:
         gridtype = gwf_or_gwt.modelgrid.grid_type
@@ -62,11 +69,23 @@ def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
         gridtype = ds.gridtype
 
     if gridtype == "vertex":
+        layers = np.arange(stacked_arr.shape[1])
+        if gwf_or_gwt is not None:
+            x = gwf_or_gwt.modelgrid.xcellcenters
+            y = gwf_or_gwt.modelgrid.ycellcenters
+        else:
+            x = ds.x
+            y = ds.y
+        coords = {"layer": layers, "y": y, "x": x}
+
+        # stacked arr is 4d
         da = xr.DataArray(
-            data=arr[:, :, 0],
-            dims=("time", "layer", "icell2d"),
-            coords={},
+            data=stacked_arr,
+            dims=("time", "layer", "_drop", "icell2d"),
+            coords=coords,
         )
+        # drop unnecessary dimension
+        da = da.isel(_drop=0)
 
     elif gridtype == "structured":
         if gwf_or_gwt is not None:
@@ -83,7 +102,7 @@ def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
             y = ds.y
 
         da = xr.DataArray(
-            data=arr,
+            data=stacked_arr,
             dims=("time", "layer", "y", "x"),
             coords={
                 "x": x,
@@ -92,6 +111,12 @@ def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
         )
     else:
         raise TypeError("Gridtype not supported")
+
+    if chunked:
+        da = da.chunk("auto")
+
+    # replace dry/noflow with NaN
+    da = da.where((da != hdry) | (da != hnoflo))
 
     # set layer and time coordinates
     if gwf_or_gwt is not None:
@@ -127,5 +152,9 @@ def _get_output_da(reader_func, ds=None, gwf_or_gwt=None, fname=None, **kwargs):
         da.rio.write_transform(affine, inplace=True)
 
     da.rio.write_crs("EPSG:28992", inplace=True)
+
+    # load into memory if indicated
+    if not delayed:
+        da.compute()
 
     return da

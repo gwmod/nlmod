@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -158,8 +159,9 @@ def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
 
 
 def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True):
-    DeprecationWarning(
-        "This function is deprecated, use the equivalent `get_geotop()`!"
+    warnings.warn(
+        "This function is deprecated, use the equivalent `get_geotop()`!",
+        DeprecationWarning,
     )
     return get_geotop(extent=extent, url=url, drop_probabilities=drop_probabilities)
 

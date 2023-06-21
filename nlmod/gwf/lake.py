@@ -48,7 +48,7 @@ def lake_from_gdf(
 
     Parameters
     ----------
-    gwf : flopy.mf6.modflow.mfgwf.ModflowGwf
+    gwf : flopy.mf6.ModflowGwf
         groundwater flow model.
     gdf : gpd.GeoDataframe
         geodataframe with the cellids as the index and the columns:

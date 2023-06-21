@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
-    """Convert one or more DataArrays from a vertex model dataset to a
-    Geodataframe.
+    """Convert one or more DataArrays from a vertex model dataset to a Geodataframe.
 
     Parameters
     ----------
@@ -88,8 +87,7 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
 
 
 def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
-    """Convert one or more DataArrays from a structured model dataset to a
-    Geodataframe.
+    """Convert one or more DataArrays from a structured model dataset to a Geodataframe.
 
     Parameters
     ----------
@@ -312,8 +310,8 @@ def ds_to_ugrid_nc_file(
     yv="yv",
     face_node_connectivity="icvert",
 ):
-    """Save a model dataset to a UGRID NetCDF file, so it can be opened as a
-    Mesh Layer in qgis.
+    """Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh Layer
+    in qgis.
 
     Parameters
     ----------

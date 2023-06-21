@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_model_dirs(model_ws):
-    """Creates a new model workspace directory, if it does not exists yet.
-    Within the model workspace directory a few subdirectories are created (if
-    they don't exist yet):
+    """Creates a new model workspace directory, if it does not exists yet. Within the
+    model workspace directory a few subdirectories are created (if they don't exist
+    yet):
 
     - figure
     - cache
@@ -50,8 +50,7 @@ def get_model_dirs(model_ws):
 
 
 def get_exe_path(exe_name="mf6"):
-    """get the full path of the executable. Uses the bin directory in the nlmod
-    package.
+    """Get the full path of the executable. Uses the bin directory in the nlmod package.
 
     Parameters
     ----------
@@ -76,7 +75,7 @@ def get_exe_path(exe_name="mf6"):
 
 
 def get_ds_empty(ds):
-    """get a copy of a model dataset with only coordinate information.
+    """Get a copy of a model dataset with only coordinate information.
 
     Parameters
     ----------
@@ -97,7 +96,7 @@ def get_ds_empty(ds):
 
 
 def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
-    """get a dataarray from ds with certain dimensions.
+    """Get a dataarray from ds with certain dimensions.
 
     Parameters
     ----------
@@ -130,9 +129,8 @@ def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
 
 
 def find_most_recent_file(folder, name, extension=".pklz"):
-    """find the most recent file in a folder. File must startwith name and
-    end width extension. If you want to look for the most recent folder use
-    extension = ''.
+    """Find the most recent file in a folder. File must startwith name and end width
+    extension. If you want to look for the most recent folder use extension = ''.
 
     Parameters
     ----------
@@ -169,7 +167,7 @@ def find_most_recent_file(folder, name, extension=".pklz"):
 
 
 def compare_model_extents(extent1, extent2):
-    """check overlap between two model extents.
+    """Check overlap between two model extents.
 
     Parameters
     ----------
@@ -224,7 +222,7 @@ def compare_model_extents(extent1, extent2):
 
 
 def polygon_from_extent(extent):
-    """create a shapely polygon from a given extent.
+    """Create a shapely polygon from a given extent.
 
     Parameters
     ----------
@@ -244,7 +242,7 @@ def polygon_from_extent(extent):
 
 
 def gdf_from_extent(extent, crs="EPSG:28992"):
-    """create a geodataframe with a single polygon with the extent given.
+    """Create a geodataframe with a single polygon with the extent given.
 
     Parameters
     ----------
@@ -267,8 +265,8 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
 
 
 def gdf_within_extent(gdf, extent):
-    """select only parts of the geodataframe within the extent. Only accepts
-    Polygon and Linestring geometry types.
+    """Select only parts of the geodataframe within the extent. Only accepts Polygon and
+    Linestring geometry types.
 
     Parameters
     ----------
@@ -307,7 +305,7 @@ def gdf_within_extent(gdf, extent):
 
 
 def get_google_drive_filename(fid, timeout=120):
-    """get the filename of a google drive file.
+    """Get the filename of a google drive file.
 
     Parameters
     ----------
@@ -335,7 +333,7 @@ def get_google_drive_filename(fid, timeout=120):
 
 
 def download_file_from_google_drive(fid, destination=None):
-    """download a file from google drive using it's id.
+    """Download a file from google drive using it's id.
 
     Parameters
     ----------
@@ -411,7 +409,7 @@ def download_mfbinaries(bindir=None):
 
 
 def download_modpath_provisional_exe(bindir=None, timeout=120):
-    """Downlaod the provisional version of modpath to the folder with binaries"""
+    """Downlaod the provisional version of modpath to the folder with binaries."""
     if bindir is None:
         bindir = os.path.join(os.path.dirname(__file__), "bin")
     if not os.path.isdir(bindir):

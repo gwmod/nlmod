@@ -319,11 +319,15 @@ def _get_structured_grid_ds(
         "y": ycenters,
         "layer": range(nlay),
     }
+
     if angrot != 0.0:
         affine = resample.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(xcenters, ycenters)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)
+    else:
+        coords["x"] += xorigin
+        coords["y"] += yorigin
 
     dims = ("layer", "y", "x")
     ds = xr.Dataset(
@@ -439,7 +443,7 @@ def _get_vertex_grid_ds(
     else:
         layers = nlay
 
-    coords = {"x": x, "y": y, "layer": layers}
+    coords = {"layer": layers, "y": y, "x": x}
     dims = ("layer", "icell2d")
     ds = xr.Dataset(
         data_vars=dict(

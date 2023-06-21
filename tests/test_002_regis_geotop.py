@@ -24,16 +24,11 @@ def test_get_regis_botm_layer_BEk1(
     assert regis_ds.layer.values[-1] == botm_layer
 
 
-def test_get_geotop_raw(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
-    geotop_ds = nlmod.read.geotop.get_geotop_raw_within_extent(extent)
+def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
+    geotop_ds = nlmod.read.geotop.get_geotop(extent)
     line = [(extent[0], extent[2]), (extent[1], extent[3])]
     # also test the plot-method
     nlmod.plot.geotop_lithok_in_cross_section(line, geotop_ds)
-
-
-# @pytest.mark.skip(reason="too slow")
-def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
-    nlmod.read.geotop.get_geotop(extent)
 
 
 # @pytest.mark.skip(reason="too slow")

@@ -1062,9 +1062,12 @@ def gdf_to_da(
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]
-        gdf_agg.set_index(
-            pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
-        )
+        if isinstance(gdf_cellid.cellid.iloc[0], tuple):
+            gdf_agg.set_index(
+                pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
+            )
+        else:
+            gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
     da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
     for ind, row in gdf_agg.iterrows():
         da.values[ind] = row[column]

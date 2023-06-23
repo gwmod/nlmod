@@ -215,7 +215,7 @@ def add_geotop_to_regis_layers(
         geotop_k = geotop.get_lithok_props()
     for layer in layers:
         # transform geotop data into layers
-        gtl = geotop.convert_geotop_to_ml_layers(gt)
+        gtl = geotop.to_model_layers(gt)
 
         # only keep the part of layers inside the regis layer
         top = rg["top"].loc[layer]

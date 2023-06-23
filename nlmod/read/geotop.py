@@ -234,7 +234,7 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
         "This function is deprecated, use the equivalent `get_geotop()`!",
         DeprecationWarning,
     )
-    return get_geotop(extent=extent, url=url, drop_probabilities=drop_probabilities)
+    return get_geotop(extent=extent, url=url, probabilities=not drop_probabilities)
 
 
 def add_top_and_botm(ds):

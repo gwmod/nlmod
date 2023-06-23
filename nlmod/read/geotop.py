@@ -113,8 +113,8 @@ def to_model_layers(geotop_ds, strat_props=None, **kwargs):
         if int(geo_eenh) in strat_props.index:
             code = strat_props.at[int(geo_eenh), "code"]
         else:
-            logger.warning(f"Unknown strat-value: {geo_eenh}")
-            code = str(geo_eenh)
+            logger.warning(f"Unknown strat-value: {int(geo_eenh)}")
+            code = str(int(geo_eenh))
         strat_codes.append(code)
 
     # fill top and bot
@@ -521,12 +521,11 @@ def aggregate_to_ds(
     c_ar = []
     kh_ar = []
     kv_ar = []
-    if "layer" in ds["top"].dims:
-        # make sure there is no layer dimension in top
-        ds["top"] = ds["top"].max("layer")
     for ilay in range(len(ds.layer)):
         if ilay == 0:
             top = ds["top"]
+            if "layer" in top.dims:
+                top = top[0].drop_vars("layer")
         else:
             top = ds["botm"][ilay - 1].drop_vars("layer")
         bot = ds["botm"][ilay].drop_vars("layer")

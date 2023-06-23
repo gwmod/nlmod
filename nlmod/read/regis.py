@@ -217,13 +217,17 @@ def add_geotop_to_regis_layers(
         # transform geotop data into layers
         gtl = geotop.to_model_layers(gt)
 
+        # make sure top is 3d
+        assert "layer" in rg["top"].dims, "Top of regis must be 3d"
+        assert "layer" in gtl["top"].dims, "Top of geotop layers must be 3d"
+
         # only keep the part of layers inside the regis layer
         top = rg["top"].loc[layer]
         bot = rg["botm"].loc[layer]
-        gtl["top"] = gtl["top"].where(gtl["top"] < top, top)
-        gtl["top"] = gtl["top"].where(gtl["top"] > bot, bot)
-        gtl["botm"] = gtl["botm"].where(gtl["botm"] < top, top)
-        gtl["botm"] = gtl["botm"].where(gtl["botm"] > bot, bot)
+        gtl["top"] = gtl["top"].where(top > gtl["top"], top)
+        gtl["top"] = gtl["top"].where(bot < gtl["top"], bot)
+        gtl["botm"] = gtl["botm"].where(top > gtl["botm"], top)
+        gtl["botm"] = gtl["botm"].where(bot < gtl["botm"], bot)
 
         if remove_nan_layers:
             # drop layers with a remaining thickness of 0 (or NaN) everywhere

@@ -8,7 +8,6 @@ import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
-from ..dims.resample import get_extent
 
 logger = logging.getLogger(__name__)
 
@@ -59,33 +58,105 @@ def get_kh_kv_table(kind="Brabant"):
 
 
 @cache.cache_netcdf
-def geotop_to_layermodel(geotop_ds, strat_props=None):
-    """Convert geotop dataset to layermodel dataset.
+def to_model_layers(geotop_ds, strat_props=None, **kwargs):
+    """Convert geotop voxel dataset to layered dataset.
 
-    Converts geotop data to dataset with layer elevations and hydraulic
-    conductivities. Uses hydraulic conductivities provided by a
+    Converts geotop data to dataset with layer elevations and hydraulic conductivities.
+    Optionally uses hydraulic conductivities provided present in geotop_ds.
 
     Parameters
     ----------
     geotop_ds : xr.DataSet
-        geotop dataset (download using `get_geotop(extent)`)
+        geotop voxel dataset (download using `get_geotop(extent)`)
     strat_props : pd.DataFrame, optional
-        The properties of the stratigraphic unit. Load with get_strat_props() when None.
-        The default is None.
+        The properties (code and name) of the stratigraphic units. Load with
+        get_strat_props() when None. The default is None.
+    kwargs : dict
+        Kwargs are passed to aggregate_to_ds
 
     Returns
     -------
     ds: xr.DataSet
-        dataset with top, bot, kh and kv per geotop layer
+        dataset with top and botm (and optionally kh and kv) per geotop layer
+
+    Note
+    ----
+    strat-units >=6000 are 'stroombanen'. These are difficult to add because they can
+    occur above and/or below any other unit. Therefore these units are not added to the
+    dataset, and their thickness is added to the strat-unit below the stroombaan.
+
     """
 
     if strat_props is None:
         strat_props = get_strat_props()
 
-    ds = convert_geotop_to_ml_layers(geotop_ds, strat_props=strat_props)
+    # stap 2 maak een laag per geo-eenheid
+    if strat_props is None:
+        strat_props = get_strat_props()
 
-    ds.attrs["extent"] = get_extent(ds)
+    # vindt alle geo-eenheden in model_extent
+    geo_eenheden = np.unique(geotop_ds.strat.values)
+    # geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds.strat.missing_value)]
+    geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
+    stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
+    geo_eenheden = geo_eenheden[geo_eenheden < 6000]
 
+    # geo eenheid 2000 zit boven 1130
+    if (2000.0 in geo_eenheden) and (1130.0 in geo_eenheden):
+        geo_eenheden[(geo_eenheden == 2000.0) + (geo_eenheden == 1130.0)] = [
+            2000.0,
+            1130.0,
+        ]
+
+    strat_codes = []
+    for geo_eenh in geo_eenheden:
+        if int(geo_eenh) in strat_props.index:
+            code = strat_props.at[int(geo_eenh), "code"]
+        else:
+            logger.warning(f"Unknown strat-value: {geo_eenh}")
+            code = str(geo_eenh)
+        strat_codes.append(code)
+
+    # fill top and bot
+    shape = (len(strat_codes), len(geotop_ds.y), len(geotop_ds.x))
+    top = np.full(shape, np.nan)
+    bot = np.full(shape, np.nan)
+    lay = 0
+    logger.info("creating top and bot per geo eenheid")
+    for geo_eenheid in geo_eenheden:
+        logger.debug(int(geo_eenheid))
+
+        mask = geotop_ds.strat == geo_eenheid
+        geo_z = xr.where(mask, geotop_ds.z, np.NaN)
+
+        top[lay] = geo_z.max(dim="z") + 0.25
+        bot[lay] = geo_z.min(dim="z") - 0.25
+
+        lay += 1
+
+    # add the thickness of stroombanen to the layer below the stroombaan
+    for lay in range(top.shape[0]):
+        if lay == 0:
+            top[lay] = np.nanmax(top, 0)
+        else:
+            top[lay] = bot[lay - 1]
+        bot[lay] = np.where(np.isnan(bot[lay]), top[lay], bot[lay])
+
+    dims = ("layer", "y", "x")
+    coords = {"layer": strat_codes, "y": geotop_ds.y, "x": geotop_ds.x}
+    da_top = xr.DataArray(data=top, dims=dims, coords=coords)
+    da_bot = xr.DataArray(data=bot, dims=dims, coords=coords)
+    ds = xr.Dataset()
+
+    ds["top"] = da_top
+    ds["botm"] = da_bot
+
+    ds.attrs["stroombanen"] = stroombaan_eenheden
+
+    if "kh" in geotop_ds and "kv" in geotop_ds:
+        aggregate_to_ds(geotop_ds, ds, **kwargs)
+
+    # add atributes
     for datavar in ds:
         ds[datavar].attrs["source"] = "Geotop"
         ds[datavar].attrs["url"] = GEOTOP_URL
@@ -164,104 +235,6 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
         DeprecationWarning,
     )
     return get_geotop(extent=extent, url=url, drop_probabilities=drop_probabilities)
-
-
-def convert_geotop_to_ml_layers(
-    geotop_ds,
-    strat_props=None,
-    **kwargs,
-):
-    """Convert geotop voxel data to layers using the stratigraphy-data.
-
-    It gets the top and botm of each stratigraphic unit in the geotop dataset.
-
-    Parameters
-    ----------
-    geotop_ds_raw: xr.Dataset
-        dataset with geotop voxel data
-    strat_props: pandas.DataFrame
-        The properties of the stratigraphic unit. Load with get_strat_props() when None.
-        The default is None.
-
-    Returns
-    -------
-    geotop_ds_mod: xarray.DataSet
-        geotop dataset with top and botm per geo_eenheid
-
-    Note
-    ----
-    strat-units >=6000 are 'stroombanen'. These are difficult to add because they can
-    occur above and/or below any other unit. Therefore these units are not added to the
-    dataset, and their thickness is added to the strat-unit below the stroombaan.
-    """
-
-    # stap 2 maak een laag per geo-eenheid
-    if strat_props is None:
-        strat_props = get_strat_props()
-
-    # vindt alle geo-eenheden in model_extent
-    geo_eenheden = np.unique(geotop_ds.strat.values)
-    # geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds.strat.missing_value)]
-    geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
-    stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
-    geo_eenheden = geo_eenheden[geo_eenheden < 6000]
-
-    # geo eenheid 2000 zit boven 1130
-    if (2000.0 in geo_eenheden) and (1130.0 in geo_eenheden):
-        geo_eenheden[(geo_eenheden == 2000.0) + (geo_eenheden == 1130.0)] = [
-            2000.0,
-            1130.0,
-        ]
-
-    strat_codes = []
-    for geo_eenh in geo_eenheden:
-        if int(geo_eenh) in strat_props.index:
-            code = strat_props.at[int(geo_eenh), "code"]
-        else:
-            logger.warning(f"Unknown strat-value: {geo_eenh}")
-            code = str(geo_eenh)
-        strat_codes.append(code)
-
-    # fill top and bot
-    shape = (len(strat_codes), len(geotop_ds.y), len(geotop_ds.x))
-    top = np.full(shape, np.nan)
-    bot = np.full(shape, np.nan)
-    lay = 0
-    logger.info("creating top and bot per geo eenheid")
-    for geo_eenheid in geo_eenheden:
-        logger.debug(int(geo_eenheid))
-
-        mask = geotop_ds.strat == geo_eenheid
-        geo_z = xr.where(mask, geotop_ds.z, np.NaN)
-
-        top[lay] = geo_z.max(dim="z") + 0.25
-        bot[lay] = geo_z.min(dim="z") - 0.25
-
-        lay += 1
-
-    # add the thickness of stroombanen to the layer below the stroombaan
-    for lay in range(top.shape[0]):
-        if lay == 0:
-            top[lay] = np.nanmax(top, 0)
-        else:
-            top[lay] = bot[lay - 1]
-        bot[lay] = np.where(np.isnan(bot[lay]), top[lay], bot[lay])
-
-    dims = ("layer", "y", "x")
-    coords = {"layer": strat_codes, "y": geotop_ds.y, "x": geotop_ds.x}
-    da_top = xr.DataArray(data=top, dims=dims, coords=coords)
-    da_bot = xr.DataArray(data=bot, dims=dims, coords=coords)
-    geotop_ds_mod = xr.Dataset()
-
-    geotop_ds_mod["top"] = da_top
-    geotop_ds_mod["botm"] = da_bot
-
-    geotop_ds_mod.attrs["stroombanen"] = stroombaan_eenheden
-
-    if "kh" in geotop_ds and "kv" in geotop_ds:
-        aggregate_to_ds(geotop_ds, geotop_ds_mod, **kwargs)
-
-    return geotop_ds_mod
 
 
 def add_top_and_botm(ds):

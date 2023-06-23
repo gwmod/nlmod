@@ -13,3 +13,4 @@ from . import (
     webservices,
 )
 from .regis import get_regis
+from .geotop import get_geotop

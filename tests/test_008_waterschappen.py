@@ -5,7 +5,7 @@
 """
 
 import pytest
-
+import matplotlib
 import nlmod
 
 
@@ -48,13 +48,23 @@ def test_download_peilgebieden(plot=True):
 
     if plot:
         # plot the winter_stage
-        ax = waterboards.plot(edgecolor="k", facecolor="none")
+        f, ax = nlmod.plot.get_map([9000, 279000, 304000, 623000], base=100000)
+        waterboards.plot(edgecolor="k", facecolor="none", ax=ax)
+        norm = matplotlib.colors.Normalize(-10.0, 20.0)
+        cmap = "viridis"
         for wb in waterboards.index:
             if wb in gdf:
                 # gdf[wb].plot(ax=ax, zorder=0)
-                gdf[wb].plot("winter_stage", ax=ax, zorder=0, vmin=-10, vmax=20)
+                gdf[wb].plot("winter_stage", ax=ax, zorder=0, norm=norm, cmap=cmap)
             c = waterboards.at[wb, "geometry"].centroid
             ax.text(c.x, c.y, wb.replace(" ", "\n"), ha="center", va="center")
+        nlmod.plot.colorbar_inside(
+            ax=ax,
+            norm=norm,
+            cmap=cmap,
+            bounds=[0.05, 0.55, 0.02, 0.4],
+            label="Summer stage (m NAP)",
+        )
 
 
 @pytest.mark.skip("too slow")

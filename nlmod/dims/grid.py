@@ -1058,13 +1058,22 @@ def gdf_to_da(
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
-        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
+        if agg_method in ["nearest"]:
+            modelgrid = modelgrid_from_ds(ds)
+            gdf_agg = aggregate_vector_per_cell(
+                gdf_cellid, {column: agg_method}, modelgrid
+            )
+        else:
+            gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]
-        gdf_agg.set_index(
-            pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
-        )
+        if isinstance(gdf_cellid.cellid.iloc[0], tuple):
+            gdf_agg.set_index(
+                pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
+            )
+        else:
+            gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
     da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
     for ind, row in gdf_agg.iterrows():
         da.values[ind] = row[column]
@@ -1135,17 +1144,22 @@ def _agg_length_weighted(gdf, col):
     return aw
 
 
-def _agg_nearest(gdf, col, gwf):
-    cid = gdf["cellid"].values[0]
-    cellcenter = Point(
-        gwf.modelgrid.xcellcenters[0][cid[1]],
-        gwf.modelgrid.ycellcenters[:, 0][cid[0]],
-    )
-    val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
+def _agg_nearest(gdf, col, modelgrid):
+    if modelgrid.grid_type == "structured":
+        cid = gdf["cellid"].values[0]
+        cellcenter = Point(
+            modelgrid.xcellcenters[0, cid[1]], modelgrid.ycellcenters[cid[0], 0]
+        )
+        val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
+    elif modelgrid.grid_type == "vertex":
+        cid = gdf["cellid"].values[0]
+        cellcenter = Point(modelgrid.xcellcenters[cid], modelgrid.ycellcenters[cid])
+        val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
+
     return val
 
 
-def _get_aggregates_values(group, fields_methods, gwf=None):
+def _get_aggregates_values(group, fields_methods, modelgrid=None):
     agg_dic = {}
     for field, method in fields_methods.items():
         # aggregation is only necesary if group shape is greater than 1
@@ -1160,7 +1174,7 @@ def _get_aggregates_values(group, fields_methods, gwf=None):
         elif method == "sum":
             agg_dic[field] = group[field].sum()
         elif method == "nearest":
-            agg_dic[field] = _agg_nearest(group, field, gwf)
+            agg_dic[field] = _agg_nearest(group, field, modelgrid)
         elif method == "length_weighted":  # only for lines
             agg_dic[field] = _agg_length_weighted(group, field)
         elif method == "max_length":  # only for lines
@@ -1177,7 +1191,7 @@ def _get_aggregates_values(group, fields_methods, gwf=None):
     return agg_dic
 
 
-def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
+def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     """Aggregate vector features per cell.
 
     Parameters
@@ -1189,7 +1203,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
         aggregation methods can be:
         max, min, mean, sum, length_weighted (lines), max_length (lines),
         area_weighted (polygon), max_area (polygon).
-    gwf : flopy Groundwater flow model
+    modelgrid : flopy Groundwater flow modelgrid
         only necesary if one of the field methods is 'nearest'
 
     Returns
@@ -1227,7 +1241,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     gr = gdf.groupby(by="cellid")
     celldata = pd.DataFrame(index=gr.groups.keys())
     for cid, group in tqdm(gr, desc="Aggregate vector data"):
-        agg_dic = _get_aggregates_values(group, fields_methods, gwf)
+        agg_dic = _get_aggregates_values(group, fields_methods, modelgrid)
         for key, item in agg_dic.items():
             celldata.loc[cid, key] = item
 

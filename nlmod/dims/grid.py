@@ -56,7 +56,8 @@ def xy_to_icell2d(xy, ds):
         number of the icell2d value of a cell containing the xy point.
     """
 
-    icell2d = (np.abs(ds.x.data - xy[0]) + np.abs(ds.y.data - xy[1])).argmin().item()
+    icell2d = (np.abs(ds.x.data - xy[0]) +
+               np.abs(ds.y.data - xy[1])).argmin().item()
 
     return icell2d
 
@@ -354,7 +355,8 @@ def refine(
                 fname, geom_type, level = refinement_feature
                 if not model_coordinates and ds_has_rotation:
                     raise (
-                        Exception("Converting files to model coordinates not supported")
+                        Exception(
+                            "Converting files to model coordinates not supported")
                     )
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
@@ -376,8 +378,10 @@ def refine(
                         )
                     mask = geom_types == geom_type
                     # features = [gdf[mask].unary_union]
-                    features = list(gdf[mask].geometry.explode(index_parts=True))
-                    g.add_refinement_features(features, geom_type, level, layers=[0])
+                    features = list(
+                        gdf[mask].geometry.explode(index_parts=True))
+                    g.add_refinement_features(
+                        features, geom_type, level, layers=[0])
     g.build()
     gridprops = g.get_gridprops_disv()
     gridprops["area"] = g.get_area()
@@ -419,13 +423,15 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
     y = xr.DataArray(xyi[:, 1], dims=("icell2d",))
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
-        ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+        ds_out = ds_in.interp(x=x, y=y, method=method,
+                              kwargs={"fill_value": None})
     else:
         ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
 
         # add other variables
         for data_var in ds_in.data_vars:
-            data_arr = structured_da_to_ds(ds_in[data_var], ds_out, method=method)
+            data_arr = structured_da_to_ds(
+                ds_in[data_var], ds_out, method=method)
             ds_out[data_var] = data_arr
 
     if "area" in gridprops:
@@ -523,7 +529,8 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
         else:
             x = ds.x
             y = ds.y
-        layer_ds = layer_ds.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+        layer_ds = layer_ds.interp(
+            x=x, y=y, method=method, kwargs={"fill_value": None})
         for var in layer_ds.data_vars:
             ds[var] = layer_ds[var]
     else:
@@ -586,7 +593,8 @@ def col_to_list(col_in, ds, cellids):
             # 2d vertex grid
             col_lst = col_in.data[cellids[0]]
         else:
-            raise ValueError(f"could not create a column list for col_in={col_in}")
+            raise ValueError(
+                f"could not create a column list for col_in={col_in}")
     else:
         col_lst = [col_in] * len(cellids[0])
 
@@ -677,7 +685,8 @@ def lrc_to_reclist(
         for i_aux in aux:
             if isinstance(i_aux, str):
                 if "layer" in ds[i_aux].dims and len(cellids) != 3:
-                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                    cols.append(col_to_list(
+                        i_aux, ds, (np.array(layers),) + cellids))
                 else:
                     cols.append(col_to_list(i_aux, ds, cellids))
             else:
@@ -772,7 +781,8 @@ def lcid_to_reclist(
         for i_aux in aux:
             if isinstance(i_aux, str):
                 if "layer" in ds[i_aux].dims and len(cellids) != 2:
-                    cols.append(col_to_list(i_aux, ds, (np.array(layers),) + cellids))
+                    cols.append(col_to_list(
+                        i_aux, ds, (np.array(layers),) + cellids))
                 else:
                     cols.append(col_to_list(i_aux, ds, cellids))
             else:
@@ -984,7 +994,8 @@ def gdf_to_data_array_struc(
 
     # interpolate data
     if interp_method is not None:
-        arr = interpolate_gdf_to_array(gdf, gwf, field=field, method=interp_method)
+        arr = interpolate_gdf_to_array(
+            gdf, gwf, field=field, method=interp_method)
         da.values = arr
 
         return da
@@ -997,7 +1008,8 @@ def gdf_to_data_array_struc(
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
-        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {field: agg_method}, gwf)
+        gdf_agg = aggregate_vector_per_cell(
+            gdf_cellid, {field: agg_method}, gwf)
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[field]]
@@ -1058,7 +1070,13 @@ def gdf_to_da(
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
-        gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
+        if agg_method in ['nearest']:
+            modelgrid = modelgrid_from_ds(ds)
+            gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method},
+                                                modelgrid)
+        else:
+            gdf_agg = aggregate_vector_per_cell(
+                gdf_cellid, {column: agg_method})
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]
@@ -1098,7 +1116,8 @@ def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
     # check geometry
     geom_types = gdf.geometry.type.unique()
     if geom_types[0] != "Point":
-        raise NotImplementedError("can only use interpolation with point geometries")
+        raise NotImplementedError(
+            "can only use interpolation with point geometries")
 
     # check field
     if field not in gdf.columns:
@@ -1134,21 +1153,29 @@ def _agg_max_length(gdf, col):
 
 def _agg_length_weighted(gdf, col):
     nanmask = gdf[col].isna()
-    aw = (gdf.length * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].length.sum()
+    aw = (gdf.length * gdf[col]).sum(skipna=True) / \
+        gdf.loc[~nanmask].length.sum()
     return aw
 
 
-def _agg_nearest(gdf, col, gwf):
-    cid = gdf["cellid"].values[0]
-    cellcenter = Point(
-        gwf.modelgrid.xcellcenters[0][cid[1]],
-        gwf.modelgrid.ycellcenters[:, 0][cid[0]],
-    )
-    val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
+def _agg_nearest(gdf, col, modelgrid):
+    if modelgrid.grid_type == 'structured':
+        cid = gdf["cellid"].values[0]
+        cellcenter = Point(
+            modelgrid.xcellcenters[0, cid[1]],
+            modelgrid.ycellcenters[cid[0], 0])
+        val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
+    elif modelgrid.grid_type == 'vertex':
+        cid = gdf["cellid"].values[0]
+        cellcenter = Point(
+            modelgrid.xcellcenters[cid],
+            modelgrid.ycellcenters[cid])
+        val = gdf.iloc[gdf.distance(cellcenter).argmin()].loc[col]
+
     return val
 
 
-def _get_aggregates_values(group, fields_methods, gwf=None):
+def _get_aggregates_values(group, fields_methods, modelgrid=None):
     agg_dic = {}
     for field, method in fields_methods.items():
         # aggregation is only necesary if group shape is greater than 1
@@ -1163,7 +1190,7 @@ def _get_aggregates_values(group, fields_methods, gwf=None):
         elif method == "sum":
             agg_dic[field] = group[field].sum()
         elif method == "nearest":
-            agg_dic[field] = _agg_nearest(group, field, gwf)
+            agg_dic[field] = _agg_nearest(group, field, modelgrid)
         elif method == "length_weighted":  # only for lines
             agg_dic[field] = _agg_length_weighted(group, field)
         elif method == "max_length":  # only for lines
@@ -1180,7 +1207,7 @@ def _get_aggregates_values(group, fields_methods, gwf=None):
     return agg_dic
 
 
-def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
+def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     """Aggregate vector features per cell.
 
     Parameters
@@ -1192,7 +1219,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
         aggregation methods can be:
         max, min, mean, sum, length_weighted (lines), max_length (lines),
         area_weighted (polygon), max_area (polygon).
-    gwf : flopy Groundwater flow model
+    modelgrid : flopy Groundwater flow modelgrid
         only necesary if one of the field methods is 'nearest'
 
     Returns
@@ -1230,7 +1257,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, gwf=None):
     gr = gdf.groupby(by="cellid")
     celldata = pd.DataFrame(index=gr.groups.keys())
     for cid, group in tqdm(gr, desc="Aggregate vector data"):
-        agg_dic = _get_aggregates_values(group, fields_methods, gwf)
+        agg_dic = _get_aggregates_values(group, fields_methods, modelgrid)
         for key, item in agg_dic.items():
             celldata.loc[cid, key] = item
 
@@ -1570,7 +1597,8 @@ def mask_model_edge(ds, idomain):
     """
     # add constant head cells at model boundaries
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        raise NotImplementedError("model edge not yet calculated for rotated grids")
+        raise NotImplementedError(
+            "model edge not yet calculated for rotated grids")
 
     # get mask with grid edges
     xmin = ds["x"] == ds["x"].min()

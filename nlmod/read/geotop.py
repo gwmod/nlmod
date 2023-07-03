@@ -8,6 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
+from ..dims.layers import remove_layer, insert_layer, fill_top_and_bottom
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,9 @@ def get_kh_kv_table(kind="Brabant"):
 
 
 @cache.cache_netcdf
-def to_model_layers(geotop_ds, strat_props=None, **kwargs):
+def to_model_layers(
+    geotop_ds, strat_props=None, handle_gullies="add_as_layer", **kwargs
+):
     """Convert geotop voxel dataset to layered dataset.
 
     Converts geotop data to dataset with layer elevations and hydraulic conductivities.
@@ -94,64 +97,64 @@ def to_model_layers(geotop_ds, strat_props=None, **kwargs):
     if strat_props is None:
         strat_props = get_strat_props()
 
-    # vindt alle geo-eenheden in model_extent
-    geo_eenheden = np.unique(geotop_ds.strat.values)
-    # geo_eenheden = geo_eenheden[~(geo_eenheden==geotop_ds.strat.missing_value)]
-    geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
-    stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
-    geo_eenheden = geo_eenheden[geo_eenheden < 6000]
+    # get all strat-units in Dataset
+    strat = geotop_ds["strat"].data
+    units = np.unique(strat)
+    units = units[~np.isnan(units)].astype(int)
+    shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
     # geo eenheid 2000 zit boven 1130
-    if (2000.0 in geo_eenheden) and (1130.0 in geo_eenheden):
-        geo_eenheden[(geo_eenheden == 2000.0) + (geo_eenheden == 1130.0)] = [
-            2000.0,
-            1130.0,
-        ]
-
-    strat_codes = []
-    for geo_eenh in geo_eenheden:
-        if int(geo_eenh) in strat_props.index:
-            code = strat_props.at[int(geo_eenh), "code"]
-        else:
-            logger.warning(f"Unknown strat-value: {int(geo_eenh)}")
-            code = str(int(geo_eenh))
-        strat_codes.append(code)
+    if (2000 in units) and (1130 in units):
+        units[(units == 2000) + (units == 1130)] = [2000, 1130]
 
     # fill top and bot
-    shape = (len(strat_codes), len(geotop_ds.y), len(geotop_ds.x))
+    shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
     top = np.full(shape, np.nan)
     bot = np.full(shape, np.nan)
-    lay = 0
-    logger.info("creating top and bot per geo eenheid")
-    for geo_eenheid in geo_eenheden:
-        logger.debug(int(geo_eenheid))
 
-        mask = geotop_ds.strat == geo_eenheid
-        geo_z = xr.where(mask, geotop_ds.z, np.NaN)
-
-        top[lay] = geo_z.max(dim="z") + 0.25
-        bot[lay] = geo_z.min(dim="z") - 0.25
-
-        lay += 1
-
-    # add the thickness of stroombanen to the layer below the stroombaan
-    for lay in range(top.shape[0]):
-        if lay == 0:
-            top[lay] = np.nanmax(top, 0)
+    z = (
+        geotop_ds["z"]
+        .data[:, np.newaxis, np.newaxis]
+        .repeat(len(geotop_ds.y), 1)
+        .repeat(len(geotop_ds.x), 2)
+    )
+    layers = []
+    gullies = []
+    for layer, unit in enumerate(units):
+        mask = strat == unit
+        top[layer] = np.nanmax(np.where(mask, z, np.NaN), 0) + 0.25
+        bot[layer] = np.nanmin(np.where(mask, z, np.NaN), 0) - 0.25
+        if int(unit) in strat_props.index:
+            layers.append(strat_props.at[unit, "code"])
         else:
-            top[lay] = bot[lay - 1]
-        bot[lay] = np.where(np.isnan(bot[lay]), top[lay], bot[lay])
+            logger.warning(f"Unknown strat-value: {unit}")
+            layers.append(str(unit))
+        if unit >= 6000:
+            gullies.append(layers[-1])
 
     dims = ("layer", "y", "x")
-    coords = {"layer": strat_codes, "y": geotop_ds.y, "x": geotop_ds.x}
-    da_top = xr.DataArray(data=top, dims=dims, coords=coords)
-    da_bot = xr.DataArray(data=bot, dims=dims, coords=coords)
-    ds = xr.Dataset()
+    coords = {"layer": layers, "y": geotop_ds.y, "x": geotop_ds.x}
+    ds = xr.Dataset({"top": (dims, top), "botm": (dims, bot)}, coords=coords)
 
-    ds["top"] = da_top
-    ds["botm"] = da_bot
+    if handle_gullies is None:
+        pass
+    elif handle_gullies == "add_as_layer":
+        top = ds["top"].copy(deep=True)
+        bot = ds["botm"].copy(deep=True)
+        for gully in gullies:
+            ds = remove_layer(ds, gully)
+        for gully in gullies:
+            ds = insert_layer(ds, gully, top.loc[gully], bot.loc[gully])
+    elif handle_gullies == "fill_top_and_bottom":
+        for gully in gullies:
+            ds = remove_layer(ds, gully)
+        ds = fill_top_and_bottom(ds, drop_layer_dim_from_top=False)
+    else:
+        raise (
+            Exception("Unknown option on how to deal with gullies: {handle_gullies}")
+        )
 
-    ds.attrs["stroombanen"] = stroombaan_eenheden
+    ds.attrs["gullies"] = gullies
 
     if "kh" in geotop_ds and "kv" in geotop_ds:
         aggregate_to_ds(geotop_ds, ds, **kwargs)

@@ -271,13 +271,48 @@ def get_layer_names():
     return layer_names
 
 
-def get_legend():
+def get_legend(kind="REGIS"):
     """Get a legend (DataFrame) with the colors of REGIS-layers.
 
     These colors can be used when plotting cross-sections.
     """
+    allowed_kinds = ["REGIS", "GeoTOP", "combined"]
+    if kind not in allowed_kinds:
+        raise (Exception(" Only allowed values for kind are {allowed_kinds}"))
+    if kind == "REGIS" or kind == "combined":
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+        leg_regis = read_gleg(fname)
+        if kind == "REGIS":
+            return leg_regis
+    if kind == "GeoTOP" or kind == "combined":
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        fname = os.path.join(dir_path, "..", "data", "geotop", "geotop.gleg")
+        leg_geotop = read_gleg(fname)
+        if kind == "GeoTOP":
+            return leg_geotop
+    # return a combination of regis and geotop
+    leg = pd.concat((leg_regis, leg_geotop))
+    # drop duplicates, keeping first occurrences (from regis)
+    leg = leg.loc[~leg.index.duplicated(keep="first")]
+    return leg
+
+
+def get_legend_lithoclass():
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+    fname = os.path.join(dir_path, "..", "data", "geotop", "Lithoklasse.voleg")
+    leg = read_voleg(fname)
+    return leg
+
+
+def get_legend_lithostratigraphy():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = os.path.join(dir_path, "..", "data", "geotop", "Lithostratigrafie.voleg")
+    leg = read_voleg(fname)
+    return leg
+
+
+def read_gleg(fname):
     leg = pd.read_csv(
         fname,
         sep="\t",
@@ -290,4 +325,19 @@ def get_legend():
     clrs = [tuple(rgb / 255.0) for rgb in clrs]
     leg["color"] = clrs
     leg = leg.drop(["x", "r", "g", "b", "a"], axis=1)
+    return leg
+
+
+def read_voleg(fname):
+    leg = pd.read_csv(
+        fname,
+        sep="\t",
+        header=None,
+        names=["code", "naam", "r", "g", "b", "a", "beschrijving"],
+    )
+    leg.set_index("code", inplace=True)
+    clrs = np.array(leg.loc[:, ["r", "g", "b"]])
+    clrs = [tuple(rgb / 255.0) for rgb in clrs]
+    leg["color"] = clrs
+    leg = leg.drop(["r", "g", "b", "a"], axis=1)
     return leg

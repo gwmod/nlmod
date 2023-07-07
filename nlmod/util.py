@@ -536,7 +536,7 @@ def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
     return value
 
 
-def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True):
+def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True, return_da=False):
     """Internal function to get value from dataset data variables.
 
     Parameters
@@ -551,6 +551,9 @@ def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True):
         the same as varname. If not passed as string, it is treated as data
     warn : bool, optional
         log warning if value not found
+    return_da : bool, optional
+        if True a dataarray can be returned, if False a dataarray is always
+        converted to a numpy array before being returned. The default is False.
 
     Returns
     -------
@@ -597,4 +600,9 @@ def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True):
                 f"to function or check whether 'ds.{datavar}' was set correctly."
             )
             logger.warning(msg)
+
+    if not return_da:
+        if isinstance(value, xr.DataArray):
+            value = value.values
+
     return value

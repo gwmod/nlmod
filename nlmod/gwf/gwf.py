@@ -318,8 +318,8 @@ def npf(
         gwf,
         pname=pname,
         icelltype=icelltype,
-        k=k.data,
-        k33=k33.data,
+        k=k,
+        k33=k33,
         save_flows=save_flows,
         **kwargs,
     )

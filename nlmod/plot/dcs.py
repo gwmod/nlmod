@@ -156,7 +156,7 @@ class DatasetCrossSection:
         xys = xys[xys[:, -1].argsort()]
         return xys
 
-    def plot_layers(self, colors=None, min_label_area=np.inf, **kwargs):
+    def plot_layers(self, colors=None, min_label_area=np.inf, fontsize=None, **kwargs):
         if colors is None:
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i) for i in range(len(self.layer))]
@@ -223,6 +223,7 @@ class DatasetCrossSection:
                                 self.layer[i],
                                 ha="center",
                                 va="center",
+                                fontsize=fontsize,
                             )
         return polygons
 

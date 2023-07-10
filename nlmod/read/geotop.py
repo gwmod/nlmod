@@ -98,7 +98,7 @@ def to_model_layers(
         strat_props = get_strat_props()
 
     # get all strat-units in Dataset
-    strat = geotop_ds["strat"].data
+    strat = geotop_ds["strat"].values
     units = np.unique(strat)
     units = units[~np.isnan(units)].astype(int)
     shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
@@ -108,7 +108,6 @@ def to_model_layers(
         units[(units == 2000) + (units == 1130)] = [2000, 1130]
 
     # fill top and bot
-    shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
     top = np.full(shape, np.nan)
     bot = np.full(shape, np.nan)
 

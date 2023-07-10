@@ -1179,7 +1179,6 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         xarray Dataset containing the new layer
 
     """
-    """"""
     shape = ds["botm"].shape[1:]
     assert top.shape == shape
     assert bot.shape == shape
@@ -1238,7 +1237,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
                 )
                 todo[todo] = False
                 continue
-            elif not bot_lower_than_bot[todo].all():
+            if not bot_lower_than_bot[todo].all():
                 bot_higher_than_bot = bot.data > bot_layer
                 if not bot_higher_than_bot[todo].any():
                     continue
@@ -1284,7 +1283,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         # 7 the new layer needs to be added to the bottom of the model
         if isplit is not None:
             isplit += 1
-        ds = _insert_layer_below(ds, layer, name, isplit, mask, top, bot, kh, kv, copy)
+        ds = _insert_layer_below(ds, None, name, isplit, mask, top, bot, kh, kv, copy)
     return ds
 
 

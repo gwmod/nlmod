@@ -109,7 +109,11 @@ def arcrest(
                 raise (Exception("Not supported yet"))
             feature["attributes"]["geometry"] = geometry
             data.append(feature["attributes"])
-        gdf = gpd.GeoDataFrame(data, crs=sr)
+        if len(data) == 0:
+            # Assigning CRS to a GeoDataFrame without a geometry column is not supported
+            gdf = gpd.GeoDataFrame()
+        else:
+            gdf = gpd.GeoDataFrame(data, crs=sr)
     else:
         # for geojson-data we can transform to GeoDataFrame right away
         if len(features) == 0:

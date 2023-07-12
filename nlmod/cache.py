@@ -124,7 +124,7 @@ def cache_netcdf(func):
                     func_args_dic_cache = pickle.load(f)
                 pickle_check = True
             except (pickle.UnpicklingError, ModuleNotFoundError):
-                logger.info(f"could not read pickle, not using cache")
+                logger.info("could not read pickle, not using cache")
                 pickle_check = False
                 argument_check = False
 

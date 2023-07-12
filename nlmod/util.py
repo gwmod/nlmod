@@ -75,13 +75,16 @@ def get_exe_path(exe_name="mf6"):
     return exe_path
 
 
-def get_ds_empty(ds):
+def get_ds_empty(ds, dims=("time", "layer", "y", "x")):
     """get a copy of a model dataset with only coordinate information.
 
     Parameters
     ----------
     ds : xr.Dataset
         dataset with coordinates
+    dims : tuple
+        the dimensions in ds the you want to have in your empty ds. If 'y' and
+        'x' are in dims and the gridtype is vertex 'xy' is automatically added.
 
     Returns
     -------
@@ -89,9 +92,14 @@ def get_ds_empty(ds):
         dataset with only model coordinate information
     """
 
+    # add coordinate xy for vertex grids
+    if ds.gridtype == "vertex" and "y" in dims and "x" in dims:
+        dims = tuple(set(dims).union({"xy"}))
+
     empty_ds = xr.Dataset()
     for coord in list(ds.coords):
-        empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
+        if coord in dims:
+            empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
 
     return empty_ds
 

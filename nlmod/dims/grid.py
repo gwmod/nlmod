@@ -1306,7 +1306,7 @@ def gdf_to_bool_da(gdf, ds):
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name):
+def gdf_to_bool_ds(gdf, ds, da_name, dims=("time", "layer", "y", "x")):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1319,6 +1319,9 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         xarray with model data
     da_name : str
         The name of the variable with boolean data in the ds_out
+    dims : tuple
+        the dimensions in ds the you want to have in ds_out. If 'y' and 'x' are
+        in dims and the gridtype is vertex 'xy' is automatically added.
 
     Returns
     -------
@@ -1326,7 +1329,7 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         Dataset with a single DataArray, this DataArray is 1 if polygon is in
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
-    ds_out = util.get_ds_empty(ds)
+    ds_out = util.get_ds_empty(ds, dims=dims)
     ds_out[da_name] = gdf_to_bool_da(gdf, ds)
 
     return ds_out

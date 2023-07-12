@@ -62,7 +62,7 @@ def get_recharge(ds, method="linear", most_common_station=False):
     start = pd.Timestamp(ds.time.attrs["start"])
     end = pd.Timestamp(ds.time.data[-1])
 
-    ds_out = util.get_ds_empty(ds)
+    ds_out = util.get_ds_empty(ds, keep_coords=("time", "y", "x"))
     ds_out.attrs["gridtype"] = ds.gridtype
 
     # get recharge data array

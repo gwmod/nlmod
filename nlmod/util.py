@@ -75,23 +75,29 @@ def get_exe_path(exe_name="mf6"):
     return exe_path
 
 
-def get_ds_empty(ds):
-    """get a copy of a model dataset with only coordinate information.
+def get_ds_empty(ds, keep_coords=None):
+    """get a copy of a dataset with only coordinate information.
 
     Parameters
     ----------
     ds : xr.Dataset
         dataset with coordinates
+    keep_coords : tuple or None, optional
+        the coordinates in ds the you want keep in your empty ds. If None all
+        coordinates are kept from original ds. The default is None.
 
     Returns
     -------
     empty_ds : xr.Dataset
-        dataset with only model coordinate information
+        dataset with only coordinate information
     """
+    if keep_coords is None:
+        keep_coords = list(ds.coords)
 
     empty_ds = xr.Dataset()
     for coord in list(ds.coords):
-        empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
+        if coord in keep_coords:
+            empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
 
     return empty_ds
 

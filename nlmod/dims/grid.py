@@ -1306,7 +1306,7 @@ def gdf_to_bool_da(gdf, ds):
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name):
+def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1319,6 +1319,9 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         xarray with model data
     da_name : str
         The name of the variable with boolean data in the ds_out
+    keep_coords : tuple or None, optional
+        the coordinates in ds the you want keep in your empty ds. If None all
+        coordinates are kept from original ds. The default is None.
 
     Returns
     -------
@@ -1326,7 +1329,7 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         Dataset with a single DataArray, this DataArray is 1 if polygon is in
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
-    ds_out = util.get_ds_empty(ds)
+    ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
     ds_out[da_name] = gdf_to_bool_da(gdf, ds)
 
     return ds_out
@@ -1579,6 +1582,8 @@ def mask_model_edge(ds, idomain):
     ds_out : xarray.Dataset
         dataset with edge mask array
     """
+    ds = ds.copy()  # avoid side effects
+
     # add constant head cells at model boundaries
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         raise NotImplementedError("model edge not yet calculated for rotated grids")

@@ -42,7 +42,7 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     ds.attrs["model_name"] = model_name
     ds.attrs["mfversion"] = mfversion
     fmt = "%Y%m%d_%H:%M:%S"
-    ds.attrs["model_dataset_created_on"] = dt.datetime.now().strftime(fmt)
+    ds.attrs["created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
         exe_name = util.get_exe_path(mfversion)

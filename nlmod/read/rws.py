@@ -78,7 +78,7 @@ def get_surface_water(ds, da_basename):
         peil = xr.where(area_pol > area, row["peil"], peil)
         area = xr.where(area_pol > area, area_pol, area)
 
-    ds_out = util.get_ds_empty(ds, dims=("y", "x"))
+    ds_out = util.get_ds_empty(ds, keep_coords=("y", "x"))
     ds_out[f"{da_basename}_area"] = area
     ds_out[f"{da_basename}_area"].attrs["units"] = "m2"
     ds_out[f"{da_basename}_cond"] = cond
@@ -127,7 +127,7 @@ def get_northsea(ds, da_name="northsea"):
         )
     ]
 
-    ds_out = dims.gdf_to_bool_ds(swater_zee, ds, da_name, dims=("y", "x"))
+    ds_out = dims.gdf_to_bool_ds(swater_zee, ds, da_name, keep_coords=("y", "x"))
 
     return ds_out
 

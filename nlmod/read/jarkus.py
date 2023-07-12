@@ -50,7 +50,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
-    ds_out = get_ds_empty(ds, dims=("y", "x"))
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
 
     # no bathymetry if we don't have northsea
     if (northsea == 0).all():

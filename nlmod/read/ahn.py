@@ -69,7 +69,7 @@ def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     if ds is None:
         return ahn_da
 
-    ds_out = get_ds_empty(ds, dims=("y", "x"))
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
     ds_out["ahn"] = ahn_da
 
     return ds_out

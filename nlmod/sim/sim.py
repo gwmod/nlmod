@@ -136,7 +136,7 @@ def sim(ds, exe_name=None):
     """
 
     # start creating model
-    logger.info("creating modflow SIM")
+    logger.info("creating mf6 SIM")
 
     if exe_name is None:
         exe_name = util.get_exe_path(ds.mfversion)
@@ -172,12 +172,12 @@ def tdis(ds, sim, pname="tdis"):
     """
 
     # start creating model
-    logger.info("creating modflow TDIS")
+    logger.info("creating mf6 TDIS")
 
     tdis_perioddata = get_tdis_perioddata(ds)
 
     # Create the Flopy temporal discretization object
-    tdis = flopy.mf6.modflow.mftdis.ModflowTdis(
+    tdis = flopy.mf6.ModflowTdis(
         sim,
         pname=pname,
         time_units=ds.time.time_units,
@@ -207,7 +207,7 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
         ims object.
     """
 
-    logger.info("creating modflow IMS")
+    logger.info("creating mf6 IMS")
 
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.ModflowIms(

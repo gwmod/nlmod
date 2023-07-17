@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def clear_cache(cachedir):
-    """clears the cache in a given cache directory by removing all .pklz and
+    """Clears the cache in a given cache directory by removing all .pklz and
     corresponding .nc files.
 
     Parameters
@@ -192,7 +192,7 @@ def cache_netcdf(func):
 
 
 def _check_ds(ds, ds2):
-    """check if two datasets have the same dimensions and coordinates.
+    """Check if two datasets have the same dimensions and coordinates.
 
     Parameters
     ----------
@@ -317,7 +317,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
 
 
 def _get_modification_time(func):
-    """return the modification time of the module where func is defined.
+    """Return the modification time of the module where func is defined.
 
     Parameters
     ----------
@@ -339,10 +339,12 @@ def _get_modification_time(func):
 
 
 def _update_docstring_and_signature(func):
-    """add function arguments 'cachedir' and 'cachename' to the docstring and
-    signature of a function. The function arguments are added before the
-    "Returns" header in the docstring. If the function has no Returns header in
-    the docstring, the function arguments are not added to the docstring.
+    """Add function arguments 'cachedir' and 'cachename' to the docstring and signature
+    of a function. 
+    
+    The function arguments are added before the "Returns" header in the
+    docstring. If the function has no Returns header in the docstring, the function
+    arguments are not added to the docstring.
 
     Parameters
     ----------
@@ -351,7 +353,7 @@ def _update_docstring_and_signature(func):
 
     Returns
     -------
-    None.
+    None
     """
     # add cachedir and cachename to signature
     sig = inspect.signature(func)

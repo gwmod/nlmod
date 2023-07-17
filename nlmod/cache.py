@@ -117,8 +117,16 @@ def cache_netcdf(func):
 
         # only use cache if the cache file and the pickled function arguments exist
         if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
-            with open(fname_pickle_cache, "rb") as f:
-                func_args_dic_cache = pickle.load(f)
+            # check if you can read the pickle, there are several reasons why a
+            # pickle can not be read.
+            try:
+                with open(fname_pickle_cache, "rb") as f:
+                    func_args_dic_cache = pickle.load(f)
+                pickle_check = True
+            except (pickle.UnpicklingError, ModuleNotFoundError):
+                logger.info("could not read pickle, not using cache")
+                pickle_check = False
+                argument_check = False
 
             # check if the module where the function is defined was changed
             # after the cache was created
@@ -133,16 +141,17 @@ def cache_netcdf(func):
 
             cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
 
-            # add netcdf hash to function arguments dic, see #66
-            func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+            if pickle_check:
+                # add netcdf hash to function arguments dic, see #66
+                func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
 
-            # check if cache was created with same function arguments as
-            # function call
-            argument_check = _same_function_arguments(
-                func_args_dic, func_args_dic_cache
-            )
+                # check if cache was created with same function arguments as
+                # function call
+                argument_check = _same_function_arguments(
+                    func_args_dic, func_args_dic_cache
+                )
 
-            if modification_check and argument_check:
+            if modification_check and argument_check and pickle_check:
                 if dataset is None:
                     logger.info(f"using cached data -> {cachename}")
                     return cached_ds

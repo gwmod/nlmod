@@ -318,8 +318,8 @@ def npf(
         gwf,
         pname=pname,
         icelltype=icelltype,
-        k=k.data,
-        k33=k33.data,
+        k=k,
+        k33=k33,
         save_flows=save_flows,
         **kwargs,
     )
@@ -381,7 +381,7 @@ def ghb(
         bhead = f"{da_name}_peil"
         cond = f"{da_name}_cond"
 
-    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond)
+    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
     mask = mask_arr != 0
 
     ghb_rec = grid.da_to_reclist(
@@ -466,7 +466,7 @@ def drn(
         elev = f"{da_name}_peil"
         cond = f"{da_name}_cond"
 
-    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond)
+    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
     mask = mask_arr != 0
 
     first_active_layer = layer is None
@@ -636,7 +636,7 @@ def chd(
         )
         mask = kwargs.pop("chd")
 
-    maskarr = _get_value_from_ds_datavar(ds, "mask", mask)
+    maskarr = _get_value_from_ds_datavar(ds, "mask", mask, return_da=True)
     mask = maskarr != 0
 
     # get the stress_period_data
@@ -693,7 +693,7 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
 
     ds.attrs["surface_drn_resistance"] = resistance
 
-    maskarr = _get_value_from_ds_datavar(ds, "elev", elev)
+    maskarr = _get_value_from_ds_datavar(ds, "elev", elev, return_da=True)
     mask = maskarr.notnull()
 
     drn_rec = grid.da_to_reclist(

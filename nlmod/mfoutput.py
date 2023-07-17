@@ -63,26 +63,25 @@ def _get_output_da(
 
     stacked_arr = dask.array.stack(result)
 
-    if gwf_or_gwt is not None:
-        gridtype = gwf_or_gwt.modelgrid.grid_type
+    gridtype = out_obj.mg.grid_type
+
+    if ds is not None:
+        layers = ds.layer
     else:
-        gridtype = ds.gridtype
+        layers = np.arange(stacked_arr.shape[1])
 
     if gridtype == "vertex":
-        if ds is not None:
-            layers = ds["layer"].values
-        else:
-            layers = np.arange(stacked_arr.shape[1])
-        
         if gwf_or_gwt is not None:
             x = gwf_or_gwt.modelgrid.xcellcenters
             y = gwf_or_gwt.modelgrid.ycellcenters
-        else:
+        elif ds is not None:
             x = ds.x
             y = ds.y
-        coords = {"layer": layers, "y": y, "x": x}
+        else:
+            x, y = out_obj.mg.xycenters
+        coords = {"layer": layers, "y": ("icell2d", y), "x": ("icell2d", x)}
 
-        # stacked arr is 4d
+        # stacked arr is 4d, but 3rd dimension is always len 1
         da = xr.DataArray(
             data=stacked_arr[:, :, 0, :],
             dims=("time", "layer", "icell2d"),
@@ -99,16 +98,19 @@ def _get_output_da(
             except ValueError:  # delr/delc are variable
                 # x, y in local coords
                 x, y = gwf_or_gwt.modelgrid.xycenters
-        else:
+        elif ds is not None:
             x = ds.x
             y = ds.y
+        else:
+            x, y = out_obj.mg.xycenters
 
         da = xr.DataArray(
             data=stacked_arr,
             dims=("time", "layer", "y", "x"),
             coords={
-                "x": x,
+                "layer": layers,
                 "y": y,
+                "x": x,
             },
         )
     else:
@@ -118,23 +120,23 @@ def _get_output_da(
         da = da.chunk("auto")
 
     # replace dry/noflow with NaN
-    da = da.where((da != hdry) | (da != hnoflo))
+    da = da.where((da != hdry) & (da != hnoflo))
 
     # set layer and time coordinates
     if gwf_or_gwt is not None:
-        da.coords["layer"] = np.arange(gwf_or_gwt.modelgrid.nlay)
         da.coords["time"] = ds_time_idx(
             out_obj.get_times(),
             start_datetime=gwf_or_gwt.modeltime.start_datetime,
             time_units=gwf_or_gwt.modeltime.time_units,
         )
-    else:
-        da.coords["layer"] = ds.layer
+    elif ds is not None:
         da.coords["time"] = ds_time_idx(
             out_obj.get_times(),
             start_datetime=ds.time.attrs["start"],
             time_units=ds.time.attrs["time_units"],
         )
+    else:
+        da.coords["time"] = ds_time_idx(out_obj.get_times())
 
     if ds is not None and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         # affine = get_affine(ds)
@@ -157,6 +159,6 @@ def _get_output_da(
 
     # load into memory if indicated
     if not delayed:
-        da.compute()
+        da = da.compute()
 
     return da

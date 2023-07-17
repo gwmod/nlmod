@@ -60,7 +60,7 @@ def get_kh_kv_table(kind="Brabant"):
 
 @cache.cache_netcdf
 def to_model_layers(
-    geotop_ds, strat_props=None, method_gullies="add_to_layer_below", **kwargs
+    geotop_ds, strat_props=None, method_geulen="add_to_layer_below", **kwargs
 ):
     """Convert geotop voxel dataset to layered dataset.
 
@@ -74,16 +74,16 @@ def to_model_layers(
     strat_props : pd.DataFrame, optional
         The properties (code and name) of the stratigraphic units. Load with
         get_strat_props() when None. The default is None.
-    method_gullies : str, optional
-        strat-units >=6000 are gullies ('geulen'). These are difficult to add to the
-        layer model, because they can occur above and/or below any other unit. Multiple
-        methods are available to handle the gullies. The method "add_to_layer_below"
-        adds the thickness of the gully to the layer with a positive thickness below the
-        gully. The method "add_to_layer_above" adds the thickness of the gully to the
-        layer with a positive thickness above the gully. The method "add_as_layer" tries
-        to add the gullies as one or more layers, which can fail if a gully is locally
-        both below the top and above the bottom of another layer (splitting the layer in
-        two, which is not supported). The default is "add_to_layer_below".
+    method_geulen : str, optional
+        strat-units >=6000 are geulen (gullies). These are difficult to add to the layer
+        model, because they can occur above and/or below any other unit. Multiple
+        methods are available to handle the geulen. The method "add_to_layer_below" adds
+        the thickness of the geul to the layer with a positive thickness below the geul.
+        The method "add_to_layer_above" adds the thickness of the geul to the layer with
+        a positive thickness above the geul. The method "add_as_layer" tries to add the
+        geulen as one or more layers, which can fail if a geul is locally both below the
+        top and above the bottom of another layer (splitting the layer in two, which is
+        not supported). The default is "add_to_layer_below".
 
     kwargs : dict
         Kwargs are passed to aggregate_to_ds
@@ -122,7 +122,7 @@ def to_model_layers(
         .repeat(len(geotop_ds.x), 2)
     )
     layers = []
-    gullies = []
+    geulen = []
     for layer, unit in enumerate(units):
         mask = strat == unit
         top[layer] = np.nanmax(np.where(mask, z, np.NaN), 0) + 0.25
@@ -133,76 +133,76 @@ def to_model_layers(
             logger.warning(f"Unknown strat-value: {unit}")
             layers.append(str(unit))
         if unit >= 6000:
-            gullies.append(layers[-1])
+            geulen.append(layers[-1])
 
     dims = ("layer", "y", "x")
     coords = {"layer": layers, "y": geotop_ds.y, "x": geotop_ds.x}
     ds = xr.Dataset({"top": (dims, top), "botm": (dims, bot)}, coords=coords)
 
-    if method_gullies is None:
+    if method_geulen is None:
         pass
-    elif method_gullies == "add_as_layer":
+    elif method_geulen == "add_as_layer":
         top = ds["top"].copy(deep=True)
         bot = ds["botm"].copy(deep=True)
-        for gully in gullies:
-            ds = remove_layer(ds, gully)
-        for gully in gullies:
-            ds = insert_layer(ds, gully, top.loc[gully], bot.loc[gully])
-    elif method_gullies == "add_to_layer_below":
+        for geul in geulen:
+            ds = remove_layer(ds, geul)
+        for geul in geulen:
+            ds = insert_layer(ds, geul, top.loc[geul], bot.loc[geul])
+    elif method_geulen == "add_to_layer_below":
         top = ds["top"].copy(deep=True)
         bot = ds["botm"].copy(deep=True)
-        for gully in gullies:
-            ds = remove_layer(ds, gully)
-        for gully in gullies:
-            todo = (top.loc[gully] - bot.loc[gully]) > 0.0
+        for geul in geulen:
+            ds = remove_layer(ds, geul)
+        for geul in geulen:
+            todo = (top.loc[geul] - bot.loc[geul]) > 0.0
             for layer in ds.layer:
                 if not todo.any():
                     continue
-                # adds the thickness of the gully to the layer below the gully
-                mask = (top.loc[gully] > bot.loc[layer]) & todo
+                # adds the thickness of the geul to the layer below the geul
+                mask = (top.loc[geul] > bot.loc[layer]) & todo
                 if mask.any():
                     ds["top"].loc[layer].data[mask] = np.maximum(
-                        top.loc[gully].data[mask], top.loc[layer].data[mask]
+                        top.loc[geul].data[mask], top.loc[layer].data[mask]
                     )
                     todo.data[mask] = False
             if todo.any():
-                # unless the gully is the bottom layer
+                # unless the geul is the bottom layer
                 # then its thickness is added to the last active layer
                 # idomain = get_idomain(ds)
                 # fal = get_last_active_layer_from_idomain(idomain)
                 logger.warning(
-                    f"Gully {gully} is at the bottom of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                    f"Geul {geul} is at the bottom of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
                 )
 
-    elif method_gullies == "add_to_layer_above":
+    elif method_geulen == "add_to_layer_above":
         top = ds["top"].copy(deep=True)
         bot = ds["botm"].copy(deep=True)
-        for gully in gullies:
-            ds = remove_layer(ds, gully)
-        for gully in gullies:
-            todo = (top.loc[gully] - bot.loc[gully]) > 0.0
+        for geul in geulen:
+            ds = remove_layer(ds, geul)
+        for geul in geulen:
+            todo = (top.loc[geul] - bot.loc[geul]) > 0.0
             for layer in reversed(ds.layer):
                 if not todo.any():
                     continue
-                # adds the thickness of the gully to the layer above the gully
-                mask = (bot.loc[gully] < top.loc[layer]) & todo
+                # adds the thickness of the geul to the layer above the geul
+                mask = (bot.loc[geul] < top.loc[layer]) & todo
                 if mask.any():
                     ds["botm"].loc[layer].data[mask] = np.minimum(
-                        bot.loc[gully].data[mask], bot.loc[layer].data[mask]
+                        bot.loc[geul].data[mask], bot.loc[layer].data[mask]
                     )
                     todo.data[mask] = False
             if todo.any():
-                # unless the gully is the top layer
+                # unless the geul is the top layer
                 # then its thickness is added to the last active layer
                 # idomain = get_idomain(ds)
                 # fal = get_first_active_layer_from_idomain(idomain)
                 logger.warning(
-                    f"Gully {gully} is at the top of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                    f"Geul {geul} is at the top of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
                 )
     else:
-        raise (Exception(f"Unknown method to deal with gullies: {method_gullies}"))
+        raise (Exception(f"Unknown method to deal with geulen: {method_geulen}"))
 
-    ds.attrs["gullies"] = gullies
+    ds.attrs["geulen"] = geulen
 
     if "kh" in geotop_ds and "kv" in geotop_ds:
         aggregate_to_ds(geotop_ds, ds, **kwargs)

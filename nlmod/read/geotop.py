@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
-from ..dims.layers import remove_layer, insert_layer, fill_top_and_bottom
+from ..dims.layers import remove_layer, insert_layer
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ def get_kh_kv_table(kind="Brabant"):
 
 @cache.cache_netcdf
 def to_model_layers(
-    geotop_ds, strat_props=None, handle_gullies="add_as_layer", **kwargs
+    geotop_ds, strat_props=None, method_gullies="add_to_layer_below", **kwargs
 ):
     """Convert geotop voxel dataset to layered dataset.
 
@@ -74,6 +74,17 @@ def to_model_layers(
     strat_props : pd.DataFrame, optional
         The properties (code and name) of the stratigraphic units. Load with
         get_strat_props() when None. The default is None.
+    method_gullies : str, optional
+        strat-units >=6000 are gullies ('geulen'). These are difficult to add to the
+        layer model, because they can occur above and/or below any other unit. Multiple
+        methods are available to handle the gullies. The method "add_to_layer_below"
+        adds the thickness of the gully to the layer with a positive thickness below the
+        gully. The method "add_to_layer_above" adds the thickness of the gully to the
+        layer with a positive thickness above the gully. The method "add_as_layer" tries
+        to add the gullies as one or more layers, which can fail if a gully is locally
+        both below the top and above the bottom of another layer (splitting the layer in
+        two, which is not supported). The default is "add_to_layer_below".
+
     kwargs : dict
         Kwargs are passed to aggregate_to_ds
 
@@ -81,13 +92,6 @@ def to_model_layers(
     -------
     ds: xr.DataSet
         dataset with top and botm (and optionally kh and kv) per geotop layer
-
-    Note
-    ----
-    strat-units >=6000 are 'stroombanen'. These are difficult to add because they can
-    occur above and/or below any other unit. Therefore these units are not added to the
-    dataset, and their thickness is added to the strat-unit below the stroombaan.
-
     """
 
     if strat_props is None:
@@ -135,23 +139,68 @@ def to_model_layers(
     coords = {"layer": layers, "y": geotop_ds.y, "x": geotop_ds.x}
     ds = xr.Dataset({"top": (dims, top), "botm": (dims, bot)}, coords=coords)
 
-    if handle_gullies is None:
+    if method_gullies is None:
         pass
-    elif handle_gullies == "add_as_layer":
+    elif method_gullies == "add_as_layer":
         top = ds["top"].copy(deep=True)
         bot = ds["botm"].copy(deep=True)
         for gully in gullies:
             ds = remove_layer(ds, gully)
         for gully in gullies:
             ds = insert_layer(ds, gully, top.loc[gully], bot.loc[gully])
-    elif handle_gullies == "fill_top_and_bottom":
+    elif method_gullies == "add_to_layer_below":
+        top = ds["top"].copy(deep=True)
+        bot = ds["botm"].copy(deep=True)
         for gully in gullies:
             ds = remove_layer(ds, gully)
-        ds = fill_top_and_bottom(ds, drop_layer_dim_from_top=False)
+        for gully in gullies:
+            todo = (top.loc[gully] - bot.loc[gully]) > 0.0
+            for layer in ds.layer:
+                if not todo.any():
+                    continue
+                # adds the thickness of the gully to the layer below the gully
+                mask = (top.loc[gully] > bot.loc[layer]) & todo
+                if mask.any():
+                    ds["top"].loc[layer].data[mask] = np.maximum(
+                        top.loc[gully].data[mask], top.loc[layer].data[mask]
+                    )
+                    todo.data[mask] = False
+            if todo.any():
+                # unless the gully is the bottom layer
+                # then its thickness is added to the last active layer
+                # idomain = get_idomain(ds)
+                # fal = get_last_active_layer_from_idomain(idomain)
+                logger.warning(
+                    f"Gully {gully} is at the bottom of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                )
+
+    elif method_gullies == "add_to_layer_above":
+        top = ds["top"].copy(deep=True)
+        bot = ds["botm"].copy(deep=True)
+        for gully in gullies:
+            ds = remove_layer(ds, gully)
+        for gully in gullies:
+            todo = (top.loc[gully] - bot.loc[gully]) > 0.0
+            for layer in reversed(ds.layer):
+                if not todo.any():
+                    continue
+                # adds the thickness of the gully to the layer above the gully
+                mask = (bot.loc[gully] < top.loc[layer]) & todo
+                if mask.any():
+                    ds["botm"].loc[layer].data[mask] = np.minimum(
+                        bot.loc[gully].data[mask], bot.loc[layer].data[mask]
+                    )
+                    todo.data[mask] = False
+            if todo.any():
+                # unless the gully is the top layer
+                # then its thickness is added to the last active layer
+                # idomain = get_idomain(ds)
+                # fal = get_first_active_layer_from_idomain(idomain)
+                logger.warning(
+                    f"Gully {gully} is at the top of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                )
     else:
-        raise (
-            Exception("Unknown option on how to deal with gullies: {handle_gullies}")
-        )
+        raise (Exception(f"Unknown method to deal with gullies: {method_gullies}"))
 
     ds.attrs["gullies"] = gullies
 

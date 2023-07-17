@@ -894,22 +894,41 @@ def set_idomain(ds, remove_nan_layers=True):
     ds : xr.Dataset
         Dataset with added idomain-variable.
     """
-    # set idomain with a default of -1 (pass-through)
-    ds["idomain"] = xr.full_like(ds["botm"], -1, int)
-    # drop attributes inherited from botm
-    ds["idomain"].attrs.clear()
-    # set idomain of cells  with a positive thickness to 1
-    thickness = calculate_thickness(ds)
-    ds["idomain"].data[thickness.data > 0.0] = 1
-    # set idomain to 0 in the inactive part of the model
-    if "active" in ds:
-        ds["idomain"] = ds["idomain"].where(ds["active"], 0)
+    ds["idomain"] = get_idomain(ds)
     if remove_nan_layers:
         # only keep layers with at least one active cell
         ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
+
+    return ds
+
+
+def get_idomain(ds):
+    """Get idmomain from a model Dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The model Dataset.
+
+    Returns
+    -------
+    ds : xr.DataArray
+        DataArray of idomain-variable.
+    """
+    # set idomain with a default of -1 (pass-through)
+    idomain = xr.full_like(ds["botm"], -1, int)
+    idomain.name = None
+    # drop attributes inherited from botm
+    idomain.attrs.clear()
+    # set idomain of cells  with a positive thickness to 1
+    thickness = calculate_thickness(ds)
+    idomain.data[thickness.data > 0.0] = 1
+    # set idomain to 0 in the inactive part of the model
+    if "active" in ds:
+        idomain = idomain.where(ds["active"], 0)
     # TODO: set idomain above/below the first/last active layer to 0
     # TODO: remove 'active' and replace by logic of keeping inactive cells in idomain
-    return ds
+    return idomain
 
 
 def get_first_active_layer(ds, **kwargs):
@@ -932,7 +951,7 @@ def get_first_active_layer(ds, **kwargs):
 
 
 def get_first_active_layer_from_idomain(idomain, nodata=-999):
-    """get the first active layer in each cell from the idomain.
+    """get the first (top) active layer in each cell from the idomain.
 
     Parameters
     ----------
@@ -959,6 +978,36 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
         )
     first_active_layer.attrs["_FillValue"] = nodata
     return first_active_layer
+
+
+def get_last_active_layer_from_idomain(idomain, nodata=-999):
+    """get the last (bottom) active layer in each cell from the idomain.
+
+    Parameters
+    ----------
+    idomain : xr.DataArray
+        idomain. Shape can be (layer, y, x) or (layer, icell2d)
+    nodata : int, optional
+        nodata value. used for cells that are inactive in all layers.
+        The default is -999.
+
+    Returns
+    -------
+    last_active_layer : xr.DataArray
+        raster in which each cell has the zero based number of the last
+        active layer. Shape can be (y, x) or (icell2d)
+    """
+    logger.debug("get last active modellayer for each cell in idomain")
+
+    last_active_layer = xr.where(idomain[-1] == 1, 0, nodata)
+    for i in range(idomain.shape[0] - 2, -1, -1):
+        last_active_layer = xr.where(
+            (last_active_layer == nodata) & (idomain[i] == 1),
+            i,
+            last_active_layer,
+        )
+    last_active_layer.attrs["_FillValue"] = nodata
+    return last_active_layer
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):

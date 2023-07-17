@@ -537,8 +537,8 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
 def sto(
     ds,
     gwf,
-    sy=0.2,
-    ss=0.000001,
+    sy="sy",
+    ss="ss",
     iconvert=1,
     save_flows=False,
     pname="sto",
@@ -552,10 +552,10 @@ def sto(
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    sy : float, optional
-        specific yield. The default is 0.2.
-    ss : float, optional
-        specific storage. The default is 0.000001.
+    sy : str or float, optional
+        specific yield. The default is "sy", or 0.2 if "sy" is not in ds.
+    ss : str or float, optional
+        specific storage. The default is "ss", or 0.000001 if "ss" is not in ds.
     iconvert : int, optional
         See description in ModflowGwfsto. The default is 1 (differs from FloPY).
     save_flows : bool, optional
@@ -581,8 +581,8 @@ def sto(
             sts_spd = None
             trn_spd = {0: True}
 
-        sy = _get_value_from_ds_datavar(ds, "sy", sy)
-        ss = _get_value_from_ds_datavar(ds, "ss", ss)
+        sy = _get_value_from_ds_datavar(ds, "sy", sy, default=0.2)
+        ss = _get_value_from_ds_datavar(ds, "ss", ss, default=0.000001)
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,

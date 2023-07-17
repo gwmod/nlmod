@@ -69,7 +69,11 @@ def _get_output_da(
         gridtype = ds.gridtype
 
     if gridtype == "vertex":
-        layers = np.arange(stacked_arr.shape[1])
+        if ds is not None:
+            layers = ds["layer"].values
+        else:
+            layers = np.arange(stacked_arr.shape[1])
+        
         if gwf_or_gwt is not None:
             x = gwf_or_gwt.modelgrid.xcellcenters
             y = gwf_or_gwt.modelgrid.ycellcenters
@@ -80,12 +84,10 @@ def _get_output_da(
 
         # stacked arr is 4d
         da = xr.DataArray(
-            data=stacked_arr,
-            dims=("time", "layer", "_drop", "icell2d"),
+            data=stacked_arr[:, :, 0, :],
+            dims=("time", "layer", "icell2d"),
             coords=coords,
         )
-        # drop unnecessary dimension
-        da = da.isel(_drop=0)
 
     elif gridtype == "structured":
         if gwf_or_gwt is not None:

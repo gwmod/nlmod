@@ -15,6 +15,25 @@ logger = logging.getLogger(__name__)
 
 
 def _get_heads(ds=None, gwf=None, fname_hds=None):
+    """Get modflow HeadFile object.
+
+    Provide one of ds, gwf or fname_hds. Not that it really matters but if 
+    all are provided hierarchy is as follows: fname_hds > ds > gwf
+
+    Parameters
+    ----------
+    ds : xarray.Dataset, optional
+        model dataset, by default None
+    gwf : flopy.mf6.ModflowGwf, optional
+        groundwater flow model, by default None
+    fname_hds : str, optional
+        path to heads file, by default None
+
+    Returns
+    -------
+    headobj : flopy.utils.HeadFile
+        HeadFile object handle
+    """
     msg = "Load the heads using either the ds, gwf or fname_hds"
     assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
 
@@ -77,6 +96,25 @@ def get_heads_da(
 
 
 def _get_cbc(ds=None, gwf=None, fname_cbc=None):
+    """Get modflow CellBudgetFile object.
+
+    Provide one of ds, gwf or fname_cbc. Not that it really matters but if 
+    all are provided hierarchy is as follows: fname_cbc > ds > gwf
+
+    Parameters
+    ----------
+    ds : xarray.Dataset, optional
+        model dataset, by default None
+    gwf : flopy.mf6.ModflowGwf, optional
+        groundwater flow model, by default None
+    fname_cbc : str, optional
+        path to cell budget file, by default None
+
+    Returns
+    -------
+    cbc : lopy.utils.CellBudgetFile
+        CellBudgetFile handle
+    """
     msg = "Load the budgets using either the ds or the gwf"
     assert ((ds is not None) + (gwf is not None)) == 1, msg
 

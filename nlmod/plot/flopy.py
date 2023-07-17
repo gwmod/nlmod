@@ -111,6 +111,72 @@ def map_array(
         return ax
 
 
+def contour_array(
+    arr,
+    gwf,
+    ilay=0,
+    iper=0,
+    extent=None,
+    ax=None,
+    title="",
+    xlabel="X [km RD]",
+    ylabel="Y [km RD]",
+    levels=10,
+    alpha=1.0,
+    labels=True,
+    label_kwargs={},
+    plot_grid=False,
+    add_to_plot=None,
+    backgroundmap=False,
+    figsize=None,
+    animate=False,
+    **kwargs,
+):
+    # get data
+    if isinstance(arr, xr.DataArray):
+        arr = arr.values
+
+    # get correct timestep and layer if need be
+    if len(arr.shape) == 4:
+        arr = arr[iper]
+    if len(arr.shape) == 3:
+        arr = arr[ilay]
+
+    # get figure
+    f, ax = _get_figure(ax=ax, gwf=gwf, figsize=figsize)
+
+    # get plot obj
+    pmv = flopy.plot.PlotMapView(gwf, layer=ilay, ax=ax, extent=extent)
+
+    # plot data
+    cs = pmv.contour_array(arr, levels=levels, alpha=alpha, **kwargs)
+    if labels:
+        ax.clabel(cs, **label_kwargs)
+
+    # bgmap
+    if backgroundmap:
+        add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
+
+    # add other info to plot
+    if add_to_plot is not None:
+        for fplot in add_to_plot:
+            fplot(ax)
+
+    if plot_grid:
+        pmv.plot_grid(lw=0.25, alpha=0.5)
+
+    # axes properties
+    axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
+    ax.set(**axprops)
+
+    f.tight_layout()
+
+    if animate:
+        return f, ax, cs
+    else:
+        return ax
+
+
 def animate_map(
     arr,
     times,

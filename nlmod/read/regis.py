@@ -272,7 +272,7 @@ def get_layer_names():
 
 
 def get_legend(kind="REGIS"):
-    """Get a legend (DataFrame) with the colors of REGIS-layers.
+    """Get a legend (DataFrame) with the colors of REGIS and/or GeoTOP layers.
 
     These colors can be used when plotting cross-sections.
     """

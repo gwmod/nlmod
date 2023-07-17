@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
-from ..dims.layers import remove_layer, insert_layer
+from ..dims.layers import insert_layer, remove_layer
 
 logger = logging.getLogger(__name__)
 
@@ -75,18 +75,18 @@ def to_model_layers(
         The properties (code and name) of the stratigraphic units. Load with
         get_strat_props() when None. The default is None.
     method_geulen : str, optional
-        strat-units >=6000 are geulen (gullies). These are difficult to add to the layer
-        model, because they can occur above and/or below any other unit. Multiple
-        methods are available to handle the geulen. The method "add_to_layer_below" adds
-        the thickness of the geul to the layer with a positive thickness below the geul.
-        The method "add_to_layer_above" adds the thickness of the geul to the layer with
-        a positive thickness above the geul. The method "add_as_layer" tries to add the
-        geulen as one or more layers, which can fail if a geul is locally both below the
-        top and above the bottom of another layer (splitting the layer in two, which is
-        not supported). The default is "add_to_layer_below".
-
+        strat-units >=6000 are so-called 'geulen' (paleochannels, gullies). These are
+        difficult to add to the layer model, because they can occur above and/or below
+        any other unit. Multiple methods are available to handle these 'geulen'.
+        The method "add_to_layer_below" adds the thickness of the 'geul' to the layer
+        with a positive thickness below the 'geul'. The method "add_to_layer_above"
+        adds the thickness of the 'geul' to the layer with a positive thickness above
+        the 'geul'. The method "add_as_layer" tries to add the 'geulen' as one or more
+        layers, which can fail if a 'geul' is locally both below the top and above the
+        bottom of another layer (splitting the layer in two, which is not supported).
+        The default is "add_to_layer_below".
     kwargs : dict
-        Kwargs are passed to aggregate_to_ds
+        Kwargs are passed to `aggregate_to_ds()`
 
     Returns
     -------
@@ -97,7 +97,7 @@ def to_model_layers(
     if strat_props is None:
         strat_props = get_strat_props()
 
-    # stap 2 maak een laag per geo-eenheid
+    # stap 2 create layer for each stratigraphy unit (geo-eenheid)
     if strat_props is None:
         strat_props = get_strat_props()
 
@@ -107,7 +107,7 @@ def to_model_layers(
     units = units[~np.isnan(units)].astype(int)
     shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
-    # geo eenheid 2000 zit boven 1130
+    # stratigraphy unit (geo eenheid) 2000 is above 1130
     if (2000 in units) and (1130 in units):
         units[(units == 2000) + (units == 1130)] = [2000, 1130]
 

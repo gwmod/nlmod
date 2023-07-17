@@ -833,7 +833,7 @@ def fill_nan_top_botm_kh_kv(
 
 def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
     """
-    Remove Nans in botm variable, and change top from 3d to 2d if needed.
+    Remove Nans in botm variable, and change top from 3d to 2d if necessary.
 
     Parameters
     ----------
@@ -847,9 +847,9 @@ def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
 
     Returns
     -------
-    ds : TYPE
-        DESCRIPTION.
-
+    ds : xarray.Dataset
+        dataset with filled top and bottom data according to modflow definition,
+        with 2d top and 3d bottom.
     """
 
     if "layer" in ds["top"].dims:
@@ -1123,7 +1123,7 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
     return xr.concat(agg_ar, ds.layer)
 
 
-def check_height_consistency(ds):
+def check_elevations_consistency(ds):
     if "layer" in ds["top"].dims:
         tops = ds["top"].data
         top_ref = np.full(tops.shape[1:], np.NaN)
@@ -1172,30 +1172,31 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     When comparing the height of the new layer with an existing layer, there are 7
     options:
 
-    1 The new layer is totally above the existing layer: layer is added completely above
-    existing layer. When the bottom of the new layer is above the top of the existing
-    layer (which can happen for the first layer), this creates a hole in the layer model.
+    1 The new layer is entirely above the existing layer: layer is added completely
+    above existing layer. When the bottom of the new layer is above the top of the
+    existing layer (which can happen for the first layer), this creates a gap in the
+    layer model.
 
-    2 part of the new layer lies in extsing layer, bot nowhere below: layer is added
-    above the existing layer, and the top of existing layer is lowered.
+    2 part of the new layer lies within an existing layer, bottom is never below: layer
+    is added above the existing layer, and the top of existing layer is lowered.
 
     3 there are locations where the new layer is above the bottom of the existing layer,
-    but below the top of the existing layer. The new layer splits the existing layer in
-    two. This is not supported (yet) and raises an Exception.
+    but below the top of the existing layer. The new layer splits the existing layer
+    into two sub-layers. This is not supported (yet) and raises an Exception.
 
     4 part of the new layer lies above the bottom of the existing layer, while at other
-    locations the new layer is below the existing layer. The new layer is splitted, part
-    of the layer is adde above the existing layer, and part of the new layer is added to
-    the layer model at the next iteration (above th next layer).
+    locations the new layer is below the existing layer. The new layer is split, part
+    of the layer is added above the existing layer, and part of the new layer is added
+    to the layer model in the next iteration(s) (above the next layer).
 
     5 Only the upper part of the new layer overlaps with the existing layer: the layer
     is not added above the extsing layer, but the bottom of the existing layer is
-    heightened because of the overlap.
+    raised because of the overlap.
 
-    6 The new layer is everywhere below the existing layer. Nothing happens, move on to
+    6 The new layer is below the existing layer everywhere. Nothing happens, move on to
     the next existing layer.
 
-    When (part of) the new layer is not added to the layer model aftser comparison
+    When (part of) the new layer is not added to the layer model after comparison
     with the last existing layer, the (remaining part of) the new layer is added below
     the existing layers, at the bottom of the model.
 
@@ -1217,21 +1218,16 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         If copy=True, data in the return value is always copied, so the original Dataset
         is not altered. The default is True.
 
-    Raises
-    ------
-
-        DESCRIPTION.
-
     Returns
     -------
     ds : xarray.Dataset
-        xarray Dataset containing the new layer
+        xarray Dataset containing the new layer(s)
 
     """
     shape = ds["botm"].shape[1:]
     assert top.shape == shape
     assert bot.shape == shape
-    msg = "Inserting layers is only supoorted with a 3d top for now"
+    msg = "Inserting layers is only supported with a 3d top for now"
     assert "layer" in ds["top"].dims, msg
     if kh is not None:
         assert kh.shape == shape
@@ -1239,7 +1235,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         assert kv.shape == shape
     todo = ~(np.isnan(top.data) | np.isnan(bot.data)) & ((top - bot).data > 0)
     if not todo.any():
-        logger.warning(f"Thickness of new layer {name} is nowhere larger than 0")
+        logger.warning(f"Thickness of new layer {name} is never larger than 0")
     if copy:
         # make a copy, so we are sure we do not alter the original DataSet
         ds = ds.copy(deep=True)
@@ -1261,7 +1257,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         bot_lower_than_top = bot.data < top_layer
         bot_lower_than_bot = bot.data < bot_layer
         if not bot_lower_than_top[todo].any():
-            # 1 the new layer can be added on top of the exiting layer
+            # 1 the new layer can be added on top of the existing layer
             if isplit is not None:
                 isplit += 1
             ds = _insert_layer_above(
@@ -1271,14 +1267,15 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
             continue
             # do not increase top of layer to bottom of new layer
         if bot_lower_than_top[todo].any():
-            # the new layer can be added on top of the exting layer, possibly only partly
+            # the new layer can be added on top of the existing layer,
+            # possibly only partly
             if not bot_lower_than_bot[todo].any():
                 # 2 the top of the existing layer needs to be lowered
                 mask = todo & bot_lower_than_top
                 new_top_layer = ds["top"].loc[layer]
                 new_top_layer.data[mask] = bot.data[mask]
                 ds["top"].loc[layer] = new_top_layer
-                # the new layer can be added on top of the exiting layer
+                # the new layer can be added on top of the existing layer
                 if isplit is not None:
                     isplit += 1
                 ds = _insert_layer_above(
@@ -1292,7 +1289,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
                     continue
                 top_lower_than_top = top.data < top_layer
                 if (todo & bot_higher_than_bot & top_lower_than_top).any():
-                    # 3 the existing layer needs to be splitted,
+                    # 3 the existing layer needs to be split,
                     # as part of it is below and part is above the new layer
                     msg = (
                         f"Existing layer {layer} exists in some cells both above and "
@@ -1300,8 +1297,9 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
                         f"{layer} needs to be splitted in two, which is not supported."
                     )
                     raise (Exception(msg))
-                # 4 the new layer needs to be splitted, as part of the new layer is above
-                # the bottom of the existing layer, and part of it is below the existing layer
+                # 4 the new layer needs to be split, as part of the new layer is
+                # above the bottom of the existing layer, and part of it is below the
+                # existing layer
                 if isplit is None:
                     isplit = 1
                 else:
@@ -1321,8 +1319,8 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         mask = todo & top_higher_than_bot
         if mask.any():
             # 5 when the new layer is not added above the existing layer, as the bottom
-            # of the new layer is everywhere lower than the bottom of the existing
-            # layer: the bottom of the existing layer needs to be heightened to the top
+            # of the new layer is always lower than the bottom of the existing
+            # layer: the bottom of the existing layer needs to be raised to the top
             # of the new layer
             new_bot_layer = ds["botm"].loc[layer]
             new_bot_layer.data[mask] = top.data[mask]
@@ -1376,8 +1374,10 @@ def _get_new_layer_name(name, isplit):
 
 
 def remove_layer(ds, layer):
-    """Removes a layer from a Dataset, without changing heights of other layers.
-    This will create holes in the layer model"""
+    """Removes a layer from a Dataset, without changing elevations of other layers.
+
+    This will create gaps in the layer model.
+    """
     layers = list(ds.layer.data)
     if layer not in layers:
         raise (Exception(f"layer {layer} not present in Dataset"))

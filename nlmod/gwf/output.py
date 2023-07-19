@@ -84,7 +84,7 @@ def get_heads_da(
         Xarray dataset with model data.
     gwf : flopy ModflowGwf
         Flopy groundwaterflow object.
-    fname : path, optional, Deprecated
+    fname : path, optional
         Instead of loading the binary heads file corresponding to ds or gwf
         load the heads from
     grbfile : str, optional

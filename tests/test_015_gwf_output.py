@@ -2,14 +2,20 @@ import os
 import tempfile
 
 import numpy as np
+import pytest
 import test_001_model
 
 import nlmod
 from nlmod.dims.grid import refine
-from nlmod.gwf import get_heads_da
+from nlmod.gwf import get_budget_da, get_heads_da
 
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+
+grberror = (
+    "Please provide grid information by passing path to the "
+    "binary grid file with `grbfile=<path to file>`."
+)
 
 
 def test_create_small_model_grid_only(tmpdir, model_name="test"):
@@ -49,7 +55,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.dis(ds, gwf)
 
     # create node property flow
-    nlmod.gwf.npf(ds, gwf)
+    nlmod.gwf.npf(ds, gwf, save_flows=True)
 
     # Create the initial conditions package
     nlmod.gwf.ic(ds, gwf, starting_head=1.0)
@@ -63,19 +69,22 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     heads_correct = np.ones((3, 5, 2, 3))
     heads_correct[:, 3, :, 1:] = np.nan
 
-    da = get_heads_da(ds=ds, gwf=None, fname_hds=None)
+    da = get_heads_da(ds=ds, gwf=None, fname=None)  # ds
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
-    da = get_heads_da(ds=None, gwf=gwf, fname_hds=None)
-    assert np.array_equal(da.values, heads_correct, equal_nan=True)
-
-    fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    da = get_heads_da(ds=ds, gwf=None, fname_hds=fname_hds)
+    da = get_heads_da(ds=None, gwf=gwf, fname=None)  # gwf
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
     fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    da = get_heads_da(ds=None, gwf=gwf, fname_hds=fname_hds)
+    grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+    da = get_heads_da(ds=None, gwf=None, fname=fname_hds, grbfile=grbfile)  # fname
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
+
+    # budget
+    da = get_budget_da("CHD", ds=ds, gwf=None, fname=None)  # ds
+    da = get_budget_da("CHD", ds=None, gwf=gwf, fname=None)  # gwf
+    fname_cbc = os.path.join(ds.model_ws, ds.model_name + ".cbc")
+    get_budget_da("CHD", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile)  # fname
 
     # unstructured
     ds_unstr = refine(
@@ -117,19 +126,71 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     heads_correct = np.ones((3, 5, 6))
     heads_correct[:, 3, [1, 2, 4, 5]] = np.nan
 
-    da = get_heads_da(ds=ds_unstr, gwf=None, fname_hds=None)
+    da = get_heads_da(ds=ds_unstr, gwf=None, fname=None)  # ds
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
-    da = get_heads_da(ds=None, gwf=gwf_unstr, fname_hds=None)
-    assert np.array_equal(da.values, heads_correct, equal_nan=True)
-
-    fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    da = get_heads_da(ds=ds_unstr, gwf=None, fname_hds=fname_hds)
+    da = get_heads_da(ds=None, gwf=gwf_unstr, fname=None)  # gwf
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
     fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    da = get_heads_da(ds=None, gwf=gwf_unstr, fname_hds=fname_hds)
+    grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+    da = get_heads_da(ds=None, gwf=None, fname=fname_hds, grbfile=grbfile)  # fname
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
+
+    # budget
+    da = get_budget_da("CHD", ds=ds_unstr, gwf=None, fname=None)  # ds
+    da = get_budget_da("CHD", ds=None, gwf=gwf_unstr, fname=None)  # gwf
+    da = get_budget_da(
+        "CHD", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile
+    )  # fname
+
+
+def test_get_heads_da_from_file_structured_no_grb():
+    fname_hds = "./tests/data/mf6output/structured/test.hds"
+    with pytest.warns(UserWarning):
+        nlmod.gwf.output.get_heads_da(fname=fname_hds)
+
+
+def test_get_heads_da_from_file_structured_with_grb():
+    fname_hds = "./tests/data/mf6output/structured/test.hds"
+    grbfile = "./tests/data/mf6output/structured/test.dis.grb"
+    nlmod.gwf.output.get_heads_da(fname=fname_hds, grbfile=grbfile)
+
+
+def test_get_budget_da_from_file_structured_no_grb():
+    fname_cbc = "./tests/data/mf6output/structured/test.cbc"
+    with pytest.raises(ValueError, match=grberror):
+        nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc)
+
+
+def test_get_budget_da_from_file_structured_with_grb():
+    fname_cbc = "./tests/data/mf6output/structured/test.cbc"
+    grbfile = "./tests/data/mf6output/structured/test.dis.grb"
+    nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grbfile=grbfile)
+
+
+def test_get_heads_da_from_file_vertex_no_grb():
+    fname_hds = "./tests/data/mf6output/vertex/test.hds"
+    with pytest.warns(UserWarning):
+        nlmod.gwf.output.get_heads_da(fname=fname_hds)
+
+
+def test_get_heads_da_from_file_vertex_with_grb():
+    fname_hds = "./tests/data/mf6output/vertex/test.hds"
+    grbfile = "./tests/data/mf6output/vertex/test.disv.grb"
+    nlmod.gwf.output.get_heads_da(fname=fname_hds, grbfile=grbfile)
+
+
+def test_get_budget_da_from_file_vertex_no_grb():
+    fname_cbc = "./tests/data/mf6output/vertex/test.cbc"
+    with pytest.raises(ValueError, match=grberror):
+        nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc)
+
+
+def test_get_budget_da_from_file_vertex_with_grb():
+    fname_cbc = "./tests/data/mf6output/vertex/test.cbc"
+    grbfile = "./tests/data/mf6output/vertex/test.disv.grb"
+    nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grbfile=grbfile)
 
 
 def test_gxg():

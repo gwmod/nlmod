@@ -464,7 +464,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
         if not np.issubdtype(dtype, np.number):
             ds_in = ds_in.drop_vars(key)
             logger.info(
-                f"drop data variable {key} from new dataset because of non-numeric dtype"
+                f"cannot convert data variable {key} to refined dataset because of non-numeric dtype"
             )
 
     if method in ["nearest", "linear"]:

@@ -458,6 +458,15 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
     xyi, _ = get_xyi_icell2d(gridprops)
     x = xr.DataArray(xyi[:, 0], dims=("icell2d",))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d",))
+
+    # drop non-numeric data variables
+    for key, dtype in ds_in.dtypes.items():
+        if not np.issubdtype(dtype, np.number):
+            ds_in = ds_in.drop_vars(key)
+            logger.info(
+                f"cannot convert data variable {key} to refined dataset because of non-numeric dtype"
+            )
+
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
         ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})

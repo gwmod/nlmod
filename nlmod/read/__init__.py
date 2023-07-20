@@ -12,4 +12,5 @@ from . import (
     waterboard,
     webservices,
 )
+from .geotop import get_geotop
 from .regis import get_regis

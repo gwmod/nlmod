@@ -15,6 +15,14 @@ from shapely.geometry import box
 logger = logging.getLogger(__name__)
 
 
+class LayerError(Exception):
+    pass
+
+
+class MissingValueError(Exception):
+    pass
+
+
 def get_model_dirs(model_ws):
     """Creates a new model workspace directory, if it does not exists yet. Within the
     model workspace directory a few subdirectories are created (if they don't exist

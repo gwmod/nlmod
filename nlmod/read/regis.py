@@ -77,7 +77,7 @@ def get_combined_layer_models(
         raise ValueError("layer models without REGIS not supported")
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop_raw_within_extent(extent)
+        geotop_ds = geotop.get_geotop(extent)
 
     if use_regis and use_geotop:
         combined_ds = add_geotop_to_regis_layers(
@@ -145,7 +145,8 @@ def get_regis(
     ds["layer"] = ds["layer"].astype(str)
 
     # make sure y is descending
-    ds = ds.sortby("y", ascending=False)
+    if (ds["y"].diff("y") > 0).all():
+        ds = ds.isel(y=slice(None, None, -1))
 
     # slice layers
     if botm_layer is not None:
@@ -214,15 +215,19 @@ def add_geotop_to_regis_layers(
         geotop_k = geotop.get_lithok_props()
     for layer in layers:
         # transform geotop data into layers
-        gtl = geotop.convert_geotop_to_ml_layers(gt)
+        gtl = geotop.to_model_layers(gt)
+
+        # make sure top is 3d
+        assert "layer" in rg["top"].dims, "Top of regis must be 3d"
+        assert "layer" in gtl["top"].dims, "Top of geotop layers must be 3d"
 
         # only keep the part of layers inside the regis layer
         top = rg["top"].loc[layer]
         bot = rg["botm"].loc[layer]
-        gtl["top"] = gtl["top"].where(gtl["top"] < top, top)
-        gtl["top"] = gtl["top"].where(gtl["top"] > bot, bot)
-        gtl["botm"] = gtl["botm"].where(gtl["botm"] < top, top)
-        gtl["botm"] = gtl["botm"].where(gtl["botm"] > bot, bot)
+        gtl["top"] = gtl["top"].where(top > gtl["top"], top)
+        gtl["top"] = gtl["top"].where(bot < gtl["top"], bot)
+        gtl["botm"] = gtl["botm"].where(top > gtl["botm"], top)
+        gtl["botm"] = gtl["botm"].where(bot < gtl["botm"], bot)
 
         if remove_nan_layers:
             # drop layers with a remaining thickness of 0 (or NaN) everywhere
@@ -266,13 +271,48 @@ def get_layer_names():
     return layer_names
 
 
-def get_legend():
-    """Get a legend (DataFrame) with the colors of REGIS-layers.
+def get_legend(kind="REGIS"):
+    """Get a legend (DataFrame) with the colors of REGIS and/or GeoTOP layers.
 
     These colors can be used when plotting cross-sections.
     """
+    allowed_kinds = ["REGIS", "GeoTOP", "combined"]
+    if kind not in allowed_kinds:
+        raise (ValueError(f"Only allowed values for kind are {allowed_kinds}"))
+    if kind in ["REGIS", "combined"]:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+        leg_regis = read_gleg(fname)
+        if kind == "REGIS":
+            return leg_regis
+    if kind in ["GeoTOP", "combined"]:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        fname = os.path.join(dir_path, "..", "data", "geotop", "geotop.gleg")
+        leg_geotop = read_gleg(fname)
+        if kind == "GeoTOP":
+            return leg_geotop
+    # return a combination of regis and geotop
+    leg = pd.concat((leg_regis, leg_geotop))
+    # drop duplicates, keeping first occurrences (from regis)
+    leg = leg.loc[~leg.index.duplicated(keep="first")]
+    return leg
+
+
+def get_legend_lithoclass():
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+    fname = os.path.join(dir_path, "..", "data", "geotop", "Lithoklasse.voleg")
+    leg = read_voleg(fname)
+    return leg
+
+
+def get_legend_lithostratigraphy():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = os.path.join(dir_path, "..", "data", "geotop", "Lithostratigrafie.voleg")
+    leg = read_voleg(fname)
+    return leg
+
+
+def read_gleg(fname):
     leg = pd.read_csv(
         fname,
         sep="\t",
@@ -285,4 +325,19 @@ def get_legend():
     clrs = [tuple(rgb / 255.0) for rgb in clrs]
     leg["color"] = clrs
     leg = leg.drop(["x", "r", "g", "b", "a"], axis=1)
+    return leg
+
+
+def read_voleg(fname):
+    leg = pd.read_csv(
+        fname,
+        sep="\t",
+        header=None,
+        names=["code", "naam", "r", "g", "b", "a", "beschrijving"],
+    )
+    leg.set_index("code", inplace=True)
+    clrs = np.array(leg.loc[:, ["r", "g", "b"]])
+    clrs = [tuple(rgb / 255.0) for rgb in clrs]
+    leg["color"] = clrs
+    leg = leg.drop(["r", "g", "b", "a"], axis=1)
     return leg

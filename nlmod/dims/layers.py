@@ -133,7 +133,7 @@ def split_layers_ds(
                 continue
             if lay0 == list(split_dict)[0] and var not in [top, bot]:
                 logger.info(
-                    f"Fill values of variable '{var}' of split"
+                    f"Fill values for variable '{var}' in split"
                     " layers with the values from the original layer."
                 )
             ds = _split_var(ds, var, lay0, th0, split_dict[lay0], top, bot)

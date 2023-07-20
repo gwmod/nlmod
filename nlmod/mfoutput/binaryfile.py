@@ -1,5 +1,4 @@
 import numpy as np
-
 from flopy.utils.binaryfile import binaryread
 
 
@@ -187,13 +186,13 @@ def _get_binary_budget_data(kstpkper, fobj, text):
         elif imeth == 5:
             nauxp1 = binaryread(f, np.int32)[0]
             naux = nauxp1 - 1
-            l = [("node", np.int32), ("q", fobj.realtype)]
-            for i in range(naux):
+            dtype_list = [("node", np.int32), ("q", fobj.realtype)]
+            for _ in range(naux):
                 auxname = binaryread(f, str, charlen=16)
                 if not isinstance(auxname, str):
                     auxname = auxname.decode()
-                l.append((auxname.strip(), fobj.realtype))
-            dtype = np.dtype(l)
+                dtype_list.append((auxname.strip(), fobj.realtype))
+            dtype = np.dtype(dtype_list)
             nlist = binaryread(f, np.int32)[0]
             data = binaryread(f, dtype, shape=(nlist,))
             return __create3D(data, fobj)
@@ -203,13 +202,13 @@ def _get_binary_budget_data(kstpkper, fobj, text):
             # read rest of list data
             nauxp1 = binaryread(f, np.int32)[0]
             naux = nauxp1 - 1
-            l = [("node", np.int32), ("node2", np.int32), ("q", fobj.realtype)]
-            for i in range(naux):
+            dtype_list = [("node", np.int32), ("node2", np.int32), ("q", fobj.realtype)]
+            for _ in range(naux):
                 auxname = binaryread(f, str, charlen=16)
                 if not isinstance(auxname, str):
                     auxname = auxname.decode()
-                l.append((auxname.strip(), fobj.realtype))
-            dtype = np.dtype(l)
+                dtype_list.append((auxname.strip(), fobj.realtype))
+            dtype = np.dtype(dtype_list)
             nlist = binaryread(f, np.int32)[0]
             data = binaryread(f, dtype, shape=(nlist,))
             data = __create3D(data, fobj)

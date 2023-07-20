@@ -1,6 +1,6 @@
-import warnings
 import logging
 import os
+import warnings
 
 import flopy
 import numpy as np
@@ -48,7 +48,7 @@ def get_concentration_da(
     chunked=False,
     **kwargs,
 ):
-    """Reads concentration file given either a dataset or a groundwater flow object.
+    """Reads binary concentration file.
 
     Parameters
     ----------

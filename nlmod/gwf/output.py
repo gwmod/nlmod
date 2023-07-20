@@ -72,11 +72,8 @@ def get_heads_da(
     chunked=False,
     **kwargs,
 ):
-    """Reads heads file given either a dataset or a groundwater flow object.
+    """Read binary heads file.
 
-    Note: Calling this function with ds is currently preferred over calling it
-    with gwf, because the layer and time coordinates can not be fully
-    reconstructed from gwf.
 
     Parameters
     ----------
@@ -85,8 +82,7 @@ def get_heads_da(
     gwf : flopy ModflowGwf
         Flopy groundwaterflow object.
     fname : path, optional
-        Instead of loading the binary heads file corresponding to ds or gwf
-        load the heads from
+        path to a binary heads file
     grbfile : str, optional
         path to file containing binary grid information, only needed if reading
         output from file using fname
@@ -185,7 +181,7 @@ def get_budget_da(
     chunked=False,
     **kwargs,
 ):
-    """Reads budget file given either a dataset or a groundwater flow object.
+    """Read binary budget file.
 
     Parameters
     ----------

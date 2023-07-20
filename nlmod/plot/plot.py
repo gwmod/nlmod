@@ -548,7 +548,7 @@ def animate_map(
     )
     # remove timestamp from title
     axtitle = ax.get_title()
-    axtitle.set_title(axtitle.replace("(t=", "(tstart="))
+    ax.set_title(axtitle.replace("(t=", "(tstart="))
 
     # add updating title
     t = pd.Timestamp(da.time.values[0])
@@ -585,6 +585,8 @@ def animate_map(
 
     # save animation as mp4
     if save:
+        if fname is None:
+            raise ValueError("please specify a fname or use save=False")
         writer = FFMpegWriter(
             fps=10,
             bitrate=-1,

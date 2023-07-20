@@ -9,6 +9,7 @@ import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
 from ..dims.layers import insert_layer, remove_layer
+from ..util import MissingValueError
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def get_kh_kv_table(kind="Brabant"):
         )
         df = pd.read_csv(fname)
     else:
-        raise (Exception(f"Unknown kind in get_kh_kv_table: {kind}"))
+        raise (ValueError(f"Unknown kind in get_kh_kv_table: '{kind}'"))
     return df
 
 
@@ -200,7 +201,7 @@ def to_model_layers(
                     f"Geul {geul} is at the top of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
                 )
     else:
-        raise (Exception(f"Unknown method to deal with geulen: {method_geulen}"))
+        raise (ValueError(f"Unknown method to deal with geulen: '{method_geulen}'"))
 
     ds.attrs["geulen"] = geulen
 
@@ -381,9 +382,9 @@ def add_kh_and_kv(
         else:
             stochastic = None
     if kh_method not in ["arithmetic_mean", "harmonic_mean"]:
-        raise (Exception("Unknown kh_method: {kh_method}"))
+        raise (ValueError("Unknown kh_method: {kh_method}"))
     if kv_method not in ["arithmetic_mean", "harmonic_mean"]:
-        raise (Exception("Unknown kv_method: {kv_method}"))
+        raise (ValueError("Unknown kv_method: {kv_method}"))
     strat = gt["strat"].values
     msg = "Determining kh and kv of geotop-data based on lithoclass"
     if df.index.name in ["lithok", "strat"]:
@@ -392,7 +393,7 @@ def add_kh_and_kv(
         msg = f"{msg} and stratigraphy"
     logger.info(msg)
     if kh_df not in df:
-        raise (Exception(f"No {kh_df} defined in df"))
+        raise (MissingValueError(f"No {kh_df} defined in df"))
     if kv_df not in df:
         logger.info(f"Setting kv equal to kh / {anisotropy}")
     if stochastic is None:
@@ -474,7 +475,7 @@ def add_kh_and_kv(
         else:
             kv_ar = probality_total / kv_ar
     else:
-        raise (Exception(f"Unsupported value for stochastic: {stochastic}"))
+        raise (ValueError(f"Unsupported value for stochastic: '{stochastic}'"))
 
     dims = gt["strat"].dims
     gt[kh] = dims, kh_ar
@@ -563,11 +564,11 @@ def aggregate_to_ds(
         The Dataset ds, with added variables kh and kv (and optionally kd and c).
     """
     assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
-    msg = "Please add {} to geotop-Dataset first, using add_kh_and_kv()"
+    msg = "Please add '{}' to geotop-Dataset first, using add_kh_and_kv()"
     if kh_gt not in gt:
-        raise (Exception(msg.format(kh_gt)))
+        raise (MissingValueError(msg.format(kh_gt)))
     if kv_gt not in gt:
-        raise (Exception(msg.format(kv_gt)))
+        raise (MissingValueError(msg.format(kv_gt)))
     kD_ar = []
     c_ar = []
     kh_ar = []

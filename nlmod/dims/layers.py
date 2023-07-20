@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import xarray as xr
 
+from ..util import LayerError, MissingValueError
 from . import resample
 
 logger = logging.getLogger(__name__)
@@ -556,15 +557,15 @@ def set_model_top(ds, top, min_thickness=0.0):
         The model dataset, containing the new top.
     """
     if "gridtype" not in ds.attrs:
-        raise (Exception("Make sure the Dataset is build by nlmod"))
+        raise (KeyError("Make sure the Dataset is built by nlmod"))
     if isinstance(top, (float, int)):
         top = xr.full_like(ds["top"], top)
     if not top.shape == ds["top"].shape:
         raise (
-            Exception("Please make sure the new top has the same shape as the old top")
+            ValueError("Please make sure the new top has the same shape as the old top")
         )
     if np.any(np.isnan(top)):
-        raise (Exception("Please make sure the new top does not contain nans"))
+        raise (ValueError("Please make sure the new top does not contain nans"))
     # where the botm is equal to the top, the layer is inactive
     # set the botm to the new top at these locations
     ds["botm"] = ds["botm"].where(ds["botm"] != ds["top"], top)
@@ -1294,9 +1295,9 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
                     msg = (
                         f"Existing layer {layer} exists in some cells both above and "
                         f"below the inserted layer {name}. Therefore existing layer "
-                        f"{layer} needs to be splitted in two, which is not supported."
+                        f"{layer} needs to be split in two, which is not supported."
                     )
-                    raise (Exception(msg))
+                    raise (LayerError(msg))
                 # 4 the new layer needs to be split, as part of the new layer is
                 # above the bottom of the existing layer, and part of it is below the
                 # existing layer
@@ -1380,7 +1381,7 @@ def remove_layer(ds, layer):
     """
     layers = list(ds.layer.data)
     if layer not in layers:
-        raise (Exception(f"layer {layer} not present in Dataset"))
+        raise (MissingValueError(f"layer '{layer}' not present in Dataset"))
     if "layer" not in ds["top"].dims:
         index = layers.index(layer)
         if index == 0:

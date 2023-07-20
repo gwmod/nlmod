@@ -278,7 +278,7 @@ def get_legend(kind="REGIS"):
     """
     allowed_kinds = ["REGIS", "GeoTOP", "combined"]
     if kind not in allowed_kinds:
-        raise (Exception(f"Only allowed values for kind are {allowed_kinds}"))
+        raise (ValueError(f"Only allowed values for kind are {allowed_kinds}"))
     if kind in ["REGIS", "combined"]:
         dir_path = os.path.dirname(os.path.realpath(__file__))
         fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")

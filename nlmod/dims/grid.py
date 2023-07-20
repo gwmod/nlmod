@@ -224,6 +224,47 @@ def modelgrid_to_ds(mg):
     return ds
 
 
+def get_dims_coords_from_modelgrid(mg):
+    """Get dimensions and coordinates from modelgrid.
+
+    Used to build new xarray.DataArrays with appropriate dimensions and coordinates.
+
+    Parameters
+    ----------
+    mg : flopy.discretization.Grid
+        flopy modelgrid object
+
+    Returns
+    -------
+    dims : tuple of str
+        tuple containing dimensions
+    coords : dict
+        dictionary containing spatial coordinates derived from modelgrid
+
+    Raises
+    ------
+    ValueError
+        for unsupported grid types
+    """
+    if mg.grid_type == "structured":
+        layers = np.arange(mg.nlay)
+        x, y = mg.xycenters  # local coordinates
+        if mg.angrot == 0.0:
+            x += mg.xoffset  # convert to global coordinates
+            y += mg.yoffset  # convert to global coordinates
+        coords = {"layer": layers, "x": x, "y": y}
+        dims = ("layer", "y", "x")
+    elif mg.grid_type == "vertex":
+        layers = np.arange(mg.nlay)
+        y = mg.ycellcenters
+        x = mg.xcellcenters
+        coords = {"layer": layers, "y": ("icell2d", y), "x": ("icell2d", x)}
+        dims = ("layer", "icell2d")
+    else:
+        raise ValueError(f"grid type '{mg.grid_type}' not supported.")
+    return dims, coords
+
+
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     """Gridprops is a dictionary containing keyword arguments needed to
     generate a flopy modelgrid instance."""

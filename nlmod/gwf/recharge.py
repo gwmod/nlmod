@@ -123,7 +123,10 @@ def ds_to_evt(gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs):
 
     # get stress period data
     if ds.time.steady_state:
-        mask = ds["evaporation"] != 0
+        if "time" in ds["evaporation"].dims:
+            mask = ds["evaporation"].isel(time=0) != 0
+        else:
+            mask = ds["evaporation"] != 0
         rate = "evaporation"
     else:
         evt_name_arr, evt_unique_dic = _get_unique_series(ds, "evaporation", pname)
@@ -136,7 +139,7 @@ def ds_to_evt(gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs):
         ds,
         mask,
         col1=surface,
-        col2=rate,
+        col2=ds[rate].squeeze(),
         col3=depth,
         first_active_layer=True,
         only_active_cells=False,

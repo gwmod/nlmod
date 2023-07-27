@@ -168,6 +168,10 @@ def ssm(ds, gwt, sources=None, **kwargs):
     if build_tuples and sources is not None:
         sources = [(ipkg, "AUX", "CONCENTRATION") for ipkg in sources]
 
+    if len(sources) == 0:
+        logger.error("No sources to add to gwt model!")
+        raise ValueError("No sources to add to gwt model!")
+
     ssm = flopy.mf6.ModflowGwtssm(gwt, sources=sources, **kwargs)
     return ssm
 

@@ -18,7 +18,7 @@ import requests
 import xarray as xr
 
 from .. import cache
-from ..dims.resample import fillnan_da, structured_da_to_ds
+from ..dims.resample import fillnan_da, structured_da_to_ds, get_extent
 from ..util import get_da_from_da_ds, get_ds_empty
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
 
     # try to get bathymetry via opendap
     try:
-        jarkus_ds = get_dataset_jarkus(ds.extent, kind=kind)
+        jarkus_ds = get_dataset_jarkus(get_extent(ds), kind=kind)
     except OSError:
         import gdown
 

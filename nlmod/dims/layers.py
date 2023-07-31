@@ -115,7 +115,7 @@ def calculate_resistance(ds, kv='kv', thickness='thickness', top='top', botm='bo
         c.attrs["long_name"] = "resistance"
     if hasattr(c, "standard_name"):
         c.attrs["standard_name"] = "c"
-    if hasattr(thickness, "units")
+    if hasattr(thickness, "units"):
         if hasattr(ds[kv], 'units'):
             if ds[kv].units == "m/day" and thickness.units in ['m', 'mNAP']:
                 c.attrs["units"] = "day"

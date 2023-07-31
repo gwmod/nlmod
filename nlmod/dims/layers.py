@@ -63,7 +63,8 @@ def calculate_thickness(ds, top="top", bot="botm"):
 
 def calculate_resistance(ds, kv='kv', thickness='thickness', top='top', botm='botm'):
     """calculate vertical resistance (c) between model layers from the vertical
-    conductivity (kv) and the thickness.
+    conductivity (kv) and the thickness. The resistance between two layers is assigned
+    to the top layer. The bottom model layer gets a resistance of infinity.
 
     Parameters
     ----------

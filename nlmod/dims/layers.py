@@ -62,7 +62,8 @@ def calculate_thickness(ds, top="top", bot="botm"):
 
 
 def calculate_resistance(ds, kv='kv', thickness='thickness', top='top', botm='botm'):
-    """calculate vertical resistance (c) from vertical conductivity (kv) and thickness
+    """calculate vertical resistance (c) between model layers from the vertical
+    conductivity (kv) and the thickness.
 
     Parameters
     ----------
@@ -84,7 +85,7 @@ def calculate_resistance(ds, kv='kv', thickness='thickness', top='top', botm='bo
     Returns
     -------
     c : xarray.DataArray
-        DataArray containing vertical resistance (c)
+        DataArray containing vertical resistance (c). NaN where layer thickness is zero
     """
 
     if thickness in ds:

@@ -304,6 +304,8 @@ class DatasetCrossSection:
         if isinstance(z, xr.DataArray):
             z = z.data
         if head is not None:
+            if isinstance(head, xr.DataArray):
+                head = head.data
             assert head.shape == z.shape
         if self.icell2d in self.ds.dims:
             assert len(z.shape) == 2

@@ -171,6 +171,8 @@ def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
     if "z" not in ds:
         if "thickness" not in ds:
             thickness = calculate_thickness(ds)
+        else:
+            thickness = ds.thickness
         z = ds["botm"] + thickness / 2.0
     else:
         z = ds["z"]

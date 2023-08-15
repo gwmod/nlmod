@@ -514,7 +514,10 @@ def animate_map(
     """
     # if da is a string and ds is provided select data array from model dataset
     if isinstance(da, str) and ds is not None:
-        da = ds[da]
+        da = ds[da].isel(layer=ilay)
+    else:
+        if "layer" in da.dims:
+            da = da.isel(layer=ilay)
 
     # check da
     if "time" not in da.dims:

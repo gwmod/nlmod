@@ -335,6 +335,7 @@ def ghb(
     da_name=None,
     pname="ghb",
     auxiliary=None,
+    layer=None,
     **kwargs,
 ):
     """get general head boundary from model dataset.
@@ -359,6 +360,9 @@ def ghb(
         package name
     auxiliary : str or list of str
         name(s) of data arrays to include as auxiliary data to reclist
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is None.
 
     Raises
     ------
@@ -384,14 +388,15 @@ def ghb(
     mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
     mask = mask_arr != 0
 
+    first_active_layer = layer is None
     ghb_rec = grid.da_to_reclist(
         ds,
         mask,
         col1=bhead,
         col2=cond,
-        first_active_layer=True,
+        layer=layer,
+        first_active_layer=first_active_layer,
         only_active_cells=False,
-        layer=0,
         aux=auxiliary,
     )
 
@@ -449,6 +454,9 @@ def drn(
         this is deprecated, name of the drn files in the model dataset
     pname : str, optional
         package name
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is None.
 
     Returns
     -------
@@ -470,15 +478,14 @@ def drn(
     mask = mask_arr != 0
 
     first_active_layer = layer is None
-
     drn_rec = grid.da_to_reclist(
         ds,
         mask=mask,
         col1=elev,
         col2=cond,
+        layer=layer,
         first_active_layer=first_active_layer,
         only_active_cells=False,
-        layer=layer,
     )
 
     if len(drn_rec) > 0:
@@ -599,7 +606,14 @@ def sto(
 
 
 def chd(
-    ds, gwf, mask="chd_mask", head="chd_head", pname="chd", auxiliary=None, **kwargs
+    ds,
+    gwf,
+    mask="chd_mask",
+    head="chd_head",
+    pname="chd",
+    auxiliary=None,
+    layer=0,
+    **kwargs,
 ):
     """get constant head boundary at the model's edges from the model dataset.
 
@@ -619,6 +633,9 @@ def chd(
         package name
     auxiliary : str or list of str
         name(s) of data arrays to include as auxiliary data to reclist
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is 0.
     chd : str, optional
         deprecated, the new argument is 'mask'
 
@@ -640,7 +657,15 @@ def chd(
     mask = maskarr != 0
 
     # get the stress_period_data
-    chd_rec = grid.da_to_reclist(ds, mask, col1=head, aux=auxiliary)
+    first_active_layer = layer is None
+    chd_rec = grid.da_to_reclist(
+        ds,
+        mask,
+        col1=head,
+        layer=layer,
+        aux=auxiliary,
+        first_active_layer=first_active_layer,
+    )
 
     chd = flopy.mf6.ModflowGwfchd(
         gwf,

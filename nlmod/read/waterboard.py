@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_polygons(**kwargs):
-    """Get the location of the Waterboards as a Polygon GeoDataFrame."""
+    """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Waterschapsgrenzen/FeatureServer"
     layer = 0
     ws = webservices.arcrest(url, layer, **kwargs)

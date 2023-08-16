@@ -238,8 +238,12 @@ def get_netcdf_tiles(kind="jarkus"):
 
 
 def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10):
-    """add bathymetry to the top and bot of each layer for all cells with
-    fill_mask.
+    """Add bathymetry to the top and bot of each layer for all cells with fill_mask.
+
+    This method sets the top of the model at fill_mask to 0 m, and changes the first
+    layer to sea, by setting the botm of this layer to bathymetry, kh to kh_sea and kv
+    to kv_sea. If deeper layers are above bathymetry. the layer depth is set to
+    bathymetry.
 
     Parameters
     ----------

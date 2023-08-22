@@ -17,7 +17,7 @@ from .. import util
 logger = logging.getLogger(__name__)
 
 
-def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
+def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
     """write modflow files and run the model.
 
     2 extra options:
@@ -35,24 +35,24 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
     write_ds : bool, optional
         if True the model dataset is cached to a NetCDF-file (.nc) with a name equal
         to its attribute called "model_name". The default is True.
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
-        default is None. Preferably this path does not have to be given
-        manually but there is currently no good option to obtain the filename
-        of a Jupyter Notebook from within the notebook itself.
+    script_path : str or None, optional
+        full path of the Jupyter Notebook (.ipynb) or the module (.py) with the 
+        modelscript. The default is None. Preferably this path does not have to
+        be given manually but there is currently no good option to obtain the
+        filename of a Jupyter Notebook from within the notebook itself.
     silent : bool, optional
         write and run model silently
     """
     if isinstance(sim, flopy.mf6.ModflowGwf):
         sim = sim.simulation
 
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+    if script_path is not None:
+        new_script_fname = (
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(script_path)[-1]
         )
-        dst = os.path.join(ds.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to model workspace")
-        copyfile(nb_path, dst)
+        dst = os.path.join(ds.model_ws, new_script_fname)
+        logger.info(f"write script {new_script_fname} to model workspace")
+        copyfile(script_path, dst)
 
     if write_ds:
         logger.info("write model dataset to cache")

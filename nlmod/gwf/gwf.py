@@ -678,7 +678,7 @@ def chd(
     )
     if (auxiliary is not None) and (ds.transport == 1):
         logger.info("-> adding CHD to SSM sources list")
-        ssm_sources = ds.attrs["ssm_sources"]
+        ssm_sources = list(ds.attrs["ssm_sources"])
         if chd.package_name not in ssm_sources:
             ssm_sources += [chd.package_name]
             ds.attrs["ssm_sources"] = ssm_sources

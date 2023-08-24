@@ -769,7 +769,7 @@ def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=
             logger.info(f"kv and kh both undefined in layer {layer}")
 
     # fill kh by kv * anisotropy
-    msg_suffix = f" of kh by multipying kv by an anisotropy of {anisotropy}"
+    msg_suffix = f" of kh by multipying kv with an anisotropy of {anisotropy}"
     kh = _fill_var(kh, kv * anisotropy, idomain, msg_suffix)
 
     # fill kv by kh / anisotropy

@@ -106,7 +106,7 @@ def calculate_resistance(ds, kv='kv', thickness='thickness', top='top', botm='bo
     c = xr.zeros_like(thickness)
     for ilay in range(ds.dims['layer']-1):
         ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(layer=ds.layer[ilay])
-        cbot = (thickness_bfill.sel(layer=ds.layer[ilay+1]) * 0.5) / kv_bfill.sel(layer=ds.layer[ilay+1]) 
+        cbot = (thickness_bfill.sel(layer=ds.layer[ilay+1]) * 0.5) / kv_bfill.sel(layer=ds.layer[ilay+1])
         c[ilay] = ctop + cbot
     c[ilay+1] = np.inf
 
@@ -123,8 +123,7 @@ def calculate_resistance(ds, kv='kv', thickness='thickness', top='top', botm='bo
                 c.attrs["units"] = ""
         else:
             c.attrs["units"] = ""
-        
-    
+
     return c
 
 

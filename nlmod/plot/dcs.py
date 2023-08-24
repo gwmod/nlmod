@@ -6,8 +6,8 @@ import pandas as pd
 import xarray as xr
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
-from shapely.geometry import LineString, MultiLineString, Point, Polygon
 from shapely.affinity import affine_transform
+from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine_world_to_mod

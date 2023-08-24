@@ -84,11 +84,12 @@ def get_map(
     nrows=1,
     ncols=1,
     base=1000.0,
+    fmt_base=1000.0,
     fmt="{:.0f}",
     sharex=False,
     sharey=True,
     crs=28992,
-    background=False,
+    backgroundmap=False,
     alpha=0.5,
     tight_layout=True,
 ):
@@ -106,8 +107,9 @@ def get_map(
     ncols : int, optional
         The number of columns. The default is 1.
     base : float, optional
-        The interval for ticklabels on the x- and y-axis. The default is 1000.
-        m.
+        The interval for ticklabels on the x- and y-axis. The default is 1000 m.
+    fmt_base : float, optional
+        divide ticklabels by this number, by default 1000, so units become km.
     fmt : string, optional
         The format of the ticks on the x- and y-axis. The default is "{:.0f}".
     sharex : bool, optional
@@ -116,7 +118,7 @@ def get_map(
     sharey : bool, optional
         Only display the ticks on the left y-axes, when ncols > 1. The default
         is True.
-    background : bool or str, optional
+    backgroundmap : bool or str, optional
         Draw a background using contextily when True or when background is a string.
         When background is a string it repesents the map-provider. Use
         nlmod.plot._list_contextily_providers().keys() to show possible map-providers.
@@ -141,8 +143,8 @@ def get_map(
     f, axes = plt.subplots(
         figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
     )
-    if isinstance(background, bool) and background is True:
-        background = "nlmaps.standaard"
+    if isinstance(backgroundmap, bool) and backgroundmap is True:
+        backgroundmap = "nlmaps.standaard"
 
     def set_ax_in_map(ax):
         ax.axis("scaled")
@@ -153,8 +155,8 @@ def get_map(
             ax.set_yticks([])
         else:
             rd_ticks(ax, base=base, fmt=fmt)
-        if background:
-            add_background_map(ax, crs=crs, map_provider=background, alpha=alpha)
+        if backgroundmap:
+            add_background_map(ax, crs=crs, map_provider=backgroundmap, alpha=alpha)
 
     if nrows == 1 and ncols == 1:
         set_ax_in_map(axes)

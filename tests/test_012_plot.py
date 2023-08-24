@@ -28,4 +28,4 @@ def test_plot_data_array_vertex():
 
 
 def test_plot_get_map():
-    nlmod.plot.get_map([100000, 101000, 400000, 401000], background=True, figsize=3)
+    nlmod.plot.get_map([100000, 101000, 400000, 401000], backgroundmap=True, figsize=3)

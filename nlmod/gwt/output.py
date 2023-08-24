@@ -135,6 +135,10 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
         top_layer = np.take(top_layer, 0, axis=layer)
         coords["layer"] = (dims, conc_da.layer.data[top_layer])
         ctop = xr.DataArray(ctop, dims=dims, coords=coords)
+        # to not confuse this coordinate with the default layer coord in nlmod
+        # this source_layer has dims (time, cellid) or (time, y, x)
+        # indicating the source layer of the concentration value for each time step
+        ctop = ctop.rename({"layer": "source_layer"})
     return ctop
 
 

@@ -1,6 +1,7 @@
 from . import (
     ahn,
     bgt,
+    boundaries,
     brp,
     geotop,
     jarkus,
@@ -11,7 +12,6 @@ from . import (
     rws,
     waterboard,
     webservices,
-    boundaries,
 )
 from .geotop import get_geotop
 from .regis import get_regis

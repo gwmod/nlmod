@@ -352,8 +352,8 @@ def _get_modification_time(func):
 
 def _update_docstring_and_signature(func):
     """Add function arguments 'cachedir' and 'cachename' to the docstring and signature
-    of a function. 
-    
+    of a function.
+
     The function arguments are added before the "Returns" header in the
     docstring. If the function has no Returns header in the docstring, the function
     arguments are not added to the docstring.

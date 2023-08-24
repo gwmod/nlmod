@@ -15,12 +15,12 @@ from ..dims.grid import xy_to_icell2d
 logger = logging.getLogger(__name__)
 
 
-def write_and_run(mpf, remove_prev_output=True, nb_path=None):
+def write_and_run(mpf, remove_prev_output=True, script_path=None):
     """write modpath files and run the model.
 
     2 extra options:
         1. remove output of the previous run
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
+        2. copy the modelscript (Notebook or .py file) to the model
            workspace with a timestamp.
 
 
@@ -32,8 +32,8 @@ def write_and_run(mpf, remove_prev_output=True, nb_path=None):
         dataset with model data.
     remove_prev_output : bool, optional
         remove the output of a previous modpath run (if it exists)
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
+    script_path : str or None, optional
+        full path of the Jupyter Notebook (.ipynb) or a script (.py). The
         default is None. Preferably this path does not have to be given
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
@@ -41,13 +41,13 @@ def write_and_run(mpf, remove_prev_output=True, nb_path=None):
     if remove_prev_output:
         remove_output(mpf)
 
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+    if script_path is not None:
+        new_fname = (
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(script_path)[-1]
         )
-        dst = os.path.join(mpf.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to modpath workspace")
-        copyfile(nb_path, dst)
+        dst = os.path.join(mpf.model_ws, new_fname)
+        logger.info(f"write script {new_fname} to modpath workspace")
+        copyfile(script_path, dst)
 
     logger.info("write modpath files to model workspace")
 

@@ -49,7 +49,7 @@ def map_array(
     alpha=1.0,
     colorbar=True,
     colorbar_label="",
-    plot_grid=True,
+    plot_grid=False,
     add_to_plot=None,
     backgroundmap=False,
     figsize=None,

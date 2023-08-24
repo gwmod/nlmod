@@ -39,19 +39,25 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
         raise ValueError("please remove nan values in recharge data array")
 
     # get stress period data
-    rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
-    ds["rch_name"] = ds["top"].dims, rch_name_arr
-    if mask is not None:
-        mask = (ds["rch_name"] != "") & mask
+    if ds.time.steady_state:
+        recharge = "recharge"
+        if "time" in ds["recharge"].dims:
+            mask = ds["recharge"].isel(time=0) != 0
+        else:
+            mask = ds["recharge"] != 0
     else:
-        mask = ds["rch_name"] != ""
-
-    recharge = "rch_name"
+        recharge = "rch_name"
+        rch_name_arr, rch_unique_dic = _get_unique_series(ds, "recharge", pname)
+        ds[recharge] = ds["top"].dims, rch_name_arr
+        if mask is not None:
+            mask = (ds["rch_name"] != "") & mask
+        else:
+            mask = ds["rch_name"] != ""
 
     spd = da_to_reclist(
         ds,
         mask,
-        col1=recharge,
+        col1=ds[recharge].squeeze(),
         first_active_layer=True,
         only_active_cells=False,
     )
@@ -66,6 +72,9 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
         stress_period_data={0: spd},
         **kwargs,
     )
+
+    if ds.time.steady_state:
+        return rch
 
     # create timeseries packages
     _add_time_series(rch, rch_unique_dic, ds)
@@ -118,6 +127,7 @@ def ds_to_evt(gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs):
         logger.info("Setting extinction depth to 1 meter below surface")
         depth = 1.0
 
+    # check for nan values
     if ds["evaporation"].isnull().any():
         raise ValueError("please remove nan values in evaporation data array")
 

@@ -38,7 +38,7 @@ def gwf(ds, sim, under_relaxation=False, **kwargs):
     """
 
     # start creating model
-    logger.info("creating modflow GWF")
+    logger.info("creating mf6 GWF")
 
     # Create the Flopy groundwater flow (gwf) model object
     model_nam_file = f"{ds.model_name}.nam"
@@ -102,7 +102,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
     dis : flopy ModflowGwfdis or flopy ModflowGwtdis
         discretisation package.
     """
-    logger.info("creating modflow DIS")
+    logger.info("creating mf6 DIS")
 
     if ds.gridtype == "vertex":
         return disv(ds, model, length_units=length_units)
@@ -207,7 +207,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     disv : flopy ModflowGwfdisv or flopy ModflowGwtdisv
         disv package
     """
-    logger.info("creating modflow DISV")
+    logger.info("creating mf6 DISV")
 
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         xorigin = ds.attrs["xorigin"]
@@ -306,7 +306,7 @@ def npf(
     npf : flopy ModflowGwfnpf
         npf package.
     """
-    logger.info("creating modflow NPF")
+    logger.info("creating mf6 NPF")
 
     if isinstance(icelltype, str):
         icelltype = ds[icelltype]
@@ -370,7 +370,7 @@ def ghb(
     ghb : flopy ModflowGwfghb
         ghb package
     """
-    logger.info("creating modflow GHB")
+    logger.info("creating mf6 GHB")
 
     if da_name is not None:
         warnings.warn(
@@ -455,7 +455,7 @@ def drn(
     drn : flopy ModflowGwfdrn
         drn package
     """
-    logger.info("creating modflow DRN")
+    logger.info("creating mf6 DRN")
 
     if da_name is not None:
         warnings.warn(
@@ -520,7 +520,7 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
     ic : flopy ModflowGwfic
         ic package
     """
-    logger.info("creating modflow IC")
+    logger.info("creating mf6 IC")
 
     if isinstance(starting_head, numbers.Number):
         logger.info("adding 'starting_head' data array to ds")
@@ -537,8 +537,8 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
 def sto(
     ds,
     gwf,
-    sy=0.2,
-    ss=0.000001,
+    sy="sy",
+    ss="ss",
     iconvert=1,
     save_flows=False,
     pname="sto",
@@ -552,10 +552,10 @@ def sto(
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    sy : float, optional
-        specific yield. The default is 0.2.
-    ss : float, optional
-        specific storage. The default is 0.000001.
+    sy : str or float, optional
+        specific yield. The default is "sy", or 0.2 if "sy" is not in ds.
+    ss : str or float, optional
+        specific storage. The default is "ss", or 0.000001 if "ss" is not in ds.
     iconvert : int, optional
         See description in ModflowGwfsto. The default is 1 (differs from FloPY).
     save_flows : bool, optional
@@ -569,7 +569,7 @@ def sto(
     sto : flopy ModflowGwfsto
         sto package
     """
-    logger.info("creating modflow STO")
+    logger.info("creating mf6 STO")
 
     if ds.time.steady_state:
         return None
@@ -581,8 +581,8 @@ def sto(
             sts_spd = None
             trn_spd = {0: True}
 
-        sy = _get_value_from_ds_datavar(ds, "sy", sy)
-        ss = _get_value_from_ds_datavar(ds, "ss", ss)
+        sy = _get_value_from_ds_datavar(ds, "sy", sy, default=0.2)
+        ss = _get_value_from_ds_datavar(ds, "ss", ss, default=0.000001)
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,
@@ -627,7 +627,7 @@ def chd(
     chd : flopy ModflowGwfchd
         chd package
     """
-    logger.info("creating modflow CHD")
+    logger.info("creating mf6 CHD")
 
     if "chd" in kwargs:
         warnings.warn(
@@ -735,7 +735,7 @@ def rch(ds, gwf, pname="rch", **kwargs):
     rch : flopy ModflowGwfrch
         rch package
     """
-    logger.info("creating modflow RCH")
+    logger.info("creating mf6 RCH")
     # create recharge package
     rch = recharge.ds_to_rch(gwf, ds, pname=pname, **kwargs)
 
@@ -759,7 +759,7 @@ def evt(ds, gwf, pname="evt", **kwargs):
     evt : flopy ModflowGwfevt
         rch package
     """
-    logger.info("creating modflow EVT")
+    logger.info("creating mf6 EVT")
 
     # create recharge package
     evt = recharge.ds_to_evt(gwf, ds, pname=pname, **kwargs)
@@ -863,7 +863,7 @@ def oc(
     oc : flopy ModflowGwfoc
         oc package
     """
-    logger.info("creating modflow OC")
+    logger.info("creating mf6 OC")
 
     # Create the output control package
     headfile = f"{ds.model_name}.hds"

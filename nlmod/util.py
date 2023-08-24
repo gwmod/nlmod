@@ -15,10 +15,18 @@ from shapely.geometry import box
 logger = logging.getLogger(__name__)
 
 
+class LayerError(Exception):
+    pass
+
+
+class MissingValueError(Exception):
+    pass
+
+
 def get_model_dirs(model_ws):
-    """Creates a new model workspace directory, if it does not exists yet.
-    Within the model workspace directory a few subdirectories are created (if
-    they don't exist yet):
+    """Creates a new model workspace directory, if it does not exists yet. Within the
+    model workspace directory a few subdirectories are created (if they don't exist
+    yet):
 
     - figure
     - cache
@@ -50,8 +58,7 @@ def get_model_dirs(model_ws):
 
 
 def get_exe_path(exe_name="mf6"):
-    """get the full path of the executable. Uses the bin directory in the nlmod
-    package.
+    """Get the full path of the executable. Uses the bin directory in the nlmod package.
 
     Parameters
     ----------
@@ -75,29 +82,36 @@ def get_exe_path(exe_name="mf6"):
     return exe_path
 
 
-def get_ds_empty(ds):
-    """get a copy of a model dataset with only coordinate information.
+
+def get_ds_empty(ds, keep_coords=None):
+    """Get a copy of a dataset with only coordinate information.
 
     Parameters
     ----------
     ds : xr.Dataset
         dataset with coordinates
+    keep_coords : tuple or None, optional
+        the coordinates in ds the you want keep in your empty ds. If None all
+        coordinates are kept from original ds. The default is None.
 
     Returns
     -------
     empty_ds : xr.Dataset
-        dataset with only model coordinate information
+        dataset with only coordinate information
     """
+    if keep_coords is None:
+        keep_coords = list(ds.coords)
 
     empty_ds = xr.Dataset()
     for coord in list(ds.coords):
-        empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
+        if coord in keep_coords:
+            empty_ds = empty_ds.assign_coords(coords={coord: ds[coord]})
 
     return empty_ds
 
 
 def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
-    """get a dataarray from ds with certain dimensions.
+    """Get a dataarray from ds with certain dimensions.
 
     Parameters
     ----------
@@ -130,9 +144,8 @@ def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
 
 
 def find_most_recent_file(folder, name, extension=".pklz"):
-    """find the most recent file in a folder. File must startwith name and
-    end width extension. If you want to look for the most recent folder use
-    extension = ''.
+    """Find the most recent file in a folder. File must startwith name and end width
+    extension. If you want to look for the most recent folder use extension = ''.
 
     Parameters
     ----------
@@ -169,7 +182,7 @@ def find_most_recent_file(folder, name, extension=".pklz"):
 
 
 def compare_model_extents(extent1, extent2):
-    """check overlap between two model extents.
+    """Check overlap between two model extents.
 
     Parameters
     ----------
@@ -224,7 +237,7 @@ def compare_model_extents(extent1, extent2):
 
 
 def polygon_from_extent(extent):
-    """create a shapely polygon from a given extent.
+    """Create a shapely polygon from a given extent.
 
     Parameters
     ----------
@@ -244,7 +257,7 @@ def polygon_from_extent(extent):
 
 
 def gdf_from_extent(extent, crs="EPSG:28992"):
-    """create a geodataframe with a single polygon with the extent given.
+    """Create a geodataframe with a single polygon with the extent given.
 
     Parameters
     ----------
@@ -267,8 +280,8 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
 
 
 def gdf_within_extent(gdf, extent):
-    """select only parts of the geodataframe within the extent. Only accepts
-    Polygon and Linestring geometry types.
+    """Select only parts of the geodataframe within the extent. Only accepts Polygon and
+    Linestring geometry types.
 
     Parameters
     ----------
@@ -307,7 +320,7 @@ def gdf_within_extent(gdf, extent):
 
 
 def get_google_drive_filename(fid, timeout=120):
-    """get the filename of a google drive file.
+    """Get the filename of a google drive file.
 
     Parameters
     ----------
@@ -335,7 +348,7 @@ def get_google_drive_filename(fid, timeout=120):
 
 
 def download_file_from_google_drive(fid, destination=None):
-    """download a file from google drive using it's id.
+    """Download a file from google drive using it's id.
 
     Parameters
     ----------
@@ -411,7 +424,7 @@ def download_mfbinaries(bindir=None):
 
 
 def download_modpath_provisional_exe(bindir=None, timeout=120):
-    """Downlaod the provisional version of modpath to the folder with binaries"""
+    """Downlaod the provisional version of modpath to the folder with binaries."""
     if bindir is None:
         bindir = os.path.join(os.path.dirname(__file__), "bin")
     if not os.path.isdir(bindir):
@@ -468,8 +481,12 @@ class ColoredFormatter(logging.Formatter):
 
 
 def get_color_logger(level="INFO"):
+    if level == "DEBUG":
+        FORMAT = "{color}{levelname}:{name}.{funcName}:{lineno}:{message}{reset}"
+    else:
+        FORMAT = "{color}{levelname}:{name}.{funcName}:{message}{reset}"
     formatter = ColoredFormatter(
-        "{color}{levelname}:{name}:{message}{reset}",
+        FORMAT,
         style="{",
         datefmt="%Y-%m-%d %H:%M:%S",
         colors={
@@ -493,7 +510,9 @@ def get_color_logger(level="INFO"):
     return logger
 
 
-def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
+def _get_value_from_ds_attr(
+    ds, varname, attr=None, value=None, default=None, warn=True
+):
     """Internal function to get value from dataset attributes.
 
     Parameters
@@ -506,6 +525,9 @@ def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
         name of the attribute in dataset (is sometimes different to varname)
     value : Any, optional
         variable value, by default None
+    default : Any, optional
+        When default is not None, value is None, and attr is not present in ds,
+        this default is returned. The default is None.
     warn : bool, optional
         log warning if value not found
 
@@ -526,7 +548,10 @@ def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
         logger.debug(f"Using stored data attribute '{attr}' for '{varname}'")
         value = ds.attrs[attr]
     elif value is None:
-        if warn:
+        if default is not None:
+            logger.debug(f"Using default value of {default} for '{varname}'")
+            value = default
+        elif warn:
             msg = (
                 f"No value found for '{varname}', returning None. "
                 f"To fix this error pass '{varname}' to function or set 'ds.{attr}'."
@@ -536,7 +561,9 @@ def _get_value_from_ds_attr(ds, varname, attr=None, value=None, warn=True):
     return value
 
 
-def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True, return_da=False):
+def _get_value_from_ds_datavar(
+    ds, varname, datavar=None, default=None, warn=True, return_da=False
+):
     """Internal function to get value from dataset data variables.
 
     Parameters
@@ -544,15 +571,18 @@ def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True, return_da=F
     ds : xarray.Dataset
         dataset containing model data
     varname : str
-        name of the variable in flopy package
+        name of the variable in flopy package (used for logging)
     datavar : Any, optional
         if str, treated as the name of the data variable (which can be
         different to varname) in dataset, if not provided is assumed to be
         the same as varname. If not passed as string, it is treated as data
+    default : Any, optional
+        When default is not None, datavar is a string, and not present in ds, this
+        default is returned. The default is None.
     warn : bool, optional
         log warning if value not found
     return_da : bool, optional
-        if True a dataarray can be returned, if False a dataarray is always
+        if True, a DataArray can be returned. If False, a DataArray is always
         converted to a numpy array before being returned. The default is False.
 
     Returns
@@ -592,15 +622,18 @@ def _get_value_from_ds_datavar(ds, varname, datavar=None, warn=True, return_da=F
         value = ds[datavar]
     # warn if value is None
     elif isinstance(value, str):
-        value = None
-        if warn:
-            msg = (
-                f"No value found for '{varname}', returning None. "
-                f"To silence this warning pass '{varname}' data directly "
-                f"to function or check whether 'ds.{datavar}' was set correctly."
-            )
-            logger.warning(msg)
-
+        if default is not None:
+            logger.debug(f"Using default value of {default} for '{varname}'")
+            value = default
+        else:
+            value = None
+            if warn:
+                msg = (
+                    f"No value found for '{varname}', returning None. "
+                    f"To silence this warning pass '{varname}' data directly "
+                    f"to function or check whether 'ds.{datavar}' was set correctly."
+                )
+                logger.warning(msg)
     if not return_da:
         if isinstance(value, xr.DataArray):
             value = value.values

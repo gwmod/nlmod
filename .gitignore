@@ -146,7 +146,13 @@ nlmod/bin/*
 !nlmod/bin/
 !nlmod/bin/mp7_2_002_provisional
 flowchartnlmod.pptx
-tests/data/
+
+tests/data/*
+!tests/data/**/
+tests/data/mfoutput/*
+!tests/data/mfoutput/vertex/*
+!tests/data/mfoutput/structured/*
+
 docs/examples/*/
 !docs/examples/data/
 !docs/examples/data/chloride_hbossche.nc

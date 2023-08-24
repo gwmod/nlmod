@@ -224,6 +224,47 @@ def modelgrid_to_ds(mg):
     return ds
 
 
+def get_dims_coords_from_modelgrid(mg):
+    """Get dimensions and coordinates from modelgrid.
+
+    Used to build new xarray.DataArrays with appropriate dimensions and coordinates.
+
+    Parameters
+    ----------
+    mg : flopy.discretization.Grid
+        flopy modelgrid object
+
+    Returns
+    -------
+    dims : tuple of str
+        tuple containing dimensions
+    coords : dict
+        dictionary containing spatial coordinates derived from modelgrid
+
+    Raises
+    ------
+    ValueError
+        for unsupported grid types
+    """
+    if mg.grid_type == "structured":
+        layers = np.arange(mg.nlay)
+        x, y = mg.xycenters  # local coordinates
+        if mg.angrot == 0.0:
+            x += mg.xoffset  # convert to global coordinates
+            y += mg.yoffset  # convert to global coordinates
+        coords = {"layer": layers, "x": x, "y": y}
+        dims = ("layer", "y", "x")
+    elif mg.grid_type == "vertex":
+        layers = np.arange(mg.nlay)
+        y = mg.ycellcenters
+        x = mg.xcellcenters
+        coords = {"layer": layers, "y": ("icell2d", y), "x": ("icell2d", x)}
+        dims = ("layer", "icell2d")
+    else:
+        raise ValueError(f"grid type '{mg.grid_type}' not supported.")
+    return dims, coords
+
+
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     """Gridprops is a dictionary containing keyword arguments needed to
     generate a flopy modelgrid instance."""
@@ -417,6 +458,15 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
     xyi, _ = get_xyi_icell2d(gridprops)
     x = xr.DataArray(xyi[:, 0], dims=("icell2d",))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d",))
+
+    # drop non-numeric data variables
+    for key, dtype in ds_in.dtypes.items():
+        if not np.issubdtype(dtype, np.number):
+            ds_in = ds_in.drop_vars(key)
+            logger.info(
+                f"cannot convert data variable {key} to refined dataset because of non-numeric dtype"
+            )
+
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
         ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
@@ -852,10 +902,11 @@ def da_to_reclist(
     if "layer" in mask.dims:
         if only_active_cells:
             cellids = np.where((mask) & (ds["idomain"] == 1))
-            ignore_cells = np.sum((mask) & (ds["idomain"] != 1))
+            ignore_cells = int(np.sum((mask) & (ds["idomain"] != 1)))
             if ignore_cells > 0:
                 logger.info(
-                    f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+                    f"ignore {ignore_cells} out of {np.sum(mask.values)} cells "
+                    "because idomain is inactive"
                 )
         else:
             cellids = np.where(mask)
@@ -877,10 +928,10 @@ def da_to_reclist(
             layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
-            ignore_cells = np.sum((mask) & (ds["idomain"][layer] != 1))
+            ignore_cells = int(np.sum((mask) & (ds["idomain"][layer] != 1)))
             if ignore_cells > 0:
                 logger.info(
-                    f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+                    f"ignore {ignore_cells} out of {np.sum(mask.values)} cells because idomain is inactive"
                 )
             layers = col_to_list(layer, ds, cellids)
         else:
@@ -1306,7 +1357,7 @@ def gdf_to_bool_da(gdf, ds):
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name):
+def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1319,6 +1370,9 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         xarray with model data
     da_name : str
         The name of the variable with boolean data in the ds_out
+    keep_coords : tuple or None, optional
+        the coordinates in ds the you want keep in your empty ds. If None all
+        coordinates are kept from original ds. The default is None.
 
     Returns
     -------
@@ -1326,7 +1380,7 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         Dataset with a single DataArray, this DataArray is 1 if polygon is in
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
-    ds_out = util.get_ds_empty(ds)
+    ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
     ds_out[da_name] = gdf_to_bool_da(gdf, ds)
 
     return ds_out
@@ -1579,6 +1633,8 @@ def mask_model_edge(ds, idomain):
     ds_out : xarray.Dataset
         dataset with edge mask array
     """
+    ds = ds.copy()  # avoid side effects
+
     # add constant head cells at model boundaries
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         raise NotImplementedError("model edge not yet calculated for rotated grids")

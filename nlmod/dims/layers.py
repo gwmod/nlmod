@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import xarray as xr
 
+from ..util import LayerError, MissingValueError
 from . import resample
 
 logger = logging.getLogger(__name__)
@@ -125,13 +126,15 @@ def split_layers_ds(
     # calclate a new top and botm, and fill other variables with original data
     th = calculate_thickness(ds, top=top, bot=bot)
     for lay0 in split_dict:
+        logger.info(f"Split '{lay0}' into {len(split_dict[lay0])} sub-layers")
         th0 = th.loc[lay0]
         for var in ds:
             if layer not in ds[var].dims:
                 continue
             if lay0 == list(split_dict)[0] and var not in [top, bot]:
                 logger.info(
-                    f"Fill values of variable '{var}' of splitted layers with the values from the original layer."
+                    f"Fill values for variable '{var}' in split"
+                    " layers with the values from the original layer."
                 )
             ds = _split_var(ds, var, lay0, th0, split_dict[lay0], top, bot)
 
@@ -554,15 +557,15 @@ def set_model_top(ds, top, min_thickness=0.0):
         The model dataset, containing the new top.
     """
     if "gridtype" not in ds.attrs:
-        raise (Exception("Make sure the Dataset is build by nlmod"))
+        raise (KeyError("Make sure the Dataset is built by nlmod"))
     if isinstance(top, (float, int)):
         top = xr.full_like(ds["top"], top)
     if not top.shape == ds["top"].shape:
         raise (
-            Exception("Please make sure the new top has the same shape as the old top")
+            ValueError("Please make sure the new top has the same shape as the old top")
         )
     if np.any(np.isnan(top)):
-        raise (Exception("Please make sure the new top does not contain nans"))
+        raise (ValueError("Please make sure the new top does not contain nans"))
     # where the botm is equal to the top, the layer is inactive
     # set the botm to the new top at these locations
     ds["botm"] = ds["botm"].where(ds["botm"] != ds["top"], top)
@@ -829,21 +832,51 @@ def fill_nan_top_botm_kh_kv(
     return ds
 
 
-def fill_top_and_bottom(ds):
-    """Remove Nans in botm variable, and change top from 3d to 2d if needed."""
+def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
+    """
+    Remove Nans in botm variable, and change top from 3d to 2d if necessary.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model DataSet
+    drop_layer_dim_from_top : bool, optional
+        If True and top contains a layer dimension, set top to the top of the upper
+        layer (line the definition in MODFLOW). This removes redundant data, as the top
+        of all layers exept the most upper one is also defined as the bottom of previous
+        layers. The default is True.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset with filled top and bottom data according to modflow definition,
+        with 2d top and 3d bottom.
+    """
+
     if "layer" in ds["top"].dims:
-        ds["top"] = ds["top"].max("layer")
-    top = ds["top"].data
+        top_max = ds["top"].max("layer")
+        if drop_layer_dim_from_top:
+            ds["top"] = top_max
+    else:
+        top_max = ds["top"]
+
     botm = ds["botm"].data
     # remove nans from botm
     for lay in range(botm.shape[0]):
         mask = np.isnan(botm[lay])
         if lay == 0:
-            # by setting the botm to top
-            botm[lay, mask] = top[mask]
+            # by setting the botm to top_max
+            botm[lay, mask] = top_max.data[mask]
         else:
             # by setting the botm to the botm of the layer above
             botm[lay, mask] = botm[lay - 1, mask]
+    if "layer" in ds["top"].dims:
+        # remove nans from top by setting it equal to botm
+        # which sets the layer thickness to 0
+        top = ds["top"].data
+        mask = np.isnan(top)
+        top[mask] = botm[mask]
+
     return ds
 
 
@@ -862,22 +895,41 @@ def set_idomain(ds, remove_nan_layers=True):
     ds : xr.Dataset
         Dataset with added idomain-variable.
     """
-    # set idomain with a default of -1 (pass-through)
-    ds["idomain"] = xr.full_like(ds["botm"], -1, int)
-    # drop attributes inherited from botm
-    ds["idomain"].attrs.clear()
-    # set idomain of cells  with a positive thickness to 1
-    thickness = calculate_thickness(ds)
-    ds["idomain"].data[thickness.data > 0.0] = 1
-    # set idomain to 0 in the inactive part of the model
-    if "active" in ds:
-        ds["idomain"] = ds["idomain"].where(ds["active"], 0)
+    ds["idomain"] = get_idomain(ds)
     if remove_nan_layers:
         # only keep layers with at least one active cell
         ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
+
+    return ds
+
+
+def get_idomain(ds):
+    """Get idmomain from a model Dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The model Dataset.
+
+    Returns
+    -------
+    ds : xr.DataArray
+        DataArray of idomain-variable.
+    """
+    # set idomain with a default of -1 (pass-through)
+    idomain = xr.full_like(ds["botm"], -1, int)
+    idomain.name = None
+    # drop attributes inherited from botm
+    idomain.attrs.clear()
+    # set idomain of cells  with a positive thickness to 1
+    thickness = calculate_thickness(ds)
+    idomain.data[thickness.data > 0.0] = 1
+    # set idomain to 0 in the inactive part of the model
+    if "active" in ds:
+        idomain = idomain.where(ds["active"], 0)
     # TODO: set idomain above/below the first/last active layer to 0
     # TODO: remove 'active' and replace by logic of keeping inactive cells in idomain
-    return ds
+    return idomain
 
 
 def get_first_active_layer(ds, **kwargs):
@@ -900,7 +952,7 @@ def get_first_active_layer(ds, **kwargs):
 
 
 def get_first_active_layer_from_idomain(idomain, nodata=-999):
-    """get the first active layer in each cell from the idomain.
+    """get the first (top) active layer in each cell from the idomain.
 
     Parameters
     ----------
@@ -927,6 +979,36 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
         )
     first_active_layer.attrs["_FillValue"] = nodata
     return first_active_layer
+
+
+def get_last_active_layer_from_idomain(idomain, nodata=-999):
+    """get the last (bottom) active layer in each cell from the idomain.
+
+    Parameters
+    ----------
+    idomain : xr.DataArray
+        idomain. Shape can be (layer, y, x) or (layer, icell2d)
+    nodata : int, optional
+        nodata value. used for cells that are inactive in all layers.
+        The default is -999.
+
+    Returns
+    -------
+    last_active_layer : xr.DataArray
+        raster in which each cell has the zero based number of the last
+        active layer. Shape can be (y, x) or (icell2d)
+    """
+    logger.debug("get last active modellayer for each cell in idomain")
+
+    last_active_layer = xr.where(idomain[-1] == 1, 0, nodata)
+    for i in range(idomain.shape[0] - 2, -1, -1):
+        last_active_layer = xr.where(
+            (last_active_layer == nodata) & (idomain[i] == 1),
+            i,
+            last_active_layer,
+        )
+    last_active_layer.attrs["_FillValue"] = nodata
+    return last_active_layer
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):
@@ -1040,3 +1122,271 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
         )
 
     return xr.concat(agg_ar, ds.layer)
+
+
+def check_elevations_consistency(ds):
+    if "layer" in ds["top"].dims:
+        tops = ds["top"].data
+        top_ref = np.full(tops.shape[1:], np.NaN)
+        for lay, layer in zip(range(tops.shape[0]), ds.layer.data):
+            top = tops[lay]
+            mask = ~np.isnan(top)
+            higher = top[mask] > top_ref[mask]
+            if np.any(higher):
+                n = int(higher.sum())
+                logger.warning(
+                    f"The top of layer {layer} is higher than the top of a previous layer in {n} cells"
+                )
+            top_ref[mask] = top[mask]
+
+    bots = ds["botm"].data
+    bot_ref = np.full(bots.shape[1:], np.NaN)
+    for lay, layer in zip(range(bots.shape[0]), ds.layer.data):
+        bot = bots[lay]
+        mask = ~np.isnan(bot)
+        higher = bot[mask] > bot_ref[mask]
+        if np.any(higher):
+            n = int(higher.sum())
+            logger.warning(
+                f"The bottom of layer {layer} is higher the bottom of a previous layer in {n} cells"
+            )
+        bot_ref[mask] = bot[mask]
+
+    thickness = calculate_thickness(ds)
+    mask = thickness < 0.0
+    if mask.any():
+        logger.warning(f"Thickness of layers is negative in {mask.sum()} cells.")
+
+
+def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
+    """
+    Inserts a layer in a model Dataset, burning it in an existing layer model.
+
+    This method loops over the existing layers, and checks if (part of) the new layer
+    needs to be inserted above the existing layer, and if the top or bottom of the
+    existing layer needs to be altered.
+
+    For now, this method needs a layer model with a 3d-top, like you get using the
+    method `nlmod.read.get_regis()`, and does not function for a model Dataset with a 2d
+    (structured) or 1d (vertex) top.
+
+    When comparing the height of the new layer with an existing layer, there are 7
+    options:
+
+    1 The new layer is entirely above the existing layer: layer is added completely
+    above existing layer. When the bottom of the new layer is above the top of the
+    existing layer (which can happen for the first layer), this creates a gap in the
+    layer model.
+
+    2 part of the new layer lies within an existing layer, bottom is never below: layer
+    is added above the existing layer, and the top of existing layer is lowered.
+
+    3 there are locations where the new layer is above the bottom of the existing layer,
+    but below the top of the existing layer. The new layer splits the existing layer
+    into two sub-layers. This is not supported (yet) and raises an Exception.
+
+    4 part of the new layer lies above the bottom of the existing layer, while at other
+    locations the new layer is below the existing layer. The new layer is split, part
+    of the layer is added above the existing layer, and part of the new layer is added
+    to the layer model in the next iteration(s) (above the next layer).
+
+    5 Only the upper part of the new layer overlaps with the existing layer: the layer
+    is not added above the extsing layer, but the bottom of the existing layer is
+    raised because of the overlap.
+
+    6 The new layer is below the existing layer everywhere. Nothing happens, move on to
+    the next existing layer.
+
+    When (part of) the new layer is not added to the layer model after comparison
+    with the last existing layer, the (remaining part of) the new layer is added below
+    the existing layers, at the bottom of the model.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        xarray Dataset containing information about layers
+    name : string
+        The name of the new layer.
+    top : xr.DataArray
+        The top of the new layer.
+    bot : xr.DataArray
+        The bottom of the new layer..
+    kh : xr.DataArray, optional
+        The horizontal conductivity of the new layer. The default is None.
+    kv : xr.DataArray, optional
+        The vertical conductivity of the new layer. The default is None.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        xarray Dataset containing the new layer(s)
+
+    """
+    shape = ds["botm"].shape[1:]
+    assert top.shape == shape
+    assert bot.shape == shape
+    msg = "Inserting layers is only supported with a 3d top for now"
+    assert "layer" in ds["top"].dims, msg
+    if kh is not None:
+        assert kh.shape == shape
+    if kv is not None:
+        assert kv.shape == shape
+    todo = ~(np.isnan(top.data) | np.isnan(bot.data)) & ((top - bot).data > 0)
+    if not todo.any():
+        logger.warning(f"Thickness of new layer {name} is never larger than 0")
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
+    isplit = None
+    for layer in ds.layer.data:
+        if not todo.any():
+            continue
+        # determine the top and bottom of layer, taking account they could be NaN
+        # we assume a zero thickness when top or bottom is NaN
+        top_layer = ds["top"].loc[layer:].max("layer").data
+        bot_layer = ds["botm"].loc[layer].data
+        mask = np.isnan(bot_layer)
+        bot_layer[mask] = top_layer[mask]
+
+        top_higher_than_bot = top.data > bot_layer
+        if not top_higher_than_bot[todo].any():
+            # 6 the new layer is entire below the existing layer, do nothing
+            continue
+        bot_lower_than_top = bot.data < top_layer
+        bot_lower_than_bot = bot.data < bot_layer
+        if not bot_lower_than_top[todo].any():
+            # 1 the new layer can be added on top of the existing layer
+            if isplit is not None:
+                isplit += 1
+            ds = _insert_layer_above(
+                ds, layer, name, isplit, todo, top, bot, kh, kv, copy
+            )
+            todo[todo] = False
+            continue
+            # do not increase top of layer to bottom of new layer
+        if bot_lower_than_top[todo].any():
+            # the new layer can be added on top of the existing layer,
+            # possibly only partly
+            if not bot_lower_than_bot[todo].any():
+                # 2 the top of the existing layer needs to be lowered
+                mask = todo & bot_lower_than_top
+                new_top_layer = ds["top"].loc[layer]
+                new_top_layer.data[mask] = bot.data[mask]
+                ds["top"].loc[layer] = new_top_layer
+                # the new layer can be added on top of the existing layer
+                if isplit is not None:
+                    isplit += 1
+                ds = _insert_layer_above(
+                    ds, layer, name, isplit, todo, top, bot, kh, kv, copy
+                )
+                todo[todo] = False
+                continue
+            if not bot_lower_than_bot[todo].all():
+                bot_higher_than_bot = bot.data > bot_layer
+                if not bot_higher_than_bot[todo].any():
+                    continue
+                top_lower_than_top = top.data < top_layer
+                if (todo & bot_higher_than_bot & top_lower_than_top).any():
+                    # 3 the existing layer needs to be split,
+                    # as part of it is below and part is above the new layer
+                    msg = (
+                        f"Existing layer {layer} exists in some cells both above and "
+                        f"below the inserted layer {name}. Therefore existing layer "
+                        f"{layer} needs to be split in two, which is not supported."
+                    )
+                    raise (LayerError(msg))
+                # 4 the new layer needs to be split, as part of the new layer is
+                # above the bottom of the existing layer, and part of it is below the
+                # existing layer
+                if isplit is None:
+                    isplit = 1
+                else:
+                    isplit += 1
+                # the top of the existing layer needs to be lowered
+                mask = todo & bot_higher_than_bot & bot_lower_than_top
+                new_top_layer = ds["top"].loc[layer]
+                new_top_layer.data[mask] = bot.data[mask]
+                ds["top"].loc[layer] = new_top_layer
+                # and we insert the new layer
+                mask = todo & bot_higher_than_bot
+                ds = _insert_layer_above(
+                    ds, layer, name, isplit, mask, top, bot, kh, kv, copy
+                )
+                todo[mask] = False
+
+        mask = todo & top_higher_than_bot
+        if mask.any():
+            # 5 when the new layer is not added above the existing layer, as the bottom
+            # of the new layer is always lower than the bottom of the existing
+            # layer: the bottom of the existing layer needs to be raised to the top
+            # of the new layer
+            new_bot_layer = ds["botm"].loc[layer]
+            new_bot_layer.data[mask] = top.data[mask]
+            ds["botm"].loc[layer] = new_bot_layer
+
+    if todo.any():
+        # 7 the new layer needs to be added to the bottom of the model
+        if isplit is not None:
+            isplit += 1
+        ds = _insert_layer_below(ds, None, name, isplit, mask, top, bot, kh, kv, copy)
+    return ds
+
+
+def _insert_layer_above(ds, above_layer, name, isplit, mask, top, bot, kh, kv, copy):
+    new_layer_name = _get_new_layer_name(name, isplit)
+    layers = list(ds.layer.data)
+    if above_layer is None:
+        above_layer = layers[0]
+    layers.insert(layers.index(above_layer), new_layer_name)
+    ds = ds.reindex({"layer": layers}, copy=copy)
+    ds = _set_new_layer_values(ds, new_layer_name, mask, top, bot, kh, kv)
+    return ds
+
+
+def _insert_layer_below(ds, below_layer, name, isplit, mask, top, bot, kh, kv, copy):
+    new_layer_name = _get_new_layer_name(name, isplit)
+    layers = list(ds.layer.data)
+    if below_layer is None:
+        below_layer = layers[-1]
+    layers.insert(layers.index(below_layer) + 1, new_layer_name)
+    ds = ds.reindex({"layer": layers}, copy=copy)
+    ds = _set_new_layer_values(ds, new_layer_name, mask, top, bot, kh, kv)
+    return ds
+
+
+def _set_new_layer_values(ds, new_layer_name, mask, top, bot, kh, kv):
+    ds["top"].loc[new_layer_name].data[mask] = top.data[mask]
+    ds["botm"].loc[new_layer_name].data[mask] = bot.data[mask]
+    if kh is not None:
+        ds["kh"].loc[new_layer_name].data[mask] = kh.data[mask]
+    if kv is not None:
+        ds["kv"].loc[new_layer_name].data[mask] = kv.data[mask]
+    return ds
+
+
+def _get_new_layer_name(name, isplit):
+    new_layer_name = name
+    if isplit is not None:
+        new_layer_name = new_layer_name + "_" + str(isplit)
+    return new_layer_name
+
+
+def remove_layer(ds, layer):
+    """Removes a layer from a Dataset, without changing elevations of other layers.
+
+    This will create gaps in the layer model.
+    """
+    layers = list(ds.layer.data)
+    if layer not in layers:
+        raise (MissingValueError(f"layer '{layer}' not present in Dataset"))
+    if "layer" not in ds["top"].dims:
+        index = layers.index(layer)
+        if index == 0:
+            # lower the top to the second layer
+            ds["top"] = ds["botm"].loc[layers[1]]
+    layers.remove(layer)
+    ds = ds.reindex({"layer": layers})
+    return ds

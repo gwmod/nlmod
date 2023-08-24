@@ -55,6 +55,62 @@ def map_array(
     figsize=None,
     animate=False,
 ):
+    """Plot an array using flopy PlotMapView.
+
+    Parameters
+    ----------
+    arr : np.array, xarray.DataArray
+        array to plot
+    gwf : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        flopy groundwater flow or transport model
+    ilay : int, optional
+        layer to plot, by default 0
+    iper : int, optional
+        timestep to plot, by default 0
+    extent : list or tuple, optional
+        plot extent: (xmin, xmax, ymin, ymax), by default None which defaults
+        model extent
+    ax : matplotlib Axes, optional
+        axis handle to plot on, by default None
+    title : str, optional
+        title of the plot, by default "" (blank)
+    xlabel : str, optional
+        x-axis label, by default "X [km RD]"
+    ylabel : str, optional
+        y-axis label, by default "Y [km RD]"
+    norm : matplotlib.colors.Norm
+        colorbar norm
+    vmin : float, optional
+        minimum value for colorbar
+    vmax : float, optional
+        maximum value for colorbar
+    levels : np.array, optional
+        colorbar levels, used for setting colorbar ticks
+    cmap : str or colormap, optional
+        colormap, default is "viridis"
+    alpha : float, optional
+        transparency, by default 1.0
+    plot_grid : bool, optional
+        plot model grid, by default False
+    add_to_plot : tuple of func, optional
+        tuple or list of plotting functions that take ax as the
+        only argument, by default None. Use to add features to plot, e.g.
+        plotting shapefiles, or other data.
+    backgroundmap : bool, optional
+        add background map, by default False
+    figsize : tuple, optional
+        figure size, by default None
+    animate : bool, optional
+        if True return figure, axis and quadmesh handles, by default
+        False (returns only axes handle)
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        axes handle
+    f, ax, qm :
+        only if animate is True, return figure, axes and quadmesh handles.
+    """
     # get data
     if isinstance(arr, xr.DataArray):
         arr = arr.values
@@ -124,7 +180,7 @@ def contour_array(
     levels=10,
     alpha=1.0,
     labels=True,
-    label_kwargs={},
+    label_kwargs=None,
     plot_grid=False,
     add_to_plot=None,
     backgroundmap=False,
@@ -132,6 +188,59 @@ def contour_array(
     animate=False,
     **kwargs,
 ):
+    """Contour an array using flopy PlotMapView.
+
+    Parameters
+    ----------
+    arr : np.array, xarray.DataArray
+        array to contour
+    gwf : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        flopy groundwater flow or transport model
+    ilay : int, optional
+        layer to contour, by default 0
+    iper : int, optional
+        timestep to contour, by default 0
+    extent : list or tuple, optional
+        plot extent: (xmin, xmax, ymin, ymax), by default None which defaults
+        model extent
+    ax : matplotlib Axes, optional
+        axis handle to plot on, by default None
+    title : str, optional
+        title of the plot, by default "" (blank)
+    xlabel : str, optional
+        x-axis label, by default "X [km RD]"
+    ylabel : str, optional
+        y-axis label, by default "Y [km RD]"
+    levels : int, list, np.array, optional
+        contour levels, when passed as int draw that many contours, when
+        list or array draw contours at provided levels, by default 10
+    alpha : float, optional
+        transparency of contour lines, by default 1.0
+    labels : bool, optional
+        add contour labels showing contour levels, by default True
+    label_kwargs : dict, optional
+        keyword arguments passed onto ax.clabel(), by default None
+    plot_grid : bool, optional
+        plot model grid, by default False
+    add_to_plot : tuple of func, optional
+        tuple or list of plotting functions that take ax as the
+        only argument, by default None. Use to add features to plot, e.g.
+        plotting shapefiles, or other data.
+    backgroundmap : bool, optional
+        add background map, by default False
+    figsize : tuple, optional
+        figure size, by default None
+    animate : bool, optional
+        if True return figure, axis and contour handles, by default
+        False (returns only axes handle)
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        axes handle
+    f, ax, cs :
+        only if animate is True, return figure, axes and contour handles.
+    """
     # get data
     if isinstance(arr, xr.DataArray):
         arr = arr.values
@@ -151,6 +260,8 @@ def contour_array(
     # plot data
     cs = pmv.contour_array(arr, levels=levels, alpha=alpha, **kwargs)
     if labels:
+        if label_kwargs is None:
+            label_kwargs = {}
         ax.clabel(cs, **label_kwargs)
 
     # bgmap

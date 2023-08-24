@@ -16,12 +16,13 @@ import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
+from dask.diagnostics import ProgressBar
 
 logger = logging.getLogger(__name__)
 
 
 def clear_cache(cachedir):
-    """clears the cache in a given cache directory by removing all .pklz and
+    """Clears the cache in a given cache directory by removing all .pklz and
     corresponding .nc files.
 
     Parameters
@@ -117,8 +118,16 @@ def cache_netcdf(func):
 
         # only use cache if the cache file and the pickled function arguments exist
         if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
-            with open(fname_pickle_cache, "rb") as f:
-                func_args_dic_cache = pickle.load(f)
+            # check if you can read the pickle, there are several reasons why a
+            # pickle can not be read.
+            try:
+                with open(fname_pickle_cache, "rb") as f:
+                    func_args_dic_cache = pickle.load(f)
+                pickle_check = True
+            except (pickle.UnpicklingError, ModuleNotFoundError):
+                logger.info("could not read pickle, not using cache")
+                pickle_check = False
+                argument_check = False
 
             # check if the module where the function is defined was changed
             # after the cache was created
@@ -133,16 +142,17 @@ def cache_netcdf(func):
 
             cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
 
-            # add netcdf hash to function arguments dic, see #66
-            func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+            if pickle_check:
+                # add netcdf hash to function arguments dic, see #66
+                func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
 
-            # check if cache was created with same function arguments as
-            # function call
-            argument_check = _same_function_arguments(
-                func_args_dic, func_args_dic_cache
-            )
+                # check if cache was created with same function arguments as
+                # function call
+                argument_check = _same_function_arguments(
+                    func_args_dic, func_args_dic_cache
+                )
 
-            if modification_check and argument_check:
+            if modification_check and argument_check and pickle_check:
                 if dataset is None:
                     logger.info(f"using cached data -> {cachename}")
                     return cached_ds
@@ -164,7 +174,18 @@ def cache_netcdf(func):
                 cached_ds.close()
 
             # write netcdf cache
-            result.to_netcdf(fname_cache)
+            # check if dataset is chunked for writing with dask.delayed
+            first_data_var = list(result.data_vars.keys())[0]
+            if result[first_data_var].chunks:
+                delayed = result.to_netcdf(fname_cache, compute=False)
+                with ProgressBar():
+                    delayed.compute()
+                # close and reopen dataset to ensure data is read from
+                # disk, and not from opendap
+                result.close()
+                result = xr.open_dataset(fname_cache, chunks="auto")
+            else:
+                result.to_netcdf(fname_cache)
 
             # add netcdf hash to function arguments dic, see #66
             temp = xr.open_dataset(fname_cache, mask_and_scale=False)
@@ -183,7 +204,7 @@ def cache_netcdf(func):
 
 
 def _check_ds(ds, ds2):
-    """check if two datasets have the same dimensions and coordinates.
+    """Check if two datasets have the same dimensions and coordinates.
 
     Parameters
     ----------
@@ -308,7 +329,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
 
 
 def _get_modification_time(func):
-    """return the modification time of the module where func is defined.
+    """Return the modification time of the module where func is defined.
 
     Parameters
     ----------
@@ -330,10 +351,12 @@ def _get_modification_time(func):
 
 
 def _update_docstring_and_signature(func):
-    """add function arguments 'cachedir' and 'cachename' to the docstring and
-    signature of a function. The function arguments are added before the
-    "Returns" header in the docstring. If the function has no Returns header in
-    the docstring, the function arguments are not added to the docstring.
+    """Add function arguments 'cachedir' and 'cachename' to the docstring and signature
+    of a function. 
+    
+    The function arguments are added before the "Returns" header in the
+    docstring. If the function has no Returns header in the docstring, the function
+    arguments are not added to the docstring.
 
     Parameters
     ----------
@@ -342,11 +365,16 @@ def _update_docstring_and_signature(func):
 
     Returns
     -------
-    None.
+    None
     """
     # add cachedir and cachename to signature
     sig = inspect.signature(func)
     cur_param = tuple(sig.parameters.values())
+    if cur_param[-1].name == "kwargs":
+        add_kwargs = cur_param[-1]
+        cur_param = cur_param[:-1]
+    else:
+        add_kwargs = None
     new_param = cur_param + (
         inspect.Parameter(
             "cachedir", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
@@ -355,6 +383,8 @@ def _update_docstring_and_signature(func):
             "cachename", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
         ),
     )
+    if add_kwargs is not None:
+        new_param = new_param + (add_kwargs,)
     sig = sig.replace(parameters=new_param)
     func.__signature__ = sig
 

@@ -9,17 +9,71 @@ import xarray as xr
 from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
-from ..mfoutput import _get_output_da
+from ..mfoutput.mfoutput import _get_budget_da, _get_heads_da, _get_time_index
 
 logger = logging.getLogger(__name__)
 
 
-def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
-    """Reads heads file given either a dataset or a groundwater flow object.
+def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
+    """Get modflow HeadFile object.
 
-    Note: Calling this function with ds is currently preferred over calling it
-    with gwf, because the layer and time coordinates can not be fully
-    reconstructed from gwf.
+    Provide one of ds, gwf or fname_hds. Not that it really matters but if
+    all are provided hierarchy is as follows: fname_hds > ds > gwf
+
+    Parameters
+    ----------
+    ds : xarray.Dataset, optional
+        model dataset, by default None
+    gwf : flopy.mf6.ModflowGwf, optional
+        groundwater flow model, by default None
+    fname : str, optional
+        path to heads file, by default None
+    grbfile : str
+        path to file containing binary grid information
+
+    Returns
+    -------
+    headobj : flopy.utils.HeadFile
+        HeadFile object handle
+    """
+    msg = "Load the heads using either the ds, gwf or fname_hds"
+    assert ((ds is not None) + (gwf is not None) + (fname is not None)) >= 1, msg
+
+    if fname is None:
+        if ds is None:
+            return gwf.output.head()
+        else:
+            fname = os.path.join(ds.model_ws, ds.model_name + ".hds")
+            # get grb file
+            if ds.gridtype == "vertex":
+                grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+            elif ds.gridtype == "structured":
+                grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+            else:
+                grbfile = None
+
+    if fname is not None:
+        if grbfile is not None:
+            mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
+        else:
+            logger.warning(msg)
+            warnings.warn(msg)
+            mg = None
+        headobj = flopy.utils.HeadFile(fname, modelgrid=mg)
+    return headobj
+
+
+def get_heads_da(
+    ds=None,
+    gwf=None,
+    fname=None,
+    grbfile=None,
+    delayed=False,
+    chunked=False,
+    **kwargs,
+):
+    """Read binary heads file.
+
 
     Parameters
     ----------
@@ -27,29 +81,107 @@ def get_heads_da(ds=None, gwf=None, fname_heads=None, fname_hds=None):
         Xarray dataset with model data.
     gwf : flopy ModflowGwf
         Flopy groundwaterflow object.
-    fname_heads : path, optional
-        Instead of loading the binary heads file corresponding to ds or gwf
-        load the heads from
-    fname_hds : path, optional, Deprecated
-        please use fname_heads instead.
+    fname : path, optional
+        path to a binary heads file
+    grbfile : str, optional
+        path to file containing binary grid information, only needed if reading
+        output from file using fname
+    delayed : bool, optional
+        if delayed is True, do not load output data into memory, default is False.
+    chunked : bool, optional
+        chunk data array containing output, default is False.
 
     Returns
     -------
     head_da : xarray.DataArray
         heads data array.
     """
-    if fname_hds is not None:
-        logger.warning(
-            "Kwarg 'fname_hds' was renamed to 'fname_heads'. Please update your code."
-        )
-        fname_heads = fname_hds
-    head_da = _get_output_da(_get_heads, ds=ds, gwf_or_gwt=gwf, fname=fname_heads)
-    head_da.attrs["units"] = "m NAP"
-    return head_da
+    hobj = get_headfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
+    # gwf.output.head() defaults to a structured grid
+    if gwf is not None and ds is None and fname is None:
+        kwargs["modelgrid"] = gwf.modelgrid
+    da = _get_heads_da(hobj, **kwargs)
+    da.attrs["units"] = "m NAP"
+
+    # set time index if ds/gwf are provided
+    if ds is not None or gwf is not None:
+        da["time"] = _get_time_index(hobj, ds=ds, gwf_or_gwt=gwf)
+        if ds is not None:
+            da["layer"] = ds.layer
+
+    if chunked:
+        # chunk data array
+        da = da.chunk("auto")
+
+    if not delayed:
+        # load into memory
+        da = da.compute()
+
+    return da
 
 
-def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
-    """Reads budget file given either a dataset or a groundwater flow object.
+def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
+    """Get modflow CellBudgetFile object.
+
+    Provide one of ds, gwf or fname_cbc. Not that it really matters but if
+    all are provided hierarchy is as follows: fname_cbc > ds > gwf
+
+    Parameters
+    ----------
+    ds : xarray.Dataset, optional
+        model dataset, by default None
+    gwf : flopy.mf6.ModflowGwf, optional
+        groundwater flow model, by default None
+    fname_cbc : str, optional
+        path to cell budget file, by default None\
+    grbfile : str, optional
+        path to file containing binary grid information, only needed if 
+        fname_cbc is passed as only argument.
+
+    Returns
+    -------
+    cbc : flopy.utils.CellBudgetFile
+        CellBudgetFile object
+    """
+    msg = "Load the budgets using either the ds or the gwf"
+    assert ((ds is not None) + (gwf is not None) + (fname is not None)) == 1, msg
+
+    if fname is None:
+        if ds is None:
+            return gwf.output.budget()
+        else:
+            fname = os.path.join(ds.model_ws, ds.model_name + ".cbc")
+            # get grb file
+            if ds.gridtype == "vertex":
+                grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+            elif ds.gridtype == "structured":
+                grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+            else:
+                grbfile = None
+    if fname is not None:
+        if grbfile is not None:
+            mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
+        else:
+            logger.error("Cannot create budget data-array without grid information.")
+            raise ValueError(
+                "Please provide grid information by passing path to the "
+                "binary grid file with `grbfile=<path to file>`."
+            )
+        cbc = flopy.utils.CellBudgetFile(fname, modelgrid=mg)
+    return cbc
+
+
+def get_budget_da(
+    text,
+    ds=None,
+    gwf=None,
+    fname=None,
+    grbfile=None,
+    delayed=False,
+    chunked=False,
+    **kwargs,
+):
+    """Read binary budget file.
 
     Parameters
     ----------
@@ -59,56 +191,41 @@ def get_budget_da(text, ds=None, gwf=None, fname_cbc=None, kstpkper=None):
         xarray dataset with model data. One of ds or gwf must be provided.
     gwf : flopy ModflowGwf, optional
         Flopy groundwaterflow object. One of ds or gwf must be provided.
-    fname_cbc : path, optional
+    fname : path, optional
         specify the budget file to load, if not provided budget file will
         be obtained from ds or gwf.
+    grbfile : str
+        path to file containing binary grid information, only needed if reading
+        output from file using fname
+    delayed : bool, optional
+        if delayed is True, do not load output data into memory, default is False.
+    chunked : bool, optional
+        chunk data array containing output, default is False.
 
     Returns
     -------
-    q_da : xarray.DataArray
+    da : xarray.DataArray
         budget data array.
     """
-    q_da = _get_output_da(
-        _get_cbc,
-        ds=ds,
-        gwf_or_gwt=gwf,
-        fname=fname_cbc,
-        text=text,
-        kstpkper=kstpkper,
-        full3D=True,
-    )
-    q_da.attrs["units"] = "m3/d"
+    cbcobj = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
+    da = _get_budget_da(cbcobj, text, **kwargs)
+    da.attrs["units"] = "m3/d"
 
-    return q_da
+    # set time index if ds/gwt are provided
+    if ds is not None or gwf is not None:
+        da["time"] = _get_time_index(cbcobj, ds=ds, gwf_or_gwt=gwf)
+        if ds is not None:
+            da["layer"] = ds.layer
 
+    if chunked:
+        # chunk data array
+        da = da.chunk("auto")
 
-def _get_heads(ds=None, gwf=None, fname_hds=None):
-    msg = "Load the heads using either the ds, gwf or fname_hds"
-    assert ((ds is not None) + (gwf is not None) + (fname_hds is not None)) >= 1, msg
+    if not delayed:
+        # load into memory
+        da = da.compute()
 
-    if fname_hds is None:
-        if ds is None:
-            return gwf.output.head()
-        else:
-            fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-
-    headobj = flopy.utils.HeadFile(fname_hds)
-
-    return headobj
-
-
-def _get_cbc(ds=None, gwf=None, fname_cbc=None):
-    msg = "Load the budgets using either the ds or the gwf"
-    assert ((ds is not None) + (gwf is not None)) == 1, msg
-
-    if fname_cbc is None:
-        if ds is None:
-            cbc = gwf.output.budget()
-        else:
-            fname_cbc = os.path.join(ds.model_ws, ds.model_name + ".cbc")
-    if fname_cbc is not None:
-        cbc = flopy.utils.CellBudgetFile(fname_cbc)
-    return cbc
+    return da
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):
@@ -341,7 +458,7 @@ def calculate_gxg(
 
     >>> import nlmod
     >>> head = nlmod.gwf.get_heads_da(ds)
-    >>> gxg = nlmod.evaluate.calculate_gxg(head)
+    >>> gxg = nlmod.gwf.output.calculate_gxg(head)
     """
     # if not head.dims == ("time", "y", "x"):
     #    raise ValueError('Dimensions must be ("time", "y", "x")')

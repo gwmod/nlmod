@@ -1,6 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 from shapely.geometry import LineString
 
 import nlmod
@@ -104,3 +105,24 @@ def test_set_layer_botm(plot=False):
 
     if plot:
         plot_test(ds, ds_new)
+
+
+def test_insert_layer():
+    ds1 = get_regis_horstermeer()
+    # just replace the 2nd layer by a new insertion
+    layer = ds1.layer.data[1]
+    new_layer = "test"
+    ds2 = nlmod.layers.insert_layer(
+        ds1, "test", ds1["top"].loc[layer], ds1["botm"].loc[layer]
+    )
+    # total_thickness1 = float(nlmod.layers.calculate_thickness(ds1).sum())
+    # total_thickness2 = float(nlmod.layers.calculate_thickness(ds2).sum())
+    # assert total_thickness1 == total_thickness2
+    assert nlmod.layers.calculate_thickness(ds2).loc[layer].sum() == 0
+    mask = ~np.isnan(ds1["top"].loc[layer])
+    assert (
+        ds2["top"].loc[new_layer].data[mask] == ds1["top"].loc[layer].data[mask]
+    ).all()
+    assert (
+        ds2["botm"].loc[new_layer].data[mask] == ds1["botm"].loc[layer].data[mask]
+    ).all()

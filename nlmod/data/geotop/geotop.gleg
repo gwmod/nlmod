@@ -1,0 +1,130 @@
+1	organische stof (veen)	157	78	64	255	x
+10	zand	243	225	6	255	x
+10-zand	zand	243	225	6	255	x
+11	kalksteen	140	180	255	255	x
+11-kalksteen	kalksteen	140	180	255	255	x
+1-veen	organische stof (veen)	157	78	64	255	x
+2	klei	0	146	0	255	x
+2-klei	klei	0	146	0	255	x
+3	"kleiig zand, zandige klei en leem"	194	207	92	255	x
+3-kleiig zand	"kleiig zand, zandige klei en leem"	194	207	92	255	x
+5	zand fijn	255	255	0	255	x
+5-zand fijn	zand fijn	255	255	0	255	x
+6	zand midden	243	225	6	255	x
+6-zand midden	zand midden	243	225	6	255	x
+7	zand grof	231	195	22	255	x
+7-zand grof	zand grof	231	195	22	255	x
+8	grind	216	163	32	255	x
+8-grind	grind	216	163	32	255	x
+9	schelpen	95	95	255	255	x
+9-schelpen	schelpen	95	95	255	255	x
+AA	Antropogeen	200	200	200	255	x
+AAES	Antropogeen esdekken	110	110	110	255	x
+AAOP	Antropogeen opgebrachte grond	200	200	200	255	x
+ABEOM	"Stroombaan generatie A, Formatie van Beegden, Laagpakket van Oost-Maarland"	118	147	60	255	x
+AEC	"Stroombaan generatie A, Formatie van Echteld"	118	147	60	255	x
+AK	Formatie van Aken	152	231	205	255	x
+ANAWA	"Stroombaan generatie A, Formatie van Naaldwijk, Laagpakket van Walcheren"	118	147	60	255	x
+ANAWO	"Stroombaan generatie A, Formatie van Naaldwijk, Laagpakket van Wormer"	118	147	60	255	x
+AP	Formatie van Appelscha	218	165	32	255	x
+BE	Formatie van Beegden	200	200	255	255	x
+BEC	"Stroombaan generatie B, Formatie van Echteld"	102	205	171	255	x
+BEOM	"Formatie van Beegden, Laagpakket van Oost-Maarland"	129	105	123	255	x
+BERO	"Formatie van Beegden, Laagpakket van Rosmalen"	160	140	155	255	x
+BNAWA	"Stroombaan generatie B, Formatie van Naaldwijk, Laagpakket van Walcheren"	102	205	171	255	x
+BNAWO	"Stroombaan generatie B, Formatie van Naaldwijk, Laagpakket van Wormer"	102	205	171	255	x
+BR	Formatie van Breda	108	188	150	255	x
+BX	Formatie van Boxtel	255	235	0	255	x
+BXAS	"Formatie van Boxtel, Eem afzettingen"	127	63	63	255	x
+BXBS	"Formatie van Boxtel, Laagpakket van Best"	235	205	0	255	x
+BXDE	"Formatie van Boxtel, Laagpakket van Delwijnen"	225	225	130	255	x
+BXDEKO	"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk"	225	225	130	255	x
+BXKO	"Formatie van Boxtel, Laagpakket van Kootwijk"	255	255	190	255	x
+BXLM	"Formatie van Boxtel, Laagpakket van Liempde"	225	190	0	255	x
+BXLEEM	"Formatie van Boxtel, Eerste Leemlaag"	220	220	220	255	x
+BXSC	"Formatie van Boxtel, Laagpakket van Schimmert"	255	205	0	255	x
+BXSI1	"Formatie van Boxtel, Laagpakket van Singraven (bovenste deel)"	190	190	0	255	x
+BXWI	"Formatie van Boxtel, Laagpakket van Wierden"	255	255	80	255	x
+BXSI2	"Formatie van Boxtel, Laagpakket van Singraven (onderste deel)"	255	255	130	255	x
+BXWIKO	"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk"	255	255	80	255	x
+BXWISIKO	"Formatie van Boxtel, Laagpakketten van Wierden, Singraven en Kootwijk"	255	255	80	255	x
+CEC	"Stroombaan generatie C, Formatie van Echteld"	170	196	255	255	x
+CNAWA	"Stroombaan generatie C, Formatie van Naaldwijk, Laagpakket van Walcheren"	170	196	255	255	x
+CNAWO	"Stroombaan generatie C, Formatie van Naaldwijk, Laagpakket van Wormer"	170	196	255	255	x
+DEC	"Stroombaan generatie D, Formatie van Echteld"	102	153	205	255	x
+DN	Formatie van Drachten	250	250	210	255	x
+DNAWA	"Stroombaan generatie D, Formatie van Naaldwijk, Laagpakket van Walcheren"	102	153	205	255	x
+DNAWO	"Stroombaan generatie D, Formatie van Naaldwijk, Laagpakket van Wormer"	102	153	205	255	x
+DO	Formatie van Dongen	216	191	216	255	x
+DOAS	"Formatie van Dongen, Laagpakket van Asse"	186	146	141	255	x
+DOIE	"Formatie van Dongen, Laagpakket van Ieper"	206	176	191	255	x
+DR	Formatie van Drente	255	127	80	255	x
+DRGI	"Formatie van Drente, Laagpakket van Gieten"	235	97	30	255	x
+DRSC	"Formatie van Drente, Laagpakket van Schaarsbergen"	255	127	80	255	x
+DRUI	"Formatie van Drente, Laagpakket van Uitdam"	225	82	5	255	x
+DRUIOO	"Formatie van Drente, Laagpakket van Uitdam, Laag van Oosterdok"	225	82	5	255	
+EC	Formatie van Echteld	170	255	245	255	x
+EE	Eem Formatie	210	255	115	255	x
+EEC	"Stroombaan generatie E, Formatie van Echteld"	27	101	175	255	x
+EEWB	Eem-Woudenberg Formatie	190	255	115	255	x
+ENAWA	"Stroombaan generatie E, Formatie van Naaldwijk, Laagpakket van Walcheren"	27	101	175	255	x
+ENAWO	"Stroombaan generatie E, Formatie van Naaldwijk, Laagpakket van Wormer"	27	101	175	255	x
+GE	Gestuwde afzettingen	156	156	156	255	x
+GU	Formatie van Gulpen	245	222	179	255	x
+HL	Holoceen	12	129	12	255	x
+HO	Formatie van Houthem	210	105	30	255	x
+HT	Formatie van Heijenrath	178	34	34	255	x
+IE	Formatie van Inden	236	121	193	255	x
+KI	Kiezelooliet Formatie	188	143	143	255	x
+KR	"Formatie van Kreftenheye, incl. Laagpakket van Delwijnen"	176	48	96	255	x
+KK1	"Kreekrak Formatie (boven NIHO)"	68	138	112	255	x
+KK2	"Kreekrak Formatie (onder NIHO)"	68	138	112	255	x
+KRBXDE	"Formatie van Kreftenheye, incl. Laagpakket van Delwijnen"	176	48	96	255	x
+KRTW	"Formatie van Kreftenheye, Laagpakket van Twello"	156	18	46	255	x
+KRWE	"Formatie van Kreftenheye, Laagpakket van Well"	176	48	96	255	x
+KRWY	"Formatie van Kreftenheye, Laag van Wijchen"	86	0	0	255	x
+KRZU	"Formatie van Kreftenheye, Laagpakket van Zutphen"	136	0	0	255	x
+KW	Formatie van Koewacht	172	169	43	255	x
+KW1	Formatie van Koewacht (kleiige top)	152	139	0	255	x
+LA	Formatie van Landen	208	32	144	255	x
+MS	Formatie van Maassluis	135	206	235	255	x
+MT	Formatie van Maastricht	255	160	102	255	x
+MV	Maaiveld	255	255	200	255	x
+NA	Formatie van Naaldwijk	105	200	100	255	x
+NASC	"Formatie van Naaldwijk, Laagpakket van Schoorl"	255	255	160	255	x
+NAWA	"Formatie van Naaldwijk, Laagpakket van Walcheren"	152	220	117	255	x
+NAWO	"Formatie van Naaldwijk, Laagpakket van Wormer"	63	165	76	255	x
+NAWOBE	"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen"	0	157	155	255	x
+NAWOVE	"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen"	189	183	107	255	x
+NAZA	"Formatie van Naaldwijk, Laagpakket van Zandvoort (boven NIHO)"	254	183	56	255	x
+NAZA2	"Formatie van Naaldwijk, Laagpakket van Zandvoort (onder NIHO)"	254	183	56	255	x
+NI	Formatie van Nieuwkoop	208	130	40	255	x
+NIBA	"Formatie van Nieuwkoop, Basisveen Laag"	152	47	10	255	x
+NIGR	"Formatie van Nieuwkoop, Laagpakket van Griendtsveen"	132	88	44	255	x
+NIHO	"Formatie van Nieuwkoop, Hollandveen Laagpakket"	208	130	40	255	x
+NINB	"Formatie van Nieuwkoop, Laagpakket van Nij Beets"	180	90	20	255	x
+OEC	"Formatie van Echteld, gelegen boven Hollandveen Laagpakket"	170	255	245	255	x
+ONAWA	"Formatie van Naaldwijk, Laagpakket van Walcheren, boven Laagpakket van Zandvoort"	152	220	117	255	x
+OO	Formatie van Oosterhout	118	157	39	255	x
+PE	Formatie van Peelo	238	130	238	255	x
+PL	Pleistoceen	255	255	150	255	x
+PZ	Formatie van Peize	255	255	0	255	x
+PZBA	"Formatie van Peize, Laagpakket van Balk"	255	255	0	255	x
+PZWA	Formaties van Peize en Waalre	255	204	0	255	x
+RU	Rupel Formatie	184	123	238	255	x
+RUBO	"Rupel Formatie, Laagpakket van Boom"	154	78	163	255	x
+ST	Formatie van Sterksel	205	92	92	255	x
+SY	Formatie van Stramproy	255	228	181	255	x
+TE	Tertiair	253	217	65	255	x
+TO	Formatie van Tongeren	90	159	219	255	x
+TOGO	"Formatie van Tongeren, Laagpakket van Goudsberg"	70	129	169	255	x
+TOZE	"Formatie van Tongeren, Laagpakket van Zelzate"	90	159	219	255	x
+TOZEBA	"Formatie van Tongeren, Laagpakket van Zelzate, Laag van Bassevelde"	90	159	219	255	x
+TOZERU	"Formatie van Tongeren, Laagpakket van Zelzate, Laag van Ruisbroek"	90	159	219	255	x
+TOZEWA	"Formatie van Tongeren, Laagpakket van Zelzate, Laag van Watervliet"	80	144	194	255	x
+UR	Formatie van Urk	189	183	107	255	x
+URTY	"Formatie van Urk, Laagpakket van Tijnje"	169	163	87	255	x
+VA	Formatie van Vaals	21	153	79	255	x
+VE	Formatie van Veldhoven	102	100	16	255	x
+WA	Formatie van Waalre	255	165	0	255	x
+WB	Formatie van Woudenberg	137	67	30	255	x

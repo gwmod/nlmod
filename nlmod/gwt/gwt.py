@@ -31,7 +31,7 @@ def gwt(ds, sim, modelname=None, **kwargs):
     """
 
     # start creating model
-    logger.info("creating modflow GWT")
+    logger.info("creating mf6 GWT")
 
     # Create the Flopy groundwater flow (gwf) model object
     if modelname is None:
@@ -107,7 +107,7 @@ def adv(ds, gwt, scheme=None, **kwargs):
     adv : flopy ModflowGwtadv
         adv package
     """
-    logger.info("creating modflow ADV")
+    logger.info("creating mf6 ADV")
     scheme = _get_value_from_ds_attr(ds, "scheme", "adv_scheme", value=scheme)
     adv = flopy.mf6.ModflowGwtadv(gwt, scheme=scheme, **kwargs)
     return adv
@@ -128,7 +128,7 @@ def dsp(ds, gwt, **kwargs):
     dsp : flopy ModflowGwtdsp
         dsp package
     """
-    logger.info("creating modflow DSP")
+    logger.info("creating mf6 DSP")
     alh = _get_value_from_ds_attr(ds, "alh", "dsp_alh", value=kwargs.pop("alh", None))
     ath1 = _get_value_from_ds_attr(
         ds, "ath1", "dsp_ath1", value=kwargs.pop("ath1", None)
@@ -157,7 +157,7 @@ def ssm(ds, gwt, sources=None, **kwargs):
     ssm : flopy ModflowGwtssm
         ssm package
     """
-    logger.info("creating modflow SSM")
+    logger.info("creating mf6 SSM")
 
     build_tuples = False
     if sources is None:
@@ -190,7 +190,7 @@ def mst(ds, gwt, porosity=None, **kwargs):
     mst : flopy ModflowGwtmst
         mst package
     """
-    logger.info("creating modflow MST")
+    logger.info("creating mf6 MST")
 
     # NOTE: attempting to look for porosity in attributes first, then data variables.
     # If both are defined, the attribute value will be used. The log message in this
@@ -227,7 +227,7 @@ def cnc(ds, gwt, da_mask, da_conc, pname="cnc", **kwargs):
     cnc : flopy ModflowGwtcnc
         cnc package
     """
-    logger.info("creating modflow CNC")
+    logger.info("creating mf6 CNC")
 
     cnc_rec = grid.da_to_reclist(ds, da_mask, col1=da_conc, layer=None)
     cnc_spd = {0: cnc_rec}
@@ -263,7 +263,7 @@ def oc(
     oc : flopy ModflowGwtoc
         oc package
     """
-    logger.info("creating modflow OC")
+    logger.info("creating mf6 OC")
 
     # Create the output control package
     concfile = f"{gwt.name}.ucn"
@@ -306,7 +306,7 @@ def ic(ds, gwt, strt, pname="ic", **kwargs):
     ic : flopy ModflowGwtic
         ic package
     """
-    logger.info("creating modflow IC")
+    logger.info("creating mf6 IC")
     if not isinstance(strt, numbers.Number):
         strt = ds[strt].data
     ic = flopy.mf6.ModflowGwtic(gwt, strt=strt, pname=pname, **kwargs)
@@ -315,7 +315,7 @@ def ic(ds, gwt, strt, pname="ic", **kwargs):
 
 
 def gwfgwt(ds, sim, exgtype="GWF6-GWT6", **kwargs):
-    """create GWF-GWT exchange package for modflow simulation.
+    """create GWF-GWT exchange package for mf6 simulation.
 
     Parameters
     ----------
@@ -331,7 +331,7 @@ def gwfgwt(ds, sim, exgtype="GWF6-GWT6", **kwargs):
     gwfgwt :
         _description_
     """
-    logger.info("creating modflow exchange GWFGWT")
+    logger.info("creating mf6 exchange GWFGWT")
     type_name_dict = {}
     for name, mod in sim.model_dict.items():
         type_name_dict[mod.model_type] = name

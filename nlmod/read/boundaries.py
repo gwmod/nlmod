@@ -24,7 +24,7 @@ def get_municipalities(source="cbs", drop_water=True, **kwargs):
             gdf = gdf[gdf["water"] == "NEE"]
         gdf = gdf.set_index("gemeentenaam")
     else:
-        raise (Exception(f"Unknown source: {source}"))
+        raise ValueError(f"Unknown source: {source}")
     return gdf
 
 

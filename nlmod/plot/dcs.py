@@ -160,7 +160,14 @@ class DatasetCrossSection:
         xys = xys[xys[:, -1].argsort()]
         return xys
 
-    def plot_layers(self, colors=None, min_label_area=np.inf, fontsize=None, **kwargs):
+    def plot_layers(
+        self,
+        colors=None,
+        min_label_area=np.inf,
+        fontsize=None,
+        only_labels=False,
+        **kwargs,
+    ):
         if colors is None:
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i) for i in range(len(self.layer))]
@@ -202,8 +209,9 @@ class DatasetCrossSection:
                 # xy = np.vstack((x, y)).T
                 color = colors[i]
                 pol = matplotlib.patches.Polygon(xy, facecolor=color, **kwargs)
-                self.ax.add_patch(pol)
-                polygons.append(pol)
+                if not only_labels:
+                    self.ax.add_patch(pol)
+                    polygons.append(pol)
 
                 if not np.isinf(min_label_area):
                     pols = Polygon(xy)
@@ -221,7 +229,7 @@ class DatasetCrossSection:
                             yp = list(reversed(y[int(len(x) / 2) :]))
                             yp2 = np.interp(xt, xp, yp)
                             yt = np.mean([yp1, yp2])
-                            self.ax.text(
+                            ht = self.ax.text(
                                 xt,
                                 yt,
                                 self.layer[i],
@@ -229,7 +237,16 @@ class DatasetCrossSection:
                                 va="center",
                                 fontsize=fontsize,
                             )
+                            if only_labels:
+                                polygons.append(ht)
         return polygons
+
+    def label_layers(self, min_label_area=None):
+        if min_label_area is None:
+            # plot labels of layers with an average thickness of 1 meter
+            # in entire cross-section
+            min_label_area = self.line.length * 1
+        return self.plot_layers(min_label_area=min_label_area, only_labels=True)
 
     def plot_grid(
         self,

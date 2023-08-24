@@ -7,8 +7,10 @@ import xarray as xr
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
+from shapely.affinity import affine_transform
 
 from ..dims.grid import modelgrid_from_ds
+from ..dims.resample import get_affine_world_to_mod
 
 
 class DatasetCrossSection:
@@ -48,6 +50,8 @@ class DatasetCrossSection:
         self.icell2d = icell2d
 
         if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            # transform the line to model coordinates
+            line = affine_transform(line, get_affine_world_to_mod(ds).to_shapely())
             self.rotated = True
         else:
             self.rotated = False
@@ -55,7 +59,7 @@ class DatasetCrossSection:
         # first determine where the cross-section crosses grid-lines
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
-            modelgrid = modelgrid_from_ds(ds)
+            modelgrid = modelgrid_from_ds(ds, rotated=False)
             gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
             r = gi.intersect(line)
             s_cell = []
@@ -305,6 +309,8 @@ class DatasetCrossSection:
         if isinstance(z, xr.DataArray):
             z = z.data
         if head is not None:
+            if isinstance(head, xr.DataArray):
+                head = head.data
             assert head.shape == z.shape
         if self.icell2d in self.ds.dims:
             assert len(z.shape) == 2

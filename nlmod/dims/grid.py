@@ -344,8 +344,8 @@ def refine(
         If False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
     model_coordinates : bool, optional
-        When model_coordinates is True, the features supplied in refinement features are
-        allready in model-coordinates. Only used when a grid is rotated. The default is
+        When model_coordinates is True, the features supplied in refinement_features are
+        already in model-coordinates. Only used when a grid is rotated. The default is
         False.
 
     Returns
@@ -924,7 +924,7 @@ def da_to_reclist(
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
-            cellids = np.where((mask) & (fal != fal.attrs["_FillValue"]))
+            cellids = np.where((mask.squeeze()) & (fal != fal.attrs["_FillValue"]))
             layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))

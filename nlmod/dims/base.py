@@ -225,12 +225,18 @@ def extrapolate_ds(ds, mask=None):
             continue
         data = ds[key].data
         if ds[key].dims == dims:
-            data[mask] = data[~mask][i]
+            if np.isnan(data[mask]).sum() > 0:  # do not update if no NaNs
+                data[mask] = data[~mask, i]
         elif ds[key].dims == ("layer",) + dims:
             for lay in range(len(ds["layer"])):
-                data[lay][mask] = data[lay][~mask][i]
+                if np.isnan(data[lay, mask]).sum() > 0:  # do not update if no NaNs
+                    data[lay, mask] = data[lay, ~mask][i]
         else:
-            raise (Exception(f"Dimensions {ds[key].dims} not supported"))
+            logger.warning(
+                f"Data variable '{key}' not extrapolated because "
+                f"dimensions are not {dims}."
+            )
+            # raise (Exception(f"Dimensions {ds[key].dims} not supported"))
         # make sure to set the data (which for some reason is sometimes needed)
         ds[key].data = data
     return ds

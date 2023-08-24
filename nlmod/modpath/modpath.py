@@ -436,15 +436,17 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
     return pg
 
 
-def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
+def sim(
+    mpf, particlegroups, direction="backward", gwf=None, ref_time=None, stoptime=None
+):
     """Create a modpath backward simulation from a particle group.
 
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
         modpath object.
-    pg : flopy.modpath.mp7particlegroup.ParticleGroupNodeTemplate
-        Particle group.
+    particlegroups : ParticleGroup or list of ParticleGroups
+        One or more particle groups.
     gwf : flopy.mf6.mfmodel.MFModel or None, optional
         Groundwater flow model. Only used if ref_time is not None. Default is
         None
@@ -484,7 +486,7 @@ def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
         referencetime=ref_time,
         stoptimeoption=stoptimeoption,
         stoptime=stoptime,
-        particlegroups=pg,
+        particlegroups=particlegroups,
     )
 
     return mpsim

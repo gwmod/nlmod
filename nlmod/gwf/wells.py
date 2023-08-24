@@ -1,6 +1,10 @@
+import logging
+
 import flopy as fp
 import numpy as np
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 def wel_from_df(
@@ -23,7 +27,7 @@ def wel_from_df(
             cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top], forgive=False)
             cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm], forgive=False)
         except Exception:
-            print(
+            logger.warning(
                 f"Warning! well {wnam} outside of model domain! ({irow[x]}, {irow[y]})"
             )
             continue
@@ -36,20 +40,23 @@ def wel_from_df(
             idomain_mask = gwf.modelgrid.idomain[kt : kb + 1, i, j] > 0
         # mask only active cells
         wlayers = np.arange(kt, kb + 1)[idomain_mask]
-        for k in wlayers:
-            if len(cid1) == 2:
-                wdata = [(k, icell2d), irow[Q] / len(wlayers)]
-            elif len(cid1) == 3:
-                wdata = [(k, i, j), irow[Q] / len(wlayers)]
+        if len(wlayers) > 0:
+            for k in wlayers:
+                if len(cid1) == 2:
+                    wdata = [(k, icell2d), irow[Q] / len(wlayers)]
+                elif len(cid1) == 3:
+                    wdata = [(k, i, j), irow[Q] / len(wlayers)]
 
-            if aux is not None:
-                if not isinstance(aux, list):
-                    aux = [aux]
-                for iaux in aux:
-                    wdata.append(irow[iaux])
-            if boundnames is not None:
-                wdata.append(irow[boundnames])
-            well_lrcd.append(wdata)
+                if aux is not None:
+                    if not isinstance(aux, list):
+                        aux = [aux]
+                    for iaux in aux:
+                        wdata.append(irow[iaux])
+                if boundnames is not None:
+                    wdata.append(irow[boundnames])
+                well_lrcd.append(wdata)
+        else:
+            logger.warning(f"Well '{wnam}' not added, no active screened layers.")
 
     wel_spd = {0: well_lrcd}
 

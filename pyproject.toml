@@ -61,7 +61,7 @@ grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]
-ci = ["nlmod[full,lint,test,nbtest]", "netCDF4==1.5.7"]
+ci = ["nlmod[full,lint,test,nbtest]", "netCDF4>=1.6.3"]
 rtd = [
     "nlmod[full]",
     "ipython",
@@ -69,7 +69,7 @@ rtd = [
     "nbsphinx",
     "sphinx_rtd_theme==1.0.0",
     "nbconvert>6.4.5",
-    "netCDF4==1.5.7",
+    "netCDF4>=1.6.3",
 ]
 
 [tool.setuptools.dynamic]

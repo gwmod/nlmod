@@ -140,7 +140,7 @@ def cache_netcdf(func):
                     f"module of function {func.__name__} recently modified, not using cache"
                 )
 
-            cached_ds = xr.open_dataset(fname_cache, mask_and_scale=False)
+            cached_ds = xr.open_dataset(fname_cache)
 
             if pickle_check:
                 # add netcdf hash to function arguments dic, see #66
@@ -188,7 +188,7 @@ def cache_netcdf(func):
                 result.to_netcdf(fname_cache)
 
             # add netcdf hash to function arguments dic, see #66
-            temp = xr.open_dataset(fname_cache, mask_and_scale=False)
+            temp = xr.open_dataset(fname_cache)
             func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
             temp.close()
 
@@ -219,12 +219,6 @@ def _check_ds(ds, ds2):
     bool
         True if the two datasets have the same grid and time discretization.
     """
-
-    # first remove _FillValue from all coordinates
-    for coord in ds2.coords:
-        if coord in ds.coords:
-            if "_FillValue" in ds2[coord].attrs and "_FillValue" not in ds[coord].attrs:
-                del ds2[coord].attrs["_FillValue"]
 
     for coord in ds2.coords:
         if coord in ds.coords:
@@ -352,8 +346,8 @@ def _get_modification_time(func):
 
 def _update_docstring_and_signature(func):
     """Add function arguments 'cachedir' and 'cachename' to the docstring and signature
-    of a function. 
-    
+    of a function.
+
     The function arguments are added before the "Returns" header in the
     docstring. If the function has no Returns header in the docstring, the function
     arguments are not added to the docstring.

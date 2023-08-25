@@ -23,6 +23,38 @@ class MissingValueError(Exception):
     pass
 
 
+def check_da_dims_coords(da, ds):
+    """Check if DataArray dimensions and coordinates match those in Dataset.
+
+    Only checks overlapping dimensions.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        dataarray to check
+    ds : xarray.Dataset or xarray.DataArray
+        dataset or dataarray to compare coords with
+
+    Returns
+    -------
+    True
+        if dimensions and coordinates match
+
+    Raises
+    ------
+    AssertionError
+        error that coordinates do not match
+    """
+    shared_dims = set(da.dims) & set(ds.dims)
+    for dim in shared_dims:
+        try:
+            xr.testing.assert_identical(da[dim], ds[dim])
+        except AssertionError as e:
+            logger.error(f"da '{da.name}' coordinates do not match ds!")
+            raise e
+    return True
+
+
 def get_model_dirs(model_ws):
     """Creates a new model workspace directory, if it does not exists yet. Within the
     model workspace directory a few subdirectories are created (if they don't exist
@@ -561,7 +593,13 @@ def _get_value_from_ds_attr(
 
 
 def _get_value_from_ds_datavar(
-    ds, varname, datavar=None, default=None, warn=True, return_da=False
+    ds,
+    varname,
+    datavar=None,
+    default=None,
+    warn=True,
+    return_da=False,
+    checkcoords=True,
 ):
     """Internal function to get value from dataset data variables.
 
@@ -583,6 +621,9 @@ def _get_value_from_ds_datavar(
     return_da : bool, optional
         if True, a DataArray can be returned. If False, a DataArray is always
         converted to a numpy array before being returned. The default is False.
+    checkcoords : bool, optional
+        if True and datavar is a DataArray, the DataArray coords are checked against
+        the Dataset coordinates. Raises an AssertionError if they do not match.
 
     Returns
     -------
@@ -603,6 +644,8 @@ def _get_value_from_ds_datavar(
     if isinstance(datavar, xr.DataArray):
         value = datavar
         datavar = datavar.name
+        if checkcoords:
+            check_da_dims_coords(value, ds)
     elif isinstance(datavar, str):
         value = datavar
     else:

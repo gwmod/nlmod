@@ -6,6 +6,7 @@ from matplotlib.ticker import FuncFormatter, MultipleLocator
 from ..dims.resample import get_affine_mod_to_world
 from ..epsg28992 import EPSG_28992
 
+
 def get_patches(ds, rotated=False):
     """Get the matplotlib patches for a vertex grid."""
     assert "icell2d" in ds.dims

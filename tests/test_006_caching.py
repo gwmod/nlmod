@@ -46,6 +46,13 @@ def test_ds_check_time_attributes_false():
     assert not check
 
 
+def test_cache_data_array():
+    extent = [119_900, 120_000, 441_900, 442_000]
+    ahn_org = nlmod.read.ahn.get_ahn4(extent, cachedir=tmpdir, cachename="ahn4.nc")
+    ahn = nlmod.read.ahn.get_ahn4(extent, cachedir=tmpdir, cachename="ahn4.nc")
+    assert ahn.equals(ahn_org)
+
+
 @pytest.mark.slow
 def test_ds_check_grid_false(tmpdir):
     # two models with a different grid and same time dicretisation

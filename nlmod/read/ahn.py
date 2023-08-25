@@ -241,6 +241,7 @@ def get_ahn4_tiles(extent=None):
     return gdf
 
 
+@cache.cache_netcdf
 def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     """Download AHN1.
 
@@ -267,6 +268,7 @@ def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     return da
 
 
+@cache.cache_netcdf
 def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     """Download AHN2.
 
@@ -290,6 +292,7 @@ def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
+@cache.cache_netcdf
 def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     """Download AHN3.
 
@@ -312,6 +315,7 @@ def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
+@cache.cache_netcdf
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     """Download AHN4.
 

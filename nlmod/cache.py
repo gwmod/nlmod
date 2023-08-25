@@ -152,6 +152,7 @@ def cache_netcdf(func):
                     func_args_dic, func_args_dic_cache
                 )
 
+            cached_ds = _check_for_data_array(cached_ds)
             if modification_check and argument_check and pickle_check:
                 if dataset is None:
                     logger.info(f"using cached data -> {cachename}")
@@ -166,6 +167,10 @@ def cache_netcdf(func):
         # create cache
         result = func(*args, **kwargs)
         logger.info(f"caching data -> {cachename}")
+
+        if isinstance(result, xr.DataArray):
+            # set the DataArray as a variable in a new Dataset
+            result = xr.Dataset({"__xarray_dataarray_variable__": result})
 
         if isinstance(result, xr.Dataset):
             # close cached netcdf (otherwise it is impossible to overwrite)
@@ -197,7 +202,7 @@ def cache_netcdf(func):
                 pickle.dump(func_args_dic, fpklz)
         else:
             raise TypeError(f"expected xarray Dataset, got {type(result)} instead")
-
+        result = _check_for_data_array(result)
         return result
 
     return decorator
@@ -352,8 +357,8 @@ def _get_modification_time(func):
 
 def _update_docstring_and_signature(func):
     """Add function arguments 'cachedir' and 'cachename' to the docstring and signature
-    of a function. 
-    
+    of a function.
+
     The function arguments are added before the "Returns" header in the
     docstring. If the function has no Returns header in the docstring, the function
     arguments are not added to the docstring.
@@ -409,3 +414,16 @@ def _update_docstring_and_signature(func):
     new_doc = "".join((mod_before, after))
     func.__doc__ = new_doc
     return
+
+
+def _check_for_data_array(ds):
+    if "__xarray_dataarray_variable__" in ds:
+        if "spatial_ref" in ds:
+            spatial_ref = ds.spatial_ref
+        else:
+            spatial_ref = None
+        # the method returns a DataArray, so we return only this DataArray
+        ds = ds["__xarray_dataarray_variable__"]
+        if spatial_ref is not None:
+            ds = ds.assign_coords({"spatial_ref": spatial_ref})
+    return ds

@@ -154,7 +154,7 @@ def get_map(
             ax.set_xticks([])
             ax.set_yticks([])
         else:
-            rd_ticks(ax, base=base, fmt=fmt)
+            rd_ticks(ax, base=base, fmt=fmt, fmt_base=fmt_base)
         if backgroundmap:
             add_background_map(ax, crs=crs, map_provider=backgroundmap, alpha=alpha)
 

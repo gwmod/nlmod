@@ -62,7 +62,7 @@ def gwf(ds, sim, under_relaxation=False, **kwargs):
 
 
 def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
-    """get discretisation package from the model dataset.
+    """create discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -84,7 +84,7 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
 
 
 def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
-    """get discretisation package from the model dataset.
+    """create discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -167,7 +167,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
 
 
 def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
-    """get discretisation vertices package from the model dataset.
+    """create discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -189,7 +189,7 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
 
 
 def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
-    """get discretisation vertices package from the model dataset.
+    """create discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -273,7 +273,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
 def npf(
     ds, gwf, k="kh", k33="kv", icelltype=0, save_flows=False, pname="npf", **kwargs
 ):
-    """get node property flow package from model dataset.
+    """create node property flow package from model dataset.
 
     Parameters
     ----------
@@ -332,13 +332,12 @@ def ghb(
     gwf,
     bhead=None,
     cond=None,
-    da_name=None,
     pname="ghb",
     auxiliary=None,
     layer=None,
     **kwargs,
 ):
-    """get general head boundary from model dataset.
+    """create general head boundary from model dataset.
 
     Parameters
     ----------
@@ -354,8 +353,6 @@ def ghb(
         ghb conductance, either as string pointing to data
         array in ds or as data array. By default None, which assumes
         data array is stored under "ghb_cond".
-    da_name : str
-        name of the ghb files in the model dataset.
     pname : str, optional
         package name
     auxiliary : str or list of str
@@ -376,17 +373,8 @@ def ghb(
     """
     logger.info("creating mf6 GHB")
 
-    if da_name is not None:
-        warnings.warn(
-            "the kwarg 'da_name' is no longer supported, "
-            "specify 'bhead' and 'cond' explicitly!",
-            DeprecationWarning,
-        )
-        bhead = f"{da_name}_peil"
-        cond = f"{da_name}_cond"
-
     mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
-    mask = mask_arr != 0
+    mask = mask_arr > 0
 
     first_active_layer = layer is None
     ghb_rec = grid.da_to_reclist(
@@ -395,9 +383,9 @@ def ghb(
         col1=bhead,
         col2=cond,
         layer=layer,
+        aux=auxiliary,
         first_active_layer=first_active_layer,
         only_active_cells=False,
-        aux=auxiliary,
     )
 
     if len(ghb_rec) > 0:
@@ -429,12 +417,11 @@ def drn(
     gwf,
     elev="drn_elev",
     cond="drn_cond",
-    da_name=None,
     pname="drn",
     layer=None,
     **kwargs,
 ):
-    """get drain from model dataset.
+    """create drain from model dataset.
 
     Parameters
     ----------
@@ -465,17 +452,8 @@ def drn(
     """
     logger.info("creating mf6 DRN")
 
-    if da_name is not None:
-        warnings.warn(
-            "the kwarg 'da_name' is no longer supported, "
-            "specify 'elev' and 'cond' explicitly!",
-            DeprecationWarning,
-        )
-        elev = f"{da_name}_peil"
-        cond = f"{da_name}_cond"
-
     mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
-    mask = mask_arr != 0
+    mask = mask_arr > 0
 
     first_active_layer = layer is None
     drn_rec = grid.da_to_reclist(
@@ -506,8 +484,177 @@ def drn(
         return None
 
 
+def riv(
+    ds,
+    gwf,
+    stage="riv_stage",
+    cond="riv_cond",
+    rbot="riv_rbot",
+    pname="riv",
+    auxiliary=None,
+    layer=None,
+    **kwargs,
+):
+    """create river package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    stage : str or xarray.DataArray, optional
+        river stage, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "riv_stage".
+    cond : str or xarray.DataArray, optional
+        river conductance, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "riv_cond".
+    rbot : str or xarray.DataArray, optional
+        river bottom elevation, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "riv_rbot".
+    pname : str, optional
+        package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is None.
+
+    Returns
+    -------
+    riv : flopy ModflowGwfriv
+        riv package
+    """
+    logger.info("creating mf6 RIV")
+
+    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
+    mask = mask_arr > 0
+
+    first_active_layer = layer is None
+    riv_rec = grid.da_to_reclist(
+        ds,
+        mask=mask,
+        col1=stage,
+        col2=cond,
+        col3=rbot,
+        layer=layer,
+        aux=auxiliary,
+        first_active_layer=first_active_layer,
+        only_active_cells=False,
+    )
+
+    if len(riv_rec) > 0:
+        riv = flopy.mf6.ModflowGwfriv(
+            gwf,
+            print_input=True,
+            maxbound=len(riv_rec),
+            stress_period_data=riv_rec,
+            auxiliary="CONCENTRATION" if auxiliary is not None else None,
+            save_flows=True,
+            pname=pname,
+            **kwargs,
+        )
+        if (auxiliary is not None) and (ds.transport == 1):
+            logger.info("-> adding RIV to SSM sources list")
+            ssm_sources = list(ds.attrs["ssm_sources"])
+            if riv.package_name not in ssm_sources:
+                ssm_sources += [riv.package_name]
+                ds.attrs["ssm_sources"] = ssm_sources
+        return riv
+    else:
+        logger.warning("no riv pkg added")
+        return None
+
+
+def chd(
+    ds,
+    gwf,
+    mask="chd_mask",
+    head="chd_head",
+    pname="chd",
+    auxiliary=None,
+    layer=0,
+    **kwargs,
+):
+    """create constant head boundary at the model's edges from the model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    mask : str, optional
+        name of data variable in ds that is 1 for cells with a constant
+        head and zero for all other cells. The default is 'chd_mask'.
+    head : str, optional
+        name of data variable in ds that is used as the head in the chd
+        cells. By default, assumes head data is stored as 'chd_head'.
+    pname : str, optional
+        package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is 0.
+    chd : str, optional
+        deprecated, the new argument is 'mask'
+
+    Returns
+    -------
+    chd : flopy ModflowGwfchd
+        chd package
+    """
+    logger.info("creating mf6 CHD")
+
+    if "chd" in kwargs:
+        warnings.warn(
+            "the 'chd' kwarg has been renamed to 'mask'!",
+            DeprecationWarning,
+        )
+        mask = kwargs.pop("chd")
+
+    maskarr = _get_value_from_ds_datavar(ds, "mask", mask, return_da=True)
+    mask = maskarr > 0
+
+    # get the stress_period_data
+    first_active_layer = layer is None
+    chd_rec = grid.da_to_reclist(
+        ds,
+        mask,
+        col1=head,
+        layer=layer,
+        aux=auxiliary,
+        first_active_layer=first_active_layer,
+    )
+
+    if len(chd_rec) > 0:
+        chd = flopy.mf6.ModflowGwfchd(
+            gwf,
+            auxiliary="CONCENTRATION" if auxiliary is not None else None,
+            pname=pname,
+            maxbound=len(chd_rec),
+            stress_period_data=chd_rec,
+            save_flows=True,
+            **kwargs,
+        )
+        if (auxiliary is not None) and (ds.transport == 1):
+            logger.info("-> adding CHD to SSM sources list")
+            ssm_sources = list(ds.attrs["ssm_sources"])
+            if chd.package_name not in ssm_sources:
+                ssm_sources += [chd.package_name]
+                ds.attrs["ssm_sources"] = ssm_sources
+        return chd
+    else:
+        logger.warning("no chd pkg added")
+        return None
+
+
 def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
-    """get initial condictions package from model dataset.
+    """create initial condictions package from model dataset.
 
     Parameters
     ----------
@@ -551,7 +698,7 @@ def sto(
     pname="sto",
     **kwargs,
 ):
-    """get storage package from model dataset.
+    """create storage package from model dataset.
 
     Parameters
     ----------
@@ -605,93 +752,8 @@ def sto(
         return sto
 
 
-def chd(
-    ds,
-    gwf,
-    mask="chd_mask",
-    head="chd_head",
-    pname="chd",
-    auxiliary=None,
-    layer=0,
-    **kwargs,
-):
-    """get constant head boundary at the model's edges from the model dataset.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        dataset with model data.
-    gwf : flopy ModflowGwf
-        groundwaterflow object.
-    mask : str, optional
-        name of data variable in ds that is 1 for cells with a constant
-        head and zero for all other cells. The default is 'chd_mask'.
-    head : str, optional
-        name of data variable in ds that is used as the head in the chd
-        cells. By default, assumes head data is stored as 'chd_head'.
-    pname : str, optional
-        package name
-    auxiliary : str or list of str
-        name(s) of data arrays to include as auxiliary data to reclist
-    layer : int or None
-        The layer in which the boundary is added. It is added to the first active layer
-        when layer is None. The default is 0.
-    chd : str, optional
-        deprecated, the new argument is 'mask'
-
-    Returns
-    -------
-    chd : flopy ModflowGwfchd
-        chd package
-    """
-    logger.info("creating mf6 CHD")
-
-    if "chd" in kwargs:
-        warnings.warn(
-            "the 'chd' kwarg has been renamed to 'mask'!",
-            DeprecationWarning,
-        )
-        mask = kwargs.pop("chd")
-
-    maskarr = _get_value_from_ds_datavar(ds, "mask", mask, return_da=True)
-    mask = maskarr != 0
-
-    # get the stress_period_data
-    first_active_layer = layer is None
-    chd_rec = grid.da_to_reclist(
-        ds,
-        mask,
-        col1=head,
-        layer=layer,
-        aux=auxiliary,
-        first_active_layer=first_active_layer,
-    )
-
-    chd = flopy.mf6.ModflowGwfchd(
-        gwf,
-        auxiliary="CONCENTRATION" if auxiliary is not None else None,
-        pname=pname,
-        maxbound=len(chd_rec),
-        stress_period_data=chd_rec,
-        save_flows=True,
-        **kwargs,
-    )
-    if (auxiliary is not None) and (ds.transport == 1):
-        logger.info("-> adding CHD to SSM sources list")
-        ssm_sources = list(ds.attrs["ssm_sources"])
-        if chd.package_name not in ssm_sources:
-            ssm_sources += [chd.package_name]
-            ds.attrs["ssm_sources"] = ssm_sources
-
-    if len(chd_rec) > 0:
-        return chd
-    else:
-        logger.warning("no chd pkg added")
-        return None
-
-
 def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs):
-    """get surface level drain (maaivelddrainage in Dutch) from the model
+    """create surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
     Parameters
@@ -744,7 +806,7 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
 
 
 def rch(ds, gwf, pname="rch", **kwargs):
-    """get recharge package from model dataset.
+    """create recharge package from model dataset.
 
     Parameters
     ----------
@@ -768,7 +830,7 @@ def rch(ds, gwf, pname="rch", **kwargs):
 
 
 def evt(ds, gwf, pname="evt", **kwargs):
-    """get evapotranspiration package from model dataset.
+    """create evapotranspiration package from model dataset.
 
     Parameters
     ----------
@@ -872,7 +934,7 @@ def oc(
     pname="oc",
     **kwargs,
 ):
-    """get output control package from model dataset.
+    """create output control package from model dataset.
 
     Parameters
     ----------

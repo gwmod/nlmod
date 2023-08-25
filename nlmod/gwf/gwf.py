@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 17:20:34 2021.
-
-@author: oebbe
-"""
 import logging
 import numbers
 import warnings

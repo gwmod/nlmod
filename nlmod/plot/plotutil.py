@@ -89,7 +89,7 @@ def get_map(
     sharex=False,
     sharey=True,
     crs=28992,
-    backgroundmap=False,
+    background=False,
     alpha=0.5,
     tight_layout=True,
 ):
@@ -118,11 +118,11 @@ def get_map(
     sharey : bool, optional
         Only display the ticks on the left y-axes, when ncols > 1. The default
         is True.
-    backgroundmap : bool or str, optional
-        Draw a background using contextily when True or when background is a string.
+    background : bool or str, optional
+        Draw a background map using contextily when True or when background is a string.
         When background is a string it repesents the map-provider. Use
         nlmod.plot._list_contextily_providers().keys() to show possible map-providers.
-        THe defaults is False.
+        The defaults is False.
     alpha: float, optional
         The alpha value of the background. The default is 0.5.
     tight_layout : bool, optional
@@ -143,8 +143,8 @@ def get_map(
     f, axes = plt.subplots(
         figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
     )
-    if isinstance(backgroundmap, bool) and backgroundmap is True:
-        backgroundmap = "nlmaps.standaard"
+    if isinstance(background, bool) and background is True:
+        background = "nlmaps.standaard"
 
     def set_ax_in_map(ax):
         ax.axis("scaled")
@@ -155,8 +155,8 @@ def get_map(
             ax.set_yticks([])
         else:
             rd_ticks(ax, base=base, fmt=fmt, fmt_base=fmt_base)
-        if backgroundmap:
-            add_background_map(ax, crs=crs, map_provider=backgroundmap, alpha=alpha)
+        if background:
+            add_background_map(ax, crs=crs, map_provider=background, alpha=alpha)
 
     if nrows == 1 and ncols == 1:
         set_ax_in_map(axes)

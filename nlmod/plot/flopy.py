@@ -51,7 +51,7 @@ def map_array(
     colorbar_label="",
     plot_grid=False,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     animate=False,
 ):
@@ -96,7 +96,7 @@ def map_array(
         tuple or list of plotting functions that take ax as the
         only argument, by default None. Use to add features to plot, e.g.
         plotting shapefiles, or other data.
-    backgroundmap : bool, optional
+    background : bool, optional
         add background map, by default False
     figsize : tuple, optional
         figure size, by default None
@@ -135,7 +135,7 @@ def map_array(
     qm = pmv.plot_array(arr, cmap=cmap, norm=norm, alpha=alpha)
 
     # bgmap
-    if backgroundmap:
+    if background:
         add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
@@ -183,7 +183,7 @@ def contour_array(
     label_kwargs=None,
     plot_grid=False,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     animate=False,
     **kwargs,
@@ -226,7 +226,7 @@ def contour_array(
         tuple or list of plotting functions that take ax as the
         only argument, by default None. Use to add features to plot, e.g.
         plotting shapefiles, or other data.
-    backgroundmap : bool, optional
+    background : bool, optional
         add background map, by default False
     figsize : tuple, optional
         figure size, by default None
@@ -265,7 +265,7 @@ def contour_array(
         ax.clabel(cs, **label_kwargs)
 
     # bgmap
-    if backgroundmap:
+    if background:
         add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
@@ -309,7 +309,7 @@ def animate_map(
     colorbar_label="",
     plot_grid=True,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=(9.24, 10.042),
     save=False,
     fname=None,
@@ -347,7 +347,7 @@ def animate_map(
         colorbar_label=colorbar_label,
         plot_grid=plot_grid,
         add_to_plot=add_to_plot,
-        backgroundmap=backgroundmap,
+        background=background,
         figsize=figsize,
         animate=True,
     )

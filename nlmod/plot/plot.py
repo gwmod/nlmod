@@ -328,7 +328,7 @@ def map_array(
     plot_grid=True,
     rotated=True,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     animate=False,
 ):
@@ -387,7 +387,7 @@ def map_array(
         ax.axis(extent)
 
     # bgmap
-    if backgroundmap:
+    if background:
         add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
@@ -444,7 +444,7 @@ def animate_map(
     colorbar_label="",
     plot_grid=True,
     rotated=True,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     ax=None,
     add_to_plot=None,
@@ -491,7 +491,7 @@ def animate_map(
         Whether to plot the model grid. Default is True.
     rotated : bool, optional
         Whether to plot rotated model, if applicable. Default is True.
-    backgroundmap : bool, optional
+    background : bool, optional
         Whether to add a background map. Default is False.
     figsize : tuple, optional
         figure size in inches, default is None.
@@ -553,7 +553,7 @@ def animate_map(
         plot_grid=plot_grid,
         rotated=rotated,
         add_to_plot=add_to_plot,
-        backgroundmap=backgroundmap,
+        background=background,
         figsize=figsize,
         animate=True,
     )

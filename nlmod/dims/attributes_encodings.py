@@ -108,14 +108,24 @@ encoding_requirements = {
 }
 
 
-def get_encodings(ds):
+def get_encodings(ds, set_encoding_inplace=True, allowed_to_read_data_vars_for_minmax=True):
     """Get the encoding for the data_vars. Based on the minimum values and maximum values
     set in `dim_attrs` and the maximum allowed difference from `encoding_requirements`.
+
+    If a loss of data resolution is allowed floats can also be stored at int16, halfing
+    the space required for storage. The maximum acceptabel loss in resolution (`dval_max`)
+    is compared with the expected loss in resolution (`is_int16_allowed()`).
 
     Parameters
     ----------
     ds : xarray.Dataset
         Dataset containing the data_vars
+    set_encoding_inplace : bool
+        Set the encoding inplace, by default True
+    allowed_to_data_vars : bool
+        If True, only data_vars that are allowed to be read are used to calculate the
+        minimum and maximum values to estimate the effect of precision loss.
+        If False, min max from dim_attrs are used. By default True.
 
     Returns
     -------
@@ -124,18 +134,32 @@ def get_encodings(ds):
     """
     encodings = {}
     for varname, da in ds.data_vars.items():
-        encodings[varname] = dict()
+        encodings[varname] = dict(
+            fletcher32=True,  # Store checksums to detect corruption
+        )
         encoding = encodings[varname]
 
         isfloat = np.issubdtype(da.dtype, np.floating)
+        isint = np.issubdtype(da.dtype, np.integer)
 
+        # set the dtype, scale_factor and add_offset
         if isfloat and varname in encoding_requirements and varname in dim_attrs:
-            vmin = dim_attrs[varname]["valid_min"]
-            vmax = dim_attrs[varname]["valid_max"]
+            valid_min = dim_attrs[varname]["valid_min"]
+            valid_max = dim_attrs[varname]["valid_max"]
             dval_max = encoding_requirements[varname]["dval_max"]
-            float_as_int16 = is_int16_allowed(vmin, vmax, dval_max)
+            float_as_int16 = is_int16_allowed(valid_min, valid_max, dval_max)
 
             if float_as_int16:
+                # Fillvalue currently clashes with scaling. See:
+                # https://stackoverflow.com/questions/75755441/why-does-saving-to-
+                # netcdf-without-encoding-change-some-values-to-nan
+                if allowed_to_read_data_vars_for_minmax:
+                    vmin = float(da.min())
+                    vmax = float(da.max())
+                else:
+                    vmin = valid_min
+                    vmax = valid_max
+
                 scale_factor, add_offset = compute_scale_and_offset(vmin, vmax, 16)
                 encoding["dtype"] = "int16"
                 encoding["scale_factor"] = scale_factor
@@ -144,10 +168,27 @@ def get_encodings(ds):
             else:
                 encoding["dtype"] = "float32"
 
-        if isfloat or np.issubdtype(da.dtype, np.integer):
-            # Strings dont support compression
+        elif isint and allowed_to_read_data_vars_for_minmax:
+            vmin = int(da.min())
+            vmax = int(da.max())
+            
+            if vmin >= -32768 and vmax <= 32767:
+                encoding["dtype"] = "int16"
+            elif vmin >= -2147483648 and vmax <= 2147483647:
+                encoding["dtype"] = "int32"
+            else:
+                encoding["dtype"] = "int64"
+        else:
+            pass
+
+        # set the compression
+        if isfloat or isint:
+            # Strings dont support compression. Only floats and ints for now.
             encoding["zlib"] = True
             encoding["complevel"] = 5
+
+        if set_encoding_inplace:
+            da.encoding = encoding
             
     return encodings
 

@@ -383,7 +383,9 @@ def refine(
     ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if model_coordinates:
         if not ds_has_rotation:
-            raise (Exception("The supplied shapes need to be in realworld coordinates"))
+            raise (
+                ValueError("The supplied shapes need to be in realworld coordinates")
+            )
     elif ds_has_rotation:
         affine_matrix = get_affine_world_to_mod(ds).to_shapely()
 
@@ -394,7 +396,9 @@ def refine(
                 fname, geom_type, level = refinement_feature
                 if not model_coordinates and ds_has_rotation:
                     raise (
-                        Exception("Converting files to model coordinates not supported")
+                        NotImplementedError(
+                            "Converting files to model coordinates not supported"
+                        )
                     )
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
@@ -1418,7 +1422,7 @@ def gdf_to_grid(
         The GeoDataFrame with the geometries per grid-cell.
     """
     if ml is None and ix is None:
-        raise (Exception("Either specify ml or ix"))
+        raise (ValueError("Either specify ml or ix"))
 
     if ml is not None:
         if isinstance(ml, xr.Dataset):

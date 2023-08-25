@@ -40,7 +40,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
         if ds[top].shape[-1] == ds[bot].shape[-1]:
             # top is only top of first layer
             thickness = xr.zeros_like(ds[bot])
-            for lay in range(len(thickness)):
+            for lay, _ in enumerate(thickness):
                 if lay == 0:
                     thickness[lay] = ds[top] - ds[bot][lay]
                 else:
@@ -242,7 +242,7 @@ def split_layers_ds(
     layers_org = layers.copy()
     # add extra layers (keep the original ones for now, as we will copy data first)
     for lay0 in split_dict:
-        for i in range(len(split_dict[lay0])):
+        for i, _ in enumerate(split_dict[lay0]):
             index = layers.index(lay0)
             layers.insert(index, lay0 + "_" + str(i + 1))
             layers_org.insert(index, lay0)

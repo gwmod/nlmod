@@ -54,7 +54,7 @@ def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     elif version == 4:
         ahn_ds_raw = get_ahn4(extent, identifier=identifier)
     else:
-        raise (Exception(f"Unknown ahn-version: {version}"))
+        raise (ValueError(f"Unknown ahn-version: {version}"))
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
@@ -98,7 +98,7 @@ def _infer_url(identifier=None):
     if "ahn3" in identifier:
         url = "https://service.pdok.nl/rws/ahn3/wcs/v1_0?service=wcs"
     else:
-        ValueError(f"unknown identifier -> {identifier}")
+        raise ValueError(f"unknown identifier -> {identifier}")
 
     return url
 

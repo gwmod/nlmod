@@ -216,7 +216,7 @@ def colorbar_inside(
         cax.yaxis.tick_left()
         cax.yaxis.set_label_position("left")
     if isinstance(bbox_labels, bool) and bbox_labels is True:
-        bbox_labels = dict(facecolor="w", alpha=0.5)
+        bbox_labels = {"facecolor": "w", "alpha": 0.5}
     if isinstance(bbox_labels, dict):
         for label in cb.ax.yaxis.get_ticklabels():
             label.set_bbox(bbox_labels)
@@ -239,7 +239,7 @@ def title_inside(
         ax = plt.gca()
     if isinstance(bbox, bool):
         if bbox:
-            bbox = dict(facecolor="w", alpha=0.5)
+            bbox = {"facecolor": "w", "alpha": 0.5}
         else:
             bbox = None
     return ax.text(

@@ -208,7 +208,7 @@ def extrapolate_ds(ds, mask=None):
         # all of the model cells are is inside the known area
         return ds
     if mask.all():
-        raise (Exception("The model only contains NaNs"))
+        raise (ValueError("The model only contains NaNs"))
     if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         x = ds.x.data
         y = ds.y.data
@@ -453,10 +453,10 @@ def _get_vertex_grid_ds(
     coords = {"layer": layers, "y": y, "x": x}
     dims = ("layer", "icell2d")
     ds = xr.Dataset(
-        data_vars=dict(
-            top=(dims[1:], top),
-            botm=(dims, botm),
-        ),
+        data_vars={
+            "top": (dims[1:], top),
+            "botm": (dims, botm),
+        },
         coords=coords,
         attrs=attrs,
     )
@@ -606,7 +606,7 @@ def get_ds(
 
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
     x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
-    coords = dict(x=x, y=y, layer=layer)
+    coords = {"x": x, "y": y, "layer": layer}
     if angrot != 0.0:
         affine = resample.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(x, y)

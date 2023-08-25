@@ -189,7 +189,7 @@ def get_jarkus_tilenames(extent, kind="jarkus"):
     elif kind == "vaklodingen":
         url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/vaklodingen/catalog.nc"
     else:
-        raise (Exception(f"Unsupported kind: {kind}"))
+        raise (ValueError(f"Unsupported kind: {kind}"))
 
     ds_jarkus_catalog = xr.open_dataset(url)
     ew_x = ds_jarkus_catalog["projectionCoverage_x"].values

@@ -203,13 +203,13 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
             extent[0] = 0.0
             extent[1] = extent[1] - xorigin
         elif extent[0] != 0.0:
-            raise (Exception("Either extent[0] or xorigin needs to be 0.0"))
+            raise (ValueError("Either extent[0] or xorigin needs to be 0.0"))
         if yorigin == 0.0:
             yorigin = extent[2]
             extent[2] = 0.0
             extent[3] = extent[3] - yorigin
         elif extent[2] != 0.0:
-            raise (Exception("Either extent[2] or yorigin needs to be 0.0"))
+            raise (ValueError("Either extent[2] or yorigin needs to be 0.0"))
         attrs["extent"] = extent
         attrs["xorigin"] = xorigin
         attrs["yorigin"] = yorigin
@@ -436,7 +436,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         # just use griddata
         z = griddata(points, da.data, xi, method=method)
         dims = ["y", "x"]
-        coords = dict(x=ds.x, y=ds.y)
+        coords = {"x": ds.x, "y": ds.y}
     return xr.DataArray(z, dims=dims, coords=coords)
 
 
@@ -481,7 +481,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         if hasattr(rasterio.enums.Resampling, method):
             resampling = getattr(rasterio.enums.Resampling, method)
         else:
-            raise (Exception(f"Unknown resample method: {method}"))
+            raise ValueError(f"Unknown resample method: {method}")
     # fill crs if it is None for da or ds
     if ds.rio.crs is None and da.rio.crs is None:
         logger.info("No crs in da and ds. Assuming ds and da are both in EPSG:28992")
@@ -528,11 +528,11 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
                 da_temp = da_temp.assign_coords(x=x, y=y)
 
             mask = ds["area"] == area
-            da_out.loc[dict(icell2d=mask)] = da_temp.sel(
+            da_out.loc[{"icell2d": mask}] = da_temp.sel(
                 y=ds["y"][mask], x=ds["x"][mask]
             )
     else:
-        raise (Exception(f"Gridtype {ds.gridtype} not supported"))
+        raise (NotImplementedError(f"Gridtype {ds.gridtype} not supported"))
 
     # some stuff is added by the reproject_match function that should not be there
     added_coords = set(da_out.coords) - set(ds.coords)

@@ -1,5 +1,6 @@
 import logging
 import warnings
+from functools import partial
 
 import flopy
 import numpy as np
@@ -461,12 +462,12 @@ def build_spd(
                 mask = (stage > botm_cell) & (idomain_cell > 0)
                 if not mask.any():
                     raise (
-                        Exception("rbot and stage are below the bottom of the model")
+                        ValueError("rbot and stage are below the bottom of the model")
                     )
             lays = [np.where(mask)[0][0]]
             conds = [cond]
         else:
-            raise (Exception(f"Method {layer_method} unknown"))
+            raise (ValueError(f"Method {layer_method} unknown"))
 
         auxlist = []
         if "aux" in row:
@@ -519,7 +520,7 @@ def add_info_to_gdf(
             measure = overlap.length
         else:
             msg = f"Unsupported geometry type: {geom_type}"
-            raise (Exception(msg))
+            raise TypeError(msg)
 
         if np.any(measure.sum() > min_total_overlap * measure_org):
             # take the largest
@@ -806,7 +807,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
     """
     if extent is None:
         if ds is None:
-            raise (Exception("Please supply either ds or extent to get_gdf"))
+            raise (ValueError("Please supply either ds or extent to get_gdf"))
         extent = get_extent_polygon(ds)
     gdf = bgt.get_bgt(extent)
     if fname_ahn is not None:
@@ -851,7 +852,6 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
     """
-    from functools import partial
 
     from geocube.api.core import make_geocube
     from geocube.rasterize import rasterize_image
@@ -1001,7 +1001,7 @@ def gdf_to_seasonal_pkg(
     elif pkg == "GHB":
         cl = flopy.mf6.ModflowGwfghb
     else:
-        raise (Exception(f"Unknown package: {pkg}"))
+        raise (ValueError(f"Unknown package: {pkg}"))
     package = cl(
         gwf,
         stress_period_data={0: spd},

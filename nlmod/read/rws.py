@@ -239,8 +239,8 @@ def calculate_sea_coverage(
     # determine the closest x and y in the dtm grid
     x_sea = dtm.x.sel(x=xy_sea[0], method="nearest")
     y_sea = dtm.y.sel(y=xy_sea[1], method="nearest")
-    dtm.loc[dict(x=x_sea, y=y_sea)] = dtm.min()
-    seed.loc[dict(x=x_sea, y=y_sea)] = dtm.min()
+    dtm.loc[{"x": x_sea, "y": y_sea}] = dtm.min()
+    seed.loc[{"x": x_sea, "y": y_sea}] = dtm.min()
     seed = seed.data
 
     footprint = np.ones((3, 3), dtype="bool")

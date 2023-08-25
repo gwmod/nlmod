@@ -522,9 +522,9 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
     f = "geojson"
 
     if wb not in config:
-        raise (Exception(f"No configuration available for {wb}"))
+        raise (ValueError(f"No configuration available for {wb}"))
     if data_kind not in config[wb]:
-        raise (Exception(f"{data_kind} not available for {wb}"))
+        raise (ValueError(f"{data_kind} not available for {wb}"))
     conf = config[wb][data_kind]
     url = conf["url"]
     if "layer" in conf:
@@ -551,7 +551,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
             url, layer, extent, max_record_count=max_record_count, **kwargs
         )
     else:
-        raise (Exception("Unknown server-kind: {server_kind}"))
+        raise (ValueError(f"Unknown server-kind: {server_kind}"))
     if len(gdf) == 0:
         return gdf
 

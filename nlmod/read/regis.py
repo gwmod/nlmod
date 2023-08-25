@@ -136,7 +136,7 @@ def get_regis(
 
     if len(ds.x) == 0 or len(ds.y) == 0:
         msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
-        raise (Exception(msg))
+        raise (ValueError(msg))
 
     # make sure layer names are regular strings
     ds["layer"] = ds["layer"].astype(str)

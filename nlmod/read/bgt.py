@@ -1,6 +1,6 @@
 import json
 import time
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ElementTree
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -246,7 +246,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
         d["label_plaatsingspunt"] = Point(xy)
         d["label_hoek"] = float(positie.find(f"{ns}hoek").text)
 
-    tree = ET.parse(fname)
+    tree = ElementTree.parse(fname)
     ns = "{http://www.opengis.net/citygml/2.0}"
     data = []
     for com in tree.findall(f".//{ns}cityObjectMember"):
@@ -286,7 +286,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     elif child[0].tag == f"{ns}Point":
                         d[key] = Point(read_point(child[0]))
                     else:
-                        raise (Exception((f"Unsupported tag: {child[0].tag}")))
+                        raise (ValueError((f"Unsupported tag: {child[0].tag}")))
                 elif key == "nummeraanduidingreeks":
                     ns = "{http://www.geostandaarden.nl/imgeo/2.1}"
                     nar = child.find(f"{ns}Nummeraanduidingreeks").find(
@@ -301,11 +301,11 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
                     elif child[0].tag == f"{ns}Curve":
                         d[key] = LineString(read_curve(child[0]))
                     else:
-                        raise (Exception((f"Unsupported tag: {child[0].tag}")))
+                        raise (ValueError((f"Unsupported tag: {child[0].tag}")))
                 elif key == "openbareRuimteNaam":
                     read_label(child, d)
                 else:
-                    raise (Exception((f"Unknown key: {key}")))
+                    raise (KeyError((f"Unknown key: {key}")))
         data.append(d)
     if len(data) > 0:
         if geometry is None:

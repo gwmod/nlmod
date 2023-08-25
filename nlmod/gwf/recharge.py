@@ -119,7 +119,7 @@ def ds_to_evt(gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs):
     """
     assert nseg == 1, "More than one evaporation segment not yet supported"
     if "surf_rate_specified" in kwargs:
-        raise (Exception("surf_rate_specified not yet supported"))
+        raise (NotImplementedError("surf_rate_specified not yet supported"))
     if surface is None:
         logger.info("Setting evaporation surface to 1 meter below top")
         surface = ds["top"] - 1.0

@@ -82,7 +82,6 @@ def get_exe_path(exe_name="mf6"):
     return exe_path
 
 
-
 def get_ds_empty(ds, keep_coords=None):
     """Get a copy of a dataset with only coordinate information.
 

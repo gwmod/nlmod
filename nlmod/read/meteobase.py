@@ -231,11 +231,11 @@ def read_meteobase_ascii(
         da = DataArray(
             data_array,
             dims=["time", "y", "x"],
-            coords=dict(
-                time=times,
-                x=x,
-                y=y,
-            ),
+            coords={
+                "time": times,
+                "x": x,
+                "y": y,
+            },
             attrs=meta,
             name=foldername,
         )

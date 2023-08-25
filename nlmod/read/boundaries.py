@@ -1,5 +1,4 @@
-from . import webservices
-from . import waterboard
+from . import waterboard, webservices
 
 
 def get_municipalities(source="cbs", drop_water=True, **kwargs):
@@ -43,7 +42,7 @@ def get_provinces(source="cbs", **kwargs):
         gdf = webservices.wfs(url, layer, **kwargs)
         gdf = gdf.set_index("statnaam")
     else:
-        raise (Exception(f"Unknown source: {source}"))
+        raise (ValueError(f"Unknown source: {source}"))
     return gdf
 
 

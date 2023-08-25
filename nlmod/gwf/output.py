@@ -305,7 +305,11 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
     if "icell2d" in head.dims:
         if gi is None:
             if ds is None:
-                raise (Exception("Please supply either gi or ds for a vertex grid"))
+                raise (
+                    ValueError(
+                        "Please supply either gi (GridIntersect) or ds for a vertex grid"
+                    )
+                )
             gi = flopy.utils.GridIntersect(modelgrid_from_ds(ds), method="vertex")
         icelld2 = gi.intersect(Point(x, y))["cellids"][0]
         head_point = head[:, :, icelld2]

@@ -18,7 +18,7 @@ import requests
 import xarray as xr
 
 from .. import cache
-from ..dims.resample import fillnan_da, structured_da_to_ds, get_extent
+from ..dims.resample import fillnan_da, get_extent, structured_da_to_ds
 from ..util import get_da_from_da_ds, get_ds_empty
 
 logger = logging.getLogger(__name__)
@@ -190,7 +190,7 @@ def get_jarkus_tilenames(extent, kind="jarkus"):
     elif kind == "vaklodingen":
         url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/vaklodingen/catalog.nc"
     else:
-        raise (Exception(f"Unsupported kind: {kind}"))
+        raise (ValueError(f"Unsupported kind: {kind}"))
 
     ds_jarkus_catalog = xr.open_dataset(url)
     ew_x = ds_jarkus_catalog["projectionCoverage_x"].values

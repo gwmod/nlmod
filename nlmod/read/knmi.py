@@ -116,7 +116,7 @@ def get_recharge(ds, method="linear", most_common_station=False):
             loc_sel = locations.loc[(locations["stn_ev24"] == stn)]
             _add_ts_to_ds(ts, loc_sel, "evaporation", ds_out)
     else:
-        raise (Exception(f"Unknown method: {method}"))
+        raise (ValueError(f"Unknown method: {method}"))
     for datavar in ds_out:
         ds_out[datavar].attrs["source"] = "KNMI"
         ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
@@ -145,7 +145,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
         # there will be NaN's, which we fill by backfill
         model_recharge = model_recharge.fillna(method="bfill")
         if model_recharge.isna().any():
-            raise (Exception("There are NaN-values in {variable}"))
+            raise (ValueError(f"There are NaN-values in {variable}."))
 
     # add data to ds
     values = np.repeat(model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)

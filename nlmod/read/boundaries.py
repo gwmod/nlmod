@@ -1,5 +1,4 @@
-from . import webservices
-from . import waterboard
+from . import waterboard, webservices
 
 
 def get_municipalities(source="cbs", drop_water=True, **kwargs):

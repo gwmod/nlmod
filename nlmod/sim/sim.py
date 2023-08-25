@@ -36,7 +36,7 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
         if True the model dataset is cached to a NetCDF-file (.nc) with a name equal
         to its attribute called "model_name". The default is True.
     script_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) or the module (.py) with the 
+        full path of the Jupyter Notebook (.ipynb) or the module (.py) with the
         modelscript. The default is None. Preferably this path does not have to
         be given manually but there is currently no good option to obtain the
         filename of a Jupyter Notebook from within the notebook itself.

@@ -28,7 +28,14 @@ def arcrest(
     timeout=120,
     **kwargs,
 ):
-    """Download data from an arcgis rest FeatureServer."""
+    """Download data from an arcgis rest FeatureServer.
+
+    Note
+    ----
+    The sr argument is left as 28992 and not converted to the EPSG_28992 constant
+    in the epsg28992.py file in nlmod. Data is probably already picked up in 28992,
+    and projection issue occurs only when converting to this CRS from another CRS.
+    """
     params = {
         "f": f,
         "outFields": "*",

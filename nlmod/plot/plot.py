@@ -296,8 +296,12 @@ def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True):
             # try to ensure pixel size is divisible by 2
             figsize = (figsize[0], np.round(figsize[1] / 0.02, 0) * 0.02)
 
-        base = 10 ** int(np.log10(extent[1] - extent[0]))
-        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False)
+        base = 10 ** int(np.log10(extent[1] - extent[0])) / 2
+        if base < 1000:
+            fmt = "{:.1f}"
+        else:
+            fmt = "{:.0f}"
+        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False, fmt=fmt)
         ax.set_aspect("equal", adjustable="box")
     return f, ax
 
@@ -324,7 +328,7 @@ def map_array(
     plot_grid=True,
     rotated=True,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     animate=False,
 ):
@@ -336,10 +340,10 @@ def map_array(
     try:
         nlay = da["layer"].shape[0]
     except IndexError:
-        nlay = 1  # only one layer
+        nlay = 0  # only one layer
     except KeyError:
         nlay = -1  # no dim layer
-    if nlay > 1:
+    if nlay >= 1:
         layer = da["layer"].isel(layer=ilay).item()
         da = da.isel(layer=ilay)
     elif nlay < 0:
@@ -353,10 +357,14 @@ def map_array(
         try:
             nper = da["time"].shape[0]
         except IndexError:
-            nper = 1
-        if nper > 1:
+            nper = 0  # only one timestep
+        except KeyError:
+            nper = -1  # no dim time
+        if nper >= 1:
             t = pd.Timestamp(da["time"].isel(time=iper).item())
             da = da.isel(time=iper)
+        elif nper < 0:
+            iper = None
         else:
             iper = 0
             t = pd.Timestamp(ds["time"].item())
@@ -379,7 +387,7 @@ def map_array(
         ax.axis(extent)
 
     # bgmap
-    if backgroundmap:
+    if background:
         add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
@@ -436,7 +444,7 @@ def animate_map(
     colorbar_label="",
     plot_grid=True,
     rotated=True,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     ax=None,
     add_to_plot=None,
@@ -483,7 +491,7 @@ def animate_map(
         Whether to plot the model grid. Default is True.
     rotated : bool, optional
         Whether to plot rotated model, if applicable. Default is True.
-    backgroundmap : bool, optional
+    background : bool, optional
         Whether to add a background map. Default is False.
     figsize : tuple, optional
         figure size in inches, default is None.
@@ -545,7 +553,7 @@ def animate_map(
         plot_grid=plot_grid,
         rotated=rotated,
         add_to_plot=add_to_plot,
-        backgroundmap=backgroundmap,
+        background=background,
         figsize=figsize,
         animate=True,
     )

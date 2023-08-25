@@ -698,8 +698,8 @@ def set_model_top(ds, top, min_thickness=0.0):
     ds["botm"] = ds["botm"].where(top - ds["botm"] > min_thickness, top)
     # change the current top
     ds["top"] = top
-    # recalculate idomain
-    ds = set_idomain(ds)
+    # remove inactive layers
+    ds = remove_inactive_layers(ds)
     return ds
 
 
@@ -723,7 +723,6 @@ def set_layer_top(ds, layer, top):
         )
         # make sure the botms of lower layers are lower than top
         ds["botm"][lay:] = ds["botm"][lay:].where(ds["botm"][lay:] < top, top)
-    ds = set_idomain(ds)
     return ds
 
 
@@ -739,8 +738,6 @@ def set_layer_botm(ds, layer, botm):
     mask = ds["botm"][lay + 1 :] < botm
     ds["botm"][lay + 1 :] = ds["botm"][lay + 1 :].where(mask, botm)
     # make sure the botm of the layers above is lever lower than the new botm
-
-    ds = set_idomain(ds)
     return ds
 
 
@@ -935,7 +932,7 @@ def fill_nan_top_botm_kh_kv(
     Steps:
 
     1. Compute top and botm values, by filling nans by data from other layers
-    2. Compute idomain from the layer thickness
+    2. Remove inactive layers, with no positive thickness anywhere
     3. Compute kh and kv, filling nans with anisotropy or fill_values
     """
 
@@ -943,16 +940,19 @@ def fill_nan_top_botm_kh_kv(
     ds = fill_top_and_bottom(ds)
 
     # 2
-    ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
+    if remove_nan_layers:
+        # remove inactive layers
+        ds = remove_inactive_layers(ds)
 
     # 3
+    idomain = get_idomain(ds)
     ds["kh"], ds["kv"] = get_kh_kv(
         ds["kh"],
         ds["kv"],
         anisotropy,
         fill_value_kh=fill_value_kh,
         fill_value_kv=fill_value_kv,
-        idomain=ds["idomain"],
+        idomain=idomain,
     )
     return ds
 
@@ -1005,31 +1005,35 @@ def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
     return ds
 
 
-def set_idomain(ds, remove_nan_layers=True):
-    """Set idmomain in a model Dataset.
+def remove_inactive_layers(ds):
+    """
+    Remove layers which only contain inactive cells
 
     Parameters
     ----------
     ds : xr.Dataset
         The model Dataset.
-    remove_nan_layers : bool, optional
-        Removes layers which only contain inactive cells. The default is True.
 
     Returns
     -------
     ds : xr.Dataset
-        Dataset with added idomain-variable.
-    """
-    ds["idomain"] = get_idomain(ds)
-    if remove_nan_layers:
-        # only keep layers with at least one active cell
-        ds = ds.sel(layer=(ds["idomain"] > 0).any(ds["idomain"].dims[1:]))
+        The model Dataset without inactive layers.
 
+    """
+    idomain = get_idomain(ds)
+    # only keep layers with at least one active cell
+    ds = ds.sel(layer=(idomain > 0).any(idomain.dims[1:]))
     return ds
 
 
 def get_idomain(ds):
-    """Get idmomain from a model Dataset.
+    """Get idomain from a model Dataset.
+
+    Idomain is calculated from the thickness of the layers, and will be 1 for all layers
+    with a positive thickness, and -1 (pass-through) otherwise. On top of this, an
+    "active_domain" DataArray is applied, which is taken from ds, and can be 2d or 3d.
+    Idomain is set to 0 where "active_domain" is False or 0.
+
 
     Parameters
     ----------
@@ -1049,11 +1053,12 @@ def get_idomain(ds):
     # set idomain of cells  with a positive thickness to 1
     thickness = calculate_thickness(ds)
     idomain.data[thickness.data > 0.0] = 1
+    # set idomain above/below the first/last active layer to 0
+    idomain.data[idomain.where(idomain > 0).ffill(dim="layer").isnull()] = 0
+    idomain.data[idomain.where(idomain > 0).bfill(dim="layer").isnull()] = 0
     # set idomain to 0 in the inactive part of the model
-    if "active" in ds:
-        idomain = idomain.where(ds["active"], 0)
-    # TODO: set idomain above/below the first/last active layer to 0
-    # TODO: remove 'active' and replace by logic of keeping inactive cells in idomain
+    if "active_domain" in ds:
+        idomain = idomain.where(ds["active_domain"], 0)
     return idomain
 
 
@@ -1073,7 +1078,8 @@ def get_first_active_layer(ds, **kwargs):
         raster in which each cell has the zero based number of the first
         active layer. Shape can be (y, x) or (icell2d)
     """
-    return get_first_active_layer_from_idomain(ds["idomain"], **kwargs)
+    idomain = get_idomain(ds)
+    return get_first_active_layer_from_idomain(idomain, **kwargs)
 
 
 def get_first_active_layer_from_idomain(idomain, nodata=-999):
@@ -1163,7 +1169,7 @@ def update_idomain_from_thickness(idomain, thickness, mask):
         (layer, y, x) or (layer, icell2d).
     """
     warnings.warn(
-        "update_idomain_from_thickness is deprecated. Please use set_idomain instead.",
+        "update_idomain_from_thickness is deprecated. Please use get_idomain instead.",
         DeprecationWarning,
     )
     for ilay, thick in enumerate(thickness):

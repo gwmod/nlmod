@@ -12,6 +12,7 @@ import numpy as np
 import xarray as xr
 
 from ..dims import grid
+from ..dims.layers import get_idomain
 from ..sim import ims, sim, tdis
 from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
 from . import recharge
@@ -122,6 +123,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
         yorigin = ds.extent[2]
         angrot = 0.0
 
+    idomain = get_idomain(ds).data
     if model.model_type == "gwf6":
         dis = flopy.mf6.ModflowGwfdis(
             model,
@@ -137,7 +139,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             delc=ds["delc"].values if "delc" in ds else ds.delc,
             top=ds["top"].data,
             botm=ds["botm"].data,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             filename=f"{ds.model_name}.dis",
             **kwargs,
         )
@@ -156,7 +158,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             delc=ds["delc"].values if "delc" in ds else ds.delc,
             top=ds["top"].data,
             botm=ds["botm"].data,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             filename=f"{ds.model_name}_gwt.dis",
             **kwargs,
         )
@@ -224,10 +226,11 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
 
     vertices = grid.get_vertices_from_ds(ds)
     cell2d = grid.get_cell2d_from_ds(ds)
+    idomain = get_idomain(ds).data
     if model.model_type == "gwf6":
         disv = flopy.mf6.ModflowGwfdisv(
             model,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             xorigin=xorigin,
             yorigin=yorigin,
             length_units=length_units,
@@ -245,7 +248,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     elif model.model_type == "gwt6":
         disv = flopy.mf6.ModflowGwtdisv(
             model,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             xorigin=xorigin,
             yorigin=yorigin,
             length_units=length_units,
@@ -678,7 +681,7 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
 
     if isinstance(starting_head, numbers.Number):
         logger.info("adding 'starting_head' data array to ds")
-        ds["starting_head"] = starting_head * xr.ones_like(ds["idomain"])
+        ds["starting_head"] = starting_head * xr.ones_like(ds["botm"])
         ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 

@@ -9,7 +9,7 @@ from scipy.spatial import cKDTree
 from .. import util
 from ..epsg28992 import EPSG_28992
 from . import resample
-from .layers import fill_nan_top_botm_kh_kv, set_idomain
+from .layers import fill_nan_top_botm_kh_kv
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ def to_model_ds(
     ds = set_ds_attrs(ds, model_name, model_ws)
     ds.attrs["transport"] = int(transport)
 
-    # fill nan's and add idomain
+    # fill nan's
     if fill_nan:
         ds = fill_nan_top_botm_kh_kv(
             ds,
@@ -175,8 +175,6 @@ def to_model_ds(
             fill_value_kh=fill_value_kh,
             fill_value_kv=fill_value_kv,
         )
-    else:
-        ds = set_idomain(ds, remove_nan_layers=False)
 
     return ds
 

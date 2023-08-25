@@ -164,7 +164,8 @@ def get_encodings(
         )
         encoding = encodings[varname]
 
-        assert "_FillValue" not in da.attrs, "Custom fillvalues are not supported."
+        assert "_FillValue" not in da.attrs, (
+            f"Custom fillvalues are not supported. {varname} has a fillvalue set.")
 
         isfloat = np.issubdtype(da.dtype, np.floating)
         isint = np.issubdtype(da.dtype, np.integer)

@@ -61,6 +61,62 @@ def calculate_thickness(ds, top="top", bot="botm"):
     return thickness
 
 
+def calculate_transmissivity(
+    ds, kh="kh", thickness="thickness", top="top", botm="botm"
+):
+    """calculate the transmissivity (T) as the product of the horizontal
+    conductance (kh) and the thickness (D).
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing information about top and bottom elevations
+        of layers
+    kh : str, optional
+        name of data variable containing horizontal conductivity, by default 'kh'
+    thickness : str, optional
+        name of data variable containing thickness, if this data variable does not exists
+        thickness is calculated using top and botm. By default 'thickness'
+    top : str, optional
+        name of data variable containing tops, only used to calculate thickness if not
+        available in dataset. By default "top"
+    botm : str, optional
+        name of data variable containing bottoms, only used to calculate thickness if not
+        available in dataset. By default "botm"
+
+    Returns
+    -------
+    T : xarray.DataArray
+        DataArray containing transmissivity (T). NaN where layer thickness is zero
+    """
+
+    if thickness in ds:
+        thickness = ds[thickness]
+    else:
+        thickness = calculate_thickness(ds, top=top, bot=botm)
+
+    # nan where layer does not exist (thickness is 0)
+    thickness_nan = xr.where(thickness == 0, np.nan, thickness)
+
+    # calculate transmissivity
+    T = thickness_nan * ds[kh]
+
+    if hasattr(T, "long_name"):
+        T.attrs["long_name"] = "transmissivity"
+    if hasattr(T, "standard_name"):
+        T.attrs["standard_name"] = "T"
+    if hasattr(thickness, "units"):
+        if hasattr(ds[kh], "units"):
+            if ds[kh].units == "m/day" and thickness.units in ["m", "mNAP"]:
+                T.attrs["units"] = "m2/day"
+            else:
+                T.attrs["units"] = ""
+        else:
+            T.attrs["units"] = ""
+
+    return T
+
+
 def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="botm"):
     """calculate vertical resistance (c) between model layers from the vertical
     conductivity (kv) and the thickness. The resistance between two layers is assigned

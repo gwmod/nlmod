@@ -25,7 +25,7 @@ Install the module with pip:
 
 `pip install nlmod`
 
-`nlmod` has many required dependencies: `flopy`, `xarray`, `netcdf4`, `rasterio`, `rioxarray`, `affine`, `geopandas`, `owslib`, `hydropandas`, `shapely`, `pyshp`, `rtree`, `matplotlib`, `dask` and `colorama`. On top of that there are some optional dependecies, only needed (and imported) in a single method. Examples of this are `bottleneck` (used in calculate_gxg), `geocube` (used in add_min_ahn_to_gdf), `h5netcdf` (used for hdf5 files backend in xarray). To install the nlmod with the optional dependencies use:
+`nlmod` has many required dependencies: `flopy`, `xarray`, `netcdf4`, `rasterio`, `rioxarray`, `affine`, `geopandas`, `owslib`, `hydropandas`, `shapely`, `pyshp`, `rtree`, `matplotlib`, `dask` and `colorama`. On top of that there are some optional dependecies, only needed (and imported) in a single method. Examples of this are `bottleneck` (used in calculate_gxg), `geocube` (used in add_min_ahn_to_gdf), `h5netcdf` (used for hdf5 files backend in xarray), `scikit-image` (used in calculate_sea). To install the nlmod with the optional dependencies use:
 
 `pip install nlmod[full]`
 

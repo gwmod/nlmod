@@ -55,7 +55,7 @@ repository = "https://github.com/ArtesiaWater/nlmod"
 documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
-full = ["nlmod[knmi]", "gdown", "geocube", "bottleneck", "contextily"]
+full = ["nlmod[knmi]", "gdown", "geocube", "bottleneck", "contextily", "scikit-image"]
 knmi = ["h5netcdf", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]

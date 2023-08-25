@@ -449,6 +449,6 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
         raise NotImplementedError(f"Version {version} not yet supported")
     if "xml" in output.info()["Content-Type"]:
         root = ET.fromstring(output.read())
-        raise (Exception(f"Download failed: {root[0].text}"))
+        raise (HTTPError(f"Download failed: {root[0].text}"))
     memfile = MemoryFile(output.read())
     return memfile

@@ -204,8 +204,7 @@ def add_geotop_to_regis_layers(
     remove_nan_layers : bool, optional
         When True, layers with only 0 or NaN thickness are removed. The default is True.
     anisotropy : float, optional
-        
-        The anisotropy value (kh/kv) used when there are no kv values in df. The 
+        The anisotropy value (kh/kv) used when there are no kv values in df. The
         default is 1.0.
 
     Returns
@@ -218,12 +217,12 @@ def add_geotop_to_regis_layers(
 
     # make sure geotop dataset contains kh and kv
     if "kh" not in gt or "kv" not in gt:
-        if "kh" not in gt:
+        if "kv" in gt:
             logger.info(
                 f"Calculating kh of geotop by multiplying kv with an anisotropy of {anisotropy}"
             )
             gt["kh"] = gt["kv"] * anisotropy
-        elif "kv" not in gt:
+        elif "kh" in gt:
             logger.info(
                 f"Calculating kv of geotop by dividing kh by an anisotropy of {anisotropy}"
             )

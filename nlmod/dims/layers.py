@@ -1027,7 +1027,13 @@ def remove_inactive_layers(ds):
 
 
 def get_idomain(ds):
-    """Get idmomain from a model Dataset.
+    """Get idomain from a model Dataset.
+
+    Idomain is calculated from the thickness of the layers, and will be 1 for all layers
+    with a positive thickness, and -1 (pass-through) otherwise. On top of this, an
+    'active' DataArray is applied, which is taken from ds, and can be 2d or 3d. Idomain
+    is set to 0 where 'active' is False or 0.
+
 
     Parameters
     ----------

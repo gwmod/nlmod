@@ -27,7 +27,12 @@ from tqdm import tqdm
 
 from .. import cache, util
 from .base import _get_structured_grid_ds, _get_vertex_grid_ds, extrapolate_ds
-from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
+from .layers import (
+    fill_nan_top_botm_kh_kv,
+    get_first_active_layer,
+    remove_inactive_layers,
+    get_idomain,
+)
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
@@ -422,8 +427,8 @@ def refine(
     gridprops = g.get_gridprops_disv()
     gridprops["area"] = g.get_area()
     ds = ds_to_gridprops(ds, gridprops=gridprops)
-    # recalculate idomain, as the interpolation changes idomain to floats
-    ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
+    if remove_nan_layers:
+        ds = remove_inactive_layers(ds)
     return ds
 
 
@@ -900,8 +905,9 @@ def da_to_reclist(
     """
     if "layer" in mask.dims:
         if only_active_cells:
-            cellids = np.where((mask) & (ds["idomain"] == 1))
-            ignore_cells = int(np.sum((mask) & (ds["idomain"] != 1)))
+            idomain = get_idomain(ds)
+            cellids = np.where((mask) & (idomain == 1))
+            ignore_cells = int(np.sum((mask) & (idomain != 1)))
             if ignore_cells > 0:
                 logger.info(
                     f"ignore {ignore_cells} out of {np.sum(mask.values)} cells "
@@ -926,8 +932,9 @@ def da_to_reclist(
             cellids = np.where((mask.squeeze()) & (fal != fal.attrs["nodata"]))
             layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
-            cellids = np.where((mask) & (ds["idomain"][layer] == 1))
-            ignore_cells = int(np.sum((mask) & (ds["idomain"][layer] != 1)))
+            idomain = get_idomain(ds)
+            cellids = np.where((mask) & (idomain[layer] == 1))
+            ignore_cells = int(np.sum((mask) & (idomain[layer] != 1)))
             if ignore_cells > 0:
                 logger.info(
                     f"ignore {ignore_cells} out of {np.sum(mask.values)} cells because idomain is inactive"
@@ -1623,8 +1630,9 @@ def mask_model_edge(ds, idomain):
     ----------
     ds : xarray.Dataset
         dataset with model data.
-    idomain : xarray.DataArray
-        idomain used to get active cells and shape of DataArray
+    idomain : xarray.DataArray, optional
+        idomain used to get active cells and shape of DataArray. Calculate from ds when
+        None. The default is None.
 
     Returns
     -------
@@ -1649,6 +1657,8 @@ def mask_model_edge(ds, idomain):
         mask2d = ymin | ymax | xmin | xmax
 
         # assign 1 to cells that are on the edge and have an active idomain
+        if idomain is None:
+            idomain = get_idomain(ds)
         ds_out["edge_mask"] = xr.zeros_like(idomain)
         for lay in ds.layer:
             ds_out["edge_mask"].loc[lay] = np.where(

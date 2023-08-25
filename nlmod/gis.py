@@ -223,7 +223,6 @@ def ds_to_vector_file(
     # get default combination dictionary
     if combine_dic is None:
         combine_dic = {
-            "idomain": {"idomain"},
             "topbot": {"top", "botm"},
             "sea": {"northsea", "bathymetry"},
         }

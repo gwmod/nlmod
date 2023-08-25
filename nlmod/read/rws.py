@@ -166,8 +166,8 @@ def add_northsea(ds, cachedir=None):
 
     ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
 
-    # update idomain on adjusted tops and bots
-    ds = dims.set_idomain(ds)
+    # remove inactive layers
+    ds = dims.remove_inactive_layers(ds)
     return ds
 
 

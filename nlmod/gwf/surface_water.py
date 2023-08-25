@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from ..dims.grid import gdf_to_grid
 from ..dims.resample import get_extent_polygon
+from ..dims.layers import get_idomain
 from ..read import bgt, waterboard
 
 logger = logging.getLogger(__name__)
@@ -382,7 +383,7 @@ def build_spd(
 
     top = ds.top.data
     botm = ds.botm.data
-    idomain = ds.idomain.data
+    idomain = get_idomain(ds).data
     kh = ds.kh.data
 
     # ignore records without a stage

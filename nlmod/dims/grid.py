@@ -896,7 +896,7 @@ def da_to_reclist(
     Returns
     -------
     reclist : list of tuples
-        every row consist of ((layer,icell2d), col1, col2, col3).
+        every row consists of ((layer, icell2d), col1, col2, col3).
     """
     if "layer" in mask.dims:
         if only_active_cells:

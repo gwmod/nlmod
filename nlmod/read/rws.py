@@ -2,8 +2,8 @@ import datetime as dt
 import logging
 import os
 
-import numpy as np
 import geopandas as gpd
+import numpy as np
 import xarray as xr
 
 import nlmod

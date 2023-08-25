@@ -360,7 +360,7 @@ def add_kh_and_kv(
     kh : str, optional
         THe name of the new variable with kh values in gt. The default is "kh".
     kv : str, optional
-        THe name of the new variable with kv values in gt. The default is "kv".
+        The name of the new variable with kv values in gt. The default is "kv".
     kh_df : str, optional
         The name of the column with kh values in df. The default is "kh".
     kv_df : str, optional

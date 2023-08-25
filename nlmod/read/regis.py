@@ -180,7 +180,7 @@ def get_regis(
 
 
 def add_geotop_to_regis_layers(
-    rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True
+    rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True, anisotropy=1.0
 ):
     """Combine geotop and regis in such a way that the one or more layers in
     Regis are replaced by the geo_eenheden of geotop.
@@ -198,6 +198,9 @@ def add_geotop_to_regis_layers(
         DataFrame must at least contain columns 'lithok' and 'kh'.
     remove_nan_layers : bool, optional
         When True, layers with only 0 or NaN thickness are removed. The default is True.
+    anisotropy : float, optional
+        The anisotropy value (kh/kv) used when there are no kv values in df. The
+        default is 1.0.
 
     Returns
     -------
@@ -206,8 +209,25 @@ def add_geotop_to_regis_layers(
     """
     if isinstance(layers, str):
         layers = [layers]
-    if geotop_k is None:
-        geotop_k = geotop.get_lithok_props()
+
+    # make sure geotop dataset contains kh and kv
+    if "kh" not in gt or "kv" not in gt:
+        if "kv" in gt:
+            logger.info(
+                f"Calculating kh of geotop by multiplying kv with an anisotropy of {anisotropy}"
+            )
+            gt["kh"] = gt["kv"] * anisotropy
+        elif "kh" in gt:
+            logger.info(
+                f"Calculating kv of geotop by dividing kh by an anisotropy of {anisotropy}"
+            )
+            gt["kv"] = gt["kh"] / anisotropy
+        else:
+            # add kh and kv to gt
+            if geotop_k is None:
+                geotop_k = geotop.get_lithok_props()
+            gt = geotop.add_kh_and_kv(gt, geotop_k, anisotropy=anisotropy)
+
     for layer in layers:
         # transform geotop data into layers
         gtl = geotop.to_model_layers(gt)
@@ -228,9 +248,6 @@ def add_geotop_to_regis_layers(
             # drop layers with a remaining thickness of 0 (or NaN) everywhere
             th = calculate_thickness(gtl)
             gtl = gtl.sel(layer=(th > 0).any(th.dims[1:]))
-
-        # add kh and kv to gt
-        gt = geotop.add_kh_and_kv(gt, geotop_k)
 
         # add kh and kv from gt to gtl
         gtl = geotop.aggregate_to_ds(gt, gtl)

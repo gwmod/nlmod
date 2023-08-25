@@ -1102,7 +1102,7 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
             i,
             first_active_layer,
         )
-    first_active_layer.attrs["_FillValue"] = nodata
+    first_active_layer.attrs["nodata"] = nodata
     return first_active_layer
 
 
@@ -1132,7 +1132,7 @@ def get_last_active_layer_from_idomain(idomain, nodata=-999):
             i,
             last_active_layer,
         )
-    last_active_layer.attrs["_FillValue"] = nodata
+    last_active_layer.attrs["nodata"] = nodata
     return last_active_layer
 
 

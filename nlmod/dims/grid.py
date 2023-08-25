@@ -169,7 +169,7 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     for i in range(mg.ncpl):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     ds["icvert"] = ("icell2d", "icv"), icvert
-    ds["icvert"].attrs["_FillValue"] = nodata
+    ds["icvert"].attrs["nodata"] = nodata
     return ds
 
 
@@ -278,7 +278,7 @@ def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     for i in range(gridprops["ncpl"]):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     ds["icvert"] = ("icell2d", "icv"), icvert
-    ds["icvert"].attrs["_FillValue"] = nodata
+    ds["icvert"].attrs["nodata"] = nodata
     return ds
 
 
@@ -300,8 +300,8 @@ def get_cell2d_from_ds(ds):
     x = ds["x"].data
     y = ds["y"].data
     icvert = ds["icvert"].data
-    if "_FillValue" in ds["icvert"].attrs:
-        nodata = ds["icvert"].attrs["_FillValue"]
+    if "nodata" in ds["icvert"].attrs:
+        nodata = ds["icvert"].attrs["nodata"]
     else:
         nodata = -1
         icvert = icvert.copy()
@@ -924,7 +924,7 @@ def da_to_reclist(
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
-            cellids = np.where((mask.squeeze()) & (fal != fal.attrs["_FillValue"]))
+            cellids = np.where((mask.squeeze()) & (fal != fal.attrs["nodata"]))
             layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
             cellids = np.where((mask) & (ds["idomain"][layer] == 1))
@@ -1128,7 +1128,6 @@ def gdf_to_da(
     da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
     for ind, row in gdf_agg.iterrows():
         da.values[ind] = row[column]
-    da.attrs["_FillValue"] = fill_value
     return da
 
 

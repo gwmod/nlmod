@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Module containing model grid functions.
 
 -   project data on different grid types

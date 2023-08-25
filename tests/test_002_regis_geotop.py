@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 16:23:35 2021.
-
-@author: oebbe
-"""
-
 import nlmod
 
 

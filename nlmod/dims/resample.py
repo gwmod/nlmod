@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Fri Apr  2 15:08:50 2021.
-
-@author: oebbe
-"""
 import logging
 import numbers
 

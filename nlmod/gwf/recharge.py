@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-"""add knmi precipitation and evaporation to a modflow model."""
-
-
 import logging
 
 import flopy

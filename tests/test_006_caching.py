@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Mon Jan 11 12:26:16 2021.
-
-@author: oebbe
-"""
-
 import tempfile
 
 import pytest

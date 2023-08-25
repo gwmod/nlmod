@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-"""functions to add surface water to a mf model using the ghb package."""
-
 import datetime as dt
 import logging
 import os
@@ -212,11 +209,11 @@ def calculate_sea_coverage(
         When true, dtm-values are connected diagonally as well (to determine the level
         the sea will reach). The default is False.
     method : str, optional
-        The method used to scale the dtm to ds. The default is "mode" (mode means that 
-        if more than half of the (not-nan) cells are wet, the cell is classified as 
+        The method used to scale the dtm to ds. The default is "mode" (mode means that
+        if more than half of the (not-nan) cells are wet, the cell is classified as
         sea).
     nodata : int or float, optional
-        The value for model cells outside the coverage of the dtm. 
+        The value for model cells outside the coverage of the dtm.
         Only used internally. The default is -1.
     return_filled_dtm : bool, optional
         When True, return the filled dtm. The default is False.

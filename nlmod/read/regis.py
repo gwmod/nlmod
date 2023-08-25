@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-"""function to project regis, or a combination of regis and geotop, data on a
-modelgrid."""
 import datetime as dt
 import logging
 import os

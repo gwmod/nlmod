@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """module with functions to deal with the northsea by:
 
     - identifying model cells with the north sea

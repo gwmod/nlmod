@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Mon Nov 29 12:45:23 2021.
-
-@author: oebbe
-"""
 import functools
 import importlib
 import inspect

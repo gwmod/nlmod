@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 16:24:03 2021.
-
-@author: oebbe
-"""
 import numpy as np
 import test_001_model
 import xarray as xr

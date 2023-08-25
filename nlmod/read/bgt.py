@@ -1,7 +1,7 @@
 import json
 import time
-import xml.etree.ElementTree as ElementTree
 from io import BytesIO
+from xml.etree import ElementTree
 from zipfile import ZipFile
 
 import geopandas as gpd

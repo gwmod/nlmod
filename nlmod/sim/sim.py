@@ -59,7 +59,7 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
         ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
             "%Y%m%d_%H:%M:%S"
         )
-        ds.to_netcdf(os.path.join(ds.attrs["cachedir"], f"{ds.model_name}.nc"))
+        ds.to_netcdf(os.path.join(ds.attrs["model_ws"], f"{ds.model_name}.nc"))
 
     logger.info("write modflow files to model workspace")
     sim.write_simulation(silent=silent)

@@ -240,7 +240,7 @@ def polygon_to_hfb(
     else:
         # find connections
         icvert = ds["icvert"].data
-        nodata = ds["icvert"].attrs["_FillValue"]
+        nodata = ds["icvert"].attrs["nodata"]
 
         edges = []
         for icell2d in range(icvert.shape[0]):

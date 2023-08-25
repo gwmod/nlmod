@@ -366,7 +366,7 @@ def ds_to_ugrid_nc_file(
     # direction. Flopy specifies them in clockwise direction, so we need to
     # reverse the direction.
     data = np.flip(ds[face_node_connectivity].data, 1)
-    nodata = ds[face_node_connectivity].attrs.get("_FillValue")
+    nodata = ds[face_node_connectivity].attrs.get("nodata")
     if nodata is not None:
         # move the nodata values from the first columns to the last
         data_new = np.full(data.shape, nodata)

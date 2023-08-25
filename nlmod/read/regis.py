@@ -175,8 +175,6 @@ def get_regis(
             ds[datavar].attrs["units"] = "mNAP"
         elif datavar in ["kh", "kv"]:
             ds[datavar].attrs["units"] = "m/day"
-        # set _FillValue to NaN, otherise problems with caching will arise
-        ds[datavar].encoding["_FillValue"] = np.NaN
 
     # set the crs to dutch rd-coordinates
     ds.rio.set_crs(28992)

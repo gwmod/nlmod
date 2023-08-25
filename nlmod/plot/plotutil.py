@@ -14,8 +14,8 @@ def get_patches(ds, rotated=False):
         affine = get_affine_mod_to_world(ds)
         xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
     icvert = ds["icvert"].data
-    if "_FillValue" in ds["icvert"].attrs:
-        nodata = ds["icvert"].attrs["_FillValue"]
+    if "nodata" in ds["icvert"].attrs:
+        nodata = ds["icvert"].attrs["nodata"]
     else:
         nodata = -1
         icvert = icvert.copy()

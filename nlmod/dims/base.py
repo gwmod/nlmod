@@ -472,7 +472,7 @@ def _get_vertex_grid_ds(
     for i in range(ncpl):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     ds["icvert"] = ("icell2d", "icv"), icvert
-    ds["icvert"].attrs["_FillValue"] = nodata
+    ds["icvert"].attrs["nodata"] = nodata
 
     if crs is not None:
         ds.rio.set_crs(crs)

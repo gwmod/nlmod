@@ -93,6 +93,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     return ds_out
 
 
+@cache.cache_netcdf
 def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
     """Get bathymetry from Jarkus within a certain extent. If return_tiles is False, the
     following actions are performed:
@@ -163,6 +164,8 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
                     )
             tiles = tiles_left
     z_dataset = xr.combine_by_coords(tiles, combine_attrs="drop")
+    # drop 'lat' and 'lon' as these will create problems when resampling the data
+    z_dataset = z_dataset.drop_vars(["lat", "lon"])
     return z_dataset
 
 

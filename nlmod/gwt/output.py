@@ -144,6 +144,7 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
 
 def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
     """Calculate equivalent freshwater head from point water heads.
+    Heads file produced by mf6 contains point water heads.
 
     Parameters
     ----------
@@ -186,6 +187,7 @@ def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
 
 def pointwater_head(ds, hf, conc, denseref=None, drhodc=None):
     """Calculate point water head from freshwater heads.
+    Heads file produced by mf6 contains point water heads.
 
     Parameters
     ----------

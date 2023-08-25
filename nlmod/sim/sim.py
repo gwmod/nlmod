@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 17:20:34 2021.
-
-@author: oebbe
-"""
 import datetime as dt
 import logging
 import os
@@ -18,13 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
-    """write modflow files and run the model.
-
-    2 extra options:
-        1. write the model dataset to cache
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
-           workspace with a timestamp.
-
+    """write modflow files and run the model. Extra options include writing the
+    model dataset to a netcdf file in the model workspace and copying the
+    modelscript to the model workspace.
 
     Parameters
     ----------
@@ -33,10 +24,11 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
     ds : xarray.Dataset
         dataset with model data.
     write_ds : bool, optional
-        if True the model dataset is cached to a NetCDF-file (.nc) with a name equal
-        to its attribute called "model_name". The default is True.
+        if True the model dataset is written to a NetCDF-file (.nc) in the
+        model workspace the name of the .nc file is used from the attribute
+        "model_name". The default is True.
     script_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) or the module (.py) with the 
+        full path of the Jupyter Notebook (.ipynb) or the module (.py) with the
         modelscript. The default is None. Preferably this path does not have to
         be given manually but there is currently no good option to obtain the
         filename of a Jupyter Notebook from within the notebook itself.

@@ -15,21 +15,14 @@ from ..dims.grid import xy_to_icell2d
 logger = logging.getLogger(__name__)
 
 
-def write_and_run(mpf, remove_prev_output=True, script_path=None):
-    """write modpath files and run the model.
-
-    2 extra options:
-        1. remove output of the previous run
-        2. copy the modelscript (Notebook or .py file) to the model
-           workspace with a timestamp.
-
+def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
+    """write modpath files and run the model. Extra options include removing
+    previous output and copying the modelscript to the model workspace.
 
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
         modpath model.
-    model_ds : xarray.Dataset
-        dataset with model data.
     remove_prev_output : bool, optional
         remove the output of a previous modpath run (if it exists)
     script_path : str or None, optional
@@ -37,6 +30,8 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None):
         default is None. Preferably this path does not have to be given
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
+    silent : bool, optional
+        write and run model silently
     """
     if remove_prev_output:
         remove_output(mpf)
@@ -52,11 +47,11 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None):
     logger.info("write modpath files to model workspace")
 
     # write modpath datasets
-    mpf.write_input()
+    mpf.write_input(silent=silent)
 
     # run modpath
     logger.info("run modpath model")
-    assert mpf.run_model()[0], "Modpath run not succeeded"
+    assert mpf.run_model(silent=silent)[0], "Modpath run not succeeded"
 
 
 def xy_to_nodes(xy_list, mpf, ds, layer=0):

@@ -417,6 +417,27 @@ def _update_docstring_and_signature(func):
 
 
 def _check_for_data_array(ds):
+    """
+    Check if the saved NetCDF-file represents a DataArray or a Dataset, and return this
+    data-variable.
+
+    The file contains a DataArray when a variable called "__xarray_dataarray_variable__"
+    is present in the Dataset. If so, return a DataArray, otherwise return the Dataset.
+
+    By saving the DataArray, the coordinate "spatial_ref" was saved as a separate
+    variable. Therefore, add this variable as a coordinate to the DataArray again.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset with dimensions and coordinates.
+
+    Returns
+    -------
+    ds : xr.Dataset or xr.DataArray
+        A Dataset or DataArray containing the cached data.
+
+    """
     if "__xarray_dataarray_variable__" in ds:
         if "spatial_ref" in ds:
             spatial_ref = ds.spatial_ref

@@ -211,10 +211,10 @@ def get_encodings(
             encoding["zlib"] = True
             encoding["complevel"] = 5
 
-        if set_encoding_inplace:
-            da.encoding = encoding
-        else:
-            return encodings
+    if set_encoding_inplace:
+        da.encoding = encoding
+    else:
+        return encodings
 
 
 def compute_scale_and_offset(minValue, maxValue):

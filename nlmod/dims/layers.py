@@ -1053,10 +1053,12 @@ def get_idomain(ds):
     # set idomain of cells  with a positive thickness to 1
     thickness = calculate_thickness(ds)
     idomain.data[thickness.data > 0.0] = 1
+    # set idomain above/below the first/last active layer to 0
+    idomain.data[idomain.where(idomain > 0).ffill(dim="layer").isnull()] = 0
+    idomain.data[idomain.where(idomain > 0).bfill(dim="layer").isnull()] = 0
     # set idomain to 0 in the inactive part of the model
     if "active_domain" in ds:
         idomain = idomain.where(ds["active_domain"], 0)
-    # TODO: set idomain above/below the first/last active layer to 0
     return idomain
 
 

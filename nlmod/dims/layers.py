@@ -1031,8 +1031,8 @@ def get_idomain(ds):
 
     Idomain is calculated from the thickness of the layers, and will be 1 for all layers
     with a positive thickness, and -1 (pass-through) otherwise. On top of this, an
-    'active' DataArray is applied, which is taken from ds, and can be 2d or 3d. Idomain
-    is set to 0 where 'active' is False or 0.
+    "active_domain" DataArray is applied, which is taken from ds, and can be 2d or 3d.
+    Idomain is set to 0 where "active_domain" is False or 0.
 
 
     Parameters
@@ -1054,10 +1054,9 @@ def get_idomain(ds):
     thickness = calculate_thickness(ds)
     idomain.data[thickness.data > 0.0] = 1
     # set idomain to 0 in the inactive part of the model
-    if "active" in ds:
-        idomain = idomain.where(ds["active"], 0)
+    if "active_domain" in ds:
+        idomain = idomain.where(ds["active_domain"], 0)
     # TODO: set idomain above/below the first/last active layer to 0
-    # TODO: remove 'active' and replace by logic of keeping inactive cells in idomain
     return idomain
 
 

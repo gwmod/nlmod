@@ -1622,7 +1622,7 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
 
 
 @cache.cache_netcdf
-def mask_model_edge(ds, idomain):
+def mask_model_edge(ds, idomain=None):
     """get data array which is 1 for every active cell (defined by idomain) at
     the boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
 

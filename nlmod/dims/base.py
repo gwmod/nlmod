@@ -7,6 +7,7 @@ import xarray as xr
 from scipy.spatial import cKDTree
 
 from .. import util
+from ..epsg28992 import EPSG_28992
 from . import resample
 from .layers import fill_nan_top_botm_kh_kv, set_idomain
 
@@ -490,7 +491,7 @@ def get_ds(
     botm=None,
     kh=10.0,
     kv=1.0,
-    crs=28992,
+    crs=EPSG_28992,
     xorigin=0.0,
     yorigin=0.0,
     angrot=0.0,

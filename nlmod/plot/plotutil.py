@@ -4,7 +4,7 @@ from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 from ..dims.resample import get_affine_mod_to_world
-
+from ..epsg28992 import EPSG_28992
 
 def get_patches(ds, rotated=False):
     """Get the matplotlib patches for a vertex grid."""
@@ -88,7 +88,7 @@ def get_map(
     fmt="{:.0f}",
     sharex=False,
     sharey=True,
-    crs=28992,
+    crs=EPSG_28992,
     background=False,
     alpha=0.5,
     tight_layout=True,

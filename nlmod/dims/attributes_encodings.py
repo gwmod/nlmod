@@ -108,7 +108,7 @@ encoding_requirements = {
     "top": dict(dval_max=0.005),
     "kh": dict(dval_max=1e-6),
     "kv": dict(dval_max=1e-6),
-    "ss": dict(dval_max=0.005),
+    "ss": dict(dval_max=1e-8),
     "sy": dict(dval_max=0.005),
     "porosity": dict(dval_max=0.005),
     "recharge": dict(dval_max=0.0005),
@@ -157,15 +157,20 @@ def get_encodings(
 
     TODO: add support for strings
     """
-    encodings = {}
+    encodings = dict()
     for varname, da in ds.data_vars.items():
-        encodings[varname] = dict(
-            fletcher32=True,  # Store checksums to detect corruption
-        )
-        encoding = encodings[varname]
+        # Encoding for strings is not supported by netCDF
+        if np.issubdtype(da.dtype, np.character):
+            continue
 
         assert "_FillValue" not in da.attrs, (
             f"Custom fillvalues are not supported. {varname} has a fillvalue set.")
+
+        encoding = dict(
+            zlib=True,
+            complevel=5,
+            fletcher32=True  # Store checksums to detect corruption
+        )
 
         isfloat = np.issubdtype(da.dtype, np.floating)
         isint = np.issubdtype(da.dtype, np.integer)
@@ -193,6 +198,8 @@ def get_encodings(
             else:
                 encoding["dtype"] = "float32"
 
+        
+
         elif isint and allowed_to_read_data_vars_for_minmax:
             vmin = int(da.min())
             vmax = int(da.max())
@@ -206,15 +213,12 @@ def get_encodings(
         else:
             pass
 
-        # set the compression
-        if isfloat or isint:
-            # Strings dont support compression. Only floats and ints for now.
-            encoding["zlib"] = True
-            encoding["complevel"] = 5
+        if set_encoding_inplace:
+            da.encoding = encoding
+        else:
+            encodings[varname] = encoding
 
-    if set_encoding_inplace:
-        da.encoding = encoding
-    else:
+    if not set_encoding_inplace:
         return encodings
 
 

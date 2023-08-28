@@ -4,3 +4,4 @@ from .grid import *
 from .layers import *
 from .resample import *
 from .time import *
+from .attributes_encodings import *

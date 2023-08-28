@@ -31,13 +31,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     )
     assert ds.dims["layer"] == 5
 
-    ds = nlmod.time.set_ds_time(
-        ds,
-        start_time="2015-1-1",
-        steady_state=False,
-        steady_start=True,
-        transient_timesteps=2,
-    )
+    ds = nlmod.time.set_ds_time(ds, time=[1, 2, 3], start="2015-1-1", steady=[1, 0, 0])
 
     # create simulation
     sim = nlmod.sim.sim(ds)

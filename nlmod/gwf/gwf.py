@@ -578,18 +578,15 @@ def sto(
     """
     logger.info("creating mf6 STO")
 
-    if ds.time.steady_state:
+    if ds.time.steady_state.all():
+        logger.warn("Model is steady-state, no STO package created.")
         return None
     else:
-        if ds.time.steady_start:
-            sts_spd = {0: True}
-            trn_spd = {1: True}
-        else:
-            sts_spd = None
-            trn_spd = {0: True}
+        sts_spd = {iper: bool(b) for iper, b in enumerate(ds.time.steady)}
+        trn_spd = {iper: not bool(b) for iper, b in enumerate(ds.time.steady)}
 
         sy = _get_value_from_ds_datavar(ds, "sy", sy, default=0.2)
-        ss = _get_value_from_ds_datavar(ds, "ss", ss, default=0.000001)
+        ss = _get_value_from_ds_datavar(ds, "ss", ss, default=1e-5)
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,

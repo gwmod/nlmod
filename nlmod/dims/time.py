@@ -195,6 +195,8 @@ def set_ds_time(ds, time, start, steady=True, time_units="DAYS", nstp=1, tsmult=
         steady = steady * np.ones(len(time))
 
     ds = ds.assign_coords(coords={"time": time})
+    if time_units == "D":
+        time_units = "DAYS"
     ds.time.attrs["time_units"] = time_units
     ds.time.attrs["start"] = str(start)
     ds.time.attrs["steady"] = steady
@@ -224,7 +226,7 @@ def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units
         deltlist.append(delt)
 
     dt_arr = np.cumsum(np.concatenate(deltlist))
-    return ds_time_idx(dt_arr, start_datetime=start, time_units="D")
+    return ds_time_idx(dt_arr, start_datetime=start, time_units=time_units)
 
 
 def estimate_nstp(

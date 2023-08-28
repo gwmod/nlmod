@@ -579,7 +579,7 @@ def sto(
     logger.info("creating mf6 STO")
 
     if ds.time.steady_state.all():
-        logger.warn("Model is steady-state, no STO package created.")
+        logger.warning("Model is steady-state, no STO package created.")
         return None
     else:
         sts_spd = {iper: bool(b) for iper, b in enumerate(ds.time.steady)}

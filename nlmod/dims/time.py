@@ -1,14 +1,16 @@
 import datetime as dt
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from xarray import IndexVariable
 
 logger = logging.getLogger(__name__)
 
 
-def set_ds_time(
+def set_ds_time_deprecated(
     ds,
     time=None,
     steady_state=False,
@@ -71,6 +73,13 @@ def set_ds_time(
     ds : xarray.Dataset
         dataset with time variant model data
     """
+
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.time.set_ds_time() in the future.",
+        DeprecationWarning,
+    )
+
     # checks
     if time_units.lower() != "days":
         raise NotImplementedError()
@@ -125,6 +134,97 @@ def set_ds_time(
     ds.time.attrs["steady_state"] = int(steady_state)
 
     return ds
+
+
+def set_ds_time(ds, time, start, steady=True, time_units="DAYS", nstp=1, tsmult=1.0):
+    """Set time discretisation for model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset
+    time : array-like
+        array-like of floats (indicating elapsed time) or timestamps corresponding to
+        the end of each stress period in the model.
+    start : str or pandas.Timestamp, optional
+        model start datetime as string or pandas Timestamp, if None, defaults to
+        1 january 2000.
+    steady : arraylike or bool, optional
+        arraylike indicating which stress periods are steady-state, by default True,
+        which sets all stress periods to steady-state.
+    time_units : str, optional
+        time units, by default "DAYS"
+    nstp : int or array-like, optional
+        number of steps per stress period, stored in ds.attrs, default is 1
+    tsmult : float, optional
+        timestep multiplier within stress periods, stored in ds.attrs, default is 1.0
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        model dataset with added time coordinate
+
+    """
+    logger.info(
+        "This is the new version of set_ds_time()."
+        " If you're looking for the old behavior,"
+        "use `nlmod.time.set_ds_time_deprecated()`."
+    )
+
+    # parse start datetime
+    if isinstance(start, str):
+        start = pd.Timestamp(start)
+    elif isinstance(start, (pd.Timestamp, np.datetime64)):
+        pass
+    else:
+        raise TypeError("Cannot parse start datetime.")
+
+    # convert time to Timestamps
+    # calculate time idx
+    if isinstance(time[0], (int, np.integer, float)):
+        time = pd.Timestamp(start) + pd.to_timedelta(time, time_units)
+    elif isinstance(time[0], str):
+        time = pd.to_datetime(time)
+    elif isinstance(time[0], (pd.Timestamp, np.datetime64, xr.core.variable.Variable)):
+        pass
+    else:
+        raise TypeError("Cannot process 'time' argument. Datatype not understood.")
+
+    # set steady
+    if isinstance(steady, bool):
+        steady = steady * np.ones(len(time))
+
+    ds = ds.assign_coords(coords={"time": time})
+    ds.time.attrs["time_units"] = time_units
+    ds.time.attrs["start"] = str(start)
+    ds.time.attrs["steady"] = steady
+    ds.time.attrs["nstp"] = nstp
+    ds.time.attrs["tsmult"] = tsmult
+    return ds
+
+
+def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units="D"):
+    deltlist = []
+    for kper, delt in enumerate(perlen):
+        if not isinstance(nstp, int):
+            kstpkper = nstp[kper]
+        else:
+            kstpkper = nstp
+
+        if not isinstance(tsmult, float):
+            tsm = tsmult[kper]
+        else:
+            tsm = tsmult
+
+        if tsm > 1.0:
+            delt0 = delt * (tsm - 1) / (tsm**kstpkper - 1)
+            delt = delt0 * tsm ** np.arange(kstpkper)
+        else:
+            delt = np.ones(kstpkper) * delt / kstpkper
+        deltlist.append(delt)
+
+    dt_arr = np.cumsum(np.concatenate(deltlist))
+    return ds_time_idx(dt_arr, start_datetime=start, time_units="D")
 
 
 def estimate_nstp(
@@ -214,6 +314,15 @@ def estimate_nstp(
 
 
 def ds_time_from_model(gwf):
+    warnings.warn(
+        "this function was renamed to `ds_time_idx_from_model`. "
+        "Please use the new function name.",
+        DeprecationWarning,
+    )
+    return ds_time_idx_from_model(gwf)
+
+
+def ds_time_idx_from_model(gwf):
     """Get time index variable from model (gwf or gwt).
 
     Parameters
@@ -227,10 +336,19 @@ def ds_time_from_model(gwf):
         time coordinate for xarray data-array or dataset
     """
 
-    return ds_time_from_modeltime(gwf.modeltime)
+    return ds_time_idx_from_modeltime(gwf.modeltime)
 
 
 def ds_time_from_modeltime(modeltime):
+    warnings.warn(
+        "this function was renamed to `ds_time_idx_from_model`. "
+        "Please use the new function name.",
+        DeprecationWarning,
+    )
+    return ds_time_idx_from_modeltime(modeltime)
+
+
+def ds_time_idx_from_modeltime(modeltime):
     """Get time index variable from modeltime object.
 
     Parameters

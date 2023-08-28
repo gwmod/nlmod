@@ -64,7 +64,7 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
     ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
-def get_tdis_perioddata(ds):
+def get_tdis_perioddata(ds, nstp=None, tsmult=None):
     """Get tdis_perioddata from ds.
 
     Parameters
@@ -92,15 +92,21 @@ def get_tdis_perioddata(ds):
     if len(ds["time"]) > 1:
         perlen.extend(np.diff(ds["time"]) / deltat)
 
-    if "nstp" in ds:
-        nstp = ds["nstp"].values
-    else:
-        nstp = [ds.time.nstp] * len(perlen)
+    nstp = util._get_value_from_ds_datavar(
+        ds, "nstp", nstp, return_da=False, warn=False
+    )
+    nstp = util._get_value_from_ds_attr(ds.time, "nstp", nstp)
 
-    if "tsmult" in ds:
-        tsmult = ds["tsmult"].values
-    else:
-        tsmult = [ds.time.tsmult] * len(perlen)
+    if isinstance(nstp, (int, np.integer)):
+        nstp = [nstp] * len(perlen)
+
+    nstp = util._get_value_from_ds_datavar(
+        ds, "nstp", nstp, return_da=False, warn=False
+    )
+    tsmult = util._get_value_from_ds_attr(ds.time, "tsmult", value=tsmult)
+
+    if isinstance(tsmult, float):
+        tsmult = [tsmult] * len(perlen)
 
     tdis_perioddata = list(zip(perlen, nstp, tsmult))
 

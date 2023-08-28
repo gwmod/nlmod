@@ -35,7 +35,7 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
         raise ValueError("please remove nan values in recharge data array")
 
     # get stress period data
-    if ds.time.steady_state:
+    if ds.time.steady.all():
         recharge = "recharge"
         if "time" in ds["recharge"].dims:
             mask = ds["recharge"].isel(time=0) != 0
@@ -69,7 +69,7 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", **kwargs):
         **kwargs,
     )
 
-    if ds.time.steady_state:
+    if ds.time.steady.all():
         return rch
 
     # create timeseries packages
@@ -128,7 +128,7 @@ def ds_to_evt(gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs):
         raise ValueError("please remove nan values in evaporation data array")
 
     # get stress period data
-    if ds.time.steady_state:
+    if ds.time.steady.all():
         if "time" in ds["evaporation"].dims:
             mask = ds["evaporation"].isel(time=0) != 0
         else:
@@ -163,7 +163,7 @@ def ds_to_evt(gwf, ds, pname="evt", nseg=1, surface=None, depth=None, **kwargs):
         **kwargs,
     )
 
-    if ds.time.steady_state:
+    if ds.time.steady.all():
         return evt
 
     # create timeseries packages

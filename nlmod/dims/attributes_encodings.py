@@ -212,9 +212,10 @@ def get_encodings(
             encoding["zlib"] = True
             encoding["complevel"] = 5
 
-    if set_encoding_inplace:
-        da.encoding = encoding
-    else:
+        if set_encoding_inplace:
+            da.encoding = encoding
+
+    if not set_encoding_inplace:
         return encodings
 
 

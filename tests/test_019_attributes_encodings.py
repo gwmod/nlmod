@@ -2,6 +2,7 @@ import numpy as np
 import os
 import xarray as xr
 from tempfile import TemporaryDirectory
+import time
 
 from nlmod.dims.attributes_encodings import get_encodings
 
@@ -9,18 +10,29 @@ from nlmod.dims.attributes_encodings import get_encodings
 def test_encodings_float_as_int16():
     """Test if the encodings are correct."""
     # Test is the encodings work for floats where degradation to int16 is allowed
-    data = np.arange(1.0, 4.0)
-    data[1] = np.nan
+    heads_data = np.arange(1.0, 6.0)
+    heads_data[1] = np.nan
 
-    ds = xr.Dataset(data_vars=dict(heads=xr.DataArray(data=data)))
+    por_data = np.linspace(0.0, 1.0, 5)
+    por_data[1] = np.nan
+
+    ds = xr.Dataset(data_vars=dict(
+        heads=xr.DataArray(data=heads_data),
+        porosity=xr.DataArray(data=por_data),))
     encodings = get_encodings(
         ds, set_encoding_inplace=False, allowed_to_read_data_vars_for_minmax=True
     )
 
+    assert encodings["heads"]["dtype"] == "int16", "dtype should be int16"
+    assert encodings["porosity"]["dtype"] == "int16", "dtype should be int16"
+
     # test writing to temporary netcdf file
     with TemporaryDirectory() as tmpdir:
-        ds.to_netcdf(os.path.join(tmpdir, "test2.nc"), encoding=encodings)
-        ds2 = xr.open_dataset(os.path.join(tmpdir, "test2.nc"), mask_and_scale=True)
+        fp_test = os.path.join(tmpdir, "test2.nc")
+        ds.to_netcdf(fp_test, encoding=encodings)
+        
+        with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
+            ds2.load()
 
     dval_max = float(ds["heads"].max() - ds["heads"].min()) / (32766 + 32767)
 
@@ -38,6 +50,7 @@ def test_encodings_float_as_int16():
         ds, set_encoding_inplace=False, allowed_to_read_data_vars_for_minmax=True
     )
     assert encodings["heads"]["dtype"] == "float32", "dtype should be float32"
+    pass
 
 
 def test_encondings_inplace():
@@ -60,12 +73,19 @@ def test_encondings_inplace():
 
     # test writing to temporary netcdf file
     with TemporaryDirectory() as tmpdir:
-        ds.to_netcdf(os.path.join(tmpdir, "test2.nc"), encoding=encodings)
-        ds2 = xr.open_dataset(os.path.join(tmpdir, "test2.nc"), mask_and_scale=True)
+        fp_test = os.path.join(tmpdir, "test2.nc")
+        ds.to_netcdf(fp_test, encoding=encodings)
+        
+        with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
+            ds2.load()
 
-        ds_inplace.to_netcdf(os.path.join(tmpdir, "test_inplace.nc"))
-        ds_inplace2 = xr.open_dataset(
-            os.path.join(tmpdir, "test_inplace.nc"), mask_and_scale=True
-        )
+        fp_test_inplace = os.path.join(tmpdir, "test_inplace.nc")
+        ds_inplace.to_netcdf(fp_test_inplace)
+
+        with xr.open_dataset(fp_test_inplace, mask_and_scale=True) as ds_inplace2:
+            ds_inplace2.load()
 
     assert np.allclose(ds2["heads"].values, ds_inplace2["heads"].values, equal_nan=True)
+    pass
+
+test_encodings_float_as_int16()

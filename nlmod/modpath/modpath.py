@@ -31,7 +31,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
     silent : bool, optional
-        write and run model silently
+        run model silently
     """
     if remove_prev_output:
         remove_output(mpf)
@@ -47,7 +47,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
     logger.info("write modpath files to model workspace")
 
     # write modpath datasets
-    mpf.write_input(silent=silent)
+    mpf.write_input()
 
     # run modpath
     logger.info("run modpath model")

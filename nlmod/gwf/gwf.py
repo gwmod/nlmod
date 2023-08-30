@@ -578,12 +578,12 @@ def sto(
     """
     logger.info("creating mf6 STO")
 
-    if ds.time.steady_state.all():
+    if "time" not in ds or ds["steady"].all():
         logger.warning("Model is steady-state, no STO package created.")
         return None
     else:
-        sts_spd = {iper: bool(b) for iper, b in enumerate(ds.time.steady)}
-        trn_spd = {iper: not bool(b) for iper, b in enumerate(ds.time.steady)}
+        sts_spd = {iper: bool(b) for iper, b in enumerate(ds["steady"])}
+        trn_spd = {iper: not bool(b) for iper, b in enumerate(ds["steady"])}
 
         sy = _get_value_from_ds_datavar(ds, "sy", sy, default=0.2)
         ss = _get_value_from_ds_datavar(ds, "ss", ss, default=1e-5)

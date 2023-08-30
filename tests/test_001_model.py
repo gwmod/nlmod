@@ -28,7 +28,7 @@ def get_ds_time_transient(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)
     nper = 11
-    time = pd.date_range(start="2015-1-1", periods=nper, freq="D")
+    time = pd.date_range(start="2015-1-2", periods=nper, freq="D")
     steady = np.zeros(nper)
     ds = nlmod.time.set_ds_time(ds, time, start="2015-1-1", steady=steady)
     return ds
@@ -359,8 +359,3 @@ def _check_tmpdir(tmpdir):
         return tmpdir
     else:
         return str(tmpdir)
-
-
-if __name__ == "__main__":
-    test_create_sea_model_grid_only(tmpdir)
-    test_create_sea_model(tmpdir)

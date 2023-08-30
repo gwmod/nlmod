@@ -2,6 +2,7 @@ from . import (
     ahn,
     bgt,
     boundaries,
+    bro,
     brp,
     geotop,
     jarkus,

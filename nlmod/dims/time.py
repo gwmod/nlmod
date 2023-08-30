@@ -190,22 +190,59 @@ def set_ds_time(ds, time, start, steady=True, time_units="DAYS", nstp=1, tsmult=
     else:
         raise TypeError("Cannot process 'time' argument. Datatype not understood.")
 
-    # set steady
-    if isinstance(steady, bool):
-        steady = steady * np.ones(len(time))
+    if time[0] <= start:
+        msg = (
+            "The timestamp of the first stress period cannot be before or "
+            "equal to the model start time! Please modify `time` or `start`!"
+        )
+        logger.error(msg)
+        raise ValueError(msg)
 
     ds = ds.assign_coords(coords={"time": time})
+
+    # add steady, nstp and tsmult to dataset
+    if isinstance(steady, bool):
+        steady = int(steady) * np.ones(len(time), dtype=int)
+    ds["steady"] = ("time",), steady
+
+    if isinstance(nstp, (int, np.integer)):
+        nstp = nstp * np.ones(len(time), dtype=int)
+    ds["nstp"] = ("time",), nstp
+
+    if isinstance(tsmult, float):
+        tsmult = tsmult * np.ones(len(time))
+    ds["tsmult"] = ("time",), tsmult
+
     if time_units == "D":
         time_units = "DAYS"
     ds.time.attrs["time_units"] = time_units
     ds.time.attrs["start"] = str(start)
-    ds.time.attrs["steady"] = steady
-    ds.time.attrs["nstp"] = nstp
-    ds.time.attrs["tsmult"] = tsmult
+
     return ds
 
 
 def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units="D"):
+    """Get time index from TDIS perioddata: perlen, nstp, tsmult.
+
+
+    Parameters
+    ----------
+    start : str, pd.Timestamp
+        start datetime
+    perlen : array-like
+        array of period lengths
+    nstp : int, or array-like optional
+        number of steps per period, by default 1
+    tsmult : float or array-like, optional
+        timestep multiplier per period, by default 1.0
+    time_units : str, optional
+        time units, by default "D"
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
     deltlist = []
     for kper, delt in enumerate(perlen):
         if not isinstance(nstp, int):

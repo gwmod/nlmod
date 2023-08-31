@@ -6,9 +6,6 @@ import numpy as np
 import pandas as pd
 from hydropandas.io import knmi as hpd_knmi
 
-# TODO: replace line above with this one for next hydropandas release
-# from hydropandas.util import get_stations, get_nearest_station_df
-
 from .. import cache, util
 from ..dims.layers import get_first_active_layer
 from ..dims.resample import get_affine_mod_to_world
@@ -262,9 +259,6 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
         raise ValueError("gridtype should be structured or vertex")
     locations["stn_rd"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="RD")
     locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="EV24")
-    # TODO: replace above with these lines for next hydropandas release?
-    # locations["stn_rd"] = get_nearest_station_df(locations, stations=get_stations("RD"))
-    # locations["stn_ev24"] = get_nearest_station_df(locations, stations=get_stations("EV24"))
     if most_common_station:
         if ds.gridtype == "structured":
             # set the most common station to all locations

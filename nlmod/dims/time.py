@@ -217,6 +217,9 @@ def set_ds_time(
                 perlen = [perlen]
             time = np.cumsum(perlen)
 
+    if isinstance(time, str) or not hasattr(time, "__iter__"):
+        time = [time]
+
     # parse start
     if isinstance(start, (int, np.integer, float)):
         if isinstance(time[0], (int, np.integer, float)):
@@ -230,8 +233,6 @@ def set_ds_time(
         raise TypeError("Cannot parse start datetime.")
 
     # convert time to Timestamps
-    if not hasattr(time, "__iter__"):
-        time = [time]
     if isinstance(time[0], (int, np.integer, float)):
         time = pd.Timestamp(start) + pd.to_timedelta(time, time_units)
     elif isinstance(time[0], str):

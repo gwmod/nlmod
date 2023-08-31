@@ -133,10 +133,34 @@ def set_ds_time_deprecated(
     ds.time.attrs["steady_start"] = int(steady_start)
     ds.time.attrs["steady_state"] = int(steady_state)
 
+    # add to ds (for new version nlmod)
+    # add steady, nstp and tsmult to dataset
+    steady = int(steady_state) * np.ones(len(time_dt), dtype=int)
+    if steady_start:
+        steady[0] = 1
+    ds["steady"] = ("time",), steady
+
+    if isinstance(nstp, (int, np.integer)):
+        nstp = nstp * np.ones(len(time), dtype=int)
+    ds["nstp"] = ("time",), nstp
+
+    if isinstance(tsmult, float):
+        tsmult = tsmult * np.ones(len(time))
+    ds["tsmult"] = ("time",), tsmult
+
     return ds
 
 
-def set_ds_time(ds, time, start, steady=True, time_units="DAYS", nstp=1, tsmult=1.0):
+def set_ds_time(
+    ds,
+    time,
+    start,
+    steady=False,
+    steady_start=True,
+    time_units="DAYS",
+    nstp=1,
+    tsmult=1.0,
+):
     """Set time discretisation for model dataset.
 
     Parameters
@@ -150,8 +174,12 @@ def set_ds_time(ds, time, start, steady=True, time_units="DAYS", nstp=1, tsmult=
         model start datetime as string or pandas Timestamp, if None, defaults to
         1 january 2000.
     steady : arraylike or bool, optional
-        arraylike indicating which stress periods are steady-state, by default True,
-        which sets all stress periods to steady-state.
+        arraylike indicating which stress periods are steady-state, by default False,
+        which sets all stress periods to transient with the first period determined by
+        value of `steady_start`.
+    steady_start : bool, optional
+        whether to set the first period to steady-state, default is True, only used
+        when steady is passed as single boolean.
     time_units : str, optional
         time units, by default "DAYS"
     nstp : int or array-like, optional
@@ -203,6 +231,8 @@ def set_ds_time(ds, time, start, steady=True, time_units="DAYS", nstp=1, tsmult=
     # add steady, nstp and tsmult to dataset
     if isinstance(steady, bool):
         steady = int(steady) * np.ones(len(time), dtype=int)
+        if steady_start:
+            steady[0] = 1
     ds["steady"] = ("time",), steady
 
     if isinstance(nstp, (int, np.integer)):

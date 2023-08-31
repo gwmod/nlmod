@@ -153,8 +153,8 @@ def set_ds_time_deprecated(
 
 def set_ds_time(
     ds,
+    start,
     time=None,
-    start=None,
     steady=False,
     steady_start=True,
     time_units="DAYS",
@@ -168,17 +168,15 @@ def set_ds_time(
     ----------
     ds : xarray.Dataset
         model dataset
+    start : int, float, str or pandas.Timestamp, optional
+        model start. When start is an integer or float it is interpreted as the number
+        of days of the first stress-period. When start is a string or pandas Timestamp
+        it is the start datetime of the simulation.
     time : float, int or array-like, optional
         float(s) (indicating elapsed time) or timestamp(s) corresponding to the end of
         each stress period in the model. When time is a single value, the model will
         have only one stress period. When time is None, the stress period lengths have
         to be supplied via perlen. The default is None.
-    start : int, float, str or pandas.Timestamp, optional
-        model start. When start is an integer or float it is interpreted as the number
-        of days of the first stress-period. When start is a string or pandas Timestamp
-        it is the start datetime of the simulation. When None, set to 3652 days (10
-        years) if steady_start is True or set to 1 january 2000 if steady_start is
-        False. The default is None.
     steady : arraylike or bool, optional
         arraylike indicating which stress periods are steady-state, by default False,
         which sets all stress periods to transient with the first period determined by
@@ -219,13 +217,7 @@ def set_ds_time(
                 perlen = [perlen]
             time = np.cumsum(perlen)
 
-    # parse start datetime
-    if start is None:
-        if steady_start:
-            start = 3652
-        else:
-            start = "2000"
-
+    # parse start
     if isinstance(start, (int, np.integer, float)):
         if isinstance(time[0], (int, np.integer, float)):
             raise (Exception("Make sure start or time contains a valid TimeStamp"))

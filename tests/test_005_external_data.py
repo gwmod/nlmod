@@ -25,7 +25,7 @@ def test_get_recharge_steady_state():
 
     # modify mtime
     ds = ds.drop_dims("time")
-    ds = nlmod.time.set_ds_time(ds, [3650], start="2000-1-1")
+    ds = nlmod.time.set_ds_time(ds, time=[3650], start="2000-1-1")
 
     # add knmi recharge to the model dataset
     ds.update(nlmod.read.knmi.get_recharge(ds))

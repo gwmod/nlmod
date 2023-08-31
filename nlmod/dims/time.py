@@ -189,8 +189,7 @@ def set_ds_time(
     perlen : float, int, list or np.array, optional
         length of each stress-period:
         - float or int: this is the length of the single stress period.
-        - list or array: the items are the length of the stress-periods in
-          days.
+        - list or array: the items are the length of the stress-periods
         Only used when time is None. The default is None.
     nstp : int or array-like, optional
         number of steps per stress period, stored in ds.attrs, default is 1

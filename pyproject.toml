@@ -70,6 +70,7 @@ rtd = [
     "sphinx_rtd_theme==1.0.0",
     "nbconvert>6.4.5",
     "netCDF4>=1.6.3",
+    "pandas<2.1.0",
 ]
 
 [tool.setuptools.dynamic]

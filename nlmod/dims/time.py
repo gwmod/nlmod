@@ -153,11 +153,12 @@ def set_ds_time_deprecated(
 
 def set_ds_time(
     ds,
-    time,
-    start,
+    time=None,
+    start=None,
     steady=False,
     steady_start=True,
     time_units="DAYS",
+    perlen=None,
     nstp=1,
     tsmult=1.0,
 ):
@@ -170,9 +171,12 @@ def set_ds_time(
     time : array-like
         array-like of floats (indicating elapsed time) or timestamps corresponding to
         the end of each stress period in the model.
-    start : str or pandas.Timestamp, optional
-        model start datetime as string or pandas Timestamp, if None, defaults to
-        1 january 2000.
+    start : int, float, str or pandas.Timestamp, optional
+        model start. When start is an integer or float it is interpreted as the number
+        of days of the first stress-period. When start is a string or pandas Timestamp
+        it is the start datetime of the simulation. When None, set to 3652 days (10
+        years) if steady_start is True or set to 1 january 2000 if steady_start is
+        False. The default is None.
     steady : arraylike or bool, optional
         arraylike indicating which stress periods are steady-state, by default False,
         which sets all stress periods to transient with the first period determined by
@@ -182,6 +186,12 @@ def set_ds_time(
         when steady is passed as single boolean.
     time_units : str, optional
         time units, by default "DAYS"
+    perlen : float, int, list or np.array, optional
+        length of each stress-period:
+        - float or int: this is the length of the single stress period.
+        - list or array: the items are the length of the stress-periods in
+          days.
+        Only used when time is None. The default is None.
     nstp : int or array-like, optional
         number of steps per stress period, stored in ds.attrs, default is 1
     tsmult : float, optional
@@ -199,8 +209,29 @@ def set_ds_time(
         "use `nlmod.time.set_ds_time_deprecated()`."
     )
 
+    if time is None and perlen is None:
+        raise (Exception("Please specify either time or perlen in set_ds_time"))
+    elif perlen is not None:
+        if time is not None:
+            msg = f"Cannot use both time and perlen. Ignoring perlen: {perlen}"
+            logger.warning(msg)
+        else:
+            if isinstance(perlen, (int, np.integer, float)):
+                perlen = [perlen]
+            time = np.cumsum(perlen)
+
     # parse start datetime
-    if isinstance(start, str):
+    if start is None:
+        if steady_start:
+            start = 3652
+        else:
+            start = "2000"
+
+    if isinstance(start, (int, np.integer, float)):
+        if isinstance(time[0], (int, np.integer, float)):
+            raise (Exception("Make sure start or time contains a valid TimeStamp"))
+        start = time[0] - pd.to_timedelta(start, "D")
+    elif isinstance(start, str):
         start = pd.Timestamp(start)
     elif isinstance(start, (pd.Timestamp, np.datetime64)):
         pass

@@ -205,7 +205,7 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
 
 
 def geotop_lithok_in_cross_section(
-    line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, **kwargs
+    line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, alpha=None, **kwargs
 ):
     """PLot the lithoclass-data of GeoTOP in a cross-section.
 
@@ -227,6 +227,9 @@ def geotop_lithok_in_cross_section(
     lithok_props : pd.DataFrame, optional
         A DataFrame containing the properties of the lithoclasses.
         Will call nlmod.read.geotop.get_lithok_props() when None. The default is None.
+    alpha : float, optional
+        Opacity for plot_array function, The default is None.
+
 
     **kwargs : dict
         kwargs are passed onto DatasetCrossSection.
@@ -264,7 +267,7 @@ def geotop_lithok_in_cross_section(
         colors.append(lithok_props.at[lithok, "color"])
     cmap = ListedColormap(colors)
     norm = Normalize(-0.5, np.nanmax(array) + 0.5)
-    cs.plot_array(array, norm=norm, cmap=cmap)
+    cs.plot_array(array, norm=norm, cmap=cmap, alpha=alpha)
     if legend:
         # make a legend with dummy handles
         handles = []

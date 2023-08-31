@@ -168,9 +168,11 @@ def set_ds_time(
     ----------
     ds : xarray.Dataset
         model dataset
-    time : array-like
-        array-like of floats (indicating elapsed time) or timestamps corresponding to
-        the end of each stress period in the model.
+    time : float, int or array-like, optional
+        float(s) (indicating elapsed time) or timestamp(s) corresponding to the end of
+        each stress period in the model. When time is a single value, the model will
+        have only one stress period. When time is None, the stress period lengths have
+        to be supplied via perlen. The default is None.
     start : int, float, str or pandas.Timestamp, optional
         model start. When start is an integer or float it is interpreted as the number
         of days of the first stress-period. When start is a string or pandas Timestamp
@@ -186,11 +188,9 @@ def set_ds_time(
         when steady is passed as single boolean.
     time_units : str, optional
         time units, by default "DAYS"
-    perlen : float, int, list or np.array, optional
-        length of each stress-period:
-        - float or int: this is the length of the single stress period.
-        - list or array: the items are the length of the stress-periods
-        Only used when time is None. The default is None.
+    perlen : float, int or array-like, optional
+        length of each stress-period. Only used when time is None. When perlen is a
+        single value, the model will have only one stress period. The default is None.
     nstp : int or array-like, optional
         number of steps per stress period, stored in ds.attrs, default is 1
     tsmult : float, optional
@@ -238,7 +238,8 @@ def set_ds_time(
         raise TypeError("Cannot parse start datetime.")
 
     # convert time to Timestamps
-    # calculate time idx
+    if not hasattr(time, "__iter__"):
+        time = [time]
     if isinstance(time[0], (int, np.integer, float)):
         time = pd.Timestamp(start) + pd.to_timedelta(time, time_units)
     elif isinstance(time[0], str):

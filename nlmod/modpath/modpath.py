@@ -47,7 +47,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
     logger.info("write modpath files to model workspace")
 
     # write modpath datasets
-    mpf.write_input(silent=silent)
+    mpf.write_input()
 
     # run modpath
     logger.info("run modpath model")

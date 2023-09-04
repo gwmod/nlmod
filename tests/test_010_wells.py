@@ -18,7 +18,7 @@ def get_model_ds():
         model_name="from_scratch",
     )
 
-    ds = nlmod.time.set_ds_time(ds, time=pd.Timestamp.today())
+    ds = nlmod.time.set_ds_time(ds, time=[1], start=pd.Timestamp.today())
 
     return ds
 

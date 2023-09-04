@@ -1,5 +1,6 @@
-import pytest
 import matplotlib
+import pytest
+
 import nlmod
 
 

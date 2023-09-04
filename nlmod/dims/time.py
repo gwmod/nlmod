@@ -1,14 +1,16 @@
 import datetime as dt
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from xarray import IndexVariable
 
 logger = logging.getLogger(__name__)
 
 
-def set_ds_time(
+def set_ds_time_deprecated(
     ds,
     time=None,
     steady_state=False,
@@ -71,6 +73,13 @@ def set_ds_time(
     ds : xarray.Dataset
         dataset with time variant model data
     """
+
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.time.set_ds_time() in the future.",
+        DeprecationWarning,
+    )
+
     # checks
     if time_units.lower() != "days":
         raise NotImplementedError()
@@ -124,7 +133,190 @@ def set_ds_time(
     ds.time.attrs["steady_start"] = int(steady_start)
     ds.time.attrs["steady_state"] = int(steady_state)
 
+    # add to ds (for new version nlmod)
+    # add steady, nstp and tsmult to dataset
+    steady = int(steady_state) * np.ones(len(time_dt), dtype=int)
+    if steady_start:
+        steady[0] = 1
+    ds["steady"] = ("time",), steady
+
+    if isinstance(nstp, (int, np.integer)):
+        nstp = nstp * np.ones(len(time), dtype=int)
+    ds["nstp"] = ("time",), nstp
+
+    if isinstance(tsmult, float):
+        tsmult = tsmult * np.ones(len(time))
+    ds["tsmult"] = ("time",), tsmult
+
     return ds
+
+
+def set_ds_time(
+    ds,
+    start,
+    time=None,
+    steady=False,
+    steady_start=True,
+    time_units="DAYS",
+    perlen=None,
+    nstp=1,
+    tsmult=1.0,
+):
+    """Set time discretisation for model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset
+    start : int, float, str or pandas.Timestamp, optional
+        model start. When start is an integer or float it is interpreted as the number
+        of days of the first stress-period. When start is a string or pandas Timestamp
+        it is the start datetime of the simulation.
+    time : float, int or array-like, optional
+        float(s) (indicating elapsed time) or timestamp(s) corresponding to the end of
+        each stress period in the model. When time is a single value, the model will
+        have only one stress period. When time is None, the stress period lengths have
+        to be supplied via perlen. The default is None.
+    steady : arraylike or bool, optional
+        arraylike indicating which stress periods are steady-state, by default False,
+        which sets all stress periods to transient with the first period determined by
+        value of `steady_start`.
+    steady_start : bool, optional
+        whether to set the first period to steady-state, default is True, only used
+        when steady is passed as single boolean.
+    time_units : str, optional
+        time units, by default "DAYS"
+    perlen : float, int or array-like, optional
+        length of each stress-period. Only used when time is None. When perlen is a
+        single value, the model will have only one stress period. The default is None.
+    nstp : int or array-like, optional
+        number of steps per stress period, stored in ds.attrs, default is 1
+    tsmult : float, optional
+        timestep multiplier within stress periods, stored in ds.attrs, default is 1.0
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        model dataset with added time coordinate
+
+    """
+    logger.info(
+        "Function set_ds_time() has changed since nlmod version 0.7."
+        " For the old behavior, use `nlmod.time.set_ds_time_deprecated()`."
+    )
+
+    if time is None and perlen is None:
+        raise (ValueError("Please specify either time or perlen in set_ds_time"))
+    elif perlen is not None:
+        if time is not None:
+            msg = f"Cannot use both time and perlen. Ignoring perlen: {perlen}"
+            logger.warning(msg)
+        else:
+            if isinstance(perlen, (int, np.integer, float)):
+                perlen = [perlen]
+            time = np.cumsum(perlen)
+
+    if isinstance(time, str) or not hasattr(time, "__iter__"):
+        time = [time]
+
+    # parse start
+    if isinstance(start, (int, np.integer, float)):
+        if isinstance(time[0], (int, np.integer, float)):
+            raise (ValueError("Make sure start or time contains a valid TimeStamp"))
+        start = time[0] - pd.to_timedelta(start, "D")
+    elif isinstance(start, str):
+        start = pd.Timestamp(start)
+    elif isinstance(start, (pd.Timestamp, np.datetime64)):
+        pass
+    else:
+        raise TypeError("Cannot parse start datetime.")
+
+    # convert time to Timestamps
+    if isinstance(time[0], (int, np.integer, float)):
+        time = pd.Timestamp(start) + pd.to_timedelta(time, time_units)
+    elif isinstance(time[0], str):
+        time = pd.to_datetime(time)
+    elif isinstance(time[0], (pd.Timestamp, np.datetime64, xr.core.variable.Variable)):
+        pass
+    else:
+        raise TypeError("Cannot process 'time' argument. Datatype not understood.")
+
+    if time[0] <= start:
+        msg = (
+            "The timestamp of the first stress period cannot be before or "
+            "equal to the model start time! Please modify `time` or `start`!"
+        )
+        logger.error(msg)
+        raise ValueError(msg)
+
+    ds = ds.assign_coords(coords={"time": time})
+
+    # add steady, nstp and tsmult to dataset
+    if isinstance(steady, bool):
+        steady = int(steady) * np.ones(len(time), dtype=int)
+        if steady_start:
+            steady[0] = 1
+    ds["steady"] = ("time",), steady
+
+    if isinstance(nstp, (int, np.integer)):
+        nstp = nstp * np.ones(len(time), dtype=int)
+    ds["nstp"] = ("time",), nstp
+
+    if isinstance(tsmult, float):
+        tsmult = tsmult * np.ones(len(time))
+    ds["tsmult"] = ("time",), tsmult
+
+    if time_units == "D":
+        time_units = "DAYS"
+    ds.time.attrs["time_units"] = time_units
+    ds.time.attrs["start"] = str(start)
+
+    return ds
+
+
+def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units="D"):
+    """Get time index from TDIS perioddata: perlen, nstp, tsmult.
+
+
+    Parameters
+    ----------
+    start : str, pd.Timestamp
+        start datetime
+    perlen : array-like
+        array of period lengths
+    nstp : int, or array-like optional
+        number of steps per period, by default 1
+    tsmult : float or array-like, optional
+        timestep multiplier per period, by default 1.0
+    time_units : str, optional
+        time units, by default "D"
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
+    deltlist = []
+    for kper, delt in enumerate(perlen):
+        if not isinstance(nstp, int):
+            kstpkper = nstp[kper]
+        else:
+            kstpkper = nstp
+
+        if not isinstance(tsmult, float):
+            tsm = tsmult[kper]
+        else:
+            tsm = tsmult
+
+        if tsm > 1.0:
+            delt0 = delt * (tsm - 1) / (tsm**kstpkper - 1)
+            delt = delt0 * tsm ** np.arange(kstpkper)
+        else:
+            delt = np.ones(kstpkper) * delt / kstpkper
+        deltlist.append(delt)
+
+    dt_arr = np.cumsum(np.concatenate(deltlist))
+    return ds_time_idx(dt_arr, start_datetime=start, time_units=time_units)
 
 
 def estimate_nstp(
@@ -214,6 +406,15 @@ def estimate_nstp(
 
 
 def ds_time_from_model(gwf):
+    warnings.warn(
+        "this function was renamed to `ds_time_idx_from_model`. "
+        "Please use the new function name.",
+        DeprecationWarning,
+    )
+    return ds_time_idx_from_model(gwf)
+
+
+def ds_time_idx_from_model(gwf):
     """Get time index variable from model (gwf or gwt).
 
     Parameters
@@ -227,10 +428,19 @@ def ds_time_from_model(gwf):
         time coordinate for xarray data-array or dataset
     """
 
-    return ds_time_from_modeltime(gwf.modeltime)
+    return ds_time_idx_from_modeltime(gwf.modeltime)
 
 
 def ds_time_from_modeltime(modeltime):
+    warnings.warn(
+        "this function was renamed to `ds_time_idx_from_model`. "
+        "Please use the new function name.",
+        DeprecationWarning,
+    )
+    return ds_time_idx_from_modeltime(modeltime)
+
+
+def ds_time_idx_from_modeltime(modeltime):
     """Get time index variable from modeltime object.
 
     Parameters

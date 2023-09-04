@@ -85,7 +85,9 @@ def get_recharge(ds, method="linear", most_common_station=False):
         unique_combinations = locations.drop_duplicates(["stn_rd", "stn_ev24"])[
             ["stn_rd", "stn_ev24"]
         ].values
-
+        if unique_combinations.shape[1] > 2:
+            # bug fix for pandas 2.1 where three columns are returned
+            unique_combinations = unique_combinations[:, :2]
         for stn_rd, stn_ev24 in unique_combinations:
             # get locations with the same prec and evap station
             mask = (locations["stn_rd"] == stn_rd) & (locations["stn_ev24"] == stn_ev24)

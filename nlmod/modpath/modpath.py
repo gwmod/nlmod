@@ -47,7 +47,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
     logger.info("write modpath files to model workspace")
 
     # write modpath datasets
-    mpf.write_input(silent=silent)
+    mpf.write_input()
 
     # run modpath
     logger.info("run modpath model")
@@ -194,12 +194,6 @@ def mpf(gwf, exe_name=None, modelname=None, model_ws=None):
     if not npf.save_flows.array:
         raise ValueError(
             "the save_flows option of the npf package should be True not None"
-        )
-
-    # check if the tdis has a start_time
-    if gwf.simulation.tdis.start_date_time.array is not None:
-        logger.warning(
-            "older versions of modpath cannot handle this, see https://github.com/MODFLOW-USGS/modpath-v7/issues/31"
         )
 
     # get executable

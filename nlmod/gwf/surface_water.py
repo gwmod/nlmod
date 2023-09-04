@@ -510,7 +510,7 @@ def add_info_to_gdf(
         inds = s.query(geom_to)
         if len(inds) == 0:
             continue
-        overlap = gdf_from.geometry[inds].intersection(geom_to)
+        overlap = gdf_from.geometry.iloc[inds].intersection(geom_to)
         if geom_type is None:
             geom_type = overlap.geom_type.iloc[0]
         if geom_type in ["Polygon", "MultiPolygon"]:

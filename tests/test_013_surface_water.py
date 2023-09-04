@@ -12,7 +12,7 @@ def test_gdf_to_seasonal_pkg():
     ds = nlmod.get_ds(
         [170000, 171000, 550000, 551000], model_ws=model_ws, model_name=model_name
     )
-    ds = nlmod.time.set_ds_time(ds, time=pd.Timestamp.today())
+    ds = nlmod.time.set_ds_time(ds, time=[365.0], start=pd.Timestamp.today())
     gdf = nlmod.gwf.surface_water.get_gdf(ds)
 
     sim = nlmod.sim.sim(ds)
@@ -33,7 +33,7 @@ def test_gdf_lake():
     ds = nlmod.get_ds(
         [170000, 171000, 550000, 551000], model_ws=model_ws, model_name=model_name
     )
-    ds = nlmod.time.set_ds_time(ds, time=pd.Timestamp.today())
+    ds = nlmod.time.set_ds_time(ds, time=[1], start=pd.Timestamp.today())
     ds = nlmod.dims.refine(ds)
 
     sim = nlmod.sim.sim(ds)

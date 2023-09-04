@@ -196,12 +196,6 @@ def mpf(gwf, exe_name=None, modelname=None, model_ws=None):
             "the save_flows option of the npf package should be True not None"
         )
 
-    # check if the tdis has a start_time
-    if gwf.simulation.tdis.start_date_time.array is not None:
-        logger.warning(
-            "older versions of modpath cannot handle this, see https://github.com/MODFLOW-USGS/modpath-v7/issues/31"
-        )
-
     # get executable
     if exe_name is None:
         exe_name = util.get_exe_path("mp7_2_002_provisional")

@@ -207,7 +207,7 @@ def set_ds_time(
     )
 
     if time is None and perlen is None:
-        raise (Exception("Please specify either time or perlen in set_ds_time"))
+        raise (ValueError("Please specify either time or perlen in set_ds_time"))
     elif perlen is not None:
         if time is not None:
             msg = f"Cannot use both time and perlen. Ignoring perlen: {perlen}"
@@ -223,7 +223,7 @@ def set_ds_time(
     # parse start
     if isinstance(start, (int, np.integer, float)):
         if isinstance(time[0], (int, np.integer, float)):
-            raise (Exception("Make sure start or time contains a valid TimeStamp"))
+            raise (ValueError("Make sure start or time contains a valid TimeStamp"))
         start = time[0] - pd.to_timedelta(start, "D")
     elif isinstance(start, str):
         start = pd.Timestamp(start)

@@ -121,7 +121,7 @@ def get_bro(
     oc_meta = get_bro_metadata(extent)
     oc_meta = oc_meta.loc[~oc_meta["gld_ids"].isna()]
     if oc_meta.empty:
-        logger.warning(f"none of the observation wells have measurements")
+        logger.warning("none of the observation wells have measurements")
         return oc_meta
 
     if regis_layers is not None:

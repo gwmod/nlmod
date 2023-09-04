@@ -201,9 +201,8 @@ def set_ds_time(
 
     """
     logger.info(
-        "This is the new version of set_ds_time()."
-        " If you're looking for the old behavior,"
-        "use `nlmod.time.set_ds_time_deprecated()`."
+        "Function set_ds_time() has changed since nlmod version 0.7."
+        " For the old behavior, use `nlmod.time.set_ds_time_deprecated()`."
     )
 
     if time is None and perlen is None:

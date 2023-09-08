@@ -239,10 +239,10 @@ def add_geotop_to_regis_layers(
         # only keep the part of layers inside the regis layer
         top = rg["top"].loc[layer]
         bot = rg["botm"].loc[layer]
-        gtl["top"] = gtl["top"].where(top > gtl["top"], top)
-        gtl["top"] = gtl["top"].where(bot < gtl["top"], bot)
-        gtl["botm"] = gtl["botm"].where(top > gtl["botm"], top)
-        gtl["botm"] = gtl["botm"].where(bot < gtl["botm"], bot)
+        gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] < top), top)
+        gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] > bot), bot)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"].isnull() | (gtl["botm"] < top), top)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"].isnull() | (gtl["botm"] > bot), bot)
 
         if remove_nan_layers:
             # drop layers with a remaining thickness of 0 (or NaN) everywhere
@@ -253,17 +253,11 @@ def add_geotop_to_regis_layers(
         gtl = geotop.aggregate_to_ds(gt, gtl)
 
         # add gtl-layers to rg-layers
-        if rg.layer.data[0] == layer:
-            layer_order = np.concatenate([gtl.layer, rg.layer])
-        elif rg.layer.data[-1] == layer:
-            layer_order = np.concatenate([rg.layer, gtl.layer])
-        else:
-            lay = np.where(rg.layer == layer)[0][0]
-            layer_order = np.concatenate(
-                [rg.layer[:lay], gtl.layer, rg.layer[lay + 1 :]]
-            )
+        lay = np.where(rg.layer == layer)[0][0]
+        layer_order = np.concatenate([rg.layer[:lay], gtl.layer, rg.layer[lay + 1 :]])
+
         # call xr.concat with rg first, so we keep attributes of rg
-        rg = xr.concat((rg.sel(layer=rg.layer[rg.layer != layer]), gtl), "layer")
+        rg = xr.concat((rg, gtl), "layer")
         # we will then make sure the layer order is right
         rg = rg.reindex({"layer": layer_order})
     return rg

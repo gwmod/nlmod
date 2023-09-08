@@ -89,12 +89,16 @@ def maw_from_df(
     maw_conndata = []
     maw_perdata = []
 
-    for iw, irow in tqdm(df.iterrows(), total=df.index.size, desc="Adding MAWs"):
+    iw = 0
+    for index in tqdm(df.index, total=df.index.size, desc="Adding MAWs"):
+        irow = df.loc[index]
         try:
             cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top], forgive=False)
             cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm], forgive=False)
         except Exception:
-            print(f"Warning! well {iw} outside of model domain! ({irow[x]}, {irow[y]})")
+            logger.warning(
+                f"Well {index} outside of model domain ({irow[x]}, {irow[y]})"
+            )
             continue
         kb = cid2[0]
         if len(cid1) == 2:
@@ -107,7 +111,7 @@ def maw_from_df(
         wlayers = np.arange(kt, kb + 1)[idomain_mask]
 
         # <wellno> <radius> <bottom> <strt> <condeqn> <ngwfnodes>
-        pakdata = [iw, irow[rw], irow[top], strt, condeqn, len(wlayers)]
+        pakdata = [iw, irow[rw], irow[botm], strt, condeqn, len(wlayers)]
         if boundnames is not None:
             pakdata.append(irow[boundnames])
         maw_pakdata.append(pakdata)
@@ -142,10 +146,11 @@ def maw_from_df(
                     0.0,
                 ]
             maw_conndata.append(mawdata)
+        iw += 1
 
     maw = fp.mf6.ModflowGwfmaw(
         gwf,
-        nmawwells=df.index.size,
+        nmawwells=iw,
         boundnames=boundnames is not None,
         packagedata=maw_pakdata,
         connectiondata=maw_conndata,

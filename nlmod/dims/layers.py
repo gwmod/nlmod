@@ -48,6 +48,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
         else:
             raise ValueError("2d top should have same last dimension as bot")
     if isinstance(ds[bot], xr.DataArray):
+        thickness.name = "thickness"
         if hasattr(ds[bot], "long_name"):
             thickness.attrs["long_name"] = "thickness"
         if hasattr(ds[bot], "standard_name"):

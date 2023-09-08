@@ -512,7 +512,8 @@ def dataframe_to_flopy_timeseries(
     if time_series_namerecord is None:
         time_series_namerecord = list(df.columns)
 
-    interpolation_methodrecord = [interpolation_methodrecord] * len(df.columns)
+    if isinstance(interpolation_methodrecord, str):
+        interpolation_methodrecord = [interpolation_methodrecord] * len(df.columns)
     package.ts.initialize(
         filename=filename,
         timeseries=timeseries,

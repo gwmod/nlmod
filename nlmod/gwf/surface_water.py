@@ -421,7 +421,7 @@ def build_spd(
         # stage
         stage = row["stage"]
 
-        if (stage < rbot) and np.isfinite(rbot):
+        if not isinstance(stage, str) and stage < rbot and np.isfinite(rbot):
             logger.warning(
                 f"WARNING: stage below bottom elevation in {cellid}, "
                 "stage reset to rbot!"

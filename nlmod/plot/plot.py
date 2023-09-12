@@ -176,6 +176,12 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
     """
     if ax is None:
         ax = plt.gca()
+    if "layer" in da.dims:
+        msg = (
+            "The suppplied DataArray in nlmod.plot.data_darray contains multiple "
+            "layers. Please select a layer first."
+        )
+        raise (Exception(msg))
     if "icell2d" in da.dims:
         if ds is None:
             raise (ValueError("Supply model dataset (ds) for grid information"))

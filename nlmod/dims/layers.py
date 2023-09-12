@@ -1069,7 +1069,7 @@ def get_first_active_layer(ds, **kwargs):
     Parameters
     ----------
     ds : xr.DataSet
-        Model Dataset with a variable idomain.
+        Model Dataset
     **kwargs : dict
         Kwargs are passed on to get_first_active_layer_from_idomain.
 
@@ -1141,6 +1141,43 @@ def get_last_active_layer_from_idomain(idomain, nodata=-999):
         )
     last_active_layer.attrs["nodata"] = nodata
     return last_active_layer
+
+
+def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
+    """Get the layer of a certain z-value in all cells from a model ds.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        Model Dataset
+    z : float or xr.DataArray
+        The z-value for which the layer is determined
+    above_model : int, optional
+        value used for cells where z is above the top of the model. The default is -999.
+    below_model : int, optional
+        value used for cells where z is below the top of the model. The default is -999.
+
+    Returns
+    -------
+    layer : xr.DataArray
+        DataArray with values representing the integer layer index. Shape can be (y, x)
+        or (icell2d)
+    """
+    layer = xr.where(ds["botm"][0] < z, 0, below_model)
+    for i in range(1, len(ds.layer)):
+        layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
+
+    # set layer to nodata where z is above top
+    assert "layer" not in ds["top"].dims
+    layer = xr.where(ds["top"] > z, layer, above_model)
+
+    # set nodata attribute
+    layer.attrs["above_model"] = above_model
+    layer.attrs["below_model"] = below_model
+
+    # drop layer coordinates, as it is inherited from one of the actions above
+    layer = layer.drop_vars("layer")
+    return layer
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):

@@ -217,7 +217,7 @@ def geotop_lithok_in_cross_section(
 
     Parameters
     ----------
-    line : sahpely.LineString
+    line : shapely.LineString
         The line along which the GeoTOP data is plotted
     gt : xr.Dataset, optional
         The voxel-dataset from GeoTOP. It is downloaded with the method

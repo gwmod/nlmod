@@ -460,9 +460,19 @@ def download_modpath_provisional_exe(bindir=None, timeout=120):
         bindir = os.path.join(os.path.dirname(__file__), "bin")
     if not os.path.isdir(bindir):
         os.makedirs(bindir)
-    url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL/mpath7_PROVISIONAL_2022-08-23_9ac760f.exe"
+    if sys.platform.startswith("win"):
+        fname = "mp7_win64_20230911_8eca8d8.exe"
+    elif sys.platform.startswith("darwin"):
+        fname = "mp7_mac_20230911_8eca8d8"
+    elif sys.platform.startswith("linux"):
+        fname = "mp7_linux_20230911_8eca8d8"
+    else:
+        raise (Exception(f"Unknown platform: {sys.platform}"))
+    url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL"
+    url = f"{url}/{fname}"
     r = requests.get(url, allow_redirects=True, timeout=timeout)
-    fname = os.path.join(bindir, "mp7_2_002_provisional.exe")
+    ext = os.path.splitext(fname)[-1]
+    fname = os.path.join(bindir, f"mp7_2_002_provisional{ext}")
     with open(fname, "wb") as file:
         file.write(r.content)
 

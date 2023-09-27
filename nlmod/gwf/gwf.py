@@ -854,6 +854,31 @@ def evt(ds, gwf, pname="evt", **kwargs):
     return evt
 
 
+def uzf(ds, gwf, pname="uzf", **kwargs):
+    """create unsaturated zone flow package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    uzf : flopy ModflowGwfuzf
+        uzf package
+    """
+    logger.info("creating mf6 UZF")
+
+    # create uzf package
+    evt = recharge.ds_to_uzf(gwf, ds, pname=pname, **kwargs)
+
+    return evt
+
+
 def _set_record(out, budget, output="head"):
     record = []
     if isinstance(out, bool):

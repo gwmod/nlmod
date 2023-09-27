@@ -509,6 +509,8 @@ def dataframe_to_flopy_timeseries(
     timeseries = [(i,) + tuple(v) for i, v in zip(df.index, df.values)]
     if package is None:
         return timeseries
+    if filename is None:
+        filename = f"{package.filename}_ts"
     if time_series_namerecord is None:
         time_series_namerecord = list(df.columns)
 

@@ -43,23 +43,23 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", recharge="recharge", **kwargs):
 
     # get stress period data
     if ds["steady"].all():
-        if "time" in ds[recharge].dims:
-            mask = ds[recharge].isel(time=0) != 0
-        else:
-            mask = ds[recharge] != 0
+        recharge = ds[recharge]
+        if "time" in recharge.dims:
+            recharge = recharge.isel(time=0)
+        mask = recharge != 0
     else:
         rch_name_arr, rch_unique_dic = _get_unique_series(ds, recharge, pname)
-        recharge = "rch_name"
-        ds[recharge] = ds["top"].dims, rch_name_arr
+        ds["rch_name"] = ds["top"].dims, rch_name_arr
+        recharge = ds["rch_name"]
         if mask is not None:
-            mask = (ds[recharge] != "") & mask
+            mask = (recharge != "") & mask
         else:
-            mask = ds[recharge] != ""
+            mask = recharge != ""
 
     spd = da_to_reclist(
         ds,
         mask,
-        col1=ds[recharge],
+        col1=recharge,
         first_active_layer=True,
         only_active_cells=False,
     )
@@ -137,22 +137,21 @@ def ds_to_evt(
 
     # get stress period data
     if ds["steady"].all():
-        if "time" in ds[rate].dims:
-            mask = ds[rate].isel(time=0) != 0
-        else:
-            mask = ds[rate] != 0
+        rate = ds[rate]
+        if "time" in rate.dims:
+            rate = rate.isel(time=0)
+        mask = rate != 0
     else:
         evt_name_arr, evt_unique_dic = _get_unique_series(ds, rate, pname)
         ds["evt_name"] = ds["top"].dims, evt_name_arr
-
-        mask = ds["evt_name"] != ""
-        rate = "evt_name"
+        rate = ds["evt_name"]
+        mask = rate != ""
 
     spd = da_to_reclist(
         ds,
         mask,
         col1=surface,
-        col2=ds[rate],
+        col2=rate,
         col3=depth,
         first_active_layer=True,
         only_active_cells=False,

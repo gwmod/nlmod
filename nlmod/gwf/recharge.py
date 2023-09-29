@@ -6,7 +6,11 @@ import pandas as pd
 import xarray as xr
 
 from ..dims.grid import da_to_reclist, cols_to_reclist
-from ..dims.layers import get_idomain, get_first_active_layer_from_idomain
+from ..dims.layers import (
+    get_idomain,
+    get_first_active_layer_from_idomain,
+    calculate_thickness,
+)
 from ..dims.time import dataframe_to_flopy_timeseries
 from ..util import _get_value_from_ds_datavar
 
@@ -55,7 +59,7 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", recharge="recharge", **kwargs):
     spd = da_to_reclist(
         ds,
         mask,
-        col1=ds[recharge].squeeze(),
+        col1=ds[recharge],
         first_active_layer=True,
         only_active_cells=False,
     )
@@ -148,7 +152,7 @@ def ds_to_evt(
         ds,
         mask,
         col1=surface,
-        col2=ds[rate].squeeze(),
+        col2=ds[rate],
         col3=depth,
         first_active_layer=True,
         only_active_cells=False,
@@ -198,6 +202,8 @@ def ds_to_uzf(
     linear_gwet=True,
     unsat_etwc=False,
     unsat_etae=False,
+    obs_depth_interval=None,
+    obs_z=None,
     **kwargs,
 ):
     """Create a unsaturated zone flow package for modflow 6. This method adds uzf-cells
@@ -291,6 +297,11 @@ def ds_to_uzf(
         If True, ET in the unsaturated zone will be simulated using a capillary pressure
         based formulation. Capillary pressure is calculated using the Brooks-Corey
         retention function. The default is False.
+    obs_depth_interval : float, optional
+        The depths at which observations of the water depth in each cell are added. The
+        user-specified depth must be greater than or equal to zero and less than the
+        thickness of GWF cellid (TOP - BOT).
+        The
     ** kwargs : dict
         Kwargs are passed onto flopy.mf6.ModflowGwfuzf
 
@@ -400,11 +411,11 @@ def ds_to_uzf(
         if simulate_et and unsat_etae:
             logger.info(f"Setting root activity function (rootact) to {rootact}")
 
-    cellids = np.where(mask)
+    cellids_land = np.where(mask)
 
     perioddata = cols_to_reclist(
         ds,
-        cellids,
+        cellids_land,
         iuzno,
         finf,
         pet,
@@ -416,6 +427,34 @@ def ds_to_uzf(
         cellid_column=None,
     )
 
+    observations = None
+    # observation nodes uzf
+    if obs_depth_interval is not None or obs_z is not None:
+        cellid_per_iuzno = list(zip(*cellids))
+        cellid_str = [
+            str(x).replace("(", "").replace(")", "").replace(", ", "_")
+            for x in cellid_per_iuzno
+        ]
+        thickness = calculate_thickness(ds).data[iuzno >= 0]
+        obsdepths = []
+        if obs_depth_interval is not None:
+            for i in range(nuzfcells):
+                depths = np.arange(obs_depth_interval, thickness[i], obs_depth_interval)
+                for depth in depths:
+                    name = f"wc_{cellid_str[i]}_{depth:0.2f}"
+                    obsdepths.append((name, "water-content", i + 1, depth))
+        if obs_z is not None:
+            botm = ds["botm"].data[iuzno >= 0]
+            top = botm + thickness - landflag.data[iuzno >= 0] * surfdep / 2
+            for i in range(nuzfcells):
+                mask = (obs_z > botm[i]) & (obs_z <= top[i])
+                for z in obs_z[mask]:
+                    depth = top[i] - z
+                    name = f"wc_{cellid_str[i]}_{z:0.2f}"
+                    obsdepths.append((name, "water-content", i + 1, depth))
+
+        observations = {ds.model_name + ".uzf.obs.csv": obsdepths}
+
     uzf = flopy.mf6.ModflowGwfuzf(
         gwf,
         nuzfcells=nuzfcells,
@@ -425,6 +464,7 @@ def ds_to_uzf(
         linear_gwet=linear_gwet,
         unsat_etwc=unsat_etwc,
         unsat_etae=unsat_etae,
+        observations=observations,
         **kwargs,
     )
 

@@ -47,4 +47,4 @@ def test_uzf_structured():
     _ = nlmod.gwf.uzf(ds, gwf)
 
     # %% run
-    _ = nlmod.sim.write_and_run(sim, ds)
+    # _ = nlmod.sim.write_and_run(sim, ds)

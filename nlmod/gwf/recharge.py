@@ -49,7 +49,8 @@ def ds_to_rch(
         raise ValueError("please remove nan values in recharge data array")
 
     # get stress period data
-    if "time" not in ds[recharge].dims or len(ds["time"]) == 1:
+    use_ts = "time" in ds[recharge].dims and len(ds["time"]) > 1
+    if not use_ts:
         recharge = ds[recharge]
         if "time" in recharge.dims:
             recharge = recharge.isel(time=0)
@@ -90,7 +91,7 @@ def ds_to_rch(
             ssm_sources += [rch.package_name]
             ds.attrs["ssm_sources"] = ssm_sources
 
-    if recharge.dtype == str:
+    if use_ts:
         # create timeseries packages
         _add_time_series(rch, rch_unique_dic, ds)
 
@@ -162,7 +163,8 @@ def ds_to_evt(
         raise ValueError("please remove nan values in evaporation data array")
 
     # get stress period data
-    if "time" not in ds[rate].dims or len(ds["time"]) == 1:
+    use_ts = "time" in ds[rate].dims and len(ds["time"]) > 1
+    if not use_ts:
         rate = ds[rate]
         if "time" in rate.dims:
             rate = rate.isel(time=0)
@@ -198,7 +200,7 @@ def ds_to_evt(
         **kwargs,
     )
 
-    if rate.dtype == str:
+    if use_ts:
         # create timeseries packages
         _add_time_series(evt, evt_unique_dic, ds)
 

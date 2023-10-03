@@ -17,7 +17,9 @@ from ..util import _get_value_from_ds_datavar
 logger = logging.getLogger(__name__)
 
 
-def ds_to_rch(gwf, ds, mask=None, pname="rch", recharge="recharge", **kwargs):
+def ds_to_rch(
+    gwf, ds, mask=None, pname="rch", recharge="recharge", auxiliary=None, **kwargs
+):
     """Convert the recharge data in the model dataset to a rch package with
     time series.
 
@@ -31,6 +33,11 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", recharge="recharge", **kwargs):
         data array containing mask, recharge is only added where mask is True
     pname : str, optional
         package name. The default is 'rch'.
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
+    recharge : str, optional
+        The name of the variable in ds that contains the recharge flux rate. The default
+        is "recharge".
 
     Returns
     -------
@@ -42,26 +49,27 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", recharge="recharge", **kwargs):
         raise ValueError("please remove nan values in recharge data array")
 
     # get stress period data
-    if ds["steady"].all():
+    if "time" not in ds[recharge].dims or len(ds["time"]) == 1:
         recharge = ds[recharge]
         if "time" in recharge.dims:
             recharge = recharge.isel(time=0)
-        mask = recharge != 0
+        mask_recharge = recharge != 0
     else:
         rch_name_arr, rch_unique_dic = _get_unique_series(ds, recharge, pname)
         ds["rch_name"] = ds["top"].dims, rch_name_arr
         recharge = ds["rch_name"]
-        if mask is not None:
-            mask = (recharge != "") & mask
-        else:
-            mask = recharge != ""
+        mask_recharge = recharge != ""
+
+    if mask is not None:
+        mask_recharge = mask & mask_recharge
 
     spd = da_to_reclist(
         ds,
-        mask,
+        mask_recharge,
         col1=recharge,
         first_active_layer=True,
         only_active_cells=False,
+        aux=auxiliary,
     )
 
     # create rch package
@@ -70,22 +78,35 @@ def ds_to_rch(gwf, ds, mask=None, pname="rch", recharge="recharge", **kwargs):
         filename=f"{gwf.name}.rch",
         pname=pname,
         fixed_cell=False,
+        auxiliary="CONCENTRATION" if auxiliary is not None else None,
         maxbound=len(spd),
         stress_period_data={0: spd},
         **kwargs,
     )
+    if (auxiliary is not None) and (ds.transport == 1):
+        logger.info("-> adding GHB to SSM sources list")
+        ssm_sources = list(ds.attrs["ssm_sources"])
+        if rch.package_name not in ssm_sources:
+            ssm_sources += [rch.package_name]
+            ds.attrs["ssm_sources"] = ssm_sources
 
-    if ds["steady"].all():
-        return rch
-
-    # create timeseries packages
-    _add_time_series(rch, rch_unique_dic, ds)
+    if recharge.dtype == str:
+        # create timeseries packages
+        _add_time_series(rch, rch_unique_dic, ds)
 
     return rch
 
 
 def ds_to_evt(
-    gwf, ds, pname="evt", rate="evaporation", nseg=1, surface=None, depth=None, **kwargs
+    gwf,
+    ds,
+    mask=None,
+    pname="evt",
+    rate="evaporation",
+    nseg=1,
+    surface=None,
+    depth=None,
+    **kwargs,
 ):
     """Convert the evaporation data in the model dataset to a evt package with
     time series.
@@ -96,8 +117,13 @@ def ds_to_evt(
         groundwater flow model.
     ds : xr.DataSet
         dataset containing relevant model grid information
+    mask : xr.DataArray
+        data array containing mask, evt is only added where mask is True
     pname : str, optional
         package name. The default is 'evt'.
+    rate : str, optional
+        The name of the variable in ds that contains the maximum ET flux rate. The
+        default is "evaporation".
     nseg : int, optional
         number of ET segments. Only 1 is supported for now. The default is 1.
     surface : str, float or xr.DataArray, optional
@@ -136,20 +162,23 @@ def ds_to_evt(
         raise ValueError("please remove nan values in evaporation data array")
 
     # get stress period data
-    if ds["steady"].all():
+    if "time" not in ds[rate].dims or len(ds["time"]) == 1:
         rate = ds[rate]
         if "time" in rate.dims:
             rate = rate.isel(time=0)
-        mask = rate != 0
+        mask_rate = rate != 0
     else:
         evt_name_arr, evt_unique_dic = _get_unique_series(ds, rate, pname)
         ds["evt_name"] = ds["top"].dims, evt_name_arr
         rate = ds["evt_name"]
-        mask = rate != ""
+        mask_rate = rate != ""
+
+    if mask is not None:
+        mask_rate = mask & mask_rate
 
     spd = da_to_reclist(
         ds,
-        mask,
+        mask_rate,
         col1=surface,
         col2=rate,
         col3=depth,
@@ -169,11 +198,9 @@ def ds_to_evt(
         **kwargs,
     )
 
-    if ds["steady"].all():
-        return evt
-
-    # create timeseries packages
-    _add_time_series(evt, evt_unique_dic, ds)
+    if rate.dtype == str:
+        # create timeseries packages
+        _add_time_series(evt, evt_unique_dic, ds)
 
     return evt
 

@@ -61,6 +61,9 @@ def wel_from_df(
 
     wel_spd = {0: well_lrcd}
 
+    if len(aux) == 0:
+        aux = None
+
     wel = fp.mf6.ModflowGwfwel(
         gwf,
         stress_period_data=wel_spd,
@@ -164,6 +167,8 @@ def maw_from_df(
             maw_conndata.append(mawdata)
         iw += 1
 
+    if len(aux) == 0:
+        aux = None
     maw = fp.mf6.ModflowGwfmaw(
         gwf,
         nmawwells=iw,

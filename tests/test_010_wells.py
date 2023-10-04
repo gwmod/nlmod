@@ -50,6 +50,15 @@ def test_wel_from_df():
     nlmod.gwf.wells.wel_from_df(wells, gwf)
 
 
+def test_wel_from_df_no_multiplier():
+    wells = pd.DataFrame(columns=["x", "y", "top", "botm", "Q"], index=range(2))
+    wells.loc[0] = 100, -50, -5, -10, -100.0
+    wells.loc[1] = 200, 150, -20, -30, -300.0
+
+    sim, gwf = get_sim_and_gwf()
+    nlmod.gwf.wells.wel_from_df(wells, gwf, auxmultname=None)
+
+
 def test_maw_from_df():
     wells = pd.DataFrame(columns=["x", "y", "top", "botm", "rw", "Q"], index=range(2))
     wells.loc[0] = 100, -50, -5, -10, 0.1, -100.0
@@ -57,6 +66,21 @@ def test_maw_from_df():
 
     sim, gwf = get_sim_and_gwf()
     nlmod.gwf.wells.maw_from_df(wells, gwf)
+
+
+def test_wel_from_df_transient():
+    time = pd.date_range("2000", "2001", freq="MS")
+    ds = get_model_ds(start="1990", time=time)
+
+    Q = pd.DataFrame(-100.0, index=time, columns=["Q1", "Q2"])
+    wells = pd.DataFrame(columns=["x", "y", "top", "botm", "Q"], index=range(2))
+    wells.loc[0] = 100, -50, -5, -10, "Q1"
+    wells.loc[1] = 200, 150, -20, -30, "Q2"
+
+    sim, gwf = get_sim_and_gwf()
+    wel = nlmod.gwf.wells.wel_from_df(wells, gwf)
+
+    nlmod.time.dataframe_to_flopy_timeseries(Q, ds, package=wel)
 
 
 def test_maw_from_df_transient():

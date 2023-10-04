@@ -204,7 +204,7 @@ def _get_layer_multiplier_for_wells(df, top, botm, ds=None, gwf=None):
         kh = ds["kh"].data
         layer = ds.layer
 
-    multipliers = dict()
+    multipliers = {}
     for index, irow in df.iterrows():
         multipliers[index] = _get_layer_multiplier_for_well(
             irow["cellid"], irow[top], irow[botm], ml_top, ml_bot, kh

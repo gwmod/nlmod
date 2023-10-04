@@ -727,9 +727,7 @@ def lrc_to_reclist(
         raise ValueError("col3 is set, but col1 and/or col2 are not!")
 
     if aux is not None:
-        if isinstance(aux, str):
-            aux = [aux]
-        elif isinstance(aux, (int, float)):
+        if isinstance(aux, (str, int, float)):
             aux = [aux]
 
         for i_aux in aux:

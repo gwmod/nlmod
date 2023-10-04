@@ -485,6 +485,8 @@ def ds_to_uzf(
 
     uzf = flopy.mf6.ModflowGwfuzf(
         gwf,
+        filename=f"{gwf.name}.uzf",
+        pname=pname,
         nuzfcells=nuzfcells,
         packagedata=packagedata,
         perioddata={0: perioddata},
@@ -579,7 +581,7 @@ def _add_time_series(package, rch_unique_dic, ds):
     df = pd.DataFrame(rch_unique_dic, index=ds.time)
     if df.isna().any(axis=None):
         # make sure there are no NaN's, as otherwise they will be filled by zeros later
-        raise (Exception("There cannot be nan's in the dictionary"))
+        raise (ValueError("There cannot be nan's in the DataFrame"))
     # set the first value for the start-time as well
     df.loc[pd.to_datetime(ds.time.start)] = df.iloc[0]
     # combine the values with the start of each period, and ste the last value to 0.0

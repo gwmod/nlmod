@@ -46,8 +46,10 @@ def wel_from_df(
         The column in df that contains the z-coordinate of the bottom of the well
         screen. The defaults is 'botm'.
     Q : str, optional
-        The column in df containing the well discharge. This column can contain floats,
-        or strings belonging to timeseries added later. The default is "Q".
+        The column in df that contains the volumetric well rate. This column can contain
+        floats, or strings belonging to timeseries added later. A positive value
+        indicates recharge (injection) and a negative value indicates discharge
+        (extraction)  The default is "Q".
     aux : str of list of str, optional
         The column(s) in df that contain auxiliary variables. The default is None.
     boundnames : str, optional
@@ -160,8 +162,10 @@ def maw_from_df(
         The column in df that contains the z-coordinate of the bottom of the well
         screen. The defaults is 'botm'.
     Q : str, optional
-        The column in df containing the well discharge. This column can contain floats,
-        or strings belonging to timeseries added later. The default is "Q".
+        The column in df that contains the volumetric well rate. This column can contain
+        floats, or strings belonging to timeseries added later. A positive value
+        indicates recharge (injection) and a negative value indicates discharge
+        (extraction)  The default is "Q".
     rw : str, optional
         The column in df that contains the radius for the multi-aquifer well. The
         default is "rw".
@@ -194,40 +198,24 @@ def maw_from_df(
     df = _add_cellid(df, ds=ds, gwf=gwf, x=x, y=y)
     multipliers = _get_layer_multiplier_for_wells(df, top, botm, ds=ds, gwf=gwf)
 
-    maw_pakdata = []
-    maw_conndata = []
-    maw_perdata = []
+    packagedata = []
+    connectiondata = []
+    perioddata = []
 
     iw = 0
     for index, irow in df.iterrows():
-        try:
-            cid1 = gwf.modelgrid.intersect(irow[x], irow[y], irow[top], forgive=False)
-            cid2 = gwf.modelgrid.intersect(irow[x], irow[y], irow[botm], forgive=False)
-        except Exception:
-            logger.warning(
-                f"Well {index} outside of model domain ({irow[x]}, {irow[y]})"
-            )
-            continue
-        kb = cid2[0]
-        if len(cid1) == 2:
-            kt, icell2d = cid1
-            idomain_mask = gwf.modelgrid.idomain[kt : kb + 1, icell2d] > 0
-        elif len(cid1) == 3:
-            kt, i, j = cid1
-            idomain_mask = gwf.modelgrid.idomain[kt : kb + 1, i, j] > 0
-
-        wlayers = np.arange(kt, kb + 1)[idomain_mask]
-
         wlayers = np.where(multipliers[index] > 0)[0]
-        # <wellno> <radius> <bottom> <strt> <condeqn> <ngwfnodes>
+
+        # [wellno, radius, bottom, strt, condeqn, ngwfnodes]
         pakdata = [iw, irow[rw], irow[botm], strt, condeqn, len(wlayers)]
         for iaux in aux:
             pakdata.append(irow[iaux])
         if boundnames is not None:
             pakdata.append(irow[boundnames])
-        maw_pakdata.append(pakdata)
-        # <wellno> <mawsetting>
-        maw_perdata.append([iw, "RATE", irow[Q]])
+        packagedata.append(pakdata)
+
+        # [wellno mawsetting]
+        perioddata.append([iw, "RATE", irow[Q]])
 
         for iwellpart, k in enumerate(wlayers):
             if k == 0:
@@ -249,7 +237,8 @@ def maw_from_df(
             scrn_top = np.min([irow[top], laytop])
             scrn_bot = np.max([irow[botm], laybot])
 
-            mawdata = [
+            # [wellno, icon, cellid, scrn_top, scrn_bot, hk_skin, radius_skin]
+            condata = [
                 iw,
                 iwellpart,
                 cellid,
@@ -258,7 +247,7 @@ def maw_from_df(
                 0.0,
                 0.0,
             ]
-            maw_conndata.append(mawdata)
+            connectiondata.append(condata)
         iw += 1
 
     if len(aux) == 0:
@@ -268,9 +257,9 @@ def maw_from_df(
         nmawwells=iw,
         auxiliary=aux,
         boundnames=boundnames is not None,
-        packagedata=maw_pakdata,
-        connectiondata=maw_conndata,
-        perioddata=maw_perdata,
+        packagedata=packagedata,
+        connectiondata=connectiondata,
+        perioddata=perioddata,
         **kwargs,
     )
 
@@ -312,7 +301,7 @@ def _add_cellid(df, ds=None, gwf=None, x="x", y="y"):
 
 def _get_layer_multiplier_for_wells(df, top, botm, ds=None, gwf=None):
     """
-    Get factors (pandas.DataFrame) for each layer that all well screens intersects with.
+    Get factors (pandas.DataFrame) for each layer that well screens intersects with.
 
     Parameters
     ----------
@@ -335,7 +324,6 @@ def _get_layer_multiplier_for_wells(df, top, botm, ds=None, gwf=None):
         and the name of the well screens (the index of df) as columns.
 
     """
-    """Get the factors """
     # get required data either from  gwf or ds
     if ds is not None:
         ml_top = ds["top"].data
@@ -348,7 +336,7 @@ def _get_layer_multiplier_for_wells(df, top, botm, ds=None, gwf=None):
         kh = gwf.npf.k.array
         layer = range(gwf.dis.nlay.array)
     else:
-        raise (Exception("Either supply ds or gwf to determine layer multiplyer"))
+        raise (TypeError("Either supply ds or gwf to determine layer multiplyer"))
 
     multipliers = {}
     for index, irow in df.iterrows():

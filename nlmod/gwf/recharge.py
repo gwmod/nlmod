@@ -280,8 +280,9 @@ def ds_to_uzf(
     landflag : xr.DataArray, optional
         A DataArray with integer values, set to one for land surface cells indicating
         that boundary conditions can be applied and data can be specified in the PERIOD
-        block. A value of 0 specifies a non-land surface cell. Landflag is determined
-        from ds when it is None. The default is None.
+        block. A value of 0 specifies a non-land surface cell. Landflag is set to one
+        for the most upper active layer in each vertical column (determined form ds)
+        when it is None. The default is None.
     finf :float, str or array-like
         The applied infiltration rate of the UZF cell (:math:`LT^{-1}`). When passed as
         string, the array is obtained from ds. The default is "recharge".
@@ -289,27 +290,28 @@ def ds_to_uzf(
         The potential evapotranspiration rate of the UZF cell and specified GWF cell.
         Evapotranspiration is first removed from the unsaturated zone and any remaining
         potential evapotranspiration is applied to the saturated zone. only
-        used if SIMULATE_ET. When passed as string, the array is obtained from ds. The
-        default is "evaporation".
+        used if simulate_et=True. When passed as string, the array is obtained from ds.
+        The default is "evaporation".
     extdp : float, optional
         Value that defines the evapotranspiration extinction depth of the UZF cell, in
         meters below the top of the model. Set to 2.0 meter when None. The default is
         None.
     extwc : float, optional
         The evapotranspiration extinction water content of the UZF cell. Only used if
-        SIMULATE_ET and UNSAT_ETWC. Set to thtr when None. The default is None.
+        simulate_et=True and unsat_etwc=True. Set to thtr when None. The default is
+        None.
     ha : float, optional
-        The air entry potential (head) of the UZF cell. Only used if SIMULATE_ET and
-        UNSAT_ETAE. Set to 0.0 when None. The default is None.
+        The air entry potential (head) of the UZF cell. Only used if simulate_et=True
+        and unsat_etae=True. Set to 0.0 when None. The default is None.
     hroot : float, optional
-        The root potential (head) of the UZF cell. Only used if SIMULATE_ET and
-        UNSAT_ETAE. Set to 0.0 when None. The default is None.
+        The root potential (head) of the UZF cell. Only used if simulate_et=True and
+        unsat_etae=True. Set to 0.0 when None. The default is None.
     rootact : float, optional
         the root activity function of the UZF cell. ROOTACT is the length of roots in
         a given volume of soil divided by that volume. Values range from 0 to about 3
         :math:`cm^{-2}`, depending on the plant community and its stage of development.
-        Only used if SIMULATE_ET and UNSAT_ETAE. Set to 0.0 when None. The default is
-        None.
+        Only used if simulate_et=True and unsat_etae=True. Set to 0.0 when None. The
+        default is None.
     simulate_et : bool, optional
         If True, ET in the unsaturated (UZF) and saturated zones (GWF) will be
         simulated. The default is True.
@@ -326,10 +328,13 @@ def ds_to_uzf(
         based formulation. Capillary pressure is calculated using the Brooks-Corey
         retention function. The default is False.
     obs_depth_interval : float, optional
-        The depths at which observations of the water depth in each cell are added. The
-        user-specified depth must be greater than or equal to zero and less than the
-        thickness of GWF cellid (TOP - BOT).
-        The
+        The depths at which observations of the water content in each cell are added.
+        When not None, this creates a CSV output file with water content at different
+        z-coordinates in each UZF cell. The default is None.
+    obs_z : array-like, optional
+        The z-coordinate at which observations of the water content in each cell are
+        added. When not None, this creates a CSV output file with water content at fixes
+        z-coordinates in each UZF cell. The default is None.
     ** kwargs : dict
         Kwargs are passed onto flopy.mf6.ModflowGwfuzf
 
@@ -464,6 +469,10 @@ def ds_to_uzf(
             for x in cellid_per_iuzno
         ]
         thickness = calculate_thickness(ds).data[iuzno >= 0]
+        # account for surfdep, as this decreases the height of the top of the upper cell
+        # otherwise modflow may return an error
+        thickness = thickness - landflag.data[iuzno >= 0] * surfdep / 2
+
         obsdepths = []
         if obs_depth_interval is not None:
             for i in range(nuzfcells):
@@ -473,7 +482,8 @@ def ds_to_uzf(
                     obsdepths.append((name, "water-content", i + 1, depth))
         if obs_z is not None:
             botm = ds["botm"].data[iuzno >= 0]
-            top = botm + thickness - landflag.data[iuzno >= 0] * surfdep / 2
+
+            top = botm + thickness
             for i in range(nuzfcells):
                 mask = (obs_z > botm[i]) & (obs_z <= top[i])
                 for z in obs_z[mask]:
@@ -584,7 +594,7 @@ def _add_time_series(package, rch_unique_dic, ds):
         raise (ValueError("There cannot be nan's in the DataFrame"))
     # set the first value for the start-time as well
     df.loc[pd.to_datetime(ds.time.start)] = df.iloc[0]
-    # combine the values with the start of each period, and ste the last value to 0.0
+    # combine the values with the start of each period, and set the last value to 0.0
     df = df.sort_index().shift(-1).fillna(0.0)
 
     dataframe_to_flopy_timeseries(

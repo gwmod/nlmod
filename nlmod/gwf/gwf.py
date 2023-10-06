@@ -395,7 +395,6 @@ def ghb(
         ghb = flopy.mf6.ModflowGwfghb(
             gwf,
             auxiliary="CONCENTRATION" if auxiliary is not None else None,
-            print_input=True,
             maxbound=len(ghb_rec),
             stress_period_data=ghb_rec,
             save_flows=True,
@@ -472,7 +471,6 @@ def drn(
     if len(drn_rec) > 0:
         drn = flopy.mf6.ModflowGwfdrn(
             gwf,
-            print_input=True,
             maxbound=len(drn_rec),
             stress_period_data=drn_rec,
             save_flows=True,
@@ -552,7 +550,6 @@ def riv(
     if len(riv_rec) > 0:
         riv = flopy.mf6.ModflowGwfriv(
             gwf,
-            print_input=True,
             maxbound=len(riv_rec),
             stress_period_data=riv_rec,
             auxiliary="CONCENTRATION" if auxiliary is not None else None,
@@ -795,7 +792,6 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
     drn = flopy.mf6.ModflowGwfdrn(
         gwf,
         pname=pname,
-        print_input=True,
         maxbound=len(drn_rec),
         stress_period_data={0: drn_rec},
         save_flows=True,
@@ -852,6 +848,31 @@ def evt(ds, gwf, pname="evt", **kwargs):
     evt = recharge.ds_to_evt(gwf, ds, pname=pname, **kwargs)
 
     return evt
+
+
+def uzf(ds, gwf, pname="uzf", **kwargs):
+    """create unsaturated zone flow package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    uzf : flopy ModflowGwfuzf
+        uzf package
+    """
+    logger.info("creating mf6 UZF")
+
+    # create uzf package
+    uzf = recharge.ds_to_uzf(gwf, ds, pname=pname, **kwargs)
+
+    return uzf
 
 
 def _set_record(out, budget, output="head"):

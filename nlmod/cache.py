@@ -1,6 +1,7 @@
 import functools
 import importlib
 import inspect
+import joblib
 import logging
 import numbers
 import os
@@ -198,6 +199,120 @@ def cache_netcdf(func):
         else:
             raise TypeError(f"expected xarray Dataset, got {type(result)} instead")
         result = _check_for_data_array(result)
+        return result
+
+    return decorator
+
+
+def cache_pickle(func):
+    """decorator to read/write the result of a function from/to a file to speed
+    up function calls with the same arguments. Should only be applied to
+    functions that:
+
+        - return a picklable object
+        - have functions arguments of types that can be checked using the
+        _is_valid_cache functions
+
+    1. The directory and filename of the cache should be defined by the person
+    calling a function with this decorator. If not defined no cache is
+    created nor used.
+    2. Create a new cached file if it is impossible to check if the function
+    arguments used to create the cached file are the same as the current
+    function arguments. This can happen if one of the function arguments has a
+    type that cannot be checked using the _is_valid_cache function.
+    3. Function arguments are pickled together with the cache to check later
+    if the cache is valid.
+    4. This function uses `functools.wraps` and some home made
+    magic in _update_docstring_and_signature to add arguments of the decorator
+    to the decorated function. This assumes that the decorated function has a
+    docstring with a "Returns" heading. If this is not the case an error is
+    raised when trying to decorate the function.
+    """
+
+    # add cachedir and cachename to docstring
+    _update_docstring_and_signature(func)
+
+    @functools.wraps(func)
+    def decorator(*args, cachedir=None, cachename=None, **kwargs):
+        # 1 check if cachedir and name are provided
+        if cachedir is None or cachename is None:
+            return func(*args, **kwargs)
+
+        if not cachename.endswith(".pklz"):
+            cachename += ".pklz"
+
+        fname_cache = os.path.join(cachedir, cachename)  # pklz file
+        fname_pickle_cache = fname_cache.replace(".pklz", "__cache__.pklz")
+
+        # create dictionary with function arguments
+        func_args_dic = {f"arg{i}": args[i] for i in range(len(args))}
+        func_args_dic.update(kwargs)
+
+        # only use cache if the cache file and the pickled function arguments exist
+        if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
+            # check if you can read the function argument pickle, there are
+            # several reasons why a pickle can not be read.
+            try:
+                with open(fname_pickle_cache, "rb") as f:
+                    func_args_dic_cache = pickle.load(f)
+                pickle_check = True
+            except (pickle.UnpicklingError, ModuleNotFoundError):
+                logger.info("could not read pickle, not using cache")
+                pickle_check = False
+                argument_check = False
+
+            # check if the module where the function is defined was changed
+            # after the cache was created
+            time_mod_func = _get_modification_time(func)
+            time_mod_cache = os.path.getmtime(fname_cache)
+            modification_check = time_mod_cache > time_mod_func
+
+            if not modification_check:
+                logger.info(
+                    f"module of function {func.__name__} recently modified, not using cache"
+                )
+
+            # check if you can read the cached pickle, there are
+            # several reasons why a pickle can not be read.
+            try:
+                with open(fname_cache, "rb") as f:
+                    cached_pklz = pickle.load(f)
+            except (pickle.UnpicklingError, ModuleNotFoundError):
+                logger.info("could not read pickle, not using cache")
+                pickle_check = False
+
+            if pickle_check:
+                # add dataframe hash to function arguments dic
+                func_args_dic["_pklz_hash"] = joblib.hash(cached_pklz)
+
+                # check if cache was created with same function arguments as
+                # function call
+                argument_check = _same_function_arguments(
+                    func_args_dic, func_args_dic_cache
+                )
+
+            if modification_check and argument_check and pickle_check:
+                logger.info(f"using cached data -> {cachename}")
+                return cached_pklz
+
+        # create cache
+        result = func(*args, **kwargs)
+        logger.info(f"caching data -> {cachename}")
+
+        if isinstance(result, pd.DataFrame):
+            # write pklz cache
+            result.to_pickle(fname_cache)
+
+            # add dataframe hash to function arguments dic
+            with open(fname_cache, "rb") as f:
+                temp = pickle.load(f)
+            func_args_dic["_pklz_hash"] = joblib.hash(temp)
+
+            # pickle function arguments
+            with open(fname_pickle_cache, "wb") as fpklz:
+                pickle.dump(func_args_dic, fpklz)
+        else:
+            raise TypeError(f"expected DataFrame, got {type(result)} instead")
         return result
 
     return decorator

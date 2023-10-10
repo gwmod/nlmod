@@ -777,9 +777,7 @@ def lrc_to_reclist(
         raise ValueError("col3 is set, but col1 and/or col2 are not!")
 
     if aux is not None:
-        if isinstance(aux, str):
-            aux = [aux]
-        elif isinstance(aux, (int, float)):
+        if isinstance(aux, (str, int, float)):
             aux = [aux]
 
         for i_aux in aux:
@@ -872,9 +870,7 @@ def lcid_to_reclist(
         raise ValueError("col3 is set, but col1 and/or col2 are not!")
 
     if aux is not None:
-        if isinstance(aux, str):
-            aux = [aux]
-        elif isinstance(aux, (int, float)):
+        if isinstance(aux, (str, int, float)):
             aux = [aux]
 
         for i_aux in aux:
@@ -888,6 +884,31 @@ def lcid_to_reclist(
 
     reclist = list(zip(zip(layers, cellids[-1]), *cols))
     return reclist
+
+
+def cols_to_reclist(ds, cellids, *args, cellid_column=0):
+    """Create a reclist for stress period data from a set of cellids.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data. Should have dimensions (layer, icell2d).
+    cellids : tuple of length 2 or 3
+        tuple with indices of the cells that will be used to create the list. For a
+        structured grid, cellids represents (layer, row, column). For a vertex grid
+        cellid reprsents (layer, icell2d).
+    args : xarray.DatArray, str, int or float
+        the args parameter represents the data to be used as the columns in the reclist.
+        See col_to_list of the allowed values.
+    cellid_column : int, optional
+        Adds the cellid ((layer, row, col) or (layer, icell2d)) to the reclist in this
+        column number. Do not add cellid when cellid_column is None. The default is 0.
+
+    """
+    cols = [col_to_list(col, ds, cellids) for col in args]
+    if cellid_column is not None:
+        cols.insert(cellid_column, list(zip(*cellids)))
+    return list(zip(*cols))
 
 
 def da_to_reclist(

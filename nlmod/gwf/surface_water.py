@@ -421,7 +421,7 @@ def build_spd(
         # stage
         stage = row["stage"]
 
-        if (stage < rbot) and np.isfinite(rbot):
+        if not isinstance(stage, str) and stage < rbot and np.isfinite(rbot):
             logger.warning(
                 f"WARNING: stage below bottom elevation in {cellid}, "
                 "stage reset to rbot!"
@@ -907,7 +907,7 @@ def gdf_to_seasonal_pkg(
         The default water depth, only used when there is no 'rbot' column in
         gdf or when this column contains nans. The default is 0.5.
     boundname_column : str, optional
-        THe name of the column in gdf to use for the boundnames. The default is
+        The name of the column in gdf to use for the boundnames. The default is
         "identificatie", which is a unique identifier in the BGT.
     c0 : float, optional
         The resistance of the surface water, in days. Only used when there is
@@ -990,7 +990,9 @@ def gdf_to_seasonal_pkg(
         spd[:, [2, 3]] = spd[:, [3, 2]]
     spd = spd.tolist()
 
-    if boundname_column is not None:
+    if boundname_column is None:
+        observations = None
+    else:
         observations = []
         for boundname in np.unique(gdf[boundname_column]):
             observations.append((boundname, pkg, boundname))

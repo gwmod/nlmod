@@ -54,7 +54,7 @@ def _list_contextily_providers():
     return providers
 
 
-def add_background_map(ax, crs=28992, map_provider="nlmaps.standaard", **kwargs):
+def add_background_map(ax, crs=EPSG_28992, map_provider="nlmaps.standaard", **kwargs):
     """Add background map to axes using contextily.
 
     Parameters

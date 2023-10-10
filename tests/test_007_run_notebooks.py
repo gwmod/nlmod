@@ -102,3 +102,8 @@ def test_run_notebook_15_geotop():
 @pytest.mark.notebooks
 def test_run_notebook_16_groundwater_transport():
     _run_notebook(nbdir, "16_groundwater_transport.ipynb")
+
+
+@pytest.mark.notebooks
+def test_run_notebook_17_unsaturated_zone_flow():
+    _run_notebook(nbdir, "17_unsaturated_zone_flow.ipynb")

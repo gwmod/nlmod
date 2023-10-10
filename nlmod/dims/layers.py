@@ -774,6 +774,36 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
     return ds
 
 
+def remove_thin_layers(ds, min_thickness=0.1):
+    """Remove layers from cells with a thickness less than min_thickness
+
+    THe thickness of the removed cells is added to the first active layer below
+    """
+    thickness = calculate_thickness(ds)
+    for lay_org in range(len(ds.layer)):
+        # determine where the layer is too thin
+        mask = (thickness[lay_org] > 0) & (thickness[lay_org] < min_thickness)
+        if mask.any():
+            # we will set the botm to the top in these cells, so we first get the top
+            if lay_org == 0:
+                top = ds["top"]
+            else:
+                top = ds["botm"][lay_org - 1]
+            # loop over the layers, starting from lay_org
+            for lay in range(lay_org, len(ds.layer)):
+                if lay > lay_org:
+                    # only keep cells in mask that had no thickness to begin with
+                    # we need to increase the botm in these cells as well
+                    mask = mask & (thickness[lay + 1] <= 0)
+                    if not mask.any():
+                        break
+                # set the botm equal to the top in the cells in mask
+                ds["botm"][lay].data[mask] = top.data[mask]
+            # calculate the thickness again, using the new botms
+            thickness = calculate_thickness(ds)
+    return ds
+
+
 def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=None):
     """create kh en kv grid data for flopy from existing kh, kv and anistropy
     grids with nan values (typically from REGIS).
@@ -1069,7 +1099,7 @@ def get_first_active_layer(ds, **kwargs):
     Parameters
     ----------
     ds : xr.DataSet
-        Model Dataset with a variable idomain.
+        Model Dataset
     **kwargs : dict
         Kwargs are passed on to get_first_active_layer_from_idomain.
 
@@ -1141,6 +1171,43 @@ def get_last_active_layer_from_idomain(idomain, nodata=-999):
         )
     last_active_layer.attrs["nodata"] = nodata
     return last_active_layer
+
+
+def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
+    """Get the layer of a certain z-value in all cells from a model ds.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        Model Dataset
+    z : float or xr.DataArray
+        The z-value for which the layer is determined
+    above_model : int, optional
+        value used for cells where z is above the top of the model. The default is -999.
+    below_model : int, optional
+        value used for cells where z is below the top of the model. The default is -999.
+
+    Returns
+    -------
+    layer : xr.DataArray
+        DataArray with values representing the integer layer index. Shape can be (y, x)
+        or (icell2d)
+    """
+    layer = xr.where(ds["botm"][0] < z, 0, below_model)
+    for i in range(1, len(ds.layer)):
+        layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
+
+    # set layer to nodata where z is above top
+    assert "layer" not in ds["top"].dims
+    layer = xr.where(ds["top"] > z, layer, above_model)
+
+    # set nodata attribute
+    layer.attrs["above_model"] = above_model
+    layer.attrs["below_model"] = below_model
+
+    # drop layer coordinates, as it is inherited from one of the actions above
+    layer = layer.drop_vars("layer")
+    return layer
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):

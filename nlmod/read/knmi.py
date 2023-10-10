@@ -38,7 +38,7 @@ def get_recharge(ds, method="linear", most_common_station=False):
     ----------
     ds : xr.DataSet
         dataset containing relevant model grid information
-    method : bool, optional
+    method : str, optional
         If 'linear', calculate recharge by subtracting evaporation from precipitation.
         If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
         The defaults is 'linear'.

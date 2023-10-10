@@ -11,7 +11,7 @@ from .. import cache, gwf, dims
 logger = logging.getLogger(__name__)
 
 
-def add_modelled_head(oc, ml=None, ds=None):
+def add_modelled_head(oc, ml=None, ds=None, method="linear"):
     """add modelled heads as seperate observations to the ObsCollection.
 
     Parameters
@@ -20,8 +20,11 @@ def add_modelled_head(oc, ml=None, ds=None):
         Set of observed groundwater heads
     ml : flopy.modflow.mf.model, optional
         modflow model, by default None
-    ds : xr.DataSet
+    ds : xr.DataSet, optional
         dataset with relevant model information, by default None
+    method : str, optional
+        type of interpolation used to get heads. For now only 'linear' and
+        'nearest' are supported. The default is 'linear'.
 
     Returns
     -------
@@ -29,7 +32,7 @@ def add_modelled_head(oc, ml=None, ds=None):
         combination of observed and modelled groundwater heads.
     """
 
-    oc["modellayer"] = oc.gwobs.get_modellayers(gwf=ml, ds=ds)
+    oc["modellayer"] = oc.gwobs.get_modellayers(gwf=ml)
     if ds is not None and "heads" in ds:
         heads = ds["heads"]
     else:
@@ -37,7 +40,7 @@ def add_modelled_head(oc, ml=None, ds=None):
 
     # this function requires a flopy model object, see
     # https://github.com/ArtesiaWater/hydropandas/issues/146
-    oc_modflow = hpd.read_modflow(oc, ml, heads.values, ds.time.values)
+    oc_modflow = hpd.read_modflow(oc, ml, heads.values, ds.time.values, method=method)
 
     if ds.gridtype == "vertex":
         gi = flopy.utils.GridIntersect(dims.modelgrid_from_ds(ds), method="vertex")
@@ -76,7 +79,7 @@ def add_modelled_head(oc, ml=None, ds=None):
             name=f"{o.name}_model",
             x=o.x,
             y=o.y,
-            tube_nr=o.tube_nr + 1,
+            tube_nr=o.tube_nr,
             screen_top=top,
             screen_bottom=bot,
             monitoring_well=o.monitoring_well,

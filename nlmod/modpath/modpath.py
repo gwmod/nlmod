@@ -113,10 +113,14 @@ def package_to_nodes(gwf, package_name, mpf):
         node numbers corresponding to the cells with a certain boundary condition.
     """
     gwf_package = gwf.get_package(package_name)
-    if not hasattr(gwf_package, "stress_period_data"):
-        raise TypeError("only package with stress period data can be used")
-
-    pkg_cid = gwf_package.stress_period_data.array[0]["cellid"]
+    if hasattr(gwf_package, "stress_period_data"):
+        pkg_cid = gwf_package.stress_period_data.array[0]["cellid"]
+    elif hasattr(gwf_package, "connectiondata"):
+        pkg_cid = gwf_package.connectiondata.array["cellid"]
+    else:
+        raise TypeError(
+            "only package with stress period data or connectiondata can be used"
+        )
     nodes = []
     for cid in pkg_cid:
         if mpf.ib[cid[0], cid[1]] > 0:

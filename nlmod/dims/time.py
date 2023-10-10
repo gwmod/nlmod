@@ -491,3 +491,34 @@ def ds_time_idx(t, start_datetime=None, time_units="D"):
         time.attrs["start"] = str(start_datetime)
 
     return time
+
+
+def dataframe_to_flopy_timeseries(
+    df,
+    ds=None,
+    package=None,
+    filename=None,
+    time_series_namerecord=None,
+    interpolation_methodrecord="stepwise",
+):
+    if ds is not None:
+        # set index to days after the start of the simulation
+        df = df.copy()
+        df.index = (df.index - pd.to_datetime(ds.time.start)) / pd.Timedelta(1, "D")
+    # generate a list of tuples with time as the first record, followed by the columns
+    timeseries = [(i,) + tuple(v) for i, v in zip(df.index, df.values)]
+    if package is None:
+        return timeseries
+    if filename is None:
+        filename = f"{package.filename}_ts"
+    if time_series_namerecord is None:
+        time_series_namerecord = list(df.columns)
+
+    if isinstance(interpolation_methodrecord, str):
+        interpolation_methodrecord = [interpolation_methodrecord] * len(df.columns)
+    package.ts.initialize(
+        filename=filename,
+        timeseries=timeseries,
+        time_series_namerecord=time_series_namerecord,
+        interpolation_methodrecord=interpolation_methodrecord,
+    )

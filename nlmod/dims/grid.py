@@ -44,6 +44,56 @@ from .resample import (
 logger = logging.getLogger(__name__)
 
 
+def snap_extent(extent, delr, delc):
+    """
+    snap the extent in such a way that an integer number of columns and rows fit
+    in the extent. The new extent is always equal to, or bigger than the
+    original extent.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        original extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+
+    Returns
+    -------
+    extent : list, tuple or np.array
+        adjusted extent
+    """
+    extent = list(extent).copy()
+
+    logger.debug(f"redefining extent: {extent}")
+
+    if delr <= 0 or delc <= 0:
+        raise ValueError("delr and delc should be positive values")
+
+    # if x0 can be divided by delr/2 do nothing, otherwise rescale x0
+    if extent[0] % delr == 0 or not extent[0] % (0.5 * delr) == 0:
+        extent[0] -= extent[0] % 100
+        extent[0] = extent[0] - 0.5 * delr
+
+    # get number of columns
+    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
+    extent[1] = extent[0] + (ncol * delr)  # round x1 up to close grid
+
+    # if y0 can be divided by delc/2 do nothing, otherwise rescale y0
+    if extent[2] % delc == 0 or not extent[2] % (0.5 * delc) == 0:
+        extent[2] -= extent[2] % 100
+        extent[2] = extent[2] - 0.5 * delc
+
+    # get number of rows
+    nrow = int(np.ceil((extent[3] - extent[2]) / delc))
+    extent[3] = extent[2] + (nrow * delc)  # round y1 up to close grid
+
+    logger.debug(f"new extent is {extent} and has {nrow} rows and {ncol} columns")
+
+    return extent
+
+
 def xy_to_icell2d(xy, ds):
     """get the icell2d value of a point defined by its x and y coordinates.
 

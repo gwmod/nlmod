@@ -1024,8 +1024,10 @@ def add_season_timeseries(
     package,
     summer_months=(4, 5, 6, 7, 8, 9),
     filename="season.ts",
-    seasons=("winter", "summer"),
+    seasons=None,
 ):
+    if seasons is None:
+        seasons = ["winter", "summer"]
     tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]

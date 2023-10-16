@@ -446,7 +446,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
     Parameters
     ----------
     da : xarray.DataArray
-        THe data-array to be resampled, with dimensions x and y.
+        The data-array to be resampled, with dimensions x and y.
     ds : xarray.Dataset
         The model dataset.
     method : string or rasterio.enums.Resampling, optional
@@ -457,7 +457,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         method is 'linear' or 'nearest' da.interp() is used. Otherwise
         da.rio.reproject_match() is used. The default is "average".
     nodata : float, optional
-        THe nodata value in input and output. THe default is np.NaN.
+        The nodata value in input and output. The default is np.NaN.
 
     Returns
     -------

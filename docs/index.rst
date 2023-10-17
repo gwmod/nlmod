@@ -15,13 +15,7 @@ nlmod relies heavily on the wonderful features of
 storing and manipulating data and `flopy <https://flopy.readthedocs.io>`_ is used for
 building and running groundwater models.
 
-nlmod wordt mede mogelijk gemaakt door:
-* PWN
-* Hoogheemraadschap Hollands Noorderkwartier
-* Waternet
-* Vitens
-* Evides
-* Brabant Water
+We thank the following institutions for their contribution to the development of nlmod:
 
 .. image:: _static/logo_pwn.svg
   :width: 200

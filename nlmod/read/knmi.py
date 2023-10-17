@@ -131,7 +131,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     """Add a timeseries to a variable at location loc_sel in model DataSet."""
     end = pd.Timestamp(ds.time.data[-1])
     if timeseries.index[-1] < end:
-        raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
+        raise ValueError(f"no data available at {timeseries.name} for date {end}")
 
     # fill recharge data array
     model_recharge = pd.Series(index=ds.time, dtype=float)
@@ -277,11 +277,19 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
 
     # get knmi data stations closest to any grid cell
     oc_knmi_prec = hpd.ObsCollection.from_knmi(
-        stns=stns_rd, starts=[start], ends=[end], meteo_vars=["RD"]
+        stns=stns_rd,
+        starts=[start],
+        ends=[end],
+        meteo_vars=["RD"],
+        fill_missing_obs=True,
     )
 
     oc_knmi_evap = hpd.ObsCollection.from_knmi(
-        stns=stns_ev24, starts=[start], ends=[end], meteo_vars=["EV24"]
+        stns=stns_ev24,
+        starts=[start],
+        ends=[end],
+        meteo_vars=["EV24"],
+        fill_missing_obs=True,
     )
 
     return locations, oc_knmi_prec, oc_knmi_evap

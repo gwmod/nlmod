@@ -71,23 +71,21 @@ def snap_extent(extent, delr, delc):
     if delr <= 0 or delc <= 0:
         raise ValueError("delr and delc should be positive values")
 
-    # if x0 can be divided by delr/2 do nothing, otherwise rescale x0
-    if extent[0] % delr == 0 or not extent[0] % (0.5 * delr) == 0:
-        extent[0] -= extent[0] % 100
-        extent[0] = extent[0] - 0.5 * delr
+    # if xmin can be divided by delr do nothing, otherwise rescale xmin
+    if not extent[0] % delr == 0:
+        extent[0] -= extent[0] % delr
 
-    # get number of columns
+    # get number of columns and xmax
     ncol = int(np.ceil((extent[1] - extent[0]) / delr))
-    extent[1] = extent[0] + (ncol * delr)  # round x1 up to close grid
+    extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
 
-    # if y0 can be divided by delc/2 do nothing, otherwise rescale y0
-    if extent[2] % delc == 0 or not extent[2] % (0.5 * delc) == 0:
-        extent[2] -= extent[2] % 100
-        extent[2] = extent[2] - 0.5 * delc
+    # if ymin can be divided by delc do nothing, otherwise rescale ymin
+    if not extent[2] % delc == 0:
+        extent[2] -= extent[2] % delc
 
-    # get number of rows
+    # get number of rows and ymax
     nrow = int(np.ceil((extent[3] - extent[2]) / delc))
-    extent[3] = extent[2] + (nrow * delc)  # round y1 up to close grid
+    extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
 
     logger.debug(f"new extent is {extent} and has {nrow} rows and {ncol} columns")
 

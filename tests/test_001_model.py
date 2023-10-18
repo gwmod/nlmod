@@ -17,6 +17,16 @@ def test_model_directories(tmpdir):
     figdir, cachedir = nlmod.util.get_model_dirs(model_ws)
 
 
+def test_snap_extent():
+    extent = (0.22, 1056.12, 7.43, 1101.567)
+    new_extent = nlmod.dims.snap_extent(extent, 10, 20)
+    assert new_extent == [0.0, 1060.0, 0.0, 1120.0]
+
+    extent = (1000, 2000, 8000, 10000)
+    new_extent = nlmod.dims.snap_extent(extent, 250, 55)
+    assert new_extent == [1000.0, 2000.0, 7975.0, 10010.0]
+
+
 def get_ds_time_steady(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)

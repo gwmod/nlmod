@@ -44,6 +44,54 @@ from .resample import (
 logger = logging.getLogger(__name__)
 
 
+def snap_extent(extent, delr, delc):
+    """
+    snap the extent in such a way that an integer number of columns and rows fit
+    in the extent. The new extent is always equal to, or bigger than the
+    original extent.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        original extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+
+    Returns
+    -------
+    extent : list, tuple or np.array
+        adjusted extent
+    """
+    extent = list(extent).copy()
+
+    logger.debug(f"redefining extent: {extent}")
+
+    if delr <= 0 or delc <= 0:
+        raise ValueError("delr and delc should be positive values")
+
+    # if xmin can be divided by delr do nothing, otherwise rescale xmin
+    if not extent[0] % delr == 0:
+        extent[0] -= extent[0] % delr
+
+    # get number of columns and xmax
+    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
+    extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
+
+    # if ymin can be divided by delc do nothing, otherwise rescale ymin
+    if not extent[2] % delc == 0:
+        extent[2] -= extent[2] % delc
+
+    # get number of rows and ymax
+    nrow = int(np.ceil((extent[3] - extent[2]) / delc))
+    extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
+
+    logger.debug(f"new extent is {extent} and has {nrow} rows and {ncol} columns")
+
+    return extent
+
+
 def xy_to_icell2d(xy, ds):
     """get the icell2d value of a point defined by its x and y coordinates.
 

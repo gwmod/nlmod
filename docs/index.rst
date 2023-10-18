@@ -15,7 +15,7 @@ nlmod relies heavily on the wonderful features of
 storing and manipulating data and `flopy <https://flopy.readthedocs.io>`_ is used for
 building and running groundwater models.
 
-We thank the following institutions for their contribution to the development of nlmod:
+We thank the following institutions for their contributions to the development of nlmod:
 
 .. image:: _static/logo_pwn.svg
   :width: 200

@@ -430,7 +430,15 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
 
 
 def sim(
-    mpf, particlegroups, direction="backward", gwf=None, ref_time=None, stoptime=None
+    mpf,
+    particlegroups,
+    direction="backward",
+    gwf=None,
+    ref_time=None,
+    stoptime=None,
+    simulationtype="combined",
+    weaksinkoption="pass_through",
+    weaksourceoption="pass_through",
 ):
     """Create a modpath backward simulation from a particle group.
 
@@ -472,10 +480,10 @@ def sim(
 
     mpsim = flopy.modpath.Modpath7Sim(
         mpf,
-        simulationtype="combined",
+        simulationtype=simulationtype,
         trackingdirection=direction,
-        weaksinkoption="pass_through",
-        weaksourceoption="pass_through",
+        weaksinkoption=weaksinkoption,
+        weaksourceoption=weaksourceoption,
         referencetime=ref_time,
         stoptimeoption=stoptimeoption,
         stoptime=stoptime,

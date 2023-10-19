@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 from xarray import IndexVariable
 
-from attributes_encodings import dim_attrs
+from .attributes_encodings import dim_attrs
 
 logger = logging.getLogger(__name__)
 

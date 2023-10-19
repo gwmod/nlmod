@@ -7,6 +7,8 @@ import pandas as pd
 import xarray as xr
 from xarray import IndexVariable
 
+from attributes_encodings import dim_attrs
+
 logger = logging.getLogger(__name__)
 
 
@@ -168,7 +170,7 @@ def set_ds_time(
     ----------
     ds : xarray.Dataset
         model dataset
-    start : int, float, str or pandas.Timestamp, optional
+    start : int, float, str or pandas.Timestamp
         model start. When start is an integer or float it is interpreted as the number
         of days of the first stress-period. When start is a string or pandas Timestamp
         it is the start datetime of the simulation.
@@ -250,6 +252,7 @@ def set_ds_time(
         raise ValueError(msg)
 
     ds = ds.assign_coords(coords={"time": time})
+    ds.coords["time"].attrs = dim_attrs["time"]
 
     # add steady, nstp and tsmult to dataset
     if isinstance(steady, bool):

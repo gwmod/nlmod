@@ -1,6 +1,10 @@
 import numpy as np
 
 dim_attrs = {
+    "time": dict(
+        name="Time",
+        description="End time of the stress period",
+    ),
     "botm": dict(
         name="Bottom elevation",
         description="Bottom elevation for each model cell",

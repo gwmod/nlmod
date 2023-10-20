@@ -277,11 +277,19 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
 
     # get knmi data stations closest to any grid cell
     oc_knmi_prec = hpd.ObsCollection.from_knmi(
-        stns=stns_rd, starts=[start], ends=[end], meteo_vars=["RD"], fill_missing_obs=True
+        stns=stns_rd,
+        starts=[start],
+        ends=[end],
+        meteo_vars=["RD"],
+        fill_missing_obs=True,
     )
 
     oc_knmi_evap = hpd.ObsCollection.from_knmi(
-        stns=stns_ev24, starts=[start], ends=[end], meteo_vars=["EV24"], fill_missing_obs=True
+        stns=stns_ev24,
+        starts=[start],
+        ends=[end],
+        meteo_vars=["EV24"],
+        fill_missing_obs=True,
     )
 
     return locations, oc_knmi_prec, oc_knmi_evap

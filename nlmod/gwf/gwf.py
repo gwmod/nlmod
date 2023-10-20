@@ -376,7 +376,7 @@ def ghb(
     """
     logger.info("creating mf6 GHB")
 
-    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
+    mask_arr = _get_value_from_ds_datavar(ds, "ghb_cond", cond, return_da=True)
     mask = mask_arr > 0
 
     first_active_layer = layer is None

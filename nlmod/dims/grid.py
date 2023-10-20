@@ -30,8 +30,8 @@ from .base import _get_structured_grid_ds, _get_vertex_grid_ds, extrapolate_ds
 from .layers import (
     fill_nan_top_botm_kh_kv,
     get_first_active_layer,
-    remove_inactive_layers,
     get_idomain,
+    remove_inactive_layers,
 )
 from .rdp import rdp
 from .resample import (
@@ -304,7 +304,7 @@ def get_dims_coords_from_modelgrid(mg):
         if mg.angrot == 0.0:
             x += mg.xoffset  # convert to global coordinates
             y += mg.yoffset  # convert to global coordinates
-        coords = {"layer": layers, "x": x, "y": y}
+        coords = {"layer": layers, "y": y, "x": x}
         dims = ("layer", "y", "x")
     elif mg.grid_type == "vertex":
         layers = np.arange(mg.nlay)

@@ -579,7 +579,7 @@ def chd(
     layer=0,
     **kwargs,
 ):
-    """create constant head boundary at the model's edges from the model dataset.
+    """create constant head package from model dataset.
 
     Parameters
     ----------

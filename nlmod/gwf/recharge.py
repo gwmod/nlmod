@@ -5,11 +5,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from ..dims.grid import da_to_reclist, cols_to_reclist
+from ..dims.grid import cols_to_reclist, da_to_reclist
 from ..dims.layers import (
-    get_idomain,
-    get_first_active_layer_from_idomain,
     calculate_thickness,
+    get_first_active_layer_from_idomain,
+    get_idomain,
 )
 from ..dims.time import dataframe_to_flopy_timeseries
 from ..util import _get_value_from_ds_datavar

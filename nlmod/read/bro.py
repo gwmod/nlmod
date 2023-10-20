@@ -1,12 +1,11 @@
+import logging
+
+import flopy
 import hydropandas as hpd
 import numpy as np
-import logging
-import flopy
-
 from shapely.geometry import Point
 
-from .. import cache, gwf, dims
-
+from .. import cache, dims, gwf
 
 logger = logging.getLogger(__name__)
 

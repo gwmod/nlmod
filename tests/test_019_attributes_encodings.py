@@ -1,8 +1,9 @@
-import numpy as np
 import os
-import xarray as xr
-from tempfile import TemporaryDirectory
 import time
+from tempfile import TemporaryDirectory
+
+import numpy as np
+import xarray as xr
 
 from nlmod.dims.attributes_encodings import get_encodings
 
@@ -16,9 +17,12 @@ def test_encodings_float_as_int16():
     por_data = np.linspace(0.0, 1.0, 5)
     por_data[1] = np.nan
 
-    ds = xr.Dataset(data_vars=dict(
-        heads=xr.DataArray(data=heads_data),
-        porosity=xr.DataArray(data=por_data),))
+    ds = xr.Dataset(
+        data_vars=dict(
+            heads=xr.DataArray(data=heads_data),
+            porosity=xr.DataArray(data=por_data),
+        )
+    )
     encodings = get_encodings(
         ds, set_encoding_inplace=False, allowed_to_read_data_vars_for_minmax=True
     )
@@ -30,7 +34,7 @@ def test_encodings_float_as_int16():
     with TemporaryDirectory() as tmpdir:
         fp_test = os.path.join(tmpdir, "test2.nc")
         ds.to_netcdf(fp_test, encoding=encodings)
-        
+
         with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
             ds2.load()
 
@@ -75,7 +79,7 @@ def test_encondings_inplace():
     with TemporaryDirectory() as tmpdir:
         fp_test = os.path.join(tmpdir, "test2.nc")
         ds.to_netcdf(fp_test, encoding=encodings)
-        
+
         with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
             ds2.load()
 
@@ -87,5 +91,6 @@ def test_encondings_inplace():
 
     assert np.allclose(ds2["heads"].values, ds_inplace2["heads"].values, equal_nan=True)
     pass
+
 
 test_encodings_float_as_int16()

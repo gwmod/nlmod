@@ -1,7 +1,6 @@
 import functools
 import importlib
 import inspect
-import joblib
 import logging
 import numbers
 import os
@@ -9,6 +8,7 @@ import pickle
 
 import dask
 import flopy
+import joblib
 import numpy as np
 import pandas as pd
 import xarray as xr

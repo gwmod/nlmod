@@ -1,9 +1,9 @@
 import logging
 
 import flopy as fp
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 
 from ..dims.grid import gdf_to_grid
 

@@ -181,7 +181,7 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
             "The suppplied DataArray in nlmod.plot.data_darray contains multiple "
             "layers. Please select a layer first."
         )
-        raise (Exception(msg))
+        raise (ValueError(msg))
     if "icell2d" in da.dims:
         if ds is None:
             raise (ValueError("Supply model dataset (ds) for grid information"))

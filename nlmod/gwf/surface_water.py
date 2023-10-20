@@ -11,8 +11,8 @@ from shapely.strtree import STRtree
 from tqdm import tqdm
 
 from ..dims.grid import gdf_to_grid
-from ..dims.resample import get_extent_polygon
 from ..dims.layers import get_idomain
+from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
 
 logger = logging.getLogger(__name__)

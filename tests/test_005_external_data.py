@@ -14,9 +14,8 @@ def test_get_recharge():
 
 def test_get_reacharge_most_common():
     # model with sea
-    # ds = test_001_model.get_ds_from_cache("basic_sea_model")
     ds = nlmod.get_ds([100000, 110000, 420000, 430000])
-    nlmod.time.set_ds_time(ds, start="2000", time=pd.date_range("2010", "2025"))
+    ds = nlmod.time.set_ds_time(ds, start="2021", time=pd.date_range("2022", "2023"))
 
     # add knmi recharge to the model dataset
     ds.update(nlmod.read.knmi.get_recharge(ds, most_common_station=True))

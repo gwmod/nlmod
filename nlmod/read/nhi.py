@@ -8,13 +8,13 @@ from ..dims.resample import structured_da_to_ds
 logger = logging.getLogger(__name__)
 
 
-def download_file(url, pathname, filename=None, overwrite=False):
+def download_file(url, pathname, filename=None, overwrite=False, timeout=120):
     if filename is None:
         filename = url.split("/")[-1]
     fname = os.path.join(pathname, filename)
     if overwrite or not os.path.isfile(fname):
         logger.info(f"Downloading {filename}")
-        r = requests.get(url, allow_redirects=True)
+        r = requests.get(url, allow_redirects=True, timeout=timeout)
         with open(fname, "wb") as file:
             file.write(r.content)
     return fname
@@ -68,7 +68,7 @@ def add_buisdrainage(
     if mask_and_scale:
         nodata = np.nan
     else:
-        nodata = buisdrain_d._FillValue
+        nodata = buisdrain_d.attrs["_FillValue"]
     # set buisdrain_d to nodata where it is 0
     mask = buisdrain_d != 0
     buisdrain_d = buisdrain_d.where(mask, nodata).rio.write_crs(buisdrain_d.rio.crs)
@@ -78,7 +78,7 @@ def add_buisdrainage(
     )
     if not mask_and_scale:
         # set nodata values to NaN
-        ds[depth_var] = ds[depth_var].where(ds[depth_var] != buisdrain_d._FillValue)
+        ds[depth_var] = ds[depth_var].where(ds[depth_var] != nodata)
 
     # from cm to m
     ds[depth_var] = ds[depth_var] / 100.0

@@ -2,10 +2,12 @@ import os
 import numpy as np
 import tempfile
 import nlmod
+import pytest
 
 tmpdir = tempfile.gettempdir()
 
 
+@pytest.mark.slow
 def test_buidrainage():
     model_ws = os.path.join(tmpdir, "buidrain")
     ds = nlmod.get_ds([110_000, 130_000, 435_000, 445_000], model_ws=model_ws)

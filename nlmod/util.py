@@ -18,13 +18,9 @@ logger = logging.getLogger(__name__)
 class LayerError(Exception):
     """Generic error when modifying layers."""
 
-    pass
-
 
 class MissingValueError(Exception):
     """Generic error when an expected value is not defined."""
-
-    pass
 
 
 def check_da_dims_coords(da, ds):

@@ -471,7 +471,7 @@ def download_modpath_provisional_exe(bindir=None, timeout=120):
     elif sys.platform.startswith("linux"):
         fname = "mp7_linux_20230911_8eca8d8"
     else:
-        raise (OsError(f"Unknown platform: {sys.platform}"))
+        raise (OSError(f"Unknown platform: {sys.platform}"))
     url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL"
     url = f"{url}/{fname}"
     r = requests.get(url, allow_redirects=True, timeout=timeout)

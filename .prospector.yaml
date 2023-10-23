@@ -27,6 +27,7 @@ pylint:
     - too-many-arguments
     - too-many-locals
     - too-many-branches
+    - too-many-statements
     - logging-fstring-interpolation
 
 mccabe:

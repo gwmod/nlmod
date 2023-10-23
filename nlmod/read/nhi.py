@@ -61,6 +61,8 @@ def add_buisdrainage(
     cond = cond.rio.write_crs(buisdrain_c.rio.crs)
     # resample to model grid
     ds[cond_var] = structured_da_to_ds(cond, ds, method=cond_method)
+    # multiply by area to get a conductance
+    ds[cond_var] = ds[cond_var] * ds["area"]
 
     # use mthod = "mode" on depth, to retreive the depth that occurs most in each cell
     mask_and_scale = False

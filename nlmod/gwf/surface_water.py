@@ -1015,7 +1015,13 @@ def gdf_to_seasonal_pkg(
         **kwargs,
     )
     # add timeseries for the seasons 'winter' and 'summer'
-    add_season_timeseries(ds, package, summer_months=summer_months, seasons=seasons)
+    add_season_timeseries(
+        ds,
+        package,
+        summer_months=summer_months,
+        winter_name="winter",
+        summer_name="summer",
+    )
     return package
 
 
@@ -1024,7 +1030,8 @@ def add_season_timeseries(
     package,
     summer_months=(4, 5, 6, 7, 8, 9),
     filename="season.ts",
-    seasons=None,
+    winter_name="winter",
+    summer_name="summer",
 ):
     """Add time series indicating which season is active (e.g. summer/winter).
 
@@ -1035,14 +1042,14 @@ def add_season_timeseries(
     package : flopy.mf6 package
         Modflow 6 package to add time series to
     summer_months : tuple, optional
-        summer months, by default (4, 5, 6, 7, 8, 9)
+        summer months. The default is (4, 5, 6, 7, 8, 9), so from april to september.
     filename : str, optional
-        name of time series file, by default "season.ts"
-    seasons : tuple of str, optional
-        name of the seasons timeseries , by default None
+        name of time series file. The default is "season.ts".
+    winter_name : str, optional
+        The name of the time-series with ones in winter. The default is "winter".
+    summer_name : str, optional
+        The name of the time-series with ones in summer. The default is "summer".
     """
-    if seasons is None:
-        seasons = ["winter", "summer"]
     tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]
@@ -1065,7 +1072,7 @@ def add_season_timeseries(
     package.ts.initialize(
         filename=filename,
         timeseries=ts_data,
-        time_series_namerecord=seasons,
+        time_series_namerecord=[winter_name, summer_name],
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
 

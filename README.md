@@ -8,14 +8,13 @@
 [![PyPI version](https://badge.fury.io/py/nlmod.svg)](https://badge.fury.io/py/nlmod)
 [![Documentation Status](https://readthedocs.org/projects/nlmod/badge/?version=stable)](https://nlmod.readthedocs.io/en/stable/?badge=stable)
 
-Python package with functions to process, build and visualise MODFLOW models in the Netherlands.
+Python package to build, run and visualize MODFLOW 6 groundwater models in the Netherlands.
 
 `nlmod` was built to allow users to write scripts to quickly download relevant data
 from publicly available sources, and build and post-process groundwater flow and
 transport models at different spatial and temporal scales to answer specific
-geohydrological questions. Our idea is that scripting these steps, from downloading
-source data to converting that into groundwater models, makes models more reproducible
-and transparent.
+geohydrological questions. Scripting these steps, from downloading data to building
+groundwater models, makes models more reproducible and transparent.
 
 The functions in nlmod have four main objectives:
 

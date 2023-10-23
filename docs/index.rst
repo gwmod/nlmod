@@ -5,10 +5,10 @@ nlmod
   :width: 400
   :alt: The logo of nlmod
 
-nlmod is a package with functions to pre-process, build and visualize MODFLOW
-models. The main focus is on building models in the Netherlands using publicly
-available datasets, though lots of functionality could be applied to any 
-groundwater model. 
+nlmod is a package to build, run and visualize MODFLOW 6 groundwater models in the
+Netherlands. The main focus is on building models in the Netherlands using publicly
+available datasets, though lots of functionality could be applied to any groundwater
+model.
 
 nlmod relies heavily on the wonderful features of 
 `xarray <https://docs.xarray.dev>`_ and `geopandas <https://geopandas.org>`_ for

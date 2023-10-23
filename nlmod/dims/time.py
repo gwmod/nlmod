@@ -503,7 +503,9 @@ def dataframe_to_flopy_timeseries(
     filename=None,
     time_series_namerecord=None,
     interpolation_methodrecord="stepwise",
+    append=False,
 ):
+    assert not df.isna().any(axis=None)
     if ds is not None:
         # set index to days after the start of the simulation
         df = df.copy()
@@ -519,7 +521,10 @@ def dataframe_to_flopy_timeseries(
 
     if isinstance(interpolation_methodrecord, str):
         interpolation_methodrecord = [interpolation_methodrecord] * len(df.columns)
-    package.ts.initialize(
+
+    # initialize or append a new package
+    method = package.ts.append_package if append else package.ts.initialize
+    method(
         filename=filename,
         timeseries=timeseries,
         time_series_namerecord=time_series_namerecord,

@@ -215,10 +215,6 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
         xorigin = ds.attrs["xorigin"]
         yorigin = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
-    elif "extent" in ds.attrs.keys():
-        xorigin = ds.attrs["extent"][0]
-        yorigin = ds.attrs["extent"][2]
-        angrot = 0.0
     else:
         xorigin = 0.0
         yorigin = 0.0

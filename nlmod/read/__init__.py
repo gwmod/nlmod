@@ -13,6 +13,7 @@ from . import (
     rws,
     waterboard,
     webservices,
+    nhi,
 )
 from .geotop import get_geotop
 from .regis import get_regis

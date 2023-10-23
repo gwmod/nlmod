@@ -689,6 +689,8 @@ def set_model_top(ds, top, min_thickness=0.0):
                 "Either add attribute or use nlmod functions to build the dataset."
             )
         )
+    if "layer" in ds["top"].dims:
+        raise (ValueError("set_model_top does not support top with a layer dimension"))
     if isinstance(top, (float, int)):
         top = xr.full_like(ds["top"], top)
     if not top.shape == ds["top"].shape:
@@ -712,6 +714,8 @@ def set_model_top(ds, top, min_thickness=0.0):
 def set_layer_top(ds, layer, top):
     """Set the top of a layer."""
     assert layer in ds.layer
+    if "layer" in ds["top"].dims:
+        raise (ValueError("set_layer_top does not support top with a layer dimension"))
     lay = np.where(ds.layer == layer)[0][0]
     if lay == 0:
         # change the top of the model
@@ -735,6 +739,8 @@ def set_layer_top(ds, layer, top):
 def set_layer_botm(ds, layer, botm):
     """Set the bottom of a layer."""
     assert layer in ds.layer
+    if "layer" in ds["top"].dims:
+        raise (ValueError("set_layer_botm does not support top with a layer dimension"))
     lay = np.where(ds.layer == layer)[0][0]
     # if lay > 0 and np.any(botm > ds["botm"][lay - 1]):
     #    raise (Exception("set_layer_botm cannot change botm of higher layers yet"))
@@ -782,8 +788,11 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
 def remove_thin_layers(ds, min_thickness=0.1):
     """Remove layers from cells with a thickness less than min_thickness
 
-    THe thickness of the removed cells is added to the first active layer below
+    The thickness of the removed cells is added to the first active layer below
     """
+    if "layer" in ds["top"].dims:
+        msg = "remove_thin_layers does not support top with a layer dimension"
+        raise (ValueError(msg))
     thickness = calculate_thickness(ds)
     for lay_org in range(len(ds.layer)):
         # determine where the layer is too thin

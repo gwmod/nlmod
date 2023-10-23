@@ -5,7 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import xarray as xr
 
-from ..util import LayerError, MissingValueError
+from ..util import LayerError
 from . import resample
 
 logger = logging.getLogger(__name__)

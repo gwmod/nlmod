@@ -36,7 +36,7 @@ def get_lithok_colors():
         8: (216, 163, 32),
         9: (95, 95, 255),
     }
-    colors = {key: tuple([x / 255 for x in color]) for key, color in colors.items()}
+    colors = {key: (x / 255 for x in color) for key, color in colors.items()}
     return colors
 
 

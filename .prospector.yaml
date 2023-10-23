@@ -26,4 +26,9 @@ pylint:
     - no-else-raise
     - too-many-arguments
     - too-many-locals
+    - too-many-branches
     - logging-fstring-interpolation
+
+mccabe:
+  disable:
+    - MC0001

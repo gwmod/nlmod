@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
-import nlmod
 import util
+
+import nlmod
 
 
 def test_uzf_structured():

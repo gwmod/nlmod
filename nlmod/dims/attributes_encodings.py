@@ -1,6 +1,10 @@
 import numpy as np
 
 dim_attrs = {
+    "time": dict(
+        name="Time",
+        description="End time of the stress period",
+    ),
     "botm": dict(
         name="Bottom elevation",
         description="Bottom elevation for each model cell",
@@ -163,13 +167,14 @@ def get_encodings(
         if np.issubdtype(da.dtype, np.character):
             continue
 
-        assert "_FillValue" not in da.attrs, (
-            f"Custom fillvalues are not supported. {varname} has a fillvalue set.")
+        assert (
+            "_FillValue" not in da.attrs
+        ), f"Custom fillvalues are not supported. {varname} has a fillvalue set."
 
         encoding = dict(
             zlib=True,
             complevel=5,
-            fletcher32=True  # Store checksums to detect corruption
+            fletcher32=True,  # Store checksums to detect corruption
         )
 
         isfloat = np.issubdtype(da.dtype, np.floating)
@@ -197,8 +202,6 @@ def get_encodings(
                 # result = (np.array([vmin, vmax]) - add_offset) / scale_factor
             else:
                 encoding["dtype"] = "float32"
-
-        
 
         elif isint and allowed_to_read_data_vars_for_minmax:
             vmin = int(da.min())

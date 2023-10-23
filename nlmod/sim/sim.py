@@ -204,11 +204,13 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
 
     logger.info("creating mf6 IMS")
 
+    print_option = kwargs.pop("print_option", "summary")
+
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.ModflowIms(
         sim,
         pname=pname,
-        print_option="summary",
+        print_option=print_option,
         complexity=complexity,
         **kwargs,
     )

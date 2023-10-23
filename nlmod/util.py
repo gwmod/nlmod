@@ -16,10 +16,14 @@ logger = logging.getLogger(__name__)
 
 
 class LayerError(Exception):
+    """Generic error when modifying layers."""
+
     pass
 
 
 class MissingValueError(Exception):
+    """Generic error when an expected value is not defined."""
+
     pass
 
 
@@ -455,7 +459,7 @@ def download_mfbinaries(bindir=None):
 
 
 def download_modpath_provisional_exe(bindir=None, timeout=120):
-    """Downlaod the provisional version of modpath to the folder with binaries."""
+    """Download the provisional version of modpath to the folder with binaries."""
     if bindir is None:
         bindir = os.path.join(os.path.dirname(__file__), "bin")
     if not os.path.isdir(bindir):

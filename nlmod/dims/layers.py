@@ -683,7 +683,12 @@ def set_model_top(ds, top, min_thickness=0.0):
         The model dataset, containing the new top.
     """
     if "gridtype" not in ds.attrs:
-        raise (KeyError("Make sure the Dataset is built by nlmod"))
+        raise (
+            KeyError(
+                "Dataset does not have attribute 'gridtype'. "
+                "Either add attribute or use nlmod functions to build the dataset."
+            )
+        )
     if "layer" in ds["top"].dims:
         raise (ValueError("set_model_top does not support top with a layer dimension"))
     if isinstance(top, (float, int)):
@@ -1405,7 +1410,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     6 The new layer is below the existing layer everywhere. Nothing happens, move on to
     the next existing layer.
 
-    When (part of) the new layer is not added to the layer model after comparison
+    7 When (part of) the new layer is not added to the layer model after comparison
     with the last existing layer, the (remaining part of) the new layer is added below
     the existing layers, at the bottom of the model.
 
@@ -1589,7 +1594,7 @@ def remove_layer(ds, layer):
     """
     layers = list(ds.layer.data)
     if layer not in layers:
-        raise (MissingValueError(f"layer '{layer}' not present in Dataset"))
+        raise (KeyError(f"layer '{layer}' not present in Dataset"))
     if "layer" not in ds["top"].dims:
         index = layers.index(layer)
         if index == 0:

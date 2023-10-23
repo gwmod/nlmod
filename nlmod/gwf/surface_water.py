@@ -1026,6 +1026,21 @@ def add_season_timeseries(
     filename="season.ts",
     seasons=None,
 ):
+    """Add time series indicating which season is active (e.g. summer/winter).
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        xarray dataset used for time discretization
+    package : flopy.mf6 package
+        Modflow 6 package to add time series to
+    summer_months : tuple, optional
+        summer months, by default (4, 5, 6, 7, 8, 9)
+    filename : str, optional
+        name of time series file, by default "season.ts"
+    seasons : tuple of str, optional
+        name of the seasons timeseries , by default None
+    """
     if seasons is None:
         seasons = ["winter", "summer"]
     tmin = pd.to_datetime(ds.time.start)
@@ -1056,14 +1071,8 @@ def add_season_timeseries(
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):
-    # TODO: temporary fix until flopy is patched
-    if gwf.modelgrid.grid_type == "structured":
-        gi = flopy.utils.GridIntersect(gwf.modelgrid, rtree=False)
-        cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
-    else:
-        gi = flopy.utils.GridIntersect(gwf.modelgrid)
-        cellids = gi.intersects(xylist, shapetype="linestring")["cellids"]
-
+    gi = flopy.utils.GridIntersect(gwf.modelgrid, method="vertex")
+    cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
     riv_data = []
     for cid in cellids:
         if len(cid) == 2:

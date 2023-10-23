@@ -1,8 +1,10 @@
-import os
-import requests
 import logging
+import os
+
 import numpy as np
+import requests
 import rioxarray
+
 from ..dims.resample import structured_da_to_ds
 
 logger = logging.getLogger(__name__)
@@ -47,12 +49,13 @@ def add_buisdrainage(
     # download files if needed
     fname_c, fname_d = download_buisdrainage(pathname)
 
-    # make sure crs is set of ds
+    # make sure crs is set on ds
     if ds.rio.crs is None:
         ds = ds.rio.write_crs(28992)
 
-    # use method = "average" on conductance, to account for locations without pipe
-    # drainage, where the conductance is 0
+    # use cond_methd for conductance
+    # (default is "average" to account for locations without pipe drainage, where the 
+    # conductance is 0)
     buisdrain_c = rioxarray.open_rasterio(fname_c, mask_and_scale=True)[0]
     # calculate a conductance (per m2) from a resistance
     cond = 1 / buisdrain_c
@@ -64,7 +67,8 @@ def add_buisdrainage(
     # multiply by area to get a conductance
     ds[cond_var] = ds[cond_var] * ds["area"]
 
-    # use mthod = "mode" on depth, to retreive the depth that occurs most in each cell
+    # use depth_method to retrieve the depth
+    # (default is "mode" for depth that occurs most in each cell)
     mask_and_scale = False
     buisdrain_d = rioxarray.open_rasterio(fname_d, mask_and_scale=mask_and_scale)[0]
     if mask_and_scale:

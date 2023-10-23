@@ -788,7 +788,7 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
 def remove_thin_layers(ds, min_thickness=0.1):
     """Remove layers from cells with a thickness less than min_thickness
 
-    THe thickness of the removed cells is added to the first active layer below
+    The thickness of the removed cells is added to the first active layer below
     """
     if "layer" in ds["top"].dims:
         msg = "remove_thin_layers does not support top with a layer dimension"

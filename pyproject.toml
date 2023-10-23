@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nlmod"
 dynamic = ["version"]
-description = "nlmod is an open-source Python package for building Modflow 6 groundwater models from online data sources in The Netherlands"
+description = "Python package to build, run and visualize MODFLOW 6 groundwater models in the Netherlands."
 license = { file = "LICENSE" }
 readme = "README.md"
 authors = [

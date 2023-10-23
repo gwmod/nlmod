@@ -131,7 +131,9 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     """Add a timeseries to a variable at location loc_sel in model DataSet."""
     end = pd.Timestamp(ds.time.data[-1])
     if timeseries.index[-1] < end:
-        raise ValueError(f"no data available at {timeseries.name} for date {end}")
+        raise ValueError(
+            f"no data available for time series'{timeseries.name}' on date {end}"
+        )
 
     # fill recharge data array
     model_recharge = pd.Series(index=ds.time, dtype=float)

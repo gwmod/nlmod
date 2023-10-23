@@ -1,7 +1,8 @@
-import test_001_model
 import pandas as pd
-import nlmod
 import pytest
+import test_001_model
+
+import nlmod
 
 
 def test_get_recharge():
@@ -12,7 +13,7 @@ def test_get_recharge():
     ds.update(nlmod.read.knmi.get_recharge(ds))
 
 
-def test_get_reacharge_most_common():
+def test_get_recharge_most_common():
     # model with sea
     ds = nlmod.get_ds([100000, 110000, 420000, 430000])
     ds = nlmod.time.set_ds_time(ds, start="2021", time=pd.date_range("2022", "2023"))

@@ -35,6 +35,7 @@ dependencies = [
     "matplotlib",
     "dask",
     "colorama",
+    "joblib"
 ]
 keywords = ["hydrology", "groundwater", "modeling", "Modflow 6", "flopy"]
 classifiers = [

@@ -7,8 +7,9 @@ import xarray as xr
 from scipy.spatial import cKDTree
 
 from .. import util
+from ..epsg28992 import EPSG_28992
 from . import resample
-from .layers import fill_nan_top_botm_kh_kv, set_idomain
+from .layers import fill_nan_top_botm_kh_kv
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     ds.attrs["model_name"] = model_name
     ds.attrs["mfversion"] = mfversion
     fmt = "%Y%m%d_%H:%M:%S"
-    ds.attrs["model_dataset_created_on"] = dt.datetime.now().strftime(fmt)
+    ds.attrs["created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
         exe_name = util.get_exe_path(mfversion)
@@ -166,7 +167,7 @@ def to_model_ds(
     ds = set_ds_attrs(ds, model_name, model_ws)
     ds.attrs["transport"] = int(transport)
 
-    # fill nan's and add idomain
+    # fill nan's
     if fill_nan:
         ds = fill_nan_top_botm_kh_kv(
             ds,
@@ -174,8 +175,6 @@ def to_model_ds(
             fill_value_kh=fill_value_kh,
             fill_value_kv=fill_value_kv,
         )
-    else:
-        ds = set_idomain(ds, remove_nan_layers=False)
 
     return ds
 
@@ -207,7 +206,7 @@ def extrapolate_ds(ds, mask=None):
         # all of the model cells are is inside the known area
         return ds
     if mask.all():
-        raise (Exception("The model only contains NaNs"))
+        raise (ValueError("The model only contains NaNs"))
     if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         x = ds.x.data
         y = ds.y.data
@@ -225,12 +224,18 @@ def extrapolate_ds(ds, mask=None):
             continue
         data = ds[key].data
         if ds[key].dims == dims:
-            data[mask] = data[~mask][i]
+            if np.isnan(data[mask]).sum() > 0:  # do not update if no NaNs
+                data[mask] = data[~mask, i]
         elif ds[key].dims == ("layer",) + dims:
             for lay in range(len(ds["layer"])):
-                data[lay][mask] = data[lay][~mask][i]
+                if np.isnan(data[lay, mask]).sum() > 0:  # do not update if no NaNs
+                    data[lay, mask] = data[lay, ~mask][i]
         else:
-            raise (Exception(f"Dimensions {ds[key].dims} not supported"))
+            logger.warning(
+                f"Data variable '{key}' not extrapolated because "
+                f"dimensions are not {dims}."
+            )
+            # raise (Exception(f"Dimensions {ds[key].dims} not supported"))
         # make sure to set the data (which for some reason is sometimes needed)
         ds[key].data = data
     return ds
@@ -446,10 +451,10 @@ def _get_vertex_grid_ds(
     coords = {"layer": layers, "y": y, "x": x}
     dims = ("layer", "icell2d")
     ds = xr.Dataset(
-        data_vars=dict(
-            top=(dims[1:], top),
-            botm=(dims, botm),
-        ),
+        data_vars={
+            "top": (dims[1:], top),
+            "botm": (dims, botm),
+        },
         coords=coords,
         attrs=attrs,
     )
@@ -466,7 +471,7 @@ def _get_vertex_grid_ds(
     for i in range(ncpl):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     ds["icvert"] = ("icell2d", "icv"), icvert
-    ds["icvert"].attrs["_FillValue"] = nodata
+    ds["icvert"].attrs["nodata"] = nodata
 
     if crs is not None:
         ds.rio.set_crs(crs)
@@ -484,7 +489,7 @@ def get_ds(
     botm=None,
     kh=10.0,
     kv=1.0,
-    crs=28992,
+    crs=EPSG_28992,
     xorigin=0.0,
     yorigin=0.0,
     angrot=0.0,
@@ -599,7 +604,7 @@ def get_ds(
 
     resample._set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
     x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
-    coords = dict(x=x, y=y, layer=layer)
+    coords = {"x": x, "y": y, "layer": layer}
     if angrot != 0.0:
         affine = resample.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(x, y)

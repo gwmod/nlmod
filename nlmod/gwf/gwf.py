@@ -12,6 +12,7 @@ import numpy as np
 import xarray as xr
 
 from ..dims import grid
+from ..dims.layers import get_idomain
 from ..sim import ims, sim, tdis
 from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
 from . import recharge
@@ -38,7 +39,7 @@ def gwf(ds, sim, under_relaxation=False, **kwargs):
     """
 
     # start creating model
-    logger.info("creating modflow GWF")
+    logger.info("creating mf6 GWF")
 
     # Create the Flopy groundwater flow (gwf) model object
     model_nam_file = f"{ds.model_name}.nam"
@@ -62,7 +63,7 @@ def gwf(ds, sim, under_relaxation=False, **kwargs):
 
 
 def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
-    """get discretisation package from the model dataset.
+    """create discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -84,7 +85,7 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
 
 
 def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
-    """get discretisation package from the model dataset.
+    """create discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -102,7 +103,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
     dis : flopy ModflowGwfdis or flopy ModflowGwtdis
         discretisation package.
     """
-    logger.info("creating modflow DIS")
+    logger.info("creating mf6 DIS")
 
     if ds.gridtype == "vertex":
         return disv(ds, model, length_units=length_units)
@@ -122,6 +123,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
         yorigin = ds.extent[2]
         angrot = 0.0
 
+    idomain = get_idomain(ds).data
     if model.model_type == "gwf6":
         dis = flopy.mf6.ModflowGwfdis(
             model,
@@ -137,7 +139,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             delc=ds["delc"].values if "delc" in ds else ds.delc,
             top=ds["top"].data,
             botm=ds["botm"].data,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             filename=f"{ds.model_name}.dis",
             **kwargs,
         )
@@ -156,7 +158,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             delc=ds["delc"].values if "delc" in ds else ds.delc,
             top=ds["top"].data,
             botm=ds["botm"].data,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             filename=f"{ds.model_name}_gwt.dis",
             **kwargs,
         )
@@ -167,7 +169,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
 
 
 def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
-    """get discretisation vertices package from the model dataset.
+    """create discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -189,7 +191,7 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
 
 
 def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
-    """get discretisation vertices package from the model dataset.
+    """create discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -207,16 +209,12 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     disv : flopy ModflowGwfdisv or flopy ModflowGwtdisv
         disv package
     """
-    logger.info("creating modflow DISV")
+    logger.info("creating mf6 DISV")
 
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         xorigin = ds.attrs["xorigin"]
         yorigin = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
-    elif "extent" in ds.attrs.keys():
-        xorigin = ds.attrs["extent"][0]
-        yorigin = ds.attrs["extent"][2]
-        angrot = 0.0
     else:
         xorigin = 0.0
         yorigin = 0.0
@@ -224,10 +222,11 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
 
     vertices = grid.get_vertices_from_ds(ds)
     cell2d = grid.get_cell2d_from_ds(ds)
+    idomain = get_idomain(ds).data
     if model.model_type == "gwf6":
         disv = flopy.mf6.ModflowGwfdisv(
             model,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             xorigin=xorigin,
             yorigin=yorigin,
             length_units=length_units,
@@ -245,7 +244,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     elif model.model_type == "gwt6":
         disv = flopy.mf6.ModflowGwtdisv(
             model,
-            idomain=ds["idomain"].data,
+            idomain=idomain,
             xorigin=xorigin,
             yorigin=yorigin,
             length_units=length_units,
@@ -273,7 +272,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
 def npf(
     ds, gwf, k="kh", k33="kv", icelltype=0, save_flows=False, pname="npf", **kwargs
 ):
-    """get node property flow package from model dataset.
+    """create node property flow package from model dataset.
 
     Parameters
     ----------
@@ -306,7 +305,7 @@ def npf(
     npf : flopy ModflowGwfnpf
         npf package.
     """
-    logger.info("creating modflow NPF")
+    logger.info("creating mf6 NPF")
 
     if isinstance(icelltype, str):
         icelltype = ds[icelltype]
@@ -318,8 +317,8 @@ def npf(
         gwf,
         pname=pname,
         icelltype=icelltype,
-        k=k.data,
-        k33=k33.data,
+        k=k,
+        k33=k33,
         save_flows=save_flows,
         **kwargs,
     )
@@ -332,12 +331,12 @@ def ghb(
     gwf,
     bhead=None,
     cond=None,
-    da_name=None,
     pname="ghb",
     auxiliary=None,
+    layer=None,
     **kwargs,
 ):
-    """get general head boundary from model dataset.
+    """create general head boundary from model dataset.
 
     Parameters
     ----------
@@ -353,12 +352,13 @@ def ghb(
         ghb conductance, either as string pointing to data
         array in ds or as data array. By default None, which assumes
         data array is stored under "ghb_cond".
-    da_name : str
-        name of the ghb files in the model dataset.
     pname : str, optional
         package name
     auxiliary : str or list of str
         name(s) of data arrays to include as auxiliary data to reclist
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is None.
 
     Raises
     ------
@@ -370,36 +370,27 @@ def ghb(
     ghb : flopy ModflowGwfghb
         ghb package
     """
-    logger.info("creating modflow GHB")
+    logger.info("creating mf6 GHB")
 
-    if da_name is not None:
-        warnings.warn(
-            "the kwarg 'da_name' is no longer supported, "
-            "specify 'bhead' and 'cond' explicitly!",
-            DeprecationWarning,
-        )
-        bhead = f"{da_name}_peil"
-        cond = f"{da_name}_cond"
+    mask_arr = _get_value_from_ds_datavar(ds, "ghb_cond", cond, return_da=True)
+    mask = mask_arr > 0
 
-    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond)
-    mask = mask_arr != 0
-
+    first_active_layer = layer is None
     ghb_rec = grid.da_to_reclist(
         ds,
         mask,
         col1=bhead,
         col2=cond,
-        first_active_layer=True,
-        only_active_cells=False,
-        layer=0,
+        layer=layer,
         aux=auxiliary,
+        first_active_layer=first_active_layer,
+        only_active_cells=False,
     )
 
     if len(ghb_rec) > 0:
         ghb = flopy.mf6.ModflowGwfghb(
             gwf,
             auxiliary="CONCENTRATION" if auxiliary is not None else None,
-            print_input=True,
             maxbound=len(ghb_rec),
             stress_period_data=ghb_rec,
             save_flows=True,
@@ -408,7 +399,7 @@ def ghb(
         )
         if (auxiliary is not None) and (ds.transport == 1):
             logger.info("-> adding GHB to SSM sources list")
-            ssm_sources = ds.attrs["ssm_sources"]
+            ssm_sources = list(ds.attrs["ssm_sources"])
             if ghb.package_name not in ssm_sources:
                 ssm_sources += [ghb.package_name]
                 ds.attrs["ssm_sources"] = ssm_sources
@@ -424,12 +415,11 @@ def drn(
     gwf,
     elev="drn_elev",
     cond="drn_cond",
-    da_name=None,
     pname="drn",
     layer=None,
     **kwargs,
 ):
-    """get drain from model dataset.
+    """create drain from model dataset.
 
     Parameters
     ----------
@@ -449,42 +439,34 @@ def drn(
         this is deprecated, name of the drn files in the model dataset
     pname : str, optional
         package name
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is None.
 
     Returns
     -------
     drn : flopy ModflowGwfdrn
         drn package
     """
-    logger.info("creating modflow DRN")
+    logger.info("creating mf6 DRN")
 
-    if da_name is not None:
-        warnings.warn(
-            "the kwarg 'da_name' is no longer supported, "
-            "specify 'elev' and 'cond' explicitly!",
-            DeprecationWarning,
-        )
-        elev = f"{da_name}_peil"
-        cond = f"{da_name}_cond"
-
-    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond)
-    mask = mask_arr != 0
+    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
+    mask = mask_arr > 0
 
     first_active_layer = layer is None
-
     drn_rec = grid.da_to_reclist(
         ds,
         mask=mask,
         col1=elev,
         col2=cond,
+        layer=layer,
         first_active_layer=first_active_layer,
         only_active_cells=False,
-        layer=layer,
     )
 
     if len(drn_rec) > 0:
         drn = flopy.mf6.ModflowGwfdrn(
             gwf,
-            print_input=True,
             maxbound=len(drn_rec),
             stress_period_data=drn_rec,
             save_flows=True,
@@ -499,8 +481,176 @@ def drn(
         return None
 
 
+def riv(
+    ds,
+    gwf,
+    stage="riv_stage",
+    cond="riv_cond",
+    rbot="riv_rbot",
+    pname="riv",
+    auxiliary=None,
+    layer=None,
+    **kwargs,
+):
+    """create river package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    stage : str or xarray.DataArray, optional
+        river stage, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "riv_stage".
+    cond : str or xarray.DataArray, optional
+        river conductance, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "riv_cond".
+    rbot : str or xarray.DataArray, optional
+        river bottom elevation, either as string pointing to data
+        array in ds or as data array. By default assumes
+        data array is stored under "riv_rbot".
+    pname : str, optional
+        package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is None.
+
+    Returns
+    -------
+    riv : flopy ModflowGwfriv
+        riv package
+    """
+    logger.info("creating mf6 RIV")
+
+    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
+    mask = mask_arr > 0
+
+    first_active_layer = layer is None
+    riv_rec = grid.da_to_reclist(
+        ds,
+        mask=mask,
+        col1=stage,
+        col2=cond,
+        col3=rbot,
+        layer=layer,
+        aux=auxiliary,
+        first_active_layer=first_active_layer,
+        only_active_cells=False,
+    )
+
+    if len(riv_rec) > 0:
+        riv = flopy.mf6.ModflowGwfriv(
+            gwf,
+            maxbound=len(riv_rec),
+            stress_period_data=riv_rec,
+            auxiliary="CONCENTRATION" if auxiliary is not None else None,
+            save_flows=True,
+            pname=pname,
+            **kwargs,
+        )
+        if (auxiliary is not None) and (ds.transport == 1):
+            logger.info("-> adding RIV to SSM sources list")
+            ssm_sources = list(ds.attrs["ssm_sources"])
+            if riv.package_name not in ssm_sources:
+                ssm_sources += [riv.package_name]
+                ds.attrs["ssm_sources"] = ssm_sources
+        return riv
+    else:
+        logger.warning("no riv pkg added")
+        return None
+
+
+def chd(
+    ds,
+    gwf,
+    mask="chd_mask",
+    head="chd_head",
+    pname="chd",
+    auxiliary=None,
+    layer=0,
+    **kwargs,
+):
+    """create constant head package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    mask : str, optional
+        name of data variable in ds that is 1 for cells with a constant
+        head and zero for all other cells. The default is 'chd_mask'.
+    head : str, optional
+        name of data variable in ds that is used as the head in the chd
+        cells. By default, assumes head data is stored as 'chd_head'.
+    pname : str, optional
+        package name
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
+    layer : int or None
+        The layer in which the boundary is added. It is added to the first active layer
+        when layer is None. The default is 0.
+    chd : str, optional
+        deprecated, the new argument is 'mask'
+
+    Returns
+    -------
+    chd : flopy ModflowGwfchd
+        chd package
+    """
+    logger.info("creating mf6 CHD")
+
+    if "chd" in kwargs:
+        warnings.warn(
+            "the 'chd' kwarg has been renamed to 'mask'!",
+            DeprecationWarning,
+        )
+        mask = kwargs.pop("chd")
+
+    maskarr = _get_value_from_ds_datavar(ds, "mask", mask, return_da=True)
+    mask = maskarr > 0
+
+    # get the stress_period_data
+    first_active_layer = layer is None
+    chd_rec = grid.da_to_reclist(
+        ds,
+        mask,
+        col1=head,
+        layer=layer,
+        aux=auxiliary,
+        first_active_layer=first_active_layer,
+    )
+
+    if len(chd_rec) > 0:
+        chd = flopy.mf6.ModflowGwfchd(
+            gwf,
+            auxiliary="CONCENTRATION" if auxiliary is not None else None,
+            pname=pname,
+            maxbound=len(chd_rec),
+            stress_period_data=chd_rec,
+            save_flows=True,
+            **kwargs,
+        )
+        if (auxiliary is not None) and (ds.transport == 1):
+            logger.info("-> adding CHD to SSM sources list")
+            ssm_sources = list(ds.attrs["ssm_sources"])
+            if chd.package_name not in ssm_sources:
+                ssm_sources += [chd.package_name]
+                ds.attrs["ssm_sources"] = ssm_sources
+        return chd
+    else:
+        logger.warning("no chd pkg added")
+        return None
+
+
 def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
-    """get initial condictions package from model dataset.
+    """create initial condictions package from model dataset.
 
     Parameters
     ----------
@@ -520,11 +670,11 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
     ic : flopy ModflowGwfic
         ic package
     """
-    logger.info("creating modflow IC")
+    logger.info("creating mf6 IC")
 
     if isinstance(starting_head, numbers.Number):
         logger.info("adding 'starting_head' data array to ds")
-        ds["starting_head"] = starting_head * xr.ones_like(ds["idomain"])
+        ds["starting_head"] = starting_head * xr.ones_like(ds["botm"])
         ds["starting_head"].attrs["units"] = "mNAP"
         starting_head = "starting_head"
 
@@ -537,14 +687,14 @@ def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
 def sto(
     ds,
     gwf,
-    sy=0.2,
-    ss=0.000001,
+    sy="sy",
+    ss="ss",
     iconvert=1,
     save_flows=False,
     pname="sto",
     **kwargs,
 ):
-    """get storage package from model dataset.
+    """create storage package from model dataset.
 
     Parameters
     ----------
@@ -552,10 +702,10 @@ def sto(
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    sy : float, optional
-        specific yield. The default is 0.2.
-    ss : float, optional
-        specific storage. The default is 0.000001.
+    sy : str or float, optional
+        specific yield. The default is "sy", or 0.2 if "sy" is not in ds.
+    ss : str or float, optional
+        specific storage. The default is "ss", or 0.000001 if "ss" is not in ds.
     iconvert : int, optional
         See description in ModflowGwfsto. The default is 1 (differs from FloPY).
     save_flows : bool, optional
@@ -569,20 +719,17 @@ def sto(
     sto : flopy ModflowGwfsto
         sto package
     """
-    logger.info("creating modflow STO")
+    logger.info("creating mf6 STO")
 
-    if ds.time.steady_state:
+    if "time" not in ds or ds["steady"].all():
+        logger.warning("Model is steady-state, no STO package created.")
         return None
     else:
-        if ds.time.steady_start:
-            sts_spd = {0: True}
-            trn_spd = {1: True}
-        else:
-            sts_spd = None
-            trn_spd = {0: True}
+        sts_spd = {iper: bool(b) for iper, b in enumerate(ds["steady"])}
+        trn_spd = {iper: not bool(b) for iper, b in enumerate(ds["steady"])}
 
-        sy = _get_value_from_ds_datavar(ds, "sy", sy)
-        ss = _get_value_from_ds_datavar(ds, "ss", ss)
+        sy = _get_value_from_ds_datavar(ds, "sy", sy, default=0.2)
+        ss = _get_value_from_ds_datavar(ds, "ss", ss, default=1e-5)
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,
@@ -598,75 +745,8 @@ def sto(
         return sto
 
 
-def chd(
-    ds, gwf, mask="chd_mask", head="chd_head", pname="chd", auxiliary=None, **kwargs
-):
-    """get constant head boundary at the model's edges from the model dataset.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        dataset with model data.
-    gwf : flopy ModflowGwf
-        groundwaterflow object.
-    mask : str, optional
-        name of data variable in ds that is 1 for cells with a constant
-        head and zero for all other cells. The default is 'chd_mask'.
-    head : str, optional
-        name of data variable in ds that is used as the head in the chd
-        cells. By default, assumes head data is stored as 'chd_head'.
-    pname : str, optional
-        package name
-    auxiliary : str or list of str
-        name(s) of data arrays to include as auxiliary data to reclist
-    chd : str, optional
-        deprecated, the new argument is 'mask'
-
-    Returns
-    -------
-    chd : flopy ModflowGwfchd
-        chd package
-    """
-    logger.info("creating modflow CHD")
-
-    if "chd" in kwargs:
-        warnings.warn(
-            "the 'chd' kwarg has been renamed to 'mask'!",
-            DeprecationWarning,
-        )
-        mask = kwargs.pop("chd")
-
-    maskarr = _get_value_from_ds_datavar(ds, "mask", mask)
-    mask = maskarr != 0
-
-    # get the stress_period_data
-    chd_rec = grid.da_to_reclist(ds, mask, col1=head, aux=auxiliary)
-
-    chd = flopy.mf6.ModflowGwfchd(
-        gwf,
-        auxiliary="CONCENTRATION" if auxiliary is not None else None,
-        pname=pname,
-        maxbound=len(chd_rec),
-        stress_period_data=chd_rec,
-        save_flows=True,
-        **kwargs,
-    )
-    if (auxiliary is not None) and (ds.transport == 1):
-        logger.info("-> adding CHD to SSM sources list")
-        ssm_sources = ds.attrs["ssm_sources"]
-        if chd.package_name not in ssm_sources:
-            ssm_sources += [chd.package_name]
-            ds.attrs["ssm_sources"] = ssm_sources
-
-    if len(chd_rec) > 0:
-        return chd
-    else:
-        logger.warning("no chd pkg added")
-        return None
-
-
 def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs):
-    """get surface level drain (maaivelddrainage in Dutch) from the model
+    """create surface level drain (maaivelddrainage in Dutch) from the model
     dataset.
 
     Parameters
@@ -693,7 +773,7 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
 
     ds.attrs["surface_drn_resistance"] = resistance
 
-    maskarr = _get_value_from_ds_datavar(ds, "elev", elev)
+    maskarr = _get_value_from_ds_datavar(ds, "elev", elev, return_da=True)
     mask = maskarr.notnull()
 
     drn_rec = grid.da_to_reclist(
@@ -708,7 +788,6 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
     drn = flopy.mf6.ModflowGwfdrn(
         gwf,
         pname=pname,
-        print_input=True,
         maxbound=len(drn_rec),
         stress_period_data={0: drn_rec},
         save_flows=True,
@@ -719,7 +798,7 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
 
 
 def rch(ds, gwf, pname="rch", **kwargs):
-    """get recharge package from model dataset.
+    """create recharge package from model dataset.
 
     Parameters
     ----------
@@ -735,7 +814,7 @@ def rch(ds, gwf, pname="rch", **kwargs):
     rch : flopy ModflowGwfrch
         rch package
     """
-    logger.info("creating modflow RCH")
+    logger.info("creating mf6 RCH")
     # create recharge package
     rch = recharge.ds_to_rch(gwf, ds, pname=pname, **kwargs)
 
@@ -743,7 +822,7 @@ def rch(ds, gwf, pname="rch", **kwargs):
 
 
 def evt(ds, gwf, pname="evt", **kwargs):
-    """get evapotranspiration package from model dataset.
+    """create evapotranspiration package from model dataset.
 
     Parameters
     ----------
@@ -759,12 +838,37 @@ def evt(ds, gwf, pname="evt", **kwargs):
     evt : flopy ModflowGwfevt
         rch package
     """
-    logger.info("creating modflow EVT")
+    logger.info("creating mf6 EVT")
 
     # create recharge package
     evt = recharge.ds_to_evt(gwf, ds, pname=pname, **kwargs)
 
     return evt
+
+
+def uzf(ds, gwf, pname="uzf", **kwargs):
+    """create unsaturated zone flow package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    uzf : flopy ModflowGwfuzf
+        uzf package
+    """
+    logger.info("creating mf6 UZF")
+
+    # create uzf package
+    uzf = recharge.ds_to_uzf(gwf, ds, pname=pname, **kwargs)
+
+    return uzf
 
 
 def _set_record(out, budget, output="head"):
@@ -847,7 +951,7 @@ def oc(
     pname="oc",
     **kwargs,
 ):
-    """get output control package from model dataset.
+    """create output control package from model dataset.
 
     Parameters
     ----------
@@ -863,7 +967,7 @@ def oc(
     oc : flopy ModflowGwfoc
         oc package
     """
-    logger.info("creating modflow OC")
+    logger.info("creating mf6 OC")
 
     # Create the output control package
     headfile = f"{ds.model_name}.hds"

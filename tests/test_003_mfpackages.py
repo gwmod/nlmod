@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 16:24:03 2021.
-
-@author: oebbe
-"""
 import numpy as np
 import test_001_model
 import xarray as xr
@@ -86,7 +81,7 @@ def chd_from_ds(tmpdir):
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
 
     # add constant head cells at model boundaries
-    ds.update(nlmod.grid.mask_model_edge(ds, ds["idomain"]))
+    ds.update(nlmod.grid.mask_model_edge(ds))
     nlmod.gwf.chd(ds, gwf, mask="edge_mask", head="starting_head")
 
 
@@ -102,20 +97,22 @@ def get_value_from_ds_datavar():
     ds["test_var"] = ("layer", "y", "x"), np.arange(np.product(shape)).reshape(shape)
 
     # get value from ds
-    v0 = nlmod.util._get_value_from_ds_datavar(ds, "test_var", "test_var")
+    v0 = nlmod.util._get_value_from_ds_datavar(
+        ds, "test_var", "test_var", return_da=True
+    )
     xr.testing.assert_equal(ds["test_var"], v0)
 
     # get value from ds, variable and stored name are different
     v1 = nlmod.util._get_value_from_ds_datavar(ds, "test", "test_var")
-    xr.testing.assert_equal(ds["test_var"], v1)
+    xr.testing.assert_equal(ds["test_var"].values, v1)
 
     # do not get value from ds, value is Data Array, should log info msg
-    v2 = nlmod.util._get_value_from_ds_datavar(ds, "test", v0)
+    v2 = nlmod.util._get_value_from_ds_datavar(ds, "test", v0, return_da=True)
     xr.testing.assert_equal(ds["test_var"], v2)
 
     # do not get value from ds, value is Data Array, no msg
     v0.name = "test2"
-    v3 = nlmod.util._get_value_from_ds_datavar(ds, "test", v0)
+    v3 = nlmod.util._get_value_from_ds_datavar(ds, "test", v0, return_da=True)
     assert (v0 == v3).all()
 
     # return None, value is str but not in dataset, should log warning

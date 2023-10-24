@@ -6,9 +6,11 @@ import pandas as pd
 import xarray as xr
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
+from shapely.affinity import affine_transform
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
 from ..dims.grid import modelgrid_from_ds
+from ..dims.resample import get_affine_world_to_mod
 
 
 class DatasetCrossSection:
@@ -48,6 +50,8 @@ class DatasetCrossSection:
         self.icell2d = icell2d
 
         if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            # transform the line to model coordinates
+            line = affine_transform(line, get_affine_world_to_mod(ds).to_shapely())
             self.rotated = True
         else:
             self.rotated = False
@@ -55,7 +59,7 @@ class DatasetCrossSection:
         # first determine where the cross-section crosses grid-lines
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
-            modelgrid = modelgrid_from_ds(ds)
+            modelgrid = modelgrid_from_ds(ds, rotated=False)
             gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
             r = gi.intersect(line)
             s_cell = []
@@ -64,7 +68,7 @@ class DatasetCrossSection:
                 if intersection.length == 0:
                     continue
                 if isinstance(intersection, MultiLineString):
-                    for ix in intersection:
+                    for ix in intersection.geoms:
                         s_cell.append([line.project(Point(ix.coords[0])), 1, ic2d])
                         s_cell.append([line.project(Point(ix.coords[-1])), 0, ic2d])
                     continue
@@ -156,7 +160,14 @@ class DatasetCrossSection:
         xys = xys[xys[:, -1].argsort()]
         return xys
 
-    def plot_layers(self, colors=None, min_label_area=np.inf, **kwargs):
+    def plot_layers(
+        self,
+        colors=None,
+        min_label_area=np.inf,
+        fontsize=None,
+        only_labels=False,
+        **kwargs,
+    ):
         if colors is None:
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i) for i in range(len(self.layer))]
@@ -198,8 +209,9 @@ class DatasetCrossSection:
                 # xy = np.vstack((x, y)).T
                 color = colors[i]
                 pol = matplotlib.patches.Polygon(xy, facecolor=color, **kwargs)
-                self.ax.add_patch(pol)
-                polygons.append(pol)
+                if not only_labels:
+                    self.ax.add_patch(pol)
+                    polygons.append(pol)
 
                 if not np.isinf(min_label_area):
                     pols = Polygon(xy)
@@ -217,14 +229,24 @@ class DatasetCrossSection:
                             yp = list(reversed(y[int(len(x) / 2) :]))
                             yp2 = np.interp(xt, xp, yp)
                             yt = np.mean([yp1, yp2])
-                            self.ax.text(
+                            ht = self.ax.text(
                                 xt,
                                 yt,
                                 self.layer[i],
                                 ha="center",
                                 va="center",
+                                fontsize=fontsize,
                             )
+                            if only_labels:
+                                polygons.append(ht)
         return polygons
+
+    def label_layers(self, min_label_area=None):
+        if min_label_area is None:
+            # plot labels of layers with an average thickness of 1 meter
+            # in entire cross-section
+            min_label_area = self.line.length * 1
+        return self.plot_layers(min_label_area=min_label_area, only_labels=True)
 
     def plot_grid(
         self,
@@ -304,6 +326,8 @@ class DatasetCrossSection:
         if isinstance(z, xr.DataArray):
             z = z.data
         if head is not None:
+            if isinstance(head, xr.DataArray):
+                head = head.data
             assert head.shape == z.shape
         if self.icell2d in self.ds.dims:
             assert len(z.shape) == 2

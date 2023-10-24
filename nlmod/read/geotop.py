@@ -1,12 +1,15 @@
 import datetime as dt
 import logging
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
+from ..dims.layers import insert_layer, remove_layer
+from ..util import MissingValueError
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +36,7 @@ def get_lithok_colors():
         8: (216, 163, 32),
         9: (95, 95, 255),
     }
-    colors = {key: tuple([x / 255 for x in colors[key]]) for key in colors}
+    colors = {key: tuple(x / 255 for x in color) for key, color in colors.items()}
     return colors
 
 
@@ -52,37 +55,160 @@ def get_kh_kv_table(kind="Brabant"):
         )
         df = pd.read_csv(fname)
     else:
-        raise (Exception(f"Unknown kind in get_kh_kv_table: {kind}"))
+        raise (ValueError(f"Unknown kind in get_kh_kv_table: '{kind}'"))
     return df
 
 
 @cache.cache_netcdf
-def get_geotop(extent, strat_props=None):
-    """get a model layer dataset for modflow from geotop within a certain
-    extent and grid.
+def to_model_layers(
+    geotop_ds, strat_props=None, method_geulen="add_to_layer_below", **kwargs
+):
+    """Convert geotop voxel dataset to layered dataset.
+
+    Converts geotop data to dataset with layer elevations and hydraulic conductivities.
+    Optionally uses hydraulic conductivities provided present in geotop_ds.
 
     Parameters
     ----------
-    extent : list, tuple or np.array
-        desired model extent (xmin, xmax, ymin, ymax)
+    geotop_ds : xr.DataSet
+        geotop voxel dataset (download using `get_geotop(extent)`)
     strat_props : pd.DataFrame, optional
-        The properties of the stratigraphic unit. Load with get_strat_props() when None.
-        The default is None.
+        The properties (code and name) of the stratigraphic units. Load with
+        get_strat_props() when None. The default is None.
+    method_geulen : str, optional
+        strat-units >=6000 are so-called 'geulen' (paleochannels, gullies). These are
+        difficult to add to the layer model, because they can occur above and/or below
+        any other unit. Multiple methods are available to handle these 'geulen'.
+        The method "add_to_layer_below" adds the thickness of the 'geul' to the layer
+        with a positive thickness below the 'geul'. The method "add_to_layer_above"
+        adds the thickness of the 'geul' to the layer with a positive thickness above
+        the 'geul'. The method "add_as_layer" tries to add the 'geulen' as one or more
+        layers, which can fail if a 'geul' is locally both below the top and above the
+        bottom of another layer (splitting the layer in two, which is not supported).
+        The default is "add_to_layer_below".
+    kwargs : dict
+        Kwargs are passed to `aggregate_to_ds()`
 
     Returns
     -------
-    geotop_ds: xr.DataSet
-        geotop dataset with top, bot, kh and kv per geo_eenheid
+    ds: xr.DataSet
+        dataset with top and botm (and optionally kh and kv) per geotop layer
     """
-    gt = get_geotop_raw_within_extent(extent, GEOTOP_URL)
 
     if strat_props is None:
         strat_props = get_strat_props()
 
-    ds = convert_geotop_to_ml_layers(gt, strat_props=strat_props)
+    # stap 2 create layer for each stratigraphy unit (geo-eenheid)
+    if strat_props is None:
+        strat_props = get_strat_props()
 
-    ds.attrs["extent"] = extent
+    # get all strat-units in Dataset
+    strat = geotop_ds["strat"].values
+    units = np.unique(strat)
+    units = units[~np.isnan(units)].astype(int)
+    shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
+    # stratigraphy unit (geo eenheid) 2000 is above 1130
+    if (2000 in units) and (1130 in units):
+        units[(units == 2000) + (units == 1130)] = [2000, 1130]
+
+    # fill top and bot
+    top = np.full(shape, np.nan)
+    bot = np.full(shape, np.nan)
+
+    z = (
+        geotop_ds["z"]
+        .data[:, np.newaxis, np.newaxis]
+        .repeat(len(geotop_ds.y), 1)
+        .repeat(len(geotop_ds.x), 2)
+    )
+    layers = []
+    geulen = []
+    for layer, unit in enumerate(units):
+        mask = strat == unit
+        top[layer] = np.nanmax(np.where(mask, z, np.NaN), 0) + 0.25
+        bot[layer] = np.nanmin(np.where(mask, z, np.NaN), 0) - 0.25
+        if int(unit) in strat_props.index:
+            layers.append(strat_props.at[unit, "code"])
+        else:
+            logger.warning(f"Unknown strat-value: {unit}")
+            layers.append(str(unit))
+        if unit >= 6000:
+            geulen.append(layers[-1])
+
+    dims = ("layer", "y", "x")
+    coords = {"layer": layers, "y": geotop_ds.y, "x": geotop_ds.x}
+    ds = xr.Dataset({"top": (dims, top), "botm": (dims, bot)}, coords=coords)
+
+    if method_geulen is None:
+        pass
+    elif method_geulen == "add_as_layer":
+        top = ds["top"].copy(deep=True)
+        bot = ds["botm"].copy(deep=True)
+        for geul in geulen:
+            ds = remove_layer(ds, geul)
+        for geul in geulen:
+            ds = insert_layer(ds, geul, top.loc[geul], bot.loc[geul])
+    elif method_geulen == "add_to_layer_below":
+        top = ds["top"].copy(deep=True)
+        bot = ds["botm"].copy(deep=True)
+        for geul in geulen:
+            ds = remove_layer(ds, geul)
+        for geul in geulen:
+            todo = (top.loc[geul] - bot.loc[geul]) > 0.0
+            for layer in ds.layer:
+                if not todo.any():
+                    continue
+                # adds the thickness of the geul to the layer below the geul
+                mask = (top.loc[geul] > bot.loc[layer]) & todo
+                if mask.any():
+                    ds["top"].loc[layer].data[mask] = np.maximum(
+                        top.loc[geul].data[mask], top.loc[layer].data[mask]
+                    )
+                    todo.data[mask] = False
+            if todo.any():
+                # unless the geul is the bottom layer
+                # then its thickness is added to the last active layer
+                # idomain = get_idomain(ds)
+                # fal = get_last_active_layer_from_idomain(idomain)
+                logger.warning(
+                    f"Geul {geul} is at the bottom of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                )
+
+    elif method_geulen == "add_to_layer_above":
+        top = ds["top"].copy(deep=True)
+        bot = ds["botm"].copy(deep=True)
+        for geul in geulen:
+            ds = remove_layer(ds, geul)
+        for geul in geulen:
+            todo = (top.loc[geul] - bot.loc[geul]) > 0.0
+            for layer in reversed(ds.layer):
+                if not todo.any():
+                    continue
+                # adds the thickness of the geul to the layer above the geul
+                mask = (bot.loc[geul] < top.loc[layer]) & todo
+                if mask.any():
+                    ds["botm"].loc[layer].data[mask] = np.minimum(
+                        bot.loc[geul].data[mask], bot.loc[layer].data[mask]
+                    )
+                    todo.data[mask] = False
+            if todo.any():
+                # unless the geul is the top layer
+                # then its thickness is added to the last active layer
+                # idomain = get_idomain(ds)
+                # fal = get_first_active_layer_from_idomain(idomain)
+                logger.warning(
+                    f"Geul {geul} is at the top of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                )
+    else:
+        raise (ValueError(f"Unknown method to deal with geulen: '{method_geulen}'"))
+
+    ds.attrs["geulen"] = geulen
+
+    if "kh" in geotop_ds and "kv" in geotop_ds:
+        aggregate_to_ds(geotop_ds, ds, **kwargs)
+
+    # add atributes
     for datavar in ds:
         ds[datavar].attrs["source"] = "Geotop"
         ds[datavar].attrs["url"] = GEOTOP_URL
@@ -95,7 +221,8 @@ def get_geotop(extent, strat_props=None):
     return ds
 
 
-def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True):
+@cache.cache_netcdf
+def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok
     data variables.
@@ -107,128 +234,59 @@ def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True
     url : str, optional
         url of geotop netcdf file. The default is
         http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
+    probabilities : bool, optional
+        if True, download probability data
 
     Returns
     -------
     gt : xarray Dataset
         slices geotop netcdf.
     """
-    gt = xr.open_dataset(url)
+    gt = xr.open_dataset(url, chunks="auto")
+
+    # only download requisite data
+    data_vars = ["strat", "lithok"]
+    if probabilities:
+        data_vars += [
+            "kans_1",
+            "kans_2",
+            "kans_3",
+            "kans_4",
+            "kans_5",
+            "kans_6",
+            "kans_7",
+            "kans_8",
+            "kans_9",
+            "onz_lk",
+            "onz_ls",
+        ]
 
     # set x and y dimensions to cell center
     for dim in ["x", "y"]:
         old_dim = gt[dim].values
         gt[dim] = old_dim + (old_dim[1] - old_dim[0]) / 2
 
-    # slice extent
-    gt = gt.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
-
-    if drop_probabilities:
-        gt = gt[["strat", "lithok"]]
+    # get data vars and slice extent
+    gt = gt[data_vars].sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
     # change order of dimensions from x, y, z to z, y, x
     gt = gt.transpose("z", "y", "x")
-    gt = gt.sortby("z", ascending=False)  # uses a lot of RAM
-    gt = gt.sortby("y", ascending=False)  # uses a lot of RAM
+
+    # flip z, and y coordinates
+    gt = gt.isel(z=slice(None, None, -1), y=slice(None, None, -1))
+
+    # add missing value
+    # gt.strat.attrs["missing_value"] = -127
 
     return gt
 
 
-def convert_geotop_to_ml_layers(
-    geotop_ds_raw,
-    strat_props=None,
-    **kwargs,
-):
-    """Convert geotop voxel data to layers using the stratigraphy-data.
-
-    It gets the top and botm of each stratigraphic unit in the geotop dataset.
-
-    Parameters
-    ----------
-    geotop_ds_raw: xr.Dataset
-        dataset with geotop voxel data
-    strat_props: pandas.DataFrame
-        The properties of the stratigraphic unit. Load with get_strat_props() when None.
-        The default is None.
-
-    Returns
-    -------
-    geotop_ds_mod: xarray.DataSet
-        geotop dataset with top and botm per geo_eenheid
-
-    Note
-    ----
-    strat-units >=6000 are 'stroombanen'. These are difficult to add because they can
-    occur above and/or below any other unit. Therefore these units are not added to the
-    dataset, and their thickness is added to the strat-unit below the stroombaan.
-    """
-
-    # stap 2 maak een laag per geo-eenheid
-    if strat_props is None:
-        strat_props = get_strat_props()
-
-    # vindt alle geo-eenheden in model_extent
-    geo_eenheden = np.unique(geotop_ds_raw.strat.data)
-    geo_eenheden = geo_eenheden[np.isfinite(geo_eenheden)]
-    stroombaan_eenheden = geo_eenheden[geo_eenheden >= 6000]
-    geo_eenheden = geo_eenheden[geo_eenheden < 6000]
-
-    # geo eenheid 2000 zit boven 1130
-    if (2000.0 in geo_eenheden) and (1130.0 in geo_eenheden):
-        geo_eenheden[(geo_eenheden == 2000.0) + (geo_eenheden == 1130.0)] = [
-            2000.0,
-            1130.0,
-        ]
-
-    strat_codes = []
-    for geo_eenh in geo_eenheden:
-        if int(geo_eenh) in strat_props.index:
-            code = strat_props.at[int(geo_eenh), "code"]
-        else:
-            logger.warning(f"Unknown strat-value: {geo_eenh}")
-            code = str(geo_eenh)
-        strat_codes.append(code)
-
-    # fill top and bot
-    shape = (len(strat_codes), len(geotop_ds_raw.y), len(geotop_ds_raw.x))
-    top = np.full(shape, np.nan)
-    bot = np.full(shape, np.nan)
-    lay = 0
-    logger.info("creating top and bot per geo eenheid")
-    for geo_eenheid in geo_eenheden:
-        logger.debug(int(geo_eenheid))
-
-        mask = geotop_ds_raw.strat == geo_eenheid
-        geo_z = xr.where(mask, geotop_ds_raw.z, np.NaN)
-
-        top[lay] = geo_z.max(dim="z") + 0.25
-        bot[lay] = geo_z.min(dim="z") - 0.25
-
-        lay += 1
-
-    # add the thickness of stroombanen to the layer below the stroombaan
-    for lay in range(top.shape[0]):
-        if lay == 0:
-            top[lay] = np.nanmax(top, 0)
-        else:
-            top[lay] = bot[lay - 1]
-        bot[lay] = np.where(np.isnan(bot[lay]), top[lay], bot[lay])
-
-    dims = ("layer", "y", "x")
-    coords = {"layer": strat_codes, "y": geotop_ds_raw.y, "x": geotop_ds_raw.x}
-    da_top = xr.DataArray(data=top, dims=dims, coords=coords)
-    da_bot = xr.DataArray(data=bot, dims=dims, coords=coords)
-    geotop_ds_mod = xr.Dataset()
-
-    geotop_ds_mod["top"] = da_top
-    geotop_ds_mod["botm"] = da_bot
-
-    geotop_ds_mod.attrs["stroombanen"] = stroombaan_eenheden
-
-    if "kh" in geotop_ds_raw and "kv" in geotop_ds_raw:
-        aggregate_to_ds(geotop_ds_raw, geotop_ds_mod, **kwargs)
-
-    return geotop_ds_mod
+def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True):
+    warnings.warn(
+        "This function is deprecated, use the equivalent `get_geotop()`!",
+        DeprecationWarning,
+    )
+    return get_geotop(extent=extent, url=url, probabilities=not drop_probabilities)
 
 
 def add_top_and_botm(ds):
@@ -247,18 +305,14 @@ def add_top_and_botm(ds):
     ds : xr.Dataset
         The geotop-dataset, with added variables "top" and "botm".
     """
-    # make ready for DataSetCrossSection
-    # ds = ds.transpose("z", "y", "x")
-    # ds = ds.sortby("z", ascending=False)
-
-    bottom = np.expand_dims(ds.z.data - 0.25, axis=(1, 2))
+    bottom = np.expand_dims(ds.z.values - 0.25, axis=(1, 2))
     bottom = np.repeat(np.repeat(bottom, len(ds.y), 1), len(ds.x), 2)
-    bottom[np.isnan(ds.strat.data)] = np.NaN
+    bottom[np.isnan(ds.strat.values)] = np.NaN
     ds["botm"] = ("z", "y", "x"), bottom
 
-    top = np.expand_dims(ds.z.data + 0.25, axis=(1, 2))
+    top = np.expand_dims(ds.z.values + 0.25, axis=(1, 2))
     top = np.repeat(np.repeat(top, len(ds.y), 1), len(ds.x), 2)
-    top[np.isnan(ds.strat.data)] = np.NaN
+    top[np.isnan(ds.strat.values)] = np.NaN
     ds["top"] = ("z", "y", "x"), top
     return ds
 
@@ -306,7 +360,7 @@ def add_kh_and_kv(
     kh : str, optional
         THe name of the new variable with kh values in gt. The default is "kh".
     kv : str, optional
-        THe name of the new variable with kv values in gt. The default is "kv".
+        The name of the new variable with kv values in gt. The default is "kv".
     kh_df : str, optional
         The name of the column with kh values in df. The default is "kh".
     kv_df : str, optional
@@ -328,10 +382,10 @@ def add_kh_and_kv(
         else:
             stochastic = None
     if kh_method not in ["arithmetic_mean", "harmonic_mean"]:
-        raise (Exception("Unknown kh_method: {kh_method}"))
+        raise (ValueError("Unknown kh_method: {kh_method}"))
     if kv_method not in ["arithmetic_mean", "harmonic_mean"]:
-        raise (Exception("Unknown kv_method: {kv_method}"))
-    strat = gt["strat"].data
+        raise (ValueError("Unknown kv_method: {kv_method}"))
+    strat = gt["strat"].values
     msg = "Determining kh and kv of geotop-data based on lithoclass"
     if df.index.name in ["lithok", "strat"]:
         df = df.reset_index()
@@ -339,12 +393,12 @@ def add_kh_and_kv(
         msg = f"{msg} and stratigraphy"
     logger.info(msg)
     if kh_df not in df:
-        raise (Exception(f"No {kh_df} defined in df"))
+        raise (MissingValueError(f"No {kh_df} defined in df"))
     if kv_df not in df:
         logger.info(f"Setting kv equal to kh / {anisotropy}")
     if stochastic is None:
         # calculate kh and kv from most likely lithoclass
-        lithok = gt["lithok"].data
+        lithok = gt["lithok"].values
         kh_ar = np.full(lithok.shape, np.NaN)
         kv_ar = np.full(lithok.shape, np.NaN)
         if "strat" in df:
@@ -376,7 +430,7 @@ def add_kh_and_kv(
             if ilithok == 0:
                 # there are no probabilities defined for lithoclass 'antropogeen'
                 continue
-            probality = gt[f"kans_{ilithok}"].data
+            probality = gt[f"kans_{ilithok}"].values
             if "strat" in df:
                 khi, kvi = _handle_nans_in_stochastic_approach(
                     np.NaN, np.NaN, kh_method, kv_method
@@ -421,7 +475,7 @@ def add_kh_and_kv(
         else:
             kv_ar = probality_total / kv_ar
     else:
-        raise (Exception(f"Unsupported value for stochastic: {stochastic}"))
+        raise (ValueError(f"Unsupported value for stochastic: '{stochastic}'"))
 
     dims = gt["strat"].dims
     gt[kh] = dims, kh_ar
@@ -510,21 +564,20 @@ def aggregate_to_ds(
         The Dataset ds, with added variables kh and kv (and optionally kd and c).
     """
     assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
-    msg = "Please add {} to geotop-Dataset first, using add_kh_and_kv()"
+    msg = "Please add '{}' to geotop-Dataset first, using add_kh_and_kv()"
     if kh_gt not in gt:
-        raise (Exception(msg.format(kh_gt)))
+        raise (MissingValueError(msg.format(kh_gt)))
     if kv_gt not in gt:
-        raise (Exception(msg.format(kv_gt)))
+        raise (MissingValueError(msg.format(kv_gt)))
     kD_ar = []
     c_ar = []
     kh_ar = []
     kv_ar = []
-    if "layer" in ds["top"].dims:
-        # make sure there is no layer dimension in top
-        ds["top"] = ds["top"].max("layer")
     for ilay in range(len(ds.layer)):
         if ilay == 0:
             top = ds["top"]
+            if "layer" in top.dims:
+                top = top[0].drop_vars("layer")
         else:
             top = ds["botm"][ilay - 1].drop_vars("layer")
         bot = ds["botm"][ilay].drop_vars("layer")

@@ -54,7 +54,6 @@ jobs:
         run: |
           py.test ./tests -m "not notebooks"
 
-
       - name: Run codacy-coverage-reporter
         uses: codacy/codacy-coverage-reporter-action@master
         with:

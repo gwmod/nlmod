@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """module with functions to deal with the northsea by:
 
     - identifying model cells with the north sea
@@ -18,7 +17,7 @@ import requests
 import xarray as xr
 
 from .. import cache
-from ..dims.resample import fillnan_da, structured_da_to_ds
+from ..dims.resample import fillnan_da, get_extent, structured_da_to_ds
 from ..util import get_da_from_da_ds, get_ds_empty
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
-    ds_out = get_ds_empty(ds)
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
 
     # no bathymetry if we don't have northsea
     if (northsea == 0).all():
@@ -59,7 +58,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
 
     # try to get bathymetry via opendap
     try:
-        jarkus_ds = get_dataset_jarkus(ds.extent, kind=kind)
+        jarkus_ds = get_dataset_jarkus(get_extent(ds), kind=kind)
     except OSError:
         import gdown
 
@@ -93,6 +92,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     return ds_out
 
 
+@cache.cache_netcdf
 def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
     """Get bathymetry from Jarkus within a certain extent. If return_tiles is False, the
     following actions are performed:
@@ -105,7 +105,7 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
     ----------
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid. Should be RD-new
-        coördinates (EPSG:28992)
+        coordinates (EPSG:28992)
     kind : str, optional
         The kind of data. Can be "jarkus", "kusthoogte" or "vaklodingen". The default is
         "jarkus".
@@ -163,6 +163,8 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
                     )
             tiles = tiles_left
     z_dataset = xr.combine_by_coords(tiles, combine_attrs="drop")
+    # drop 'lat' and 'lon' as these will create problems when resampling the data
+    z_dataset = z_dataset.drop_vars(["lat", "lon"])
     return z_dataset
 
 
@@ -173,7 +175,7 @@ def get_jarkus_tilenames(extent, kind="jarkus"):
     ----------
     extent : list, tuple or np.array
         extent (xmin, xmax, ymin, ymax) of the desired grid. Should be RD-new
-        coördinates (EPSG:28992)
+        coordinates (EPSG:28992)
 
     Returns
     -------
@@ -187,7 +189,7 @@ def get_jarkus_tilenames(extent, kind="jarkus"):
     elif kind == "vaklodingen":
         url = "http://opendap.deltares.nl/thredds/dodsC/opendap/rijkswaterstaat/vaklodingen/catalog.nc"
     else:
-        raise (Exception(f"Unsupported kind: {kind}"))
+        raise (ValueError(f"Unsupported kind: {kind}"))
 
     ds_jarkus_catalog = xr.open_dataset(url)
     ew_x = ds_jarkus_catalog["projectionCoverage_x"].values
@@ -238,8 +240,12 @@ def get_netcdf_tiles(kind="jarkus"):
 
 
 def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10):
-    """add bathymetry to the top and bot of each layer for all cells with
-    fill_mask.
+    """Add bathymetry to the top and bot of each layer for all cells with fill_mask.
+
+    This method sets the top of the model at fill_mask to 0 m, and changes the first
+    layer to sea, by setting the botm of this layer to bathymetry, kh to kh_sea and kv
+    to kv_sea. If deeper layers are above bathymetry. the layer depth is set to
+    bathymetry.
 
     Parameters
     ----------

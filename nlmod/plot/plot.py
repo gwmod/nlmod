@@ -176,9 +176,15 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
     """
     if ax is None:
         ax = plt.gca()
+    if "layer" in da.dims:
+        msg = (
+            "The suppplied DataArray in nlmod.plot.data_darray contains multiple "
+            "layers. Please select a layer first."
+        )
+        raise (ValueError(msg))
     if "icell2d" in da.dims:
         if ds is None:
-            raise (Exception("Supply model dataset (ds) for grid information"))
+            raise (ValueError("Supply model dataset (ds) for grid information"))
         if isinstance(ds, list):
             patches = ds
         else:
@@ -211,11 +217,11 @@ def geotop_lithok_in_cross_section(
 
     Parameters
     ----------
-    line : sahpely.LineString
+    line : shapely.LineString
         The line along which the GeoTOP data is plotted
     gt : xr.Dataset, optional
         The voxel-dataset from GeoTOP. It is downloaded with the method
-        nlmod.read.geaotop.get_geotop_raw_within_extent if None. The default is None.
+        `nlmod.read.geotop.get_geotop()` if None. The default is None.
     ax : matplotlib.Axes, optional
         The axes in whcih the cross-section is plotted. Will default to the current axes
         if None. The default is None.
@@ -244,7 +250,7 @@ def geotop_lithok_in_cross_section(
         x = [coord[0] for coord in line.coords]
         y = [coord[1] for coord in line.coords]
         extent = [min(x), max(x), min(y), max(y)]
-        gt = geotop.get_geotop_raw_within_extent(extent)
+        gt = geotop.get_geotop(extent)
 
     if "top" not in gt or "botm" not in gt:
         gt = geotop.add_top_and_botm(gt)
@@ -253,7 +259,7 @@ def geotop_lithok_in_cross_section(
         lithok_props = geotop.get_lithok_props()
 
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
-    lithoks = gt["lithok"].data
+    lithoks = gt["lithok"].values
     lithok_un = np.unique(lithoks[~np.isnan(lithoks)])
     array = np.full(lithoks.shape, np.NaN)
 
@@ -296,8 +302,12 @@ def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True):
             # try to ensure pixel size is divisible by 2
             figsize = (figsize[0], np.round(figsize[1] / 0.02, 0) * 0.02)
 
-        base = 10 ** int(np.log10(extent[1] - extent[0]))
-        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False)
+        base = 10 ** int(np.log10(extent[1] - extent[0])) / 2
+        if base < 1000:
+            fmt = "{:.1f}"
+        else:
+            fmt = "{:.0f}"
+        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False, fmt=fmt)
         ax.set_aspect("equal", adjustable="box")
     return f, ax
 
@@ -324,7 +334,7 @@ def map_array(
     plot_grid=True,
     rotated=True,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     animate=False,
 ):
@@ -336,10 +346,10 @@ def map_array(
     try:
         nlay = da["layer"].shape[0]
     except IndexError:
-        nlay = 1  # only one layer
+        nlay = 0  # only one layer
     except KeyError:
         nlay = -1  # no dim layer
-    if nlay > 1:
+    if nlay >= 1:
         layer = da["layer"].isel(layer=ilay).item()
         da = da.isel(layer=ilay)
     elif nlay < 0:
@@ -353,10 +363,14 @@ def map_array(
         try:
             nper = da["time"].shape[0]
         except IndexError:
-            nper = 1
-        if nper > 1:
+            nper = 0  # only one timestep
+        except KeyError:
+            nper = -1  # no dim time
+        if nper >= 1:
             t = pd.Timestamp(da["time"].isel(time=iper).item())
             da = da.isel(time=iper)
+        elif nper < 0:
+            iper = None
         else:
             iper = 0
             t = pd.Timestamp(ds["time"].item())
@@ -379,7 +393,7 @@ def map_array(
         ax.axis(extent)
 
     # bgmap
-    if backgroundmap:
+    if background:
         add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
@@ -436,7 +450,7 @@ def animate_map(
     colorbar_label="",
     plot_grid=True,
     rotated=True,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     ax=None,
     add_to_plot=None,
@@ -483,7 +497,7 @@ def animate_map(
         Whether to plot the model grid. Default is True.
     rotated : bool, optional
         Whether to plot rotated model, if applicable. Default is True.
-    backgroundmap : bool, optional
+    background : bool, optional
         Whether to add a background map. Default is False.
     figsize : tuple, optional
         figure size in inches, default is None.
@@ -514,7 +528,10 @@ def animate_map(
     """
     # if da is a string and ds is provided select data array from model dataset
     if isinstance(da, str) and ds is not None:
-        da = ds[da]
+        da = ds[da].isel(layer=ilay)
+    else:
+        if "layer" in da.dims:
+            da = da.isel(layer=ilay)
 
     # check da
     if "time" not in da.dims:
@@ -542,13 +559,13 @@ def animate_map(
         plot_grid=plot_grid,
         rotated=rotated,
         add_to_plot=add_to_plot,
-        backgroundmap=backgroundmap,
+        background=background,
         figsize=figsize,
         animate=True,
     )
     # remove timestamp from title
     axtitle = ax.get_title()
-    axtitle.set_title(axtitle.replace("(t=", "(tstart="))
+    ax.set_title(axtitle.replace("(t=", "(tstart="))
 
     # add updating title
     t = pd.Timestamp(da.time.values[0])
@@ -585,6 +602,8 @@ def animate_map(
 
     # save animation as mp4
     if save:
+        if fname is None:
+            raise ValueError("please specify a fname or use save=False")
         writer = FFMpegWriter(
             fps=10,
             bitrate=-1,

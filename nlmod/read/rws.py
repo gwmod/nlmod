@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-"""functions to add surface water to a mf model using the ghb package."""
-
 import datetime as dt
 import logging
 import os
 
 import geopandas as gpd
+import numpy as np
 import xarray as xr
 
 import nlmod
@@ -78,7 +76,7 @@ def get_surface_water(ds, da_basename):
         peil = xr.where(area_pol > area, row["peil"], peil)
         area = xr.where(area_pol > area, area_pol, area)
 
-    ds_out = util.get_ds_empty(ds)
+    ds_out = util.get_ds_empty(ds, keep_coords=("y", "x"))
     ds_out[f"{da_basename}_area"] = area
     ds_out[f"{da_basename}_area"].attrs["units"] = "m2"
     ds_out[f"{da_basename}_cond"] = cond
@@ -127,7 +125,7 @@ def get_northsea(ds, da_name="northsea"):
         )
     ]
 
-    ds_out = dims.gdf_to_bool_ds(swater_zee, ds, da_name)
+    ds_out = dims.gdf_to_bool_ds(swater_zee, ds, da_name, keep_coords=("y", "x"))
 
     return ds_out
 
@@ -153,7 +151,7 @@ def add_northsea(ds, cachedir=None):
 
     # fill top, bot, kh, kv at sea cells
     fal = dims.get_first_active_layer(ds)
-    fill_mask = (fal == fal.attrs["_FillValue"]) * ds["northsea"]
+    fill_mask = (fal == fal.attrs["nodata"]) * ds["northsea"]
     ds = dims.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
 
     # add bathymetry noordzee
@@ -168,6 +166,105 @@ def add_northsea(ds, cachedir=None):
 
     ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
 
-    # update idomain on adjusted tops and bots
-    ds = dims.set_idomain(ds)
+    # remove inactive layers
+    ds = dims.remove_inactive_layers(ds)
     return ds
+
+
+def calculate_sea_coverage(
+    dtm,
+    ds=None,
+    zmax=0.0,
+    xy_sea=None,
+    diagonal=False,
+    method="mode",
+    nodata=-1,
+    return_filled_dtm=False,
+):
+    """
+    Determine where the sea is by interpreting the digital terrain model.
+
+    This method assumes the pixel defined in xy_sea (by default top-left) of the
+    DTM-DataArray is sea. It then determines the height of the sea that is required for
+    other pixels to become sea as well, taking into account the pixels in between.
+
+    Parameters
+    ----------
+
+    dtm : xr.DataArray
+        The digital terrain data, which can be of higher resolution than ds, Nans are
+        filled by the minial value of dtm.
+    ds : xr.Dataset, optional
+        Dataset with model information. When ds is not None, the sea DataArray is
+        transformed to the model grid. THe default is None.
+    zmax : float, optional
+        Locations thet become sea when the sea level reaches a level of zmax will get a
+        value of 1 in the resulting DataArray. The default is 0.0.
+    xy_sea : tuble of 2 floats
+        The x- and y-coordinate of a location within the dtm that is sea. From this
+        point, calculate_sea determines at what level each cell becomes wet. When
+        xy_cell is None, the most northwest grid cell is sea, which is appropriate for
+        the Netherlands. The default is None.
+    diagonal : bool, optional
+        When true, dtm-values are connected diagonally as well (to determine the level
+        the sea will reach). The default is False.
+    method : str, optional
+        The method used to scale the dtm to ds. The default is "mode" (mode means that
+        if more than half of the (not-nan) cells are wet, the cell is classified as
+        sea).
+    nodata : int or float, optional
+        The value for model cells outside the coverage of the dtm.
+        Only used internally. The default is -1.
+    return_filled_dtm : bool, optional
+        When True, return the filled dtm. The default is False.
+
+    Returns
+    -------
+    sea : xr.DataArray
+        A DataArray with value of 1 where the sea is and 0 where it is not.
+    """
+
+    from skimage.morphology import reconstruction
+
+    if not (dtm < zmax).any():
+        logger.warning(
+            f"There are no values in dtm below {zmax}. The provided dtm "
+            "probably is not appropriate to calculate the sea boundary."
+        )
+    # fill nans by the minimum value of dtm
+    dtm = dtm.where(~np.isnan(dtm), dtm.min())
+    seed = xr.full_like(dtm, dtm.max())
+    if xy_sea is None:
+        xy_sea = (dtm.x.data.min(), dtm.y.data.max())
+    # determine the closest x and y in the dtm grid
+    x_sea = dtm.x.sel(x=xy_sea[0], method="nearest")
+    y_sea = dtm.y.sel(y=xy_sea[1], method="nearest")
+    dtm.loc[{"x": x_sea, "y": y_sea}] = dtm.min()
+    seed.loc[{"x": x_sea, "y": y_sea}] = dtm.min()
+    seed = seed.data
+
+    footprint = np.ones((3, 3), dtype="bool")
+    if not diagonal:
+        footprint[[0, 0, 2, 2], [0, 2, 2, 0]] = False  # no diagonal connections
+    filled = reconstruction(seed, dtm.data, method="erosion", footprint=footprint)
+    dtm.data = filled
+    if return_filled_dtm:
+        return dtm
+
+    sea_dtm = dtm < zmax
+    if method == "mode":
+        sea_dtm = sea_dtm.astype(int)
+    else:
+        sea_dtm = sea_dtm.astype(float)
+    if ds is not None:
+        sea = nlmod.resample.structured_da_to_ds(
+            sea_dtm, ds, method=method, nodata=nodata
+        )
+        if (sea == nodata).any():
+            logger.info(
+                "The dtm data does not cover the entire model domain."
+                " Assuming cells outside dtm-cover to be sea."
+            )
+            sea = sea.where(sea != nodata, 1)
+        return sea
+    return sea_dtm

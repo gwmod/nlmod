@@ -4,6 +4,7 @@ from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 from ..dims.resample import get_affine_mod_to_world
+from ..epsg28992 import EPSG_28992
 
 
 def get_patches(ds, rotated=False):
@@ -14,8 +15,8 @@ def get_patches(ds, rotated=False):
         affine = get_affine_mod_to_world(ds)
         xy[:, 0], xy[:, 1] = affine * (xy[:, 0], xy[:, 1])
     icvert = ds["icvert"].data
-    if "_FillValue" in ds["icvert"].attrs:
-        nodata = ds["icvert"].attrs["_FillValue"]
+    if "nodata" in ds["icvert"].attrs:
+        nodata = ds["icvert"].attrs["nodata"]
     else:
         nodata = -1
         icvert = icvert.copy()
@@ -53,7 +54,7 @@ def _list_contextily_providers():
     return providers
 
 
-def add_background_map(ax, crs=28992, map_provider="nlmaps.standaard", **kwargs):
+def add_background_map(ax, crs=EPSG_28992, map_provider="nlmaps.standaard", **kwargs):
     """Add background map to axes using contextily.
 
     Parameters
@@ -84,10 +85,11 @@ def get_map(
     nrows=1,
     ncols=1,
     base=1000.0,
+    fmt_base=1000.0,
     fmt="{:.0f}",
     sharex=False,
     sharey=True,
-    crs=28992,
+    crs=EPSG_28992,
     background=False,
     alpha=0.5,
     tight_layout=True,
@@ -106,8 +108,9 @@ def get_map(
     ncols : int, optional
         The number of columns. The default is 1.
     base : float, optional
-        The interval for ticklabels on the x- and y-axis. The default is 1000.
-        m.
+        The interval for ticklabels on the x- and y-axis. The default is 1000 m.
+    fmt_base : float, optional
+        divide ticklabels by this number, by default 1000, so units become km.
     fmt : string, optional
         The format of the ticks on the x- and y-axis. The default is "{:.0f}".
     sharex : bool, optional
@@ -117,10 +120,10 @@ def get_map(
         Only display the ticks on the left y-axes, when ncols > 1. The default
         is True.
     background : bool or str, optional
-        Draw a background using contextily when True or when background is a string.
+        Draw a background map using contextily when True or when background is a string.
         When background is a string it repesents the map-provider. Use
         nlmod.plot._list_contextily_providers().keys() to show possible map-providers.
-        THe defaults is False.
+        The defaults is False.
     alpha: float, optional
         The alpha value of the background. The default is 0.5.
     tight_layout : bool, optional
@@ -152,7 +155,7 @@ def get_map(
             ax.set_xticks([])
             ax.set_yticks([])
         else:
-            rd_ticks(ax, base=base, fmt=fmt)
+            rd_ticks(ax, base=base, fmt=fmt, fmt_base=fmt_base)
         if background:
             add_background_map(ax, crs=crs, map_provider=background, alpha=alpha)
 
@@ -214,7 +217,7 @@ def colorbar_inside(
         cax.yaxis.tick_left()
         cax.yaxis.set_label_position("left")
     if isinstance(bbox_labels, bool) and bbox_labels is True:
-        bbox_labels = dict(facecolor="w", alpha=0.5)
+        bbox_labels = {"facecolor": "w", "alpha": 0.5}
     if isinstance(bbox_labels, dict):
         for label in cb.ax.yaxis.get_ticklabels():
             label.set_bbox(bbox_labels)
@@ -237,7 +240,7 @@ def title_inside(
         ax = plt.gca()
     if isinstance(bbox, bool):
         if bbox:
-            bbox = dict(facecolor="w", alpha=0.5)
+            bbox = {"facecolor": "w", "alpha": 0.5}
         else:
             bbox = None
     return ax.text(

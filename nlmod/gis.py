@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
-    """Convert one or more DataArrays from a vertex model dataset to a
-    Geodataframe.
+    """Convert one or more DataArrays from a vertex model dataset to a Geodataframe.
 
     Parameters
     ----------
@@ -88,8 +87,7 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
 
 
 def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
-    """Convert one or more DataArrays from a structured model dataset to a
-    Geodataframe.
+    """Convert one or more DataArrays from a structured model dataset to a Geodataframe.
 
     Parameters
     ----------
@@ -225,7 +223,6 @@ def ds_to_vector_file(
     # get default combination dictionary
     if combine_dic is None:
         combine_dic = {
-            "idomain": {"idomain"},
             "topbot": {"top", "botm"},
             "sea": {"northsea", "bathymetry"},
         }
@@ -312,8 +309,8 @@ def ds_to_ugrid_nc_file(
     yv="yv",
     face_node_connectivity="icvert",
 ):
-    """Save a model dataset to a UGRID NetCDF file, so it can be opened as a
-    Mesh Layer in qgis.
+    """Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh Layer
+    in qgis.
 
     Parameters
     ----------
@@ -368,7 +365,7 @@ def ds_to_ugrid_nc_file(
     # direction. Flopy specifies them in clockwise direction, so we need to
     # reverse the direction.
     data = np.flip(ds[face_node_connectivity].data, 1)
-    nodata = ds[face_node_connectivity].attrs.get("_FillValue")
+    nodata = ds[face_node_connectivity].attrs.get("nodata")
     if nodata is not None:
         # move the nodata values from the first columns to the last
         data_new = np.full(data.shape, nodata)

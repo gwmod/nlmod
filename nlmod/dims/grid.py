@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Module containing model grid functions.
 
 -   project data on different grid types
@@ -28,7 +27,12 @@ from tqdm import tqdm
 
 from .. import cache, util
 from .base import _get_structured_grid_ds, _get_vertex_grid_ds, extrapolate_ds
-from .layers import fill_nan_top_botm_kh_kv, get_first_active_layer, set_idomain
+from .layers import (
+    fill_nan_top_botm_kh_kv,
+    get_first_active_layer,
+    get_idomain,
+    remove_inactive_layers,
+)
 from .rdp import rdp
 from .resample import (
     affine_transform_gdf,
@@ -38,6 +42,54 @@ from .resample import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def snap_extent(extent, delr, delc):
+    """
+    snap the extent in such a way that an integer number of columns and rows fit
+    in the extent. The new extent is always equal to, or bigger than the
+    original extent.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        original extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+
+    Returns
+    -------
+    extent : list, tuple or np.array
+        adjusted extent
+    """
+    extent = list(extent).copy()
+
+    logger.debug(f"redefining extent: {extent}")
+
+    if delr <= 0 or delc <= 0:
+        raise ValueError("delr and delc should be positive values")
+
+    # if xmin can be divided by delr do nothing, otherwise rescale xmin
+    if not extent[0] % delr == 0:
+        extent[0] -= extent[0] % delr
+
+    # get number of columns and xmax
+    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
+    extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
+
+    # if ymin can be divided by delc do nothing, otherwise rescale ymin
+    if not extent[2] % delc == 0:
+        extent[2] -= extent[2] % delc
+
+    # get number of rows and ymax
+    nrow = int(np.ceil((extent[3] - extent[2]) / delc))
+    extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
+
+    logger.debug(f"new extent is {extent} and has {nrow} rows and {ncol} columns")
+
+    return extent
 
 
 def xy_to_icell2d(xy, ds):
@@ -169,7 +221,7 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     for i in range(mg.ncpl):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     ds["icvert"] = ("icell2d", "icv"), icvert
-    ds["icvert"].attrs["_FillValue"] = nodata
+    ds["icvert"].attrs["nodata"] = nodata
     return ds
 
 
@@ -224,6 +276,47 @@ def modelgrid_to_ds(mg):
     return ds
 
 
+def get_dims_coords_from_modelgrid(mg):
+    """Get dimensions and coordinates from modelgrid.
+
+    Used to build new xarray.DataArrays with appropriate dimensions and coordinates.
+
+    Parameters
+    ----------
+    mg : flopy.discretization.Grid
+        flopy modelgrid object
+
+    Returns
+    -------
+    dims : tuple of str
+        tuple containing dimensions
+    coords : dict
+        dictionary containing spatial coordinates derived from modelgrid
+
+    Raises
+    ------
+    ValueError
+        for unsupported grid types
+    """
+    if mg.grid_type == "structured":
+        layers = np.arange(mg.nlay)
+        x, y = mg.xycenters  # local coordinates
+        if mg.angrot == 0.0:
+            x += mg.xoffset  # convert to global coordinates
+            y += mg.yoffset  # convert to global coordinates
+        coords = {"layer": layers, "y": y, "x": x}
+        dims = ("layer", "y", "x")
+    elif mg.grid_type == "vertex":
+        layers = np.arange(mg.nlay)
+        y = mg.ycellcenters
+        x = mg.xcellcenters
+        coords = {"layer": layers, "y": ("icell2d", y), "x": ("icell2d", x)}
+        dims = ("layer", "icell2d")
+    else:
+        raise ValueError(f"grid type '{mg.grid_type}' not supported.")
+    return dims, coords
+
+
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     """Gridprops is a dictionary containing keyword arguments needed to
     generate a flopy modelgrid instance."""
@@ -237,7 +330,7 @@ def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
     for i in range(gridprops["ncpl"]):
         icvert[i, : cell2d[i][3]] = cell2d[i][4:]
     ds["icvert"] = ("icell2d", "icv"), icvert
-    ds["icvert"].attrs["_FillValue"] = nodata
+    ds["icvert"].attrs["nodata"] = nodata
     return ds
 
 
@@ -259,8 +352,8 @@ def get_cell2d_from_ds(ds):
     x = ds["x"].data
     y = ds["y"].data
     icvert = ds["icvert"].data
-    if "_FillValue" in ds["icvert"].attrs:
-        nodata = ds["icvert"].attrs["_FillValue"]
+    if "nodata" in ds["icvert"].attrs:
+        nodata = ds["icvert"].attrs["nodata"]
     else:
         nodata = -1
         icvert = icvert.copy()
@@ -303,8 +396,8 @@ def refine(
         If False nan layers are kept which might be usefull if you want
         to keep some layers that exist in other models. The default is True.
     model_coordinates : bool, optional
-        When model_coordinates is True, the features supplied in refinement features are
-        allready in model-coordinates. Only used when a grid is rotated. The default is
+        When model_coordinates is True, the features supplied in refinement_features are
+        already in model-coordinates. Only used when a grid is rotated. The default is
         False.
 
     Returns
@@ -343,7 +436,9 @@ def refine(
     ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if model_coordinates:
         if not ds_has_rotation:
-            raise (Exception("The supplied shapes need to be in realworld coordinates"))
+            raise (
+                ValueError("The supplied shapes need to be in realworld coordinates")
+            )
     elif ds_has_rotation:
         affine_matrix = get_affine_world_to_mod(ds).to_shapely()
 
@@ -354,7 +449,9 @@ def refine(
                 fname, geom_type, level = refinement_feature
                 if not model_coordinates and ds_has_rotation:
                     raise (
-                        Exception("Converting files to model coordinates not supported")
+                        NotImplementedError(
+                            "Converting files to model coordinates not supported"
+                        )
                     )
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
@@ -382,8 +479,8 @@ def refine(
     gridprops = g.get_gridprops_disv()
     gridprops["area"] = g.get_area()
     ds = ds_to_gridprops(ds, gridprops=gridprops)
-    # recalculate idomain, as the interpolation changes idomain to floats
-    ds = set_idomain(ds, remove_nan_layers=remove_nan_layers)
+    if remove_nan_layers:
+        ds = remove_inactive_layers(ds)
     return ds
 
 
@@ -417,6 +514,15 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
     xyi, _ = get_xyi_icell2d(gridprops)
     x = xr.DataArray(xyi[:, 0], dims=("icell2d",))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d",))
+
+    # drop non-numeric data variables
+    for key, dtype in ds_in.dtypes.items():
+        if not np.issubdtype(dtype, np.number):
+            ds_in = ds_in.drop_vars(key)
+            logger.info(
+                f"cannot convert data variable {key} to refined dataset because of non-numeric dtype"
+            )
+
     if method in ["nearest", "linear"]:
         # resample the entire dataset in one line
         ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
@@ -669,9 +775,7 @@ def lrc_to_reclist(
         raise ValueError("col3 is set, but col1 and/or col2 are not!")
 
     if aux is not None:
-        if isinstance(aux, str):
-            aux = [aux]
-        elif isinstance(aux, (int, float)):
+        if isinstance(aux, (str, int, float)):
             aux = [aux]
 
         for i_aux in aux:
@@ -764,9 +868,7 @@ def lcid_to_reclist(
         raise ValueError("col3 is set, but col1 and/or col2 are not!")
 
     if aux is not None:
-        if isinstance(aux, str):
-            aux = [aux]
-        elif isinstance(aux, (int, float)):
+        if isinstance(aux, (str, int, float)):
             aux = [aux]
 
         for i_aux in aux:
@@ -780,6 +882,31 @@ def lcid_to_reclist(
 
     reclist = list(zip(zip(layers, cellids[-1]), *cols))
     return reclist
+
+
+def cols_to_reclist(ds, cellids, *args, cellid_column=0):
+    """Create a reclist for stress period data from a set of cellids.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data. Should have dimensions (layer, icell2d).
+    cellids : tuple of length 2 or 3
+        tuple with indices of the cells that will be used to create the list. For a
+        structured grid, cellids represents (layer, row, column). For a vertex grid
+        cellid reprsents (layer, icell2d).
+    args : xarray.DatArray, str, int or float
+        the args parameter represents the data to be used as the columns in the reclist.
+        See col_to_list of the allowed values.
+    cellid_column : int, optional
+        Adds the cellid ((layer, row, col) or (layer, icell2d)) to the reclist in this
+        column number. Do not add cellid when cellid_column is None. The default is 0.
+
+    """
+    cols = [col_to_list(col, ds, cellids) for col in args]
+    if cellid_column is not None:
+        cols.insert(cellid_column, list(zip(*cellids)))
+    return list(zip(*cols))
 
 
 def da_to_reclist(
@@ -847,15 +974,17 @@ def da_to_reclist(
     Returns
     -------
     reclist : list of tuples
-        every row consist of ((layer,icell2d), col1, col2, col3).
+        every row consists of ((layer, icell2d), col1, col2, col3).
     """
     if "layer" in mask.dims:
         if only_active_cells:
-            cellids = np.where((mask) & (ds["idomain"] == 1))
-            ignore_cells = np.sum((mask) & (ds["idomain"] != 1))
+            idomain = get_idomain(ds)
+            cellids = np.where((mask) & (idomain == 1))
+            ignore_cells = int(np.sum((mask) & (idomain != 1)))
             if ignore_cells > 0:
                 logger.info(
-                    f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+                    f"ignore {ignore_cells} out of {np.sum(mask.values)} cells "
+                    "because idomain is inactive"
                 )
         else:
             cellids = np.where(mask)
@@ -873,14 +1002,15 @@ def da_to_reclist(
     else:
         if first_active_layer:
             fal = get_first_active_layer(ds)
-            cellids = np.where((mask) & (fal != fal.attrs["_FillValue"]))
+            cellids = np.where((mask.squeeze()) & (fal != fal.attrs["nodata"]))
             layers = col_to_list(fal, ds, cellids)
         elif only_active_cells:
-            cellids = np.where((mask) & (ds["idomain"][layer] == 1))
-            ignore_cells = np.sum((mask) & (ds["idomain"][layer] != 1))
+            idomain = get_idomain(ds)
+            cellids = np.where((mask) & (idomain[layer] == 1))
+            ignore_cells = int(np.sum((mask) & (idomain[layer] != 1)))
             if ignore_cells > 0:
                 logger.info(
-                    f"ignore {ignore_cells} out of {np.sum(mask)} cells because idomain is inactive"
+                    f"ignore {ignore_cells} out of {np.sum(mask.values)} cells because idomain is inactive"
                 )
             layers = col_to_list(layer, ds, cellids)
         else:
@@ -1077,7 +1207,6 @@ def gdf_to_da(
     da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
     for ind, row in gdf_agg.iterrows():
         da.values[ind] = row[column]
-    da.attrs["_FillValue"] = fill_value
     return da
 
 
@@ -1306,7 +1435,7 @@ def gdf_to_bool_da(gdf, ds):
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name):
+def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1319,6 +1448,9 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         xarray with model data
     da_name : str
         The name of the variable with boolean data in the ds_out
+    keep_coords : tuple or None, optional
+        the coordinates in ds the you want keep in your empty ds. If None all
+        coordinates are kept from original ds. The default is None.
 
     Returns
     -------
@@ -1326,7 +1458,7 @@ def gdf_to_bool_ds(gdf, ds, da_name):
         Dataset with a single DataArray, this DataArray is 1 if polygon is in
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
-    ds_out = util.get_ds_empty(ds)
+    ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
     ds_out[da_name] = gdf_to_bool_da(gdf, ds)
 
     return ds_out
@@ -1366,7 +1498,7 @@ def gdf_to_grid(
         The GeoDataFrame with the geometries per grid-cell.
     """
     if ml is None and ix is None:
-        raise (Exception("Either specify ml or ix"))
+        raise (ValueError("Either specify ml or ix"))
 
     if ml is not None:
         if isinstance(ml, xr.Dataset):
@@ -1563,7 +1695,7 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
 
 
 @cache.cache_netcdf
-def mask_model_edge(ds, idomain):
+def mask_model_edge(ds, idomain=None):
     """get data array which is 1 for every active cell (defined by idomain) at
     the boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
 
@@ -1571,14 +1703,17 @@ def mask_model_edge(ds, idomain):
     ----------
     ds : xarray.Dataset
         dataset with model data.
-    idomain : xarray.DataArray
-        idomain used to get active cells and shape of DataArray
+    idomain : xarray.DataArray, optional
+        idomain used to get active cells and shape of DataArray. Calculate from ds when
+        None. The default is None.
 
     Returns
     -------
     ds_out : xarray.Dataset
         dataset with edge mask array
     """
+    ds = ds.copy()  # avoid side effects
+
     # add constant head cells at model boundaries
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         raise NotImplementedError("model edge not yet calculated for rotated grids")
@@ -1595,6 +1730,8 @@ def mask_model_edge(ds, idomain):
         mask2d = ymin | ymax | xmin | xmax
 
         # assign 1 to cells that are on the edge and have an active idomain
+        if idomain is None:
+            idomain = get_idomain(ds)
         ds_out["edge_mask"] = xr.zeros_like(idomain)
         for lay in ds.layer:
             ds_out["edge_mask"].loc[lay] = np.where(

@@ -1,4 +1,3 @@
-import os
 from functools import partial
 
 import flopy
@@ -49,12 +48,68 @@ def map_array(
     alpha=1.0,
     colorbar=True,
     colorbar_label="",
-    plot_grid=True,
+    plot_grid=False,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=None,
     animate=False,
 ):
+    """Plot an array using flopy PlotMapView.
+
+    Parameters
+    ----------
+    arr : np.array, xarray.DataArray
+        array to plot
+    gwf : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        flopy groundwater flow or transport model
+    ilay : int, optional
+        layer to plot, by default 0
+    iper : int, optional
+        timestep to plot, by default 0
+    extent : list or tuple, optional
+        plot extent: (xmin, xmax, ymin, ymax), by default None which defaults
+        model extent
+    ax : matplotlib Axes, optional
+        axis handle to plot on, by default None
+    title : str, optional
+        title of the plot, by default "" (blank)
+    xlabel : str, optional
+        x-axis label, by default "X [km RD]"
+    ylabel : str, optional
+        y-axis label, by default "Y [km RD]"
+    norm : matplotlib.colors.Norm
+        colorbar norm
+    vmin : float, optional
+        minimum value for colorbar
+    vmax : float, optional
+        maximum value for colorbar
+    levels : np.array, optional
+        colorbar levels, used for setting colorbar ticks
+    cmap : str or colormap, optional
+        colormap, default is "viridis"
+    alpha : float, optional
+        transparency, by default 1.0
+    plot_grid : bool, optional
+        plot model grid, by default False
+    add_to_plot : tuple of func, optional
+        tuple or list of plotting functions that take ax as the
+        only argument, by default None. Use to add features to plot, e.g.
+        plotting shapefiles, or other data.
+    background : bool, optional
+        add background map, by default False
+    figsize : tuple, optional
+        figure size, by default None
+    animate : bool, optional
+        if True return figure, axis and quadmesh handles, by default
+        False (returns only axes handle)
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        axes handle
+    f, ax, qm :
+        only if animate is True, return figure, axes and quadmesh handles.
+    """
     # get data
     if isinstance(arr, xr.DataArray):
         arr = arr.values
@@ -79,7 +134,7 @@ def map_array(
     qm = pmv.plot_array(arr, cmap=cmap, norm=norm, alpha=alpha)
 
     # bgmap
-    if backgroundmap:
+    if background:
         add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
@@ -111,6 +166,127 @@ def map_array(
         return ax
 
 
+def contour_array(
+    arr,
+    gwf,
+    ilay=0,
+    iper=0,
+    extent=None,
+    ax=None,
+    title="",
+    xlabel="X [km RD]",
+    ylabel="Y [km RD]",
+    levels=10,
+    alpha=1.0,
+    labels=True,
+    label_kwargs=None,
+    plot_grid=False,
+    add_to_plot=None,
+    background=False,
+    figsize=None,
+    animate=False,
+    **kwargs,
+):
+    """Contour an array using flopy PlotMapView.
+
+    Parameters
+    ----------
+    arr : np.array, xarray.DataArray
+        array to contour
+    gwf : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        flopy groundwater flow or transport model
+    ilay : int, optional
+        layer to contour, by default 0
+    iper : int, optional
+        timestep to contour, by default 0
+    extent : list or tuple, optional
+        plot extent: (xmin, xmax, ymin, ymax), by default None which defaults
+        model extent
+    ax : matplotlib Axes, optional
+        axis handle to plot on, by default None
+    title : str, optional
+        title of the plot, by default "" (blank)
+    xlabel : str, optional
+        x-axis label, by default "X [km RD]"
+    ylabel : str, optional
+        y-axis label, by default "Y [km RD]"
+    levels : int, list, np.array, optional
+        contour levels, when passed as int draw that many contours, when
+        list or array draw contours at provided levels, by default 10
+    alpha : float, optional
+        transparency of contour lines, by default 1.0
+    labels : bool, optional
+        add contour labels showing contour levels, by default True
+    label_kwargs : dict, optional
+        keyword arguments passed onto ax.clabel(), by default None
+    plot_grid : bool, optional
+        plot model grid, by default False
+    add_to_plot : tuple of func, optional
+        tuple or list of plotting functions that take ax as the
+        only argument, by default None. Use to add features to plot, e.g.
+        plotting shapefiles, or other data.
+    background : bool, optional
+        add background map, by default False
+    figsize : tuple, optional
+        figure size, by default None
+    animate : bool, optional
+        if True return figure, axis and contour handles, by default
+        False (returns only axes handle)
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        axes handle
+    f, ax, cs :
+        only if animate is True, return figure, axes and contour handles.
+    """
+    # get data
+    if isinstance(arr, xr.DataArray):
+        arr = arr.values
+
+    # get correct timestep and layer if need be
+    if len(arr.shape) == 4:
+        arr = arr[iper]
+    if len(arr.shape) == 3:
+        arr = arr[ilay]
+
+    # get figure
+    f, ax = _get_figure(ax=ax, gwf=gwf, figsize=figsize)
+
+    # get plot obj
+    pmv = flopy.plot.PlotMapView(gwf, layer=ilay, ax=ax, extent=extent)
+
+    # plot data
+    cs = pmv.contour_array(arr, levels=levels, alpha=alpha, **kwargs)
+    if labels:
+        if label_kwargs is None:
+            label_kwargs = {}
+        ax.clabel(cs, **label_kwargs)
+
+    # bgmap
+    if background:
+        add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
+
+    # add other info to plot
+    if add_to_plot is not None:
+        for fplot in add_to_plot:
+            fplot(ax)
+
+    if plot_grid:
+        pmv.plot_grid(lw=0.25, alpha=0.5)
+
+    # axes properties
+    axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
+    ax.set(**axprops)
+
+    f.tight_layout()
+
+    if animate:
+        return f, ax, cs
+    else:
+        return ax
+
+
 def animate_map(
     arr,
     times,
@@ -132,7 +308,7 @@ def animate_map(
     colorbar_label="",
     plot_grid=True,
     add_to_plot=None,
-    backgroundmap=False,
+    background=False,
     figsize=(9.24, 10.042),
     save=False,
     fname=None,
@@ -170,7 +346,7 @@ def animate_map(
         colorbar_label=colorbar_label,
         plot_grid=plot_grid,
         add_to_plot=add_to_plot,
-        backgroundmap=backgroundmap,
+        background=background,
         figsize=figsize,
         animate=True,
     )

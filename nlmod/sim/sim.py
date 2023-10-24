@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 17:20:34 2021.
-
-@author: oebbe
-"""
 import datetime as dt
 import logging
 import os
@@ -17,14 +12,10 @@ from .. import util
 logger = logging.getLogger(__name__)
 
 
-def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
-    """write modflow files and run the model.
-
-    2 extra options:
-        1. write the model dataset to cache
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
-           workspace with a timestamp.
-
+def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
+    """write modflow files and run the model. Extra options include writing the
+    model dataset to a netcdf file in the model workspace and copying the
+    modelscript to the model workspace.
 
     Parameters
     ----------
@@ -33,33 +24,34 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
     ds : xarray.Dataset
         dataset with model data.
     write_ds : bool, optional
-        if True the model dataset is cached to a NetCDF-file (.nc) with a name equal
-        to its attribute called "model_name". The default is True.
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
-        default is None. Preferably this path does not have to be given
-        manually but there is currently no good option to obtain the filename
-        of a Jupyter Notebook from within the notebook itself.
+        if True the model dataset is written to a NetCDF-file (.nc) in the
+        model workspace the name of the .nc file is used from the attribute
+        "model_name". The default is True.
+    script_path : str or None, optional
+        full path of the Jupyter Notebook (.ipynb) or the module (.py) with the
+        modelscript. The default is None. Preferably this path does not have to
+        be given manually but there is currently no good option to obtain the
+        filename of a Jupyter Notebook from within the notebook itself.
     silent : bool, optional
         write and run model silently
     """
     if isinstance(sim, flopy.mf6.ModflowGwf):
         sim = sim.simulation
 
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+    if script_path is not None:
+        new_script_fname = (
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(script_path)[-1]
         )
-        dst = os.path.join(ds.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to model workspace")
-        copyfile(nb_path, dst)
+        dst = os.path.join(ds.model_ws, new_script_fname)
+        logger.info(f"write script {new_script_fname} to model workspace")
+        copyfile(script_path, dst)
 
     if write_ds:
         logger.info("write model dataset to cache")
         ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
             "%Y%m%d_%H:%M:%S"
         )
-        ds.to_netcdf(os.path.join(ds.attrs["cachedir"], f"{ds.model_name}.nc"))
+        ds.to_netcdf(os.path.join(ds.attrs["model_ws"], f"{ds.model_name}.nc"))
 
     logger.info("write modflow files to model workspace")
     sim.write_simulation(silent=silent)
@@ -72,7 +64,7 @@ def write_and_run(sim, ds, write_ds=True, nb_path=None, silent=False):
     ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
-def get_tdis_perioddata(ds):
+def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
     """Get tdis_perioddata from ds.
 
     Parameters
@@ -100,15 +92,15 @@ def get_tdis_perioddata(ds):
     if len(ds["time"]) > 1:
         perlen.extend(np.diff(ds["time"]) / deltat)
 
-    if "nstp" in ds:
-        nstp = ds["nstp"].values
-    else:
-        nstp = [ds.time.nstp] * len(perlen)
+    nstp = util._get_value_from_ds_datavar(ds, "nstp", nstp, return_da=False)
 
-    if "tsmult" in ds:
-        tsmult = ds["tsmult"].values
-    else:
-        tsmult = [ds.time.tsmult] * len(perlen)
+    if isinstance(nstp, (int, np.integer)):
+        nstp = [nstp] * len(perlen)
+
+    tsmult = util._get_value_from_ds_datavar(ds, "tsmult", tsmult, return_da=False)
+
+    if isinstance(tsmult, float):
+        tsmult = [tsmult] * len(perlen)
 
     tdis_perioddata = list(zip(perlen, nstp, tsmult))
 
@@ -136,7 +128,7 @@ def sim(ds, exe_name=None):
     """
 
     # start creating model
-    logger.info("creating modflow SIM")
+    logger.info("creating mf6 SIM")
 
     if exe_name is None:
         exe_name = util.get_exe_path(ds.mfversion)
@@ -152,7 +144,7 @@ def sim(ds, exe_name=None):
     return sim
 
 
-def tdis(ds, sim, pname="tdis"):
+def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
     """create tdis package from the model dataset.
 
     Parameters
@@ -164,6 +156,8 @@ def tdis(ds, sim, pname="tdis"):
         simulation object.
     pname : str, optional
         package name
+    **kwargs
+        passed on to flopy.mft.ModflowTdis
 
     Returns
     -------
@@ -172,18 +166,19 @@ def tdis(ds, sim, pname="tdis"):
     """
 
     # start creating model
-    logger.info("creating modflow TDIS")
+    logger.info("creating mf6 TDIS")
 
-    tdis_perioddata = get_tdis_perioddata(ds)
+    tdis_perioddata = get_tdis_perioddata(ds, nstp=nstp, tsmult=tsmult)
 
     # Create the Flopy temporal discretization object
-    tdis = flopy.mf6.modflow.mftdis.ModflowTdis(
+    tdis = flopy.mf6.ModflowTdis(
         sim,
         pname=pname,
         time_units=ds.time.time_units,
         nper=len(ds.time),
         start_date_time=pd.Timestamp(ds.time.start).isoformat(),
         perioddata=tdis_perioddata,
+        **kwargs,
     )
 
     return tdis
@@ -207,13 +202,15 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
         ims object.
     """
 
-    logger.info("creating modflow IMS")
+    logger.info("creating mf6 IMS")
+
+    print_option = kwargs.pop("print_option", "summary")
 
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.ModflowIms(
         sim,
         pname=pname,
-        print_option="summary",
+        print_option=print_option,
         complexity=complexity,
         **kwargs,
     )

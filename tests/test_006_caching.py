@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Created on Mon Jan 11 12:26:16 2021.
-
-@author: oebbe
-"""
-
 import tempfile
 
 import pytest
@@ -44,6 +38,15 @@ def test_ds_check_time_attributes_false():
     check = nlmod.cache._check_ds(ds, ds2)
 
     assert not check
+
+
+def test_cache_data_array():
+    extent = [119_900, 120_000, 441_900, 442_000]
+    ahn_no_cache = nlmod.read.ahn.get_ahn4(extent)
+    ahn_cached = nlmod.read.ahn.get_ahn4(extent, cachedir=tmpdir, cachename="ahn4.nc")
+    ahn_cache = nlmod.read.ahn.get_ahn4(extent, cachedir=tmpdir, cachename="ahn4.nc")
+    assert ahn_cached.equals(ahn_no_cache)
+    assert ahn_cache.equals(ahn_no_cache)
 
 
 @pytest.mark.slow

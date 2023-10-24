@@ -118,7 +118,7 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     cellids : 2d list of ints
         a list with pairs of cells that have a hfb between them.
     """
-    # for the idea, sea:
+    # for the idea, see:
     # https://gis.stackexchange.com/questions/188755/how-to-snap-a-road-network-to-a-hexagonal-grid-in-qgis
 
     gdfg = gdf_to_grid(gdf, gwf)
@@ -240,7 +240,7 @@ def polygon_to_hfb(
     else:
         # find connections
         icvert = ds["icvert"].data
-        nodata = ds["icvert"].attrs["_FillValue"]
+        nodata = ds["icvert"].attrs["nodata"]
 
         edges = []
         for icell2d in range(icvert.shape[0]):

@@ -1,36 +1,54 @@
 import logging
 import os
+import warnings
 
 import flopy
 import numpy as np
 import xarray as xr
 
 from ..dims.layers import calculate_thickness
-from ..mfoutput import _get_output_da
+from ..mfoutput.mfoutput import _get_heads_da, _get_time_index
 
 logger = logging.getLogger(__name__)
 
 
-def _get_concentration(ds=None, gwt=None, fname_conc=None):
-    msg = "Load the concentration using either the ds or the gwt"
-    assert ((ds is not None) + (gwt is not None)) == 1, msg
+def get_concentration_obj(ds=None, gwt=None, fname=None, grbfile=None):
+    msg = "Load the concentration using either the ds, gwt or a fname_conc"
+    assert ((ds is not None) + (gwt is not None) + (fname is not None)) == 1, msg
 
-    if fname_conc is None:
+    if fname is None:
         if ds is None:
-            concobj = gwt.output.concentration()
+            return gwt.output.concentration()
         else:
-            fname_conc = os.path.join(ds.model_ws, f"{ds.model_name}_gwt.ucn")
-    if fname_conc is not None:
-        concobj = flopy.utils.HeadFile(fname_conc, text="concentration")
+            fname = os.path.join(ds.model_ws, f"{ds.model_name}_gwt.ucn")
+            # get grb file
+            if ds.gridtype == "vertex":
+                grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+            elif ds.gridtype == "structured":
+                grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+            else:
+                grbfile = None
+    if fname is not None:
+        if grbfile is not None:
+            mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
+        else:
+            logger.warning(msg)
+            warnings.warn(msg)
+            mg = None
+        concobj = flopy.utils.HeadFile(fname, text="concentration", modelgrid=mg)
     return concobj
 
 
-def get_concentration_da(ds=None, gwt=None, fname_conc=None):
-    """Reads concentration file given either a dataset or a groundwater flow object.
-
-    Note: Calling this function with ds is currently preferred over calling it
-    with gwt, because the layer and time coordinates can not be fully
-    reconstructed from gwt.
+def get_concentration_da(
+    ds=None,
+    gwt=None,
+    fname=None,
+    grbfile=None,
+    delayed=False,
+    chunked=False,
+    **kwargs,
+):
+    """Reads binary concentration file.
 
     Parameters
     ----------
@@ -38,21 +56,44 @@ def get_concentration_da(ds=None, gwt=None, fname_conc=None):
         Xarray dataset with model data.
     gwt : flopy ModflowGwt
         Flopy groundwater transport object.
-    fname_conc : path, optional
+    fname : path, optional
         Instead of loading the binary concentration file corresponding to ds or gwf
         load the concentration from this file.
-
+    grbfile : str
+        path to file containing binary grid information, only needed if reading
+        output from file using fname
+    delayed : bool, optional
+        if delayed is True, do not load output data into memory, default is False.
+    chunked : bool, optional
+        chunk data array containing output, default is False.
 
     Returns
     -------
     conc_da : xarray.DataArray
         concentration data array.
     """
-    conc_da = _get_output_da(
-        _get_concentration, ds=ds, gwf_or_gwt=gwt, fname=fname_conc
-    )
-    conc_da.attrs["units"] = "concentration"
-    return conc_da
+    cobj = get_concentration_obj(ds=ds, gwt=gwt, fname=fname, grbfile=grbfile)
+    # gwt.output.concentration() defaults to a structured grid
+    if gwt is not None and ds is None and fname is None:
+        kwargs["modelgrid"] = gwt.modelgrid
+    da = _get_heads_da(cobj, **kwargs)
+    da.attrs["units"] = "concentration"
+
+    # set time index if ds/gwt are provided
+    if ds is not None or gwt is not None:
+        da["time"] = _get_time_index(cobj, ds=ds, gwf_or_gwt=gwt)
+        if ds is not None:
+            da["layer"] = ds.layer
+
+    if chunked:
+        # chunk data array
+        da = da.chunk("auto")
+
+    if not delayed:
+        # load into memory
+        da = da.compute()
+
+    return da
 
 
 def get_concentration_at_gw_surface(conc, layer="layer"):
@@ -94,11 +135,16 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
         top_layer = np.take(top_layer, 0, axis=layer)
         coords["layer"] = (dims, conc_da.layer.data[top_layer])
         ctop = xr.DataArray(ctop, dims=dims, coords=coords)
+        # to not confuse this coordinate with the default layer coord in nlmod
+        # this source_layer has dims (time, cellid) or (time, y, x)
+        # indicating the source layer of the concentration value for each time step
+        ctop = ctop.rename({"layer": "source_layer"})
     return ctop
 
 
 def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
     """Calculate equivalent freshwater head from point water heads.
+    Heads file produced by mf6 contains point water heads.
 
     Parameters
     ----------
@@ -130,6 +176,8 @@ def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
     if "z" not in ds:
         if "thickness" not in ds:
             thickness = calculate_thickness(ds)
+        else:
+            thickness = ds.thickness
         z = ds["botm"] + thickness / 2.0
     else:
         z = ds["z"]
@@ -139,6 +187,7 @@ def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
 
 def pointwater_head(ds, hf, conc, denseref=None, drhodc=None):
     """Calculate point water head from freshwater heads.
+    Heads file produced by mf6 contains point water heads.
 
     Parameters
     ----------

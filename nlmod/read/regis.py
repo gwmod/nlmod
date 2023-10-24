@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-"""function to project regis, or a combination of regis and geotop, data on a
-modelgrid."""
 import datetime as dt
 import logging
 import os
@@ -77,7 +74,7 @@ def get_combined_layer_models(
         raise ValueError("layer models without REGIS not supported")
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop_raw_within_extent(extent)
+        geotop_ds = geotop.get_geotop(extent)
 
     if use_regis and use_geotop:
         combined_ds = add_geotop_to_regis_layers(
@@ -139,13 +136,14 @@ def get_regis(
 
     if len(ds.x) == 0 or len(ds.y) == 0:
         msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
-        raise (Exception(msg))
+        raise (ValueError(msg))
 
     # make sure layer names are regular strings
     ds["layer"] = ds["layer"].astype(str)
 
     # make sure y is descending
-    ds = ds.sortby("y", ascending=False)
+    if (ds["y"].diff("y") > 0).all():
+        ds = ds.isel(y=slice(None, None, -1))
 
     # slice layers
     if botm_layer is not None:
@@ -174,8 +172,6 @@ def get_regis(
             ds[datavar].attrs["units"] = "mNAP"
         elif datavar in ["kh", "kv"]:
             ds[datavar].attrs["units"] = "m/day"
-        # set _FillValue to NaN, otherise problems with caching will arise
-        ds[datavar].encoding["_FillValue"] = np.NaN
 
     # set the crs to dutch rd-coordinates
     ds.rio.set_crs(28992)
@@ -184,7 +180,7 @@ def get_regis(
 
 
 def add_geotop_to_regis_layers(
-    rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True
+    rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True, anisotropy=1.0
 ):
     """Combine geotop and regis in such a way that the one or more layers in
     Regis are replaced by the geo_eenheden of geotop.
@@ -202,6 +198,9 @@ def add_geotop_to_regis_layers(
         DataFrame must at least contain columns 'lithok' and 'kh'.
     remove_nan_layers : bool, optional
         When True, layers with only 0 or NaN thickness are removed. The default is True.
+    anisotropy : float, optional
+        The anisotropy value (kh/kv) used when there are no kv values in df. The
+        default is 1.0.
 
     Returns
     -------
@@ -210,43 +209,55 @@ def add_geotop_to_regis_layers(
     """
     if isinstance(layers, str):
         layers = [layers]
-    if geotop_k is None:
-        geotop_k = geotop.get_lithok_props()
+
+    # make sure geotop dataset contains kh and kv
+    if "kh" not in gt or "kv" not in gt:
+        if "kv" in gt:
+            logger.info(
+                f"Calculating kh of geotop by multiplying kv with an anisotropy of {anisotropy}"
+            )
+            gt["kh"] = gt["kv"] * anisotropy
+        elif "kh" in gt:
+            logger.info(
+                f"Calculating kv of geotop by dividing kh by an anisotropy of {anisotropy}"
+            )
+            gt["kv"] = gt["kh"] / anisotropy
+        else:
+            # add kh and kv to gt
+            if geotop_k is None:
+                geotop_k = geotop.get_lithok_props()
+            gt = geotop.add_kh_and_kv(gt, geotop_k, anisotropy=anisotropy)
+
     for layer in layers:
         # transform geotop data into layers
-        gtl = geotop.convert_geotop_to_ml_layers(gt)
+        gtl = geotop.to_model_layers(gt)
+
+        # make sure top is 3d
+        assert "layer" in rg["top"].dims, "Top of regis must be 3d"
+        assert "layer" in gtl["top"].dims, "Top of geotop layers must be 3d"
 
         # only keep the part of layers inside the regis layer
         top = rg["top"].loc[layer]
         bot = rg["botm"].loc[layer]
-        gtl["top"] = gtl["top"].where(gtl["top"] < top, top)
-        gtl["top"] = gtl["top"].where(gtl["top"] > bot, bot)
-        gtl["botm"] = gtl["botm"].where(gtl["botm"] < top, top)
-        gtl["botm"] = gtl["botm"].where(gtl["botm"] > bot, bot)
+        gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] < top), top)
+        gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] > bot), bot)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"].isnull() | (gtl["botm"] < top), top)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"].isnull() | (gtl["botm"] > bot), bot)
 
         if remove_nan_layers:
             # drop layers with a remaining thickness of 0 (or NaN) everywhere
             th = calculate_thickness(gtl)
             gtl = gtl.sel(layer=(th > 0).any(th.dims[1:]))
 
-        # add kh and kv to gt
-        gt = geotop.add_kh_and_kv(gt, geotop_k)
-
         # add kh and kv from gt to gtl
         gtl = geotop.aggregate_to_ds(gt, gtl)
 
         # add gtl-layers to rg-layers
-        if rg.layer.data[0] == layer:
-            layer_order = np.concatenate([gtl.layer, rg.layer])
-        elif rg.layer.data[-1] == layer:
-            layer_order = np.concatenate([rg.layer, gtl.layer])
-        else:
-            lay = np.where(rg.layer == layer)[0][0]
-            layer_order = np.concatenate(
-                [rg.layer[:lay], gtl.layer, rg.layer[lay + 1 :]]
-            )
+        lay = np.where(rg.layer == layer)[0][0]
+        layer_order = np.concatenate([rg.layer[:lay], gtl.layer, rg.layer[lay + 1 :]])
+
         # call xr.concat with rg first, so we keep attributes of rg
-        rg = xr.concat((rg.sel(layer=rg.layer[rg.layer != layer]), gtl), "layer")
+        rg = xr.concat((rg, gtl), "layer")
         # we will then make sure the layer order is right
         rg = rg.reindex({"layer": layer_order})
     return rg
@@ -266,13 +277,48 @@ def get_layer_names():
     return layer_names
 
 
-def get_legend():
-    """Get a legend (DataFrame) with the colors of REGIS-layers.
+def get_legend(kind="REGIS"):
+    """Get a legend (DataFrame) with the colors of REGIS and/or GeoTOP layers.
 
     These colors can be used when plotting cross-sections.
     """
+    allowed_kinds = ["REGIS", "GeoTOP", "combined"]
+    if kind not in allowed_kinds:
+        raise (ValueError(f"Only allowed values for kind are {allowed_kinds}"))
+    if kind in ["REGIS", "combined"]:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+        leg_regis = read_gleg(fname)
+        if kind == "REGIS":
+            return leg_regis
+    if kind in ["GeoTOP", "combined"]:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        fname = os.path.join(dir_path, "..", "data", "geotop", "geotop.gleg")
+        leg_geotop = read_gleg(fname)
+        if kind == "GeoTOP":
+            return leg_geotop
+    # return a combination of regis and geotop
+    leg = pd.concat((leg_regis, leg_geotop))
+    # drop duplicates, keeping first occurrences (from regis)
+    leg = leg.loc[~leg.index.duplicated(keep="first")]
+    return leg
+
+
+def get_legend_lithoclass():
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+    fname = os.path.join(dir_path, "..", "data", "geotop", "Lithoklasse.voleg")
+    leg = read_voleg(fname)
+    return leg
+
+
+def get_legend_lithostratigraphy():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = os.path.join(dir_path, "..", "data", "geotop", "Lithostratigrafie.voleg")
+    leg = read_voleg(fname)
+    return leg
+
+
+def read_gleg(fname):
     leg = pd.read_csv(
         fname,
         sep="\t",
@@ -285,4 +331,19 @@ def get_legend():
     clrs = [tuple(rgb / 255.0) for rgb in clrs]
     leg["color"] = clrs
     leg = leg.drop(["x", "r", "g", "b", "a"], axis=1)
+    return leg
+
+
+def read_voleg(fname):
+    leg = pd.read_csv(
+        fname,
+        sep="\t",
+        header=None,
+        names=["code", "naam", "r", "g", "b", "a", "beschrijving"],
+    )
+    leg.set_index("code", inplace=True)
+    clrs = np.array(leg.loc[:, ["r", "g", "b"]])
+    clrs = [tuple(rgb / 255.0) for rgb in clrs]
+    leg["color"] = clrs
+    leg = leg.drop(["r", "g", "b", "a"], axis=1)
     return leg

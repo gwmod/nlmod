@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_polygons(**kwargs):
-    """Get the location of the Waterboards as a Polygon GeoDataFrame."""
+    """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Waterschapsgrenzen/FeatureServer"
     layer = 0
     ws = webservices.arcrest(url, layer, **kwargs)
@@ -126,7 +126,7 @@ def get_configuration():
             # "layer": 43, # Leggervak droge sloot
         },
         "level_areas": {
-            "url": "https://geoservices.hdsr.nl/arcgis/rest/services/Extern/PeilbesluitenExtern/FeatureServer",
+            "url": "https://geoservices.hdsr.nl/arcgis/rest/services/Extern/PeilbesluitenExtern_damo/FeatureServer",
             "layer": 1,
             "index": "WS_PGID",
             "summer_stage": ["WS_ZP", "WS_BP", "WS_OP", "WS_VP"],
@@ -522,9 +522,9 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
     f = "geojson"
 
     if wb not in config:
-        raise (Exception(f"No configuration available for {wb}"))
+        raise (ValueError(f"No configuration available for {wb}"))
     if data_kind not in config[wb]:
-        raise (Exception(f"{data_kind} not available for {wb}"))
+        raise (ValueError(f"{data_kind} not available for {wb}"))
     conf = config[wb][data_kind]
     url = conf["url"]
     if "layer" in conf:
@@ -551,7 +551,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
             url, layer, extent, max_record_count=max_record_count, **kwargs
         )
     else:
-        raise (Exception("Unknown server-kind: {server_kind}"))
+        raise (ValueError(f"Unknown server-kind: {server_kind}"))
     if len(gdf) == 0:
         return gdf
 

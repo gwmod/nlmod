@@ -10,6 +10,7 @@ import rioxarray
 from owslib.wcs import WebCoverageService
 from rasterio import merge
 from rasterio.io import MemoryFile
+from requests.exceptions import HTTPError
 from shapely.geometry import MultiPolygon, Point, Polygon
 from tqdm import tqdm
 
@@ -28,7 +29,14 @@ def arcrest(
     timeout=120,
     **kwargs,
 ):
-    """Download data from an arcgis rest FeatureServer."""
+    """Download data from an arcgis rest FeatureServer.
+
+    Note
+    ----
+    The sr argument is left as 28992 and not converted to the EPSG_28992 constant
+    in the epsg28992.py file in nlmod. Data is probably already picked up in 28992,
+    and projection issue occurs only when converting to this CRS from another CRS.
+    """
     params = {
         "f": f,
         "outFields": "*",
@@ -84,7 +92,7 @@ def arcrest(
         for feature in features:
             if "rings" in feature["geometry"]:
                 if len(feature["geometry"]) > 1:
-                    raise (Exception("Not supported yet"))
+                    raise (NotImplementedError("Multiple rings not supported yet"))
                 if len(feature["geometry"]["rings"]) == 1:
                     geometry = Polygon(feature["geometry"]["rings"][0])
                 else:
@@ -109,7 +117,11 @@ def arcrest(
                 raise (Exception("Not supported yet"))
             feature["attributes"]["geometry"] = geometry
             data.append(feature["attributes"])
-        gdf = gpd.GeoDataFrame(data, crs=sr)
+        if len(data) == 0:
+            # Assigning CRS to a GeoDataFrame without a geometry column is not supported
+            gdf = gpd.GeoDataFrame()
+        else:
+            gdf = gpd.GeoDataFrame(data, crs=sr)
     else:
         # for geojson-data we can transform to GeoDataFrame right away
         if len(features) == 0:
@@ -123,7 +135,7 @@ def arcrest(
 def _get_data(url, params, timeout=120, **kwargs):
     r = requests.get(url, params=params, timeout=timeout, **kwargs)
     if not r.ok:
-        raise (Exception(f"Request not successful: {r.url}"))
+        raise (HTTPError(f"Request not successful: {r.url}"))
     data = r.json()
     if "error" in data:
         code = data["error"]["code"]
@@ -143,7 +155,7 @@ def wfs(
     timeout=120,
 ):
     """Download data from a wfs server."""
-    params = dict(version=version, request="GetFeature")
+    params = {"version": version, "request": "GetFeature"}
     if version == "2.0.0":
         params["typeNames"] = layer
     else:
@@ -155,7 +167,7 @@ def wfs(
         # get the maximum number of features
         r = requests.get(f"{url}&request=getcapabilities", timeout=120)
         if not r.ok:
-            raise (Exception(f"Request not successful: {r.url}"))
+            raise (HTTPError(f"Request not successful: {r.url}"))
         root = ET.fromstring(r.text)
         ns = {"ows": "http://www.opengis.net/ows/1.1"}
 
@@ -196,7 +208,7 @@ def wfs(
         params["resultType"] = "hits"
         r = requests.get(url, params=params, timeout=timeout)
         if not r.ok:
-            raise (Exception(f"Request not successful: {r.url}"))
+            raise (HTTPError(f"Request not successful: {r.url}"))
         params.pop("resultType")
         root = ET.fromstring(r.text)
         if "ExceptionReport" in root.tag:
@@ -216,14 +228,14 @@ def wfs(
             params["startindex"] = ip * max_record_count
             r = requests.get(url, params=params, timeout=timeout)
             if not r.ok:
-                raise (Exception(f"Request not successful: {r.url}"))
+                raise (HTTPError(f"Request not successful: {r.url}"))
             gdfs.append(gpd.read_file(BytesIO(r.content), driver=driver))
         gdf = pd.concat(gdfs).reset_index(drop=True)
     else:
         # download all features in one go
         r = requests.get(url, params=params, timeout=timeout)
         if not r.ok:
-            raise (Exception(f"Request not successful: {r.url}"))
+            raise (HTTPError(f"Request not successful: {r.url}"))
         gdf = gpd.read_file(BytesIO(r.content), driver=driver)
 
     return gdf
@@ -422,7 +434,7 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
     if identifier is None:
         identifiers = list(wcs.contents)
         if len(identifiers) > 1:
-            raise (Exception("wcs contains more than 1 identifier. Please specify."))
+            raise (ValueError("wcs contains more than 1 identifier. Please specify."))
         identifier = identifiers[0]
     if version == "1.0.0":
         bbox = (extent[0], extent[2], extent[1], extent[3])
@@ -441,9 +453,9 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
             identifier=[identifier], subsets=subsets, format=fmt, crs=crs
         )
     else:
-        raise Exception(f"Version {version} not yet supported")
+        raise NotImplementedError(f"Version {version} not yet supported")
     if "xml" in output.info()["Content-Type"]:
         root = ET.fromstring(output.read())
-        raise (Exception("Download failed: {}".format(root[0].text)))
+        raise (HTTPError(f"Download failed: {root[0].text}"))
     memfile = MemoryFile(output.read())
     return memfile

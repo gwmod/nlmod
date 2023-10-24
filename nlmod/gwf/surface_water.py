@@ -1,5 +1,6 @@
 import logging
 import warnings
+from functools import partial
 
 import flopy
 import numpy as np
@@ -10,6 +11,7 @@ from shapely.strtree import STRtree
 from tqdm import tqdm
 
 from ..dims.grid import gdf_to_grid
+from ..dims.layers import get_idomain
 from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
 
@@ -382,7 +384,7 @@ def build_spd(
 
     top = ds.top.data
     botm = ds.botm.data
-    idomain = ds.idomain.data
+    idomain = get_idomain(ds).data
     kh = ds.kh.data
 
     # ignore records without a stage
@@ -419,7 +421,7 @@ def build_spd(
         # stage
         stage = row["stage"]
 
-        if (stage < rbot) and np.isfinite(rbot):
+        if not isinstance(stage, str) and stage < rbot and np.isfinite(rbot):
             logger.warning(
                 f"WARNING: stage below bottom elevation in {cellid}, "
                 "stage reset to rbot!"
@@ -461,12 +463,12 @@ def build_spd(
                 mask = (stage > botm_cell) & (idomain_cell > 0)
                 if not mask.any():
                     raise (
-                        Exception("rbot and stage are below the bottom of the model")
+                        ValueError("rbot and stage are below the bottom of the model")
                     )
             lays = [np.where(mask)[0][0]]
             conds = [cond]
         else:
-            raise (Exception(f"Method {layer_method} unknown"))
+            raise (ValueError(f"Method {layer_method} unknown"))
 
         auxlist = []
         if "aux" in row:
@@ -508,7 +510,7 @@ def add_info_to_gdf(
         inds = s.query(geom_to)
         if len(inds) == 0:
             continue
-        overlap = gdf_from.geometry[inds].intersection(geom_to)
+        overlap = gdf_from.geometry.iloc[inds].intersection(geom_to)
         if geom_type is None:
             geom_type = overlap.geom_type.iloc[0]
         if geom_type in ["Polygon", "MultiPolygon"]:
@@ -519,7 +521,7 @@ def add_info_to_gdf(
             measure = overlap.length
         else:
             msg = f"Unsupported geometry type: {geom_type}"
-            raise (Exception(msg))
+            raise TypeError(msg)
 
         if np.any(measure.sum() > min_total_overlap * measure_org):
             # take the largest
@@ -806,7 +808,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
     """
     if extent is None:
         if ds is None:
-            raise (Exception("Please supply either ds or extent to get_gdf"))
+            raise (ValueError("Please supply either ds or extent to get_gdf"))
         extent = get_extent_polygon(ds)
     gdf = bgt.get_bgt(extent)
     if fname_ahn is not None:
@@ -851,7 +853,6 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
     """
-    from functools import partial
 
     from geocube.api.core import make_geocube
     from geocube.rasterize import rasterize_image
@@ -906,7 +907,7 @@ def gdf_to_seasonal_pkg(
         The default water depth, only used when there is no 'rbot' column in
         gdf or when this column contains nans. The default is 0.5.
     boundname_column : str, optional
-        THe name of the column in gdf to use for the boundnames. The default is
+        The name of the column in gdf to use for the boundnames. The default is
         "identificatie", which is a unique identifier in the BGT.
     c0 : float, optional
         The resistance of the surface water, in days. Only used when there is
@@ -989,7 +990,9 @@ def gdf_to_seasonal_pkg(
         spd[:, [2, 3]] = spd[:, [3, 2]]
     spd = spd.tolist()
 
-    if boundname_column is not None:
+    if boundname_column is None:
+        observations = None
+    else:
         observations = []
         for boundname in np.unique(gdf[boundname_column]):
             observations.append((boundname, pkg, boundname))
@@ -1001,7 +1004,7 @@ def gdf_to_seasonal_pkg(
     elif pkg == "GHB":
         cl = flopy.mf6.ModflowGwfghb
     else:
-        raise (Exception(f"Unknown package: {pkg}"))
+        raise (ValueError(f"Unknown package: {pkg}"))
     package = cl(
         gwf,
         stress_period_data={0: spd},
@@ -1012,7 +1015,13 @@ def gdf_to_seasonal_pkg(
         **kwargs,
     )
     # add timeseries for the seasons 'winter' and 'summer'
-    add_season_timeseries(ds, package, summer_months=summer_months, seasons=seasons)
+    add_season_timeseries(
+        ds,
+        package,
+        summer_months=summer_months,
+        winter_name="winter",
+        summer_name="summer",
+    )
     return package
 
 
@@ -1021,8 +1030,26 @@ def add_season_timeseries(
     package,
     summer_months=(4, 5, 6, 7, 8, 9),
     filename="season.ts",
-    seasons=("winter", "summer"),
+    winter_name="winter",
+    summer_name="summer",
 ):
+    """Add time series indicating which season is active (e.g. summer/winter).
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        xarray dataset used for time discretization
+    package : flopy.mf6 package
+        Modflow 6 package to add time series to
+    summer_months : tuple, optional
+        summer months. The default is (4, 5, 6, 7, 8, 9), so from april to september.
+    filename : str, optional
+        name of time series file. The default is "season.ts".
+    winter_name : str, optional
+        The name of the time-series with ones in winter. The default is "winter".
+    summer_name : str, optional
+        The name of the time-series with ones in summer. The default is "summer".
+    """
     tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]
@@ -1042,23 +1069,17 @@ def add_season_timeseries(
         if time > 0:
             ts_data.append((time, 1.0, 0.0))
 
-    package.ts.initialize(
+    return package.ts.initialize(
         filename=filename,
         timeseries=ts_data,
-        time_series_namerecord=seasons,
+        time_series_namerecord=[winter_name, summer_name],
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):
-    # TODO: temporary fix until flopy is patched
-    if gwf.modelgrid.grid_type == "structured":
-        gi = flopy.utils.GridIntersect(gwf.modelgrid, rtree=False)
-        cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
-    else:
-        gi = flopy.utils.GridIntersect(gwf.modelgrid)
-        cellids = gi.intersects(xylist, shapetype="linestring")["cellids"]
-
+    gi = flopy.utils.GridIntersect(gwf.modelgrid, method="vertex")
+    cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
     riv_data = []
     for cid in cellids:
         if len(cid) == 2:

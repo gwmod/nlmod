@@ -54,7 +54,7 @@ def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     elif version == 4:
         ahn_ds_raw = get_ahn4(extent, identifier=identifier)
     else:
-        raise (Exception(f"Unknown ahn-version: {version}"))
+        raise (ValueError(f"Unknown ahn-version: {version}"))
 
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
@@ -69,7 +69,7 @@ def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     if ds is None:
         return ahn_da
 
-    ds_out = get_ds_empty(ds)
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
     ds_out["ahn"] = ahn_da
 
     return ds_out
@@ -98,7 +98,7 @@ def _infer_url(identifier=None):
     if "ahn3" in identifier:
         url = "https://service.pdok.nl/rws/ahn3/wcs/v1_0?service=wcs"
     else:
-        ValueError(f"unknown identifier -> {identifier}")
+        raise ValueError(f"unknown identifier -> {identifier}")
 
     return url
 
@@ -241,6 +241,7 @@ def get_ahn4_tiles(extent=None):
     return gdf
 
 
+@cache.cache_netcdf
 def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     """Download AHN1.
 
@@ -267,6 +268,7 @@ def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     return da
 
 
+@cache.cache_netcdf
 def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     """Download AHN2.
 
@@ -290,6 +292,7 @@ def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
+@cache.cache_netcdf
 def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     """Download AHN3.
 
@@ -312,6 +315,7 @@ def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
+@cache.cache_netcdf
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     """Download AHN4.
 

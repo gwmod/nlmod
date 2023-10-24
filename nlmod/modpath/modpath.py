@@ -15,39 +15,34 @@ from ..dims.grid import xy_to_icell2d
 logger = logging.getLogger(__name__)
 
 
-def write_and_run(mpf, remove_prev_output=True, nb_path=None):
-    """write modpath files and run the model.
-
-    2 extra options:
-        1. remove output of the previous run
-        2. copy the modelscript (typically a Jupyter Notebook) to the model
-           workspace with a timestamp.
-
+def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
+    """write modpath files and run the model. Extra options include removing
+    previous output and copying the modelscript to the model workspace.
 
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
         modpath model.
-    model_ds : xarray.Dataset
-        dataset with model data.
     remove_prev_output : bool, optional
         remove the output of a previous modpath run (if it exists)
-    nb_path : str or None, optional
-        full path of the Jupyter Notebook (.ipynb) with the modelscript. The
+    script_path : str or None, optional
+        full path of the Jupyter Notebook (.ipynb) or a script (.py). The
         default is None. Preferably this path does not have to be given
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
+    silent : bool, optional
+        run model silently
     """
     if remove_prev_output:
         remove_output(mpf)
 
-    if nb_path is not None:
-        new_nb_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(nb_path)[-1]
+    if script_path is not None:
+        new_fname = (
+            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(script_path)[-1]
         )
-        dst = os.path.join(mpf.model_ws, new_nb_fname)
-        logger.info(f"write script {new_nb_fname} to modpath workspace")
-        copyfile(nb_path, dst)
+        dst = os.path.join(mpf.model_ws, new_fname)
+        logger.info(f"write script {new_fname} to modpath workspace")
+        copyfile(script_path, dst)
 
     logger.info("write modpath files to model workspace")
 
@@ -56,7 +51,7 @@ def write_and_run(mpf, remove_prev_output=True, nb_path=None):
 
     # run modpath
     logger.info("run modpath model")
-    assert mpf.run_model()[0], "Modpath run not succeeded"
+    assert mpf.run_model(silent=silent)[0], "Modpath run not succeeded"
 
 
 def xy_to_nodes(xy_list, mpf, ds, layer=0):
@@ -118,10 +113,14 @@ def package_to_nodes(gwf, package_name, mpf):
         node numbers corresponding to the cells with a certain boundary condition.
     """
     gwf_package = gwf.get_package(package_name)
-    if not hasattr(gwf_package, "stress_period_data"):
-        raise TypeError("only package with stress period data can be used")
-
-    pkg_cid = gwf_package.stress_period_data.array[0]["cellid"]
+    if hasattr(gwf_package, "stress_period_data"):
+        pkg_cid = gwf_package.stress_period_data.array[0]["cellid"]
+    elif hasattr(gwf_package, "connectiondata"):
+        pkg_cid = gwf_package.connectiondata.array["cellid"]
+    else:
+        raise TypeError(
+            "only package with stress period data or connectiondata can be used"
+        )
     nodes = []
     for cid in pkg_cid:
         if mpf.ib[cid[0], cid[1]] > 0:
@@ -199,12 +198,6 @@ def mpf(gwf, exe_name=None, modelname=None, model_ws=None):
     if not npf.save_flows.array:
         raise ValueError(
             "the save_flows option of the npf package should be True not None"
-        )
-
-    # check if the tdis has a start_time
-    if gwf.simulation.tdis.start_date_time.array is not None:
-        logger.warning(
-            "older versions of modpath cannot handle this, see https://github.com/MODFLOW-USGS/modpath-v7/issues/31"
         )
 
     # get executable
@@ -436,15 +429,25 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
     return pg
 
 
-def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
+def sim(
+    mpf,
+    particlegroups,
+    direction="backward",
+    gwf=None,
+    ref_time=None,
+    stoptime=None,
+    simulationtype="combined",
+    weaksinkoption="pass_through",
+    weaksourceoption="pass_through",
+):
     """Create a modpath backward simulation from a particle group.
 
     Parameters
     ----------
     mpf : flopy.modpath.mp7.Modpath7
         modpath object.
-    pg : flopy.modpath.mp7particlegroup.ParticleGroupNodeTemplate
-        Particle group.
+    particlegroups : ParticleGroup or list of ParticleGroups
+        One or more particle groups.
     gwf : flopy.mf6.mfmodel.MFModel or None, optional
         Groundwater flow model. Only used if ref_time is not None. Default is
         None
@@ -477,14 +480,14 @@ def sim(mpf, pg, direction="backward", gwf=None, ref_time=None, stoptime=None):
 
     mpsim = flopy.modpath.Modpath7Sim(
         mpf,
-        simulationtype="combined",
+        simulationtype=simulationtype,
         trackingdirection=direction,
-        weaksinkoption="pass_through",
-        weaksourceoption="pass_through",
+        weaksinkoption=weaksinkoption,
+        weaksourceoption=weaksourceoption,
         referencetime=ref_time,
         stoptimeoption=stoptimeoption,
         stoptime=stoptime,
-        particlegroups=pg,
+        particlegroups=particlegroups,
     )
 
     return mpsim

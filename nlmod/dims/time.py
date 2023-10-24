@@ -524,7 +524,7 @@ def dataframe_to_flopy_timeseries(
 
     # initialize or append a new package
     method = package.ts.append_package if append else package.ts.initialize
-    method(
+    return method(
         filename=filename,
         timeseries=timeseries,
         time_series_namerecord=time_series_namerecord,

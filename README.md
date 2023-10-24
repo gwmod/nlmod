@@ -16,7 +16,7 @@ transport models at different spatial and temporal scales to answer specific
 geohydrological questions. Scripting these steps, from downloading data to building
 groundwater models, makes models more reproducible and transparent.
 
-The functions in nlmod have four main objectives:
+The functions in `nlmod` have four main objectives:
 
 1. Create and adapt the temporal and spatial discretization of a MODFLOW model using an xarray Dataset (`nlmod.dims`).
 2. Download and read data from external sources, project this data on the modelgrid and add this data to an xarray Dataset (`nlmod.read`).
@@ -53,7 +53,7 @@ Install the module with pip:
 There are some optional dependecies, only needed (and imported) in a single method.
 Examples of this are `bottleneck` (used in calculate_gxg), `geocube` (used in
 add_min_ahn_to_gdf), `h5netcdf` (used for hdf5 files backend in xarray), `scikit-image`
-(used in calculate_sea). To install the nlmod with the optional dependencies use:
+(used in calculate_sea_coverage). To install `nlmod` with the optional dependencies use:
 
 `pip install nlmod[full]`
 
@@ -71,4 +71,4 @@ executables. You can easily download these executables by running this Python co
 	nlmod.download_mfbinaries()
 
 After you've downloaded the executables you can run the Jupyter Notebooks in the
-examples folder. These notebooks illustrate how to use the nlmod package.
+examples folder. These notebooks illustrate how to use the `nlmod` package.

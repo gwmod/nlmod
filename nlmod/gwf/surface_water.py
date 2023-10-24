@@ -1069,7 +1069,7 @@ def add_season_timeseries(
         if time > 0:
             ts_data.append((time, 1.0, 0.0))
 
-    package.ts.initialize(
+    return package.ts.initialize(
         filename=filename,
         timeseries=ts_data,
         time_series_namerecord=[winter_name, summer_name],

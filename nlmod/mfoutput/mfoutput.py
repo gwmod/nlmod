@@ -1,9 +1,12 @@
+import os
 import logging
 
 import dask
 import xarray as xr
 
-from ..dims.grid import get_dims_coords_from_modelgrid
+import flopy
+
+from ..dims.grid import get_dims_coords_from_modelgrid, modelgrid_from_ds
 from ..dims.resample import get_affine_mod_to_world
 from ..dims.time import ds_time_idx
 from .binaryfile import _get_binary_budget_data, _get_binary_head_data
@@ -217,3 +220,72 @@ def _get_budget_da(
     da = _create_da(stacked_arr, modelgrid, cbcobj.get_times())
 
     return da
+
+
+def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
+    """Get modflow HeadFile or CellBudgetFile object, containg heads, budgets or
+    concentrations
+
+    Provide one of ds, gwf or fname.
+
+    Parameters
+    ----------
+    var : str
+        The name of the variable. Can be 'head', 'budget' or 'concentration'.
+    ds : xarray.Dataset, optional
+        model dataset, by default None
+    gwf : flopy.mf6.ModflowGwf, optional
+        groundwater flow model, by default None
+    fname_cbc : str, optional
+        path to cell budget file, by default None\
+    grbfile : str, optional
+        path to file containing binary grid information, only needed if 
+        fname_cbc is passed as only argument.
+
+    Returns
+    -------
+    flopy.utils.HeadFile or flopy.utils.CellBudgetFile
+    """
+    if var == "head":
+        ml_name = "gwf"
+        extension = ".hds"
+        flopy_class = flopy.utils.HeadFile
+    elif var == "budget":
+        ml_name = "gwf"
+        extension = ".cbc"
+        flopy_class = flopy.utils.CellBudgetFile
+    elif var == "concentration":
+        ml_name = "gwt"
+        extension = "_gwt.ucn"
+        flopy_class = flopy.utils.HeadFile
+    else:
+        raise (ValueError(f"Unknown variable {var}"))
+    msg = f"Load the {var}s using either ds, {ml_name} or fname"
+    assert ((ds is not None) + (gwml is not None) + (fname is not None)) == 1, msg
+    if fname is None:
+        if ds is None:
+            # return gwf.output.head(), gwf.output.budget() or gwt.output.concentration()
+            return getattr(gwml.output, var)()
+        fname = os.path.join(ds.model_ws, ds.model_name + extension)
+    if grbfile is None:
+        # get grb file
+        if ds.gridtype == "vertex":
+            grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+        elif ds.gridtype == "structured":
+            grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+        else:
+            grbfile = None
+    if grbfile is not None and os.path.exists(grbfile):
+        mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
+    elif ds is not None:
+        mg = modelgrid_from_ds(ds)
+    else:
+        logger.error(f"Cannot create {var} data-array without grid information.")
+        raise ValueError(
+            "Please provide grid information by passing path to the "
+            "binary grid file with `grbfile=<path to file>`."
+        )
+    if isinstance(flopy_class, flopy.utils.HeadFile):
+        return flopy_class(fname, modelgrid=mg, text=var)
+    else:
+        return flopy_class(fname, modelgrid=mg)

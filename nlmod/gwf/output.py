@@ -1,5 +1,4 @@
 import logging
-import os
 import warnings
 
 import flopy
@@ -9,16 +8,20 @@ import xarray as xr
 from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
-from ..mfoutput.mfoutput import _get_budget_da, _get_heads_da, _get_time_index
+from ..mfoutput.mfoutput import (
+    _get_budget_da,
+    _get_heads_da,
+    _get_time_index,
+    _get_flopy_data_object,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
-    """Get modflow HeadFile object.
+    """Get flopy HeadFile object.
 
-    Provide one of ds, gwf or fname_hds. Not that it really matters but if
-    all are provided hierarchy is as follows: fname_hds > ds > gwf
+    Provide one of ds, gwf or fname.
 
     Parameters
     ----------
@@ -36,31 +39,7 @@ def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
     headobj : flopy.utils.HeadFile
         HeadFile object handle
     """
-    msg = "Load the heads using either the ds, gwf or fname_hds"
-    assert ((ds is not None) + (gwf is not None) + (fname is not None)) >= 1, msg
-
-    if fname is None:
-        if ds is None:
-            return gwf.output.head()
-        else:
-            fname = os.path.join(ds.model_ws, ds.model_name + ".hds")
-            # get grb file
-            if ds.gridtype == "vertex":
-                grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
-            elif ds.gridtype == "structured":
-                grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
-            else:
-                grbfile = None
-
-    if fname is not None:
-        if grbfile is not None:
-            mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
-        else:
-            logger.warning(msg)
-            warnings.warn(msg)
-            mg = None
-        headobj = flopy.utils.HeadFile(fname, modelgrid=mg)
-    return headobj
+    return _get_flopy_data_object("head", ds, gwf, fname, grbfile)
 
 
 def get_heads_da(
@@ -121,10 +100,9 @@ def get_heads_da(
 
 
 def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
-    """Get modflow CellBudgetFile object.
+    """Get flopy CellBudgetFile object.
 
-    Provide one of ds, gwf or fname_cbc. Not that it really matters but if
-    all are provided hierarchy is as follows: fname_cbc > ds > gwf
+    Provide one of ds, gwf or fname.
 
     Parameters
     ----------
@@ -140,35 +118,10 @@ def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
 
     Returns
     -------
-    cbc : flopy.utils.CellBudgetFile
+    cbc : flopy.utils.HeadFile, flopy.utils.CellBudgetFile or 
         CellBudgetFile object
     """
-    msg = "Load the budgets using either the ds or the gwf"
-    assert ((ds is not None) + (gwf is not None) + (fname is not None)) == 1, msg
-
-    if fname is None:
-        if ds is None:
-            return gwf.output.budget()
-        else:
-            fname = os.path.join(ds.model_ws, ds.model_name + ".cbc")
-            # get grb file
-            if ds.gridtype == "vertex":
-                grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
-            elif ds.gridtype == "structured":
-                grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
-            else:
-                grbfile = None
-    if fname is not None:
-        if grbfile is not None:
-            mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
-        else:
-            logger.error("Cannot create budget data-array without grid information.")
-            raise ValueError(
-                "Please provide grid information by passing path to the "
-                "binary grid file with `grbfile=<path to file>`."
-            )
-        cbc = flopy.utils.CellBudgetFile(fname, modelgrid=mg)
-    return cbc
+    return _get_flopy_data_object("budget", ds, gwf, fname, grbfile)
 
 
 def get_budget_da(

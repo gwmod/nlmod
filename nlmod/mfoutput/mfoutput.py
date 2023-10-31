@@ -264,14 +264,12 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
             # return gwf.output.head(), gwf.output.budget() or gwt.output.concentration()
             return getattr(gwml.output, var)()
         fname = os.path.join(ds.model_ws, ds.model_name + extension)
-    if grbfile is None:
+    if grbfile is None and ds is not None:
         # get grb file
         if ds.gridtype == "vertex":
             grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
         elif ds.gridtype == "structured":
             grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
-        else:
-            grbfile = None
     if grbfile is not None and os.path.exists(grbfile):
         modelgrid = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
     elif ds is not None:

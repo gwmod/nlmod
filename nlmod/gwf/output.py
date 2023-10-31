@@ -36,7 +36,7 @@ def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
 
     Returns
     -------
-    headobj : flopy.utils.HeadFile
+    flopy.utils.HeadFile
         HeadFile object handle
     """
     return _get_flopy_data_object("head", ds, gwf, fname, grbfile)
@@ -72,7 +72,7 @@ def get_heads_da(
 
     Returns
     -------
-    head_da : xarray.DataArray
+    da : xarray.DataArray
         heads data array.
     """
     hobj = get_headfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
@@ -118,8 +118,8 @@ def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
 
     Returns
     -------
-    cbc : flopy.utils.HeadFile, flopy.utils.CellBudgetFile or 
-        CellBudgetFile object
+    flopy.utils.CellBudgetFile
+        CellBudgetFile object handle
     """
     return _get_flopy_data_object("budget", ds, gwf, fname, grbfile)
 

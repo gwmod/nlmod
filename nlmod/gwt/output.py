@@ -27,11 +27,10 @@ def get_concentration_obj(ds=None, gwt=None, fname=None, grbfile=None):
 
     Returns
     -------
-    headobj : flopy.utils.HeadFile
+    flopy.utils.HeadFile
         HeadFile object handle
     """
-    concobj = _get_flopy_data_object("concentration", ds, gwt, fname, grbfile)
-    return concobj
+    return _get_flopy_data_object("concentration", ds, gwt, fname, grbfile)
 
 
 def get_concentration_da(
@@ -64,7 +63,7 @@ def get_concentration_da(
 
     Returns
     -------
-    conc_da : xarray.DataArray
+    da : xarray.DataArray
         concentration data array.
     """
     cobj = get_concentration_obj(ds=ds, gwt=gwt, fname=fname, grbfile=grbfile)

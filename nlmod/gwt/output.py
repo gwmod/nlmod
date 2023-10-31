@@ -18,8 +18,8 @@ def get_concentration_obj(ds=None, gwt=None, fname=None, grbfile=None):
     ----------
     ds : xarray.Dataset, optional
         model dataset, by default None
-    gwf : flopy.mf6.ModflowGwf, optional
-        groundwater flow model, by default None
+    gwt : flopy.mf6.ModflowGwt, optional
+        groundwater transport model, by default None
     fname : str, optional
         path to heads file, by default None
     grbfile : str

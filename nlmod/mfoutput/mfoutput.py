@@ -234,12 +234,12 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         The name of the variable. Can be 'head', 'budget' or 'concentration'.
     ds : xarray.Dataset, optional
         model dataset, by default None
-    gwf : flopy.mf6.ModflowGwf, optional
-        groundwater flow model, by default None
+    gwml : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt, optional
+        groundwater flow or transport model, by default None
     fname_cbc : str, optional
-        path to cell budget file, by default None\
+        path to cell budget file, by default None
     grbfile : str, optional
-        path to file containing binary grid information, only needed if 
+        path to file containing binary grid information, only needed if
         fname_cbc is passed as only argument.
 
     Returns
@@ -249,15 +249,12 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
     if var == "head":
         ml_name = "gwf"
         extension = ".hds"
-        flopy_class = flopy.utils.HeadFile
     elif var == "budget":
         ml_name = "gwf"
         extension = ".cbc"
-        flopy_class = flopy.utils.CellBudgetFile
     elif var == "concentration":
         ml_name = "gwt"
         extension = "_gwt.ucn"
-        flopy_class = flopy.utils.HeadFile
     else:
         raise (ValueError(f"Unknown variable {var}"))
     msg = f"Load the {var}s using either ds, {ml_name} or fname"
@@ -276,16 +273,16 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         else:
             grbfile = None
     if grbfile is not None and os.path.exists(grbfile):
-        mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
+        modelgrid = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
     elif ds is not None:
-        mg = modelgrid_from_ds(ds)
+        modelgrid = modelgrid_from_ds(ds)
     else:
         logger.error(f"Cannot create {var} data-array without grid information.")
         raise ValueError(
             "Please provide grid information by passing path to the "
             "binary grid file with `grbfile=<path to file>`."
         )
-    if isinstance(flopy_class, flopy.utils.HeadFile):
-        return flopy_class(fname, modelgrid=mg, text=var)
+    if var == "budget":
+        return flopy.utils.CellBudgetFile(fname, modelgrid=modelgrid)
     else:
-        return flopy_class(fname, modelgrid=mg)
+        return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid)

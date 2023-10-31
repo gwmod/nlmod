@@ -49,6 +49,7 @@ Install the module with pip:
 * `matplotlib`
 * `dask`
 * `colorama`
+* `joblib`
 
 There are some optional dependecies, only needed (and imported) in a single method.
 Examples of this are `bottleneck` (used in calculate_gxg), `geocube` (used in

@@ -1,5 +1,6 @@
 import os
 import logging
+import warnings
 
 import dask
 import xarray as xr
@@ -275,12 +276,16 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
     elif ds is not None:
         modelgrid = modelgrid_from_ds(ds)
     else:
-        logger.error(f"Cannot create {var} data-array without grid information.")
-        raise ValueError(
-            "Please provide grid information by passing path to the "
-            "binary grid file with `grbfile=<path to file>`."
-        )
+        modelgrid = None
+
+    msg = f"Cannot create {var} data-array without grid information."
     if var == "budget":
+        if modelgrid is None:
+            logger.error(msg)
+            raise ValueError(msg)
         return flopy.utils.CellBudgetFile(fname, modelgrid=modelgrid)
     else:
+        if modelgrid is None:
+            logger.warning(msg)
+            warnings.warn(msg)
         return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid)

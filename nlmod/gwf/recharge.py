@@ -33,11 +33,11 @@ def ds_to_rch(
         data array containing mask, recharge is only added where mask is True
     pname : str, optional
         package name. The default is 'rch'.
-    auxiliary : str or list of str
-        name(s) of data arrays to include as auxiliary data to reclist
     recharge : str, optional
         The name of the variable in ds that contains the recharge flux rate. The default
         is "recharge".
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
 
     Returns
     -------
@@ -85,7 +85,7 @@ def ds_to_rch(
         **kwargs,
     )
     if (auxiliary is not None) and (ds.transport == 1):
-        logger.info("-> adding GHB to SSM sources list")
+        logger.info("-> adding RCH to SSM sources list")
         ssm_sources = list(ds.attrs["ssm_sources"])
         if rch.package_name not in ssm_sources:
             ssm_sources += [rch.package_name]
@@ -107,6 +107,7 @@ def ds_to_evt(
     nseg=1,
     surface=None,
     depth=None,
+    auxiliary=None,
     **kwargs,
 ):
     """Convert the evaporation data in the model dataset to a evt package with
@@ -133,6 +134,8 @@ def ds_to_evt(
     depth : str, float or xr.DataArray, optional
         The ET extinction depth. Set to 1 meter (below surface) when None. The default
         is None.
+    auxiliary : str or list of str
+        name(s) of data arrays to include as auxiliary data to reclist
     **kwargs : TYPE
         DESCRIPTION.
 
@@ -186,6 +189,7 @@ def ds_to_evt(
         col3=depth,
         first_active_layer=True,
         only_active_cells=False,
+        aux=auxiliary,
     )
 
     # create rch package
@@ -194,11 +198,19 @@ def ds_to_evt(
         filename=f"{gwf.name}.evt",
         pname=pname,
         fixed_cell=False,
+        auxiliary="CONCENTRATION" if auxiliary is not None else None,
         maxbound=len(spd),
         nseg=nseg,
         stress_period_data={0: spd},
         **kwargs,
     )
+
+    if (auxiliary is not None) and (ds.transport == 1):
+        logger.info("-> adding EVT to SSM sources list")
+        ssm_sources = list(ds.attrs["ssm_sources"])
+        if evt.package_name not in ssm_sources:
+            ssm_sources += [evt.package_name]
+            ds.attrs["ssm_sources"] = ssm_sources
 
     if use_ts:
         # create timeseries packages

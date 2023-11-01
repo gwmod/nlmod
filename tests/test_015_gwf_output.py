@@ -12,10 +12,7 @@ from nlmod.gwf import get_budget_da, get_heads_da
 tmpdir = tempfile.gettempdir()
 tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
 
-grberror = (
-    "Please provide grid information by passing path to the "
-    "binary grid file with `grbfile=<path to file>`."
-)
+grberror = "Cannot create budget data-array without grid information."
 
 
 def test_create_small_model_grid_only(tmpdir, model_name="test"):

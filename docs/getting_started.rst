@@ -117,6 +117,7 @@ potential solutions.
 - matplotlib
 - dask
 - colorama
+- joblib
 
 On top of that there are some optional dependecies:
 

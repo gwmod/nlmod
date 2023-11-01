@@ -2,9 +2,9 @@
 
 <img src="docs/_static/logo_10000_2.png" width="256"/>
 
-[![nlmod](https://github.com/ArtesiaWater/nlmod/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ArtesiaWater/nlmod/actions/workflows/ci.yml)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/6fadea550ea04ea28b6ccde88fc56f35)](https://www.codacy.com/gh/ArtesiaWater/nlmod/dashboard?utm_source=github.com&utm_medium=referral&utm_content=ArtesiaWater/nlmod&utm_campaign=Badge_Grade)
-[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/6fadea550ea04ea28b6ccde88fc56f35)](https://www.codacy.com/gh/ArtesiaWater/nlmod/dashboard?utm_source=github.com&utm_medium=referral&utm_content=ArtesiaWater/nlmod&utm_campaign=Badge_Coverage)
+[![nlmod](https://github.com/gwmod/nlmod/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gwmod/nlmod/actions/workflows/ci.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/f1797b66e98b42b294bc1c5fc233dbf3)](https://app.codacy.com/gh/gwmod/nlmod/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/f1797b66e98b42b294bc1c5fc233dbf3)](https://app.codacy.com/gh/gwmod/nlmod/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![PyPI version](https://badge.fury.io/py/nlmod.svg)](https://badge.fury.io/py/nlmod)
 [![Documentation Status](https://readthedocs.org/projects/nlmod/badge/?version=stable)](https://nlmod.readthedocs.io/en/stable/?badge=stable)
 
@@ -49,6 +49,7 @@ Install the module with pip:
 * `matplotlib`
 * `dask`
 * `colorama`
+* `joblib`
 
 There are some optional dependecies, only needed (and imported) in a single method.
 Examples of this are `bottleneck` (used in calculate_gxg), `geocube` (used in

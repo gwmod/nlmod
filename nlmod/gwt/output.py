@@ -1,42 +1,36 @@
 import logging
-import os
-import warnings
 
-import flopy
 import numpy as np
 import xarray as xr
 
 from ..dims.layers import calculate_thickness
-from ..mfoutput.mfoutput import _get_heads_da, _get_time_index
+from ..mfoutput.mfoutput import _get_heads_da, _get_time_index, _get_flopy_data_object
 
 logger = logging.getLogger(__name__)
 
 
 def get_concentration_obj(ds=None, gwt=None, fname=None, grbfile=None):
-    msg = "Load the concentration using either the ds, gwt or a fname_conc"
-    assert ((ds is not None) + (gwt is not None) + (fname is not None)) == 1, msg
+    """Get flopy HeadFile object connected to the file with the concetration of cells.
 
-    if fname is None:
-        if ds is None:
-            return gwt.output.concentration()
-        else:
-            fname = os.path.join(ds.model_ws, f"{ds.model_name}_gwt.ucn")
-            # get grb file
-            if ds.gridtype == "vertex":
-                grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
-            elif ds.gridtype == "structured":
-                grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
-            else:
-                grbfile = None
-    if fname is not None:
-        if grbfile is not None:
-            mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
-        else:
-            logger.warning(msg)
-            warnings.warn(msg)
-            mg = None
-        concobj = flopy.utils.HeadFile(fname, text="concentration", modelgrid=mg)
-    return concobj
+    Provide one of ds, gwf or fname.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset, optional
+        model dataset, by default None
+    gwt : flopy.mf6.ModflowGwt, optional
+        groundwater transport model, by default None
+    fname : str, optional
+        path to heads file, by default None
+    grbfile : str
+        path to file containing binary grid information
+
+    Returns
+    -------
+    flopy.utils.HeadFile
+        HeadFile object handle
+    """
+    return _get_flopy_data_object("concentration", ds, gwt, fname, grbfile)
 
 
 def get_concentration_da(
@@ -69,7 +63,7 @@ def get_concentration_da(
 
     Returns
     -------
-    conc_da : xarray.DataArray
+    da : xarray.DataArray
         concentration data array.
     """
     cobj = get_concentration_obj(ds=ds, gwt=gwt, fname=fname, grbfile=grbfile)

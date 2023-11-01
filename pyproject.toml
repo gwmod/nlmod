@@ -51,8 +51,8 @@ classifiers = [
 ]
 
 [project.urls]
-homepage = "https://github.com/ArtesiaWater/nlmod"
-repository = "https://github.com/ArtesiaWater/nlmod"
+homepage = "https://github.com/gwmod/nlmod"
+repository = "https://github.com/gwmod/nlmod"
 documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]

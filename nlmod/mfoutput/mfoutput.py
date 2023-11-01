@@ -237,11 +237,11 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         model dataset, by default None
     gwml : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt, optional
         groundwater flow or transport model, by default None
-    fname_cbc : str, optional
-        path to cell budget file, by default None
+    fname : str, optional
+        path to Head- or CellBudgetFile, by default None
     grbfile : str, optional
-        path to file containing binary grid information, only needed if
-        fname_cbc is passed as only argument.
+        path to file containing binary grid information, if None modelgrid
+        information is obtained from ds. By default None
 
     Returns
     -------

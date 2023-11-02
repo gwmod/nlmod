@@ -338,6 +338,7 @@ def map_array(
     background=False,
     figsize=None,
     animate=False,
+    **kwargs,
 ):
     # get data
     if isinstance(da, str):
@@ -424,7 +425,7 @@ def map_array(
     divider = make_axes_locatable(ax)
     if colorbar:
         cax = divider.append_axes("right", size="5%", pad=0.1)
-        cbar = f.colorbar(pc, cax=cax)
+        cbar = f.colorbar(pc, cax=cax, extend=kwargs.pop("extend", "neither"))
         if levels is not None:
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)

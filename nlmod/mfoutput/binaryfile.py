@@ -48,14 +48,14 @@ def _get_binary_head_data(kstpkper, fobj):
     return arr
 
 
-def __create3D(data, fobj):
-    """Copy of CellBudgetFile.__create3D.
+def __create3D(data, fobj, column="q"):
+    """Adapted from CellBudgetFile.__create3D.
 
     See flopy.utils.binaryfile.CellBudgetFile.__create3D.
     """
     out = np.ma.zeros(fobj.nnodes, dtype=np.float32)
     out.mask = True
-    for [node, q] in zip(data["node"], data["q"]):
+    for [node, q] in zip(data["node"], data[column]):
         idx = node - 1
         out.data[idx] += q
         out.mask[idx] = False
@@ -105,7 +105,7 @@ def _select_data_indices_budget(fobj, text, kstpkper):
     return select_indices
 
 
-def _get_binary_budget_data(kstpkper, fobj, text):
+def _get_binary_budget_data(kstpkper, fobj, text, column="q"):
     """Get budget data from binary CellBudgetFile.
 
     Code copied from flopy.utils.binaryfile.CellBudgetFile and adapted to
@@ -121,6 +121,9 @@ def _get_binary_budget_data(kstpkper, fobj, text):
         file object
     text : str
         text indicating which dataset to read
+    column : str
+        name of column in rec-array to read, default is 'q' which contains the fluxes
+        for most budget datasets.
 
     Returns
     -------
@@ -211,7 +214,7 @@ def _get_binary_budget_data(kstpkper, fobj, text):
             dtype = np.dtype(dtype_list)
             nlist = binaryread(f, np.int32)[0]
             data = binaryread(f, dtype, shape=(nlist,))
-            data = __create3D(data, fobj)
+            data = __create3D(data, fobj, column=column)
             if fobj.modelgrid is not None:
                 return np.reshape(data, fobj.shape)
             else:

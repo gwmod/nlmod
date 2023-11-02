@@ -130,6 +130,7 @@ def get_budget_da(
     gwf=None,
     fname=None,
     grbfile=None,
+    column="q",
     delayed=False,
     chunked=False,
     **kwargs,
@@ -150,6 +151,9 @@ def get_budget_da(
     grbfile : str
         path to file containing binary grid information, only needed if reading
         output from file using fname
+    column : str
+        name of column in rec-array to read, default is 'q' which contains the fluxes
+        for most budget datasets.
     delayed : bool, optional
         if delayed is True, do not load output data into memory, default is False.
     chunked : bool, optional
@@ -161,7 +165,7 @@ def get_budget_da(
         budget data array.
     """
     cbcobj = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
-    da = _get_budget_da(cbcobj, text, **kwargs)
+    da = _get_budget_da(cbcobj, text, column=column, **kwargs)
     da.attrs["units"] = "m3/d"
 
     # set time index if ds/gwt are provided

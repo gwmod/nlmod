@@ -177,6 +177,7 @@ def _get_budget_da(
     cbcobj,
     text,
     modelgrid=None,
+    column="q",
     **kwargs,
 ):
     """Get budget data array based on CellBudgetFile and text string.
@@ -193,6 +194,9 @@ def _get_budget_da(
     modelgrid : flopy.discretization.Grid, optional
         flopy modelgrid object, default is None, in which case the modelgrid
         is derived from `cbcobj.modelgrid`
+    column : str
+        name of column in rec-array to read, default is 'q' which contains the fluxes
+        for most budget datasets.
 
     Returns
     -------
@@ -215,6 +219,7 @@ def _get_budget_da(
         shape=shape,
         fobj=cbcobj,
         text=text,
+        column=column,
     )
 
     # create data array

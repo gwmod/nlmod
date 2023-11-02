@@ -391,10 +391,6 @@ def map_array(
         da, ds=ds, cmap=cmap, alpha=alpha, norm=norm, ax=ax, rotated=rotated
     )
 
-    # set extent
-    if extent is not None:
-        ax.axis(extent)
-
     # bgmap
     if background:
         add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
@@ -409,6 +405,10 @@ def map_array(
         if ds is None:
             raise ValueError("Plotting modelgrid requires model Dataset!")
         modelgrid(ds, ax=ax, lw=0.25, alpha=0.5, color="k")
+
+    # set extent
+    if extent is not None:
+        ax.axis(extent)
 
     # axes properties
     if ilay is not None:

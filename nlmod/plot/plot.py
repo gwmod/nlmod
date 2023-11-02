@@ -282,20 +282,21 @@ def geotop_lithok_in_cross_section(
     return cs
 
 
-def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True):
+def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True, extent=None):
     # figure
     if ax is not None:
         f = ax.figure
     else:
-        if ds is None:
-            extent = [
-                da.x.values.min(),
-                da.x.values.max(),
-                da.y.values.min(),
-                da.y.values.max(),
-            ]
-        else:
-            extent = get_extent(ds, rotated=rotated)
+        if extent is None:
+            if ds is None:
+                extent = [
+                    da.x.values.min(),
+                    da.x.values.max(),
+                    da.y.values.min(),
+                    da.y.values.max(),
+                ]
+            else:
+                extent = get_extent(ds, rotated=rotated)
 
         if figsize is None:
             figsize = get_figsize(extent)
@@ -377,7 +378,9 @@ def map_array(
     else:
         t = None
 
-    f, ax = _get_figure(ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated)
+    f, ax = _get_figure(
+        ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated, extent=extent
+    )
 
     # get normalization if vmin/vmax are passed
     if vmin is not None or vmax is not None:

@@ -282,20 +282,21 @@ def geotop_lithok_in_cross_section(
     return cs
 
 
-def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True):
+def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True, extent=None):
     # figure
     if ax is not None:
         f = ax.figure
     else:
-        if ds is None:
-            extent = [
-                da.x.values.min(),
-                da.x.values.max(),
-                da.y.values.min(),
-                da.y.values.max(),
-            ]
-        else:
-            extent = get_extent(ds, rotated=rotated)
+        if extent is None:
+            if ds is None:
+                extent = [
+                    da.x.values.min(),
+                    da.x.values.max(),
+                    da.y.values.min(),
+                    da.y.values.max(),
+                ]
+            else:
+                extent = get_extent(ds, rotated=rotated)
 
         if figsize is None:
             figsize = get_figsize(extent)
@@ -337,6 +338,7 @@ def map_array(
     background=False,
     figsize=None,
     animate=False,
+    **kwargs,
 ):
     # get data
     if isinstance(da, str):
@@ -377,7 +379,9 @@ def map_array(
     else:
         t = None
 
-    f, ax = _get_figure(ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated)
+    f, ax = _get_figure(
+        ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated, extent=extent
+    )
 
     # get normalization if vmin/vmax are passed
     if vmin is not None or vmax is not None:
@@ -387,10 +391,6 @@ def map_array(
     pc = data_array(
         da, ds=ds, cmap=cmap, alpha=alpha, norm=norm, ax=ax, rotated=rotated
     )
-
-    # set extent
-    if extent is not None:
-        ax.axis(extent)
 
     # bgmap
     if background:
@@ -407,6 +407,10 @@ def map_array(
             raise ValueError("Plotting modelgrid requires model Dataset!")
         modelgrid(ds, ax=ax, lw=0.25, alpha=0.5, color="k")
 
+    # set extent
+    if extent is not None:
+        ax.axis(extent)
+
     # axes properties
     if ilay is not None:
         title += f" (layer={layer})"
@@ -421,7 +425,7 @@ def map_array(
     divider = make_axes_locatable(ax)
     if colorbar:
         cax = divider.append_axes("right", size="5%", pad=0.1)
-        cbar = f.colorbar(pc, cax=cax)
+        cbar = f.colorbar(pc, cax=cax, extend=kwargs.pop("extend", "neither"))
         if levels is not None:
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)

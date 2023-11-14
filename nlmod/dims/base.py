@@ -179,7 +179,7 @@ def to_model_ds(
     return ds
 
 
-def extrapolate_ds(ds, mask=None):
+def extrapolate_ds(ds, mask=None, layer="layer"):
     """Fill missing data in layermodel based on nearest interpolation.
 
     Used for ensuring layer model contains data everywhere. Useful for
@@ -190,10 +190,12 @@ def extrapolate_ds(ds, mask=None):
     ----------
     ds : xarray.DataSet
         Model layer DataSet
-    mask: np.ndarray, optional
+    mask : np.ndarray, optional
         Boolean mask for each cell, with a value of True if its value needs to
         be determined. When mask is None, it is determined from the botm-
         variable. The default is None.
+    layer : str, optional
+        The name of the layer dimension. The default is 'layer'.
 
     Returns
     -------
@@ -201,7 +203,7 @@ def extrapolate_ds(ds, mask=None):
         filled layermodel
     """
     if mask is None:
-        mask = np.isnan(ds["botm"]).all("layer").data
+        mask = np.isnan(ds["botm"]).all(layer).data
     if not mask.any():
         # all of the model cells are is inside the known area
         return ds
@@ -226,8 +228,8 @@ def extrapolate_ds(ds, mask=None):
         if ds[key].dims == dims:
             if np.isnan(data[mask]).sum() > 0:  # do not update if no NaNs
                 data[mask] = data[~mask, i]
-        elif ds[key].dims == ("layer",) + dims:
-            for lay in range(len(ds["layer"])):
+        elif ds[key].dims == (layer,) + dims:
+            for lay in range(len(ds[layer])):
                 if np.isnan(data[lay, mask]).sum() > 0:  # do not update if no NaNs
                     data[lay, mask] = data[lay, ~mask][i]
         else:

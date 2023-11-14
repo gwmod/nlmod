@@ -579,7 +579,10 @@ def aggregate_to_ds(
             if "layer" in top.dims:
                 top = top[0].drop_vars("layer")
         else:
-            top = ds["botm"][ilay - 1].drop_vars("layer")
+            if "layer" in  ds["top"].dims:
+                top = ds["top"][ilay].drop_vars("layer")
+            else:
+                top = ds["botm"][ilay - 1].drop_vars("layer")
         bot = ds["botm"][ilay].drop_vars("layer")
 
         gt_top = (gt["z"] + 0.25).broadcast_like(gt[kh_gt])

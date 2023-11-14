@@ -19,10 +19,11 @@ from flopy.discretization.structuredgrid import StructuredGrid
 from flopy.discretization.vertexgrid import VertexGrid
 from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
+from matplotlib.path import Path as MplPath
 from packaging import version
 from scipy.interpolate import griddata
 from shapely.affinity import affine_transform
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, MultiPolygon
 from tqdm import tqdm
 
 from .. import cache, util
@@ -1142,11 +1143,14 @@ def gdf_to_data_array_struc(
 
 
 def gdf_to_da(
-    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0
+    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0,
+    largest_cell_size=100.
 ):
-    """Project vector data on a structured grid. Aggregate data if multiple
-    geometries are in a single cell. This method replaces
-    gdf_to_data_array_struc.
+    """Project vector data on a grid. Aggregate data if multiple
+    geometries are in a single cell. Supports structured and unstructured grids.
+
+
+    This method replaces gdf_to_data_array_struc.
 
     Parameters
     ----------
@@ -1168,13 +1172,42 @@ def gdf_to_da(
     min_total_overlap: float, optional
         Only assign cells with a gdf-area larger than min_total_overlap * cell-area. The
         default is 0.0
+    largest_cell_size: float, optional
+        The largest cell size in the model. Only needed for vertex grids. 
+        Used to determine the buffer around the gdf 
+        to identify relevant cells. The default is 100.
 
     Returns
     -------
     da : xarray DataArray
         The DataArray with the projected vector data.
     """
-    gdf_cellid = gdf_to_grid(gdf, ds)
+    # Only compute `gdf_to_grid` for cells that are within the buffer of the gdf
+    da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
+
+    isstructured = "icell2d" not in ds.x.dims
+
+    if isstructured:
+        # Max radius of a square with side length largest_cell_size
+        buffer = largest_cell_size * 1.43 / 2
+        # A cell may contain information from at most inbuffer_counts geometries
+        inbuffer_x, inbuffer_y = gdf_inpolygon(ds, gdf, buffer=buffer)
+        ds_inbuffer = ds.isel(x=inbuffer_x, y=inbuffer_y)
+
+    else:
+        # get max cell size from node coordinates
+        largest_cell_size = max(
+            np.diff(ds.x.values.flatten()).max(), 
+            np.diff(ds.y.values.flatten()).max()
+        )
+        # Max radius of a square with side length largest_cell_size
+        buffer = largest_cell_size * 1.43 / 2
+        # A cell may contain information from at most inbuffer_counts geometries
+        inbuffer = gdf_inpolygon(ds, gdf, buffer=buffer)
+        ds_inbuffer = ds.isel(icell2d=inbuffer)
+
+    gdf_cellid = gdf_to_grid(gdf, ds_inbuffer)  # computational expensive step
+
     if min_total_overlap > 0:
         gdf_cellid["area"] = gdf_cellid.area
         area_sum = gdf_cellid[["cellid", "area"]].groupby("cellid").sum()
@@ -1204,10 +1237,132 @@ def gdf_to_da(
             )
         else:
             gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
-    da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
-    for ind, row in gdf_agg.iterrows():
-        da.values[ind] = row[column]
+        
+    if isstructured:
+        ixs, iys = zip(*gdf_agg.index)
+        da.values[ixs, iys] = gdf_agg[column]
+    else:
+        da[gdf_agg.index] = gdf_agg[column]
+
     return da
+
+
+def gdf_inpolygon(ds, gdf, buffer=0.):
+    isstructured = "icell2d" not in ds.x.dims
+
+    if isstructured:
+        # minx, miny, maxx, maxy
+        bounds = gdf.total_bounds
+        maskx = (ds.x >= bounds[0] - buffer) & (ds.x <= bounds[2] + buffer)
+        masky = (ds.y >= bounds[1] - buffer) & (ds.y <= bounds[3] + buffer)
+        return maskx, masky
+
+    else:
+        mask = gdf_inpolygon_counts(ds, gdf, buffer=buffer) > 0
+        return mask
+
+
+def gdf_inpolygon_counts(ds, gdf, buffer=0.):
+    """Counts in how many polygons a cell appears.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        xarray with model data
+    gdf : geopandas.GeoDataFrame
+        geodataframe with geometry
+    buffer : float, optional
+        buffer around geometry, by default 0.
+
+    Returns
+    -------
+    da : xr.DataArray
+        boolean data array with True for all cells within gdf
+
+    """
+    isstructured = "icell2d" not in ds.x.dims
+    
+    # check if grid is structured
+    if isstructured:
+        mask = np.zeros((len(ds.x), len(ds.y)), dtype=int)
+    else:
+        mask = np.zeros((len(ds.x),), dtype=int)
+    
+    for _, row in gdf.iterrows():
+        # minx, miny, maxx, maxy
+        in_extentx = (ds.x >= row.geometry.bounds[0] - buffer) & (ds.x <= row.geometry.bounds[2] + buffer)
+        in_extenty = (ds.y >= row.geometry.bounds[1] - buffer) & (ds.y <= row.geometry.bounds[3] + buffer)
+
+        if not in_extentx.any() or not in_extenty.any():
+            continue
+
+        if buffer > 0.:
+            if isstructured:
+                xx, yy = np.meshgrid(ds.x[in_extentx], ds.y[in_extenty], indexing="ij")
+                counts = inpolygon(xx.flatten(), yy.flatten(), row.geometry.buffer(buffer))
+                mask[in_extentx * in_extenty] += counts
+
+            else:
+                in_extent = in_extentx.values & in_extenty.values
+                mask[in_extent] += inpolygon(ds.x[in_extent], ds.y[in_extent], row.geometry.buffer(buffer))
+
+        else:
+            mask[in_extent] += inpolygon(ds.x[in_extent], ds.y[in_extent], row.geometry)
+
+    if "icell2d" in ds.x.dims:
+        da = xr.DataArray(mask, coords={"icell2d": ds.icell2d})
+    else:
+        da = xr.DataArray(mask, coords={"x": ds.x, "y": ds.y})
+
+    return da
+
+
+def inpolygon(x, y, polygon, engine="matplotlib"):
+    """Counts in how many polygons a coordinate appears.
+
+    Parameters
+    ----------
+    x : np.array
+        x-coordinates of grid (same shape as y)
+    y : np.array
+        y-coordinates of grid (same shape as x)
+    polygon : shapely Polygon or MuliPolygon
+        the polygon for which you want mask to be True
+    engine : str
+        Use 'matplotlib' for speed, for all other values it uses shapely
+
+    Returns
+    -------
+    mask: np.array of integers
+        an array of the same shape as x and y: 1 for points within polygon and
+        0 for points outside polygon. In case of multipolygon the mask is 1
+        for points within 1 polygon and 2 in case of two overlapping polygons, etc.
+
+    """
+    if len(x) == 0:
+        return np.array([], dtype=int)
+
+    shape = x.shape
+    points = list(zip(np.asarray(x).flatten(), np.asarray(y).flatten()))
+    if engine == "matplotlib":
+        if isinstance(polygon, MultiPolygon):
+            mask = np.zeros((len(points)), dtype=int)
+
+            for polygon2 in polygon.geoms:
+                path = MplPath(polygon2.exterior.coords)
+                mask += path.contains_points(points)
+
+        elif isinstance(polygon, Polygon):
+            path = MplPath(polygon.exterior.coords)
+            mask = path.contains_points(points).astype(int)
+
+        else:
+            raise (Exception("{} not supported".format(type(polygon))))
+
+    else:
+        mask = [polygon.contains(Point(x, y)) for x, y in points]
+        mask = np.asarray(mask, dtype=int)
+    return mask.reshape(shape)
 
 
 def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):

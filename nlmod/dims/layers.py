@@ -1030,22 +1030,16 @@ def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
     else:
         top_max = ds["top"]
 
-    botm = ds["botm"].data
-    # remove nans from botm
-    for lay in range(botm.shape[0]):
-        mask = np.isnan(botm[lay])
-        if lay == 0:
-            # by setting the botm to top_max
-            botm[lay, mask] = top_max.data[mask]
-        else:
-            # by setting the botm to the botm of the layer above
-            botm[lay, mask] = botm[lay - 1, mask]
+    # fill nans in botm of the first layer
+    ds["botm"][0] = ds["botm"][0].where(~ds["botm"][0].isnull(), top_max)
+
+    # then use ffill to fill nans in deeper layers
+    ds["botm"] = ds["botm"].ffill("layer")
+
     if "layer" in ds["top"].dims:
         # remove nans from top by setting it equal to botm
         # which sets the layer thickness to 0
-        top = ds["top"].data
-        mask = np.isnan(top)
-        top[mask] = botm[mask]
+        ds["top"] = ds["top"].where(~ds["top"].isnull(), ds["botm"])
 
     return ds
 

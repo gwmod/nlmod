@@ -204,7 +204,7 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
         y = da.y
         if rotated:
             if ds is None:
-                raise (Exception("Supply model dataset (ds) for grid information"))
+                raise (ValueError("Supply model dataset (ds) for grid information"))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine_mod_to_world(ds)
                 x, y = affine * np.meshgrid(x, y)
@@ -308,7 +308,7 @@ def geotop_lithok_on_map(
         lithok = gt
     if "z" in lithok.dims:
         if z is None:
-            raise (Exception("Select a depth in the GeoTOP data first"))
+            raise (ValueError("Select a depth (z) in the GeoTOP data first"))
         lithok = lithok.sel(z=z)
     if lithok_props is None:
         lithok_props = geotop.get_lithok_props()
@@ -327,7 +327,7 @@ def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
         lithoks = lithok_props.index
     else:
         lithoks = np.unique(lithok.data[~np.isnan(lithok)])
-    for i, lithok in enumerate(lithoks):
+    for lithok in lithoks:
         color = lithok_props.at[lithok, "color"]
         label = lithok_props.at[int(lithok), "name"]
         handles.append(Patch(facecolor=color, label=label))

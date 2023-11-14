@@ -1025,8 +1025,6 @@ def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
 
     if "layer" in ds["top"].dims:
         top_max = ds["top"].max("layer")
-        if drop_layer_dim_from_top:
-            ds["top"] = top_max
     else:
         top_max = ds["top"]
 
@@ -1040,6 +1038,15 @@ def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
         # remove nans from top by setting it equal to botm
         # which sets the layer thickness to 0
         ds["top"] = ds["top"].where(~ds["top"].isnull(), ds["botm"])
+
+        if drop_layer_dim_from_top:
+            dz = ds["botm"][:-1].data - ds["top"][1:].data
+            voids = np.abs(dz) > 0
+            if voids.sum() > 0:
+                n = int(voids.sum())
+                msg = f"Botm of layer is not equal to top of deeper layer in {n} cells"
+                logger.warning(msg)
+            ds["top"] = top_max
 
     return ds
 

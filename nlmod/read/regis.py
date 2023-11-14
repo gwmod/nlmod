@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import cache
-from ..dims.layers import calculate_thickness
+from ..dims.layers import calculate_thickness, fill_top_and_bottom
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,8 @@ def get_regis(
     botm_layer="AKc",
     variables=("top", "botm", "kh", "kv"),
     remove_nan_layers=True,
+    drop_layer_dim_from_top=True,
+    probabilities=False,
 ):
     """get a regis dataset projected on the modelgrid.
 
@@ -116,8 +118,15 @@ def get_regis(
         entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
         'sdv'. The default is ("top", "botm", "kh", "kv").
     remove_nan_layers : bool, optional
-        When True, layers which contain only NaNs for the botm array are removed.
-        The default is True.
+        When True, layers that do not occur in the requested extent (layers that contain
+        only NaN values for the botm array) are removed. The default is True.
+    drop_layer_dim_from_top : bool, optional
+        When True, fill NaN values in top and botm and drop the layer dimension from
+        top. This will transform top and botm to the data model in MODFLOW. An advantage
+        of this data model is that the layer model is consistent by definition, with no
+        possibilities of gaps between layers. The default is True.
+    probabilities : bool, optional
+        if True, keep probability data in returned Dataset. The default is False.
 
     Returns
     -------
@@ -159,8 +168,14 @@ def get_regis(
             msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
             raise (Exception(msg))
 
+    if drop_layer_dim_from_top:
+        ds = fill_top_and_bottom(ds, drop_layer_dim_from_top=drop_layer_dim_from_top)
+
     # slice data vars
-    ds = ds[list(variables)]
+    if variables is not None:
+        if probabilities:
+            variables = variables + ("sdh", "sdv")
+        ds = ds[list(variables)]
 
     ds.attrs["extent"] = extent
     for datavar in ds:

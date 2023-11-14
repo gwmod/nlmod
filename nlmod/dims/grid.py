@@ -1142,7 +1142,8 @@ def gdf_to_data_array_struc(
 
 
 def gdf_to_da(
-    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0
+    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0,
+    ix=None
 ):
     """Project vector data on a structured grid. Aggregate data if multiple
     geometries are in a single cell. This method replaces
@@ -1168,13 +1169,15 @@ def gdf_to_da(
     min_total_overlap: float, optional
         Only assign cells with a gdf-area larger than min_total_overlap * cell-area. The
         default is 0.0
+    ix : GridIntersect, optional
+        If not provided it is computed from ds.
 
     Returns
     -------
     da : xarray DataArray
         The DataArray with the projected vector data.
     """
-    gdf_cellid = gdf_to_grid(gdf, ds)
+    gdf_cellid = gdf_to_grid(gdf, ds, ix=ix)
     if min_total_overlap > 0:
         gdf_cellid["area"] = gdf_cellid.area
         area_sum = gdf_cellid[["cellid", "area"]].groupby("cellid").sum()
@@ -1377,7 +1380,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     return celldata
 
 
-def gdf_to_bool_da(gdf, ds):
+def gdf_to_bool_da(gdf, ds, ix=None, buffer=0., **kwargs):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
@@ -1388,54 +1391,23 @@ def gdf_to_bool_da(gdf, ds):
         shapes that will be rasterised.
     ds : xr.DataSet
         xarray with model data
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
 
     Returns
     -------
     da : xr.DataArray
-        1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
+        True if polygon is in cell, False otherwise. Grid dimensions according to ds.
     """
-    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        # transform gdf into model coordinates
-        affine = get_affine_world_to_mod(ds)
-        gdf = affine_transform_gdf(gdf, affine)
-
-    modelgrid = modelgrid_from_ds(ds)
-
-    # build list of gridcells
-    ix = GridIntersect(modelgrid, method="vertex")
-
-    if ds.gridtype == "structured":
-        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
-    elif ds.gridtype == "vertex":
-        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=0)
-    else:
-        raise ValueError("function only support structured or vertex gridtypes")
-
-    if isinstance(gdf, gpd.GeoDataFrame):
-        geoms = gdf.geometry.values
-    elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
-        geoms = [gdf]
-
-    for geom in geoms:
-        cids = ix.intersects(geom)["cellids"]
-        if ds.gridtype == "structured":
-            ncol = modelgrid.ncol
-            for cid in cids:
-                if isinstance(cid, tuple):
-                    i, j = cid
-                else:
-                    # TODO: temporary fix until flopy intersect on structured
-                    # grid returns row, col again.
-                    i = int((cid) / ncol)
-                    j = cid - i * ncol
-                da[i, j] = 1
-        elif ds.gridtype == "vertex":
-            da[cids.astype(int)] = 1
-
+    da = gdf_to_count_da(gdf, ds, ix=ix, buffer=buffer, **kwargs) > 0
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
+def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0., **kwargs):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1451,6 +1423,12 @@ def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
     keep_coords : tuple or None, optional
         the coordinates in ds the you want keep in your empty ds. If None all
         coordinates are kept from original ds. The default is None.
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
 
     Returns
     -------
@@ -1459,7 +1437,101 @@ def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
     ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
-    ds_out[da_name] = gdf_to_bool_da(gdf, ds)
+    ds_out[da_name] = gdf_to_bool_da(gdf, ds, ix=ix, buffer=buffer, **kwargs)
+
+    return ds_out
+
+
+def gdf_to_count_da(gdf, ds, ix=None, buffer=0., **kwargs):
+    """Counts in how many polygons a coordinate of ds appears.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame or shapely.geometry
+        shapes that will be rasterised.
+    ds : xr.DataSet
+        xarray with model data
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
+
+    Returns
+    -------
+    da : xr.DataArray
+        1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
+    """
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # transform gdf into model coordinates
+        affine = get_affine_world_to_mod(ds)
+        gdf = affine_transform_gdf(gdf, affine)
+
+    # build list of gridcells
+    if ix is None:
+        modelgrid = modelgrid_from_ds(ds)
+        ix = GridIntersect(modelgrid, method="vertex")
+
+    if ds.gridtype == "structured":
+        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
+    elif ds.gridtype == "vertex":
+        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=0)
+    else:
+        raise ValueError("function only support structured or vertex gridtypes")
+
+    if isinstance(gdf, gpd.GeoDataFrame):
+        geoms = gdf.geometry.values
+    elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
+        geoms = [gdf]
+
+    for geom in geoms:
+        if buffer > 0.:
+            cids = ix.intersects(geom.buffer(buffer), **kwargs)["cellids"]
+        else:
+            cids = ix.intersects(geom, **kwargs)["cellids"]
+
+        if len(cids) == 0:
+            continue
+
+        if ds.gridtype == "structured":
+            ixs, iys = zip(*cids)
+            da.values[ixs, iys] += 1
+        elif ds.gridtype == "vertex":
+            da[cids.astype(int)] += 1
+
+    return da
+
+
+def gdf_to_count_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0., **kwargs):
+    """Counts in how many polygons a coordinate of ds appears.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        polygon shapes with surface water.
+    ds : xr.DataSet
+        xarray with model data
+    da_name : str
+        The name of the variable with boolean data in the ds_out
+    keep_coords : tuple or None, optional
+        the coordinates in ds the you want keep in your empty ds. If None all
+        coordinates are kept from original ds. The default is None.
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
+
+    Returns
+    -------
+    ds_out : xr.Dataset
+        Dataset with a single DataArray, this DataArray is 1 if polygon is in
+        cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
+    """
+    ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
+    ds_out[da_name] = gdf_to_count_da(gdf, ds, ix=ix, buffer=buffer, **kwargs)
 
     return ds_out
 

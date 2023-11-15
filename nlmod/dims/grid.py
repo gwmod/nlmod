@@ -1145,9 +1145,9 @@ def gdf_to_da(
     gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0,
     ix=None
 ):
-    """Project vector data on a structured grid. Aggregate data if multiple
-    geometries are in a single cell. This method replaces
-    gdf_to_data_array_struc.
+    """Project vector data on a grid. Aggregate data if multiple
+    geometries are in a single cell. Supports structured and vertex grids. 
+    This method replaces gdf_to_data_array_struc.
 
     Parameters
     ----------
@@ -1267,8 +1267,7 @@ def _agg_max_area(gdf, col):
 
 
 def _agg_area_weighted(gdf, col):
-    nanmask = gdf[col].isna()
-    aw = (gdf.area * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].area.sum()
+    aw = (gdf.area * gdf[col]).sum(skipna=True) / gdf.area.sum(skipna=True)
     return aw
 
 
@@ -1340,7 +1339,8 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
         fields (keys) in the Geodataframe with their aggregation method (items)
         aggregation methods can be:
         max, min, mean, sum, length_weighted (lines), max_length (lines),
-        area_weighted (polygon), max_area (polygon).
+        area_weighted (polygon), max_area (polygon), and functions supported by
+        pandas.*GroupBy.agg().
     modelgrid : flopy Groundwater flow modelgrid
         only necesary if one of the field methods is 'nearest'
 
@@ -1378,10 +1378,26 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     # aggregate data
     gr = gdf.groupby(by="cellid")
     celldata = pd.DataFrame(index=gr.groups.keys())
-    for cid, group in tqdm(gr, desc="Aggregate vector data"):
-        agg_dic = _get_aggregates_values(group, fields_methods, modelgrid)
-        for key, item in agg_dic.items():
-            celldata.loc[cid, key] = item
+
+    for field, method in fields_methods.items():
+        if method == "area_weighted":
+            gdf["area_time_val"] = gdf["area"] * gdf[field]
+
+            # skipna is not implemented by groupby therefore we use min_count=1
+            celldata[field] = (
+                gdf.groupby(by="cellid")["area_time_val"].sum(min_count=1) / 
+                gr["area"].sum(min_count=1)
+            )
+
+        elif method in ("nearest", "length_weighted", "max_length", "max_area", "center_grid"):
+            for cid, group in tqdm(gr, desc="Aggregate vector data"):
+                agg_dic = _get_aggregates_values(group, fields_methods, modelgrid)
+
+                for key, item in agg_dic.items():
+                    celldata.loc[cid, key] = item
+            
+        else:
+            celldata[key] = gr[key].agg(method)
 
     return celldata
 

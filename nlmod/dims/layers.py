@@ -1380,20 +1380,17 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     needs to be inserted above the existing layer, and if the top or bottom of the
     existing layer needs to be altered.
 
-    For now, this method needs a layer model with a 3d-top, like you get using the
-    method `nlmod.read.get_regis()`, and does not function for a model Dataset with a 2d
-    (structured) or 1d (vertex) top.
-
     When comparing the height of the new layer with an existing layer, there are 7
     options:
 
     1 The new layer is entirely above the existing layer: layer is added completely
     above existing layer. When the bottom of the new layer is above the top of the
     existing layer (which can happen for the first layer), this creates a gap in the
-    layer model.
+    layer model. In the returned Dataset, this gap is added to the existing layer.
 
-    2 part of the new layer lies within an existing layer, bottom is never below: layer
-    is added above the existing layer, and the top of existing layer is lowered.
+    2 part of the new layer lies within an existing layer, but the bottom of the new
+    layer is never below the bottom of the existing layer: layer is added above the
+    existing layer, and the top of existing layer is lowered.
 
     3 there are locations where the new layer is above the bottom of the existing layer,
     but below the top of the existing layer. The new layer splits the existing layer
@@ -1457,9 +1454,6 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     todo = ~(np.isnan(top.data) | np.isnan(bot.data)) & ((top - bot).data > 0)
     if not todo.any():
         logger.warning(f"Thickness of new layer {name} is never larger than 0")
-    if copy:
-        # make a copy, so we are sure we do not alter the original DataSet
-        ds = ds.copy(deep=True)
     isplit = None
     for layer in ds.layer.data:
         if not todo.any():

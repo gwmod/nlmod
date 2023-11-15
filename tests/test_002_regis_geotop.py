@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import nlmod
 
 
@@ -21,8 +22,13 @@ def test_get_regis_botm_layer_BEk1(
 def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     geotop_ds = nlmod.read.geotop.get_geotop(extent)
     line = [(extent[0], extent[2]), (extent[1], extent[3])]
-    # also test the plot-method
-    nlmod.plot.geotop_lithok_in_cross_section(line, geotop_ds)
+
+    # also test the plot-methods
+    f, ax = plt.subplots()
+    nlmod.plot.geotop_lithok_in_cross_section(line, geotop_ds, ax=ax)
+
+    f, ax = plt.subplots()
+    nlmod.plot.geotop_lithok_on_map(geotop_ds, z=-20.2, ax=ax)
 
 
 # @pytest.mark.skip(reason="too slow")

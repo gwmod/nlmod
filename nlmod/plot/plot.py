@@ -309,7 +309,7 @@ def geotop_lithok_on_map(
     if "z" in lithok.dims:
         if z is None:
             raise (ValueError("Select a depth (z) in the GeoTOP data first"))
-        lithok = lithok.sel(z=z)
+        lithok = lithok.sel(z=z, method="nearest")
     if lithok_props is None:
         lithok_props = geotop.get_lithok_props()
 
@@ -326,7 +326,8 @@ def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
     if lithok is None:
         lithoks = lithok_props.index
     else:
-        lithoks = np.unique(lithok.data[~np.isnan(lithok)])
+        lithoks = np.unique(lithok)
+        lithoks = lithoks[~np.isnan(lithoks)]
     for index in lithoks:
         color = lithok_props.at[index, "color"]
         label = lithok_props.at[int(index), "name"]
@@ -335,9 +336,8 @@ def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
 
 
 def _get_geotop_cmap_and_norm(lithok, lithok_props):
-    if isinstance(lithok, xr.DataArray):
-        lithok = lithok.data
-    lithok_un = np.unique(lithok[~np.isnan(lithok)])
+    lithok_un = np.unique(lithok)
+    lithok_un = lithok_un[~np.isnan(lithok_un)]
     array = np.full(lithok.shape, np.NaN)
     colors = []
     for i, ilithok in enumerate(lithok_un):

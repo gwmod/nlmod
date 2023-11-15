@@ -183,7 +183,8 @@ def get_configuration():
             # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilbelsuit_Friese_boezem/MapServer",
             # "index": "BLAEU_WFG_GPG_BEHEER_PBHIDENT",
             "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilen/MapServer",
-            "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
+            # "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
+            "layer": 4,  # Peilgebied praktijk
             "index": "PBHIDENT",
             # "layer": 4,  # Peilbesluitenkaart
             # "index": "GPGIDENT",

@@ -1381,11 +1381,11 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
 
     for field, method in fields_methods.items():
         if method == "area_weighted":
-            gdf["area_time_val"] = gdf["area"] * gdf[field]
+            gdf["area_times_val"] = gdf["area"] * gdf[field]
 
             # skipna is not implemented by groupby therefore we use min_count=1
             celldata[field] = (
-                gdf.groupby(by="cellid")["area_time_val"].sum(min_count=1) / 
+                gdf.groupby(by="cellid")["area_times_val"].sum(min_count=1) /
                 gr["area"].sum(min_count=1)
             )
 

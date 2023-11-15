@@ -327,9 +327,9 @@ def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
         lithoks = lithok_props.index
     else:
         lithoks = np.unique(lithok.data[~np.isnan(lithok)])
-    for lithok in lithoks:
-        color = lithok_props.at[lithok, "color"]
-        label = lithok_props.at[int(lithok), "name"]
+    for index in lithoks:
+        color = lithok_props.at[index, "color"]
+        label = lithok_props.at[int(index), "name"]
         handles.append(Patch(facecolor=color, label=label))
     return ax.legend(handles=handles, **kwargs)
 

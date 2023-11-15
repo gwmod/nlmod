@@ -1442,8 +1442,14 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     shape = ds["botm"].shape[1:]
     assert top.shape == shape
     assert bot.shape == shape
-    msg = "Inserting layers is only supported with a 3d top for now"
-    assert "layer" in ds["top"].dims, msg
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
+    if "layer" in ds["top"].dims:
+        msg = "Top in ds has a layer dimension. insert_layer will remove the layer dimension from top in ds."
+        logger.warning(msg)
+    else:
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
     if kh is not None:
         assert kh.shape == shape
     if kv is not None:
@@ -1546,6 +1552,8 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         if isplit is not None:
             isplit += 1
         ds = _insert_layer_below(ds, None, name, isplit, mask, top, bot, kh, kv, copy)
+    # remove layer dimension from top again
+    ds = fill_top_and_bottom(ds, drop_layer_dim_from_top=True)
     return ds
 
 

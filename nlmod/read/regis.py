@@ -244,20 +244,19 @@ def add_geotop_to_regis_layers(
             gt = geotop.add_kh_and_kv(gt, geotop_k, anisotropy=anisotropy)
 
     # copy the regis-dataset, before altering it
-    rg = rg.copy()
+    rg = rg.copy(deep=True)
     if "layer" in rg["top"].dims:
-        logger.warning(
-            "From version 0.8 of nlmod the layer dimension in regis Dataset is not supported anymore. Remove the layer dimension, or redownload regis."
-        )
+        msg = "Top in rg has a layer dimension. add_geotop_to_regis_layers will remove the layer dimension from top in rg."
+        logger.warning(msg)
     else:
-        # temporarily set top in rg to 3d
+        # temporarily add layer dimension to top in rg
         rg["top"] = rg["botm"] + calculate_thickness(rg)
 
     for layer in layers:
         # transform geotop data into layers
         gtl = geotop.to_model_layers(gt)
 
-        # temporarily set top in gtl to 3d
+        # temporarily add layer dimension to top in gtl
         gtl["top"] = gtl["botm"] + calculate_thickness(gtl)
 
         # only keep the part of layers inside the regis layer

@@ -1,7 +1,6 @@
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 from shapely.geometry import LineString
 
 import nlmod
@@ -37,14 +36,14 @@ def compare_layer_models(
     else:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12), sharex=True)
     dcs1 = DatasetCrossSection(ds1, line=line, ax=ax1, zmin=zmin, zmax=zmax)
-    polys2 = dcs1.plot_layers(colors=colors, min_label_area=min_label_area)
+    dcs1.plot_layers(colors=colors, min_label_area=min_label_area)
     dcs1.plot_grid(linewidth=0.5, vertical=False)
     ax1.set_ylabel(ylabel)
 
     if ds2 is not None:
         ax1.set_title(title1)
         dcs2 = DatasetCrossSection(ds2, line=line, ax=ax2, zmin=zmin, zmax=zmax)
-        polys1 = dcs2.plot_layers(colors=colors, min_label_area=min_label_area)
+        dcs2.plot_layers(colors=colors, min_label_area=min_label_area)
         dcs2.plot_grid(linewidth=0.5, vertical=False)
         ax2.set_ylabel(ylabel)
         ax2.set_xlabel(xlabel)
@@ -108,21 +107,28 @@ def test_set_layer_botm(plot=False):
 
 
 def test_insert_layer():
+    # download regis
     ds1 = get_regis_horstermeer()
+
     # just replace the 2nd layer by a new insertion
     layer = ds1.layer.data[1]
     new_layer = "test"
+    ds1_top3d = ds1["botm"] + nlmod.layers.calculate_thickness(ds1)
     ds2 = nlmod.layers.insert_layer(
-        ds1, "test", ds1["top"].loc[layer], ds1["botm"].loc[layer]
+        ds1, "test", ds1_top3d.loc[layer], ds1["botm"].loc[layer]
     )
+
+    # make sure the total thickness of the two models is equal (does not assert to True yet)
     # total_thickness1 = float(nlmod.layers.calculate_thickness(ds1).sum())
     # total_thickness2 = float(nlmod.layers.calculate_thickness(ds2).sum())
     # assert total_thickness1 == total_thickness2
+
+    # msake sure the original layer has no thickness left
     assert nlmod.layers.calculate_thickness(ds2).loc[layer].sum() == 0
-    mask = ~np.isnan(ds1["top"].loc[layer])
-    assert (
-        ds2["top"].loc[new_layer].data[mask] == ds1["top"].loc[layer].data[mask]
-    ).all()
-    assert (
-        ds2["botm"].loc[new_layer].data[mask] == ds1["botm"].loc[layer].data[mask]
-    ).all()
+
+    # make sure the top of the new layer is euqal to the top of the original layer
+    ds2_top3d = ds2["botm"] + nlmod.layers.calculate_thickness(ds2)
+    assert (ds2_top3d.loc[new_layer] == ds1_top3d.loc[layer]).all()
+
+    # make sure the top of the new layer is euqal to the top of the original layer
+    assert (ds2["botm"].loc[new_layer] == ds1["botm"].loc[layer]).all()

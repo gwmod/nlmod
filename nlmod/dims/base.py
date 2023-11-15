@@ -227,7 +227,7 @@ def extrapolate_ds(ds, mask=None, layer="layer"):
         data = ds[key].data
         if ds[key].dims == dims:
             if np.isnan(data[mask]).sum() > 0:  # do not update if no NaNs
-                data[mask] = data[~mask, i]
+                data[mask] = data[~mask][i]
         elif ds[key].dims == (layer,) + dims:
             for lay in range(len(ds[layer])):
                 if np.isnan(data[lay, mask]).sum() > 0:  # do not update if no NaNs

@@ -1207,9 +1207,15 @@ def gdf_to_da(
             )
         else:
             gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
+    
     da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
-    for ind, row in gdf_agg.iterrows():
-        da.values[ind] = row[column]
+
+    if ds.gridtype == "structured":
+        ixs, iys = zip(*gdf_agg.index.values)
+        da.values[ixs, iys] = gdf_agg[column]
+    elif ds.gridtype == "vertex":
+        da[gdf_agg.index] = gdf_agg[column]
+    
     return da
 
 

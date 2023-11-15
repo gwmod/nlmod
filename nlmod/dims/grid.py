@@ -1207,7 +1207,7 @@ def gdf_to_da(
             )
         else:
             gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
-    
+
     da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
 
     if ds.gridtype == "structured":

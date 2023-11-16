@@ -1215,7 +1215,7 @@ def gdf_to_da(
         da.values[ixs, iys] = gdf_agg[column]
     elif ds.gridtype == "vertex":
         da[gdf_agg.index] = gdf_agg[column]
-    
+
     return da
 
 
@@ -1391,7 +1391,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
 
         elif method in ("nearest", "length_weighted", "max_length", "max_area", "center_grid"):
             for cid, group in tqdm(gr, desc="Aggregate vector data"):
-                agg_dic = _get_aggregates_values(group, fields_methods, modelgrid)
+                agg_dic = _get_aggregates_values(group, {field: method}, modelgrid)
 
                 for key, item in agg_dic.items():
                     celldata.loc[cid, key] = item

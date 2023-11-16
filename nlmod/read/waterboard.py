@@ -271,12 +271,17 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
+            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Watergangen/Watergangen/MapServer",
+            "layer": 1,  # primair
+            # "layer": 2,  # secundair
+            "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
+            "bottom_width": "AVVBODDR",
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebieden/MapServer",
-            "layer": 3,
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/VenH/Peilgebieden/MapServer",
+            "layer": 2,
             "index": "GPGIDENT",
             "summer_stage": "OPVAFWZP",
             "winter_stage": "OPVAFWWP",

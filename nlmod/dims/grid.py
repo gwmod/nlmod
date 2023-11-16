@@ -1397,7 +1397,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
                     celldata.loc[cid, key] = item
 
         else:
-            celldata[key] = gr[key].agg(method)
+            celldata[field] = gr[field].agg(method)
 
     return celldata
 

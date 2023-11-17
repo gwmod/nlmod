@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import matplotlib.pyplot as plt
 from shapely.geometry import LineString
 
@@ -52,10 +53,52 @@ def compare_layer_models(
         ax1.set_xlabel(xlabel)
 
 
-def plot_test(ds, ds_new):
-    line = LineString([(ds.extent[0], ds.extent[2]), (ds.extent[1], ds.extent[3])])
-    colors = nlmod.read.regis.get_legend()["color"].to_dict()
+def plot_test(ds, ds_new, line=None, colors=None):
+    if line is None:
+        line = LineString([(ds.extent[0], ds.extent[2]), (ds.extent[1], ds.extent[3])])
+    if colors is None:
+        colors = nlmod.read.regis.get_legend()["color"].to_dict()
     compare_layer_models(ds, line, colors, ds_new)
+
+
+def test_split_layers():
+    regis = get_regis_horstermeer()
+    split_dict = {"PZWAz2": (0.3, 0.3, 0.4), "PZWAz3": (0.2, 0.2, 0.2, 0.2, 0.2)}
+    regis_split, split_reindexer = nlmod.layers.split_layers_ds(
+        regis, split_dict, return_reindexer=True
+    )
+    assert (
+        nlmod.layers.calculate_thickness(regis).sum()
+        == nlmod.layers.calculate_thickness(regis_split).sum()
+    )
+
+    # diagonal line through extent
+    colors = nlmod.read.regis.get_legend()["color"].to_dict()
+    for j, i in split_reindexer.items():
+        if j not in colors:
+            colors[j] = colors[i]
+    plot_test(regis, regis_split, colors=colors)
+
+
+def test_add_layer_dim_to_top():
+    regis = get_regis_horstermeer()
+    nlmod.layers.add_layer_dim_to_top(regis)
+
+
+def test_combine_layers():
+    regis = get_regis_horstermeer()
+    combine_layers = [
+        tuple(np.argwhere(regis.layer.str.startswith("URz").data).squeeze().tolist()),
+        tuple(
+            np.argwhere(regis.layer.isin(["PZWAz2", "PZWAz3"]).data).squeeze().tolist()
+        ),
+    ]
+    regis_combined = nlmod.layers.combine_layers_ds(
+        regis, combine_layers, kD=None, c=None
+    )
+
+    # plot comparison
+    plot_test(regis, regis_combined)
 
 
 def test_set_layer_thickness(plot=False):

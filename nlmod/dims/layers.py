@@ -240,6 +240,13 @@ def split_layers_ds(
 
     logger.info(f"Splitting layers {list(split_dict)}")
 
+    if "layer" in ds["top"].dims:
+        msg = "Top in ds has a layer dimension. split_layers_ds will remove the layer dimension from top in ds."
+        logger.warning(msg)
+    else:
+        ds = ds.copy()
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
+
     layers_org = layers.copy()
     # add extra layers (keep the original ones for now, as we will copy data first)
     for lay0 in split_dict:
@@ -266,6 +273,9 @@ def split_layers_ds(
 
     # drop the original layers
     ds = ds.drop_sel(layer=list(split_dict))
+
+    # remove layer dimension from top again
+    ds = remove_layer_dim_from_top(ds)
 
     if return_reindexer:
         # determine reindexer
@@ -559,6 +569,13 @@ def combine_layers_ds(
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
 
+    if "layer" in ds["top"].dims:
+        msg = "Top in ds has a layer dimension. combine_layers_ds will remove the layer dimension from top in ds."
+        logger.warning(msg)
+    else:
+        ds = ds.copy()
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
+
     da_dict = {}
 
     new_top, new_bot, reindexer = layer_combine_top_bot(
@@ -603,6 +620,9 @@ def combine_layers_ds(
     # create new dataset
     logger.info("Done! Created new dataset with combined layers!")
     ds_combine = xr.Dataset(da_dict, attrs=attrs)
+
+    # remove layer dimension from top again
+    ds = remove_layer_dim_from_top(ds)
 
     return ds_combine
 
@@ -982,7 +1002,7 @@ def fill_nan_top_botm_kh_kv(
     """
 
     # 1
-    ds = fill_top_and_bottom(ds)
+    ds = remove_layer_dim_from_top(ds)
 
     # 2
     if remove_nan_layers:
@@ -1002,32 +1022,27 @@ def fill_nan_top_botm_kh_kv(
     return ds
 
 
-def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
+def fill_nan_top_botm(ds):
     """
-    Remove Nans in botm variable, and change top from 3d to 2d if necessary.
+    Remove Nans in non-existent layers in botm and top variables
+
+    The NaNs are removed by setting the value to the top and botm of higher/lower
+    layers that do exist.
 
     Parameters
     ----------
     ds : xr.DataSet
         model DataSet
-    drop_layer_dim_from_top : bool, optional
-        If True and top contains a layer dimension, set top to the top of the upper
-        layer (line the definition in MODFLOW). This removes redundant data, as the top
-        of all layers exept the most upper one is also defined as the bottom of previous
-        layers. The default is True.
 
     Returns
     -------
     ds : xarray.Dataset
-        dataset with filled top and bottom data according to modflow definition,
-        with 2d top and 3d bottom.
+        dataset with filled top and botm data
     """
-
     if "layer" in ds["top"].dims:
         top_max = ds["top"].max("layer")
     else:
         top_max = ds["top"]
-
     # fill nans in botm of the first layer
     ds["botm"][0] = ds["botm"][0].where(~ds["botm"][0].isnull(), top_max)
 
@@ -1038,16 +1053,92 @@ def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
         # remove nans from top by setting it equal to botm
         # which sets the layer thickness to 0
         ds["top"] = ds["top"].where(~ds["top"].isnull(), ds["botm"])
+    return ds
 
-        if drop_layer_dim_from_top:
+
+def set_nan_top_and_botm(ds):
+    """
+    Sets Nans for non-existent layers in botm and top variables
+
+    Nans are only added to top when it contains a layer dimension.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model DataSet
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset with nans in top and botm at non-existent layers.
+    """
+    thickness = calculate_thickness(ds)
+    mask = thickness > 0
+    if "layer" in ds["top"].dims:
+        ds["top"] = ds["top"].where(mask)
+    ds["botm"] = ds["botm"].where(mask)
+    return ds
+
+
+def remove_layer_dim_from_top(ds, check=True, set_non_existing_layers_to_nan=False):
+    """
+    Change top from 3d to 2d, removing NaNs in top and botm in the process.
+
+    This method sets variable `top` to the top of the upper layer (like the definition
+    in MODFLOW). This removes redundant data, as the top of all layers exept the most
+    upper one is also defined as the bottom of lower layers.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model DataSet
+    check : bool, optional
+        If True, checks for inconsistensies in the layer model and report to logger as
+        warning. The defaults is True.
+    set_non_existing_layers_to_nan bool, optional
+        If True, sets the value of the botm-variable to NaN for non-existent layers.
+        This is not recommended, as this might break some procedures in nlmod. The
+        defaults is False.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset without a layer dimension in top.
+    """
+    if "layer" in ds["top"].dims:
+        ds = fill_nan_top_botm(ds)
+        if check:
             dz = ds["botm"][:-1].data - ds["top"][1:].data
             voids = np.abs(dz) > 0
             if voids.sum() > 0:
                 n = int(voids.sum())
                 msg = f"Botm of layer is not equal to top of deeper layer in {n} cells"
                 logger.warning(msg)
-            ds["top"] = top_max
+        ds["top"] = ds["top"][0]
+    if set_non_existing_layers_to_nan:
+        ds = set_nan_top_and_botm(ds)
+    return ds
 
+
+def add_layer_dim_to_top(ds, set_non_existing_layers_to_nan=True):
+    """
+    Change top from 2d to 3d, setting top and botm to NaN for non-existent layers.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model DataSet
+    set_non_existing_layers_to_nan : bool, optional
+        If True, set the values of top and botm to . The default is True.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset with a layer dimension in top.
+    """
+    ds["top"] = ds["botm"] + calculate_thickness(ds)
+    if set_non_existing_layers_to_nan:
+        set_nan_top_and_botm(ds)
     return ds
 
 
@@ -1547,7 +1638,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
             isplit += 1
         ds = _insert_layer_below(ds, None, name, isplit, mask, top, bot, kh, kv, copy)
     # remove layer dimension from top again
-    ds = fill_top_and_bottom(ds, drop_layer_dim_from_top=True)
+    ds = remove_layer_dim_from_top(ds)
     return ds
 
 

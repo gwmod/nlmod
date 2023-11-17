@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import cache
-from ..dims.layers import calculate_thickness, fill_top_and_bottom
+from ..dims.layers import calculate_thickness, remove_layer_dim_from_top
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def get_regis(
             raise (Exception(msg))
 
     if drop_layer_dim_from_top:
-        ds = fill_top_and_bottom(ds, drop_layer_dim_from_top=drop_layer_dim_from_top)
+        ds = remove_layer_dim_from_top(ds)
 
     # slice data vars
     if variables is not None:
@@ -285,7 +285,7 @@ def add_geotop_to_regis_layers(
         rg = rg.reindex({"layer": layer_order})
 
     # remove the layer dimension from top again
-    rg = fill_top_and_bottom(rg, drop_layer_dim_from_top=True)
+    rg = remove_layer_dim_from_top(rg)
     return rg
 
 

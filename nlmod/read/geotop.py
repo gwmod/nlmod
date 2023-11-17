@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
-from ..dims.layers import insert_layer, remove_layer, fill_top_and_bottom
+from ..dims.layers import insert_layer, remove_layer, remove_layer_dim_from_top
 from ..util import MissingValueError
 
 logger = logging.getLogger(__name__)
@@ -215,7 +215,7 @@ def to_model_layers(
     ds.attrs["geulen"] = geulen
 
     if drop_layer_dim_from_top:
-        ds = fill_top_and_bottom(ds, drop_layer_dim_from_top=drop_layer_dim_from_top)
+        ds = remove_layer_dim_from_top(ds)
 
     if "kh" in geotop_ds and "kv" in geotop_ds:
         aggregate_to_ds(geotop_ds, ds, **kwargs)

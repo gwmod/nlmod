@@ -1381,12 +1381,13 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
 
     for field, method in fields_methods.items():
         if method == "area_weighted":
-            gdf["area_times_val"] = gdf["area"] * gdf[field]
+            gdf_copy = gdf.copy()
+            gdf_copy["area_times_field"] = gdf_copy["area"] * gdf_copy[field]
 
             # skipna is not implemented by groupby therefore we use min_count=1
             celldata[field] = (
-                gdf.groupby(by="cellid")["area_times_val"].sum(min_count=1) /
-                gr["area"].sum(min_count=1)
+                gdf_copy.groupby(by="cellid")["area_times_field"].sum(min_count=1) /
+                gdf_copy.groupby(by="cellid")["area"].sum(min_count=1)
             )
 
         elif method in ("nearest", "length_weighted", "max_length", "max_area", "center_grid"):

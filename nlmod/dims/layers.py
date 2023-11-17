@@ -275,7 +275,7 @@ def split_layers_ds(
     ds = ds.drop_sel(layer=list(split_dict))
 
     # remove layer dimension from top again
-    ds = remove_layer_dim_from_top(ds)
+    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
 
     if return_reindexer:
         # determine reindexer
@@ -622,7 +622,7 @@ def combine_layers_ds(
     ds_combine = xr.Dataset(da_dict, attrs=attrs)
 
     # remove layer dimension from top again
-    ds = remove_layer_dim_from_top(ds)
+    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
 
     return ds_combine
 
@@ -702,18 +702,11 @@ def set_model_top(ds, top, min_thickness=0.0):
     ds : xarray.Dataset
         The model dataset, containing the new top.
     """
-    if "gridtype" not in ds.attrs:
-        raise (
-            KeyError(
-                "Dataset does not have attribute 'gridtype'. "
-                "Either add attribute or use nlmod functions to build the dataset."
-            )
-        )
     if "layer" in ds["top"].dims:
         raise (ValueError("set_model_top does not support top with a layer dimension"))
     if isinstance(top, (float, int)):
         top = xr.full_like(ds["top"], top)
-    if not top.shape == ds["top"].shape:
+    elif not top.shape == ds["top"].shape:
         raise (
             ValueError("Please make sure the new top has the same shape as the old top")
         )
@@ -1080,7 +1073,13 @@ def set_nan_top_and_botm(ds):
     return ds
 
 
-def remove_layer_dim_from_top(ds, check=True, set_non_existing_layers_to_nan=False):
+def remove_layer_dim_from_top(
+    ds,
+    check=True,
+    set_non_existing_layers_to_nan=False,
+    inconsistency_threshold=0.0,
+    return_inconsistencies=False,
+):
     """
     Change top from 3d to 2d, removing NaNs in top and botm in the process.
 
@@ -1093,27 +1092,42 @@ def remove_layer_dim_from_top(ds, check=True, set_non_existing_layers_to_nan=Fal
     ds : xr.DataSet
         model DataSet
     check : bool, optional
-        If True, checks for inconsistensies in the layer model and report to logger as
+        If True, checks for inconsistencies in the layer model and report to logger as
         warning. The defaults is True.
     set_non_existing_layers_to_nan bool, optional
         If True, sets the value of the botm-variable to NaN for non-existent layers.
         This is not recommended, as this might break some procedures in nlmod. The
-        defaults is False.
+        default is False.
+    inconsistency_threshold : float, optional
+        The threshold, above which to report inconsistencies in the layer model (where
+        the botm of a layer is not equal to top of a deeper layer). The default is 0.0.
+    return_inconsistencies : bool, optional
+        if True, return the difference between the top of layers and the botm of a
+        deeper layer, at the location where inconsitencies have been reported.
 
     Returns
     -------
-    ds : xarray.Dataset
-        dataset without a layer dimension in top.
+    ds : xarray.Dataset or numpy.array
+        dataset without a layer dimension in top, if return_inconsistencies is False. If
+        return_inconsistencies is True, a numpy arrays with non-equal top and bottoms is
+        returned.
     """
     if "layer" in ds["top"].dims:
         ds = fill_nan_top_botm(ds)
         if check:
             dz = ds["botm"][:-1].data - ds["top"][1:].data
-            voids = np.abs(dz) > 0
-            if voids.sum() > 0:
-                n = int(voids.sum())
+            inconsistencies = np.abs(dz) > inconsistency_threshold
+            n = inconsistencies.sum()
+            if n > 0:
                 msg = f"Botm of layer is not equal to top of deeper layer in {n} cells"
                 logger.warning(msg)
+                if return_inconsistencies:
+                    return np.vstack(
+                        (
+                            ds["botm"].data[:-1][inconsistencies],
+                            ds["top"].data[1:][inconsistencies],
+                        )
+                    )
         ds["top"] = ds["top"][0]
     if set_non_existing_layers_to_nan:
         ds = set_nan_top_and_botm(ds)
@@ -1638,7 +1652,7 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
             isplit += 1
         ds = _insert_layer_below(ds, None, name, isplit, mask, top, bot, kh, kv, copy)
     # remove layer dimension from top again
-    ds = remove_layer_dim_from_top(ds)
+    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
     return ds
 
 

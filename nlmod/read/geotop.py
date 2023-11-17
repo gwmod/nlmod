@@ -247,7 +247,7 @@ def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
         url of geotop netcdf file. The default is
         http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
     probabilities : bool, optional
-        if True, keep probability data in returned Dataset. The default is False.
+        if True, also download probability data. The default is False.
 
     Returns
     -------

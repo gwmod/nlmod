@@ -322,6 +322,7 @@ def geotop_lithok_on_map(
 
 
 def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
+    """Add a legend with lithok-data"""
     handles = []
     if lithok is None:
         lithoks = lithok_props.index
@@ -336,6 +337,7 @@ def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
 
 
 def _get_geotop_cmap_and_norm(lithok, lithok_props):
+    """Get an array of lithok-values, with a corresponding colormap and norm"""
     lithok_un = np.unique(lithok)
     lithok_un = lithok_un[~np.isnan(lithok_un)]
     array = np.full(lithok.shape, np.NaN)

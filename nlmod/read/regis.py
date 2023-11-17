@@ -244,13 +244,13 @@ def add_geotop_to_regis_layers(
             gt = geotop.add_kh_and_kv(gt, geotop_k, anisotropy=anisotropy)
 
     # copy the regis-dataset, before altering it
+    rg = rg.copy(deep=True)
     if "layer" in rg["top"].dims:
         msg = "Top in rg has a layer dimension. add_geotop_to_regis_layers will remove the layer dimension from top in rg."
         logger.warning(msg)
-        rg_top = rg["top"]
     else:
         # temporarily add layer dimension to top in rg
-        rg_top = rg["botm"] + calculate_thickness(rg)
+        rg["top"] = rg["botm"] + calculate_thickness(rg)
 
     for layer in layers:
         # transform geotop data into layers
@@ -260,7 +260,7 @@ def add_geotop_to_regis_layers(
         gtl["top"] = gtl["botm"] + calculate_thickness(gtl)
 
         # only keep the part of layers inside the regis layer
-        top = rg_top.loc[layer]
+        top = rg["top"].loc[layer]
         bot = rg["botm"].loc[layer]
         gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] < top), top)
         gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] > bot), bot)

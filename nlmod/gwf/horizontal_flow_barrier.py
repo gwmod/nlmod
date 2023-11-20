@@ -46,6 +46,9 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
 
     cells = line2hfb(linestrings, gwf)
 
+    # drop cells on the edge of the model
+    cells = [x for x in cells if len(x) > 1]
+
     spd = []
 
     # hydchr = 1 / 100  # resistance of 100 days

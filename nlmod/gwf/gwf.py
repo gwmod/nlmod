@@ -928,7 +928,7 @@ def buy(ds, gwf, pname="buy", **kwargs):
         ds, "denseref", attr="denseref", value=kwargs.pop("denseref", None)
     )
 
-    pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "none")]
+    pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "CONCENTRATION")]
 
     buy = flopy.mf6.ModflowGwfbuy(
         gwf,

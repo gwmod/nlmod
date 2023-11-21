@@ -183,7 +183,8 @@ def get_configuration():
             # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilbelsuit_Friese_boezem/MapServer",
             # "index": "BLAEU_WFG_GPG_BEHEER_PBHIDENT",
             "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilen/MapServer",
-            "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
+            # "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
+            "layer": 4,  # Peilgebied praktijk
             "index": "PBHIDENT",
             # "layer": 4,  # Peilbesluitenkaart
             # "index": "GPGIDENT",
@@ -270,12 +271,17 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
+            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Watergangen/Watergangen/MapServer",
+            "layer": 1,  # primair
+            # "layer": 2,  # secundair
+            "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
+            "bottom_width": "AVVBODDR",
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebieden/MapServer",
-            "layer": 3,
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/VenH/Peilgebieden/MapServer",
+            "layer": 2,
             "index": "GPGIDENT",
             "summer_stage": "OPVAFWZP",
             "winter_stage": "OPVAFWWP",

@@ -2,6 +2,7 @@ import warnings
 from functools import partial
 
 import flopy as fp
+import xarray as xr
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -203,7 +204,7 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
         y = da.y
         if rotated:
             if ds is None:
-                raise (Exception("Supply model dataset (ds) for grid information"))
+                raise (ValueError("Supply model dataset (ds) for grid information"))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine_mod_to_world(ds)
                 x, y = affine * np.meshgrid(x, y)
@@ -223,7 +224,7 @@ def geotop_lithok_in_cross_section(
         The voxel-dataset from GeoTOP. It is downloaded with the method
         `nlmod.read.geotop.get_geotop()` if None. The default is None.
     ax : matplotlib.Axes, optional
-        The axes in whcih the cross-section is plotted. Will default to the current axes
+        The axes in which the cross-section is plotted. Will default to the current axes
         if None. The default is None.
     legend : bool, optional
         When True, add a legend to the plot with the lithology-classes. The default is
@@ -259,27 +260,95 @@ def geotop_lithok_in_cross_section(
         lithok_props = geotop.get_lithok_props()
 
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
-    lithoks = gt["lithok"].values
-    lithok_un = np.unique(lithoks[~np.isnan(lithoks)])
-    array = np.full(lithoks.shape, np.NaN)
-
-    colors = []
-    for i, lithok in enumerate(lithok_un):
-        lithok = int(lithok)
-        array[lithoks == lithok] = i
-        colors.append(lithok_props.at[lithok, "color"])
-    cmap = ListedColormap(colors)
-    norm = Normalize(-0.5, np.nanmax(array) + 0.5)
+    array, cmap, norm = _get_geotop_cmap_and_norm(gt["lithok"], lithok_props)
     cs.plot_array(array, norm=norm, cmap=cmap)
     if legend:
         # make a legend with dummy handles
-        handles = []
-        for i, lithok in enumerate(lithok_un):
-            label = lithok_props.at[int(lithok), "name"]
-            handles.append(Patch(facecolor=colors[i], label=label))
-        ax.legend(handles=handles, loc=legend_loc)
+        _add_geotop_lithok_legend(lithok_props, ax, lithok=gt["lithok"], loc=legend_loc)
 
     return cs
+
+
+def geotop_lithok_on_map(
+    gt, z=None, ax=None, legend=True, legend_loc=None, lithok_props=None, **kwargs
+):
+    """PLot the lithoclass-data of GeoTOP on a map.
+
+    Parameters
+    ----------
+    gt : xr.Dataset or xr.DataArray
+        The voxel-dataset from GeoTOP or the lithok-DataArray from GeoTOP.
+    z : float, optional
+        The z-value of the lithok-data to plot on the map.
+    ax : matplotlib.Axes, optional
+        The axes in which the array is plotted. Will default to the current axes if
+        None. The default is None.
+    legend : bool, optional
+        When True, add a legend to the plot with the lithology-classes. The default is
+        True.
+    legend_loc : None or str, optional
+        The location of the legend. See matplotlib documentation. The default is None.
+    lithok_props : pd.DataFrame, optional
+        A DataFrame containing the properties of the lithoclasses.
+        Will call nlmod.read.geotop.get_lithok_props() when None. The default is None.
+
+    **kwargs : dict
+        kwargs are passed onto ax.pcolormesh.
+
+    Returns
+    -------
+    qm : matplotlib.collections.QuadMesh
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    if isinstance(gt, xr.Dataset):
+        lithok = gt["lithok"]
+    else:
+        lithok = gt
+    if "z" in lithok.dims:
+        if z is None:
+            raise (ValueError("Select a depth (z) in the GeoTOP data first"))
+        lithok = lithok.sel(z=z, method="nearest")
+    if lithok_props is None:
+        lithok_props = geotop.get_lithok_props()
+
+    array, cmap, norm = _get_geotop_cmap_and_norm(lithok, lithok_props)
+    qm = ax.pcolormesh(lithok.x, lithok.y, array, norm=norm, cmap=cmap, **kwargs)
+    if legend:
+        # make a legend with dummy handles
+        _add_geotop_lithok_legend(lithok_props, ax, lithok=lithok, loc=legend_loc)
+    return qm
+
+
+def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
+    """Add a legend with lithok-data"""
+    handles = []
+    if lithok is None:
+        lithoks = lithok_props.index
+    else:
+        lithoks = np.unique(lithok)
+        lithoks = lithoks[~np.isnan(lithoks)]
+    for index in lithoks:
+        color = lithok_props.at[index, "color"]
+        label = lithok_props.at[int(index), "name"]
+        handles.append(Patch(facecolor=color, label=label))
+    return ax.legend(handles=handles, **kwargs)
+
+
+def _get_geotop_cmap_and_norm(lithok, lithok_props):
+    """Get an array of lithok-values, with a corresponding colormap and norm"""
+    lithok_un = np.unique(lithok)
+    lithok_un = lithok_un[~np.isnan(lithok_un)]
+    array = np.full(lithok.shape, np.NaN)
+    colors = []
+    for i, ilithok in enumerate(lithok_un):
+        ilithok = int(ilithok)
+        array[lithok == ilithok] = i
+        colors.append(lithok_props.at[ilithok, "color"])
+    cmap = ListedColormap(colors)
+    norm = Normalize(-0.5, np.nanmax(array) + 0.5)
+    return array, cmap, norm
 
 
 def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True, extent=None):

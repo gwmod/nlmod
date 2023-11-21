@@ -83,7 +83,9 @@ def test_split_layers(plot=False):
 
 def test_add_layer_dim_to_top():
     regis = get_regis_horstermeer()
-    nlmod.layers.add_layer_dim_to_top(regis)
+    ds = nlmod.layers.add_layer_dim_to_top(regis)
+    assert "layer" in ds["top"].dims
+    assert ds["botm"].isnull().any()
 
 
 def test_combine_layers(plot=False):

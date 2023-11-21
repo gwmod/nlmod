@@ -1165,7 +1165,7 @@ def remove_layer_dim_from_top(
                     )
         ds["top"] = ds["top"][0]
     if set_non_existing_layers_to_nan:
-        ds = set_nan_top_and_botm(ds)
+        ds = set_nan_top_and_botm(ds, copy=False)
     return ds
 
 
@@ -1193,8 +1193,28 @@ def add_layer_dim_to_top(ds, set_non_existing_layers_to_nan=True, copy=True):
         ds = ds.copy(deep=True)
     ds["top"] = ds["botm"] + calculate_thickness(ds)
     if set_non_existing_layers_to_nan:
-        set_nan_top_and_botm(ds)
+        ds = set_nan_top_and_botm(ds, copy=False)
     return ds
+
+
+def convert_to_modflow_top_bot(ds, **kwargs):
+    """
+    Removes the layer dimension from top and fills nans in top and botm.
+
+    Alias to remove_layer_dim_from_top
+
+    """
+    ds = remove_layer_dim_from_top(ds, **kwargs)
+
+
+def convert_to_regis_top_bot(ds, **kwargs):
+    """
+    Adds a layer dimension to top and sets non-existing cells to nan in top and botm.
+
+    Alias to add_layer_dim_to_top
+
+    """
+    ds = add_layer_dim_to_top(ds, **kwargs)
 
 
 def remove_inactive_layers(ds):

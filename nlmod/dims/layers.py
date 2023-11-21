@@ -696,6 +696,12 @@ def set_model_top(ds, top, min_thickness=0.0, copy=True):
         The model dataset, containing the current top.
     top : xarray.DataArray
         The new model top, with the same shape as the current top.
+    min_thickness : float, optional
+        The minimum thickness of top layers. When the thickness is less than
+        min_thickness, the thicjness is added to a deeper layer. The default is 0.0.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
 
     Returns
     -------
@@ -719,7 +725,7 @@ def set_model_top(ds, top, min_thickness=0.0, copy=True):
     # set the botm to the new top at these locations
     ds["botm"] = ds["botm"].where(ds["botm"] != ds["top"], top)
     # make sure the botm is never higher than the new top
-    ds["botm"] = ds["botm"].where(top - ds["botm"] > min_thickness, top)
+    ds["botm"] = ds["botm"].where((top - ds["botm"]) > min_thickness, top)
     # change the current top
     ds["top"] = top
     # remove inactive layers
@@ -764,14 +770,12 @@ def set_layer_botm(ds, layer, botm, copy=True):
         # make a copy, so we are sure we do not alter the original DataSet
         ds = ds.copy(deep=True)
     lay = np.where(ds.layer == layer)[0][0]
-    # if lay > 0 and np.any(botm > ds["botm"][lay - 1]):
-    #    raise (Exception("set_layer_botm cannot change botm of higher layers yet"))
+    # make sure the botm of the layers above is lever lower than the new botm
     ds["botm"][:lay] = ds["botm"][:lay].where(ds["botm"][:lay] > botm, botm)
     ds["botm"][lay] = botm
     # make sure the botm of the layers below is never higher than the new botm
     mask = ds["botm"][lay + 1 :] < botm
     ds["botm"][lay + 1 :] = ds["botm"][lay + 1 :].where(mask, botm)
-    # make sure the botm of the layers above is lever lower than the new botm
     return ds
 
 
@@ -1077,6 +1081,9 @@ def set_nan_top_and_botm(ds, copy=True):
     ----------
     ds : xr.DataSet
         model DataSet
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
 
     Returns
     -------
@@ -1126,6 +1133,9 @@ def remove_layer_dim_from_top(
     return_inconsistencies : bool, optional
         if True, return the difference between the top of layers and the botm of a
         deeper layer, at the location where inconsitencies have been reported.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
 
     Returns
     -------
@@ -1169,6 +1179,9 @@ def add_layer_dim_to_top(ds, set_non_existing_layers_to_nan=True, copy=True):
         model DataSet
     set_non_existing_layers_to_nan : bool, optional
         If True, set the values of top and botm to . The default is True.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
 
     Returns
     -------

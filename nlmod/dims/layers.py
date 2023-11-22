@@ -223,7 +223,7 @@ def split_layers_ds(
 
     layers = list(ds.layer.data)
 
-    # Work on a copy of split_dict
+    # Work on a shallow copy of split_dict
     split_dict = split_dict.copy()
 
     # do some input-checking on split_dict
@@ -233,7 +233,7 @@ def split_layers_ds(
             # replace lay0 by the name of the layer
             split_dict[layers[lay0]] = split_dict.pop(lay0)
             lay0 = layers[lay0]
-        if isinstance(split_dict[lay0], int):
+        if isinstance(split_dict[lay0], (int, np.integer)):
             # If split_dict[lay0] is of integer type
             # split the layer in evenly thick layers
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]

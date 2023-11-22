@@ -223,6 +223,9 @@ def split_layers_ds(
 
     layers = list(ds.layer.data)
 
+    # Work on a copy of split_dict
+    split_dict = split_dict.copy()
+
     # do some input-checking on split_dict
     for lay0 in list(split_dict):
         if isinstance(lay0, int) & (ds.layer.dtype != int):

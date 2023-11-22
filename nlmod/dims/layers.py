@@ -817,10 +817,35 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm", copy=Tr
     return ds
 
 
-def remove_thin_layers(ds, min_thickness=0.1, copy=True):
-    """Remove layers from cells with a thickness less than min_thickness
+def remove_thin_layers(
+    ds, min_thickness=0.1, update_thickness_every_layer=False, copy=True
+):
+    """
+    Remove layers from cells with a thickness less than min_thickness
 
     The thickness of the removed cells is added to the first active layer below
+
+    Parameters
+    ----------
+    ds : xr,Dataset
+        Dataset containing information about layers.
+    min_thickness : float, optional
+        THe minimum thickness of a layer. The default is 0.1.
+    update_thickness_every_layer : bool, optional
+        If True, loop over the layers, from the top down, and remove thin layers, adding
+        the thickness to the first active layer below. If the thickness of this layer is
+        increased more than min_thickness (even if it originally was thinner than
+        min_thickness), the layer is kept. If update_thickness_every_layer is False, the
+        thickness of all cells that originally were thinner than min_thickness is set to
+        0. The default is False.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
+    Returns
+    -------
+    ds : xr.Dataset
+        Dataset containing information about layers.
+
     """
     if "layer" in ds["top"].dims:
         msg = "remove_thin_layers does not support top with a layer dimension"
@@ -829,27 +854,36 @@ def remove_thin_layers(ds, min_thickness=0.1, copy=True):
         # make a copy, so we are sure we do not alter the original DataSet
         ds = ds.copy(deep=True)
     thickness = calculate_thickness(ds)
-    for lay_org in range(len(ds.layer)):
-        # determine where the layer is too thin
-        mask = thickness[lay_org] < min_thickness
-        if mask.any():
-            # we will set the botm to the top in these cells, so we first get the top
-            if lay_org == 0:
-                top = ds["top"]
-            else:
-                top = ds["botm"][lay_org - 1]
-            # loop over the layers, starting from lay_org
-            for lay in range(lay_org, len(ds.layer)):
-                if lay > lay_org:
-                    # only keep cells in mask that had no thickness to begin with
-                    # we need to increase the botm in these cells as well
-                    mask = mask & (thickness[lay + 1] <= 0)
-                    if not mask.any():
-                        break
-                # set the botm equal to the top in the cells in mask
-                ds["botm"][lay].data[mask] = top.data[mask]
-            # calculate the thickness again, using the new botms
-            thickness = calculate_thickness(ds)
+    if update_thickness_every_layer:
+        for lay_org in range(len(ds.layer)):
+            # determine where the layer is too thin
+            mask = thickness[lay_org] < min_thickness
+            if mask.any():
+                # we will set the botm to the top in these cells, so we first get the top
+                if lay_org == 0:
+                    top = ds["top"]
+                else:
+                    top = ds["botm"][lay_org - 1]
+                # loop over the layers, starting from lay_org
+                for lay in range(lay_org, len(ds.layer)):
+                    if lay > lay_org:
+                        # only keep cells in mask that had no thickness to begin with
+                        # we need to increase the botm in these cells as well
+                        mask = mask & (thickness[lay] <= 0)
+                        if not mask.any():
+                            break
+                    # set the botm equal to the top in the cells in mask
+                    ds["botm"][lay] = ds["botm"][lay].where(~mask, top)
+                # calculate the thickness again, using the new botms
+                thickness = calculate_thickness(ds)
+    else:
+        mask = thickness >= min_thickness
+        ds["botm"] = ds["botm"].where(mask)
+        # fill botm of the first layer by top (setting the cell thickness to 0)
+        ds["botm"][0] = ds["botm"][0].fillna(ds["top"])
+        # fill nans in botm by copying values from higher layers
+        ds["botm"] = ds["botm"].ffill("layer")
+
     return ds
 
 

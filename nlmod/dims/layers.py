@@ -821,7 +821,7 @@ def remove_thin_layers(
     ds, min_thickness=0.1, update_thickness_every_layer=False, copy=True
 ):
     """
-    Remove layers from cells with a thickness less than min_thickness
+    Remove cells with a thickness less than min_thickness (setting the thickness to 0)
 
     The thickness of the removed cells is added to the first active layer below
 
@@ -835,9 +835,9 @@ def remove_thin_layers(
         If True, loop over the layers, from the top down, and remove thin layers, adding
         the thickness to the first active layer below. If the thickness of this layer is
         increased more than min_thickness (even if it originally was thinner than
-        min_thickness), the layer is kept. If update_thickness_every_layer is False, the
-        thickness of all cells that originally were thinner than min_thickness is set to
-        0. The default is False.
+        min_thickness), the layer is kept. If update_thickness_every_layer is False, all
+        cells that originally were thinner than min_thickness are removed. The default
+        is False.
     copy : bool, optional
         If copy=True, data in the return value is always copied, so the original Dataset
         is not altered. The default is True.
@@ -878,6 +878,7 @@ def remove_thin_layers(
                 thickness = calculate_thickness(ds)
     else:
         mask = thickness >= min_thickness
+        # set botm of layers with a small thickness to NaN
         ds["botm"] = ds["botm"].where(mask)
         # fill botm of the first layer by top (setting the cell thickness to 0)
         ds["botm"][0] = ds["botm"][0].fillna(ds["top"])

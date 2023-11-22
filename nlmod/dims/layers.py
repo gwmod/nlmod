@@ -858,24 +858,25 @@ def remove_thin_layers(
         for lay_org in range(len(ds.layer)):
             # determine where the layer is too thin
             mask = thickness[lay_org] < min_thickness
-            if mask.any():
-                # we will set the botm to the top in these cells, so we first get the top
-                if lay_org == 0:
-                    top = ds["top"]
-                else:
-                    top = ds["botm"][lay_org - 1]
-                # loop over the layers, starting from lay_org
-                for lay in range(lay_org, len(ds.layer)):
-                    if lay > lay_org:
-                        # only keep cells in mask that had no thickness to begin with
-                        # we need to increase the botm in these cells as well
-                        mask = mask & (thickness[lay] <= 0)
-                        if not mask.any():
-                            break
-                    # set the botm equal to the top in the cells in mask
-                    ds["botm"][lay] = ds["botm"][lay].where(~mask, top)
-                # calculate the thickness again, using the new botms
-                thickness = calculate_thickness(ds)
+            if not mask.any():
+                continue
+            # we will set the botm to the top in these cells, so we first get the top
+            if lay_org == 0:
+                top = ds["top"]
+            else:
+                top = ds["botm"][lay_org - 1]
+            # loop over the layers, starting from lay_org
+            for lay in range(lay_org, len(ds.layer)):
+                if lay > lay_org:
+                    # only keep cells in mask that had no thickness to begin with
+                    # we need to increase the botm in these cells as well
+                    mask = mask & (thickness[lay] <= 0)
+                    if not mask.any():
+                        break
+                # set the botm equal to the top in the cells in mask
+                ds["botm"][lay] = ds["botm"][lay].where(~mask, top)
+            # calculate the thickness again, using the new botms
+            thickness = calculate_thickness(ds)
     else:
         mask = thickness >= min_thickness
         # set botm of layers with a small thickness to NaN

@@ -197,3 +197,38 @@ def test_insert_layer():
 
     # make sure the top of the new layer is equal to the top of the original layer
     assert (ds2["botm"].loc[new_layer] == ds1["botm"].loc[layer]).all()
+
+
+def test_remove_thin_layers():
+    # %% download regis and define min_thickness
+    regis = get_regis_horstermeer()
+
+    min_thickness = 1.0
+
+    # %% test update_thickness_every_layer = False
+    ds_new = nlmod.layers.remove_thin_layers(regis, min_thickness)
+
+    th = nlmod.layers.calculate_thickness(regis)
+    assert th.where(th > 0).min() < min_thickness
+
+    th_new = nlmod.layers.calculate_thickness(ds_new)
+    assert th_new.where(th_new > 0).min() <= min_thickness
+
+    # the following does not assert to True, as there are negative thicknesses in the original regis data
+    # assert th_new.sum() == th.sum()
+
+    # test if all active cells in the new dataset were active in the original dataset
+    assert (th.data[th_new > 0] > 0).all()
+
+    # %% test update_thickness_every_layer = True
+    ds_new2 = nlmod.layers.remove_thin_layers(
+        regis, min_thickness, update_thickness_every_layer=True
+    )
+    th_new2 = nlmod.layers.calculate_thickness(ds_new2)
+
+    assert th_new2.where(th_new2 > 0).min() <= min_thickness
+
+    assert th_new2.sum() == th_new.sum()
+
+    # test if all active cells in the new dataset were active in the original dataset
+    assert (th.data[th_new2 > 0] > 0).all()

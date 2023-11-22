@@ -4,8 +4,8 @@ import pytest
 import nlmod
 
 
-def test_download_polygons():
-    nlmod.read.waterboard.get_polygons()
+# def test_download_polygons(): # is tested in test_024_administrative.test_get_waterboards
+#     nlmod.read.waterboard.get_polygons()
 
 
 def test_get_config():

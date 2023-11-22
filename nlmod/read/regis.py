@@ -177,6 +177,7 @@ def get_regis(
             variables = variables + ("sdh", "sdv")
         ds = ds[list(variables)]
 
+    ds.attrs["gridtype"] = "structured"
     ds.attrs["extent"] = extent
     for datavar in ds:
         ds[datavar].attrs["grid_mapping"] = "crs"

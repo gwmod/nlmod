@@ -113,6 +113,28 @@ def xy_to_icell2d(xy, ds):
     return icell2d
 
 
+def xy_to_row_col(xy, ds):
+    """get the row and column values of a point defined by its x and y coordinates.
+
+    Parameters
+    ----------
+    xy : list, tuple
+        coordinates of ta point.
+    ds : xarary dataset
+        model dataset.
+
+    Returns
+    -------
+    row : int
+        number of the row value of a cell containing the xy point.
+    col : int
+        number of the column value of a cell containing the xy point.
+    """
+    row = np.abs(ds.y.data - xy[1]).argmin()
+    col = np.abs(ds.x.data - xy[0]).argmin()
+    return row, col
+
+
 def xyz_to_cid(xyz, ds=None, modelgrid=None):
     """get the icell2d value of a point defined by its x and y coordinates.
 
@@ -1142,11 +1164,10 @@ def gdf_to_data_array_struc(
 
 
 def gdf_to_da(
-    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0,
-    ix=None
+    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0, ix=None
 ):
     """Project vector data on a grid. Aggregate data if multiple
-    geometries are in a single cell. Supports structured and vertex grids. 
+    geometries are in a single cell. Supports structured and vertex grids.
     This method replaces gdf_to_data_array_struc.
 
     Parameters
@@ -1385,12 +1406,17 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
             gdf_copy["area_times_field"] = gdf_copy["area"] * gdf_copy[field]
 
             # skipna is not implemented by groupby therefore we use min_count=1
-            celldata[field] = (
-                gdf_copy.groupby(by="cellid")["area_times_field"].sum(min_count=1) /
-                gdf_copy.groupby(by="cellid")["area"].sum(min_count=1)
-            )
+            celldata[field] = gdf_copy.groupby(by="cellid")["area_times_field"].sum(
+                min_count=1
+            ) / gdf_copy.groupby(by="cellid")["area"].sum(min_count=1)
 
-        elif method in ("nearest", "length_weighted", "max_length", "max_area", "center_grid"):
+        elif method in (
+            "nearest",
+            "length_weighted",
+            "max_length",
+            "max_area",
+            "center_grid",
+        ):
             for cid, group in tqdm(gr, desc="Aggregate vector data"):
                 agg_dic = _get_aggregates_values(group, {field: method}, modelgrid)
 
@@ -1403,7 +1429,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     return celldata
 
 
-def gdf_to_bool_da(gdf, ds, ix=None, buffer=0., **kwargs):
+def gdf_to_bool_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
@@ -1430,7 +1456,7 @@ def gdf_to_bool_da(gdf, ds, ix=None, buffer=0., **kwargs):
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0., **kwargs):
+def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kwargs):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1465,7 +1491,7 @@ def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0., **kwa
     return ds_out
 
 
-def gdf_to_count_da(gdf, ds, ix=None, buffer=0., **kwargs):
+def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     """Counts in how many polygons a coordinate of ds appears.
 
     Parameters
@@ -1509,7 +1535,7 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0., **kwargs):
         geoms = [gdf]
 
     for geom in geoms:
-        if buffer > 0.:
+        if buffer > 0.0:
             cids = ix.intersects(geom.buffer(buffer), **kwargs)["cellids"]
         else:
             cids = ix.intersects(geom, **kwargs)["cellids"]
@@ -1526,7 +1552,7 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0., **kwargs):
     return da
 
 
-def gdf_to_count_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0., **kwargs):
+def gdf_to_count_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kwargs):
     """Counts in how many polygons a coordinate of ds appears.
 
     Parameters

@@ -48,3 +48,18 @@ def test_get_regis_geotop_keep_all_layers(
         extent, use_regis=True, use_geotop=True, remove_nan_layers=False
     )
     assert regis_geotop_ds.dims["layer"] == 137
+
+
+def test_add_kh_and_kv():
+    gt = nlmod.read.geotop.get_geotop(
+        [118200, 118300, 439800, 439900], probabilities=True
+    )
+
+    df = nlmod.read.geotop.get_lithok_props()
+    # stochastic = None/False is allready tested in methods above
+    gt = nlmod.read.geotop.add_kh_and_kv(gt, df, stochastic=True)
+
+    df = nlmod.read.geotop.get_kh_kv_table()
+    gt = nlmod.read.geotop.add_kh_and_kv(gt, df)
+    # again, but using the stochastic method
+    gt = nlmod.read.geotop.add_kh_and_kv(gt, df, stochastic=True)

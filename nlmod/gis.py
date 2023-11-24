@@ -396,7 +396,7 @@ def ds_to_ugrid_nc_file(
     # Convert boolean layers to integer and int64 to int32
     for var in variables:
         if np.issubdtype(ds[var].dtype, bool):
-            ds[var].encoding["dtype"] = np.int
+            ds[var].encoding["dtype"] = np.int32
         elif np.issubdtype(ds[var].dtype, str) or np.issubdtype(ds[var].dtype, object):
             # convert the string to an index of unique strings
             index = np.unique(ds[var], return_inverse=True)[1]

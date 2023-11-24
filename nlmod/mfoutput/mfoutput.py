@@ -77,7 +77,7 @@ def _get_time_index(fobj, ds=None, gwf_or_gwt=None):
     return tindex
 
 
-def _create_da(arr, modelgrid, times, add_nans=True):
+def _create_da(arr, modelgrid, times, add_nans=True, hdry=-1e30, hnoflo=1e30):
     """Create data array based on array, modelgrid, and time array.
 
     Parameters
@@ -90,6 +90,10 @@ def _create_da(arr, modelgrid, times, add_nans=True):
         list or array containing times as floats (usually in days)
     add_nans : bool, optional
         If True, sets dry/no-flow cells to nan. The default is True.
+    hdry : float, optional
+        The value of dry cells. The default is -1e30.
+    hnoflo : float, optional
+        The value of no-flow cells. The default is 1e30.
 
     Returns
     -------
@@ -103,8 +107,6 @@ def _create_da(arr, modelgrid, times, add_nans=True):
 
     if add_nans:
         # set dry/no-flow to nan
-        hdry = -1e30
-        hnoflo = 1e30
         da = da.where((da != hdry) & (da != hnoflo))
 
     # set local time coordinates

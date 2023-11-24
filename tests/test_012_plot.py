@@ -33,6 +33,8 @@ def test_plot_get_map():
 
 def test_map_array():
     ds = util.get_ds_structured()
+    nlmod.plot.map_array(ds["kh"], ds, ilay=0)
+
     gwf = util.get_gwf(ds)
     nlmod.plot.flopy.map_array(ds["kh"], gwf, ilay=0)
 

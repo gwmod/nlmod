@@ -77,6 +77,7 @@ def to_model_ds(
     angrot=0.0,
     drop_attributes=True,
     transport=False,
+    remove_nan_layers=True,
 ):
     """Transform an input dataset to a groundwater model dataset.
 
@@ -125,6 +126,9 @@ def to_model_ds(
     transport : bool, optional
         flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
+    remove_nan_layers : bool, optional
+        if True remove layers with only nan values in the botm. Default is
+        True.
 
     Returns
     -------
@@ -174,6 +178,7 @@ def to_model_ds(
             anisotropy=anisotropy,
             fill_value_kh=fill_value_kh,
             fill_value_kv=fill_value_kv,
+            remove_nan_layers=remove_nan_layers,
         )
 
     return ds

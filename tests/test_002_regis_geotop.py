@@ -55,10 +55,12 @@ def test_add_kh_and_kv():
         [118200, 118300, 439800, 439900], probabilities=True
     )
 
+    # test with a value for kh for each lithoclass
     df = nlmod.read.geotop.get_lithok_props()
-    # stochastic = None/False is allready tested in methods above
+    # stochastic = None/False is allready tested in methods above, so we onlt test stochastic=True
     gt = nlmod.read.geotop.add_kh_and_kv(gt, df, stochastic=True)
 
+    # test with a value for kh and kv for each combination of lithoclass and stratigraphic unit
     df = nlmod.read.geotop.get_kh_kv_table()
     gt = nlmod.read.geotop.add_kh_and_kv(gt, df)
     # again, but using the stochastic method

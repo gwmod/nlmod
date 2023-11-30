@@ -107,7 +107,8 @@ def xy_to_icell2d(xy, ds):
     icell2d : int
         number of the icell2d value of a cell containing the xy point.
     """
-
+    msg = "xy_to_icell2d can only be applied to a vertex grid"
+    assert ds.gridtype == "vertex", msg
     icell2d = (np.abs(ds.x.data - xy[0]) + np.abs(ds.y.data - xy[1])).argmin().item()
 
     return icell2d
@@ -130,6 +131,8 @@ def xy_to_row_col(xy, ds):
     col : int
         number of the column value of a cell containing the xy point.
     """
+    msg = "xy_to_row_col can only be applied to a structured grid"
+    assert ds.gridtype == "structured", msg
     row = np.abs(ds.y.data - xy[1]).argmin()
     col = np.abs(ds.x.data - xy[0]).argmin()
     return row, col

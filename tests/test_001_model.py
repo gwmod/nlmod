@@ -181,7 +181,7 @@ def test_create_sea_model(tmpdir):
     _ = nlmod.gwf.dis(ds, gwf)
 
     # create node property flow
-    _ = nlmod.gwf.npf(ds, gwf)
+    _ = nlmod.gwf.npf(ds, gwf, save_flows=True)
 
     # Create the initial conditions package
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)

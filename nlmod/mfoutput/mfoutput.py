@@ -77,7 +77,7 @@ def _get_time_index(fobj, ds=None, gwf_or_gwt=None):
     return tindex
 
 
-def _create_da(arr, modelgrid, times):
+def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
     """Create data array based on array, modelgrid, and time array.
 
     Parameters
@@ -88,6 +88,12 @@ def _create_da(arr, modelgrid, times):
         flopy modelgrid object
     times : list or array
         list or array containing times as floats (usually in days)
+    hdry : float, optional
+        The value of dry cells, which will be replaced by NaNs. If hdry is None, the
+        values of dry cells will not be replaced by NaNs. The default is -1e30.
+    hnoflo : float, optional
+        The value of no-flow cells, which will be replaced by NaNs. If hnoflo is None,
+        the values of no-flow cells will not be replaced by NaNs. The default is 1e30.
 
     Returns
     -------
@@ -99,10 +105,15 @@ def _create_da(arr, modelgrid, times):
     dims, coords = get_dims_coords_from_modelgrid(modelgrid)
     da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords)
 
-    # set dry/no-flow to nan
-    hdry = -1e30
-    hnoflo = 1e30
-    da = da.where((da != hdry) & (da != hnoflo))
+    if hdry is not None or hnoflo is not None:
+        # set dry/no-flow to nan
+        if hdry is None:
+            mask = da != hnoflo
+        elif hnoflo is None:
+            mask = da != hdry
+        else:
+            mask = (da != hdry) & (da != hnoflo)
+        da = da.where(mask)
 
     # set local time coordinates
     da.coords["time"] = ds_time_idx(times)
@@ -168,7 +179,7 @@ def _get_heads_da(
             stacked_arr = stacked_arr[:, :, 0, :]
 
     # create data array
-    da = _create_da(stacked_arr, modelgrid, hobj.get_times())
+    da = _create_da(stacked_arr, modelgrid, hobj.get_times(), **kwargs)
 
     return da
 
@@ -263,10 +274,12 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         extension = "_gwt.ucn"
     else:
         raise (ValueError(f"Unknown variable {var}"))
-    msg = f"Load the {var}s using either ds, {ml_name} or fname"
-    assert ((ds is not None) + (gwml is not None) + (fname is not None)) == 1, msg
+
     if fname is None:
         if ds is None:
+            if gwml is None:
+                msg = f"Load the {var}s using either ds, {ml_name} or fname"
+                raise (ValueError(msg))
             # return gwf.output.head(), gwf.output.budget() or gwt.output.concentration()
             return getattr(gwml.output, var)()
         fname = os.path.join(ds.model_ws, ds.model_name + extension)

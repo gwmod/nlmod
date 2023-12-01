@@ -429,6 +429,29 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 )
                 return False
 
+        elif isinstance(item, flopy.utils.gridintersect.GridIntersect):
+            i2 = func_args_dic_cache[key]
+            is_method_equal = item.method == i2.method
+
+            # check if mfgrid is equal except for cache_dict and polygons
+            excl = ("_cache_dict", "_polygons")
+            mfgrid1 = {k: v for k, v in item.mfgrid.__dict__.items() if k not in excl}
+            mfgrid2 = {k: v for k, v in i2.mfgrid.__dict__.items() if k not in excl}
+
+            if not is_method_equal or mfgrid1.keys() != mfgrid2.keys():
+                logger.info(
+                    "cache was created using different gridintersect, do not use cached data"
+                )
+                return False
+
+            is_other_props_equal = all([np.all(v == mfgrid2[k]) for k, v in mfgrid1.items()])
+
+            if not is_other_props_equal:
+                logger.info(
+                    "cache was created using different gridintersect, do not use cached data"
+                )
+                return False       
+
         else:
             logger.info("cannot check if cache is valid, assuming invalid cache")
             logger.info(f"function argument of type {type(item)}")

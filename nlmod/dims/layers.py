@@ -223,6 +223,9 @@ def split_layers_ds(
 
     layers = list(ds.layer.data)
 
+    # Work on a shallow copy of split_dict
+    split_dict = split_dict.copy()
+
     # do some input-checking on split_dict
     for lay0 in list(split_dict):
         if isinstance(lay0, int) & (ds.layer.dtype != int):
@@ -230,13 +233,20 @@ def split_layers_ds(
             # replace lay0 by the name of the layer
             split_dict[layers[lay0]] = split_dict.pop(lay0)
             lay0 = layers[lay0]
-        if isinstance(split_dict[lay0], int):
+        if isinstance(split_dict[lay0], (int, np.integer)):
             # If split_dict[lay0] is of integer type
             # split the layer in evenly thick layers
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
-        else:
+        elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
+            assert np.isclose(np.sum(split_dict[lay0]), 1), (
+                f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            )
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
+        else:
+            raise ValueError(
+                "split_dict should contain an iterable of factors or an integer"
+            )
 
     logger.info(f"Splitting layers {list(split_dict)}")
 

@@ -196,7 +196,7 @@ def get_configuration():
     config["Hollands Noorderkwartier"] = {
         "bgt_code": "W0651",
         "watercourses": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2022_oppervlaktewateren_ti/MapServer",
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2023_oppervlaktewateren_vg/MapServer/",
             "bottom_height": "WS_BODEMHOOGTE",
         },
         "level_areas": {

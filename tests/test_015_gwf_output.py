@@ -190,7 +190,12 @@ def test_get_budget_da_from_file_vertex_with_grb():
     nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grbfile=grbfile)
 
 
-def test_gxg():
+def test_postprocess_head():
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
     head = nlmod.gwf.get_heads_da(ds)
+
     nlmod.gwf.calculate_gxg(head)
+
+    nlmod.gwf.get_gwl_from_wet_cells(head, botm=ds["botm"])
+
+    nlmod.gwf.get_head_at_point(head, float(ds.x.mean()), float(ds.y.mean()), ds=ds)

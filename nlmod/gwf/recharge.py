@@ -242,7 +242,6 @@ def ds_to_uzf(
     linear_gwet=True,
     unsat_etwc=False,
     unsat_etae=False,
-    wc_filerecord=None,
     obs_depth_interval=None,
     obs_z=None,
     mask_obs=None,
@@ -341,9 +340,6 @@ def ds_to_uzf(
         If True, ET in the unsaturated zone will be simulated using a capillary pressure
         based formulation. Capillary pressure is calculated using the Brooks-Corey
         retention function. The default is False.
-    wc_filerecord : str, optional
-        If specified 'wc_filerecord' is the name of a binary output file with the
-        water content. The default is None.
     obs_depth_interval : float, optional
         The depths at which observations of the water content in each cell are added.
         When not None, this creates a CSV output file with water content at different
@@ -484,13 +480,12 @@ def ds_to_uzf(
         if mask_obs is None:
             mask_obs = mask
 
-        if ((mask_obs == True) & (mask == False)).any():
+        if (mask_obs & ~mask).any():
             raise ValueError("can only have observations in active uzf cells")
 
         # get iuzno numbers where an observation is required
         iuzno_obs = xr.where(mask_obs, iuzno, np.nan).values
         iuzno_obs_vals = np.unique(iuzno_obs[~np.isnan(iuzno_obs)]).astype(int)
-        iuzno_obs_vals
 
         # get cell ids of observations
         cellids_obs = list(zip(*np.where(mask_obs)))

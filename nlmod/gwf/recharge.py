@@ -374,8 +374,6 @@ def ds_to_uzf(
     idomain = get_idomain(ds)
     mask = mask & (idomain > 0)
 
-
-
     # generate packagedata
     surfdep = _get_value_from_ds_datavar(ds, "surfdep", surfdep, return_da=True)
     vks = _get_value_from_ds_datavar(ds, "vk", vks, return_da=True)
@@ -430,14 +428,12 @@ def ds_to_uzf(
     ds[finf] = ds["top"].dims, finf_name_arr
     ds[finf] = ds[finf].expand_dims(dim={"layer": ds.layer})
     mask_surface = (ds[finf] != "") & mask_surface
-    
 
     pet_name_arr, pet_unique_dic = _get_unique_series(ds, pet, "pet")
     pet = "evt_name"
     ds[pet] = ds["top"].dims, pet_name_arr
     ds[pet] = ds[pet].expand_dims(dim={"layer": ds.layer})
     mask_surface = (ds[pet] != "") & mask_surface
-    
 
     # combine the time series of finf and pet
     uzf_unique_dic.update(pet_unique_dic)
@@ -489,8 +485,8 @@ def ds_to_uzf(
             mask_obs = mask
 
         if ((mask_obs == True) & (mask == False)).any():
-            raise ValueError('can only have observations in active uzf cells') 
-            
+            raise ValueError("can only have observations in active uzf cells")
+
         # get iuzno numbers where an observation is required
         iuzno_obs = xr.where(mask_obs, iuzno, np.nan).values
         iuzno_obs_vals = np.unique(iuzno_obs[~np.isnan(iuzno_obs)]).astype(int)
@@ -516,9 +512,9 @@ def ds_to_uzf(
                 for depth in depths:
                     name = f"wc_{cellid_str[i]}_{depth:0.2f}"
                     obsdepths.append((name, "water-content", iuzno_o + 1, depth))
-                    
+
         if obs_z is not None:
-            botm = np.asarray([ds['botm'][x] for x in cellids_obs])
+            botm = np.asarray([ds["botm"][x] for x in cellids_obs])
             top = botm + np.asarray(thickness)
 
             for i, iuzno_o in enumerate(iuzno_obs_vals):
@@ -542,7 +538,6 @@ def ds_to_uzf(
         unsat_etwc=unsat_etwc,
         unsat_etae=unsat_etae,
         observations=observations,
-        wc_filerecord=wc_filerecord,
         **kwargs,
     )
 

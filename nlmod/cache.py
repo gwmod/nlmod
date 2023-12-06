@@ -448,13 +448,6 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
 
             is_other_props_equal = all([np.all(v == mfgrid2[k]) for k, v in mfgrid1.items()])
 
-            for k, v in mfgrid1.items():
-                print(k, np.size(v))
-                try:
-                    np.all(v == mfgrid2[k]) 
-                except:
-                    print(k, v, mfgrid2[k])
-
             if not is_other_props_equal:
                 logger.info(
                     "cache was created using different gridintersect, do not use cached data"

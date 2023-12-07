@@ -446,7 +446,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 )
                 return False
 
-            is_other_props_equal = all([np.all(v == mfgrid2[k]) for k, v in mfgrid1.items()])
+            is_other_props_equal = all(np.all(v == mfgrid2[k]) for k, v in mfgrid1.items())
 
             if not is_other_props_equal:
                 logger.info(

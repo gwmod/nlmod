@@ -438,7 +438,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
             mfgrid1 = {k: v for k, v in item.mfgrid.__dict__.items() if k not in excl}
             mfgrid2 = {k: v for k, v in i2.mfgrid.__dict__.items() if k not in excl}
 
-            is_same_length_props = all([np.all(np.size(v) == np.size(mfgrid2[k])) for k, v in mfgrid1.items()])
+            is_same_length_props = all(np.all(np.size(v) == np.size(mfgrid2[k])) for k, v in mfgrid1.items())
 
             if not is_method_equal or mfgrid1.keys() != mfgrid2.keys() or not is_same_length_props:
                 logger.info(

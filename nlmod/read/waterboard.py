@@ -200,7 +200,7 @@ def get_configuration():
             "bottom_height": "WS_BODEMHOOGTE",
         },
         "level_areas": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilgebied_beheerregister/MapServer",
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",

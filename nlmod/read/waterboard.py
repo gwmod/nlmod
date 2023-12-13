@@ -200,7 +200,19 @@ def get_configuration():
             "bottom_height": "WS_BODEMHOOGTE",
         },
         "level_areas": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilgebied_beheerregister/MapServer",
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
+            "layer": 4,
+            "table": {
+                "id": 6,
+                "SOORTSTREEFPEIL": {
+                    901: "STREEFPEIL_JAARROND",  # vast peilbeheer
+                    902: "STREEFPEIL_WINTER",
+                    903: "STREEFPEIL_ZOMER",
+                    904: "STREEFPEIL_JAARROND",  # dynamisch peilbeheer
+                    905: "ONDERGRENS_JAARROND",
+                    906: "BOVENGRENS_JAARROND",
+                },
+            },
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",
@@ -523,6 +535,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         config = get_configuration()
     # some default values
     layer = 0
+    table = None
     index = "CODE"
     server_kind = "arcrest"
     f = "geojson"
@@ -535,6 +548,8 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
     url = conf["url"]
     if "layer" in conf:
         layer = conf["layer"]
+    if "table" in conf:
+        table = conf["table"]
     if "index" in conf:
         index = conf["index"]
     if "server_kind" in conf:
@@ -550,8 +565,10 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
             extent,
             f=f,
             max_record_count=max_record_count,
+            table=table,
             **kwargs,
         )
+
     elif server_kind == "wfs":
         gdf = webservices.wfs(
             url, layer, extent, max_record_count=max_record_count, **kwargs

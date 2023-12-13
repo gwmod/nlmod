@@ -31,6 +31,23 @@ def arcrest(
 ):
     """Download data from an arcgis rest FeatureServer.
 
+    Parameters
+    ----------
+    url : str
+        arcrest url.
+    layer : str
+        layer
+    extent : list, tuple or np.array
+        extent
+    sr : int, optional
+        coördinate reference system. The default is 28992 (RD).
+    f : str, optional
+        output format. Default is geojson
+    max_record_count : int, optional
+        maximum number of records for request.
+    timeout : int, optional
+        timeout time of request. Default is 120.
+
     Note
     ----
     The sr argument is left as 28992 and not converted to the EPSG_28992 constant
@@ -133,6 +150,22 @@ def arcrest(
 
 
 def _get_data(url, params, timeout=120, **kwargs):
+    """get data using a request
+
+    Parameters
+    ----------
+    url : str
+        url
+    params : dict
+        request parameters
+    timeout : int, optional
+        timeout time of request. Default is 120.
+
+    Returns
+    -------
+    data
+
+    """
     r = requests.get(url, params=params, timeout=timeout, **kwargs)
     if not r.ok:
         raise (HTTPError(f"Request not successful: {r.url}"))
@@ -154,7 +187,36 @@ def wfs(
     driver="GML",
     timeout=120,
 ):
-    """Download data from a wfs server."""
+    """Download data from a wfs server and convert to Geodataframe.
+
+    Parameters
+    ----------
+    url : str
+        webservice url.
+    layer : str
+        layer
+    extent : list, tuple or np.array
+        extent
+    version : str
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+    paged : bool, optional
+        , by default True
+    max_record_count : int, optional
+        maximum number of records for request.
+    driver : str, optional
+        driver used to decode data with geopandas, by default "GML"
+    timeout : int, optional
+        timeout time of request. Default is 120.
+
+    Returns
+    -------
+    GeoDataFrame
+
+    Raises
+    ------
+    Exception
+        _description_
+    """
     params = {"version": version, "request": "GetFeature"}
     if version == "2.0.0":
         params["typeNames"] = layer
@@ -255,12 +317,12 @@ def wcs(
 
     Parameters
     ----------
+    url : str
+        webservice url.
     extent : list, tuple or np.array
         extent
     res : float, optional
         resolution of wcs raster
-    url : str
-        webservice url.
     identifier : str
         identifier.
     version : str
@@ -269,6 +331,10 @@ def wcs(
         geotif format
     crs : str, optional
         coördinate reference system
+    maxsize : int, optional
+        maximum pixel size of request. If the combination of extent and resolution
+        exceeds the maxsize the extent is split into smaller segments and
+        downloaded seperately. The default is 2000.
 
     Raises
     ------
@@ -341,14 +407,24 @@ def _split_wcs_extent(
     ----------
     extent : list, tuple or np.array
         extent
-    res : float
-        The resolution of the requested output-data
     x_segments : int
         number of tiles on the x axis
     y_segments : int
         number of tiles on the y axis
     maxsize : int or float
         maximum widht or height of wcs tile
+    res : float
+        The resolution of the requested output-data
+    url : str
+        webservice url.
+    identifier : str
+        identifier.
+    version : str
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+    fmt : str, optional
+        geotif format
+    crs : str, optional
+        coördinate reference system
 
     Returns
     -------

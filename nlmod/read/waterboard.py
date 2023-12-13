@@ -202,7 +202,17 @@ def get_configuration():
         "level_areas": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
             "layer": 4,
-            # "table": 6,
+            "table": {
+                "id": 6,
+                "SOORFSTREEFPEIL": {
+                    901: "STREEFPEIL_JAARROND",  # vast peilbeheer
+                    902: "STREEFPEIL_WINTER",
+                    903: "STREEFPEIL_ZOMER",
+                    904: "STREEFPEIL_JAARROND",  # dynamisch peilbeheer
+                    905: "ONDERGRENS_JAARROND",
+                    906: "BOVENGRENS_JAARROND",
+                },
+            },
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",

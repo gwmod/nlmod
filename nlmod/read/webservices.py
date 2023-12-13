@@ -150,11 +150,21 @@ def arcrest(
         else:
             gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
             if table is not None:
-                raise NotImplementedError("work in progress")
-                url_query = f"{url}/{table}/query"
+                url_query = f"{url}/{table.pop('id')}/query"
                 pgbids = ",".join([str(v) for v in gdf["OBJECTID"].values])
                 params["where"] = f"PEILGEBIEDVIGERENDID IN ({pgbids})"
+                params["f"] = "json"
                 data = _get_data(url_query, params, timeout=timeout)
+                df = pd.DataFrame(
+                    [feature["attributes"] for feature in data["features"]]
+                )
+                for col, convert_dic in table.items():
+                    df["SOORTSTREEFPEIL"].replace(convert_dic, inplace=True)
+                df.set_index("SOORTSTREEFPEIL", inplace=True)
+                for oid in gdf["OBJECTID"]:
+                    insert_s = df.loc[df["PEILGEBIEDVIGERENDID"] == oid, "WATERHOOGTE"]
+                    gdf.loc[gdf["OBJECTID"] == oid, insert_s.index] = insert_s.values
+
     return gdf
 
 

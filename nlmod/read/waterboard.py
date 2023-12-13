@@ -201,6 +201,7 @@ def get_configuration():
         },
         "level_areas": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
+            "layer": 4,
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",

@@ -27,6 +27,7 @@ def arcrest(
     f="geojson",
     max_record_count=None,
     timeout=120,
+    table=None,
     **kwargs,
 ):
     """Download data from an arcgis rest FeatureServer.
@@ -47,6 +48,8 @@ def arcrest(
         maximum number of records for request.
     timeout : int, optional
         timeout time of request. Default is 120.
+    table : int, optional
+        can be used to link a layer to a table, not yet implemented.
 
     Note
     ----
@@ -146,6 +149,12 @@ def arcrest(
             gdf = gpd.GeoDataFrame()
         else:
             gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
+            if table is not None:
+                raise NotImplementedError("work in progress")
+                url_query = f"{url}/{table}/query"
+                pgbids = ",".join([str(v) for v in gdf["OBJECTID"].values])
+                params["where"] = f"PEILGEBIEDVIGERENDID IN ({pgbids})"
+                data = _get_data(url_query, params, timeout=timeout)
     return gdf
 
 

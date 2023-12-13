@@ -202,6 +202,7 @@ def get_configuration():
         "level_areas": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
             "layer": 4,
+            # "table": 6,
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",
@@ -524,6 +525,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         config = get_configuration()
     # some default values
     layer = 0
+    table = None
     index = "CODE"
     server_kind = "arcrest"
     f = "geojson"
@@ -536,6 +538,8 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
     url = conf["url"]
     if "layer" in conf:
         layer = conf["layer"]
+    if "table" in conf:
+        table = conf["table"]
     if "index" in conf:
         index = conf["index"]
     if "server_kind" in conf:
@@ -551,8 +555,10 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
             extent,
             f=f,
             max_record_count=max_record_count,
+            table=table,
             **kwargs,
         )
+
     elif server_kind == "wfs":
         gdf = webservices.wfs(
             url, layer, extent, max_record_count=max_record_count, **kwargs

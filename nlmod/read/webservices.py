@@ -158,9 +158,10 @@ def arcrest(
                 df = pd.DataFrame(
                     [feature["attributes"] for feature in data["features"]]
                 )
+                # add peilen to gdf
                 for col, convert_dic in table.items():
-                    df["SOORTSTREEFPEIL"].replace(convert_dic, inplace=True)
-                df.set_index("SOORTSTREEFPEIL", inplace=True)
+                    df[col].replace(convert_dic, inplace=True)
+                df.set_index(col, inplace=True)
                 for oid in gdf["OBJECTID"]:
                     insert_s = df.loc[df["PEILGEBIEDVIGERENDID"] == oid, "WATERHOOGTE"]
                     gdf.loc[gdf["OBJECTID"] == oid, insert_s.index] = insert_s.values

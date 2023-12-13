@@ -161,10 +161,14 @@ def arcrest(
                 # add peilen to gdf
                 for col, convert_dic in table.items():
                     df[col].replace(convert_dic, inplace=True)
-                df.set_index(col, inplace=True)
-                for oid in gdf["OBJECTID"]:
-                    insert_s = df.loc[df["PEILGEBIEDVIGERENDID"] == oid, "WATERHOOGTE"]
-                    gdf.loc[gdf["OBJECTID"] == oid, insert_s.index] = insert_s.values
+                    df.set_index(col, inplace=True)
+                    for oid in gdf["OBJECTID"]:
+                        insert_s = df.loc[
+                            df["PEILGEBIEDVIGERENDID"] == oid, "WATERHOOGTE"
+                        ]
+                        gdf.loc[
+                            gdf["OBJECTID"] == oid, insert_s.index
+                        ] = insert_s.values
 
     return gdf
 

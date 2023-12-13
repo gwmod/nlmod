@@ -204,7 +204,7 @@ def get_configuration():
             "layer": 4,
             "table": {
                 "id": 6,
-                "SOORFSTREEFPEIL": {
+                "SOORTSTREEFPEIL": {
                     901: "STREEFPEIL_JAARROND",  # vast peilbeheer
                     902: "STREEFPEIL_WINTER",
                     903: "STREEFPEIL_ZOMER",

@@ -1201,7 +1201,13 @@ def gdf_to_da(
     da : xarray DataArray
         The DataArray with the projected vector data.
     """
+    da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
+
     gdf_cellid = gdf_to_grid(gdf, ds, ix=ix)
+
+    if gdf_cellid.size == 0:
+        return da
+
     if min_total_overlap > 0:
         gdf_cellid["area"] = gdf_cellid.area
         area_sum = gdf_cellid[["cellid", "area"]].groupby("cellid").sum()
@@ -1231,8 +1237,6 @@ def gdf_to_da(
             )
         else:
             gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
-
-    da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
 
     if ds.gridtype == "structured":
         ixs, iys = zip(*gdf_agg.index.values)
@@ -1654,7 +1658,15 @@ def gdf_to_grid(
             elif shp[geometry].geom_type in ["Polygon", "MultiPolygon"]:
                 shpn["area"] = r["areas"][i]
             shps.append(shpn)
-    gdfg = gpd.GeoDataFrame(shps, geometry=geometry, crs=gdf.crs)
+
+    if len(shps) == 0:
+        # Unable to determine the column names, because no geometries intersect with the grid
+        logger.info("No geometries intersect with the grid")
+        columns = gdf.columns.to_list() + ["area", "length", "cellid"]
+    else:
+        columns = None  # adopt from shps
+
+    gdfg = gpd.GeoDataFrame(shps, columns=columns, geometry=geometry, crs=gdf.crs)
     gdfg.index.name = gdf.index.name
     return gdfg
 

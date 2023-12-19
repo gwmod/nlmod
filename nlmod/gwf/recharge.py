@@ -244,6 +244,7 @@ def ds_to_uzf(
     unsat_etae=False,
     obs_depth_interval=None,
     obs_z=None,
+    mask_obs=None,
     **kwargs,
 ):
     """Create a unsaturated zone flow package for modflow 6. This method adds uzf-cells
@@ -347,6 +348,9 @@ def ds_to_uzf(
         The z-coordinate at which observations of the water content in each cell are
         added. When not None, this creates a CSV output file with water content at fixes
         z-coordinates in each UZF cell. The default is None.
+    mask_obs : xr.DataArray, optional
+        Mask with the cells where an observations is added. If None all cells will get
+        an observation. The default is None.
     ** kwargs : dict
         Kwargs are passed onto flopy.mf6.ModflowGwfuzf
 
@@ -383,7 +387,11 @@ def ds_to_uzf(
     if landflag is None:
         landflag = xr.full_like(ds["botm"], 0, dtype=int)
         # set the landflag in the top layer to 1
-        landflag[get_first_active_layer_from_idomain(idomain)] = 1
+        fal = get_first_active_layer_from_idomain(idomain, nodata=0)
+        landflag[fal] = 1
+
+        # set landflag to 0 in inactivate domain
+        landflag = xr.where(idomain > 0, landflag, 0)
 
     # determine ivertcon, by setting its value to iuzno of the layer below
     ivertcon = xr.full_like(ds["botm"], -1, dtype=int)
@@ -408,26 +416,20 @@ def ds_to_uzf(
     )
 
     # add perioddata for all uzf cells that are at the surface
-    mask = landflag == 1
+    mask_surface = (landflag == 1) & mask
 
     # perioddata : [iuzno, finf, pet, extdp, extwc, ha, hroot, rootact, aux]
     finf_name_arr, uzf_unique_dic = _get_unique_series(ds, finf, "finf")
     finf = "rch_name"
     ds[finf] = ds["top"].dims, finf_name_arr
     ds[finf] = ds[finf].expand_dims(dim={"layer": ds.layer})
-    if mask is not None:
-        mask = (ds[finf] != "") & mask
-    else:
-        mask = ds[finf] != ""
+    mask_surface = (ds[finf] != "") & mask_surface
 
     pet_name_arr, pet_unique_dic = _get_unique_series(ds, pet, "pet")
     pet = "evt_name"
     ds[pet] = ds["top"].dims, pet_name_arr
     ds[pet] = ds[pet].expand_dims(dim={"layer": ds.layer})
-    if mask is not None:
-        mask = (ds[pet] != "") & mask
-    else:
-        mask = ds[pet] != ""
+    mask_surface = (ds[pet] != "") & mask_surface
 
     # combine the time series of finf and pet
     uzf_unique_dic.update(pet_unique_dic)
@@ -456,7 +458,7 @@ def ds_to_uzf(
         if simulate_et and unsat_etae:
             logger.info(f"Setting root activity function (rootact) to {rootact}")
 
-    cellids_land = np.where(mask)
+    cellids_land = np.where(mask_surface)
 
     perioddata = cols_to_reclist(
         ds,
@@ -475,33 +477,47 @@ def ds_to_uzf(
     observations = None
     # observation nodes uzf
     if obs_depth_interval is not None or obs_z is not None:
-        cellid_per_iuzno = list(zip(*cellids))
+        if mask_obs is None:
+            mask_obs = mask
+
+        if (mask_obs & ~mask).any():
+            raise ValueError("can only have observations in active uzf cells")
+
+        # get iuzno numbers where an observation is required
+        iuzno_obs = xr.where(mask_obs, iuzno, np.nan).values
+        iuzno_obs_vals = np.unique(iuzno_obs[~np.isnan(iuzno_obs)]).astype(int)
+
+        # get cell ids of observations
+        cellids_obs = list(zip(*np.where(mask_obs)))
         cellid_str = [
             str(x).replace("(", "").replace(")", "").replace(", ", "_")
-            for x in cellid_per_iuzno
+            for x in cellids_obs
         ]
-        thickness = calculate_thickness(ds).data[iuzno >= 0]
+
         # account for surfdep, as this decreases the height of the top of the upper cell
         # otherwise modflow may return an error
-        thickness = thickness - landflag.data[iuzno >= 0] * surfdep / 2
+        thickness = calculate_thickness(ds)
+        thickness = [thickness[x] - landflag[x] * surfdep / 2 for x in cellids_obs]
 
+        # create observations list
         obsdepths = []
         if obs_depth_interval is not None:
-            for i in range(nuzfcells):
+            for i, iuzno_o in enumerate(iuzno_obs_vals):
                 depths = np.arange(obs_depth_interval, thickness[i], obs_depth_interval)
                 for depth in depths:
                     name = f"wc_{cellid_str[i]}_{depth:0.2f}"
-                    obsdepths.append((name, "water-content", i + 1, depth))
-        if obs_z is not None:
-            botm = ds["botm"].data[iuzno >= 0]
+                    obsdepths.append((name, "water-content", iuzno_o + 1, depth))
 
-            top = botm + thickness
-            for i in range(nuzfcells):
-                mask = (obs_z > botm[i]) & (obs_z <= top[i])
-                for z in obs_z[mask]:
+        if obs_z is not None:
+            botm = np.asarray([ds["botm"][x] for x in cellids_obs])
+            top = botm + np.asarray(thickness)
+
+            for i, iuzno_o in enumerate(iuzno_obs_vals):
+                within_cell = (obs_z > botm[i]) & (obs_z <= top[i])
+                for z in obs_z[within_cell]:
                     depth = top[i] - z
-                    name = f"wc_{cellid_str[i]}_{z:0.2f}"
-                    obsdepths.append((name, "water-content", i + 1, depth))
+                    name = f"wc_{cellid_str[iuzno_o]}_{z:0.2f}"
+                    obsdepths.append((name, "water-content", iuzno_o + 1, depth))
 
         observations = {ds.model_name + ".uzf.obs.csv": obsdepths}
 

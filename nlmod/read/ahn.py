@@ -154,7 +154,7 @@ def get_latest_ahn_from_wcs(
         elif "5m" in identifier.split("_")[1]:
             logger.warning(
                 "5 meter resolution is no langer available via wcs, try "
-                "nlmod.read.get_ahn4 ot obtain ahn with a 5m resolution. for "
+                "nlmod.read.get_ahn4 to obtain ahn with a 5m resolution. For "
                 "more info see: "
                 "https://www.pdok.nl/-/nieuwe-versie-ahn-beschikbaar-via-pdok"
             )

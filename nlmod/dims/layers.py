@@ -239,9 +239,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(np.sum(split_dict[lay0]), 1), (
-                f"Fractions for splitting layer '{lay0}' do not add up to 1."
-            )
+            assert np.isclose(
+                np.sum(split_dict[lay0]), 1
+            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -1815,8 +1815,8 @@ def remove_layer(ds, layer):
         ds = ds.copy(deep=True)
         index = layers.index(layer)
         if index == 0:
-            # lower the top to the second layer
-            ds["top"] = ds["botm"].loc[layers[1]]
+            # lower the top to the botm of the first layer
+            ds["top"] = ds["botm"].loc[layers[0]]
     layers.remove(layer)
     ds = ds.reindex({"layer": layers})
     return ds

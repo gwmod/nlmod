@@ -45,7 +45,7 @@ def ds_to_rch(
         recharge package
     """
     # check for nan values
-    if ds["recharge"].isnull().any():
+    if ds[recharge].isnull().any():
         raise ValueError("please remove nan values in recharge data array")
 
     # get stress period data

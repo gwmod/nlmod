@@ -14,10 +14,12 @@ from ..dims.grid import gdf_to_grid
 from ..dims.layers import get_idomain
 from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
+from ..cache import cache_pickle
 
 logger = logging.getLogger(__name__)
 
 
+@cache_pickle
 def aggregate(gdf, method, ds=None):
     """Aggregate surface water features.
 

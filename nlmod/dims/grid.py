@@ -1592,6 +1592,7 @@ def gdf_to_count_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **k
     return ds_out
 
 
+@cache.cache_pickle
 def gdf_to_grid(
     gdf,
     ml=None,

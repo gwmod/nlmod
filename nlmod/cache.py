@@ -452,7 +452,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 logger.info(
                     "cache was created using different gridintersect, do not use cached data"
                 )
-                return False       
+                return False
 
         else:
             logger.info("cannot check if cache is valid, assuming invalid cache")

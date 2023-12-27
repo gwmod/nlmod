@@ -959,6 +959,22 @@ def oc(
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
+    save_head : bool or str
+        Saves the head to the output-file. If save_head is a string, it needs to be
+        "all", "first" or "last". If save_head is True, it is set to "last". The default
+        is True.
+    save_budget : bool or str
+        Saves the budgets to the output-file. If save_budget is a string, it needs to be
+        "all", "first" or "last". If save_budget is True, it is set to "last". The
+        default is True.
+    print_head : bool or str
+        Prints the head to the list-file. If print_head is a string, it needs to be
+        "all", "first" or "last". If print_head is True, it is set to "last". The default
+        is False.
+    print_budget : bool or str
+        Prints the budgets to the list-file. If print_budget is a string, it needs to be
+        "all", "first" or "last". If print_budget is True, it is set to "last". The
+        default is False.
     pname : str, optional
         package name
 

@@ -1599,6 +1599,7 @@ def gdf_to_grid(
     method="vertex",
     ix=None,
     desc="Intersecting with grid",
+    silent=False,
     **kwargs,
 ):
     """Intersect a geodataframe with the grid of a MODFLOW model.
@@ -1618,6 +1619,10 @@ def gdf_to_grid(
         Method passed to the GridIntersect-class. The default is 'vertex'.
     ix : flopy.utils.GridIntersect, optional
         GridIntersect, if not provided the modelgrid in ml is used.
+    desc : string, optional
+        The description of the progressbar. The default is 'Intersecting with grid'.
+    silent : bool, optional
+        Do not show a progressbar when silent is True. The default is False.
     **kwargs : keyword arguments
         keyword arguments are passed to the intersect_*-methods.
 
@@ -1648,7 +1653,7 @@ def gdf_to_grid(
         ix = flopy.utils.GridIntersect(modelgrid, method=method)
     shps = []
     geometry = gdf.geometry.name
-    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
+    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc, disable=silent):
         r = ix.intersect(shp[geometry], **kwargs)
         for i in range(r.shape[0]):
             shpn = shp.copy()

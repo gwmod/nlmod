@@ -213,11 +213,11 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
         if "delc" in ds:
             delc = ds["delc"].values
         else:
-            delc = np.array([ds.delc] * ds.dims["y"])
+            delc = np.array([ds.delc] * ds.sizes["y"])
         if "delr" in ds:
             delr = ds["delr"].values
         else:
-            delr = np.array([ds.delr] * ds.dims["x"])
+            delr = np.array([ds.delr] * ds.sizes["x"])
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,

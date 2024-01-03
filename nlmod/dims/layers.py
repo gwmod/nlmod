@@ -161,7 +161,7 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
 
     # calculate resistance
     c = xr.zeros_like(thickness)
-    for ilay in range(ds.dims["layer"] - 1):
+    for ilay in range(ds.sizes["layer"] - 1):
         ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
             layer=ds.layer[ilay]
         )
@@ -1018,7 +1018,7 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask):
     # zee cellen hebben altijd een top gelijk aan 0
     ds["top"].values = np.where(fill_mask, 0, ds["top"])
 
-    for lay in range(ds.dims["layer"]):
+    for lay in range(ds.sizes["layer"]):
         bottom_nan = xr.where(fill_mask, np.nan, ds["botm"][lay])
         bottom_filled = resample.fillnan_da(bottom_nan, ds=ds)
 

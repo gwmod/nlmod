@@ -575,7 +575,7 @@ def _get_unique_series(ds, var, pname):
                 f"(time, y and x) or (y, x and time), not {ds[var].dims}"
             )
         recharge = ds[var].transpose("y", "x", "time").data
-        shape = (ds.dims["y"] * ds.dims["x"], ds.dims["time"])
+        shape = (ds.sizes["y"] * ds.sizes["x"], ds.sizes["time"])
         rch_2d_arr = recharge.reshape(shape)
 
     elif ds.gridtype == "vertex":

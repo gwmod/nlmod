@@ -155,7 +155,7 @@ def to_model_ds(
         delc = delr
     if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
         ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
-            (ds.dims["y"], ds.dims["x"])
+            (ds.sizes["y"], ds.sizes["x"])
         )
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         ds["area"] = ("y", "x"), np.outer(delc, delr)

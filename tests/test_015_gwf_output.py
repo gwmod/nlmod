@@ -26,7 +26,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     ds = nlmod.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
-    assert ds.dims["layer"] == 5
+    assert ds.sizes[["layer"] == 5
 
     ds = nlmod.time.set_ds_time(ds, time=[1, 2, 3], start="2015-1-1", steady=[1, 0, 0])
 

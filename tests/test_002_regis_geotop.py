@@ -6,7 +6,7 @@ import nlmod
 def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     regis_ds = nlmod.read.regis.get_regis(extent)
 
-    assert regis_ds.dims["layer"] == 20
+    assert regis_ds.sizes["layer"] == 20
 
 
 # @pytest.mark.skip(reason="too slow")
@@ -15,7 +15,7 @@ def test_get_regis_botm_layer_BEk1(
     botm_layer="MSc",
 ):
     regis_ds = nlmod.read.regis.get_regis(extent, botm_layer)
-    assert regis_ds.dims["layer"] == 15
+    assert regis_ds.sizes["layer"] == 15
     assert regis_ds.layer.values[-1] == botm_layer
 
 
@@ -37,7 +37,7 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
         extent, use_regis=True, use_geotop=True
     )
     regis_geotop_ds = nlmod.base.to_model_ds(regis_geotop_ds)
-    assert regis_geotop_ds.dims["layer"] == 24
+    assert regis_geotop_ds.sizes["layer"] == 24
 
 
 # @pytest.mark.skip(reason="too slow")
@@ -47,7 +47,7 @@ def test_get_regis_geotop_keep_all_layers(
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True, remove_nan_layers=False
     )
-    assert regis_geotop_ds.dims["layer"] == 137
+    assert regis_geotop_ds.sizes["layer"] == 137
 
 
 def test_add_kh_and_kv():

@@ -396,7 +396,7 @@ def _get_vertex_grid_ds(
     yv : array_like
         A 1D array of the y coordinates of the grid vertices.
     cell2d : array-like
-        array-like with vertex grid cell2d info
+        array-like with vertex grid cell2d info.
     extent : list
         A list of [xmin, xmax, ymin, ymax] defining the extent of the model grid.
     nlay : int or sequence of ints, optional
@@ -567,8 +567,6 @@ def get_ds(
     transport : bool, optional
         flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
-
-
     **kwargs : dict
         Kwargs are passed into mbase.to_ds. These can be the model_name
         or ds.

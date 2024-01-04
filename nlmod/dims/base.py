@@ -77,6 +77,7 @@ def to_model_ds(
     angrot=0.0,
     drop_attributes=True,
     transport=False,
+    remove_nan_layers=True,
 ):
     """Transform an input dataset to a groundwater model dataset.
 
@@ -125,6 +126,9 @@ def to_model_ds(
     transport : bool, optional
         flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
+    remove_nan_layers : bool, optional
+        if True remove layers with only nan values in the botm. Default is
+        True.
 
     Returns
     -------
@@ -151,7 +155,7 @@ def to_model_ds(
         delc = delr
     if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
         ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
-            (ds.dims["y"], ds.dims["x"])
+            (ds.sizes["y"], ds.sizes["x"])
         )
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         ds["area"] = ("y", "x"), np.outer(delc, delr)
@@ -174,12 +178,13 @@ def to_model_ds(
             anisotropy=anisotropy,
             fill_value_kh=fill_value_kh,
             fill_value_kv=fill_value_kv,
+            remove_nan_layers=remove_nan_layers,
         )
 
     return ds
 
 
-def extrapolate_ds(ds, mask=None):
+def extrapolate_ds(ds, mask=None, layer="layer"):
     """Fill missing data in layermodel based on nearest interpolation.
 
     Used for ensuring layer model contains data everywhere. Useful for
@@ -190,10 +195,12 @@ def extrapolate_ds(ds, mask=None):
     ----------
     ds : xarray.DataSet
         Model layer DataSet
-    mask: np.ndarray, optional
+    mask : np.ndarray, optional
         Boolean mask for each cell, with a value of True if its value needs to
         be determined. When mask is None, it is determined from the botm-
         variable. The default is None.
+    layer : str, optional
+        The name of the layer dimension. The default is 'layer'.
 
     Returns
     -------
@@ -201,7 +208,7 @@ def extrapolate_ds(ds, mask=None):
         filled layermodel
     """
     if mask is None:
-        mask = np.isnan(ds["botm"]).all("layer").data
+        mask = np.isnan(ds["botm"]).all(layer).data
     if not mask.any():
         # all of the model cells are is inside the known area
         return ds
@@ -225,9 +232,9 @@ def extrapolate_ds(ds, mask=None):
         data = ds[key].data
         if ds[key].dims == dims:
             if np.isnan(data[mask]).sum() > 0:  # do not update if no NaNs
-                data[mask] = data[~mask, i]
-        elif ds[key].dims == ("layer",) + dims:
-            for lay in range(len(ds["layer"])):
+                data[mask] = data[~mask][i]
+        elif ds[key].dims == (layer,) + dims:
+            for lay in range(len(ds[layer])):
                 if np.isnan(data[lay, mask]).sum() > 0:  # do not update if no NaNs
                     data[lay, mask] = data[lay, ~mask][i]
         else:
@@ -389,7 +396,7 @@ def _get_vertex_grid_ds(
     yv : array_like
         A 1D array of the y coordinates of the grid vertices.
     cell2d : array-like
-        array-like with vertex grid cell2d info
+        array-like with vertex grid cell2d info.
     extent : list
         A list of [xmin, xmax, ymin, ymax] defining the extent of the model grid.
     nlay : int or sequence of ints, optional
@@ -560,8 +567,6 @@ def get_ds(
     transport : bool, optional
         flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
-
-
     **kwargs : dict
         Kwargs are passed into mbase.to_ds. These can be the model_name
         or ds.

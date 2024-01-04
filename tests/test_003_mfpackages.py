@@ -93,7 +93,7 @@ def get_value_from_ds_datavar():
             "x": np.arange(10),
         },
     )
-    shape = list(ds.dims.values())
+    shape = list(ds.sizes.values())
     ds["test_var"] = ("layer", "y", "x"), np.arange(np.product(shape)).reshape(shape)
 
     # get value from ds

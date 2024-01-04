@@ -43,15 +43,15 @@ def test_get_recharge_not_available():
 
 
 def test_ahn_within_extent():
-    extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    da = nlmod.read.ahn.get_ahn_from_wcs(extent)
+    extent = [104000.0, 105000.0, 494000.0, 494600.0]
+    da = nlmod.read.ahn.get_latest_ahn_from_wcs(extent)
 
     assert not da.isnull().all(), "AHN only has nan values"
 
 
 def test_ahn_split_extent():
-    extent = [95000.0, 105000.0, 494000.0, 500000.0]
-    da = nlmod.read.ahn.get_ahn_from_wcs(extent, maxsize=1000)
+    extent = [104000.0, 105000.0, 494000.0, 494600.0]
+    da = nlmod.read.ahn.get_latest_ahn_from_wcs(extent, maxsize=1000)
 
     assert not da.isnull().all(), "AHN only has nan values"
 

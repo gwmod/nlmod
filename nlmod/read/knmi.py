@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 def get_recharge(ds, method="linear", most_common_station=False):
     """add multiple recharge packages to the groundwater flow model with knmi
     data by following these steps:
-
        1. check for each cell (structured or vertex) which knmi measurement
           stations (prec and evap) are the closest.
        2. download precipitation and evaporation data for all knmi stations that

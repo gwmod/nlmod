@@ -14,10 +14,12 @@ from ..dims.grid import gdf_to_grid
 from ..dims.layers import get_idomain
 from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
+from ..cache import cache_pickle
 
 logger = logging.getLogger(__name__)
 
 
+@cache_pickle
 def aggregate(gdf, method, ds=None):
     """Aggregate surface water features.
 
@@ -354,6 +356,8 @@ def build_spd(
     pkg,
     ds,
     layer_method="lay_of_rbot",
+    desc=None,
+    silent=False,
 ):
     """Build stress period data for package (RIV, DRN, GHB).
 
@@ -370,6 +374,11 @@ def build_spd(
         The method used to distribute the conductance over the layers. Possible
         values are 'lay_of_rbot' and 'distribute_cond_over_lays'. The default
         is "lay_of_rbot".
+    desc : string, optional
+        The description of the progressbar. The default is None, so desc will be
+        "Building stress period data RIV/DRN/GHB".
+    silent : bool, optional
+        Do not show a progressbar when silent is True. The default is False.
 
     Returns
     -------
@@ -393,10 +402,13 @@ def build_spd(
         logger.warning(f"{mask.sum()} records without a stage ignored")
         celldata = celldata[~mask]
 
+    if desc is None:
+        desc = f"Building stress period data {pkg}"
     for cellid, row in tqdm(
         celldata.iterrows(),
         total=celldata.index.size,
-        desc=f"Building stress period data {pkg}",
+        desc=desc,
+        disable=silent,
     ):
         # check if there is an active layer for this cell
         if ds.gridtype == "vertex":
@@ -882,6 +894,7 @@ def gdf_to_seasonal_pkg(
     c0=1.0,
     summer_months=(4, 5, 6, 7, 8, 9),
     layer_method="lay_of_rbot",
+    silent=False,
     **kwargs,
 ):
     """Add a surface water package to a groundwater-model, based on input from a
@@ -976,6 +989,8 @@ def gdf_to_seasonal_pkg(
                 pkg,
                 ds,
                 layer_method=layer_method,
+                desc=f"Building stress period data for {season} {pkg}",
+                silent=silent,
             )
         )
     # from the release notes (6.3.0):

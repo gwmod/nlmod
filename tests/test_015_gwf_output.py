@@ -26,7 +26,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     ds = nlmod.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
-    assert ds.dims["layer"] == 5
+    assert ds.sizes["layer"] == 5
 
     ds = nlmod.time.set_ds_time(ds, time=[1, 2, 3], start="2015-1-1", steady=[1, 0, 0])
 
@@ -46,7 +46,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.dis(ds, gwf)
 
     # create node property flow
-    nlmod.gwf.npf(ds, gwf, save_flows=True)
+    nlmod.gwf.npf(ds, gwf, save_flows=True, save_specific_discharge=True)
 
     # Create the initial conditions package
     nlmod.gwf.ic(ds, gwf, starting_head=1.0)
@@ -76,6 +76,9 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     da = get_budget_da("CHD", ds=None, gwf=gwf, fname=None)  # gwf
     fname_cbc = os.path.join(ds.model_ws, ds.model_name + ".cbc")
     get_budget_da("CHD", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile)  # fname
+    get_budget_da(
+        "DATA-SPDIS", column="qz", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile
+    )  # fname
 
     # unstructured
     ds_unstr = refine(
@@ -103,7 +106,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     nlmod.gwf.dis(ds_unstr, gwf_unstr)
 
     # create node property flow
-    nlmod.gwf.npf(ds_unstr, gwf_unstr)
+    nlmod.gwf.npf(ds_unstr, gwf_unstr, save_flows=True, save_specific_discharge=True)
 
     # Create the initial conditions package
     nlmod.gwf.ic(ds_unstr, gwf_unstr, starting_head=1.0)
@@ -133,6 +136,9 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     da = get_budget_da("CHD", ds=None, gwf=gwf_unstr, fname=None)  # gwf
     da = get_budget_da(
         "CHD", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile
+    )  # fname
+    _ = get_budget_da(
+        "DATA-SPDIS", column="qz", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile
     )  # fname
 
 
@@ -184,7 +190,12 @@ def test_get_budget_da_from_file_vertex_with_grb():
     nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grbfile=grbfile)
 
 
-def test_gxg():
+def test_postprocess_head():
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
     head = nlmod.gwf.get_heads_da(ds)
+
     nlmod.gwf.calculate_gxg(head)
+
+    nlmod.gwf.get_gwl_from_wet_cells(head, botm=ds["botm"])
+
+    nlmod.gwf.get_head_at_point(head, float(ds.x.mean()), float(ds.y.mean()), ds=ds)

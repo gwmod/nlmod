@@ -161,7 +161,7 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
 
     # calculate resistance
     c = xr.zeros_like(thickness)
-    for ilay in range(ds.dims["layer"] - 1):
+    for ilay in range(ds.sizes["layer"] - 1):
         ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
             layer=ds.layer[ilay]
         )
@@ -223,6 +223,9 @@ def split_layers_ds(
 
     layers = list(ds.layer.data)
 
+    # Work on a shallow copy of split_dict
+    split_dict = split_dict.copy()
+
     # do some input-checking on split_dict
     for lay0 in list(split_dict):
         if isinstance(lay0, int) & (ds.layer.dtype != int):
@@ -230,15 +233,29 @@ def split_layers_ds(
             # replace lay0 by the name of the layer
             split_dict[layers[lay0]] = split_dict.pop(lay0)
             lay0 = layers[lay0]
-        if isinstance(split_dict[lay0], int):
+        if isinstance(split_dict[lay0], (int, np.integer)):
             # If split_dict[lay0] is of integer type
             # split the layer in evenly thick layers
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
-        else:
+        elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
+            assert np.isclose(
+                np.sum(split_dict[lay0]), 1
+            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
+        else:
+            raise ValueError(
+                "split_dict should contain an iterable of factors or an integer"
+            )
 
     logger.info(f"Splitting layers {list(split_dict)}")
+
+    if "layer" in ds["top"].dims:
+        msg = "Top in ds has a layer dimension. split_layers_ds will remove the layer dimension from top in ds."
+        logger.warning(msg)
+    else:
+        ds = ds.copy()
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
 
     layers_org = layers.copy()
     # add extra layers (keep the original ones for now, as we will copy data first)
@@ -266,6 +283,9 @@ def split_layers_ds(
 
     # drop the original layers
     ds = ds.drop_sel(layer=list(split_dict))
+
+    # remove layer dimension from top again
+    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
 
     if return_reindexer:
         # determine reindexer
@@ -559,6 +579,13 @@ def combine_layers_ds(
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
 
+    if "layer" in ds["top"].dims:
+        msg = "Top in ds has a layer dimension. combine_layers_ds will remove the layer dimension from top in ds."
+        logger.warning(msg)
+    else:
+        ds = ds.copy()
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
+
     da_dict = {}
 
     new_top, new_bot, reindexer = layer_combine_top_bot(
@@ -603,6 +630,9 @@ def combine_layers_ds(
     # create new dataset
     logger.info("Done! Created new dataset with combined layers!")
     ds_combine = xr.Dataset(da_dict, attrs=attrs)
+
+    # remove layer dimension from top again
+    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
 
     return ds_combine
 
@@ -664,7 +694,7 @@ def add_kh_kv_from_ml_layer_to_ds(
     return ds
 
 
-def set_model_top(ds, top, min_thickness=0.0):
+def set_model_top(ds, top, min_thickness=0.0, copy=True):
     """Set the model top, changing layer bottoms when necessary as well.
 
     If the new top is higher than the previous top, the extra thickness is added to the
@@ -676,24 +706,26 @@ def set_model_top(ds, top, min_thickness=0.0):
         The model dataset, containing the current top.
     top : xarray.DataArray
         The new model top, with the same shape as the current top.
+    min_thickness : float, optional
+        The minimum thickness of top layers. When the thickness is less than
+        min_thickness, the thicjness is added to a deeper layer. The default is 0.0.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
 
     Returns
     -------
     ds : xarray.Dataset
         The model dataset, containing the new top.
     """
-    if "gridtype" not in ds.attrs:
-        raise (
-            KeyError(
-                "Dataset does not have attribute 'gridtype'. "
-                "Either add attribute or use nlmod functions to build the dataset."
-            )
-        )
     if "layer" in ds["top"].dims:
         raise (ValueError("set_model_top does not support top with a layer dimension"))
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
     if isinstance(top, (float, int)):
         top = xr.full_like(ds["top"], top)
-    if not top.shape == ds["top"].shape:
+    elif not top.shape == ds["top"].shape:
         raise (
             ValueError("Please make sure the new top has the same shape as the old top")
         )
@@ -703,7 +735,7 @@ def set_model_top(ds, top, min_thickness=0.0):
     # set the botm to the new top at these locations
     ds["botm"] = ds["botm"].where(ds["botm"] != ds["top"], top)
     # make sure the botm is never higher than the new top
-    ds["botm"] = ds["botm"].where(top - ds["botm"] > min_thickness, top)
+    ds["botm"] = ds["botm"].where((top - ds["botm"]) > min_thickness, top)
     # change the current top
     ds["top"] = top
     # remove inactive layers
@@ -711,11 +743,14 @@ def set_model_top(ds, top, min_thickness=0.0):
     return ds
 
 
-def set_layer_top(ds, layer, top):
+def set_layer_top(ds, layer, top, copy=True):
     """Set the top of a layer."""
     assert layer in ds.layer
     if "layer" in ds["top"].dims:
         raise (ValueError("set_layer_top does not support top with a layer dimension"))
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
     lay = np.where(ds.layer == layer)[0][0]
     if lay == 0:
         # change the top of the model
@@ -736,27 +771,31 @@ def set_layer_top(ds, layer, top):
     return ds
 
 
-def set_layer_botm(ds, layer, botm):
+def set_layer_botm(ds, layer, botm, copy=True):
     """Set the bottom of a layer."""
     assert layer in ds.layer
     if "layer" in ds["top"].dims:
         raise (ValueError("set_layer_botm does not support top with a layer dimension"))
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
     lay = np.where(ds.layer == layer)[0][0]
-    # if lay > 0 and np.any(botm > ds["botm"][lay - 1]):
-    #    raise (Exception("set_layer_botm cannot change botm of higher layers yet"))
+    # make sure the botm of the layers above is lever lower than the new botm
     ds["botm"][:lay] = ds["botm"][:lay].where(ds["botm"][:lay] > botm, botm)
     ds["botm"][lay] = botm
     # make sure the botm of the layers below is never higher than the new botm
     mask = ds["botm"][lay + 1 :] < botm
     ds["botm"][lay + 1 :] = ds["botm"][lay + 1 :].where(mask, botm)
-    # make sure the botm of the layers above is lever lower than the new botm
     return ds
 
 
-def set_layer_thickness(ds, layer, thickness, change="botm"):
+def set_layer_thickness(ds, layer, thickness, change="botm", copy=True):
     """Set the layer thickness by changing the bottom of the layer."""
     assert layer in ds.layer
     assert change == "botm", "Only change=botm allowed for now"
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
     lay = np.where(ds.layer == layer)[0][0]
     if lay == 0:
         top = ds["top"]
@@ -767,11 +806,14 @@ def set_layer_thickness(ds, layer, thickness, change="botm"):
     return ds
 
 
-def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
+def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm", copy=True):
     """Make sure layer has a minimum thickness by lowering the botm of the
     layer where neccesary."""
     assert layer in ds.layer
     assert change == "botm", "Only change=botm allowed for now"
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
     lay = np.where(ds.layer == layer)[0][0]
     if lay == 0:
         top = ds["top"]
@@ -785,19 +827,49 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm"):
     return ds
 
 
-def remove_thin_layers(ds, min_thickness=0.1):
-    """Remove layers from cells with a thickness less than min_thickness
+def remove_thin_layers(
+    ds, min_thickness=0.1, update_thickness_every_layer=False, copy=True
+):
+    """
+    Remove cells with a thickness less than min_thickness (setting the thickness to 0)
 
     The thickness of the removed cells is added to the first active layer below
+
+    Parameters
+    ----------
+    ds : xr,Dataset
+        Dataset containing information about layers.
+    min_thickness : float, optional
+        THe minimum thickness of a layer. The default is 0.1.
+    update_thickness_every_layer : bool, optional
+        If True, loop over the layers, from the top down, and remove thin layers, adding
+        the thickness to the first active layer below. If the thickness of this layer is
+        increased more than min_thickness (even if it originally was thinner than
+        min_thickness), the layer is kept. If update_thickness_every_layer is False, all
+        cells that originally were thinner than min_thickness are removed. The default
+        is False.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
+    Returns
+    -------
+    ds : xr.Dataset
+        Dataset containing information about layers.
+
     """
     if "layer" in ds["top"].dims:
         msg = "remove_thin_layers does not support top with a layer dimension"
         raise (ValueError(msg))
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
     thickness = calculate_thickness(ds)
-    for lay_org in range(len(ds.layer)):
-        # determine where the layer is too thin
-        mask = (thickness[lay_org] > 0) & (thickness[lay_org] < min_thickness)
-        if mask.any():
+    if update_thickness_every_layer:
+        for lay_org in range(len(ds.layer)):
+            # determine where the layer is too thin
+            mask = thickness[lay_org] < min_thickness
+            if not mask.any():
+                continue
             # we will set the botm to the top in these cells, so we first get the top
             if lay_org == 0:
                 top = ds["top"]
@@ -808,13 +880,22 @@ def remove_thin_layers(ds, min_thickness=0.1):
                 if lay > lay_org:
                     # only keep cells in mask that had no thickness to begin with
                     # we need to increase the botm in these cells as well
-                    mask = mask & (thickness[lay + 1] <= 0)
+                    mask = mask & (thickness[lay] <= 0)
                     if not mask.any():
                         break
                 # set the botm equal to the top in the cells in mask
-                ds["botm"][lay].data[mask] = top.data[mask]
+                ds["botm"][lay] = ds["botm"][lay].where(~mask, top)
             # calculate the thickness again, using the new botms
             thickness = calculate_thickness(ds)
+    else:
+        mask = thickness >= min_thickness
+        # set botm of layers with a small thickness to NaN
+        ds["botm"] = ds["botm"].where(mask)
+        # fill botm of the first layer by top (setting the cell thickness to 0)
+        ds["botm"][0] = ds["botm"][0].fillna(ds["top"])
+        # fill nans in botm by copying values from higher layers
+        ds["botm"] = ds["botm"].ffill("layer")
+
     return ds
 
 
@@ -937,7 +1018,7 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask):
     # zee cellen hebben altijd een top gelijk aan 0
     ds["top"].values = np.where(fill_mask, 0, ds["top"])
 
-    for lay in range(ds.dims["layer"]):
+    for lay in range(ds.sizes["layer"]):
         bottom_nan = xr.where(fill_mask, np.nan, ds["botm"][lay])
         bottom_filled = resample.fillnan_da(bottom_nan, ds=ds)
 
@@ -982,7 +1063,7 @@ def fill_nan_top_botm_kh_kv(
     """
 
     # 1
-    ds = fill_top_and_bottom(ds)
+    ds = remove_layer_dim_from_top(ds)
 
     # 2
     if remove_nan_layers:
@@ -1002,52 +1083,184 @@ def fill_nan_top_botm_kh_kv(
     return ds
 
 
-def fill_top_and_bottom(ds, drop_layer_dim_from_top=True):
+def fill_nan_top_botm(ds):
     """
-    Remove Nans in botm variable, and change top from 3d to 2d if necessary.
+    Remove Nans in non-existent layers in botm and top variables
+
+    The NaNs are removed by setting the value to the top and botm of higher/lower
+    layers that do exist.
 
     Parameters
     ----------
     ds : xr.DataSet
         model DataSet
-    drop_layer_dim_from_top : bool, optional
-        If True and top contains a layer dimension, set top to the top of the upper
-        layer (line the definition in MODFLOW). This removes redundant data, as the top
-        of all layers exept the most upper one is also defined as the bottom of previous
-        layers. The default is True.
 
     Returns
     -------
     ds : xarray.Dataset
-        dataset with filled top and bottom data according to modflow definition,
-        with 2d top and 3d bottom.
+        dataset with filled top and botm data
     """
-
     if "layer" in ds["top"].dims:
         top_max = ds["top"].max("layer")
-        if drop_layer_dim_from_top:
-            ds["top"] = top_max
     else:
         top_max = ds["top"]
+    # fill nans in botm of the first layer
+    ds["botm"][0] = ds["botm"][0].where(~ds["botm"][0].isnull(), top_max)
 
-    botm = ds["botm"].data
-    # remove nans from botm
-    for lay in range(botm.shape[0]):
-        mask = np.isnan(botm[lay])
-        if lay == 0:
-            # by setting the botm to top_max
-            botm[lay, mask] = top_max.data[mask]
-        else:
-            # by setting the botm to the botm of the layer above
-            botm[lay, mask] = botm[lay - 1, mask]
+    # then use ffill to fill nans in deeper layers
+    ds["botm"] = ds["botm"].ffill("layer")
+
     if "layer" in ds["top"].dims:
         # remove nans from top by setting it equal to botm
         # which sets the layer thickness to 0
-        top = ds["top"].data
-        mask = np.isnan(top)
-        top[mask] = botm[mask]
-
+        ds["top"] = ds["top"].where(~ds["top"].isnull(), ds["botm"])
     return ds
+
+
+def set_nan_top_and_botm(ds, copy=True):
+    """
+    Sets Nans for non-existent layers in botm and top variables
+
+    Nans are only added to top when it contains a layer dimension.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model DataSet
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset with nans in top and botm at non-existent layers.
+    """
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
+    thickness = calculate_thickness(ds)
+    mask = thickness > 0
+    if "layer" in ds["top"].dims:
+        ds["top"] = ds["top"].where(mask)
+    ds["botm"] = ds["botm"].where(mask)
+    return ds
+
+
+def remove_layer_dim_from_top(
+    ds,
+    check=True,
+    set_non_existing_layers_to_nan=False,
+    inconsistency_threshold=0.0,
+    return_inconsistencies=False,
+    copy=True,
+):
+    """
+    Change top from 3d to 2d, removing NaNs in top and botm in the process.
+
+    This method sets variable `top` to the top of the upper layer (like the definition
+    in MODFLOW). This removes redundant data, as the top of all layers exept the most
+    upper one is also defined as the bottom of lower layers.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model DataSet
+    check : bool, optional
+        If True, checks for inconsistencies in the layer model and report to logger as
+        warning. The defaults is True.
+    set_non_existing_layers_to_nan bool, optional
+        If True, sets the value of the botm-variable to NaN for non-existent layers.
+        This is not recommended, as this might break some procedures in nlmod. The
+        default is False.
+    inconsistency_threshold : float, optional
+        The threshold, above which to report inconsistencies in the layer model (where
+        the botm of a layer is not equal to top of a deeper layer). The default is 0.0.
+    return_inconsistencies : bool, optional
+        if True, return the difference between the top of layers and the botm of a
+        deeper layer, at the location where inconsitencies have been reported.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
+
+    Returns
+    -------
+    ds : xarray.Dataset or numpy.array
+        dataset without a layer dimension in top, if return_inconsistencies is False. If
+        return_inconsistencies is True, a numpy arrays with non-equal top and bottoms is
+        returned.
+    """
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
+    if "layer" in ds["top"].dims:
+        ds = fill_nan_top_botm(ds)
+        if check:
+            dz = ds["botm"][:-1].data - ds["top"][1:].data
+            inconsistencies = np.abs(dz) > inconsistency_threshold
+            n = inconsistencies.sum()
+            if n > 0:
+                msg = f"Botm of layer is not equal to top of deeper layer in {n} cells"
+                logger.warning(msg)
+                if return_inconsistencies:
+                    return np.vstack(
+                        (
+                            ds["botm"].data[:-1][inconsistencies],
+                            ds["top"].data[1:][inconsistencies],
+                        )
+                    )
+        ds["top"] = ds["top"][0]
+    if set_non_existing_layers_to_nan:
+        ds = set_nan_top_and_botm(ds, copy=False)
+    return ds
+
+
+def add_layer_dim_to_top(ds, set_non_existing_layers_to_nan=True, copy=True):
+    """
+    Change top from 2d to 3d, setting top and botm to NaN for non-existent layers.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        model DataSet
+    set_non_existing_layers_to_nan : bool, optional
+        If True, set the values of top and botm to . The default is True.
+    copy : bool, optional
+        If copy=True, data in the return value is always copied, so the original Dataset
+        is not altered. The default is True.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset with a layer dimension in top.
+    """
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
+    ds["top"] = ds["botm"] + calculate_thickness(ds)
+    if set_non_existing_layers_to_nan:
+        ds = set_nan_top_and_botm(ds, copy=False)
+    return ds
+
+
+def convert_to_modflow_top_bot(ds, **kwargs):
+    """
+    Removes the layer dimension from top and fills nans in top and botm.
+
+    Alias to remove_layer_dim_from_top
+
+    """
+    ds = remove_layer_dim_from_top(ds, **kwargs)
+
+
+def convert_to_regis_top_bot(ds, **kwargs):
+    """
+    Adds a layer dimension to top and sets non-existing cells to nan in top and botm.
+
+    Alias to add_layer_dim_to_top
+
+    """
+    ds = add_layer_dim_to_top(ds, **kwargs)
 
 
 def remove_inactive_layers(ds):
@@ -1379,20 +1592,17 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     needs to be inserted above the existing layer, and if the top or bottom of the
     existing layer needs to be altered.
 
-    For now, this method needs a layer model with a 3d-top, like you get using the
-    method `nlmod.read.get_regis()`, and does not function for a model Dataset with a 2d
-    (structured) or 1d (vertex) top.
-
     When comparing the height of the new layer with an existing layer, there are 7
     options:
 
     1 The new layer is entirely above the existing layer: layer is added completely
     above existing layer. When the bottom of the new layer is above the top of the
     existing layer (which can happen for the first layer), this creates a gap in the
-    layer model.
+    layer model. In the returned Dataset, this gap is added to the existing layer.
 
-    2 part of the new layer lies within an existing layer, bottom is never below: layer
-    is added above the existing layer, and the top of existing layer is lowered.
+    2 part of the new layer lies within an existing layer, but the bottom of the new
+    layer is never below the bottom of the existing layer: layer is added above the
+    existing layer, and the top of existing layer is lowered.
 
     3 there are locations where the new layer is above the bottom of the existing layer,
     but below the top of the existing layer. The new layer splits the existing layer
@@ -1441,8 +1651,14 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     shape = ds["botm"].shape[1:]
     assert top.shape == shape
     assert bot.shape == shape
-    msg = "Inserting layers is only supported with a 3d top for now"
-    assert "layer" in ds["top"].dims, msg
+    if copy:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
+    if "layer" in ds["top"].dims:
+        msg = "Top in ds has a layer dimension. insert_layer will remove the layer dimension from top in ds."
+        logger.warning(msg)
+    else:
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
     if kh is not None:
         assert kh.shape == shape
     if kv is not None:
@@ -1450,9 +1666,6 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     todo = ~(np.isnan(top.data) | np.isnan(bot.data)) & ((top - bot).data > 0)
     if not todo.any():
         logger.warning(f"Thickness of new layer {name} is never larger than 0")
-    if copy:
-        # make a copy, so we are sure we do not alter the original DataSet
-        ds = ds.copy(deep=True)
     isplit = None
     for layer in ds.layer.data:
         if not todo.any():
@@ -1545,6 +1758,8 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         if isplit is not None:
             isplit += 1
         ds = _insert_layer_below(ds, None, name, isplit, mask, top, bot, kh, kv, copy)
+    # remove layer dimension from top again
+    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
     return ds
 
 
@@ -1596,10 +1811,12 @@ def remove_layer(ds, layer):
     if layer not in layers:
         raise (KeyError(f"layer '{layer}' not present in Dataset"))
     if "layer" not in ds["top"].dims:
+        # make a copy, so we are sure we do not alter the original DataSet
+        ds = ds.copy(deep=True)
         index = layers.index(layer)
         if index == 0:
-            # lower the top to the second layer
-            ds["top"] = ds["botm"].loc[layers[1]]
+            # lower the top to the botm of the first layer
+            ds["top"] = ds["botm"].loc[layers[0]]
     layers.remove(layer)
     ds = ds.reindex({"layer": layers})
     return ds

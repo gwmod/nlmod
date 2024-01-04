@@ -461,11 +461,11 @@ def download_modpath_provisional_exe(bindir=None, timeout=120):
     if not os.path.isdir(bindir):
         os.makedirs(bindir)
     if sys.platform.startswith("win"):
-        fname = "mp7_win64_20230911_8eca8d8.exe"
+        fname = "mp7_win64_20231016_86b38df.exe"
     elif sys.platform.startswith("darwin"):
-        fname = "mp7_mac_20230911_8eca8d8"
+        fname = "mp7_mac_20231016_86b38df"
     elif sys.platform.startswith("linux"):
-        fname = "mp7_linux_20230911_8eca8d8"
+        fname = "mp7_linux_20231016_86b38df"
     else:
         raise (OSError(f"Unknown platform: {sys.platform}"))
     url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL"

@@ -21,3 +21,12 @@ def get_ds_vertex(extent=None, line=None, **kwargs):
     refinement_features = [([LineString(line)], "line", 1)]
     ds = nlmod.grid.refine(ds, model_ws, refinement_features=refinement_features)
     return ds
+
+
+def get_gwf(ds):
+    sim = nlmod.sim.sim(ds)
+    if "time" in ds.variables:
+        nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    nlmod.gwf.dis(ds, gwf)
+    return gwf

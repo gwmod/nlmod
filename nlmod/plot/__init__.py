@@ -5,6 +5,7 @@ from .plot import (
     data_array,
     facet_plot,
     geotop_lithok_in_cross_section,
+    geotop_lithok_on_map,
     map_array,
     modelgrid,
     surface_water,

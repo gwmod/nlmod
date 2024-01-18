@@ -1,12 +1,15 @@
 import datetime as dt
 import logging
 
+import matplotlib.pyplot as plt
+import numpy as np
+import geopandas as gpd
 import rasterio
 import rioxarray
 import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .. import cache
 from ..dims.resample import get_extent, structured_da_to_ds
@@ -97,6 +100,37 @@ def get_ahn_at_point(
     else:
         # return the center pixel
         return ahn.data[int((ahn.shape[0] - 1) / 2), int((ahn.shape[1] - 1) / 2)]
+
+
+def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=False):
+    if ahn is None:
+        bbox = line.bounds
+        extent = [bbox[0], bbox[2], bbox[1], bbox[3]]
+        ahn = get_ahn4(extent)
+    if num is not None:
+        s = np.linspace(0.0, line.length, num)
+    else:
+        if dx is None:
+            dx = float(ahn.x[1] - ahn.x[0])
+        s = np.arange(0.0, line.length, dx)
+
+    x, y = zip(*[p.xy for p in line.interpolate(s)])
+
+    x = np.array(x)[:, 0]
+    y = np.array(y)[:, 0]
+
+    x = xr.DataArray(x, dims="s", coords={"s": s})
+    y = xr.DataArray(y, dims="s", coords={"s": s})
+    z = ahn.interp(x=x, y=y, method=method)
+
+    if plot:
+        f, ax = plt.subplots(figsize=(10, 10))
+        ahn.plot(ax=ax)
+        gpd.GeoDataFrame(geometry=[line]).plot(ax=ax)
+
+        f, ax = plt.subplots(figsize=(10, 10))
+        z.plot()
+    return z
 
 
 @cache.cache_netcdf

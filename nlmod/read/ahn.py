@@ -9,7 +9,7 @@ import rioxarray
 import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from .. import cache
 from ..dims.resample import get_extent, structured_da_to_ds
@@ -124,12 +124,12 @@ def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=
     z = ahn.interp(x=x, y=y, method=method)
 
     if plot:
-        f, ax = plt.subplots(figsize=(10, 10))
+        _, ax = plt.subplots(figsize=(10, 10))
         ahn.plot(ax=ax)
         gpd.GeoDataFrame(geometry=[line]).plot(ax=ax)
 
-        f, ax = plt.subplots(figsize=(10, 10))
-        z.plot()
+        _, ax = plt.subplots(figsize=(10, 10))
+        z.plot(ax=ax)
     return z
 
 

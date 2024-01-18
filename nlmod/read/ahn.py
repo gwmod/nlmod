@@ -89,6 +89,35 @@ def get_ahn_at_point(
     res=0.5,
     **kwargs,
 ):
+    """
+    Get the height of the surface level at a certain point, defined by x and y.
+
+    Parameters
+    ----------
+    x : float
+        The x-coordinate fo the point.
+    y : float
+        The y-coordinate fo the point..
+    buffer : float, optional
+        The buffer around x and y that is downloaded. The default is 0.75.
+    return_da : bool, optional
+        Return the downloaded DataArray when True. The default is False.
+    return_mean : bool, optional
+        Resturn the mean of all non-nan pixels within buffer. Return the center pixel
+        when False. The default is False.
+    identifier : str, optional
+        The identifier passed onto get_latest_ahn_from_wcs. The default is "dsm_05m".
+    res : float, optional
+        The resolution that is passed onto get_latest_ahn_from_wcs. The default is 0.5.
+    **kwargs : dict
+        kwargs are passed onto the method get_latest_ahn_from_wcs.
+
+    Returns
+    -------
+    float
+        The surface level value at the requested point.
+
+    """
     extent = [x - buffer, x + buffer, y - buffer, y + buffer]
     ahn = get_latest_ahn_from_wcs(extent, identifier=identifier, res=res, **kwargs)
     if return_da:
@@ -103,6 +132,36 @@ def get_ahn_at_point(
 
 
 def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=False):
+    """
+    Get the height of the surface level along a line.
+
+    Parameters
+    ----------
+    line : shapely.LineString
+        The line along which the surface level is calculated.
+    ahn : xr.DataArray, optional
+        The 2d DataArray containing surface level values. If None, ahn4-values are
+        downloaded from the web. The default is None.
+    dx : float, optional
+        The distance between the points along the line at which the surface level is
+        calculated. Only used when num is None. When dx is None, it is set to the
+        resolution of ahn. The default is None.
+    num : int, optional
+        If not None, the surface level is calculated at num equally spaced points along
+        the line. The default is None.
+    method : string, optional
+        The method to interpolate the 2d surface level values to the points along the
+        line. The default is "linear".
+    plot : bool, optional
+        if True, plot the 2d surface level, the line and the calculated heights. The
+        default is False.
+
+    Returns
+    -------
+    z : xr.DataArray
+        A DataArray with dimension s, containing surface level values along the line.
+
+    """
     if ahn is None:
         bbox = line.bounds
         extent = [bbox[0], bbox[2], bbox[1], bbox[3]]

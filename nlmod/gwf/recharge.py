@@ -387,10 +387,11 @@ def ds_to_uzf(
     if landflag is None:
         landflag = xr.full_like(ds["botm"], 0, dtype=int)
         # set the landflag in the top layer to 1
-        fal = get_first_active_layer_from_idomain(idomain, nodata=0)
+        fal = get_first_active_layer_from_idomain(idomain)
+        # for the inactive domain set fal to 0 (setting nodata to 0 gives problems)
+        fal.data[fal == fal.nodata] = 0
         landflag[fal] = 1
-
-        # set landflag to 0 in inactivate domain
+        # set landflag to 0 in inactivate domain (where we set fal to 0 before)
         landflag = xr.where(idomain > 0, landflag, 0)
 
     # determine ivertcon, by setting its value to iuzno of the layer below

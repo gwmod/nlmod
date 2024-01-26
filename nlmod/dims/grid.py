@@ -550,8 +550,8 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
         interp_vars = []
         not_interp_vars = []
         for key, var in ds_in.items():
-            if "x" in var.dims or "y" in var.dims or "layer" in var.dims:
-                if np.issubdtype(dtype, np.number):
+            if "x" in var.dims or "y" in var.dims:
+                if np.issubdtype(var.dtype, np.number):
                     interp_vars.append(key)
                 else:
                     logger.info(

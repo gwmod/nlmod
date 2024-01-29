@@ -1,8 +1,12 @@
 import logging
 import os
+import io
+import requests
 
 import numpy as np
-import requests
+import pandas as pd
+import geopandas as gpd
+
 import rioxarray
 
 from ..dims.resample import structured_da_to_ds
@@ -173,3 +177,183 @@ def add_buisdrainage(
     ds[depth_var] = ds[depth_var] / 100.0
 
     return ds
+
+
+def get_gwo_wells(
+    username,
+    password,
+    n_well_filters=1_000,
+    well_site=None,
+    organisation=None,
+    status=None,
+    well_index="Name",
+    **kwargs,
+):
+    """
+    Get metadata of extraction wells from the NHI GWO database
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retreive a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : TYPE
+        The password of the NHI GWO database. To retreive a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_well_filters : int, optional
+        The number of wells that are requested per page. This number determines in how
+        many pieces the request is splitted. The default is 1000.
+    organisation : str, optional
+        The organisation that manages the wells. If not None, the organisation will be
+        used to filter the wells. The default is None.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    status : str, optional
+        The status of the wells. If not None, the status will be used to filter the
+        wells. Possible values are "Active", "Inactive" or "Abandoned". The default is
+        None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeodDataFrame containing the properties of the wells and their filters.
+
+    """
+    # zie https://gwo.nhi.nu/api/v1/download/
+    url = "https://gwo.nhi.nu/api/v1/well_filters/"
+
+    page = 1
+    properties = []
+    while page is not None:
+        params = {"format": "csv", "n_well_filters": n_well_filters, "page": page}
+        if status is not None:
+            params["well__status"] = status
+        if organisation is not None:
+            params["well__organization"] = organisation
+        if well_site is not None:
+            params["well__site"] = well_site
+        params.update(kwargs)
+
+        r = requests.get(url, auth=(username, password), params=params)
+        content = r.content.decode("utf-8")
+        df = pd.read_csv(io.StringIO(content), skiprows=list(range(8)) + [9], sep=";")
+        properties.append(df)
+
+        if len(df) == n_well_filters:
+            page += 1
+        else:
+            page = None
+    df = pd.concat(properties)
+    geometry = gpd.points_from_xy(df.XCoordinate, df.YCoordinate)
+    gdf = gpd.GeoDataFrame(df, geometry=geometry)
+    if well_index is not None:
+        gdf = gdf.set_index(well_index)
+    return gdf
+
+
+def get_gwo_measurements(
+    username,
+    password,
+    n_measurements=10_000,
+    well_site=None,
+    well_index="Name",
+    measurement_index=("Name", "DateTime"),
+    **kwargs,
+):
+    """
+    Get extraction rates and metadata of wells from the NHI GWO database
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retreive a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : TYPE
+        The password of the NHI GWO database. To retreive a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_measurements : int, optional
+        The number of measurements that are requested per page, with a maximum of
+        200000. This number determines in how many pieces the request is splitted. The
+        default is 10000.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    measurement_index :  str, tuple or list, optional, optional
+        The column(s) in the resulting measurement-DataFrame that is/are used as the
+        index of this DataFrame. The default is ("Name", "DateTime").
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    measurements : pandas.DataFrame
+        A DataFrame containing the extraction rates of the wells in the database.
+    gdf : geopandas.GeoDataFrame
+        A GeodDataFrame containing the properties of the wells and their filters.
+
+    """
+    url = "http://gwo.nhi.nu/api/v1/measurements/"
+    properties = []
+    measurements = []
+    page = 1
+    while page is not None:
+        params = {
+            "format": "csv",
+            "n_measurements": n_measurements,
+            "page": page,
+        }
+        if well_site is not None:
+            params["filter__well__site"] = well_site
+        params.update(kwargs)
+        r = requests.get(url, auth=(username, password), params=params)
+
+        content = r.content.decode("utf-8")
+        lines = content.split("\n")
+        empty_lines = np.where([set(line) == set(";") for line in lines[:100]])[0]
+        assert len(empty_lines) == 2
+
+        # read properties
+        skiprows = list(range(empty_lines[0] + 1)) + [empty_lines[0] + 2]
+        nrows = empty_lines[1] - empty_lines[0] - 3
+        df = pd.read_csv(io.StringIO(content), sep=";", skiprows=skiprows, nrows=nrows)
+        properties.append(df)
+
+        skiprows = list(range(empty_lines[1] + 1)) + [empty_lines[1] + 2]
+        df = pd.read_csv(
+            io.StringIO(content),
+            skiprows=skiprows,
+            sep=";",
+            parse_dates=["DateTime"],
+            dayfirst=True,
+        )
+        measurements.append(df)
+        if len(df) == n_measurements:
+            page += 1
+        else:
+            page = None
+    measurements = pd.concat(measurements)
+    # drop columns without measurements
+    measurements = measurements.loc[:, ~measurements.isna().all()]
+    if measurement_index is not None:
+        if isinstance(measurement_index, tuple):
+            measurement_index = list(measurement_index)
+        measurements = measurements.set_index(["Name", "DateTime"])
+    df = pd.concat(properties)
+    geometry = gpd.points_from_xy(df.XCoordinate, df.YCoordinate)
+    gdf = gpd.GeoDataFrame(df, geometry=geometry)
+    if well_index is not None:
+        gdf = gdf.set_index(well_index)
+        # drop duplicate properties from multiple pages
+        gdf = gdf[~gdf.index.duplicated()]
+    return measurements, gdf

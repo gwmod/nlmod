@@ -187,6 +187,7 @@ def get_gwo_wells(
     organisation=None,
     status=None,
     well_index="Name",
+    timeout=120,
     **kwargs,
 ):
     """
@@ -216,6 +217,8 @@ def get_gwo_wells(
     well_index : str, tuple or list, optional
         The column(s) in the resulting GeoDataFrame that is/are used as the index of
         this GeoDataFrame. The default is "Name".
+    timeout : int, optional
+        The timeout time of requests to the database. The default is 120.
     **kwargs : dict
         Kwargs are passed as additional parameters in the request to the database. For
         available parameters see https://gwo.nhi.nu/api/v1/download/.
@@ -241,7 +244,7 @@ def get_gwo_wells(
             params["well__site"] = well_site
         params.update(kwargs)
 
-        r = requests.get(url, auth=(username, password), params=params)
+        r = requests.get(url, auth=(username, password), params=params, timeout=timeout)
         content = r.content.decode("utf-8")
         df = pd.read_csv(io.StringIO(content), skiprows=list(range(8)) + [9], sep=";")
         properties.append(df)
@@ -265,6 +268,7 @@ def get_gwo_measurements(
     well_site=None,
     well_index="Name",
     measurement_index=("Name", "DateTime"),
+    timeout=120,
     **kwargs,
 ):
     """
@@ -291,6 +295,8 @@ def get_gwo_measurements(
     measurement_index :  str, tuple or list, optional, optional
         The column(s) in the resulting measurement-DataFrame that is/are used as the
         index of this DataFrame. The default is ("Name", "DateTime").
+    timeout : int, optional
+        The timeout time of requests to the database. The default is 120.
     **kwargs : dict
         Kwargs are passed as additional parameters in the request to the database. For
         available parameters see https://gwo.nhi.nu/api/v1/download/.
@@ -316,7 +322,7 @@ def get_gwo_measurements(
         if well_site is not None:
             params["filter__well__site"] = well_site
         params.update(kwargs)
-        r = requests.get(url, auth=(username, password), params=params)
+        r = requests.get(url, auth=(username, password), params=params, timeout=timeout)
 
         content = r.content.decode("utf-8")
         lines = content.split("\n")

@@ -28,7 +28,7 @@ def test_gwo():
     username = os.environ["NHI_GWO_USERNAME"]
     password = os.environ["NHI_GWO_PASSWORD"]
 
-    # bijvoorbeeld: download ontrekkingen van Brabant Water
+    # download all wells from Brabant Water
     wells = nlmod.read.nhi.get_gwo_wells(
         username=username, password=password, organisation="Brabant Water"
     )

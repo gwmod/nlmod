@@ -200,19 +200,7 @@ def get_configuration():
             "bottom_height": "WS_BODEMHOOGTE",
         },
         "level_areas": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
-            "layer": 4,
-            "table": {
-                "id": 6,
-                "SOORTSTREEFPEIL": {
-                    901: "STREEFPEIL_JAARROND",  # vast peilbeheer
-                    902: "STREEFPEIL_WINTER",
-                    903: "STREEFPEIL_ZOMER",
-                    904: "STREEFPEIL_JAARROND",  # dynamisch peilbeheer
-                    905: "ONDERGRENS_JAARROND",
-                    906: "BOVENGRENS_JAARROND",
-                },
-            },
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilgebied_beheerregister/MapServer",
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",

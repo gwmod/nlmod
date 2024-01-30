@@ -571,7 +571,7 @@ def get_gdf_stage(gdf, season="winter"):
 
 
 def download_level_areas(
-    gdf, extent=None, config=None, raise_exceptions=True, **kwargs
+    gdf, extent=None, config=None, raise_exceptions=True, drop_duplicates=True, **kwargs
 ):
     """Download level areas (peilgebieden) of bronhouders.
 
@@ -590,6 +590,9 @@ def download_level_areas(
         Raises exceptions, mostly caused by a webservice that is offline. When
         raise_exceptions is False, the error is raised as a warning. The default is
         True.
+    drop_duplicates : bool, optional
+        Drop features with a duplicate index, keeping the first occurence. The default
+        is True.
 
     Returns
     -------
@@ -610,6 +613,13 @@ def download_level_areas(
                 if len(lawb) == 0:
                     logger.info(f"No {data_kind} for {wb} found within model area")
                     continue
+                if drop_duplicates:
+                    mask = lawb.index.duplicated()
+                    if mask.any():
+                        msg = "Dropping {} level area(s) of {} with duplicate indexes"
+                        logger.warning(msg.format(mask.sum(), wb))
+                        lawb = lawb.loc[~mask]
+
                 la[wb] = lawb
                 mask = ~la[wb].is_valid
                 if mask.any():

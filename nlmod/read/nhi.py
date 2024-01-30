@@ -196,14 +196,14 @@ def get_gwo_wells(
     Parameters
     ----------
     username : str
-        The username of the NHI GWO database. To retreive a username and password visit
+        The username of the NHI GWO database. To retrieve a username and password visit
         https://gwo.nhi.nu/register/.
-    password : TYPE
-        The password of the NHI GWO database. To retreive a username and password visit
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
         https://gwo.nhi.nu/register/.
     n_well_filters : int, optional
         The number of wells that are requested per page. This number determines in how
-        many pieces the request is splitted. The default is 1000.
+        many pieces the request is split. The default is 1000.
     organisation : str, optional
         The organisation that manages the wells. If not None, the organisation will be
         used to filter the wells. The default is None.
@@ -218,7 +218,8 @@ def get_gwo_wells(
         The column(s) in the resulting GeoDataFrame that is/are used as the index of
         this GeoDataFrame. The default is "Name".
     timeout : int, optional
-        The timeout time of requests to the database. The default is 120.
+        The timeout time (in seconds) for requests to the database. The default is
+        120 seconds.
     **kwargs : dict
         Kwargs are passed as additional parameters in the request to the database. For
         available parameters see https://gwo.nhi.nu/api/v1/download/.
@@ -226,7 +227,7 @@ def get_gwo_wells(
     Returns
     -------
     gdf : geopandas.GeoDataFrame
-        A GeodDataFrame containing the properties of the wells and their filters.
+        A GeoDataFrame containing the properties of the wells and their filters.
 
     """
     # zie https://gwo.nhi.nu/api/v1/download/
@@ -277,15 +278,15 @@ def get_gwo_measurements(
     Parameters
     ----------
     username : str
-        The username of the NHI GWO database. To retreive a username and password visit
+        The username of the NHI GWO database. To retrieve a username and password visit
         https://gwo.nhi.nu/register/.
-    password : TYPE
-        The password of the NHI GWO database. To retreive a username and password visit
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
         https://gwo.nhi.nu/register/.
     n_measurements : int, optional
         The number of measurements that are requested per page, with a maximum of
-        200000. This number determines in how many pieces the request is splitted. The
-        default is 10000.
+        200,000. This number determines in how many pieces the request is split. The
+        default is 10,000.
     well_site : str, optional
         The name of well site the wells belong to. If not None, the well site will be
         used to filter the wells. The default is None.
@@ -296,7 +297,8 @@ def get_gwo_measurements(
         The column(s) in the resulting measurement-DataFrame that is/are used as the
         index of this DataFrame. The default is ("Name", "DateTime").
     timeout : int, optional
-        The timeout time of requests to the database. The default is 120.
+        The timeout time (in seconds) of requests to the database. The default is
+        120 seconds.
     **kwargs : dict
         Kwargs are passed as additional parameters in the request to the database. For
         available parameters see https://gwo.nhi.nu/api/v1/download/.
@@ -306,7 +308,7 @@ def get_gwo_measurements(
     measurements : pandas.DataFrame
         A DataFrame containing the extraction rates of the wells in the database.
     gdf : geopandas.GeoDataFrame
-        A GeodDataFrame containing the properties of the wells and their filters.
+        A GeoDataFrame containing the properties of the wells and their filters.
 
     """
     url = "http://gwo.nhi.nu/api/v1/measurements/"

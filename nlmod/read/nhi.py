@@ -247,7 +247,19 @@ def get_gwo_wells(
 
         r = requests.get(url, auth=(username, password), params=params, timeout=timeout)
         content = r.content.decode("utf-8")
-        df = pd.read_csv(io.StringIO(content), skiprows=list(range(8)) + [9], sep=";")
+        if len(content) == 0:
+            if page == 1:
+                msg = "No extraction wells found for the requested parameters"
+                raise Exception(msg)
+            else:
+                # the number of wells is exactly a multiple of n_well_filters
+                page = None
+                continue
+        lines = content.split("\n")
+        empty_lines = np.where([set(line) == set(";") for line in lines])[0]
+        assert len(empty_lines) == 1, "Returned extraction wells cannot be interpreted"
+        skiprows = list(range(empty_lines[0] + 1)) + [empty_lines[0] + 2]
+        df = pd.read_csv(io.StringIO(content), skiprows=skiprows, sep=";")
         properties.append(df)
 
         if len(df) == n_well_filters:
@@ -327,9 +339,17 @@ def get_gwo_measurements(
         r = requests.get(url, auth=(username, password), params=params, timeout=timeout)
 
         content = r.content.decode("utf-8")
+        if len(content) == 0:
+            if page == 1:
+                msg = "No extraction rates found for the requested parameters"
+                raise (Exception(msg))
+            else:
+                # the number of measurements is exactly a multiple of n_measurements
+                page = None
+                continue
         lines = content.split("\n")
-        empty_lines = np.where([set(line) == set(";") for line in lines[:100]])[0]
-        assert len(empty_lines) == 2
+        empty_lines = np.where([set(line) == set(";") for line in lines])[0]
+        assert len(empty_lines) == 2, "Returned extraction rates cannot be interpreted"
 
         # read properties
         skiprows = list(range(empty_lines[0] + 1)) + [empty_lines[0] + 2]
@@ -337,6 +357,7 @@ def get_gwo_measurements(
         df = pd.read_csv(io.StringIO(content), sep=";", skiprows=skiprows, nrows=nrows)
         properties.append(df)
 
+        # read measurements
         skiprows = list(range(empty_lines[1] + 1)) + [empty_lines[1] + 2]
         df = pd.read_csv(
             io.StringIO(content),

@@ -250,7 +250,7 @@ def get_gwo_wells(
         if len(content) == 0:
             if page == 1:
                 msg = "No extraction wells found for the requested parameters"
-                raise Exception(msg)
+                raise ValueError(msg)
             else:
                 # the number of wells is exactly a multiple of n_well_filters
                 page = None
@@ -342,7 +342,7 @@ def get_gwo_measurements(
         if len(content) == 0:
             if page == 1:
                 msg = "No extraction rates found for the requested parameters"
-                raise (Exception(msg))
+                raise (ValueError(msg))
             else:
                 # the number of measurements is exactly a multiple of n_measurements
                 page = None

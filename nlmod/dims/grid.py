@@ -509,9 +509,11 @@ def refine(
     return ds
 
 
-def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
+def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
     """resample a dataset (xarray) on an structured grid to a new dataset with
     a vertex grid.
+
+    Returns a dataset with resampled variables and the untouched variables.
 
     Parameters
     ----------
@@ -523,15 +525,14 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
         definition of the vertex grid.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
-    nodata : int, optional
+    icvert_nodata : int, optional
         integer to represent nodata-values in cell2d array. Defaults to -1.
 
     Returns
     -------
     ds_out : xarray.Dataset
-        dataset with dimensions (layer, icell2d).
+        dataset with resampled variables and the untouched variables.
     """
-
     logger.info("resample model Dataset to vertex modelgrid")
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
@@ -540,40 +541,49 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
     x = xr.DataArray(xyi[:, 0], dims=("icell2d",))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d",))
 
-    # drop non-numeric data variables
-    for key, dtype in ds_in.dtypes.items():
-        if not np.issubdtype(dtype, np.number):
-            ds_in = ds_in.drop_vars(key)
-            logger.info(
-                f"cannot convert data variable {key} to refined dataset because of non-numeric dtype"
-            )
-
     if method in ["nearest", "linear"]:
-        # resample the entire dataset in one line
+        # resample the entire dataset in one line. Leaves not_interp_vars untouched
         ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+
     else:
-        ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
+        # apply method to numeric data variables
+        interp_vars = []
+        not_interp_vars = []
+        for key, var in ds_in.items():
+            if "x" in var.dims or "y" in var.dims:
+                if np.issubdtype(var.dtype, np.number):
+                    interp_vars.append(key)
+                else:
+                    logger.info(
+                        f"Data variable {key} has spatial coordinates but it cannot be refined "
+                        "because of its non-numeric dtype. It is not available in the output Dataset."
+                    )
+            else:
+                not_interp_vars.append(key)
+
+        ds_out = ds_in[not_interp_vars]
+        ds_out.coords.update({"layer": ds_in.layer, "x": x, "y": y})
 
         # add other variables
-        for data_var in ds_in.data_vars:
-            data_arr = structured_da_to_ds(ds_in[data_var], ds_out, method=method)
-            ds_out[data_var] = data_arr
+        for not_interp_var in not_interp_vars:
+            ds_out[not_interp_var] = structured_da_to_ds(
+                da=ds_in[not_interp_var], ds=ds_out, method=method, nodata=np.NaN
+            )
 
     if "area" in gridprops:
         if "area" in ds_out:
             ds_out = ds_out.drop_vars("area")
+
         # only keep the first layer of area
         area = gridprops["area"][: len(ds_out["icell2d"])]
         ds_out["area"] = ("icell2d", area)
 
     # add information about the vertices
-    ds_out = gridprops_to_vertex_ds(gridprops, ds_out, nodata=nodata)
+    ds_out = gridprops_to_vertex_ds(gridprops, ds_out, nodata=icvert_nodata)
 
     # then finally change the gridtype in the attributes
     ds_out.attrs["gridtype"] = "vertex"
-
     return ds_out
-
 
 def get_xyi_icell2d(gridprops=None, ds=None):
     """Get x and y coordinates of the cell mids from the cellids in the grid

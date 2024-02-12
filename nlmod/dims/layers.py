@@ -50,7 +50,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
 
     # subtracting floats can result in rounding errors. Mainly anoying for zero thickness layers.
     thickness = thickness.where(~np.isclose(thickness, 0.), 0.)
-    
+
     if isinstance(ds[bot], xr.DataArray):
         thickness.name = "thickness"
         if hasattr(ds[bot], "long_name"):

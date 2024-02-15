@@ -660,7 +660,7 @@ def get_ds(
         ds,
         model_name=model_name,
         model_ws=model_ws,
-        extent=extent,
+        extent=attrs["extent"],
         delr=delr,
         delc=delc,
         drop_attributes=False,

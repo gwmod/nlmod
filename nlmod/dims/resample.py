@@ -139,10 +139,10 @@ def ds_to_structured_grid(
     if delc is None:
         delc = delr
 
-    x, y = get_xy_mid_structured(extent, delr, delc)
-
     attrs = ds_in.attrs.copy()
     _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
+
+    x, y = get_xy_mid_structured(attrs["extent"], delr, delc)
 
     # add new attributes
     attrs["gridtype"] = "structured"

@@ -38,7 +38,7 @@ def surface_water(model_ds, ax=None, **kwargs):
 def modelgrid(ds, ax=None, **kwargs):
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
-        ax.axis("scaled")
+        ax.set_aspect("auto")
     modelgrid = modelgrid_from_ds(ds)
     extent = None if ax.get_autoscale_on() else ax.axis()
     modelgrid.plot(ax=ax, **kwargs)

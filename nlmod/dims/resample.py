@@ -308,6 +308,11 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     can be slow if the xar_in is a large raster
     """
 
+    if xar_in.dims != ("icell2d",):
+        raise ValueError(
+            f"expected dataarray with dimensions ('icell2d'), got dimensions -> {xar_in.dims}"
+        )
+
     # get list of coordinates from all points in raster
     if x is None:
         x = ds["x"].data
@@ -431,7 +436,8 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         coords = dict(da.coords)
         coords["x"] = ds.x
         coords["y"] = ds.y
-        coords.pop("icell2d")
+        if "icell2d" in coords:
+            coords.pop("icell2d")
     else:
         # just use griddata
         z = griddata(points, da.data, xi, method=method)

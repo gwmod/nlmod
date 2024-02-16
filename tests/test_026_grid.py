@@ -49,6 +49,43 @@ def test_get_ds_rotated():
     assert (np.array(ax.axis()) == np.array(ax0.axis())).all()
 
 
+def test_vertex_da_to_ds():
+    bgt = get_bgt()
+    regis = get_regis()
+
+    # for a normal grid
+    ds0 = nlmod.to_model_ds(regis)
+    ds = nlmod.grid.refine(ds0, model_ws=model_ws, refinement_features=[(bgt, 1)])
+    da = nlmod.resample.vertex_da_to_ds(ds["top"], ds0, method="linear")
+    assert not da.isnull().all()
+    da = nlmod.resample.vertex_da_to_ds(ds["botm"], ds0, method="linear")
+    assert not da.isnull().all()
+
+    # for a rotated grid
+    ds0 = nlmod.to_model_ds(regis, angrot=10)
+    ds = nlmod.grid.refine(ds0, model_ws=model_ws, refinement_features=[(bgt, 1)])
+    da = nlmod.resample.vertex_da_to_ds(ds["top"], ds0, method="linear")
+    assert not da.isnull().all()
+    da = nlmod.resample.vertex_da_to_ds(ds["botm"], ds0, method="linear")
+    assert not da.isnull().all()
+
+
+def test_fillnan_da():
+    # for a structured grid
+    ds = nlmod.get_ds(extent, layer=1)
+    ds["top"][5, 5] = np.NaN
+    top = nlmod.resample.fillnan_da(ds["top"], ds=ds)
+    assert not np.isnan(top[5, 5])
+
+    # also for a vertex grid
+    bgt = get_bgt()
+    ds = nlmod.grid.refine(ds, model_ws=model_ws, refinement_features=[(bgt, 1)])
+    mask = ds["top"].isnull()
+    assert mask.any()
+    top = nlmod.resample.fillnan_da(ds["top"], ds=ds)
+    assert not top[mask].isnull().any()
+
+
 def test_gdf_to_bool_da():
     bgt = get_bgt()
 

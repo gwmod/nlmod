@@ -139,8 +139,15 @@ def cache_netcdf(func):
             cached_ds = xr.open_dataset(fname_cache)
 
             if pickle_check:
-                # add netcdf hash to function arguments dic, see #66
+                # Ensure that the pickle pairs with the netcdf, see #66.
                 func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+
+                if dataset is not None:
+                    # Check the coords of the dataset argument
+                    func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
+
+                    # Check the data_vars of the dataset argument
+                    func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
 
                 # check if cache was created with same function arguments as
                 # function call
@@ -150,15 +157,8 @@ def cache_netcdf(func):
 
             cached_ds = _check_for_data_array(cached_ds)
             if modification_check and argument_check and pickle_check:
-                if dataset is None:
-                    logger.info(f"using cached data -> {cachename}")
-                    return cached_ds
-
-                # check if cached dataset has same dimension and coordinates
-                # as current dataset
-                if _check_ds(dataset, cached_ds):
-                    logger.info(f"using cached data -> {cachename}")
-                    return cached_ds
+                logger.info(f"using cached data -> {cachename}")
+                return cached_ds
 
         # create cache
         result = func(*args, **kwargs)
@@ -192,6 +192,11 @@ def cache_netcdf(func):
             temp = xr.open_dataset(fname_cache)
             func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
             temp.close()
+
+            # Add dataset argument hash to pickle
+            if dataset is not None:
+                func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
+                func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
 
             # pickle function arguments
             with open(fname_pickle_cache, "wb") as fpklz:
@@ -316,39 +321,6 @@ def cache_pickle(func):
         return result
 
     return decorator
-
-
-def _check_ds(ds, ds2):
-    """Check if two datasets have the same dimensions and coordinates.
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        dataset with dimensions and coordinates
-    ds2 : xr.Dataset
-        dataset with dimensions and coordinates. This is typically
-        a cached dataset.
-
-    Returns
-    -------
-    bool
-        True if the two datasets have the same grid and time discretization.
-    """
-
-    for coord in ds2.coords:
-        if coord in ds.coords:
-            try:
-                xr.testing.assert_identical(ds[coord], ds2[coord])
-            except AssertionError:
-                logger.info(
-                    f"coordinate {coord} has different values in cached dataset, not using cache"
-                )
-                return False
-        else:
-            logger.info(f"dimension {coord} only present in cache, not using cache")
-            return False
-
-    return True
 
 
 def _same_function_arguments(func_args_dic, func_args_dic_cache):
@@ -509,16 +481,24 @@ def _update_docstring_and_signature(func):
         cur_param = cur_param[:-1]
     else:
         add_kwargs = None
-    new_param = cur_param + (
-        inspect.Parameter(
-            "cachedir", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
-        ),
-        inspect.Parameter(
-            "cachename", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
-        ),
-    )
+    
+    new_param = cur_param + tuple()  # to copy the tuple
+    if all(i.name != "cachedir" for i in cur_param):
+        new_param += (
+            inspect.Parameter(
+                "cachedir", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
+            ),
+        )
+    if all(i.name != "cachename" for i in cur_param):
+        new_param += (
+            inspect.Parameter(
+                "cachename", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
+            ),
+        )
+    
     if add_kwargs is not None:
         new_param = new_param + (add_kwargs,)
+
     sig = sig.replace(parameters=new_param)
     func.__signature__ = sig
 

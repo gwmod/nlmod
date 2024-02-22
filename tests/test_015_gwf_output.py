@@ -199,3 +199,19 @@ def test_postprocess_head():
     nlmod.gwf.get_gwl_from_wet_cells(head, botm=ds["botm"])
 
     nlmod.gwf.get_head_at_point(head, float(ds.x.mean()), float(ds.y.mean()), ds=ds)
+
+
+def test_get_flow_residuals():
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    da = nlmod.gwf.output.get_flow_residuals(ds)
+    assert "time" in da.dims
+    da = nlmod.gwf.output.get_flow_residuals(ds, kstpkper=(0, 0))
+    assert "time" not in da.dims
+
+
+def test_get_flow_lower_face():
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    da = nlmod.gwf.output.get_flow_lower_face(ds)
+    assert "time" in da.dims
+    da = nlmod.gwf.output.get_flow_lower_face(ds, kstpkper=(0, 0))
+    assert "time" not in da.dims

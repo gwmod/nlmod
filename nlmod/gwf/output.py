@@ -8,11 +8,13 @@ import xarray as xr
 from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
+from ..dims.resample import get_affine_world_to_mod
 from ..mfoutput.mfoutput import (
     _get_budget_da,
     _get_heads_da,
     _get_time_index,
     _get_flopy_data_object,
+    _get_grbfile,
 )
 
 logger = logging.getLogger(__name__)
@@ -232,7 +234,139 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
     return gwl
 
 
-def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
+def get_flow_residuals(ds, kstpkper=None, grb_file=None):
+    """
+    Get the flow residuals of a MODFLOW 6 simulation.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Xarray dataset with model data.
+    kstpkper : tuple of 2 ints, optional
+        The index of the timestep and the stress period to include in the result. Include
+        all data in the budget-file when None. The default is None.
+    grb_file : str, optional
+        The location of the grb-file. grb_file is determied from ds when None. The
+        default is None.
+
+    Returns
+    -------
+    da : xr.DataArray
+        The flow residual in each cell, in m3/d.
+
+    """
+    if grb_file is None:
+        grb_file = _get_grbfile(ds)
+    grb = flopy.mf6.utils.MfGrdFile(grb_file)
+    cbf = get_cellbudgetfile(ds)
+    dims = ds["botm"].dims
+    coords = ds["botm"].coords
+    flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
+    mask_active = np.diff(grb.ia) > 0
+    flowja_index = grb.ia[:-1][mask_active]
+    if kstpkper is None:
+        # loop over all timesteps/stress-periods
+        residuals = []
+        for iflowja in flowja:
+            # residuals.append(flopy.mf6.utils.get_residuals(iflowja, grb_file))
+            # use our own faster method instead of a for loop:
+            residual = np.full(grb.shape, np.NaN)
+            residual.ravel()[mask_active] = iflowja.flatten()[flowja_index]
+            residuals.append(residual)
+        dims = ("time",) + dims
+        coords = dict(coords) | {"time": _get_time_index(cbf, ds)}
+    else:
+        # residuals = flopy.mf6.utils.get_residuals(flowja[0], grb_file)
+        # use our own faster method instead of a for loop:
+        residuals = np.full(grb.shape, np.NaN)
+        residuals.ravel()[mask_active] = flowja[0].flatten()[flowja_index]
+    da = xr.DataArray(residuals, dims=dims, coords=coords)
+    return da
+
+
+def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
+    """
+    Get the flow over the lower face of all model cells
+
+    THe flow Lower Face (flf) used to be written to the budget file in previous versions
+    of MODFLOW.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Xarray dataset with model data.
+    kstpkper : tuple of 2 ints, optional
+        The index of the timestep and the stress period to include in the result. Include
+        all data in the budget-file when None. The default is None.
+    grb_file : str, optional
+        The location of the grb-file. grb_file is determied from ds when None. The
+        default is None.
+    lays : int or list of ints, optional
+        The layers to include in the result. When lays is None, all layers are included.
+        The default is None.
+
+    Returns
+    -------
+    da : xr.DataArray
+        The flow over the lower face of each cell, in m3/d.
+
+    """
+    if grb_file is None:
+        grb_file = _get_grbfile(ds)
+    cbf = get_cellbudgetfile(ds)
+    flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
+
+    if ds.gridtype == "vertex":
+        # detemine flf_index first
+        grb = flopy.mf6.utils.MfGrdFile(grb_file)
+
+        if lays is None:
+            lays = range(grb.nlay)
+        if isinstance(lays, int):
+            lays = [lays]
+        shape = (len(lays), len(ds.icell2d))
+
+        flf_index = np.full(shape, -1)
+        # get these properties outside of the for loop to increase speed
+        grb_ia = grb.ia
+        grb_ja = grb.ja
+        for ilay, lay in enumerate(lays):
+            ja_start_next_layer = (lay + 1) * grb.ncpl
+            for icell2d in range(grb.ncpl):
+                node = lay * grb.ncpl + icell2d
+                ia = np.arange(grb_ia[node], grb_ia[node + 1])
+                mask = grb_ja[ia] >= ja_start_next_layer
+                if mask.any():
+                    # assert mask.sum() == 1
+                    flf_index[ilay, icell2d] = int(ia[mask])
+
+    dims = ds["botm"].dims
+    coords = ds["botm"][lays].coords
+    if kstpkper is None:
+        # loop over all tiesteps/stress-periods
+        flfs = []
+        for iflowja in flowja:
+            if ds.gridtype == "vertex":
+                flf = np.full(shape, np.NaN)
+                mask = flf_index >= 0
+                flf[mask] = iflowja[0, 0, flf_index[mask]]
+            else:
+                _, _, flf = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
+            flfs.append(flf)
+        dims = ("time",) + dims
+        coords = dict(coords) | {"time": _get_time_index(cbf, ds)}
+    else:
+        if ds.gridtype == "vertex":
+            flfs = np.full(shape, np.NaN)
+            mask = flf_index >= 0
+            flfs[mask] = flowja[0][0, 0, flf_index[mask]]
+        else:
+            _, _, flfs = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
+    da = xr.DataArray(flfs, dims=dims, coords=coords)
+    return da
+
+
+def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True, rotated=True):
     """Get the head at a certain point from a head DataArray for all cells.
 
     Parameters
@@ -253,12 +387,19 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
         None.
     drop_nan_layers : bool, optional
         Drop layers that are NaN at all timesteps. The default is True.
+    rotated : bool, optional
+        If rotated is True, x and y are in real world coordinates. If rotated is False,
+        x and y are in model coordinates.
 
     Returns
     -------
     head_point : xarray.DataArray
         A DataArray with dimensions (time, layer).
     """
+    if rotated:
+        # calculate real-world coordinates to model coordinates
+        x, y = get_affine_world_to_mod(ds) * (x, y)
+
     if "icell2d" in head.dims:
         if gi is None:
             if ds is None:

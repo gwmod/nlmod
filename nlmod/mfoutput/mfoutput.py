@@ -285,10 +285,7 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         fname = os.path.join(ds.model_ws, ds.model_name + extension)
     if grbfile is None and ds is not None:
         # get grb file
-        if ds.gridtype == "vertex":
-            grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
-        elif ds.gridtype == "structured":
-            grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+        grbfile = _get_grbfile(ds)
     if grbfile is not None and os.path.exists(grbfile):
         modelgrid = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
     elif ds is not None:
@@ -307,3 +304,11 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
             logger.warning(msg)
             warnings.warn(msg)
         return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid)
+
+
+def _get_grbfile(ds):
+    if ds.gridtype == "vertex":
+        grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+    elif ds.gridtype == "structured":
+        grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+    return grbfile

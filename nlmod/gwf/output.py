@@ -339,9 +339,11 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
                 if mask.any():
                     # assert mask.sum() == 1
                     flf_index[ilay, icell2d] = int(ia[mask])
-
+        coords = ds["botm"][lays].coords
+    else:
+        coords = ds["botm"].coords
     dims = ds["botm"].dims
-    coords = ds["botm"][lays].coords
+
     if kstpkper is None:
         # loop over all tiesteps/stress-periods
         flfs = []
@@ -352,8 +354,6 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
                 flf[mask] = iflowja[0, 0, flf_index[mask]]
             else:
                 _, _, flf = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
-                if lays is not None:
-                    flf = flf[lays]
             flfs.append(flf)
         dims = ("time",) + dims
         coords = dict(coords) | {"time": _get_time_index(cbf, ds)}
@@ -364,13 +364,15 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
             flfs[mask] = flowja[0][0, 0, flf_index[mask]]
         else:
             _, _, flfs = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
-            if lays is not None:
-                flf = flf[lays]
     da = xr.DataArray(flfs, dims=dims, coords=coords)
+    if ds.gridtype != "vertex" and lays is not None:
+        da = da.isel(layer=lays)
     return da
 
 
-def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True, rotated=True):
+def get_head_at_point(
+    head, x, y, ds=None, gi=None, drop_nan_layers=True, rotated=False
+):
     """Get the head at a certain point from a head DataArray for all cells.
 
     Parameters
@@ -392,16 +394,17 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True, rotate
     drop_nan_layers : bool, optional
         Drop layers that are NaN at all timesteps. The default is True.
     rotated : bool, optional
-        If rotated is True, x and y are in real world coordinates. If rotated is False,
-        x and y are in model coordinates.
+        If the model grid has a rotation, and rotated is False, x and y are in model
+        coordinates. Otherwise x and y are in real world coordinates. The defaults is
+        False.
 
     Returns
     -------
     head_point : xarray.DataArray
         A DataArray with dimensions (time, layer).
     """
-    if rotated:
-        # calculate real-world coordinates to model coordinates
+    if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # calculate model coordinates from the specified real-world coordinates
         x, y = get_affine_world_to_mod(ds) * (x, y)
 
     if "icell2d" in head.dims:

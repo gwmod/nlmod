@@ -288,8 +288,8 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
     """
     Get the flow over the lower face of all model cells
 
-    THe flow Lower Face (flf) used to be written to the budget file in previous versions
-    of MODFLOW.
+    The flow Lower Face (flf) used to be written to the budget file in previous versions
+    of MODFLOW. In MODFLOW 6 we determine these flows from the flow-ja-face-records.
 
     Parameters
     ----------
@@ -352,6 +352,8 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
                 flf[mask] = iflowja[0, 0, flf_index[mask]]
             else:
                 _, _, flf = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
+                if lays is not None:
+                    flf = flf[lays]
             flfs.append(flf)
         dims = ("time",) + dims
         coords = dict(coords) | {"time": _get_time_index(cbf, ds)}
@@ -362,6 +364,8 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
             flfs[mask] = flowja[0][0, 0, flf_index[mask]]
         else:
             _, _, flfs = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
+            if lays is not None:
+                flf = flf[lays]
     da = xr.DataArray(flfs, dims=dims, coords=coords)
     return da
 

@@ -363,7 +363,7 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
             mask = flf_index >= 0
             flfs[mask] = flowja[0][0, 0, flf_index[mask]]
         else:
-            _, _, flfs = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
+            _, _, flfs = flopy.mf6.utils.get_structured_faceflows(flowja[0], grb_file)
     da = xr.DataArray(flfs, dims=dims, coords=coords)
     if ds.gridtype != "vertex" and lays is not None:
         da = da.isel(layer=lays)

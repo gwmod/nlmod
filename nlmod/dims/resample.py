@@ -436,8 +436,9 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         coords = dict(da.coords)
         coords["x"] = ds.x
         coords["y"] = ds.y
-        if "icell2d" in coords:
-            coords.pop("icell2d")
+        for key in list(coords):
+            if "icell2d" in coords[key].dims:
+                coords.pop(key)
     else:
         # just use griddata
         z = griddata(points, da.data, xi, method=method)

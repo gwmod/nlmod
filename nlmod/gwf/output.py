@@ -14,13 +14,13 @@ from ..mfoutput.mfoutput import (
     _get_heads_da,
     _get_time_index,
     _get_flopy_data_object,
-    _get_grbfile,
+    _get_grb_file,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
+def get_headfile(ds=None, gwf=None, fname=None, grb_file=None):
     """Get flopy HeadFile object.
 
     Provide one of ds, gwf or fname.
@@ -33,7 +33,7 @@ def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
         groundwater flow model, by default None
     fname : str, optional
         path to heads file, by default None
-    grbfile : str
+    grb_file : str
         path to file containing binary grid information
 
     Returns
@@ -41,14 +41,14 @@ def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
     flopy.utils.HeadFile
         HeadFile object handle
     """
-    return _get_flopy_data_object("head", ds, gwf, fname, grbfile)
+    return _get_flopy_data_object("head", ds, gwf, fname, grb_file)
 
 
 def get_heads_da(
     ds=None,
     gwf=None,
     fname=None,
-    grbfile=None,
+    grb_file=None,
     delayed=False,
     chunked=False,
     **kwargs,
@@ -64,7 +64,7 @@ def get_heads_da(
         Flopy groundwaterflow object.
     fname : path, optional
         path to a binary heads file
-    grbfile : str, optional
+    grb_file : str, optional
         path to file containing binary grid information, only needed if reading
         output from file using fname
     delayed : bool, optional
@@ -77,7 +77,7 @@ def get_heads_da(
     da : xarray.DataArray
         heads data array.
     """
-    hobj = get_headfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
+    hobj = get_headfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
     # gwf.output.head() defaults to a structured grid
     if gwf is not None and ds is None and fname is None:
         kwargs["modelgrid"] = gwf.modelgrid
@@ -101,7 +101,7 @@ def get_heads_da(
     return da
 
 
-def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
+def get_cellbudgetfile(ds=None, gwf=None, fname=None, grb_file=None):
     """Get flopy CellBudgetFile object.
 
     Provide one of ds, gwf or fname.
@@ -113,9 +113,9 @@ def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
     gwf : flopy.mf6.ModflowGwf, optional
         groundwater flow model, by default None
     fname_cbc : str, optional
-        path to cell budget file, by default None\
-    grbfile : str, optional
-        path to file containing binary grid information, only needed if 
+        path to cell budget file, by default None
+    grb_file : str, optional
+        path to file containing binary grid information, only needed if
         fname_cbc is passed as only argument.
 
     Returns
@@ -123,7 +123,7 @@ def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
     flopy.utils.CellBudgetFile
         CellBudgetFile object handle
     """
-    return _get_flopy_data_object("budget", ds, gwf, fname, grbfile)
+    return _get_flopy_data_object("budget", ds, gwf, fname, grb_file)
 
 
 def get_budget_da(
@@ -131,7 +131,7 @@ def get_budget_da(
     ds=None,
     gwf=None,
     fname=None,
-    grbfile=None,
+    grb_file=None,
     column="q",
     delayed=False,
     chunked=False,
@@ -150,7 +150,7 @@ def get_budget_da(
     fname : path, optional
         specify the budget file to load, if not provided budget file will
         be obtained from ds or gwf.
-    grbfile : str
+    grb_file : str
         path to file containing binary grid information, only needed if reading
         output from file using fname
     column : str
@@ -166,7 +166,7 @@ def get_budget_da(
     da : xarray.DataArray
         budget data array.
     """
-    cbcobj = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
+    cbcobj = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
     da = _get_budget_da(cbcobj, text, column=column, **kwargs)
     da.attrs["units"] = "m3/d"
 
@@ -234,7 +234,7 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
     return gwl
 
 
-def get_flow_residuals(ds, kstpkper=None, grb_file=None):
+def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
     """
     Get the flow residuals of a MODFLOW 6 simulation.
 
@@ -242,12 +242,17 @@ def get_flow_residuals(ds, kstpkper=None, grb_file=None):
     ----------
     ds : xarray.Dataset
         Xarray dataset with model data.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
+    grb_file : str
+        The location of the grb-file. grb_file is determied from ds when None. The
+        default is None.
     kstpkper : tuple of 2 ints, optional
         The index of the timestep and the stress period to include in the result. Include
         all data in the budget-file when None. The default is None.
-    grb_file : str, optional
-        The location of the grb-file. grb_file is determied from ds when None. The
-        default is None.
 
     Returns
     -------
@@ -256,9 +261,9 @@ def get_flow_residuals(ds, kstpkper=None, grb_file=None):
 
     """
     if grb_file is None:
-        grb_file = _get_grbfile(ds)
+        grb_file = _get_grb_file(ds)
     grb = flopy.mf6.utils.MfGrdFile(grb_file)
-    cbf = get_cellbudgetfile(ds)
+    cbf = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
     dims = ds["botm"].dims
     coords = ds["botm"].coords
     flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
@@ -284,7 +289,9 @@ def get_flow_residuals(ds, kstpkper=None, grb_file=None):
     return da
 
 
-def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
+def get_flow_lower_face(
+    ds, gwf=None, fname=None, grb_file=None, kstpkper=None, lays=None
+):
     """
     Get the flow over the lower face of all model cells
 
@@ -295,12 +302,17 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
     ----------
     ds : xarray.Dataset
         Xarray dataset with model data.
-    kstpkper : tuple of 2 ints, optional
-        The index of the timestep and the stress period to include in the result. Include
-        all data in the budget-file when None. The default is None.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
     grb_file : str, optional
         The location of the grb-file. grb_file is determied from ds when None. The
         default is None.
+    kstpkper : tuple of 2 ints, optional
+        The index of the timestep and the stress period to include in the result. Include
+        all data in the budget-file when None. The default is None.
     lays : int or list of ints, optional
         The layers to include in the result. When lays is None, all layers are included.
         The default is None.
@@ -312,12 +324,12 @@ def get_flow_lower_face(ds, kstpkper=None, grb_file=None, lays=None):
 
     """
     if grb_file is None:
-        grb_file = _get_grbfile(ds)
-    cbf = get_cellbudgetfile(ds)
+        grb_file = _get_grb_file(ds)
+    cbf = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
     flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
 
     if ds.gridtype == "vertex":
-        # detemine flf_index first
+        # determine flf_index first
         grb = flopy.mf6.utils.MfGrdFile(grb_file)
 
         if lays is None:

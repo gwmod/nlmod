@@ -239,7 +239,7 @@ def _get_budget_da(
     return da
 
 
-def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
+def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grb_file=None):
     """Get modflow HeadFile or CellBudgetFile object, containg heads, budgets or
     concentrations
 
@@ -255,7 +255,7 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         groundwater flow or transport model, by default None
     fname : str, optional
         path to Head- or CellBudgetFile, by default None
-    grbfile : str, optional
+    grb_file : str, optional
         path to file containing binary grid information, if None modelgrid
         information is obtained from ds. By default None
 
@@ -283,11 +283,11 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
             # return gwf.output.head(), gwf.output.budget() or gwt.output.concentration()
             return getattr(gwml.output, var)()
         fname = os.path.join(ds.model_ws, ds.model_name + extension)
-    if grbfile is None and ds is not None:
+    if grb_file is None and ds is not None:
         # get grb file
-        grbfile = _get_grbfile(ds)
-    if grbfile is not None and os.path.exists(grbfile):
-        modelgrid = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
+        grb_file = _get_grb_file(ds)
+    if grb_file is not None and os.path.exists(grb_file):
+        modelgrid = flopy.mf6.utils.MfGrdFile(grb_file).modelgrid
     elif ds is not None:
         modelgrid = modelgrid_from_ds(ds)
     else:
@@ -306,9 +306,9 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid)
 
 
-def _get_grbfile(ds):
+def _get_grb_file(ds):
     if ds.gridtype == "vertex":
-        grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+        grb_file = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
     elif ds.gridtype == "structured":
-        grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
-    return grbfile
+        grb_file = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+    return grb_file

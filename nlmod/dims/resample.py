@@ -117,13 +117,20 @@ def ds_to_structured_grid(
     delc : int or float
         cell size along columns of the desired grid (dy).
     xorigin : int or float, optional
-        lower left x coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
     yorigin : int or float, optional
-        lower left y coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
     angrot : int or float, optinal
-        the rotation of the grid in counter clockwise degrees, default is 0.0
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     method : str, optional
         type of interpolation used to resample. Sea structured_da_to_ds for
         possible values of method. The default is 'nearest'.
@@ -139,10 +146,10 @@ def ds_to_structured_grid(
     if delc is None:
         delc = delr
 
-    x, y = get_xy_mid_structured(extent, delr, delc)
-
     attrs = ds_in.attrs.copy()
     _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
+
+    x, y = get_xy_mid_structured(attrs["extent"], delr, delc)
 
     # add new attributes
     attrs["gridtype"] = "structured"
@@ -171,15 +178,21 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
     ----------
     extent : list, tuple or np.array of length 4
         extent (xmin, xmax, ymin, ymax) of the desired grid.
-    xorigin : float
-        x-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0.
-    yorigin : float
-        y-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0.
-    angrot : float
-        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
-        model grid.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict
         Attributes of a model dataset.
 
@@ -308,6 +321,11 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     can be slow if the xar_in is a large raster
     """
 
+    if xar_in.dims != ("icell2d",):
+        raise ValueError(
+            f"expected dataarray with dimensions ('icell2d'), got dimensions -> {xar_in.dims}"
+        )
+
     # get list of coordinates from all points in raster
     if x is None:
         x = ds["x"].data
@@ -431,7 +449,9 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         coords = dict(da.coords)
         coords["x"] = ds.x
         coords["y"] = ds.y
-        coords.pop("icell2d")
+        for key in list(coords):
+            if "icell2d" in coords[key].dims:
+                coords.pop(key)
     else:
         # just use griddata
         z = griddata(points, da.data, xi, method=method)

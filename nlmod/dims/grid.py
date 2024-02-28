@@ -5,6 +5,7 @@
     can be used as input for a MODFLOW package
 -   fill, interpolate and resample grid data
 """
+
 import logging
 import os
 import warnings
@@ -569,6 +570,10 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
             ds_out[not_interp_var] = structured_da_to_ds(
                 da=ds_in[not_interp_var], ds=ds_out, method=method, nodata=np.NaN
             )
+    has_rotation = "angrot" in ds_out.attrs and ds_out.attrs["angrot"] != 0.0
+    if has_rotation:
+        affine = get_affine_mod_to_world(ds_out)
+        ds_out["xc"], ds_out["yc"] = affine * (ds_out.x, ds_out.y)
 
     if "area" in gridprops:
         if "area" in ds_out:
@@ -584,6 +589,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
     # then finally change the gridtype in the attributes
     ds_out.attrs["gridtype"] = "vertex"
     return ds_out
+
 
 def get_xyi_icell2d(gridprops=None, ds=None):
     """Get x and y coordinates of the cell mids from the cellids in the grid
@@ -1536,7 +1542,7 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
 
     # build list of gridcells
     if ix is None:
-        modelgrid = modelgrid_from_ds(ds)
+        modelgrid = modelgrid_from_ds(ds, rotated=False)
         ix = GridIntersect(modelgrid, method="vertex")
 
     if ds.gridtype == "structured":

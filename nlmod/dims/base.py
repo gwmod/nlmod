@@ -113,13 +113,20 @@ def to_model_ds(
     fill_value_kv : int or float, optional
         use this value for kv if there is no data. The default is 0.1.
     xorigin : int or float, optional
-        lower left x coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
     yorigin : int or float, optional
-        lower left y coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
     angrot : int or float, optinal
-        the rotation of the grid in counter clockwise degrees, default is 0.0
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     drop_attributes : bool, optional
         if True drop the attributes from the layer model dataset. Otherwise
         keep the attributes. Default is True.
@@ -274,13 +281,21 @@ def _get_structured_grid_ds(
         A 2D array of the top elevation of the grid cells. Default is NaN.
     botm : array_like, optional
         A 3D array of the bottom elevation of the grid cells. Default is NaN.
-    xorigin : float, optional
-        The x-coordinate origin of the grid. Default is 0.0.
-    yorigin : float, optional
-        The y-coordinate origin of the grid. Default is 0.0.
-    angrot : float, optional
-        The counter-clockwise rotation angle of the grid, in degrees.
-        Default is 0.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         A dictionary of attributes to add to the xarray dataset. Default is an
         empty dictionary.
@@ -406,13 +421,21 @@ def _get_vertex_grid_ds(
         A 2D array of the top elevation of the grid cells. Default is NaN.
     botm : array_like, optional
         A 3D array of the bottom elevation of the grid cells. Default is NaN.
-    xorigin : float, optional
-        The x-coordinate origin of the grid. Default is 0.0.
-    yorigin : float, optional
-        The y-coordinate origin of the grid. Default is 0.0.
-    angrot : float, optional
-        The counter-clockwise rotation angle of the grid, in degrees.
-        Default is 0.0.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         A dictionary of attributes to add to the xarray dataset. Default is an
         empty dictionary.
@@ -546,15 +569,21 @@ def get_ds(
         is a float or a list/array of len(layer). The default is 1.0.
     crs : int, optional
         The coordinate reference system of the model. The default is 28992.
-    xorigin : float, optional
-        x-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0. The defauls is 0.0.
-    yorigin : float, optional
-        y-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0. The defauls is 0.0.
-    angrot : float, optional
-        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
-        model grid. The default is 0.0
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         Attributes of the model dataset. The default is None.
     extrapolate : bool, optional
@@ -660,7 +689,7 @@ def get_ds(
         ds,
         model_name=model_name,
         model_ws=model_ws,
-        extent=extent,
+        extent=attrs["extent"],
         delr=delr,
         delc=delc,
         drop_attributes=False,

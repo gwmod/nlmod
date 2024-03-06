@@ -20,7 +20,7 @@ from ..mfoutput.mfoutput import (
 logger = logging.getLogger(__name__)
 
 
-def get_headfile(ds=None, gwf=None, fname=None, grb_file=None):
+def get_headfile(ds=None, gwf=None, fname=None, grb_file=None, **kwargs):
     """Get flopy HeadFile object.
 
     Provide one of ds, gwf or fname.
@@ -41,7 +41,7 @@ def get_headfile(ds=None, gwf=None, fname=None, grb_file=None):
     flopy.utils.HeadFile
         HeadFile object handle
     """
-    return _get_flopy_data_object("head", ds, gwf, fname, grb_file)
+    return _get_flopy_data_object("head", ds, gwf, fname, grb_file, **kwargs)
 
 
 def get_heads_da(
@@ -51,6 +51,7 @@ def get_heads_da(
     grb_file=None,
     delayed=False,
     chunked=False,
+    precision="auto",
     **kwargs,
 ):
     """Read binary heads file.
@@ -71,13 +72,19 @@ def get_heads_da(
         if delayed is True, do not load output data into memory, default is False.
     chunked : bool, optional
         chunk data array containing output, default is False.
+    precision : str, optional
+        precision of floating point data in the head-file. Accepted values are 'auto',
+        'single' or 'double'. When precision is 'auto', it is determined from the
+        head-file. Default is 'auto'.
 
     Returns
     -------
     da : xarray.DataArray
         heads data array.
     """
-    hobj = get_headfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
+    hobj = get_headfile(
+        ds=ds, gwf=gwf, fname=fname, grb_file=grb_file, precision=precision
+    )
     # gwf.output.head() defaults to a structured grid
     if gwf is not None and ds is None and fname is None:
         kwargs["modelgrid"] = gwf.modelgrid
@@ -101,7 +108,7 @@ def get_heads_da(
     return da
 
 
-def get_cellbudgetfile(ds=None, gwf=None, fname=None, grb_file=None):
+def get_cellbudgetfile(ds=None, gwf=None, fname=None, grb_file=None, **kwargs):
     """Get flopy CellBudgetFile object.
 
     Provide one of ds, gwf or fname.
@@ -123,7 +130,7 @@ def get_cellbudgetfile(ds=None, gwf=None, fname=None, grb_file=None):
     flopy.utils.CellBudgetFile
         CellBudgetFile object handle
     """
-    return _get_flopy_data_object("budget", ds, gwf, fname, grb_file)
+    return _get_flopy_data_object("budget", ds, gwf, fname, grb_file, **kwargs)
 
 
 def get_budget_da(
@@ -135,6 +142,7 @@ def get_budget_da(
     column="q",
     delayed=False,
     chunked=False,
+    precision="auto",
     **kwargs,
 ):
     """Read binary budget file.
@@ -160,13 +168,19 @@ def get_budget_da(
         if delayed is True, do not load output data into memory, default is False.
     chunked : bool, optional
         chunk data array containing output, default is False.
+    precision : str, optional
+        precision of floating point data in the budget-file. Accepted values are 'auto',
+        'single' or 'double'. When precision is 'auto', it is determined from the
+        budget-file. Default is 'auto'.
 
     Returns
     -------
     da : xarray.DataArray
         budget data array.
     """
-    cbcobj = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
+    cbcobj = get_cellbudgetfile(
+        ds=ds, gwf=gwf, fname=fname, grb_file=grb_file, precision=precision
+    )
     da = _get_budget_da(cbcobj, text, column=column, **kwargs)
     da.attrs["units"] = "m3/d"
 

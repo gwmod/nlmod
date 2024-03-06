@@ -67,17 +67,17 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
     fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
-    da = get_heads_da(ds=None, gwf=None, fname=fname_hds, grbfile=grbfile)  # fname
+    grb_file = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+    da = get_heads_da(ds=None, gwf=None, fname=fname_hds, grb_file=grb_file)  # fname
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
     # budget
     da = get_budget_da("CHD", ds=ds, gwf=None, fname=None)  # ds
     da = get_budget_da("CHD", ds=None, gwf=gwf, fname=None)  # gwf
     fname_cbc = os.path.join(ds.model_ws, ds.model_name + ".cbc")
-    get_budget_da("CHD", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile)  # fname
+    get_budget_da("CHD", ds=None, gwf=None, fname=fname_cbc, grb_file=grb_file)  # fname
     get_budget_da(
-        "DATA-SPDIS", column="qz", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile
+        "DATA-SPDIS", column="qz", ds=None, gwf=None, fname=fname_cbc, grb_file=grb_file
     )  # fname
 
     # unstructured
@@ -127,18 +127,18 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
     fname_hds = os.path.join(ds.model_ws, ds.model_name + ".hds")
-    grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
-    da = get_heads_da(ds=None, gwf=None, fname=fname_hds, grbfile=grbfile)  # fname
+    grb_file = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+    da = get_heads_da(ds=None, gwf=None, fname=fname_hds, grb_file=grb_file)  # fname
     assert np.array_equal(da.values, heads_correct, equal_nan=True)
 
     # budget
     da = get_budget_da("CHD", ds=ds_unstr, gwf=None, fname=None)  # ds
     da = get_budget_da("CHD", ds=None, gwf=gwf_unstr, fname=None)  # gwf
     da = get_budget_da(
-        "CHD", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile
+        "CHD", ds=None, gwf=None, fname=fname_cbc, grb_file=grb_file
     )  # fname
     _ = get_budget_da(
-        "DATA-SPDIS", column="qz", ds=None, gwf=None, fname=fname_cbc, grbfile=grbfile
+        "DATA-SPDIS", column="qz", ds=None, gwf=None, fname=fname_cbc, grb_file=grb_file
     )  # fname
 
 
@@ -150,8 +150,8 @@ def test_get_heads_da_from_file_structured_no_grb():
 
 def test_get_heads_da_from_file_structured_with_grb():
     fname_hds = "./tests/data/mf6output/structured/test.hds"
-    grbfile = "./tests/data/mf6output/structured/test.dis.grb"
-    nlmod.gwf.output.get_heads_da(fname=fname_hds, grbfile=grbfile)
+    grb_file = "./tests/data/mf6output/structured/test.dis.grb"
+    nlmod.gwf.output.get_heads_da(fname=fname_hds, grb_file=grb_file)
 
 
 def test_get_budget_da_from_file_structured_no_grb():
@@ -162,8 +162,8 @@ def test_get_budget_da_from_file_structured_no_grb():
 
 def test_get_budget_da_from_file_structured_with_grb():
     fname_cbc = "./tests/data/mf6output/structured/test.cbc"
-    grbfile = "./tests/data/mf6output/structured/test.dis.grb"
-    nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grbfile=grbfile)
+    grb_file = "./tests/data/mf6output/structured/test.dis.grb"
+    nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grb_file=grb_file)
 
 
 def test_get_heads_da_from_file_vertex_no_grb():
@@ -174,8 +174,8 @@ def test_get_heads_da_from_file_vertex_no_grb():
 
 def test_get_heads_da_from_file_vertex_with_grb():
     fname_hds = "./tests/data/mf6output/vertex/test.hds"
-    grbfile = "./tests/data/mf6output/vertex/test.disv.grb"
-    nlmod.gwf.output.get_heads_da(fname=fname_hds, grbfile=grbfile)
+    grb_file = "./tests/data/mf6output/vertex/test.disv.grb"
+    nlmod.gwf.output.get_heads_da(fname=fname_hds, grb_file=grb_file)
 
 
 def test_get_budget_da_from_file_vertex_no_grb():
@@ -186,8 +186,8 @@ def test_get_budget_da_from_file_vertex_no_grb():
 
 def test_get_budget_da_from_file_vertex_with_grb():
     fname_cbc = "./tests/data/mf6output/vertex/test.cbc"
-    grbfile = "./tests/data/mf6output/vertex/test.disv.grb"
-    nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grbfile=grbfile)
+    grb_file = "./tests/data/mf6output/vertex/test.disv.grb"
+    nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grb_file=grb_file)
 
 
 def test_postprocess_head():
@@ -199,3 +199,19 @@ def test_postprocess_head():
     nlmod.gwf.get_gwl_from_wet_cells(head, botm=ds["botm"])
 
     nlmod.gwf.get_head_at_point(head, float(ds.x.mean()), float(ds.y.mean()), ds=ds)
+
+
+def test_get_flow_residuals():
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    da = nlmod.gwf.output.get_flow_residuals(ds)
+    assert "time" in da.dims
+    da = nlmod.gwf.output.get_flow_residuals(ds, kstpkper=(0, 0))
+    assert "time" not in da.dims
+
+
+def test_get_flow_lower_face():
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    da = nlmod.gwf.output.get_flow_lower_face(ds)
+    assert "time" in da.dims
+    da = nlmod.gwf.output.get_flow_lower_face(ds, kstpkper=(0, 0))
+    assert "time" not in da.dims

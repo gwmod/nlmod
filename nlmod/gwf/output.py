@@ -8,17 +8,19 @@ import xarray as xr
 from shapely.geometry import Point
 
 from ..dims.grid import modelgrid_from_ds
+from ..dims.resample import get_affine_world_to_mod
 from ..mfoutput.mfoutput import (
     _get_budget_da,
     _get_heads_da,
     _get_time_index,
     _get_flopy_data_object,
+    _get_grb_file,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
+def get_headfile(ds=None, gwf=None, fname=None, grb_file=None):
     """Get flopy HeadFile object.
 
     Provide one of ds, gwf or fname.
@@ -31,7 +33,7 @@ def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
         groundwater flow model, by default None
     fname : str, optional
         path to heads file, by default None
-    grbfile : str
+    grb_file : str
         path to file containing binary grid information
 
     Returns
@@ -39,14 +41,14 @@ def get_headfile(ds=None, gwf=None, fname=None, grbfile=None):
     flopy.utils.HeadFile
         HeadFile object handle
     """
-    return _get_flopy_data_object("head", ds, gwf, fname, grbfile)
+    return _get_flopy_data_object("head", ds, gwf, fname, grb_file)
 
 
 def get_heads_da(
     ds=None,
     gwf=None,
     fname=None,
-    grbfile=None,
+    grb_file=None,
     delayed=False,
     chunked=False,
     **kwargs,
@@ -62,7 +64,7 @@ def get_heads_da(
         Flopy groundwaterflow object.
     fname : path, optional
         path to a binary heads file
-    grbfile : str, optional
+    grb_file : str, optional
         path to file containing binary grid information, only needed if reading
         output from file using fname
     delayed : bool, optional
@@ -75,7 +77,7 @@ def get_heads_da(
     da : xarray.DataArray
         heads data array.
     """
-    hobj = get_headfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
+    hobj = get_headfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
     # gwf.output.head() defaults to a structured grid
     if gwf is not None and ds is None and fname is None:
         kwargs["modelgrid"] = gwf.modelgrid
@@ -99,7 +101,7 @@ def get_heads_da(
     return da
 
 
-def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
+def get_cellbudgetfile(ds=None, gwf=None, fname=None, grb_file=None):
     """Get flopy CellBudgetFile object.
 
     Provide one of ds, gwf or fname.
@@ -111,9 +113,9 @@ def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
     gwf : flopy.mf6.ModflowGwf, optional
         groundwater flow model, by default None
     fname_cbc : str, optional
-        path to cell budget file, by default None\
-    grbfile : str, optional
-        path to file containing binary grid information, only needed if 
+        path to cell budget file, by default None
+    grb_file : str, optional
+        path to file containing binary grid information, only needed if
         fname_cbc is passed as only argument.
 
     Returns
@@ -121,7 +123,7 @@ def get_cellbudgetfile(ds=None, gwf=None, fname=None, grbfile=None):
     flopy.utils.CellBudgetFile
         CellBudgetFile object handle
     """
-    return _get_flopy_data_object("budget", ds, gwf, fname, grbfile)
+    return _get_flopy_data_object("budget", ds, gwf, fname, grb_file)
 
 
 def get_budget_da(
@@ -129,7 +131,7 @@ def get_budget_da(
     ds=None,
     gwf=None,
     fname=None,
-    grbfile=None,
+    grb_file=None,
     column="q",
     delayed=False,
     chunked=False,
@@ -148,7 +150,7 @@ def get_budget_da(
     fname : path, optional
         specify the budget file to load, if not provided budget file will
         be obtained from ds or gwf.
-    grbfile : str
+    grb_file : str
         path to file containing binary grid information, only needed if reading
         output from file using fname
     column : str
@@ -164,7 +166,7 @@ def get_budget_da(
     da : xarray.DataArray
         budget data array.
     """
-    cbcobj = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grbfile=grbfile)
+    cbcobj = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
     da = _get_budget_da(cbcobj, text, column=column, **kwargs)
     da.attrs["units"] = "m3/d"
 
@@ -232,7 +234,157 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
     return gwl
 
 
-def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
+def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
+    """
+    Get the flow residuals of a MODFLOW 6 simulation.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Xarray dataset with model data.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
+    grb_file : str
+        The location of the grb-file. grb_file is determied from ds when None. The
+        default is None.
+    kstpkper : tuple of 2 ints, optional
+        The index of the timestep and the stress period to include in the result. Include
+        all data in the budget-file when None. The default is None.
+
+    Returns
+    -------
+    da : xr.DataArray
+        The flow residual in each cell, in m3/d.
+
+    """
+    if grb_file is None:
+        grb_file = _get_grb_file(ds)
+    grb = flopy.mf6.utils.MfGrdFile(grb_file)
+    cbf = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
+    dims = ds["botm"].dims
+    coords = ds["botm"].coords
+    flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
+    mask_active = np.diff(grb.ia) > 0
+    flowja_index = grb.ia[:-1][mask_active]
+    if kstpkper is None:
+        # loop over all timesteps/stress-periods
+        residuals = []
+        for iflowja in flowja:
+            # residuals.append(flopy.mf6.utils.get_residuals(iflowja, grb_file))
+            # use our own faster method instead of a for loop:
+            residual = np.full(grb.shape, np.NaN)
+            residual.ravel()[mask_active] = iflowja.flatten()[flowja_index]
+            residuals.append(residual)
+        dims = ("time",) + dims
+        coords = dict(coords) | {"time": _get_time_index(cbf, ds)}
+    else:
+        # residuals = flopy.mf6.utils.get_residuals(flowja[0], grb_file)
+        # use our own faster method instead of a for loop:
+        residuals = np.full(grb.shape, np.NaN)
+        residuals.ravel()[mask_active] = flowja[0].flatten()[flowja_index]
+    da = xr.DataArray(residuals, dims=dims, coords=coords)
+    return da
+
+
+def get_flow_lower_face(
+    ds, gwf=None, fname=None, grb_file=None, kstpkper=None, lays=None
+):
+    """
+    Get the flow over the lower face of all model cells
+
+    The flow Lower Face (flf) used to be written to the budget file in previous versions
+    of MODFLOW. In MODFLOW 6 we determine these flows from the flow-ja-face-records.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Xarray dataset with model data.
+    gwf : flopy ModflowGwf, optional
+        Flopy groundwaterflow object. One of ds or gwf must be provided.
+    fname : path, optional
+        specify the budget file to load, if not provided budget file will
+        be obtained from ds or gwf.
+    grb_file : str, optional
+        The location of the grb-file. grb_file is determied from ds when None. The
+        default is None.
+    kstpkper : tuple of 2 ints, optional
+        The index of the timestep and the stress period to include in the result. Include
+        all data in the budget-file when None. The default is None.
+    lays : int or list of ints, optional
+        The layers to include in the result. When lays is None, all layers are included.
+        The default is None.
+
+    Returns
+    -------
+    da : xr.DataArray
+        The flow over the lower face of each cell, in m3/d.
+
+    """
+    if grb_file is None:
+        grb_file = _get_grb_file(ds)
+    cbf = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
+    flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
+
+    if ds.gridtype == "vertex":
+        # determine flf_index first
+        grb = flopy.mf6.utils.MfGrdFile(grb_file)
+
+        if lays is None:
+            lays = range(grb.nlay)
+        if isinstance(lays, int):
+            lays = [lays]
+        shape = (len(lays), len(ds.icell2d))
+
+        flf_index = np.full(shape, -1)
+        # get these properties outside of the for loop to increase speed
+        grb_ia = grb.ia
+        grb_ja = grb.ja
+        for ilay, lay in enumerate(lays):
+            ja_start_next_layer = (lay + 1) * grb.ncpl
+            for icell2d in range(grb.ncpl):
+                node = lay * grb.ncpl + icell2d
+                ia = np.arange(grb_ia[node], grb_ia[node + 1])
+                mask = grb_ja[ia] >= ja_start_next_layer
+                if mask.any():
+                    # assert mask.sum() == 1
+                    flf_index[ilay, icell2d] = int(ia[mask])
+        coords = ds["botm"][lays].coords
+    else:
+        coords = ds["botm"].coords
+    dims = ds["botm"].dims
+
+    if kstpkper is None:
+        # loop over all tiesteps/stress-periods
+        flfs = []
+        for iflowja in flowja:
+            if ds.gridtype == "vertex":
+                flf = np.full(shape, np.NaN)
+                mask = flf_index >= 0
+                flf[mask] = iflowja[0, 0, flf_index[mask]]
+            else:
+                _, _, flf = flopy.mf6.utils.get_structured_faceflows(iflowja, grb_file)
+            flfs.append(flf)
+        dims = ("time",) + dims
+        coords = dict(coords) | {"time": _get_time_index(cbf, ds)}
+    else:
+        if ds.gridtype == "vertex":
+            flfs = np.full(shape, np.NaN)
+            mask = flf_index >= 0
+            flfs[mask] = flowja[0][0, 0, flf_index[mask]]
+        else:
+            _, _, flfs = flopy.mf6.utils.get_structured_faceflows(flowja[0], grb_file)
+    da = xr.DataArray(flfs, dims=dims, coords=coords)
+    if ds.gridtype != "vertex" and lays is not None:
+        da = da.isel(layer=lays)
+    return da
+
+
+def get_head_at_point(
+    head, x, y, ds=None, gi=None, drop_nan_layers=True, rotated=False
+):
     """Get the head at a certain point from a head DataArray for all cells.
 
     Parameters
@@ -253,12 +405,20 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True):
         None.
     drop_nan_layers : bool, optional
         Drop layers that are NaN at all timesteps. The default is True.
+    rotated : bool, optional
+        If the model grid has a rotation, and rotated is False, x and y are in model
+        coordinates. Otherwise x and y are in real world coordinates. The defaults is
+        False.
 
     Returns
     -------
     head_point : xarray.DataArray
         A DataArray with dimensions (time, layer).
     """
+    if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # calculate model coordinates from the specified real-world coordinates
+        x, y = get_affine_world_to_mod(ds) * (x, y)
+
     if "icell2d" in head.dims:
         if gi is None:
             if ds is None:

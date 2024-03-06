@@ -239,7 +239,9 @@ def _get_budget_da(
     return da
 
 
-def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grb_file=None):
+def _get_flopy_data_object(
+    var, ds=None, gwml=None, fname=None, grb_file=None, **kwargs
+):
     """Get modflow HeadFile or CellBudgetFile object, containg heads, budgets or
     concentrations
 
@@ -298,12 +300,12 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grb_file=None):
         if modelgrid is None:
             logger.error(msg)
             raise ValueError(msg)
-        return flopy.utils.CellBudgetFile(fname, modelgrid=modelgrid)
+        return flopy.utils.CellBudgetFile(fname, modelgrid=modelgrid, **kwargs)
     else:
         if modelgrid is None:
             logger.warning(msg)
             warnings.warn(msg)
-        return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid)
+        return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid, **kwargs)
 
 
 def _get_grb_file(ds):

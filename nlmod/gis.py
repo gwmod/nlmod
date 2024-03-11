@@ -340,16 +340,16 @@ def ds_to_ugrid_nc_file(
         The name of the variable that contains the indexes of the vertices for
         each face. The default is 'icvert'.
     split_layer_dimension : bool, optional
-        Splits the layer dimension into seperate varibales when True. The defaults is
+        Splits the layer dimension into seperate variables when True. The defaults is
         True.
     split_time_dimension : bool, optional
-        Splits the time dimension into seperate varibales when True. The defaults is
+        Splits the time dimension into seperate variables when True. The defaults is
         False.
     for_imod_qgis_plugin : bool, optional
         When True, set some properties of the netcdf file to improve compatibility with
-        the iMOD-QGIS plugin. Layers are renamed i to n, a variable 'top' is added for
-        each layer, and the variables 'botm' is renamed to 'bottom'. The default is
-        False.
+        the iMOD-QGIS plugin. Layers are renamed to 'layer_i' until 'layer_n', a
+        variable 'top' is added for each layer, and the variable 'botm' is renamed to
+        'bottom'. The default is False.
 
     Returns
     -------

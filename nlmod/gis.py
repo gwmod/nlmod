@@ -6,6 +6,7 @@ import numpy as np
 
 from .dims.grid import polygons_from_model_ds
 from .dims.resample import get_affine_mod_to_world
+from .dims.layers import calculate_thickness
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +309,9 @@ def ds_to_ugrid_nc_file(
     xv="xv",
     yv="yv",
     face_node_connectivity="icvert",
+    split_layer_dimension=True,
+    split_time_dimension=False,
+    for_imod_qgis_plugin=False,
 ):
     """Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh Layer
     in qgis.
@@ -335,13 +339,24 @@ def ds_to_ugrid_nc_file(
     face_node_connectivity : str, optional
         The name of the variable that contains the indexes of the vertices for
         each face. The default is 'icvert'.
+    split_layer_dimension : bool, optional
+        Splits the layer dimension into seperate varibales when True. The defaults is
+        True.
+    split_time_dimension : bool, optional
+        Splits the time dimension into seperate varibales when True. The defaults is
+        False.
+    for_imod_qgis_plugin : bool, optional
+        When True, set some properties of the netcdf file to improve compatibility with
+        the iMOD-QGIS plugin. Layers are renamed i to n, a variable 'top' is added for
+        each layer, and the variables 'botm' is renamed to 'bottom'. The default is
+        False.
 
     Returns
     -------
     ds : xr.DataSet
         The dataset that was saved to a NetCDF-file. Can be used for debugging.
     """
-    assert model_ds.gridtype == "vertex", "Only vertex grids are supported"
+    assert model_ds.gridtype == "vertex", "Only vertex grids are supported for now"
 
     # copy the dataset, so we do not alter the original one
     ds = model_ds.copy()
@@ -377,6 +392,10 @@ def ds_to_ugrid_nc_file(
     ds[face_node_connectivity].attrs["cf_role"] = "face_node_connectivity"
     ds[face_node_connectivity].attrs["start_index"] = 0
 
+    if for_imod_qgis_plugin and "botm" in ds:
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
+        ds = ds.rename({"botm": "bottom"})
+
     # set for each of the variables that they describe the faces
     if variables is None:
         variables = list(ds.keys())
@@ -405,9 +424,16 @@ def ds_to_ugrid_nc_file(
             ds[var].encoding["dtype"] = np.int32
 
     # Breaks down variables with a layer dimension into separate variables.
-    ds, variables = _break_down_dimension(ds, variables, "layer")
-    # Breaks down variables with a time dimension into separate variables.
-    ds, variables = _break_down_dimension(ds, variables, "time")
+    if split_layer_dimension:
+        if for_imod_qgis_plugin:
+            ds, variables = _break_down_dimension(
+                ds, variables, "layer", add_dim_name=True, add_one_based_index=True
+            )
+        else:
+            ds, variables = _break_down_dimension(ds, variables, "layer")
+    if split_time_dimension:
+        # Breaks down variables with a time dimension into separate variables.
+        ds, variables = _break_down_dimension(ds, variables, "time")
 
     # only keep the selected variables
     ds = ds[variables + [dummy_var, xv, yv, face_node_connectivity]]
@@ -417,14 +443,27 @@ def ds_to_ugrid_nc_file(
     return ds
 
 
-def _break_down_dimension(ds, variables, dim):
-    # Copied and altered from imod-python.
+def _break_down_dimension(
+    ds, variables, dim, add_dim_name=False, add_one_based_index=False
+):
+    """Internal method to split a dimension of a variable into multiple variables.
+
+    Copied and altered from imod-python.
+    """
+
     keep_vars = []
     for var in variables:
         if dim in ds[var].dims:
             stacked = ds[var]
-            for value in stacked[dim].values:
-                name = f"{var}_{value}"
+            for i, value in enumerate(stacked[dim].values):
+                name = var
+                if add_dim_name:
+                    name = f"{name}_{dim}"
+                if add_one_based_index:
+                    name = f"{name}_{i+1}"
+                else:
+                    name = f"{name}_{value}"
+
                 ds[name] = stacked.sel({dim: value}, drop=True)
                 if "long_name" in ds[name].attrs:
                     long_name = ds[name].attrs["long_name"]

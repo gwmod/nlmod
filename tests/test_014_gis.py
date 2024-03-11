@@ -17,4 +17,8 @@ def test_vertex_da_to_gdf():
 
 def test_ds_to_ugrid_nc_file():
     ds = util.get_ds_vertex()
-    nlmod.gis.ds_to_ugrid_nc_file(ds, os.path.join("data", "ugrid_test.nc"))
+    fname = os.path.join("data", "ugrid_test.nc")
+    nlmod.gis.ds_to_ugrid_nc_file(ds, fname)
+
+    fname = os.path.join("data", "ugrid_test_qgis.nc")
+    nlmod.gis.ds_to_ugrid_nc_file(ds, fname, for_imod_qgis_plugin=True)

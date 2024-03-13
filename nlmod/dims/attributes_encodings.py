@@ -229,9 +229,13 @@ def get_encodings(
 
 def compute_scale_and_offset(min_value, max_value):
     """
-    Computes the scale_factor and offset for the dataset using a min_value and max_value,
-    and int16. Useful for maximizing the compression of a dataset.
-
+    Reduce precision of the dataset by storing it as int16 and thereby reducing the precision. 
+    
+    Computes the scale_factor and offset for the dataset using a min_value and max_value to 
+    transform the range of the dataset to the range of valid int16 values. The packed value
+    is computed as:
+        packed_value = (unpacked_value - add_offset) / scale_factor
+        
     Parameters
     ----------
     min_value : float
@@ -250,7 +254,7 @@ def compute_scale_and_offset(min_value, max_value):
     # from -32766 to 32767, because -32767 is the default fillvalue.
     width = 32766 + 32767
     scale_factor = (max_value - min_value) / width
-    add_offset = 1.0 + scale_factor * (width - 1) / 2
+    add_offset = max_value - scale_factor * 32767
     return scale_factor, add_offset
 
 

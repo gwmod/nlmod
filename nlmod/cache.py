@@ -112,6 +112,8 @@ def cache_netcdf(func):
                     )
                 dataset = func_args_dic.pop(key)
 
+        dataset = ds_contains(dataset)
+
         # only use cache if the cache file and the pickled function arguments exist
         if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
             # check if you can read the pickle, there are several reasons why a
@@ -549,3 +551,80 @@ def _check_for_data_array(ds):
         if spatial_ref is not None:
             ds = ds.assign_coords({"spatial_ref": spatial_ref})
     return ds
+
+
+def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavars=[], coords=[], attrs=[]):
+    """
+    Checks whether all the required data is present in the dataset and returns only the required data.
+
+    If all kwargs are left to their defaults, the function returns the full dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset with dimensions and coordinates.
+    coords_2d : bool, optional
+        Whether to check for 2D coordinates. The default is False.
+    coords_3d : bool, optional
+        Whether to check for 3D coordinates. The default is False.
+    coords_time : bool, optional
+        Whether to check for time coordinates. The default is False.
+    datavars : list, optional
+        List of data variables to check for. The default is [].
+    coords : list, optional
+        List of coordinates to check for. The default is [].
+    attrs : list, optional
+        List of attributes to check for. The default is [].
+
+    Returns
+    -------
+    ds : xr.Dataset
+        A Dataset containing only the required data.
+
+    """
+    # Return the full dataset if not configured
+    if not coords_2d and not coords_3d and not datavars and not coords and not attrs:
+        return ds
+    
+    if coords_2d or coords_3d:
+        coords.append("x")
+        coords.append("y")
+
+    if coords_3d:
+        coords.append("layer")
+        datavars.append("top")
+        datavars.append("botm")
+
+    if coords_time:
+        coords.append("time")
+        datavars.append("steady")
+        datavars.append("nstp")
+        datavars.append("tsmult")
+        attrs.append("start")
+        attrs.append("time_units")
+
+    # User-friendly error messages
+    if "northsea" in datavars and "northsea" not in ds.datavars:
+        raise ValueError("Northsea not in dataset. Run nlmod.read.rws.add_northsea() first.")
+    
+    if "time" in coords and "time" not in ds.coords:
+        raise ValueError("time not in dataset. Run nlmod.time.set_ds_time() first.")
+    
+    # User-unfriendly error messages
+    for datavar in datavars:
+        if datavar not in ds.datavars:
+            raise ValueError(f"{datavar} not in dataset.datavars")
+    
+    for coord in coords:
+        if coord not in ds.coords:
+            raise ValueError(f"{coord} not in dataset.coords")
+        
+    for attr in attrs:
+        if attr not in ds.attrs:
+            raise ValueError(f"{attr} not in dataset.attrs")
+
+    # Return only the required data
+    return xr.Dataset(
+        datavars=ds.datavars[datavars], 
+        coords=ds.coords[coords], 
+        attrs={k: ds.attrs[k] for k in attrs})

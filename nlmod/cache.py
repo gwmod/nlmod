@@ -53,7 +53,7 @@ def clear_cache(cachedir):
                 logger.info(f"removed {fname_nc}")
 
 
-def cache_netcdf(func):
+def cache_netcdf(func, coords_2d=False, coords_3d=False, coords_time=False, datavars=[], coords=[], attrs=[]):
     """decorator to read/write the result of a function from/to a file to speed
     up function calls with the same arguments. Should only be applied to
     functions that:
@@ -81,6 +81,21 @@ def cache_netcdf(func):
     to the decorated function. This assumes that the decorated function has a
     docstring with a "Returns" heading. If this is not the case an error is
     raised when trying to decorate the function.
+
+    Parameters
+    ----------
+    coords_2d : bool, optional
+        Whether to check for 2D coordinates in ds. Passed to `ds_contains()`. The default is False.
+    coords_3d : bool, optional
+        Whether to check for 3D coordinates. Passed to `ds_contains()`. The default is False.
+    coords_time : bool, optional
+        Whether to check for time coordinates. Passed to `ds_contains()`. The default is False.
+    datavars : list, optional
+        List of data variables to check for. Passed to `ds_contains()`. The default is [].
+    coords : list, optional
+        List of coordinates to check for. Passed to `ds_contains()`. The default is [].
+    attrs : list, optional
+        List of attributes to check for. Passed to `ds_contains()`. The default is [].
     """
 
     # add cachedir and cachename to docstring
@@ -112,7 +127,14 @@ def cache_netcdf(func):
                     )
                 dataset = func_args_dic.pop(key)
 
-        dataset = ds_contains(dataset)
+        dataset = ds_contains(
+            dataset, 
+            coords_2d=coords_2d, 
+            coords_3d=coords_3d, 
+            coords_time=coords_time, 
+            datavars=datavars, 
+            coords=coords, 
+            attrs=attrs)
 
         # only use cache if the cache file and the pickled function arguments exist
         if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):

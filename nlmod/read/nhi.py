@@ -268,7 +268,7 @@ def get_gwo_wells(
             page = None
     df = pd.concat(properties)
     geometry = gpd.points_from_xy(df.XCoordinate, df.YCoordinate)
-    gdf = gpd.GeoDataFrame(df, geometry=geometry)
+    gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=28992)
     if well_index is not None:
         gdf = gdf.set_index(well_index)
     return gdf

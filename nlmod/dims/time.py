@@ -408,6 +408,31 @@ def estimate_nstp(
         return nstp_ceiled
 
 
+def get_time_step_length(perlen, nstp, tsmult):
+    """
+    Get the length of the timesteps within a singe stress-period.
+
+    Parameters
+    ----------
+    perlen : float
+        The length of the stress period, in the time unit of the model (generally days).
+    nstp : int
+        The numer of timesteps within the stress period.
+    tsmult : float
+        THe time step multiplier, generally equal or lager than 1.
+
+    Returns
+    -------
+    t : np.ndarray
+        An array with the length of each of the timesteps within the stress period, in
+        the same unit as perlen.
+
+    """
+    t = np.array([tsmult**x for x in range(nstp)])
+    t = t * perlen / t.sum()
+    return t
+
+
 def ds_time_from_model(gwf):
     warnings.warn(
         "this function was renamed to `ds_time_idx_from_model`. "

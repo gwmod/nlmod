@@ -28,3 +28,7 @@ def test_ds_time_from_tdis_settings():
 
     elapsed = (tidx.to_numpy() - np.datetime64("2000")) / np.timedelta64(1, "D")
     assert np.allclose(elapsed, [100, 150, 200, 233.33333333, 300.0])
+
+
+def test_get_time_step_length():
+    assert (nlmod.time.get_time_step_length(100, 2, 1.5) == np.array([40, 60])).all()

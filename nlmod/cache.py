@@ -53,7 +53,7 @@ def clear_cache(cachedir):
                 logger.info(f"removed {fname_nc}")
 
 
-def cache_netcdf(func):
+def cache_netcdf(func, coords_2d=False, coords_3d=False, coords_time=False, datavars=[], coords=[], attrs=[]):
     """decorator to read/write the result of a function from/to a file to speed
     up function calls with the same arguments. Should only be applied to
     functions that:
@@ -81,6 +81,21 @@ def cache_netcdf(func):
     to the decorated function. This assumes that the decorated function has a
     docstring with a "Returns" heading. If this is not the case an error is
     raised when trying to decorate the function.
+
+    Parameters
+    ----------
+    coords_2d : bool, optional
+        Whether to check for 2D coordinates in ds. Passed to `ds_contains()`. The default is False.
+    coords_3d : bool, optional
+        Whether to check for 3D coordinates. Passed to `ds_contains()`. The default is False.
+    coords_time : bool, optional
+        Whether to check for time coordinates. Passed to `ds_contains()`. The default is False.
+    datavars : list, optional
+        List of data variables to check for. Passed to `ds_contains()`. The default is [].
+    coords : list, optional
+        List of coordinates to check for. Passed to `ds_contains()`. The default is [].
+    attrs : list, optional
+        List of attributes to check for. Passed to `ds_contains()`. The default is [].
     """
 
     # add cachedir and cachename to docstring
@@ -112,6 +127,15 @@ def cache_netcdf(func):
                     )
                 dataset = func_args_dic.pop(key)
 
+        dataset = ds_contains(
+            dataset, 
+            coords_2d=coords_2d, 
+            coords_3d=coords_3d, 
+            coords_time=coords_time, 
+            datavars=datavars, 
+            coords=coords, 
+            attrs=attrs)
+
         # only use cache if the cache file and the pickled function arguments exist
         if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
             # check if you can read the pickle, there are several reasons why a
@@ -139,8 +163,15 @@ def cache_netcdf(func):
             cached_ds = xr.open_dataset(fname_cache)
 
             if pickle_check:
-                # add netcdf hash to function arguments dic, see #66
+                # Ensure that the pickle pairs with the netcdf, see #66.
                 func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+
+                if dataset is not None:
+                    # Check the coords of the dataset argument
+                    func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
+
+                    # Check the data_vars of the dataset argument
+                    func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
 
                 # check if cache was created with same function arguments as
                 # function call
@@ -150,15 +181,8 @@ def cache_netcdf(func):
 
             cached_ds = _check_for_data_array(cached_ds)
             if modification_check and argument_check and pickle_check:
-                if dataset is None:
-                    logger.info(f"using cached data -> {cachename}")
-                    return cached_ds
-
-                # check if cached dataset has same dimension and coordinates
-                # as current dataset
-                if _check_ds(dataset, cached_ds):
-                    logger.info(f"using cached data -> {cachename}")
-                    return cached_ds
+                logger.info(f"using cached data -> {cachename}")
+                return cached_ds
 
         # create cache
         result = func(*args, **kwargs)
@@ -192,6 +216,11 @@ def cache_netcdf(func):
             temp = xr.open_dataset(fname_cache)
             func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
             temp.close()
+
+            # Add dataset argument hash to pickle
+            if dataset is not None:
+                func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
+                func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
 
             # pickle function arguments
             with open(fname_pickle_cache, "wb") as fpklz:
@@ -316,39 +345,6 @@ def cache_pickle(func):
         return result
 
     return decorator
-
-
-def _check_ds(ds, ds2):
-    """Check if two datasets have the same dimensions and coordinates.
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        dataset with dimensions and coordinates
-    ds2 : xr.Dataset
-        dataset with dimensions and coordinates. This is typically
-        a cached dataset.
-
-    Returns
-    -------
-    bool
-        True if the two datasets have the same grid and time discretization.
-    """
-
-    for coord in ds2.coords:
-        if coord in ds.coords:
-            try:
-                xr.testing.assert_identical(ds[coord], ds2[coord])
-            except AssertionError:
-                logger.info(
-                    f"coordinate {coord} has different values in cached dataset, not using cache"
-                )
-                return False
-        else:
-            logger.info(f"dimension {coord} only present in cache, not using cache")
-            return False
-
-    return True
 
 
 def _same_function_arguments(func_args_dic, func_args_dic_cache):
@@ -577,3 +573,80 @@ def _check_for_data_array(ds):
         if spatial_ref is not None:
             ds = ds.assign_coords({"spatial_ref": spatial_ref})
     return ds
+
+
+def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavars=[], coords=[], attrs=[]):
+    """
+    Checks whether all the required data is present in the dataset and returns only the required data.
+
+    If all kwargs are left to their defaults, the function returns the full dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset with dimensions and coordinates.
+    coords_2d : bool, optional
+        Whether to check for 2D coordinates. The default is False.
+    coords_3d : bool, optional
+        Whether to check for 3D coordinates. The default is False.
+    coords_time : bool, optional
+        Whether to check for time coordinates. The default is False.
+    datavars : list, optional
+        List of data variables to check for. The default is [].
+    coords : list, optional
+        List of coordinates to check for. The default is [].
+    attrs : list, optional
+        List of attributes to check for. The default is [].
+
+    Returns
+    -------
+    ds : xr.Dataset
+        A Dataset containing only the required data.
+
+    """
+    # Return the full dataset if not configured
+    if not coords_2d and not coords_3d and not datavars and not coords and not attrs:
+        return ds
+    
+    if coords_2d or coords_3d:
+        coords.append("x")
+        coords.append("y")
+
+    if coords_3d:
+        coords.append("layer")
+        datavars.append("top")
+        datavars.append("botm")
+
+    if coords_time:
+        coords.append("time")
+        datavars.append("steady")
+        datavars.append("nstp")
+        datavars.append("tsmult")
+        attrs.append("start")
+        attrs.append("time_units")
+
+    # User-friendly error messages
+    if "northsea" in datavars and "northsea" not in ds.datavars:
+        raise ValueError("Northsea not in dataset. Run nlmod.read.rws.add_northsea() first.")
+    
+    if "time" in coords and "time" not in ds.coords:
+        raise ValueError("time not in dataset. Run nlmod.time.set_ds_time() first.")
+    
+    # User-unfriendly error messages
+    for datavar in datavars:
+        if datavar not in ds.datavars:
+            raise ValueError(f"{datavar} not in dataset.datavars")
+    
+    for coord in coords:
+        if coord not in ds.coords:
+            raise ValueError(f"{coord} not in dataset.coords")
+        
+    for attr in attrs:
+        if attr not in ds.attrs:
+            raise ValueError(f"{attr} not in dataset.attrs")
+
+    # Return only the required data
+    return xr.Dataset(
+        datavars=ds.datavars[datavars], 
+        coords=ds.coords[coords], 
+        attrs={k: ds.attrs[k] for k in attrs})

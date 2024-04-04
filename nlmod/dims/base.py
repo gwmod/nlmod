@@ -77,6 +77,7 @@ def to_model_ds(
     angrot=0.0,
     drop_attributes=True,
     transport=False,
+    remove_nan_layers=True,
 ):
     """Transform an input dataset to a groundwater model dataset.
 
@@ -112,19 +113,29 @@ def to_model_ds(
     fill_value_kv : int or float, optional
         use this value for kv if there is no data. The default is 0.1.
     xorigin : int or float, optional
-        lower left x coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
     yorigin : int or float, optional
-        lower left y coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
     angrot : int or float, optinal
-        the rotation of the grid in counter clockwise degrees, default is 0.0
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     drop_attributes : bool, optional
         if True drop the attributes from the layer model dataset. Otherwise
         keep the attributes. Default is True.
     transport : bool, optional
         flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
+    remove_nan_layers : bool, optional
+        if True remove layers with only nan values in the botm. Default is
+        True.
 
     Returns
     -------
@@ -151,7 +162,7 @@ def to_model_ds(
         delc = delr
     if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
         ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
-            (ds.dims["y"], ds.dims["x"])
+            (ds.sizes["y"], ds.sizes["x"])
         )
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         ds["area"] = ("y", "x"), np.outer(delc, delr)
@@ -174,12 +185,13 @@ def to_model_ds(
             anisotropy=anisotropy,
             fill_value_kh=fill_value_kh,
             fill_value_kv=fill_value_kv,
+            remove_nan_layers=remove_nan_layers,
         )
 
     return ds
 
 
-def extrapolate_ds(ds, mask=None):
+def extrapolate_ds(ds, mask=None, layer="layer"):
     """Fill missing data in layermodel based on nearest interpolation.
 
     Used for ensuring layer model contains data everywhere. Useful for
@@ -190,10 +202,12 @@ def extrapolate_ds(ds, mask=None):
     ----------
     ds : xarray.DataSet
         Model layer DataSet
-    mask: np.ndarray, optional
+    mask : np.ndarray, optional
         Boolean mask for each cell, with a value of True if its value needs to
         be determined. When mask is None, it is determined from the botm-
         variable. The default is None.
+    layer : str, optional
+        The name of the layer dimension. The default is 'layer'.
 
     Returns
     -------
@@ -201,7 +215,7 @@ def extrapolate_ds(ds, mask=None):
         filled layermodel
     """
     if mask is None:
-        mask = np.isnan(ds["botm"]).all("layer").data
+        mask = np.isnan(ds["botm"]).all(layer).data
     if not mask.any():
         # all of the model cells are is inside the known area
         return ds
@@ -225,9 +239,9 @@ def extrapolate_ds(ds, mask=None):
         data = ds[key].data
         if ds[key].dims == dims:
             if np.isnan(data[mask]).sum() > 0:  # do not update if no NaNs
-                data[mask] = data[~mask, i]
-        elif ds[key].dims == ("layer",) + dims:
-            for lay in range(len(ds["layer"])):
+                data[mask] = data[~mask][i]
+        elif ds[key].dims == (layer,) + dims:
+            for lay in range(len(ds[layer])):
                 if np.isnan(data[lay, mask]).sum() > 0:  # do not update if no NaNs
                     data[lay, mask] = data[lay, ~mask][i]
         else:
@@ -267,13 +281,21 @@ def _get_structured_grid_ds(
         A 2D array of the top elevation of the grid cells. Default is NaN.
     botm : array_like, optional
         A 3D array of the bottom elevation of the grid cells. Default is NaN.
-    xorigin : float, optional
-        The x-coordinate origin of the grid. Default is 0.0.
-    yorigin : float, optional
-        The y-coordinate origin of the grid. Default is 0.0.
-    angrot : float, optional
-        The counter-clockwise rotation angle of the grid, in degrees.
-        Default is 0.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         A dictionary of attributes to add to the xarray dataset. Default is an
         empty dictionary.
@@ -389,7 +411,7 @@ def _get_vertex_grid_ds(
     yv : array_like
         A 1D array of the y coordinates of the grid vertices.
     cell2d : array-like
-        array-like with vertex grid cell2d info
+        array-like with vertex grid cell2d info.
     extent : list
         A list of [xmin, xmax, ymin, ymax] defining the extent of the model grid.
     nlay : int or sequence of ints, optional
@@ -399,13 +421,21 @@ def _get_vertex_grid_ds(
         A 2D array of the top elevation of the grid cells. Default is NaN.
     botm : array_like, optional
         A 3D array of the bottom elevation of the grid cells. Default is NaN.
-    xorigin : float, optional
-        The x-coordinate origin of the grid. Default is 0.0.
-    yorigin : float, optional
-        The y-coordinate origin of the grid. Default is 0.0.
-    angrot : float, optional
-        The counter-clockwise rotation angle of the grid, in degrees.
-        Default is 0.0.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         A dictionary of attributes to add to the xarray dataset. Default is an
         empty dictionary.
@@ -539,15 +569,21 @@ def get_ds(
         is a float or a list/array of len(layer). The default is 1.0.
     crs : int, optional
         The coordinate reference system of the model. The default is 28992.
-    xorigin : float, optional
-        x-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0. The defauls is 0.0.
-    yorigin : float, optional
-        y-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0. The defauls is 0.0.
-    angrot : float, optional
-        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
-        model grid. The default is 0.0
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         Attributes of the model dataset. The default is None.
     extrapolate : bool, optional
@@ -560,8 +596,6 @@ def get_ds(
     transport : bool, optional
         flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
-
-
     **kwargs : dict
         Kwargs are passed into mbase.to_ds. These can be the model_name
         or ds.
@@ -655,7 +689,7 @@ def get_ds(
         ds,
         model_name=model_name,
         model_ws=model_ws,
-        extent=extent,
+        extent=attrs["extent"],
         delr=delr,
         delc=delc,
         drop_attributes=False,

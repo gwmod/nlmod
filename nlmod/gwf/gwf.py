@@ -132,9 +132,9 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             xorigin=xorigin,
             yorigin=yorigin,
             angrot=angrot,
-            nlay=ds.dims["layer"],
-            nrow=ds.dims["y"],
-            ncol=ds.dims["x"],
+            nlay=ds.sizes["layer"],
+            nrow=ds.sizes["y"],
+            ncol=ds.sizes["x"],
             delr=ds["delr"].values if "delr" in ds else ds.delr,
             delc=ds["delc"].values if "delc" in ds else ds.delc,
             top=ds["top"].data,
@@ -151,9 +151,9 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             xorigin=xorigin,
             yorigin=yorigin,
             angrot=angrot,
-            nlay=ds.dims["layer"],
-            nrow=ds.dims["y"],
-            ncol=ds.dims["x"],
+            nlay=ds.sizes["layer"],
+            nrow=ds.sizes["y"],
+            ncol=ds.sizes["x"],
             delr=ds["delr"].values if "delr" in ds else ds.delr,
             delc=ds["delc"].values if "delc" in ds else ds.delc,
             top=ds["top"].data,
@@ -215,10 +215,6 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
         xorigin = ds.attrs["xorigin"]
         yorigin = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
-    elif "extent" in ds.attrs.keys():
-        xorigin = ds.attrs["extent"][0]
-        yorigin = ds.attrs["extent"][2]
-        angrot = 0.0
     else:
         xorigin = 0.0
         yorigin = 0.0
@@ -376,7 +372,7 @@ def ghb(
     """
     logger.info("creating mf6 GHB")
 
-    mask_arr = _get_value_from_ds_datavar(ds, "cond", cond, return_da=True)
+    mask_arr = _get_value_from_ds_datavar(ds, "ghb_cond", cond, return_da=True)
     mask = mask_arr > 0
 
     first_active_layer = layer is None
@@ -395,7 +391,6 @@ def ghb(
         ghb = flopy.mf6.ModflowGwfghb(
             gwf,
             auxiliary="CONCENTRATION" if auxiliary is not None else None,
-            print_input=True,
             maxbound=len(ghb_rec),
             stress_period_data=ghb_rec,
             save_flows=True,
@@ -404,7 +399,7 @@ def ghb(
         )
         if (auxiliary is not None) and (ds.transport == 1):
             logger.info("-> adding GHB to SSM sources list")
-            ssm_sources = ds.attrs["ssm_sources"]
+            ssm_sources = list(ds.attrs["ssm_sources"])
             if ghb.package_name not in ssm_sources:
                 ssm_sources += [ghb.package_name]
                 ds.attrs["ssm_sources"] = ssm_sources
@@ -472,7 +467,6 @@ def drn(
     if len(drn_rec) > 0:
         drn = flopy.mf6.ModflowGwfdrn(
             gwf,
-            print_input=True,
             maxbound=len(drn_rec),
             stress_period_data=drn_rec,
             save_flows=True,
@@ -552,7 +546,6 @@ def riv(
     if len(riv_rec) > 0:
         riv = flopy.mf6.ModflowGwfriv(
             gwf,
-            print_input=True,
             maxbound=len(riv_rec),
             stress_period_data=riv_rec,
             auxiliary="CONCENTRATION" if auxiliary is not None else None,
@@ -582,7 +575,7 @@ def chd(
     layer=0,
     **kwargs,
 ):
-    """create constant head boundary at the model's edges from the model dataset.
+    """create constant head package from model dataset.
 
     Parameters
     ----------
@@ -728,18 +721,15 @@ def sto(
     """
     logger.info("creating mf6 STO")
 
-    if ds.time.steady_state:
+    if "time" not in ds or ds["steady"].all():
+        logger.warning("Model is steady-state, no STO package created.")
         return None
     else:
-        if ds.time.steady_start:
-            sts_spd = {0: True}
-            trn_spd = {1: True}
-        else:
-            sts_spd = None
-            trn_spd = {0: True}
+        sts_spd = {iper: bool(b) for iper, b in enumerate(ds["steady"])}
+        trn_spd = {iper: not bool(b) for iper, b in enumerate(ds["steady"])}
 
         sy = _get_value_from_ds_datavar(ds, "sy", sy, default=0.2)
-        ss = _get_value_from_ds_datavar(ds, "ss", ss, default=0.000001)
+        ss = _get_value_from_ds_datavar(ds, "ss", ss, default=1e-5)
 
         sto = flopy.mf6.ModflowGwfsto(
             gwf,
@@ -798,7 +788,6 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
     drn = flopy.mf6.ModflowGwfdrn(
         gwf,
         pname=pname,
-        print_input=True,
         maxbound=len(drn_rec),
         stress_period_data={0: drn_rec},
         save_flows=True,
@@ -855,6 +844,31 @@ def evt(ds, gwf, pname="evt", **kwargs):
     evt = recharge.ds_to_evt(gwf, ds, pname=pname, **kwargs)
 
     return evt
+
+
+def uzf(ds, gwf, pname="uzf", **kwargs):
+    """create unsaturated zone flow package from model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    gwf : flopy ModflowGwf
+        groundwaterflow object.
+    pname : str, optional
+        package name
+
+    Returns
+    -------
+    uzf : flopy ModflowGwfuzf
+        uzf package
+    """
+    logger.info("creating mf6 UZF")
+
+    # create uzf package
+    uzf = recharge.ds_to_uzf(gwf, ds, pname=pname, **kwargs)
+
+    return uzf
 
 
 def _set_record(out, budget, output="head"):
@@ -914,7 +928,7 @@ def buy(ds, gwf, pname="buy", **kwargs):
         ds, "denseref", attr="denseref", value=kwargs.pop("denseref", None)
     )
 
-    pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "none")]
+    pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "CONCENTRATION")]
 
     buy = flopy.mf6.ModflowGwfbuy(
         gwf,
@@ -945,6 +959,22 @@ def oc(
         dataset with model data.
     gwf : flopy ModflowGwf
         groundwaterflow object.
+    save_head : bool or str
+        Saves the head to the output-file. If save_head is a string, it needs to be
+        "all", "first" or "last". If save_head is True, it is set to "last". The default
+        is True.
+    save_budget : bool or str
+        Saves the budgets to the output-file. If save_budget is a string, it needs to be
+        "all", "first" or "last". If save_budget is True, it is set to "last". The
+        default is True.
+    print_head : bool or str
+        Prints the head to the list-file. If print_head is a string, it needs to be
+        "all", "first" or "last". If print_head is True, it is set to "last". The default
+        is False.
+    print_budget : bool or str
+        Prints the budgets to the list-file. If print_budget is a string, it needs to be
+        "all", "first" or "last". If print_budget is True, it is set to "last". The
+        default is False.
     pname : str, optional
         package name
 

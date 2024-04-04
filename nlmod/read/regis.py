@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import cache
-from ..dims.layers import calculate_thickness
+from ..dims.layers import calculate_thickness, remove_layer_dim_from_top
 from . import geotop
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,8 @@ def get_regis(
     botm_layer="AKc",
     variables=("top", "botm", "kh", "kv"),
     remove_nan_layers=True,
+    drop_layer_dim_from_top=True,
+    probabilities=False,
 ):
     """get a regis dataset projected on the modelgrid.
 
@@ -116,8 +118,15 @@ def get_regis(
         entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
         'sdv'. The default is ("top", "botm", "kh", "kv").
     remove_nan_layers : bool, optional
-        When True, layers which contain only NaNs for the botm array are removed.
-        The default is True.
+        When True, layers that do not occur in the requested extent (layers that contain
+        only NaN values for the botm array) are removed. The default is True.
+    drop_layer_dim_from_top : bool, optional
+        When True, fill NaN values in top and botm and drop the layer dimension from
+        top. This will transform top and botm to the data model in MODFLOW. An advantage
+        of this data model is that the layer model is consistent by definition, with no
+        possibilities of gaps between layers. The default is True.
+    probabilities : bool, optional
+        if True, also download probability data. The default is False.
 
     Returns
     -------
@@ -159,9 +168,16 @@ def get_regis(
             msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
             raise (Exception(msg))
 
-    # slice data vars
-    ds = ds[list(variables)]
+    if drop_layer_dim_from_top:
+        ds = remove_layer_dim_from_top(ds)
 
+    # slice data vars
+    if variables is not None:
+        if probabilities:
+            variables = variables + ("sdh", "sdv")
+        ds = ds[list(variables)]
+
+    ds.attrs["gridtype"] = "structured"
     ds.attrs["extent"] = extent
     for datavar in ds:
         ds[datavar].attrs["grid_mapping"] = "crs"
@@ -228,21 +244,29 @@ def add_geotop_to_regis_layers(
                 geotop_k = geotop.get_lithok_props()
             gt = geotop.add_kh_and_kv(gt, geotop_k, anisotropy=anisotropy)
 
+    # copy the regis-dataset, before altering it
+    rg = rg.copy(deep=True)
+    if "layer" in rg["top"].dims:
+        msg = "Top in rg has a layer dimension. add_geotop_to_regis_layers will remove the layer dimension from top in rg."
+        logger.warning(msg)
+    else:
+        # temporarily add layer dimension to top in rg
+        rg["top"] = rg["botm"] + calculate_thickness(rg)
+
     for layer in layers:
         # transform geotop data into layers
         gtl = geotop.to_model_layers(gt)
 
-        # make sure top is 3d
-        assert "layer" in rg["top"].dims, "Top of regis must be 3d"
-        assert "layer" in gtl["top"].dims, "Top of geotop layers must be 3d"
+        # temporarily add layer dimension to top in gtl
+        gtl["top"] = gtl["botm"] + calculate_thickness(gtl)
 
         # only keep the part of layers inside the regis layer
         top = rg["top"].loc[layer]
         bot = rg["botm"].loc[layer]
-        gtl["top"] = gtl["top"].where(top > gtl["top"], top)
-        gtl["top"] = gtl["top"].where(bot < gtl["top"], bot)
-        gtl["botm"] = gtl["botm"].where(top > gtl["botm"], top)
-        gtl["botm"] = gtl["botm"].where(bot < gtl["botm"], bot)
+        gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] < top), top)
+        gtl["top"] = gtl["top"].where(gtl["top"].isnull() | (gtl["top"] > bot), bot)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"].isnull() | (gtl["botm"] < top), top)
+        gtl["botm"] = gtl["botm"].where(gtl["botm"].isnull() | (gtl["botm"] > bot), bot)
 
         if remove_nan_layers:
             # drop layers with a remaining thickness of 0 (or NaN) everywhere
@@ -253,19 +277,16 @@ def add_geotop_to_regis_layers(
         gtl = geotop.aggregate_to_ds(gt, gtl)
 
         # add gtl-layers to rg-layers
-        if rg.layer.data[0] == layer:
-            layer_order = np.concatenate([gtl.layer, rg.layer])
-        elif rg.layer.data[-1] == layer:
-            layer_order = np.concatenate([rg.layer, gtl.layer])
-        else:
-            lay = np.where(rg.layer == layer)[0][0]
-            layer_order = np.concatenate(
-                [rg.layer[:lay], gtl.layer, rg.layer[lay + 1 :]]
-            )
+        lay = np.where(rg.layer == layer)[0][0]
+        layer_order = np.concatenate([rg.layer[:lay], gtl.layer, rg.layer[lay + 1 :]])
+
         # call xr.concat with rg first, so we keep attributes of rg
-        rg = xr.concat((rg.sel(layer=rg.layer[rg.layer != layer]), gtl), "layer")
+        rg = xr.concat((rg, gtl), "layer")
         # we will then make sure the layer order is right
         rg = rg.reindex({"layer": layer_order})
+
+    # remove the layer dimension from top again
+    rg = remove_layer_dim_from_top(rg)
     return rg
 
 

@@ -1,3 +1,5 @@
+import numpy as np
+
 import nlmod
 
 
@@ -17,3 +19,16 @@ def test_estimate_nstp():
     assert nstp[-1] == nstp_min
     assert max(nstp) == nstp_max
     assert min(nstp) == nstp_min
+
+
+def test_ds_time_from_tdis_settings():
+    tidx = nlmod.time.ds_time_idx_from_tdis_settings(
+        "2000", [100, 100, 100], nstp=[1, 2, 2], tsmult=[1.0, 1.0, 2.0]
+    )
+
+    elapsed = (tidx.to_numpy() - np.datetime64("2000")) / np.timedelta64(1, "D")
+    assert np.allclose(elapsed, [100, 150, 200, 233.33333333, 300.0])
+
+
+def test_get_time_step_length():
+    assert (nlmod.time.get_time_step_length(100, 2, 1.5) == np.array([40, 60])).all()

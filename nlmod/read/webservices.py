@@ -27,9 +27,29 @@ def arcrest(
     f="geojson",
     max_record_count=None,
     timeout=120,
+    table=None,
     **kwargs,
 ):
     """Download data from an arcgis rest FeatureServer.
+
+    Parameters
+    ----------
+    url : str
+        arcrest url.
+    layer : str
+        layer
+    extent : list, tuple or np.array
+        extent
+    sr : int, optional
+        coördinate reference system. The default is 28992 (RD).
+    f : str, optional
+        output format. Default is geojson
+    max_record_count : int, optional
+        maximum number of records for request.
+    timeout : int, optional
+        timeout time of request. Default is 120.
+    table : int, optional
+        can be used to link a layer to a table, not yet implemented.
 
     Note
     ----
@@ -129,10 +149,78 @@ def arcrest(
             gdf = gpd.GeoDataFrame()
         else:
             gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
+            if table is not None:
+                params["f"] = "json"
+                url_query = f"{url}/{table.pop('id')}/query"
+
+                # loop over chunks of 100 pgbids. Long where clauses can cause
+                # the request to fail. 1300 pgbids fails but 130 works
+                chunk_size = 100
+                ids_chunks = [
+                    gdf["OBJECTID"].values[i : i + chunk_size]
+                    for i in range(0, len(gdf), chunk_size)
+                ]
+                data = {}
+                features = []
+
+                for ids_chunk in ids_chunks:
+                    pgbids = ",".join([str(v) for v in ids_chunk])
+                    where = f"PEILGEBIEDVIGERENDID IN ({pgbids})"
+                    params["where"] = where
+                    _data = _get_data(url_query, params, timeout=timeout, **kwargs)
+
+                    data.update(_data)
+                    features.extend(_data["features"])
+
+                assert "exceededTransferLimit" not in data, "exceededTransferLimit"
+                data["features"] = features
+
+                df = pd.DataFrame(
+                    [feature["attributes"] for feature in data["features"]]
+                )
+
+                # add peilen to gdf
+                for col, convert_dic in table.items():
+                    df[col].replace(convert_dic, inplace=True)
+                    df.set_index(col, inplace=True)
+
+                    for oid in gdf["OBJECTID"]:
+                        insert_s = df.loc[
+                            df["PEILGEBIEDVIGERENDID"] == oid, "WATERHOOGTE"
+                        ]
+                        if insert_s.index.duplicated().any():
+                            # Error in the database. Reported to Doeke HHNK 20230123
+                            # Continue with unambiguous values
+                            dup = set(insert_s.index[insert_s.index.duplicated()])
+                            logger.warning(
+                                f"Duplicate {dup} values for PEILGEBIEDVIGERENDID {oid} while prompting {url}"
+                            )
+                            insert_s = insert_s[~insert_s.index.duplicated(keep=False)]
+
+                        gdf.loc[
+                            gdf["OBJECTID"] == oid, insert_s.index
+                        ] = insert_s.values
+
     return gdf
 
 
 def _get_data(url, params, timeout=120, **kwargs):
+    """get data using a request
+
+    Parameters
+    ----------
+    url : str
+        url
+    params : dict
+        request parameters
+    timeout : int, optional
+        timeout time of request. Default is 120.
+
+    Returns
+    -------
+    data
+
+    """
     r = requests.get(url, params=params, timeout=timeout, **kwargs)
     if not r.ok:
         raise (HTTPError(f"Request not successful: {r.url}"))
@@ -154,7 +242,36 @@ def wfs(
     driver="GML",
     timeout=120,
 ):
-    """Download data from a wfs server."""
+    """Download data from a wfs server and convert to Geodataframe.
+
+    Parameters
+    ----------
+    url : str
+        webservice url.
+    layer : str
+        layer
+    extent : list, tuple or np.array
+        extent
+    version : str
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+    paged : bool, optional
+        , by default True
+    max_record_count : int, optional
+        maximum number of records for request.
+    driver : str, optional
+        driver used to decode data with geopandas, by default "GML"
+    timeout : int, optional
+        timeout time of request. Default is 120.
+
+    Returns
+    -------
+    GeoDataFrame
+
+    Raises
+    ------
+    Exception
+        _description_
+    """
     params = {"version": version, "request": "GetFeature"}
     if version == "2.0.0":
         params["typeNames"] = layer
@@ -255,12 +372,12 @@ def wcs(
 
     Parameters
     ----------
+    url : str
+        webservice url.
     extent : list, tuple or np.array
         extent
     res : float, optional
         resolution of wcs raster
-    url : str
-        webservice url.
     identifier : str
         identifier.
     version : str
@@ -269,6 +386,10 @@ def wcs(
         geotif format
     crs : str, optional
         coördinate reference system
+    maxsize : int, optional
+        maximum pixel size of request. If the combination of extent and resolution
+        exceeds the maxsize the extent is split into smaller segments and
+        downloaded seperately. The default is 2000.
 
     Raises
     ------
@@ -341,14 +462,24 @@ def _split_wcs_extent(
     ----------
     extent : list, tuple or np.array
         extent
-    res : float
-        The resolution of the requested output-data
     x_segments : int
         number of tiles on the x axis
     y_segments : int
         number of tiles on the y axis
     maxsize : int or float
         maximum widht or height of wcs tile
+    res : float
+        The resolution of the requested output-data
+    url : str
+        webservice url.
+    identifier : str
+        identifier.
+    version : str
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+    fmt : str, optional
+        geotif format
+    crs : str, optional
+        coördinate reference system
 
     Returns
     -------

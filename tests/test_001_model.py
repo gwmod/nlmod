@@ -1,6 +1,8 @@
 import os
 import tempfile
 
+import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -15,23 +17,30 @@ def test_model_directories(tmpdir):
     figdir, cachedir = nlmod.util.get_model_dirs(model_ws)
 
 
+def test_snap_extent():
+    extent = (0.22, 1056.12, 7.43, 1101.567)
+    new_extent = nlmod.dims.snap_extent(extent, 10, 20)
+    assert new_extent == [0.0, 1060.0, 0.0, 1120.0]
+
+    extent = (1000, 2000, 8000, 10000)
+    new_extent = nlmod.dims.snap_extent(extent, 250, 55)
+    assert new_extent == [1000.0, 2000.0, 7975.0, 10010.0]
+
+
 def get_ds_time_steady(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)
-    ds = nlmod.time.set_ds_time(ds, start_time="2015-1-1", steady_state=True)
+    ds = nlmod.time.set_ds_time(ds, time=["2015-1-2"], start="2015-1-1", steady=True)
     return ds
 
 
 def get_ds_time_transient(tmpdir, modelname="test"):
     model_ws = os.path.join(tmpdir, "test_model")
     ds = nlmod.base.set_ds_attrs(xr.Dataset(), modelname, model_ws)
-    ds = nlmod.time.set_ds_time(
-        ds,
-        start_time="2015-1-1",
-        steady_state=False,
-        steady_start=True,
-        transient_timesteps=10,
-    )
+    nper = 11
+    time = pd.date_range(start="2015-1-2", periods=nper, freq="D")
+    steady = np.zeros(nper)
+    ds = nlmod.time.set_ds_time(ds, time=time, start="2015-1-1", steady=steady)
     return ds
 
 
@@ -77,14 +86,16 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     ds = nlmod.base.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
-    assert ds.dims["layer"] == 5
+    assert ds.sizes["layer"] == 5
 
+    nper = 11
+    steady = np.zeros(nper, dtype=int)
+    steady[0] = 1
     ds = nlmod.time.set_ds_time(
         ds,
-        start_time="2015-1-1",
-        steady_state=False,
-        steady_start=True,
-        transient_timesteps=10,
+        time=pd.date_range("2015-1-2", periods=nper, freq="D"),
+        start="2015-1-1",
+        steady=steady,
     )
 
     # create simulation
@@ -118,12 +129,14 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
 
+    nper = 11
+    steady = np.zeros(nper, dtype=int)
+    steady[0] = 1
     ds = nlmod.time.set_ds_time(
         ds,
-        start_time="2015-1-1",
-        steady_state=False,
-        steady_start=True,
-        transient_timesteps=10,
+        time=pd.date_range("2015-1-2", periods=nper, freq="D"),
+        start="2005-1-1",
+        steady=steady,
     )
 
     # save ds
@@ -168,7 +181,7 @@ def test_create_sea_model(tmpdir):
     _ = nlmod.gwf.dis(ds, gwf)
 
     # create node property flow
-    _ = nlmod.gwf.npf(ds, gwf)
+    _ = nlmod.gwf.npf(ds, gwf, save_flows=True)
 
     # Create the initial conditions package
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
@@ -206,9 +219,10 @@ def test_create_sea_model_perlen_list(tmpdir):
     ds = nlmod.base.set_ds_attrs(ds, ds.model_name, model_ws)
 
     # create transient with perlen list
+    start = ds.time.start
     perlen = [3650, 14, 10, 11]  # length of the time steps
-    transient_timesteps = 3
-    start_time = ds.time.start
+    steady = np.zeros(len(perlen), dtype=int)
+    steady[0] = 1
 
     # drop time dimension before setting time
     ds = ds.drop_dims("time")
@@ -216,11 +230,9 @@ def test_create_sea_model_perlen_list(tmpdir):
     # update current ds with new time dicretisation
     ds = nlmod.time.set_ds_time(
         ds,
-        start_time=start_time,
-        steady_state=False,
-        steady_start=True,
-        perlen=perlen,
-        transient_timesteps=transient_timesteps,
+        time=np.cumsum(perlen),
+        start=start,
+        steady=steady,
     )
 
     # create simulation
@@ -277,21 +289,24 @@ def test_create_sea_model_perlen_14(tmpdir):
     ds = nlmod.base.set_ds_attrs(ds, ds.model_name, model_ws)
 
     # create transient with perlen list
-    perlen = 14  # length of the time steps
-    transient_timesteps = 3
-    start_time = ds.time.start
+    perlen = 14  # length of the transient time steps
+    nper = 4
+    start = ds.time.start
+    perlen = perlen * np.ones(nper)
+    perlen[0] = 3652.0  # length of the steady state step
+    steady = np.zeros(nper, dtype=int)
+    steady[0] = 1
+    time = nlmod.time.ds_time_idx_from_tdis_settings(start, perlen=perlen)
 
     # drop time dimension before setting time
     ds = ds.drop_dims("time")
 
-    # update current ds with new time dicretisation
+    # update current ds with new time discretization
     ds = nlmod.time.set_ds_time(
         ds,
-        start_time=start_time,
-        steady_state=False,
-        steady_start=True,
-        perlen=perlen,
-        transient_timesteps=transient_timesteps,
+        time=time,
+        start=start,
+        steady=steady,
     )
 
     # create simulation

@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 class LayerError(Exception):
-    pass
+    """Generic error when modifying layers."""
 
 
 class MissingValueError(Exception):
-    pass
+    """Generic error when an expected value is not defined."""
 
 
 def check_da_dims_coords(da, ds):
@@ -455,14 +455,24 @@ def download_mfbinaries(bindir=None):
 
 
 def download_modpath_provisional_exe(bindir=None, timeout=120):
-    """Downlaod the provisional version of modpath to the folder with binaries."""
+    """Download the provisional version of modpath to the folder with binaries."""
     if bindir is None:
         bindir = os.path.join(os.path.dirname(__file__), "bin")
     if not os.path.isdir(bindir):
         os.makedirs(bindir)
-    url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL/mpath7_PROVISIONAL_2022-08-23_9ac760f.exe"
+    if sys.platform.startswith("win"):
+        fname = "mp7_win64_20231016_86b38df.exe"
+    elif sys.platform.startswith("darwin"):
+        fname = "mp7_mac_20231016_86b38df"
+    elif sys.platform.startswith("linux"):
+        fname = "mp7_linux_20231016_86b38df"
+    else:
+        raise (OSError(f"Unknown platform: {sys.platform}"))
+    url = "https://github.com/MODFLOW-USGS/modpath-v7/raw/develop/msvs/bin_PROVISIONAL"
+    url = f"{url}/{fname}"
     r = requests.get(url, allow_redirects=True, timeout=timeout)
-    fname = os.path.join(bindir, "mp7_2_002_provisional.exe")
+    ext = os.path.splitext(fname)[-1]
+    fname = os.path.join(bindir, f"mp7_2_002_provisional{ext}")
     with open(fname, "wb") as file:
         file.write(r.content)
 

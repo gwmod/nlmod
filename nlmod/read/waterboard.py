@@ -183,7 +183,8 @@ def get_configuration():
             # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilbelsuit_Friese_boezem/MapServer",
             # "index": "BLAEU_WFG_GPG_BEHEER_PBHIDENT",
             "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilen/MapServer",
-            "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
+            # "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
+            "layer": 4,  # Peilgebied praktijk
             "index": "PBHIDENT",
             # "layer": 4,  # Peilbesluitenkaart
             # "index": "GPGIDENT",
@@ -195,7 +196,7 @@ def get_configuration():
     config["Hollands Noorderkwartier"] = {
         "bgt_code": "W0651",
         "watercourses": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2022_oppervlaktewateren_ti/MapServer",
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2023_oppervlaktewateren_vg/MapServer/",
             "bottom_height": "WS_BODEMHOOGTE",
         },
         "level_areas": {
@@ -270,12 +271,17 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
+            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Watergangen/Watergangen/MapServer",
+            "layer": 1,  # primair
+            # "layer": 2,  # secundair
+            "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
+            "bottom_width": "AVVBODDR",
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebieden/MapServer",
-            "layer": 3,
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/VenH/Peilgebieden/MapServer",
+            "layer": 2,
             "index": "GPGIDENT",
             "summer_stage": "OPVAFWZP",
             "winter_stage": "OPVAFWWP",
@@ -517,6 +523,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         config = get_configuration()
     # some default values
     layer = 0
+    table = None
     index = "CODE"
     server_kind = "arcrest"
     f = "geojson"
@@ -529,6 +536,8 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
     url = conf["url"]
     if "layer" in conf:
         layer = conf["layer"]
+    if "table" in conf:
+        table = conf["table"]
     if "index" in conf:
         index = conf["index"]
     if "server_kind" in conf:
@@ -544,8 +553,10 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
             extent,
             f=f,
             max_record_count=max_record_count,
+            table=table,
             **kwargs,
         )
+
     elif server_kind == "wfs":
         gdf = webservices.wfs(
             url, layer, extent, max_record_count=max_record_count, **kwargs

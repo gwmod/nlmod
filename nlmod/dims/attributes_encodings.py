@@ -1,122 +1,126 @@
 import numpy as np
 
 dim_attrs = {
-    "botm": dict(
-        name="Bottom elevation",
-        description="Bottom elevation for each model cell",
-        units="mNAP",
-        valid_min=-2000.0,
-        valid_max=500.0,
-    ),
-    "top": dict(
-        name="Top elevation",
-        description="Top elevation for each model cell",
-        units="mNAP",
-        valid_min=-2000.0,
-        valid_max=500.0,
-    ),
-    "kh": dict(
-        name="Horizontal hydraulic conductivity",
-        description="Horizontal hydraulic conductivity for each model cell",
-        units="m/day",
-        valid_min=0.0,
-        valid_max=1000.0,
-    ),
-    "kv": dict(
-        name="Vertical hydraulic conductivity",
-        description="Vertical hydraulic conductivity for each model cell",
-        units="m/day",
-        valid_min=0.0,
-        valid_max=1000.0,
-    ),
-    "ss": dict(
-        name="Specific storage",
-        description="Specific storage for each model cell",
-        units="1/m",
-        valid_min=0.0,
-        valid_max=1.0,
-    ),
-    "sy": dict(
-        name="Specific yield",
-        description="Specific yield for each model cell",
-        units="-",
-        valid_min=0.0,
-        valid_max=1.0,
-    ),
-    "porosity": dict(
-        name="Porosity",
-        description="Porosity for each model cell",
-        units="-",
-        valid_min=0.0,
-        valid_max=1.0,
-    ),
-    "recharge": dict(
-        name="Recharge",
-        description="Recharge for each model cell",
-        units="m/day",
-        valid_min=0.0,
-        valid_max=0.5,
-    ),
-    "heads": dict(
-        name="Heads",
-        description="Point water heads for each model cell",
-        units="mNAP",
-        valid_min=-100.0,
-        valid_max=500.0,
-    ),
-    "starting_head": dict(
-        name="Starting head",
-        description="Starting head for each model cell",
-        units="mNAP",
-        valid_min=-100.0,
-        valid_max=500.0,
-    ),
-    "freshwater_head": dict(
-        name="Freshwater head",
-        description="Freshwater head for each model cell",
-        units="mNAP",
-        valid_min=-100.0,
-        valid_max=500.0,
-    ),
-    "pointwater_head": dict(
-        name="Pointwater head",
-        description="Pointwater head for each model cell",
-        units="mNAP",
-        valid_min=-100.0,
-        valid_max=500.0,
-    ),
-    "density": dict(
-        name="Density",
-        description="Density for each model cell",
-        units="kg/m3",
-        valid_min=950.0,
-        valid_max=1200.0,
-    ),
-    "area": dict(
-        name="Cell area",
-        description="Cell area for each model cell",
-        units="m2",
-        valid_min=0.0,
-        valid_max=1e8,
-    ),
+    "time": {
+        "name": "Time",
+        "description": "End time of the stress period",
+    },
+    "botm": {
+        "name": "Bottom elevation",
+        "description": "Bottom elevation for each model cell",
+        "units": "mNAP",
+        "valid_min": -2000.0,
+        "valid_max": 500.0,
+    },
+    "top": {
+        "name": "Top elevation",
+        "description": "Top elevation for each model cell",
+        "units": "mNAP",
+        "valid_min": -2000.0,
+        "valid_max": 500.0,
+    },
+    "kh": {
+        "name": "Horizontal hydraulic conductivity",
+        "description": "Horizontal hydraulic conductivity for each model cell",
+        "units": "m/day",
+        "valid_min": 0.0,
+        "valid_max": 1000.0,
+    },
+    "kv": {
+        "name": "Vertical hydraulic conductivity",
+        "description": "Vertical hydraulic conductivity for each model cell",
+        "units": "m/day",
+        "valid_min": 0.0,
+        "valid_max": 1000.0,
+    },
+    "ss": {
+        "name": "Specific storage",
+        "description": "Specific storage for each model cell",
+        "units": "1/m",
+        "valid_min": 0.0,
+        "valid_max": 1.0,
+    },
+    "sy": {
+        "name": "Specific yield",
+        "description": "Specific yield for each model cell",
+        "units": "-",
+        "valid_min": 0.0,
+        "valid_max": 1.0,
+    },
+    "porosity": {
+        "name": "Porosity",
+        "description": "Porosity for each model cell",
+        "units": "-",
+        "valid_min": 0.0,
+        "valid_max": 1.0,
+    },
+    "recharge": {
+        "name": "Recharge",
+        "description": "Recharge for each model cell",
+        "units": "m/day",
+        "valid_min": 0.0,
+        "valid_max": 0.5,
+    },
+    "heads": {
+        "name": "Heads",
+        "description": "Point water heads for each model cell",
+        "units": "mNAP",
+        "valid_min": -100.0,
+        "valid_max": 500.0,
+    },
+    "starting_head": {
+        "name": "Starting head",
+        "description": "Starting head for each model cell",
+        "units": "mNAP",
+        "valid_min": -100.0,
+        "valid_max": 500.0,
+    },
+    "freshwater_head": {
+        "name": "Freshwater head",
+        "description": "Freshwater head for each model cell",
+        "units": "mNAP",
+        "valid_min": -100.0,
+        "valid_max": 500.0,
+    },
+    "pointwater_head": {
+        "name": "Pointwater head",
+        "description": "Pointwater head for each model cell",
+        "units": "mNAP",
+        "valid_min": -100.0,
+        "valid_max": 500.0,
+    },
+    "density": {
+        "name": "Density",
+        "description": "Density for each model cell",
+        "units": "kg/m3",
+        "valid_min": 950.0,
+        "valid_max": 1200.0,
+    },
+    "area": {
+        "name": "Cell area",
+        "description": "Cell area for each model cell",
+        "units": "m2",
+        "valid_min": 0.0,
+        "valid_max": 1e8,
+    },
 }
 
 
 encoding_requirements = {
-    "heads": dict(dval_max=0.005),
-    "botm": dict(dval_max=0.005),
-    "top": dict(dval_max=0.005),
-    "kh": dict(dval_max=1e-6),
-    "kv": dict(dval_max=1e-6),
-    "ss": dict(dval_max=1e-8),
-    "sy": dict(dval_max=0.005),
-    "porosity": dict(dval_max=0.005),
-    "recharge": dict(dval_max=0.0005),
-    "starting_head": dict(dval_max=0.005),
-    "freshwater_head": dict(dval_max=0.005),
-    "pointwater_head": dict(dval_max=0.005),
-    "density": dict(dval_max=0.005),
-    "area": dict(dval_max=0.05),
+    "heads": {"dval_max": 0.005},
+    "botm": {"dval_max": 0.005},
+    "top": {"dval_max": 0.005},
+    "kh": {"dval_max": 1e-6},
+    "kv": {"dval_max": 1e-6},
+    "ss": {"dval_max": 1e-8},
+    "sy": {"dval_max": 0.005},
+    "porosity": {"dval_max": 0.005},
+    "recharge": {"dval_max": 0.0005},
+    "starting_head": {"dval_max": 0.005},
+    "freshwater_head": {"dval_max": 0.005},
+    "pointwater_head": {"dval_max": 0.005},
+    "density": {"dval_max": 0.005},
+    "area": {"dval_max": 0.05},
 }
 
 
@@ -152,25 +156,26 @@ def get_encodings(
 
     Returns
     -------
-    encodings : dict
+    encodings : dict or None
         Dictionary containing the encodings for each data_var
 
     TODO: add support for strings
     """
-    encodings = dict()
+    encodings = {}
     for varname, da in ds.data_vars.items():
         # Encoding for strings is not supported by netCDF
         if np.issubdtype(da.dtype, np.character):
             continue
 
-        assert "_FillValue" not in da.attrs, (
-            f"Custom fillvalues are not supported. {varname} has a fillvalue set.")
+        assert (
+            "_FillValue" not in da.attrs
+        ), f"Custom fillvalues are not supported. {varname} has a fillvalue set."
 
-        encoding = dict(
-            zlib=True,
-            complevel=5,
-            fletcher32=True  # Store checksums to detect corruption
-        )
+        encoding = {
+            "zlib": True,
+            "complevel": 5,
+            "fletcher32": True,  # Store checksums to detect corruption
+        }
 
         isfloat = np.issubdtype(da.dtype, np.floating)
         isint = np.issubdtype(da.dtype, np.integer)
@@ -198,8 +203,6 @@ def get_encodings(
             else:
                 encoding["dtype"] = "float32"
 
-        
-
         elif isint and allowed_to_read_data_vars_for_minmax:
             vmin = int(da.min())
             vmax = int(da.max())
@@ -218,20 +221,26 @@ def get_encodings(
         else:
             encodings[varname] = encoding
 
-    if not set_encoding_inplace:
+    if set_encoding_inplace:
+        return None
+    else:
         return encodings
 
 
-def compute_scale_and_offset(minValue, maxValue):
+def compute_scale_and_offset(min_value, max_value):
     """
-    Computes the scale_factor and offset for the dataset using a minValue and maxValue,
-    and int16. Useful for maximizing the compression of a dataset.
-
+    Reduce precision of the dataset by storing it as int16 and thereby reducing the precision. 
+    
+    Computes the scale_factor and offset for the dataset using a min_value and max_value to 
+    transform the range of the dataset to the range of valid int16 values. The packed value
+    is computed as:
+        packed_value = (unpacked_value - add_offset) / scale_factor
+        
     Parameters
     ----------
-    minValue : float
+    min_value : float
         Minimum value of the dataset
-    maxValue : float
+    max_value : float
         Maximum value of the dataset
 
     Returns
@@ -244,8 +253,8 @@ def compute_scale_and_offset(minValue, maxValue):
     # stretch/compress data to the available packed range
     # from -32766 to 32767, because -32767 is the default fillvalue.
     width = 32766 + 32767
-    scale_factor = (maxValue - minValue) / width
-    add_offset = 1.0 + scale_factor * (width - 1) / 2
+    scale_factor = (max_value - min_value) / width
+    add_offset = max_value - scale_factor * 32767
     return scale_factor, add_offset
 
 

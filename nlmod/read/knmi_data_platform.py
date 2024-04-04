@@ -16,7 +16,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 # base_url = "https://api.dataplatform.knmi.nl/dataset-content/v1/datasets"
-base_url = "https://api.dataplatform.knmi.nl/open-data"
+base_url = "https://api.dataplatform.knmi.nl/open-data/v1"
 
 
 def get_anonymous_api_key() -> Union[str, None]:
@@ -69,6 +69,7 @@ def get_list_of_files(
         params = {"maxKeys": f"{max_keys}"}
         if start_after_filename is not None:
             params["startAfterFilename"] = start_after_filename
+        logger.debug(f"Request to {url=} with {params=}")
         r = requests.get(
             url, params=params, headers={"Authorization": api_key}, timeout=timeout
         )

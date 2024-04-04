@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from .. import NLMOD_DATADIR, cache
-from ..dims.layers import insert_layer, remove_layer
+from ..dims.layers import insert_layer, remove_layer, remove_layer_dim_from_top
 from ..util import MissingValueError
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def get_lithok_colors():
         8: (216, 163, 32),
         9: (95, 95, 255),
     }
-    colors = {key: tuple([x / 255 for x in color]) for key, color in colors.items()}
+    colors = {key: tuple(x / 255 for x in color) for key, color in colors.items()}
     return colors
 
 
@@ -61,7 +61,11 @@ def get_kh_kv_table(kind="Brabant"):
 
 @cache.cache_netcdf
 def to_model_layers(
-    geotop_ds, strat_props=None, method_geulen="add_to_layer_below", **kwargs
+    geotop_ds,
+    strat_props=None,
+    method_geulen="add_to_layer_below",
+    drop_layer_dim_from_top=True,
+    **kwargs,
 ):
     """Convert geotop voxel dataset to layered dataset.
 
@@ -86,6 +90,11 @@ def to_model_layers(
         layers, which can fail if a 'geul' is locally both below the top and above the
         bottom of another layer (splitting the layer in two, which is not supported).
         The default is "add_to_layer_below".
+    drop_layer_dim_from_top : bool, optional
+        When True, fill NaN values in top and botm and drop the layer dimension from
+        top. This will transform top and botm to the data model in MODFLOW. An advantage
+        of this data model is that the layer model is consistent by definition, with no
+        possibilities of gaps between layers. The default is True.
     kwargs : dict
         Kwargs are passed to `aggregate_to_ds()`
 
@@ -205,6 +214,9 @@ def to_model_layers(
 
     ds.attrs["geulen"] = geulen
 
+    if drop_layer_dim_from_top:
+        ds = remove_layer_dim_from_top(ds)
+
     if "kh" in geotop_ds and "kv" in geotop_ds:
         aggregate_to_ds(geotop_ds, ds, **kwargs)
 
@@ -235,7 +247,7 @@ def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
         url of geotop netcdf file. The default is
         http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
     probabilities : bool, optional
-        if True, download probability data
+        if True, also download probability data. The default is False.
 
     Returns
     -------
@@ -579,7 +591,10 @@ def aggregate_to_ds(
             if "layer" in top.dims:
                 top = top[0].drop_vars("layer")
         else:
-            top = ds["botm"][ilay - 1].drop_vars("layer")
+            if "layer" in  ds["top"].dims:
+                top = ds["top"][ilay].drop_vars("layer")
+            else:
+                top = ds["botm"][ilay - 1].drop_vars("layer")
         bot = ds["botm"][ilay].drop_vars("layer")
 
         gt_top = (gt["z"] + 0.25).broadcast_like(gt[kh_gt])

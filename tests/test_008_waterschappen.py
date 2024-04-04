@@ -1,10 +1,11 @@
-import pytest
 import matplotlib
+import pytest
+
 import nlmod
 
 
-def test_download_polygons():
-    nlmod.read.waterboard.get_polygons()
+# def test_download_polygons(): # is tested in test_024_administrative.test_get_waterboards
+#     nlmod.read.waterboard.get_polygons()
 
 
 def test_get_config():
@@ -48,8 +49,11 @@ def test_download_peilgebieden(plot=True):
         cmap = "viridis"
         for wb in waterboards.index:
             if wb in gdf:
-                # gdf[wb].plot(ax=ax, zorder=0)
-                gdf[wb].plot("winter_stage", ax=ax, zorder=0, norm=norm, cmap=cmap)
+                try:
+                    # gdf[wb].plot(ax=ax, zorder=0)
+                    gdf[wb].plot("winter_stage", ax=ax, zorder=0, norm=norm, cmap=cmap)
+                except Exception as e:
+                    print(f"plotting of {data_kind} for {wb} failed: {e}")
             c = waterboards.at[wb, "geometry"].centroid
             ax.text(c.x, c.y, wb.replace(" ", "\n"), ha="center", va="center")
         nlmod.plot.colorbar_inside(

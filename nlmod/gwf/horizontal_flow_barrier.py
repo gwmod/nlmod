@@ -2,6 +2,7 @@ import flopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import xarray as xr
 from shapely.geometry import Point, Polygon
 
 from ..dims.grid import gdf_to_da, gdf_to_grid
@@ -45,6 +46,9 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
     thick = tops[:-1] - tops[1:]
 
     cells = line2hfb(linestrings, gwf)
+
+    # drop cells on the edge of the model
+    cells = [x for x in cells if len(x) > 1]
 
     spd = []
 
@@ -214,7 +218,9 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
 def polygon_to_hfb(
     gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100, add_data=False
 ):
-    if isinstance(gdf, str):
+    if isinstance(gdf, xr.DataArray):
+        da = gdf
+    elif isinstance(gdf, str):
         da = ds[gdf]
     else:
         if column is None:

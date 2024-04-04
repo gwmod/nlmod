@@ -5,6 +5,7 @@
     can be used as input for a MODFLOW package
 -   fill, interpolate and resample grid data
 """
+
 import logging
 import os
 import warnings
@@ -30,8 +31,8 @@ from .base import _get_structured_grid_ds, _get_vertex_grid_ds, extrapolate_ds
 from .layers import (
     fill_nan_top_botm_kh_kv,
     get_first_active_layer,
-    remove_inactive_layers,
     get_idomain,
+    remove_inactive_layers,
 )
 from .rdp import rdp
 from .resample import (
@@ -42,6 +43,54 @@ from .resample import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def snap_extent(extent, delr, delc):
+    """
+    snap the extent in such a way that an integer number of columns and rows fit
+    in the extent. The new extent is always equal to, or bigger than the
+    original extent.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        original extent (xmin, xmax, ymin, ymax)
+    delr : int or float,
+        cell size along rows, equal to dx
+    delc : int or float,
+        cell size along columns, equal to dy
+
+    Returns
+    -------
+    extent : list, tuple or np.array
+        adjusted extent
+    """
+    extent = list(extent).copy()
+
+    logger.debug(f"redefining extent: {extent}")
+
+    if delr <= 0 or delc <= 0:
+        raise ValueError("delr and delc should be positive values")
+
+    # if xmin can be divided by delr do nothing, otherwise rescale xmin
+    if not extent[0] % delr == 0:
+        extent[0] -= extent[0] % delr
+
+    # get number of columns and xmax
+    ncol = int(np.ceil((extent[1] - extent[0]) / delr))
+    extent[1] = extent[0] + (ncol * delr)  # round xmax up to close grid
+
+    # if ymin can be divided by delc do nothing, otherwise rescale ymin
+    if not extent[2] % delc == 0:
+        extent[2] -= extent[2] % delc
+
+    # get number of rows and ymax
+    nrow = int(np.ceil((extent[3] - extent[2]) / delc))
+    extent[3] = extent[2] + (nrow * delc)  # round ymax up to close grid
+
+    logger.debug(f"new extent is {extent} and has {nrow} rows and {ncol} columns")
+
+    return extent
 
 
 def xy_to_icell2d(xy, ds):
@@ -59,10 +108,35 @@ def xy_to_icell2d(xy, ds):
     icell2d : int
         number of the icell2d value of a cell containing the xy point.
     """
-
+    msg = "xy_to_icell2d can only be applied to a vertex grid"
+    assert ds.gridtype == "vertex", msg
     icell2d = (np.abs(ds.x.data - xy[0]) + np.abs(ds.y.data - xy[1])).argmin().item()
 
     return icell2d
+
+
+def xy_to_row_col(xy, ds):
+    """get the row and column values of a point defined by its x and y coordinates.
+
+    Parameters
+    ----------
+    xy : list, tuple
+        coordinates of ta point.
+    ds : xarary dataset
+        model dataset.
+
+    Returns
+    -------
+    row : int
+        number of the row value of a cell containing the xy point.
+    col : int
+        number of the column value of a cell containing the xy point.
+    """
+    msg = "xy_to_row_col can only be applied to a structured grid"
+    assert ds.gridtype == "structured", msg
+    row = np.abs(ds.y.data - xy[1]).argmin()
+    col = np.abs(ds.x.data - xy[0]).argmin()
+    return row, col
 
 
 def xyz_to_cid(xyz, ds=None, modelgrid=None):
@@ -140,11 +214,11 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
         if "delc" in ds:
             delc = ds["delc"].values
         else:
-            delc = np.array([ds.delc] * ds.dims["y"])
+            delc = np.array([ds.delc] * ds.sizes["y"])
         if "delr" in ds:
             delr = ds["delr"].values
         else:
-            delr = np.array([ds.delr] * ds.dims["x"])
+            delr = np.array([ds.delr] * ds.sizes["x"])
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,
@@ -256,7 +330,7 @@ def get_dims_coords_from_modelgrid(mg):
         if mg.angrot == 0.0:
             x += mg.xoffset  # convert to global coordinates
             y += mg.yoffset  # convert to global coordinates
-        coords = {"layer": layers, "x": x, "y": y}
+        coords = {"layer": layers, "y": y, "x": x}
         dims = ("layer", "y", "x")
     elif mg.grid_type == "vertex":
         layers = np.arange(mg.nlay)
@@ -436,9 +510,11 @@ def refine(
     return ds
 
 
-def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
+def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
     """resample a dataset (xarray) on an structured grid to a new dataset with
     a vertex grid.
+
+    Returns a dataset with resampled variables and the untouched variables.
 
     Parameters
     ----------
@@ -450,15 +526,14 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
         definition of the vertex grid.
     method : str, optional
         type of interpolation used to resample. The default is 'nearest'.
-    nodata : int, optional
+    icvert_nodata : int, optional
         integer to represent nodata-values in cell2d array. Defaults to -1.
 
     Returns
     -------
     ds_out : xarray.Dataset
-        dataset with dimensions (layer, icell2d).
+        dataset with resampled variables and the untouched variables.
     """
-
     logger.info("resample model Dataset to vertex modelgrid")
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
@@ -467,38 +542,52 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", nodata=-1):
     x = xr.DataArray(xyi[:, 0], dims=("icell2d",))
     y = xr.DataArray(xyi[:, 1], dims=("icell2d",))
 
-    # drop non-numeric data variables
-    for key, dtype in ds_in.dtypes.items():
-        if not np.issubdtype(dtype, np.number):
-            ds_in = ds_in.drop_vars(key)
-            logger.info(
-                f"cannot convert data variable {key} to refined dataset because of non-numeric dtype"
-            )
-
     if method in ["nearest", "linear"]:
-        # resample the entire dataset in one line
+        # resample the entire dataset in one line. Leaves not_interp_vars untouched
         ds_out = ds_in.interp(x=x, y=y, method=method, kwargs={"fill_value": None})
+
     else:
-        ds_out = xr.Dataset(coords={"layer": ds_in.layer.data, "x": x, "y": y})
+        # apply method to numeric data variables
+        interp_vars = []
+        not_interp_vars = []
+        for key, var in ds_in.items():
+            if "x" in var.dims or "y" in var.dims:
+                if np.issubdtype(var.dtype, np.number):
+                    interp_vars.append(key)
+                else:
+                    logger.info(
+                        f"Data variable {key} has spatial coordinates but it cannot be refined "
+                        "because of its non-numeric dtype. It is not available in the output Dataset."
+                    )
+            else:
+                not_interp_vars.append(key)
+
+        ds_out = ds_in[not_interp_vars]
+        ds_out.coords.update({"layer": ds_in.layer, "x": x, "y": y})
 
         # add other variables
-        for data_var in ds_in.data_vars:
-            data_arr = structured_da_to_ds(ds_in[data_var], ds_out, method=method)
-            ds_out[data_var] = data_arr
+        for not_interp_var in not_interp_vars:
+            ds_out[not_interp_var] = structured_da_to_ds(
+                da=ds_in[not_interp_var], ds=ds_out, method=method, nodata=np.NaN
+            )
+    has_rotation = "angrot" in ds_out.attrs and ds_out.attrs["angrot"] != 0.0
+    if has_rotation:
+        affine = get_affine_mod_to_world(ds_out)
+        ds_out["xc"], ds_out["yc"] = affine * (ds_out.x, ds_out.y)
 
     if "area" in gridprops:
         if "area" in ds_out:
             ds_out = ds_out.drop_vars("area")
+
         # only keep the first layer of area
         area = gridprops["area"][: len(ds_out["icell2d"])]
         ds_out["area"] = ("icell2d", area)
 
     # add information about the vertices
-    ds_out = gridprops_to_vertex_ds(gridprops, ds_out, nodata=nodata)
+    ds_out = gridprops_to_vertex_ds(gridprops, ds_out, nodata=icvert_nodata)
 
     # then finally change the gridtype in the attributes
     ds_out.attrs["gridtype"] = "vertex"
-
     return ds_out
 
 
@@ -727,9 +816,7 @@ def lrc_to_reclist(
         raise ValueError("col3 is set, but col1 and/or col2 are not!")
 
     if aux is not None:
-        if isinstance(aux, str):
-            aux = [aux]
-        elif isinstance(aux, (int, float)):
+        if isinstance(aux, (str, int, float)):
             aux = [aux]
 
         for i_aux in aux:
@@ -822,9 +909,7 @@ def lcid_to_reclist(
         raise ValueError("col3 is set, but col1 and/or col2 are not!")
 
     if aux is not None:
-        if isinstance(aux, str):
-            aux = [aux]
-        elif isinstance(aux, (int, float)):
+        if isinstance(aux, (str, int, float)):
             aux = [aux]
 
         for i_aux in aux:
@@ -838,6 +923,31 @@ def lcid_to_reclist(
 
     reclist = list(zip(zip(layers, cellids[-1]), *cols))
     return reclist
+
+
+def cols_to_reclist(ds, cellids, *args, cellid_column=0):
+    """Create a reclist for stress period data from a set of cellids.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data. Should have dimensions (layer, icell2d).
+    cellids : tuple of length 2 or 3
+        tuple with indices of the cells that will be used to create the list. For a
+        structured grid, cellids represents (layer, row, column). For a vertex grid
+        cellid reprsents (layer, icell2d).
+    args : xarray.DatArray, str, int or float
+        the args parameter represents the data to be used as the columns in the reclist.
+        See col_to_list of the allowed values.
+    cellid_column : int, optional
+        Adds the cellid ((layer, row, col) or (layer, icell2d)) to the reclist in this
+        column number. Do not add cellid when cellid_column is None. The default is 0.
+
+    """
+    cols = [col_to_list(col, ds, cellids) for col in args]
+    if cellid_column is not None:
+        cols.insert(cellid_column, list(zip(*cellids)))
+    return list(zip(*cols))
 
 
 def da_to_reclist(
@@ -1073,11 +1183,11 @@ def gdf_to_data_array_struc(
 
 
 def gdf_to_da(
-    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0
+    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0, ix=None
 ):
-    """Project vector data on a structured grid. Aggregate data if multiple
-    geometries are in a single cell. This method replaces
-    gdf_to_data_array_struc.
+    """Project vector data on a grid. Aggregate data if multiple
+    geometries are in a single cell. Supports structured and vertex grids.
+    This method replaces gdf_to_data_array_struc.
 
     Parameters
     ----------
@@ -1099,13 +1209,21 @@ def gdf_to_da(
     min_total_overlap: float, optional
         Only assign cells with a gdf-area larger than min_total_overlap * cell-area. The
         default is 0.0
+    ix : GridIntersect, optional
+        If not provided it is computed from ds.
 
     Returns
     -------
     da : xarray DataArray
         The DataArray with the projected vector data.
     """
-    gdf_cellid = gdf_to_grid(gdf, ds)
+    da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
+
+    gdf_cellid = gdf_to_grid(gdf, ds, ix=ix)
+
+    if gdf_cellid.size == 0:
+        return da
+
     if min_total_overlap > 0:
         gdf_cellid["area"] = gdf_cellid.area
         area_sum = gdf_cellid[["cellid", "area"]].groupby("cellid").sum()
@@ -1135,9 +1253,13 @@ def gdf_to_da(
             )
         else:
             gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
-    da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
-    for ind, row in gdf_agg.iterrows():
-        da.values[ind] = row[column]
+
+    if ds.gridtype == "structured":
+        ixs, iys = zip(*gdf_agg.index.values)
+        da.values[ixs, iys] = gdf_agg[column]
+    elif ds.gridtype == "vertex":
+        da[gdf_agg.index] = gdf_agg[column]
+
     return da
 
 
@@ -1189,8 +1311,7 @@ def _agg_max_area(gdf, col):
 
 
 def _agg_area_weighted(gdf, col):
-    nanmask = gdf[col].isna()
-    aw = (gdf.area * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].area.sum()
+    aw = (gdf.area * gdf[col]).sum(skipna=True) / gdf.area.sum(skipna=True)
     return aw
 
 
@@ -1262,7 +1383,8 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
         fields (keys) in the Geodataframe with their aggregation method (items)
         aggregation methods can be:
         max, min, mean, sum, length_weighted (lines), max_length (lines),
-        area_weighted (polygon), max_area (polygon).
+        area_weighted (polygon), max_area (polygon), and functions supported by
+        pandas.*GroupBy.agg().
     modelgrid : flopy Groundwater flow modelgrid
         only necesary if one of the field methods is 'nearest'
 
@@ -1300,15 +1422,37 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     # aggregate data
     gr = gdf.groupby(by="cellid")
     celldata = pd.DataFrame(index=gr.groups.keys())
-    for cid, group in tqdm(gr, desc="Aggregate vector data"):
-        agg_dic = _get_aggregates_values(group, fields_methods, modelgrid)
-        for key, item in agg_dic.items():
-            celldata.loc[cid, key] = item
+
+    for field, method in fields_methods.items():
+        if method == "area_weighted":
+            gdf_copy = gdf.copy()
+            gdf_copy["area_times_field"] = gdf_copy["area"] * gdf_copy[field]
+
+            # skipna is not implemented by groupby therefore we use min_count=1
+            celldata[field] = gdf_copy.groupby(by="cellid")["area_times_field"].sum(
+                min_count=1
+            ) / gdf_copy.groupby(by="cellid")["area"].sum(min_count=1)
+
+        elif method in (
+            "nearest",
+            "length_weighted",
+            "max_length",
+            "max_area",
+            "center_grid",
+        ):
+            for cid, group in tqdm(gr, desc="Aggregate vector data"):
+                agg_dic = _get_aggregates_values(group, {field: method}, modelgrid)
+
+                for key, item in agg_dic.items():
+                    celldata.loc[cid, key] = item
+
+        else:
+            celldata[field] = gr[field].agg(method)
 
     return celldata
 
 
-def gdf_to_bool_da(gdf, ds):
+def gdf_to_bool_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     """convert a GeoDataFrame with polygon geometries into a data array
     corresponding to the modelgrid in which each cell is 1 (True) if one or
     more geometries are (partly) in that cell.
@@ -1319,54 +1463,23 @@ def gdf_to_bool_da(gdf, ds):
         shapes that will be rasterised.
     ds : xr.DataSet
         xarray with model data
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
 
     Returns
     -------
     da : xr.DataArray
-        1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
+        True if polygon is in cell, False otherwise. Grid dimensions according to ds.
     """
-    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        # transform gdf into model coordinates
-        affine = get_affine_world_to_mod(ds)
-        gdf = affine_transform_gdf(gdf, affine)
-
-    modelgrid = modelgrid_from_ds(ds)
-
-    # build list of gridcells
-    ix = GridIntersect(modelgrid, method="vertex")
-
-    if ds.gridtype == "structured":
-        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
-    elif ds.gridtype == "vertex":
-        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=0)
-    else:
-        raise ValueError("function only support structured or vertex gridtypes")
-
-    if isinstance(gdf, gpd.GeoDataFrame):
-        geoms = gdf.geometry.values
-    elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
-        geoms = [gdf]
-
-    for geom in geoms:
-        cids = ix.intersects(geom)["cellids"]
-        if ds.gridtype == "structured":
-            ncol = modelgrid.ncol
-            for cid in cids:
-                if isinstance(cid, tuple):
-                    i, j = cid
-                else:
-                    # TODO: temporary fix until flopy intersect on structured
-                    # grid returns row, col again.
-                    i = int((cid) / ncol)
-                    j = cid - i * ncol
-                da[i, j] = 1
-        elif ds.gridtype == "vertex":
-            da[cids.astype(int)] = 1
-
+    da = gdf_to_count_da(gdf, ds, ix=ix, buffer=buffer, **kwargs) > 0
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
+def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kwargs):
     """convert a GeoDataFrame with polygon geometries into a model dataset with
     a data_array named 'da_name' in which each cell is 1 (True) if one or more
     geometries are (partly) in that cell.
@@ -1382,6 +1495,12 @@ def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
     keep_coords : tuple or None, optional
         the coordinates in ds the you want keep in your empty ds. If None all
         coordinates are kept from original ds. The default is None.
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
 
     Returns
     -------
@@ -1390,17 +1509,113 @@ def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None):
         cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
     """
     ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
-    ds_out[da_name] = gdf_to_bool_da(gdf, ds)
+    ds_out[da_name] = gdf_to_bool_da(gdf, ds, ix=ix, buffer=buffer, **kwargs)
 
     return ds_out
 
 
+def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
+    """Counts in how many polygons a coordinate of ds appears.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame or shapely.geometry
+        shapes that will be rasterised.
+    ds : xr.DataSet
+        xarray with model data
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
+
+    Returns
+    -------
+    da : xr.DataArray
+        1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
+    """
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+        # transform gdf into model coordinates
+        affine = get_affine_world_to_mod(ds)
+        gdf = affine_transform_gdf(gdf, affine)
+
+    # build list of gridcells
+    if ix is None:
+        modelgrid = modelgrid_from_ds(ds, rotated=False)
+        ix = GridIntersect(modelgrid, method="vertex")
+
+    if ds.gridtype == "structured":
+        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
+    elif ds.gridtype == "vertex":
+        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=0)
+    else:
+        raise ValueError("function only support structured or vertex gridtypes")
+
+    if isinstance(gdf, gpd.GeoDataFrame):
+        geoms = gdf.geometry.values
+    elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
+        geoms = [gdf]
+
+    for geom in geoms:
+        if buffer > 0.0:
+            cids = ix.intersects(geom.buffer(buffer), **kwargs)["cellids"]
+        else:
+            cids = ix.intersects(geom, **kwargs)["cellids"]
+
+        if len(cids) == 0:
+            continue
+
+        if ds.gridtype == "structured":
+            ixs, iys = zip(*cids)
+            da.values[ixs, iys] += 1
+        elif ds.gridtype == "vertex":
+            da[cids.astype(int)] += 1
+
+    return da
+
+
+def gdf_to_count_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kwargs):
+    """Counts in how many polygons a coordinate of ds appears.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        polygon shapes with surface water.
+    ds : xr.DataSet
+        xarray with model data
+    da_name : str
+        The name of the variable with boolean data in the ds_out
+    keep_coords : tuple or None, optional
+        the coordinates in ds the you want keep in your empty ds. If None all
+        coordinates are kept from original ds. The default is None.
+    ix : flopy.utils.GridIntersect, optional
+        If not provided it is computed from ds.
+    buffer : float, optional
+        buffer around the geometries. The default is 0.
+    **kwargs : keyword arguments
+        keyword arguments are passed to the intersect_*-methods.
+
+    Returns
+    -------
+    ds_out : xr.Dataset
+        Dataset with a single DataArray, this DataArray is 1 if polygon is in
+        cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
+    """
+    ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
+    ds_out[da_name] = gdf_to_count_da(gdf, ds, ix=ix, buffer=buffer, **kwargs)
+
+    return ds_out
+
+
+@cache.cache_pickle
 def gdf_to_grid(
     gdf,
     ml=None,
     method="vertex",
     ix=None,
     desc="Intersecting with grid",
+    silent=False,
     **kwargs,
 ):
     """Intersect a geodataframe with the grid of a MODFLOW model.
@@ -1420,6 +1635,10 @@ def gdf_to_grid(
         Method passed to the GridIntersect-class. The default is 'vertex'.
     ix : flopy.utils.GridIntersect, optional
         GridIntersect, if not provided the modelgrid in ml is used.
+    desc : string, optional
+        The description of the progressbar. The default is 'Intersecting with grid'.
+    silent : bool, optional
+        Do not show a progressbar when silent is True. The default is False.
     **kwargs : keyword arguments
         keyword arguments are passed to the intersect_*-methods.
 
@@ -1450,7 +1669,7 @@ def gdf_to_grid(
         ix = flopy.utils.GridIntersect(modelgrid, method=method)
     shps = []
     geometry = gdf.geometry.name
-    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc):
+    for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc, disable=silent):
         r = ix.intersect(shp[geometry], **kwargs)
         for i in range(r.shape[0]):
             shpn = shp.copy()
@@ -1461,7 +1680,15 @@ def gdf_to_grid(
             elif shp[geometry].geom_type in ["Polygon", "MultiPolygon"]:
                 shpn["area"] = r["areas"][i]
             shps.append(shpn)
-    gdfg = gpd.GeoDataFrame(shps, geometry=geometry, crs=gdf.crs)
+
+    if len(shps) == 0:
+        # Unable to determine the column names, because no geometries intersect with the grid
+        logger.info("No geometries intersect with the grid")
+        columns = gdf.columns.to_list() + ["area", "length", "cellid"]
+    else:
+        columns = None  # adopt from shps
+
+    gdfg = gpd.GeoDataFrame(shps, columns=columns, geometry=geometry, crs=gdf.crs)
     gdfg.index.name = gdf.index.name
     return gdfg
 

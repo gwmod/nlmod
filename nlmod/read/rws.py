@@ -184,9 +184,9 @@ def calculate_sea_coverage(
     """
     Determine where the sea is by interpreting the digital terrain model.
 
-    This method assumes the top left pixel of the DTM-DataArray is sea. It then
-    determines the height of the sea that is required for other pixels to become sea as
-    well, taking into account the pixels in between.
+    This method assumes the pixel defined in xy_sea (by default top-left) of the
+    DTM-DataArray is sea. It then determines the height of the sea that is required for
+    other pixels to become sea as well, taking into account the pixels in between.
 
     Parameters
     ----------

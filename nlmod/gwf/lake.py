@@ -108,7 +108,7 @@ def lake_from_gdf(
     packagedata = []
     connectiondata = []
     perioddata = {}
-    for iper in range(ds.dims["time"]):
+    for iper in range(ds.sizes["time"]):
         perioddata[iper] = []
 
     lake_settings = [setting for setting in LAKE_KWDS if setting in gdf.columns]
@@ -204,7 +204,7 @@ def lake_from_gdf(
                 outsettings.append(setval)
             outlets.append([outlet_no, lakeno, lakeout] + outsettings)
             outlet_no += 1
-        for iper in range(ds.dims["time"]):
+        for iper in range(ds.sizes["time"]):
             if recharge:
                 # add recharge to lake
                 cellids = [row[2][1] for row in connectiondata]

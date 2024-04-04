@@ -11,13 +11,15 @@ from shapely.strtree import STRtree
 from tqdm import tqdm
 
 from ..dims.grid import gdf_to_grid
-from ..dims.resample import get_extent_polygon
 from ..dims.layers import get_idomain
+from ..dims.resample import get_extent_polygon
 from ..read import bgt, waterboard
+from ..cache import cache_pickle
 
 logger = logging.getLogger(__name__)
 
 
+@cache_pickle
 def aggregate(gdf, method, ds=None):
     """Aggregate surface water features.
 
@@ -354,6 +356,8 @@ def build_spd(
     pkg,
     ds,
     layer_method="lay_of_rbot",
+    desc=None,
+    silent=False,
 ):
     """Build stress period data for package (RIV, DRN, GHB).
 
@@ -370,6 +374,11 @@ def build_spd(
         The method used to distribute the conductance over the layers. Possible
         values are 'lay_of_rbot' and 'distribute_cond_over_lays'. The default
         is "lay_of_rbot".
+    desc : string, optional
+        The description of the progressbar. The default is None, so desc will be
+        "Building stress period data RIV/DRN/GHB".
+    silent : bool, optional
+        Do not show a progressbar when silent is True. The default is False.
 
     Returns
     -------
@@ -393,10 +402,13 @@ def build_spd(
         logger.warning(f"{mask.sum()} records without a stage ignored")
         celldata = celldata[~mask]
 
+    if desc is None:
+        desc = f"Building stress period data {pkg}"
     for cellid, row in tqdm(
         celldata.iterrows(),
         total=celldata.index.size,
-        desc=f"Building stress period data {pkg}",
+        desc=desc,
+        disable=silent,
     ):
         # check if there is an active layer for this cell
         if ds.gridtype == "vertex":
@@ -421,7 +433,7 @@ def build_spd(
         # stage
         stage = row["stage"]
 
-        if (stage < rbot) and np.isfinite(rbot):
+        if not isinstance(stage, str) and stage < rbot and np.isfinite(rbot):
             logger.warning(
                 f"WARNING: stage below bottom elevation in {cellid}, "
                 "stage reset to rbot!"
@@ -510,7 +522,7 @@ def add_info_to_gdf(
         inds = s.query(geom_to)
         if len(inds) == 0:
             continue
-        overlap = gdf_from.geometry[inds].intersection(geom_to)
+        overlap = gdf_from.geometry.iloc[inds].intersection(geom_to)
         if geom_type is None:
             geom_type = overlap.geom_type.iloc[0]
         if geom_type in ["Polygon", "MultiPolygon"]:
@@ -559,7 +571,7 @@ def get_gdf_stage(gdf, season="winter"):
 
 
 def download_level_areas(
-    gdf, extent=None, config=None, raise_exceptions=True, **kwargs
+    gdf, extent=None, config=None, raise_exceptions=True, drop_duplicates=True, **kwargs
 ):
     """Download level areas (peilgebieden) of bronhouders.
 
@@ -578,6 +590,9 @@ def download_level_areas(
         Raises exceptions, mostly caused by a webservice that is offline. When
         raise_exceptions is False, the error is raised as a warning. The default is
         True.
+    drop_duplicates : bool, optional
+        Drop features with a duplicate index, keeping the first occurence. The default
+        is True.
 
     Returns
     -------
@@ -598,6 +613,13 @@ def download_level_areas(
                 if len(lawb) == 0:
                     logger.info(f"No {data_kind} for {wb} found within model area")
                     continue
+                if drop_duplicates:
+                    mask = lawb.index.duplicated()
+                    if mask.any():
+                        msg = "Dropping {} level area(s) of {} with duplicate indexes"
+                        logger.warning(msg.format(mask.sum(), wb))
+                        lawb = lawb.loc[~mask]
+
                 la[wb] = lawb
                 mask = ~la[wb].is_valid
                 if mask.any():
@@ -882,6 +904,7 @@ def gdf_to_seasonal_pkg(
     c0=1.0,
     summer_months=(4, 5, 6, 7, 8, 9),
     layer_method="lay_of_rbot",
+    silent=False,
     **kwargs,
 ):
     """Add a surface water package to a groundwater-model, based on input from a
@@ -907,7 +930,7 @@ def gdf_to_seasonal_pkg(
         The default water depth, only used when there is no 'rbot' column in
         gdf or when this column contains nans. The default is 0.5.
     boundname_column : str, optional
-        THe name of the column in gdf to use for the boundnames. The default is
+        The name of the column in gdf to use for the boundnames. The default is
         "identificatie", which is a unique identifier in the BGT.
     c0 : float, optional
         The resistance of the surface water, in days. Only used when there is
@@ -976,6 +999,8 @@ def gdf_to_seasonal_pkg(
                 pkg,
                 ds,
                 layer_method=layer_method,
+                desc=f"Building stress period data for {season} {pkg}",
+                silent=silent,
             )
         )
     # from the release notes (6.3.0):
@@ -990,7 +1015,9 @@ def gdf_to_seasonal_pkg(
         spd[:, [2, 3]] = spd[:, [3, 2]]
     spd = spd.tolist()
 
-    if boundname_column is not None:
+    if boundname_column is None:
+        observations = None
+    else:
         observations = []
         for boundname in np.unique(gdf[boundname_column]):
             observations.append((boundname, pkg, boundname))
@@ -1013,7 +1040,13 @@ def gdf_to_seasonal_pkg(
         **kwargs,
     )
     # add timeseries for the seasons 'winter' and 'summer'
-    add_season_timeseries(ds, package, summer_months=summer_months, seasons=seasons)
+    add_season_timeseries(
+        ds,
+        package,
+        summer_months=summer_months,
+        winter_name="winter",
+        summer_name="summer",
+    )
     return package
 
 
@@ -1022,8 +1055,26 @@ def add_season_timeseries(
     package,
     summer_months=(4, 5, 6, 7, 8, 9),
     filename="season.ts",
-    seasons=("winter", "summer"),
+    winter_name="winter",
+    summer_name="summer",
 ):
+    """Add time series indicating which season is active (e.g. summer/winter).
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        xarray dataset used for time discretization
+    package : flopy.mf6 package
+        Modflow 6 package to add time series to
+    summer_months : tuple, optional
+        summer months. The default is (4, 5, 6, 7, 8, 9), so from april to september.
+    filename : str, optional
+        name of time series file. The default is "season.ts".
+    winter_name : str, optional
+        The name of the time-series with ones in winter. The default is "winter".
+    summer_name : str, optional
+        The name of the time-series with ones in summer. The default is "summer".
+    """
     tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]
@@ -1043,23 +1094,17 @@ def add_season_timeseries(
         if time > 0:
             ts_data.append((time, 1.0, 0.0))
 
-    package.ts.initialize(
+    return package.ts.initialize(
         filename=filename,
         timeseries=ts_data,
-        time_series_namerecord=seasons,
+        time_series_namerecord=[winter_name, summer_name],
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):
-    # TODO: temporary fix until flopy is patched
-    if gwf.modelgrid.grid_type == "structured":
-        gi = flopy.utils.GridIntersect(gwf.modelgrid, rtree=False)
-        cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
-    else:
-        gi = flopy.utils.GridIntersect(gwf.modelgrid)
-        cellids = gi.intersects(xylist, shapetype="linestring")["cellids"]
-
+    gi = flopy.utils.GridIntersect(gwf.modelgrid, method="vertex")
+    cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
     riv_data = []
     for cid in cellids:
         if len(cid) == 2:

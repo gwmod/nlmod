@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 def get_recharge(ds, method="linear", most_common_station=False):
     """add multiple recharge packages to the groundwater flow model with knmi
     data by following these steps:
-
        1. check for each cell (structured or vertex) which knmi measurement
           stations (prec and evap) are the closest.
        2. download precipitation and evaporation data for all knmi stations that
@@ -38,7 +37,7 @@ def get_recharge(ds, method="linear", most_common_station=False):
     ----------
     ds : xr.DataSet
         dataset containing relevant model grid information
-    method : bool, optional
+    method : str, optional
         If 'linear', calculate recharge by subtracting evaporation from precipitation.
         If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
         The defaults is 'linear'.
@@ -85,7 +84,9 @@ def get_recharge(ds, method="linear", most_common_station=False):
         unique_combinations = locations.drop_duplicates(["stn_rd", "stn_ev24"])[
             ["stn_rd", "stn_ev24"]
         ].values
-
+        if unique_combinations.shape[1] > 2:
+            # bug fix for pandas 2.1 where three columns are returned
+            unique_combinations = unique_combinations[:, :2]
         for stn_rd, stn_ev24 in unique_combinations:
             # get locations with the same prec and evap station
             mask = (locations["stn_rd"] == stn_rd) & (locations["stn_ev24"] == stn_ev24)
@@ -129,7 +130,9 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     """Add a timeseries to a variable at location loc_sel in model DataSet."""
     end = pd.Timestamp(ds.time.data[-1])
     if timeseries.index[-1] < end:
-        raise ValueError(f"no recharge available at {timeseries.name} for date {end}")
+        raise ValueError(
+            f"no data available for time series'{timeseries.name}' on date {end}"
+        )
 
     # fill recharge data array
     model_recharge = pd.Series(index=ds.time, dtype=float)
@@ -275,11 +278,19 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
 
     # get knmi data stations closest to any grid cell
     oc_knmi_prec = hpd.ObsCollection.from_knmi(
-        stns=stns_rd, starts=[start], ends=[end], meteo_vars=["RD"]
+        stns=stns_rd,
+        starts=[start],
+        ends=[end],
+        meteo_vars=["RD"],
+        fill_missing_obs=True,
     )
 
     oc_knmi_evap = hpd.ObsCollection.from_knmi(
-        stns=stns_ev24, starts=[start], ends=[end], meteo_vars=["EV24"]
+        stns=stns_ev24,
+        starts=[start],
+        ends=[end],
+        meteo_vars=["EV24"],
+        fill_missing_obs=True,
     )
 
     return locations, oc_knmi_prec, oc_knmi_evap

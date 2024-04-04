@@ -68,7 +68,7 @@ class DatasetCrossSection:
                 if intersection.length == 0:
                     continue
                 if isinstance(intersection, MultiLineString):
-                    for ix in intersection:
+                    for ix in intersection.geoms:
                         s_cell.append([line.project(Point(ix.coords[0])), 1, ic2d])
                         s_cell.append([line.project(Point(ix.coords[-1])), 0, ic2d])
                     continue

@@ -10,7 +10,7 @@ import pandas as pd
 from packaging.version import parse as parse_version
 
 from .. import util
-from ..dims.grid import xy_to_icell2d
+from ..dims.grid import xy_to_icell2d, xy_to_row_col
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
         manually but there is currently no good option to obtain the filename
         of a Jupyter Notebook from within the notebook itself.
     silent : bool, optional
-        write and run model silently
+        run model silently
     """
     if remove_prev_output:
         remove_output(mpf)
@@ -47,7 +47,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
     logger.info("write modpath files to model workspace")
 
     # write modpath datasets
-    mpf.write_input(silent=silent)
+    mpf.write_input()
 
     # run modpath
     logger.info("run modpath model")
@@ -82,12 +82,24 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0):
 
     nodes = []
     for i, xy in enumerate(xy_list):
-        icell2d = xy_to_icell2d(xy, ds)
-        if mpf.ib[layer[i], icell2d] > 0:
-            node = layer[i] * mpf.ib.shape[1] + icell2d
-            nodes.append(node)
+        if len(mpf.ib.shape) == 3:
+            row, col = xy_to_row_col(xy, ds)
+            if mpf.ib[layer[i], row, col] > 0:
+                nodes.append(get_node_structured(layer[i], row, col, mpf.ib.shape))
+        else:
+            icell2d = xy_to_icell2d(xy, ds)
+            if mpf.ib[layer[i], icell2d] > 0:
+                nodes.append(get_node_vertex(layer[i], icell2d, mpf.ib.shape))
 
     return nodes
+
+
+def get_node_structured(lay, row, col, shape):
+    return lay * shape[1] * shape[2] + row * shape[2] + col
+
+
+def get_node_vertex(lay, icell2d, shape):
+    return lay * shape[1] + icell2d
 
 
 def package_to_nodes(gwf, package_name, mpf):
@@ -113,16 +125,22 @@ def package_to_nodes(gwf, package_name, mpf):
         node numbers corresponding to the cells with a certain boundary condition.
     """
     gwf_package = gwf.get_package(package_name)
-    if not hasattr(gwf_package, "stress_period_data"):
-        raise TypeError("only package with stress period data can be used")
-
-    pkg_cid = gwf_package.stress_period_data.array[0]["cellid"]
+    if hasattr(gwf_package, "stress_period_data"):
+        pkg_cid = gwf_package.stress_period_data.array[0]["cellid"]
+    elif hasattr(gwf_package, "connectiondata"):
+        pkg_cid = gwf_package.connectiondata.array["cellid"]
+    else:
+        raise TypeError(
+            "only package with stress period data or connectiondata can be used"
+        )
     nodes = []
     for cid in pkg_cid:
-        if mpf.ib[cid[0], cid[1]] > 0:
-            node = cid[0] * mpf.ib.shape[1] + cid[1]
-            nodes.append(node)
-
+        if len(mpf.ib.shape) == 3:
+            if mpf.ib[cid[0], cid[1], cid[2]] > 0:
+                nodes.append(get_node_structured(cid[0], cid[1], cid[2], mpf.ib.shape))
+        else:
+            if mpf.ib[cid[0], cid[1]] > 0:
+                nodes.append(get_node_vertex(cid[0], cid[1], mpf.ib.shape))
     return nodes
 
 
@@ -145,15 +163,16 @@ def layer_to_nodes(mpf, modellayer):
     if not isinstance(modellayer, (list, tuple)):
         modellayer = [modellayer]
     nodes = []
-    node = 0
-    for lay in range(mpf.ib.shape[0]):
-        for icell2d in range(mpf.ib.shape[1]):
-            # only add specific layers
-            if lay in modellayer:
+    for lay in modellayer:
+        if len(mpf.ib.shape) == 3:
+            for row in range(mpf.ib.shape[1]):
+                for col in range(mpf.ib.shape[2]):
+                    if mpf.ib[lay, row, col] > 0:
+                        nodes.append(get_node_structured(lay, row, col, mpf.ib.shape))
+        else:
+            for icell2d in range(mpf.ib.shape[1]):
                 if mpf.ib[lay, icell2d] > 0:
-                    nodes.append(node)
-            node += 1
-
+                    nodes.append(get_node_vertex(lay, icell2d, mpf.ib.shape))
     return nodes
 
 
@@ -194,12 +213,6 @@ def mpf(gwf, exe_name=None, modelname=None, model_ws=None):
     if not npf.save_flows.array:
         raise ValueError(
             "the save_flows option of the npf package should be True not None"
-        )
-
-    # check if the tdis has a start_time
-    if gwf.simulation.tdis.start_date_time.array is not None:
-        logger.warning(
-            "older versions of modpath cannot handle this, see https://github.com/MODFLOW-USGS/modpath-v7/issues/31"
         )
 
     # get executable
@@ -432,7 +445,15 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
 
 
 def sim(
-    mpf, particlegroups, direction="backward", gwf=None, ref_time=None, stoptime=None
+    mpf,
+    particlegroups,
+    direction="backward",
+    gwf=None,
+    ref_time=None,
+    stoptime=None,
+    simulationtype="combined",
+    weaksinkoption="pass_through",
+    weaksourceoption="pass_through",
 ):
     """Create a modpath backward simulation from a particle group.
 
@@ -474,10 +495,10 @@ def sim(
 
     mpsim = flopy.modpath.Modpath7Sim(
         mpf,
-        simulationtype="combined",
+        simulationtype=simulationtype,
         trackingdirection=direction,
-        weaksinkoption="pass_through",
-        weaksourceoption="pass_through",
+        weaksinkoption=weaksinkoption,
+        weaksourceoption=weaksourceoption,
         referencetime=ref_time,
         stoptimeoption=stoptimeoption,
         stoptime=stoptime,

@@ -64,7 +64,7 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
     ds.attrs["model_ran_on"] = dt.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 
 
-def get_tdis_perioddata(ds):
+def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
     """Get tdis_perioddata from ds.
 
     Parameters
@@ -92,15 +92,15 @@ def get_tdis_perioddata(ds):
     if len(ds["time"]) > 1:
         perlen.extend(np.diff(ds["time"]) / deltat)
 
-    if "nstp" in ds:
-        nstp = ds["nstp"].values
-    else:
-        nstp = [ds.time.nstp] * len(perlen)
+    nstp = util._get_value_from_ds_datavar(ds, "nstp", nstp, return_da=False)
 
-    if "tsmult" in ds:
-        tsmult = ds["tsmult"].values
-    else:
-        tsmult = [ds.time.tsmult] * len(perlen)
+    if isinstance(nstp, (int, np.integer)):
+        nstp = [nstp] * len(perlen)
+
+    tsmult = util._get_value_from_ds_datavar(ds, "tsmult", tsmult, return_da=False)
+
+    if isinstance(tsmult, float):
+        tsmult = [tsmult] * len(perlen)
 
     tdis_perioddata = list(zip(perlen, nstp, tsmult))
 
@@ -144,7 +144,7 @@ def sim(ds, exe_name=None):
     return sim
 
 
-def tdis(ds, sim, pname="tdis"):
+def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
     """create tdis package from the model dataset.
 
     Parameters
@@ -156,6 +156,8 @@ def tdis(ds, sim, pname="tdis"):
         simulation object.
     pname : str, optional
         package name
+    **kwargs
+        passed on to flopy.mft.ModflowTdis
 
     Returns
     -------
@@ -166,7 +168,7 @@ def tdis(ds, sim, pname="tdis"):
     # start creating model
     logger.info("creating mf6 TDIS")
 
-    tdis_perioddata = get_tdis_perioddata(ds)
+    tdis_perioddata = get_tdis_perioddata(ds, nstp=nstp, tsmult=tsmult)
 
     # Create the Flopy temporal discretization object
     tdis = flopy.mf6.ModflowTdis(
@@ -176,6 +178,7 @@ def tdis(ds, sim, pname="tdis"):
         nper=len(ds.time),
         start_date_time=pd.Timestamp(ds.time.start).isoformat(),
         perioddata=tdis_perioddata,
+        **kwargs,
     )
 
     return tdis
@@ -201,11 +204,13 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
 
     logger.info("creating mf6 IMS")
 
+    print_option = kwargs.pop("print_option", "summary")
+
     # Create the Flopy iterative model solver (ims) Package object
     ims = flopy.mf6.ModflowIms(
         sim,
         pname=pname,
-        print_option="summary",
+        print_option=print_option,
         complexity=complexity,
         **kwargs,
     )

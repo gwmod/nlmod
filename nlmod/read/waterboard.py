@@ -49,15 +49,16 @@ def get_configuration():
     config["Amstel, Gooi en Vecht"] = {
         "bgt_code": "W0155",
         "watercourses": {
-            "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/AGV_Onderh_Secundaire_Watergangen/MapServer",
-            "layer": 40,
-            "bottom_width": "BODEMBREEDTE",
-            "bottom_height": "BODEMHOOGTE",
-            "water_depth": "WATERDIEPTE",
+            "url": "https://maps.waternet.nl/arcgis/rest/services/Publiek/WNET_GEO_LEGGER_WL_2021/MapServer",
+            "layer": 0,  # Primaire Waterloop Legger
+            "bottom_width": "AVVBODDR",
+            "bottom_height": "AVVBODH",
+            "water_depth": "AVVDIEPT",
+            "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/Vastgestelde_Waterpeilen/MapServer",
-            "layer": 0,
+            "url": "https://maps.waternet.nl/arcgis/rest/services/Publiek/GW_GPG/MapServer",
+            "layer": 5,  # Vigerende peilgebieden
             "index": "GPGIDENT",
             "summer_stage": [
                 "GPGZMRPL",

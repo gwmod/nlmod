@@ -3,6 +3,7 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import geopandas as gpd
 import rasterio
 import rioxarray
@@ -412,6 +413,11 @@ def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
     datasets = []
     for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[name, identifier]
+        if isinstance(url, pd.Series):
+            logger.warning(
+                f"Multiple tiles with the same name: {name}. Choosing the first one."
+            )
+            url = url.iloc[0]
         path = url.split("/")[-1].replace(".zip", ".TIF")
         if path.lower().endswith(".tif.tif"):
             path = path[:-4]

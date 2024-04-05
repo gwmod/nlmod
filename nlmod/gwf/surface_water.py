@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from ..dims.grid import gdf_to_grid
 from ..dims.layers import get_idomain
-from ..dims.resample import get_extent_polygon
+from ..dims.resample import get_extent_polygon, extent_to_polygon
 from ..read import bgt, waterboard
 from ..cache import cache_pickle
 
@@ -571,15 +571,20 @@ def get_gdf_stage(gdf, season="winter"):
 
 
 def download_level_areas(
-    gdf, extent=None, config=None, raise_exceptions=True, drop_duplicates=True, **kwargs
+    gdf=None,
+    extent=None,
+    config=None,
+    raise_exceptions=True,
+    drop_duplicates=True,
+    **kwargs,
 ):
     """Download level areas (peilgebieden) of bronhouders.
 
     Parameters
     ----------
-    gdf : geopandas.GeoDataFrame
+    gdf : geopandas.GeoDataFrame, optional
         A GeoDataFrame with surface water features, containing the column "bronhouder".
-    extent : list, tuple or np.array
+    extent : list, tuple or np.array, optional
         Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
         water boards in gdf are downloaded downloaded.
     config : dict, optional
@@ -602,55 +607,57 @@ def download_level_areas(
     """
     if config is None:
         config = waterboard.get_configuration()
-    bronhouders = gdf["bronhouder"].unique()
+    wbs = _get_waterboard_selection(gdf=gdf, extent=extent, config=config)
+
     la = {}
     data_kind = "level_areas"
-    for wb in config.keys():
-        if config[wb]["bgt_code"] in bronhouders:
-            logger.info(f"Downloading {data_kind} for {wb}")
-            try:
-                lawb = waterboard.get_data(wb, data_kind, extent, **kwargs)
-                if len(lawb) == 0:
-                    logger.info(f"No {data_kind} for {wb} found within model area")
-                    continue
-                if drop_duplicates:
-                    mask = lawb.index.duplicated()
-                    if mask.any():
-                        msg = "Dropping {} level area(s) of {} with duplicate indexes"
-                        logger.warning(msg.format(mask.sum(), wb))
-                        lawb = lawb.loc[~mask]
-
-                la[wb] = lawb
-                mask = ~la[wb].is_valid
+    for wb in wbs:
+        logger.info(f"Downloading {data_kind} for {wb}")
+        try:
+            lawb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            if len(lawb) == 0:
+                logger.info(f"No {data_kind} for {wb} found within model area")
+                continue
+            if drop_duplicates:
+                mask = lawb.index.duplicated()
                 if mask.any():
-                    logger.warning(
-                        f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
-                    )
-                    # first copy to prevent ValueError: assignment destination is read-only
-                    la[wb] = la[wb].copy()
-                    la[wb].loc[mask, "geometry"] = la[wb][mask].buffer(0.0)
-            except Exception as e:
-                if str(e) == f"{data_kind} not available for {wb}":
-                    logger.warning(e)
-                elif raise_exceptions:
-                    raise
-                else:
-                    logger.warning(e)
+                    msg = "Dropping {} level area(s) of {} with duplicate indexes"
+                    logger.warning(msg.format(mask.sum(), wb))
+                    lawb = lawb.loc[~mask]
+
+            la[wb] = lawb
+            mask = ~la[wb].is_valid
+            if mask.any():
+                logger.warning(
+                    f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
+                )
+                # first copy to prevent ValueError: assignment destination is read-only
+                la[wb] = la[wb].copy()
+                la[wb].loc[mask, "geometry"] = la[wb][mask].buffer(0.0)
+        except Exception as e:
+            if str(e) == f"{data_kind} not available for {wb}":
+                logger.warning(e)
+            elif raise_exceptions:
+                raise
+            else:
+                logger.warning(e)
     return la
 
 
 def download_watercourses(
-    gdf, extent=None, config=None, raise_exceptions=True, **kwargs
+    gdf=None, extent=None, config=None, raise_exceptions=True, **kwargs
 ):
     """Download watercourses of bronhouders.
 
     Parameters
     ----------
-    gdf : geopandas.GeoDataFrame
+    gdf : geopandas.GeoDataFrame, optional
         A GeoDataFrame with surface water features, containing the column "bronhouder".
-    extent : list, tuple or np.array
+        Determine the required waterboards for this gdf, when not None. The default is
+        None.
+    extent : list, tuple or np.array, optional
         Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
-        water boards in gdf are downloaded downloaded.
+        water boards in gdf are downloaded downloaded. The default is None.
     config : dict, optional
         A dictionary with information about the webservices of the water boards. When
         config is None, it is created with nlmod.read.waterboard.get_configuration().
@@ -668,26 +675,44 @@ def download_watercourses(
     """
     if config is None:
         config = waterboard.get_configuration()
-    bronhouders = gdf["bronhouder"].unique()
+    wbs = _get_waterboard_selection(gdf=gdf, extent=extent, config=config)
     wc = {}
     data_kind = "watercourses"
-    for wb in config.keys():
-        if config[wb]["bgt_code"] in bronhouders:
-            logger.info(f"Downloading {data_kind} for {wb}")
-            try:
-                wcwb = waterboard.get_data(wb, data_kind, extent, **kwargs)
-                if len(wcwb) == 0:
-                    logger.info(f"No {data_kind} for {wb} found within model area")
-                    continue
-                wc[wb] = wcwb
-            except Exception as e:
-                if str(e) == f"{data_kind} not available for {wb}":
-                    logger.warning(e)
-                elif raise_exceptions:
-                    raise
-                else:
-                    logger.warning(e)
+    for wb in wbs:
+        logger.info(f"Downloading {data_kind} for {wb}")
+        try:
+            wcwb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            if len(wcwb) == 0:
+                logger.info(f"No {data_kind} for {wb} found within model area")
+                continue
+            wc[wb] = wcwb
+        except Exception as e:
+            if str(e) == f"{data_kind} not available for {wb}":
+                logger.warning(e)
+            elif raise_exceptions:
+                raise
+            else:
+                logger.warning(e)
     return wc
+
+
+def _get_waterboard_selection(gdf=None, extent=None, config=None):
+    """Internal method to select waterboards to get data from"""
+    if config is None:
+        config = waterboard.get_configuration()
+    if gdf is None and extent is None:
+        raise (ValueError("Please specify either gdf or extent"))
+
+    if gdf is not None:
+        bronhouders = gdf["bronhouder"].unique()
+        wbs = []
+        for wb in config.keys():
+            if config[wb]["bgt_code"] in bronhouders:
+                wbs.append(wb)
+    elif extent is not None:
+        wb_gdf = waterboard.get_polygons()
+        wbs = wb_gdf.index[wb_gdf.intersects(extent_to_polygon(extent))]
+    return wbs
 
 
 def add_stages_from_waterboards(

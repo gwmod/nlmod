@@ -132,12 +132,12 @@ def cache_netcdf(func, coords_2d=False, coords_3d=False, coords_time=False, data
                 dataset = func_args_dic.pop(key)
 
         dataset = ds_contains(
-            dataset, 
-            coords_2d=coords_2d, 
-            coords_3d=coords_3d, 
-            coords_time=coords_time, 
-            datavars=datavars, 
-            coords=coords, 
+            dataset,
+            coords_2d=coords_2d,
+            coords_3d=coords_3d,
+            coords_time=coords_time,
+            datavars=datavars,
+            coords=coords,
             attrs=attrs)
 
         # only use cache if the cache file and the pickled function arguments exist
@@ -619,7 +619,7 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
             coords = []
         if attrs is None:
             attrs = []
-    
+
     # Add coords, datavars and attrs via shorthands
     if coords_2d or coords_3d:
         coords.append("x")
@@ -660,6 +660,6 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
 
     # Return only the required data
     return xr.Dataset(
-        datavars=ds.datavars[datavars], 
-        coords=ds.coords[coords], 
+        datavars=ds.datavars[datavars],
+        coords=ds.coords[coords],
         attrs={k: ds.attrs[k] for k in attrs})

@@ -53,7 +53,7 @@ def clear_cache(cachedir):
                 logger.info(f"removed {fname_nc}")
 
 
-def cache_netcdf(func, coords_2d=False, coords_3d=False, coords_time=False, datavars=[], coords=[], attrs=[]):
+def cache_netcdf(func, coords_2d=False, coords_3d=False, coords_time=False, datavars=None, coords=None, attrs=None):
     """decorator to read/write the result of a function from/to a file to speed
     up function calls with the same arguments. Should only be applied to
     functions that:
@@ -82,20 +82,24 @@ def cache_netcdf(func, coords_2d=False, coords_3d=False, coords_time=False, data
     docstring with a "Returns" heading. If this is not the case an error is
     raised when trying to decorate the function.
 
+    If all kwargs are left to their defaults, the function caches the full dataset.
+
     Parameters
     ----------
+    ds : xr.Dataset
+        Dataset with dimensions and coordinates.
     coords_2d : bool, optional
-        Whether to check for 2D coordinates in ds. Passed to `ds_contains()`. The default is False.
+        Shorthand for adding 2D coordinates. The default is False.
     coords_3d : bool, optional
-        Whether to check for 3D coordinates. Passed to `ds_contains()`. The default is False.
+        Shorthand for adding 3D coordinates. The default is False.
     coords_time : bool, optional
-        Whether to check for time coordinates. Passed to `ds_contains()`. The default is False.
+        Shorthand for adding time coordinates. The default is False.
     datavars : list, optional
-        List of data variables to check for. Passed to `ds_contains()`. The default is [].
+        List of data variables to check for. The default is an empty list.
     coords : list, optional
-        List of coordinates to check for. Passed to `ds_contains()`. The default is [].
+        List of coordinates to check for. The default is an empty list.
     attrs : list, optional
-        List of attributes to check for. Passed to `ds_contains()`. The default is [].
+        List of attributes to check for. The default is an empty list.
     """
 
     # add cachedir and cachename to docstring
@@ -575,9 +579,9 @@ def _check_for_data_array(ds):
     return ds
 
 
-def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavars=[], coords=[], attrs=[]):
+def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavars=None, coords=None, attrs=None):
     """
-    Checks whether all the required data is present in the dataset and returns only the required data.
+    Returns a Dataset containing only the required data.
 
     If all kwargs are left to their defaults, the function returns the full dataset.
 
@@ -586,17 +590,17 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
     ds : xr.Dataset
         Dataset with dimensions and coordinates.
     coords_2d : bool, optional
-        Whether to check for 2D coordinates. The default is False.
+        Shorthand for adding 2D coordinates. The default is False.
     coords_3d : bool, optional
-        Whether to check for 3D coordinates. The default is False.
+        Shorthand for adding 3D coordinates. The default is False.
     coords_time : bool, optional
-        Whether to check for time coordinates. The default is False.
+        Shorthand for adding time coordinates. The default is False.
     datavars : list, optional
-        List of data variables to check for. The default is [].
+        List of data variables to check for. The default is an empty list.
     coords : list, optional
-        List of coordinates to check for. The default is [].
+        List of coordinates to check for. The default is an empty list.
     attrs : list, optional
-        List of attributes to check for. The default is [].
+        List of attributes to check for. The default is an empty list.
 
     Returns
     -------
@@ -607,7 +611,16 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
     # Return the full dataset if not configured
     if not coords_2d and not coords_3d and not datavars and not coords and not attrs:
         return ds
+    else:
+        # Initialize lists
+        if datavars is None:
+            datavars = []
+        if coords is None:
+            coords = []
+        if attrs is None:
+            attrs = []
     
+    # Add coords, datavars and attrs via shorthands
     if coords_2d or coords_3d:
         coords.append("x")
         coords.append("y")

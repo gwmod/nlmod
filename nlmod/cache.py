@@ -641,7 +641,7 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
     # User-friendly error messages
     if "northsea" in datavars and "northsea" not in ds.datavars:
         raise ValueError("Northsea not in dataset. Run nlmod.read.rws.add_northsea() first.")
-    
+
     if "time" in coords and "time" not in ds.coords:
         raise ValueError("time not in dataset. Run nlmod.time.set_ds_time() first.")
     

@@ -656,11 +656,11 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
     for datavar in datavars:
         if datavar not in ds.datavars:
             raise ValueError(f"{datavar} not in dataset.datavars")
-    
+
     for coord in coords:
         if coord not in ds.coords:
             raise ValueError(f"{coord} not in dataset.coords")
-        
+
     for attr in attrs:
         if attr not in ds.attrs:
             raise ValueError(f"{attr} not in dataset.attrs")

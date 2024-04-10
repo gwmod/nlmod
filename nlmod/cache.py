@@ -628,6 +628,9 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
         coords.append("x")
         coords.append("y")
         attrs.append("extent")
+        
+        if "gridtype" in ds.attrs:
+            attrs.append("gridtype")
 
         if "angrot" in ds.attrs:
             attrs.append("angrot")

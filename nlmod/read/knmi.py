@@ -13,7 +13,7 @@ from ..dims.resample import get_affine_mod_to_world
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_netcdf()
+@cache.cache_netcdf(coords_2d=True, coords_time=True)
 def get_recharge(ds, method="linear", most_common_station=False):
     """add multiple recharge packages to the groundwater flow model with knmi
     data by following these steps:

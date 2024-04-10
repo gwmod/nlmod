@@ -37,7 +37,7 @@ def get_gdf_surface_water(ds):
     return gdf_swater
 
 
-@cache.cache_netcdf()
+@cache.cache_netcdf(coords_2d=True)
 def get_surface_water(ds, da_basename):
     """create 3 data-arrays from the shapefile with surface water:
 

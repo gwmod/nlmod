@@ -19,7 +19,7 @@ from .webservices import arcrest, wcs
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_netcdf()
+@cache.cache_netcdf(coords_2d=True)
 def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     """Get a model dataset with ahn variable.
 

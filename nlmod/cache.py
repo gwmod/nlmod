@@ -139,7 +139,7 @@ def cache_netcdf(coords_2d=False, coords_3d=False, coords_time=False, datavars=N
                         datavars=datavars,
                         coords=coords,
                         attrs=attrs)
-                    
+
             # only use cache if the cache file and the pickled function arguments exist
             if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
                 # check if you can read the pickle, there are several reasons why a

@@ -23,7 +23,7 @@ from ..util import get_da_from_da_ds, get_ds_empty
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     """get bathymetry of the Northsea from the jarkus dataset.
 
@@ -92,7 +92,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     return ds_out
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
     """Get bathymetry from Jarkus within a certain extent. If return_tiles is False, the
     following actions are performed:

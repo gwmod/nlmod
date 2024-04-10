@@ -19,7 +19,7 @@ from .webservices import arcrest, wcs
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     """Get a model dataset with ahn variable.
 
@@ -192,7 +192,7 @@ def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=
     return z
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_latest_ahn_from_wcs(
     extent=None,
     identifier="dsm_05m",
@@ -308,7 +308,7 @@ def get_ahn4_tiles(extent=None):
     return gdf
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     """Download AHN1.
 
@@ -335,7 +335,7 @@ def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     return da
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     """Download AHN2.
 
@@ -359,7 +359,7 @@ def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     """Download AHN3.
 
@@ -382,7 +382,7 @@ def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     """Download AHN4.
 

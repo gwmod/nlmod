@@ -53,7 +53,7 @@ def clear_cache(cachedir):
                 logger.info(f"removed {fname_nc}")
 
 
-def cache_netcdf(func):
+def cache_netcdf(coords_2d=False, coords_3d=False, coords_time=False, datavars=None, coords=None, attrs=None):
     """decorator to read/write the result of a function from/to a file to speed
     up function calls with the same arguments. Should only be applied to
     functions that:
@@ -81,125 +81,159 @@ def cache_netcdf(func):
     to the decorated function. This assumes that the decorated function has a
     docstring with a "Returns" heading. If this is not the case an error is
     raised when trying to decorate the function.
+
+    If all kwargs are left to their defaults, the function caches the full dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset with dimensions and coordinates.
+    coords_2d : bool, optional
+        Shorthand for adding 2D coordinates. The default is False.
+    coords_3d : bool, optional
+        Shorthand for adding 3D coordinates. The default is False.
+    coords_time : bool, optional
+        Shorthand for adding time coordinates. The default is False.
+    datavars : list, optional
+        List of data variables to check for. The default is an empty list.
+    coords : list, optional
+        List of coordinates to check for. The default is an empty list.
+    attrs : list, optional
+        List of attributes to check for. The default is an empty list.
     """
 
-    # add cachedir and cachename to docstring
-    _update_docstring_and_signature(func)
+    def decorator(func):
+        # add cachedir and cachename to docstring
+        _update_docstring_and_signature(func)
 
-    @functools.wraps(func)
-    def decorator(*args, cachedir=None, cachename=None, **kwargs):
-        # 1 check if cachedir and name are provided
-        if cachedir is None or cachename is None:
-            return func(*args, **kwargs)
+        @functools.wraps(func)
+        def wrapper(*args, cachedir=None, cachename=None, **kwargs):
+            # 1 check if cachedir and name are provided
+            if cachedir is None or cachename is None:
+                return func(*args, **kwargs)
 
-        if not cachename.endswith(".nc"):
-            cachename += ".nc"
+            if not cachename.endswith(".nc"):
+                cachename += ".nc"
 
-        fname_cache = os.path.join(cachedir, cachename)  # netcdf file
-        fname_pickle_cache = fname_cache.replace(".nc", ".pklz")
+            fname_cache = os.path.join(cachedir, cachename)  # netcdf file
+            fname_pickle_cache = fname_cache.replace(".nc", ".pklz")
 
-        # create dictionary with function arguments
-        func_args_dic = {f"arg{i}": args[i] for i in range(len(args))}
-        func_args_dic.update(kwargs)
+            # create dictionary with function arguments
+            func_args_dic = {f"arg{i}": args[i] for i in range(len(args))}
+            func_args_dic.update(kwargs)
 
-        # remove xarray dataset from function arguments
-        dataset = None
-        for key in list(func_args_dic.keys()):
-            if isinstance(func_args_dic[key], xr.Dataset):
-                if dataset is not None:
-                    raise TypeError(
-                        "function was called with multiple xarray dataset arguments"
+            # remove xarray dataset from function arguments
+            dataset = None
+            for key in list(func_args_dic.keys()):
+                if isinstance(func_args_dic[key], xr.Dataset):
+                    if dataset is not None:
+                        raise TypeError(
+                            "Function was called with multiple xarray dataset arguments. Currently unsupported."
+                        )
+                    dataset_received = func_args_dic.pop(key)
+                    dataset = ds_contains(
+                        dataset_received,
+                        coords_2d=coords_2d,
+                        coords_3d=coords_3d,
+                        coords_time=coords_time,
+                        datavars=datavars,
+                        coords=coords,
+                        attrs=attrs)
+
+            # only use cache if the cache file and the pickled function arguments exist
+            if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
+                # check if you can read the pickle, there are several reasons why a
+                # pickle can not be read.
+                try:
+                    with open(fname_pickle_cache, "rb") as f:
+                        func_args_dic_cache = pickle.load(f)
+                    pickle_check = True
+                except (pickle.UnpicklingError, ModuleNotFoundError):
+                    logger.info("could not read pickle, not using cache")
+                    pickle_check = False
+                    argument_check = False
+
+                # check if the module where the function is defined was changed
+                # after the cache was created
+                time_mod_func = _get_modification_time(func)
+                time_mod_cache = os.path.getmtime(fname_cache)
+                modification_check = time_mod_cache > time_mod_func
+
+                if not modification_check:
+                    logger.info(
+                        f"module of function {func.__name__} recently modified, not using cache"
                     )
-                dataset = func_args_dic.pop(key)
 
-        # only use cache if the cache file and the pickled function arguments exist
-        if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
-            # check if you can read the pickle, there are several reasons why a
-            # pickle can not be read.
-            try:
-                with open(fname_pickle_cache, "rb") as f:
-                    func_args_dic_cache = pickle.load(f)
-                pickle_check = True
-            except (pickle.UnpicklingError, ModuleNotFoundError):
-                logger.info("could not read pickle, not using cache")
-                pickle_check = False
-                argument_check = False
+                with xr.open_dataset(fname_cache) as cached_ds:
+                    cached_ds.load()
 
-            # check if the module where the function is defined was changed
-            # after the cache was created
-            time_mod_func = _get_modification_time(func)
-            time_mod_cache = os.path.getmtime(fname_cache)
-            modification_check = time_mod_cache > time_mod_func
+                if pickle_check:
+                    # Ensure that the pickle pairs with the netcdf, see #66.
+                    func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
 
-            if not modification_check:
-                logger.info(
-                    f"module of function {func.__name__} recently modified, not using cache"
-                )
+                    if dataset is not None:
+                        # Check the coords of the dataset argument
+                        func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
 
-            cached_ds = xr.open_dataset(fname_cache)
+                        # Check the data_vars of the dataset argument
+                        func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
 
-            if pickle_check:
+                    # check if cache was created with same function arguments as
+                    # function call
+                    argument_check = _same_function_arguments(
+                        func_args_dic, func_args_dic_cache
+                    )
+
+                cached_ds = _check_for_data_array(cached_ds)
+                if modification_check and argument_check and pickle_check:
+                    logger.info(f"using cached data -> {cachename}")
+                    return cached_ds
+
+            # create cache
+            result = func(*args, **kwargs)
+            logger.info(f"caching data -> {cachename}")
+
+            if isinstance(result, xr.DataArray):
+                # set the DataArray as a variable in a new Dataset
+                result = xr.Dataset({"__xarray_dataarray_variable__": result})
+
+            if isinstance(result, xr.Dataset):
+                # close cached netcdf (otherwise it is impossible to overwrite)
+                if os.path.exists(fname_cache):
+                    with xr.open_dataset(fname_cache) as cached_ds:
+                        cached_ds.load()
+
+                # write netcdf cache
+                # check if dataset is chunked for writing with dask.delayed
+                first_data_var = list(result.data_vars.keys())[0]
+                if result[first_data_var].chunks:
+                    delayed = result.to_netcdf(fname_cache, compute=False)
+                    with ProgressBar():
+                        delayed.compute()
+                    # close and reopen dataset to ensure data is read from
+                    # disk, and not from opendap
+                    result.close()
+                    result = xr.open_dataset(fname_cache, chunks="auto")
+                else:
+                    result.to_netcdf(fname_cache)
+
                 # add netcdf hash to function arguments dic, see #66
-                func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+                with xr.open_dataset(fname_cache) as temp:
+                    func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
 
-                # check if cache was created with same function arguments as
-                # function call
-                argument_check = _same_function_arguments(
-                    func_args_dic, func_args_dic_cache
-                )
+                # Add dataset argument hash to pickle
+                if dataset is not None:
+                    func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
+                    func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
 
-            cached_ds = _check_for_data_array(cached_ds)
-            if modification_check and argument_check and pickle_check:
-                if dataset is None:
-                    logger.info(f"using cached data -> {cachename}")
-                    return cached_ds
-
-                # check if cached dataset has same dimension and coordinates
-                # as current dataset
-                if _check_ds(dataset, cached_ds):
-                    logger.info(f"using cached data -> {cachename}")
-                    return cached_ds
-
-        # create cache
-        result = func(*args, **kwargs)
-        logger.info(f"caching data -> {cachename}")
-
-        if isinstance(result, xr.DataArray):
-            # set the DataArray as a variable in a new Dataset
-            result = xr.Dataset({"__xarray_dataarray_variable__": result})
-
-        if isinstance(result, xr.Dataset):
-            # close cached netcdf (otherwise it is impossible to overwrite)
-            if os.path.exists(fname_cache):
-                cached_ds = xr.open_dataset(fname_cache)
-                cached_ds.close()
-
-            # write netcdf cache
-            # check if dataset is chunked for writing with dask.delayed
-            first_data_var = list(result.data_vars.keys())[0]
-            if result[first_data_var].chunks:
-                delayed = result.to_netcdf(fname_cache, compute=False)
-                with ProgressBar():
-                    delayed.compute()
-                # close and reopen dataset to ensure data is read from
-                # disk, and not from opendap
-                result.close()
-                result = xr.open_dataset(fname_cache, chunks="auto")
+                # pickle function arguments
+                with open(fname_pickle_cache, "wb") as fpklz:
+                    pickle.dump(func_args_dic, fpklz)
             else:
-                result.to_netcdf(fname_cache)
-
-            # add netcdf hash to function arguments dic, see #66
-            temp = xr.open_dataset(fname_cache)
-            func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
-            temp.close()
-
-            # pickle function arguments
-            with open(fname_pickle_cache, "wb") as fpklz:
-                pickle.dump(func_args_dic, fpklz)
-        else:
-            raise TypeError(f"expected xarray Dataset, got {type(result)} instead")
-        result = _check_for_data_array(result)
-        return result
+                raise TypeError(f"expected xarray Dataset, got {type(result)} instead")
+            result = _check_for_data_array(result)
+            return result
+        return wrapper
 
     return decorator
 
@@ -316,39 +350,6 @@ def cache_pickle(func):
         return result
 
     return decorator
-
-
-def _check_ds(ds, ds2):
-    """Check if two datasets have the same dimensions and coordinates.
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        dataset with dimensions and coordinates
-    ds2 : xr.Dataset
-        dataset with dimensions and coordinates. This is typically
-        a cached dataset.
-
-    Returns
-    -------
-    bool
-        True if the two datasets have the same grid and time discretization.
-    """
-
-    for coord in ds2.coords:
-        if coord in ds.coords:
-            try:
-                xr.testing.assert_identical(ds[coord], ds2[coord])
-            except AssertionError:
-                logger.info(
-                    f"coordinate {coord} has different values in cached dataset, not using cache"
-                )
-                return False
-        else:
-            logger.info(f"dimension {coord} only present in cache, not using cache")
-            return False
-
-    return True
 
 
 def _same_function_arguments(func_args_dic, func_args_dic_cache):
@@ -577,3 +578,98 @@ def _check_for_data_array(ds):
         if spatial_ref is not None:
             ds = ds.assign_coords({"spatial_ref": spatial_ref})
     return ds
+
+
+def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavars=None, coords=None, attrs=None):
+    """
+    Returns a Dataset containing only the required data.
+
+    If all kwargs are left to their defaults, the function returns the full dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset with dimensions and coordinates.
+    coords_2d : bool, optional
+        Shorthand for adding 2D coordinates. The default is False.
+    coords_3d : bool, optional
+        Shorthand for adding 3D coordinates. The default is False.
+    coords_time : bool, optional
+        Shorthand for adding time coordinates. The default is False.
+    datavars : list, optional
+        List of data variables to check for. The default is an empty list.
+    coords : list, optional
+        List of coordinates to check for. The default is an empty list.
+    attrs : list, optional
+        List of attributes to check for. The default is an empty list.
+
+    Returns
+    -------
+    ds : xr.Dataset
+        A Dataset containing only the required data.
+
+    """
+    # Return the full dataset if not configured
+    if ds is None:
+        raise ValueError("No dataset provided")
+    elif not coords_2d and not coords_3d and not datavars and not coords and not attrs:
+        return ds
+    else:
+        # Initialize lists
+        if datavars is None:
+            datavars = []
+        if coords is None:
+            coords = []
+        if attrs is None:
+            attrs = []
+
+    # Add coords, datavars and attrs via shorthands
+    if coords_2d or coords_3d:
+        coords.append("x")
+        coords.append("y")
+        attrs.append("extent")
+        
+        if "gridtype" in ds.attrs:
+            attrs.append("gridtype")
+
+        if "angrot" in ds.attrs:
+            attrs.append("angrot")
+
+    if coords_3d:
+        coords.append("layer")
+        datavars.append("top")
+        datavars.append("botm")
+
+    if coords_time:
+        coords.append("time")
+        datavars.append("steady")
+        datavars.append("nstp")
+        datavars.append("tsmult")
+        attrs.append("start")
+        attrs.append("time_units")
+
+    # User-friendly error messages
+    if "northsea" in datavars and "northsea" not in ds.datavars:
+        raise ValueError("Northsea not in dataset. Run nlmod.read.rws.add_northsea() first.")
+
+    if "time" in coords and "time" not in ds.coords:
+        raise ValueError("time not in dataset. Run nlmod.time.set_ds_time() first.")
+
+    # User-unfriendly error messages
+    for datavar in datavars:
+        if datavar not in ds.datavars:
+            raise ValueError(f"{datavar} not in dataset.datavars")
+
+    for coord in coords:
+        if coord not in ds.coords:
+            raise ValueError(f"{coord} not in dataset.coords")
+
+    for attr in attrs:
+        if attr not in ds.attrs:
+            raise ValueError(f"{attr} not in dataset.attrs")
+
+    # Return only the required data
+    return xr.Dataset(
+        data_vars={k: ds.data_vars[k] for k in datavars},
+        coords={k: ds.coords[k] for k in coords},
+        attrs={k: ds.attrs[k] for k in attrs})

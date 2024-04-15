@@ -16,7 +16,7 @@ REGIS_URL = "http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc"
 # REGIS_URL = 'https://www.dinodata.nl/opendap/hyrax/REGIS/REGIS.nc'
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_combined_layer_models(
     extent,
     regis_botm_layer="AKc",
@@ -93,7 +93,7 @@ def get_combined_layer_models(
     return combined_ds
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_regis(
     extent,
     botm_layer="AKc",

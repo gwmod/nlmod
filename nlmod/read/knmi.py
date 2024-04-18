@@ -279,7 +279,9 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
     # get knmi data stations closest to any grid cell
     olist_rd = []
     for stnrd in stns_rd:
-        o = hpd.PrecipitationObs.from_knmi(meteo_var="RD", stn=stnrd)
+        o = hpd.PrecipitationObs.from_knmi(
+            meteo_var="RD", stn=stnrd, start=start, end=end, fill_missing_obs=True
+        )
         if o.station != stnrd:
             locations["stn_rd"] = locations["stn_rd"].replace(stnrd, o.station)
         olist_rd.append(o)
@@ -287,7 +289,9 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
 
     olist_ev24 = []
     for stnev24 in stns_ev24:
-        o = hpd.EvaporationObs.from_knmi(meteo_var="EV24", stn=stnev24)
+        o = hpd.EvaporationObs.from_knmi(
+            meteo_var="EV24", stn=stnev24, start=start, end=end, fill_missing_obs=True
+        )
         if o.station != stnev24:
             locations["stn_ev24"] = locations["stn_rd"].replace(stnev24, o.station)
         olist_ev24.append(o)

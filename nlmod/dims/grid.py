@@ -237,6 +237,12 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
 
 def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     """Add information about the calculation-grid to a model dataset."""
+
+    logger.warning(
+        "'modelgrid_to_vertex_ds' is deprecated and will be removed in a"
+        "future version, please use 'modelgrid_to_ds' instead"
+    )
+
     # add modelgrid to ds
     ds["xv"] = ("iv", mg.verts[:, 0])
     ds["yv"] = ("iv", mg.verts[:, 1])

@@ -179,28 +179,6 @@ def arcrest(
                     [feature["attributes"] for feature in data["features"]]
                 )
 
-                # add peilen to gdf
-                for col, convert_dic in table.items():
-                    df[col].replace(convert_dic, inplace=True)
-                    df.set_index(col, inplace=True)
-
-                    for oid in gdf["OBJECTID"]:
-                        insert_s = df.loc[
-                            df["PEILGEBIEDVIGERENDID"] == oid, "WATERHOOGTE"
-                        ]
-                        if insert_s.index.duplicated().any():
-                            # Error in the database. Reported to Doeke HHNK 20230123
-                            # Continue with unambiguous values
-                            dup = set(insert_s.index[insert_s.index.duplicated()])
-                            logger.warning(
-                                f"Duplicate {dup} values for PEILGEBIEDVIGERENDID {oid} while prompting {url}"
-                            )
-                            insert_s = insert_s[~insert_s.index.duplicated(keep=False)]
-
-                        gdf.loc[
-                            gdf["OBJECTID"] == oid, insert_s.index
-                        ] = insert_s.values
-
     return gdf
 
 

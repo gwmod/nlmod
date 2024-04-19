@@ -44,16 +44,7 @@ jobs:
         run: |
           python -c "import nlmod; nlmod.util.download_mfbinaries()"
 
-      - name: Run notebooks
-        if: ${{ github.event_name == 'push' }}
-        env:
-            NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}
-            NHI_GWO_PASSWORD: ${{ secrets.NHI_GWO_PASSWORD}}
-        run: |
-          py.test ./tests -m "not notebooks"
-
       - name: Run tests only
-        if: ${{ github.event_name == 'pull_request' }}
         env:
             NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}
             NHI_GWO_PASSWORD: ${{ secrets.NHI_GWO_PASSWORD}}

@@ -45,7 +45,6 @@ jobs:
           python -c "import nlmod; nlmod.util.download_mfbinaries()"
 
       - name: Run tests only
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push'}}
         env:
             NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}
             NHI_GWO_PASSWORD: ${{ secrets.NHI_GWO_PASSWORD}}

@@ -627,6 +627,7 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
     if coords_2d or coords_3d:
         coords.append("x")
         coords.append("y")
+        datavars.append("area")
         attrs.append("extent")
         
         if "gridtype" in ds.attrs:
@@ -649,7 +650,7 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
         attrs.append("time_units")
 
     # User-friendly error messages
-    if "northsea" in datavars and "northsea" not in ds.datavars:
+    if "northsea" in datavars and "northsea" not in ds.data_vars:
         raise ValueError("Northsea not in dataset. Run nlmod.read.rws.add_northsea() first.")
 
     if "time" in coords and "time" not in ds.coords:
@@ -657,8 +658,8 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
 
     # User-unfriendly error messages
     for datavar in datavars:
-        if datavar not in ds.datavars:
-            raise ValueError(f"{datavar} not in dataset.datavars")
+        if datavar not in ds.data_vars:
+            raise ValueError(f"{datavar} not in dataset.data_vars")
 
     for coord in coords:
         if coord not in ds.coords:

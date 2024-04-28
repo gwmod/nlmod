@@ -537,7 +537,11 @@ def _update_docstring_and_signature(func):
         cur_param = cur_param[:-1]
     else:
         add_kwargs = None
-    new_param = (*cur_param, inspect.Parameter("cachedir", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None), inspect.Parameter("cachename", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None))
+    new_param = (
+        *cur_param, 
+        inspect.Parameter("cachedir", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None), 
+        inspect.Parameter("cachename", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None)
+    )
     if add_kwargs is not None:
         new_param = (*new_param, add_kwargs)
     sig = sig.replace(parameters=new_param)

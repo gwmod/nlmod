@@ -636,6 +636,9 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
         raise ValueError(msg)
     if not coords_2d and not coords_3d and not datavars and not coords and not attrs:
         return ds
+
+    isvertex = ds.attrs["gridtype"] == "vertex"
+
     # Initialize lists
     if datavars is None:
         datavars = []
@@ -650,9 +653,15 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
         coords.append("y")
         datavars.append("area")
         attrs.append("extent")
+        attrs.append("gridtype")
 
-        if "gridtype" in ds.attrs:
-            attrs.append("gridtype")
+        if isvertex:
+            coords.append("icell2d")
+            coords.append("iv")
+            coords.append("icv")
+            datavars.append("xv")
+            datavars.append("yv")
+            datavars.append("icvert")
 
         if "angrot" in ds.attrs:
             attrs.append("angrot")

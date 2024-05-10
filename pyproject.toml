@@ -92,7 +92,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "nlmod.data" = ["*.gleg"]
-"nlmod.data.geotop" = ["*.csv"]
+"nlmod.data.geotop" = ["*"]
 "nlmod.data.shapes" = ["*"]
 "nlmod.bin" = ["mp7_2_002_provisional"]
 

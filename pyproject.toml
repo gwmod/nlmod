@@ -35,7 +35,8 @@ dependencies = [
     "matplotlib",
     "dask",
     "colorama",
-    "joblib"
+    "joblib",
+    "bottleneck",
 ]
 keywords = ["hydrology", "groundwater", "modeling", "Modflow 6", "flopy"]
 classifiers = [
@@ -60,7 +61,6 @@ full = [
     "nlmod[knmi]",
     "gdown",
     "geocube",
-    "bottleneck",
     "contextily",
     "scikit-image",
 ]

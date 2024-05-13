@@ -526,9 +526,6 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             # xmin, xmax, ymin, ymax
             dx = (ds.attrs["extent"][1] - ds.attrs["extent"][0]) / len(ds.x)
             dy = (ds.attrs["extent"][3] - ds.attrs["extent"][2]) / len(ds.y)
-        elif "delr" in ds.attrs and "delc" in ds.attrs:
-            dx = ds.attrs["delr"]
-            dy = ds.attrs["delc"]
         else:
             raise ValueError(
                 "No extent or delr and delc in ds. Cannot determine affine."

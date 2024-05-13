@@ -207,10 +207,14 @@ def cache_netcdf(
 
                     if dataset is not None:
                         # Check the coords of the dataset argument
-                        func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
+                        func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
+                            dict(dataset.coords)
+                        )
 
                         # Check the data_vars of the dataset argument
-                        func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
+                        func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(
+                            dict(dataset.data_vars)
+                        )
 
                     # check if cache was created with same function arguments as
                     # function call
@@ -257,8 +261,12 @@ def cache_netcdf(
 
                 # Add dataset argument hash to pickle
                 if dataset is not None:
-                    func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(dict(dataset.coords))
-                    func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(dict(dataset.data_vars))
+                    func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
+                        dict(dataset.coords)
+                    )
+                    func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(
+                        dict(dataset.data_vars)
+                    )
 
                 # pickle function arguments
                 with open(fname_pickle_cache, "wb") as fpklz:
@@ -267,6 +275,7 @@ def cache_netcdf(
                 msg = f"expected xarray Dataset, got {type(result)} instead"
                 raise TypeError(msg)
             return _check_for_data_array(result)
+
         return wrapper
 
     return decorator
@@ -473,15 +482,23 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
             mfgrid1 = {k: v for k, v in item.mfgrid.__dict__.items() if k not in excl}
             mfgrid2 = {k: v for k, v in i2.mfgrid.__dict__.items() if k not in excl}
 
-            is_same_length_props = all(np.all(np.size(v) == np.size(mfgrid2[k])) for k, v in mfgrid1.items())
+            is_same_length_props = all(
+                np.all(np.size(v) == np.size(mfgrid2[k])) for k, v in mfgrid1.items()
+            )
 
-            if not is_method_equal or mfgrid1.keys() != mfgrid2.keys() or not is_same_length_props:
+            if (
+                not is_method_equal
+                or mfgrid1.keys() != mfgrid2.keys()
+                or not is_same_length_props
+            ):
                 logger.info(
                     "cache was created using different gridintersect, do not use cached data"
                 )
                 return False
 
-            is_other_props_equal = all(np.all(v == mfgrid2[k]) for k, v in mfgrid1.items())
+            is_other_props_equal = all(
+                np.all(v == mfgrid2[k]) for k, v in mfgrid1.items()
+            )
 
             if not is_other_props_equal:
                 logger.info(
@@ -545,9 +562,13 @@ def _update_docstring_and_signature(func):
     else:
         add_kwargs = None
     new_param = (
-        *cur_param, 
-        inspect.Parameter("cachedir", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None), 
-        inspect.Parameter("cachename", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None)
+        *cur_param,
+        inspect.Parameter(
+            "cachedir", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
+        ),
+        inspect.Parameter(
+            "cachename", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
+        ),
     )
     if add_kwargs is not None:
         new_param = (*new_param, add_kwargs)
@@ -578,9 +599,8 @@ def _update_docstring_and_signature(func):
 
 
 def _check_for_data_array(ds):
-    """
-    Check if the saved NetCDF-file represents a DataArray or a Dataset, and return this
-    data-variable.
+    """Check if the saved NetCDF-file represents a DataArray or a Dataset, and return
+    this data-variable.
 
     The file contains a DataArray when a variable called "__xarray_dataarray_variable__"
     is present in the Dataset. If so, return a DataArray, otherwise return the Dataset.
@@ -597,7 +617,6 @@ def _check_for_data_array(ds):
     -------
     ds : xr.Dataset or xr.DataArray
         A Dataset or DataArray containing the cached data.
-
     """
     if "__xarray_dataarray_variable__" in ds:
         spatial_ref = ds.spatial_ref if "spatial_ref" in ds else None
@@ -608,9 +627,16 @@ def _check_for_data_array(ds):
     return ds
 
 
-def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavars=None, coords=None, attrs=None):
-    """
-    Returns a Dataset containing only the required data.
+def ds_contains(
+    ds,
+    coords_2d=False,
+    coords_3d=False,
+    coords_time=False,
+    datavars=None,
+    coords=None,
+    attrs=None,
+):
+    """Returns a Dataset containing only the required data.
 
     If all kwargs are left to their defaults, the function returns the full dataset.
 
@@ -635,7 +661,6 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
     -------
     ds : xr.Dataset
         A Dataset containing only the required data.
-
     """
     # Return the full dataset if not configured
     if ds is None:

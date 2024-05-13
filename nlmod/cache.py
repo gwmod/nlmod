@@ -141,7 +141,8 @@ def cache_netcdf(
                         coords_time=coords_time,
                         datavars=datavars,
                         coords=coords,
-                        attrs=attrs)
+                        attrs=attrs,
+                    )
                     args_adj.append(arg_adj)
                     datasets.append(arg_adj)
                 else:
@@ -157,7 +158,8 @@ def cache_netcdf(
                         coords_time=coords_time,
                         datavars=datavars,
                         coords=coords,
-                        attrs=attrs)
+                        attrs=attrs,
+                    )
                     kwargs_adj[key] = arg_adj
                     datasets.append(arg_adj)
                 else:
@@ -170,9 +172,7 @@ def cache_netcdf(
                 dataset = datasets[0]
             else:
                 msg = "Function was called with multiple xarray dataset arguments. Currently unsupported."
-                raise NotImplementedError(
-                    msg
-                )
+                raise NotImplementedError(msg)
 
             # only use cache if the cache file and the pickled function arguments exist
             if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):

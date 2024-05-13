@@ -669,6 +669,11 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
             datavars.append("xv")
             datavars.append("yv")
             datavars.append("icvert")
+            # TODO: temporary fix until delr/delc are completely removed
+            if "delr" in datavars:
+                datavars.remove("delr")
+            if "delc" in datavars:
+                datavars.remove("delc")
 
         if "angrot" in ds.attrs:
             attrs.append("angrot")

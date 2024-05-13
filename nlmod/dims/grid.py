@@ -214,11 +214,11 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
         if "delc" in ds:
             delc = ds["delc"].values
         else:
-            delc = np.array([ds.delc] * ds.sizes["y"])
+            raise KeyError("delc not in dataset")
         if "delr" in ds:
             delr = ds["delr"].values
         else:
-            delr = np.array([ds.delr] * ds.sizes["x"])
+            raise KeyError("delr not in dataset")
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,

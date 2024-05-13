@@ -75,7 +75,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     # fill nan values in bathymetry
     da_bathymetry_filled = fillnan_da(da_bathymetry_raw)
 
-    # bathymetrie mag nooit groter zijn dan NAP 0.0
+    # bathymetry can never be larger than NAP 0.0
     da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
 
     # bathymetry projected on model grid

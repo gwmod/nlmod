@@ -688,8 +688,9 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
         datavars.append("steady")
         datavars.append("nstp")
         datavars.append("tsmult")
-        attrs.append("start")
-        attrs.append("time_units")
+        # time_attrs = []
+        # time_attrs.append("start")
+        # time_attrs.append("time_units")
 
     # User-friendly error messages
     if "northsea" in datavars and "northsea" not in ds.data_vars:

@@ -37,7 +37,8 @@ def get_gdf_surface_water(ds):
     return gdf_swater
 
 
-@cache.cache_netcdf(coords_2d=True)
+# TODO: temporary fix until delr/delc are removed completely
+@cache.cache_netcdf(coords_3d=True, datavars=["delr", "delc"])
 def get_surface_water(ds, da_basename):
     """create 3 data-arrays from the shapefile with surface water:
 
@@ -91,7 +92,8 @@ def get_surface_water(ds, da_basename):
     return ds_out
 
 
-@cache.cache_netcdf(coords_2d=True)
+# TODO: temporary fix until delr/delc are removed completely
+@cache.cache_netcdf(coords_2d=True, datavars=["delc", "delr"])
 def get_northsea(ds, da_name="northsea"):
     """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is
     defined by rws surface water shapefile.

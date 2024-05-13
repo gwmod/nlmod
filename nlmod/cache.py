@@ -717,8 +717,14 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
             msg = f"{attr} not in dataset.attrs"
             raise ValueError(msg)
 
+    # if coords_time:
+    #     for t_attr in time_attrs:
+    #         if t_attr not in ds["time"].attrs:
+    #             raise ValueError(f'{t_attr} not in dataset["time"].attrs')
+
     # Return only the required data
     return xr.Dataset(
         data_vars={k: ds.data_vars[k] for k in datavars},
         coords={k: ds.coords[k] for k in coords},
-        attrs={k: ds.attrs[k] for k in attrs})
+        attrs={k: ds.attrs[k] for k in attrs},
+    )

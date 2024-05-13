@@ -53,7 +53,14 @@ def clear_cache(cachedir):
                 logger.info(f"removed {fname_nc}")
 
 
-def cache_netcdf(coords_2d=False, coords_3d=False, coords_time=False, datavars=None, coords=None, attrs=None):
+def cache_netcdf(
+    coords_2d=False,
+    coords_3d=False,
+    coords_time=False,
+    datavars=None,
+    coords=None,
+    attrs=None,
+):
     """Decorator to read/write the result of a function from/to a file to speed
     up function calls with the same arguments. Should only be applied to
     functions that:

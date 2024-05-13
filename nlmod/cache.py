@@ -663,9 +663,9 @@ def ds_contains(ds, coords_2d=False, coords_3d=False, coords_time=False, datavar
         attrs.append("gridtype")
 
         if isvertex:
-            coords.append("icell2d")
-            coords.append("iv")
-            coords.append("icv")
+            # coords.append("icell2d")  # not in coords, runs from 0 to N
+            # coords.append("iv") # not in coords, runs from 0 to N
+            # coords.append("icv") # not in coords, runs from 0 to N
             datavars.append("xv")
             datavars.append("yv")
             datavars.append("icvert")

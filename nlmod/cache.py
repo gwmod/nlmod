@@ -688,12 +688,10 @@ def ds_contains(
         attrs.append("gridtype")
 
         if isvertex:
-            # coords.append("icell2d")  # not in coords, runs from 0 to N
-            # coords.append("iv") # not in coords, runs from 0 to N
-            # coords.append("icv") # not in coords, runs from 0 to N
             datavars.append("xv")
             datavars.append("yv")
             datavars.append("icvert")
+
             # TODO: temporary fix until delr/delc are completely removed
             if "delr" in datavars:
                 datavars.remove("delr")
@@ -713,18 +711,25 @@ def ds_contains(
         datavars.append("steady")
         datavars.append("nstp")
         datavars.append("tsmult")
-        # time_attrs = []
-        # time_attrs.append("start")
-        # time_attrs.append("time_units")
 
-    # User-friendly error messages
+    # User-friendly error messages if missing from ds
     if "northsea" in datavars and "northsea" not in ds.data_vars:
         msg = "Northsea not in dataset. Run nlmod.read.rws.add_northsea() first."
         raise ValueError(msg)
 
-    if "time" in coords and "time" not in ds.coords:
-        msg = "time not in dataset. Run nlmod.time.set_ds_time() first."
-        raise ValueError(msg)
+    if coords_time:
+        if "time" not in ds.coords:
+            msg = "time not in dataset. Run nlmod.time.set_ds_time() first."
+            raise ValueError(msg)
+        
+        # Check if time-coord is complete
+        time_attrs_required = ["start", "time_units"]
+
+        for t_attr in time_attrs_required:
+            if t_attr not in ds["time"].attrs:
+                msg = f"{t_attr} not in dataset['time'].attrs. " +\
+                    "Run nlmod.time.set_ds_time() to set time."
+                raise ValueError(msg)
 
     # User-unfriendly error messages
     for datavar in datavars:
@@ -741,11 +746,6 @@ def ds_contains(
         if attr not in ds.attrs:
             msg = f"{attr} not in dataset.attrs"
             raise ValueError(msg)
-
-    # if coords_time:
-    #     for t_attr in time_attrs:
-    #         if t_attr not in ds["time"].attrs:
-    #             raise ValueError(f'{t_attr} not in dataset["time"].attrs')
 
     # Return only the required data
     return xr.Dataset(

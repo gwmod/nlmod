@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
-    """set the attribute of a model dataset.
+    """Set the attribute of a model dataset.
 
     Parameters
     ----------
@@ -161,8 +161,9 @@ def to_model_ds(
     if delc is None:
         delc = delr
     if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
-        ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
-            (ds.sizes["y"], ds.sizes["x"])
+        ds["area"] = (
+            ("y", "x"),
+            delr * delc * np.ones((ds.sizes["y"], ds.sizes["x"])),
         )
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         ds["area"] = ("y", "x"), np.outer(delc, delr)
@@ -367,15 +368,9 @@ def _get_structured_grid_ds(
     )
     # set delr and delc
     delr = np.diff(xedges)
-    if len(np.unique(delr)) == 1:
-        ds.attrs["delr"] = np.unique(delr)[0]
-    else:
-        ds["delr"] = ("x"), delr
+    ds["delr"] = ("x"), delr
     delc = -np.diff(yedges)
-    if len(np.unique(delc)) == 1:
-        ds.attrs["delc"] = np.unique(delc)[0]
-    else:
-        ds["delc"] = ("y"), delc
+    ds["delc"] = ("y"), delc
 
     if crs is not None:
         ds.rio.set_crs(crs)

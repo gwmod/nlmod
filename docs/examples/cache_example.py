@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 
 
-@nlmod.cache.cache_netcdf
+@nlmod.cache.cache_netcdf()
 def func_to_create_a_dataset(number):
     """create a dataarray as an example for the caching method.
 

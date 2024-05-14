@@ -143,6 +143,9 @@ def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="
                 raise ValueError(
                     f"expected dimensions ('layer', 'y', 'x'), got {da.dims}"
                 )
+        # TODO: remove when delr/delc are removed as data vars
+        elif da_name in ["delr", "delc"]:
+            continue
         else:
             raise NotImplementedError(
                 f"expected two or three dimensions got {no_dims} for data variable {da_name}"
@@ -286,7 +289,9 @@ def ds_to_vector_file(
         if model_ds.gridtype == "structured":
             gdf = struc_da_to_gdf(model_ds, (da_name,), polygons=polygons)
         elif model_ds.gridtype == "vertex":
-            gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons)
+            # TODO: remove when delr/dec are removed
+            if da_name not in ["delr", "delc"]:
+                gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons)
         if driver == "GPKG":
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:

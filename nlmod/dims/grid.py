@@ -214,11 +214,11 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
         if "delc" in ds:
             delc = ds["delc"].values
         else:
-            delc = np.array([ds.delc] * ds.sizes["y"])
+            raise KeyError("delc not in dataset")
         if "delr" in ds:
             delr = ds["delr"].values
         else:
-            delr = np.array([ds.delr] * ds.sizes["x"])
+            raise KeyError("delr not in dataset")
         modelgrid = StructuredGrid(
             delc=delc,
             delr=delr,
@@ -1921,7 +1921,7 @@ def mask_model_edge(ds, idomain=None):
 
 
 def polygons_from_model_ds(model_ds):
-    """create polygons of each cell in a model dataset.
+    """Create polygons of each cell in a model dataset.
 
     Parameters
     ----------
@@ -1940,19 +1940,33 @@ def polygons_from_model_ds(model_ds):
     """
 
     if model_ds.gridtype == "structured":
-        # check if coördinates are consistent with delr/delc values
+        # TODO: update with new delr/delc calculation
+        # check if coordinates are consistent with delr/delc values
         delr_x = np.unique(model_ds.x.values[1:] - model_ds.x.values[:-1])
         delc_y = np.unique(model_ds.y.values[:-1] - model_ds.y.values[1:])
-        if not ((delr_x == model_ds.delr) and (delc_y == model_ds.delc)):
+
+        delr = np.unique(model_ds.delr)
+        if len(delr) > 1:
+            raise ValueError("delr is variable")
+        else:
+            delr = delr.item()
+
+        delc = np.unique(model_ds.delc)
+        if len(delc) > 1:
+            raise ValueError("delc is variable")
+        else:
+            delc = delc.item()
+
+        if not ((delr_x == delr) and (delc_y == delc)):
             raise ValueError(
                 "delr and delc attributes of model_ds inconsistent "
                 "with x and y coordinates"
             )
 
-        xmins = model_ds.x - (model_ds.delr * 0.5)
-        xmaxs = model_ds.x + (model_ds.delr * 0.5)
-        ymins = model_ds.y - (model_ds.delc * 0.5)
-        ymaxs = model_ds.y + (model_ds.delc * 0.5)
+        xmins = model_ds.x - (delr * 0.5)
+        xmaxs = model_ds.x + (delr * 0.5)
+        ymins = model_ds.y - (delc * 0.5)
+        ymaxs = model_ds.y + (delc * 0.5)
         polygons = [
             Polygon(
                 [

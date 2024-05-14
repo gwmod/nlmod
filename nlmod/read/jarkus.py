@@ -75,7 +75,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     # fill nan values in bathymetry
     da_bathymetry_filled = fillnan_da(da_bathymetry_raw)
 
-    # bathymetrie mag nooit groter zijn dan NAP 0.0
+    # bathymetry can never be larger than NAP 0.0
     da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
 
     # bathymetry projected on model grid
@@ -272,7 +272,7 @@ def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea
 
     ds["kv"][lay] = xr.where(fill_mask, kv_sea, ds["kv"][lay])
 
-    # reset bot for all layers based on bathymetrie
+    # reset bot for all layers based on bathymetry
     for lay in range(1, ds.sizes["layer"]):
         ds["botm"][lay] = np.where(
             ds["botm"][lay] > ds["botm"][lay - 1],

@@ -102,6 +102,10 @@ line-length = 88
 [tool.isort]
 profile = "black"
 
+[tool.ruff]
+line-length = 88    
+extend-include = ["*.ipynb"]
+
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"
 markers = ["notebooks: run notebooks", "slow: slow tests", "skip: skip tests"]

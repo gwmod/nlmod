@@ -153,20 +153,27 @@ def ds_to_structured_grid(
 
     # add new attributes
     attrs["gridtype"] = "structured"
+
     if isinstance(delr, numbers.Number) and isinstance(delc, numbers.Number):
-        attrs["delr"] = delr
-        attrs["delc"] = delc
+        delr = np.full_like(x, delr)
+        delc = np.full_like(y, delc)
 
     if method in ["nearest", "linear"] and angrot == 0.0:
         ds_out = ds_in.interp(
             x=x, y=y, method=method, kwargs={"fill_value": "extrapolate"}
         )
         ds_out.attrs = attrs
+        # ds_out = ds_out.expand_dims({"ncol": len(x), "nrow": len(y)})
+        ds_out["delr"] = ("ncol",), delr
+        ds_out["delc"] = ("nrow",), delc
         return ds_out
 
     ds_out = xr.Dataset(coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=attrs)
     for var in ds_in.data_vars:
         ds_out[var] = structured_da_to_ds(ds_in[var], ds_out, method=method)
+    # ds_out = ds_out.expand_dims({"ncol": len(x), "nrow": len(y)})
+    ds_out["delr"] = ("x",), delr
+    ds_out["delc"] = ("y",), delc
     return ds_out
 
 
@@ -519,9 +526,6 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             # xmin, xmax, ymin, ymax
             dx = (ds.attrs["extent"][1] - ds.attrs["extent"][0]) / len(ds.x)
             dy = (ds.attrs["extent"][3] - ds.attrs["extent"][2]) / len(ds.y)
-        elif "delr" in ds.attrs and "delc" in ds.attrs:
-            dx = ds.attrs["delr"]
-            dy = ds.attrs["delc"]
         else:
             raise ValueError(
                 "No extent or delr and delc in ds. Cannot determine affine."

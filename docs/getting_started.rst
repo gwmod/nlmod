@@ -118,10 +118,10 @@ potential solutions.
 - dask
 - colorama
 - joblib
+- bottleneck
 
 On top of that there are some optional dependecies:
 
-- bottleneck (used in calculate_gxg)
 - geocube (used in add_min_ahn_to_gdf)
 - h5netcdf (used for the hdf5 backend of xarray)
 - scikit-image (used in calculate_sea_coverage)

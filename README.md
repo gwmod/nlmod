@@ -50,9 +50,10 @@ Install the module with pip:
 * `dask`
 * `colorama`
 * `joblib`
+* `bottleneck`
 
 There are some optional dependecies, only needed (and imported) in a single method.
-Examples of this are `bottleneck` (used in calculate_gxg), `geocube` (used in
+Examples of this are `geocube` (used in
 add_min_ahn_to_gdf), `h5netcdf` (used for hdf5 files backend in xarray), `scikit-image`
 (used in calculate_sea_coverage). To install `nlmod` with the optional dependencies use:
 

@@ -10,6 +10,7 @@ import warnings
 import flopy
 import xarray as xr
 
+from ..dims import grid
 from ..dims.resample import get_delr, get_delc
 from ..dims.layers import get_idomain
 from ..sim import ims, sim, tdis

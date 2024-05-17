@@ -160,6 +160,7 @@ def cache_netcdf(
                         coords_2d=coords_2d,
                         coords_3d=coords_3d,
                         coords_time=coords_time,
+                        attrs_ds=attrs_ds,
                         datavars=datavars,
                         coords=coords,
                         attrs=attrs,

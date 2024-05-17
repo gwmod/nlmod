@@ -167,8 +167,6 @@ def to_model_ds(
         )
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         ds["area"] = ("y", "x"), np.outer(delc, delr)
-        ds["delr"] = ("x"), delr
-        ds["delc"] = ("y"), delc
     else:
         raise TypeError("unexpected type for delr and/or delc")
 
@@ -366,11 +364,6 @@ def _get_structured_grid_ds(
         coords=coords,
         attrs=attrs,
     )
-    # set delr and delc
-    delr = np.diff(xedges)
-    ds["delr"] = ("x"), delr
-    delc = -np.diff(yedges)
-    ds["delc"] = ("y"), delc
 
     if crs is not None:
         ds.rio.set_crs(crs)

@@ -109,12 +109,10 @@ def get_delc(ds):
 
 
 def _get_delr_from_x(x):
-    delr = []
-    for ix in range(len(x)):
-        if ix == 0:
-            delr.append(x[0] * 2)
-        else:
-            delr.append((x[ix] - np.sum(delr)) * 2)
+    """Internal method to determine delr or delc from x or y relative to xmin or ymax"""
+    delr = [x[0] * 2]
+    for xi in x[1:]:
+        delr.append((xi - np.sum(delr)) * 2)
     return np.array(delr)
 
 

@@ -92,6 +92,32 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
         raise TypeError("unexpected type for delr and/or delc")
 
 
+def get_delr(ds):
+    """Get the distance along rows (delr) fromythe x-coordinate of a model dataset"""
+    assert ds.gridtype == "structured"
+    x = (ds.x - ds.extent[0]).values
+    delr = _get_delr_from_x(x)
+    return delr
+
+
+def get_delc(ds):
+    """Get the distance along columns (delr) from the x-coordinate of a model dataset"""
+    assert ds.gridtype == "structured"
+    y = (ds.extent[3] - ds.y).values
+    delc = _get_delr_from_x(y)
+    return delc
+
+
+def _get_delr_from_x(x):
+    delr = []
+    for ix in range(len(x)):
+        if ix == 0:
+            delr.append(x[0] * 2)
+        else:
+            delr.append((x[ix] - np.sum(delr)) * 2)
+    return np.array(delr)
+
+
 def ds_to_structured_grid(
     ds_in,
     extent,
@@ -163,17 +189,11 @@ def ds_to_structured_grid(
             x=x, y=y, method=method, kwargs={"fill_value": "extrapolate"}
         )
         ds_out.attrs = attrs
-        # ds_out = ds_out.expand_dims({"ncol": len(x), "nrow": len(y)})
-        ds_out["delr"] = ("ncol",), delr
-        ds_out["delc"] = ("nrow",), delc
         return ds_out
 
     ds_out = xr.Dataset(coords={"y": y, "x": x, "layer": ds_in.layer.data}, attrs=attrs)
     for var in ds_in.data_vars:
         ds_out[var] = structured_da_to_ds(ds_in[var], ds_out, method=method)
-    # ds_out = ds_out.expand_dims({"ncol": len(x), "nrow": len(y)})
-    ds_out["delr"] = ("x",), delr
-    ds_out["delc"] = ("y",), delc
     return ds_out
 
 
@@ -658,9 +678,13 @@ def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates."""
     attrs = _get_attrs(ds)
     if sx is None:
-        sx = attrs["delr"]
+        sx = get_delr(ds)
+        assert len(np.unique(sx)) == 1, "Affine-transformation needs a constant delr"
+        sx = sx[0]
     if sy is None:
-        sy = -attrs["delc"]
+        sy = get_delc(ds)
+        assert len(np.unique(sy)) == 1, "Affine-transformation needs a constant delc"
+        sy = sy[0]
 
     if "angrot" in attrs:
         xorigin = attrs["xorigin"]

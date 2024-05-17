@@ -692,12 +692,6 @@ def ds_contains(
             datavars.append("yv")
             datavars.append("icvert")
 
-            # TODO: temporary fix until delr/delc are completely removed
-            if "delr" in datavars:
-                datavars.remove("delr")
-            if "delc" in datavars:
-                datavars.remove("delc")
-
         if "angrot" in ds.attrs:
             attrs.append("angrot")
 
@@ -721,14 +715,16 @@ def ds_contains(
         if "time" not in ds.coords:
             msg = "time not in dataset. Run nlmod.time.set_ds_time() first."
             raise ValueError(msg)
-        
+
         # Check if time-coord is complete
         time_attrs_required = ["start", "time_units"]
 
         for t_attr in time_attrs_required:
             if t_attr not in ds["time"].attrs:
-                msg = f"{t_attr} not in dataset['time'].attrs. " +\
-                    "Run nlmod.time.set_ds_time() to set time."
+                msg = (
+                    f"{t_attr} not in dataset['time'].attrs. "
+                    + "Run nlmod.time.set_ds_time() to set time."
+                )
                 raise ValueError(msg)
 
     # User-unfriendly error messages

@@ -674,7 +674,10 @@ def ds_contains(
     if ds is None:
         msg = "No dataset provided"
         raise ValueError(msg)
-    if not coords_2d and not coords_3d and not coords_time and not attrs_ds and not datavars and not coords and not attrs:
+    isdefault_args = not any(
+        [coords_2d, coords_3d, coords_time, attrs_ds, datavars, coords, attrs]
+    )
+    if isdefault_args:
         return ds
 
     isvertex = ds.attrs["gridtype"] == "vertex"

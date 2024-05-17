@@ -57,6 +57,7 @@ def cache_netcdf(
     coords_2d=False,
     coords_3d=False,
     coords_time=False,
+    attrs_ds=False,
     datavars=None,
     coords=None,
     attrs=None,
@@ -101,6 +102,8 @@ def cache_netcdf(
         Shorthand for adding 3D coordinates. The default is False.
     coords_time : bool, optional
         Shorthand for adding time coordinates. The default is False.
+    attrs_ds : bool, optional
+        Shorthand for adding model dataset attributes. The default is False.
     datavars : list, optional
         List of data variables to check for. The default is an empty list.
     coords : list, optional
@@ -139,6 +142,7 @@ def cache_netcdf(
                         coords_2d=coords_2d,
                         coords_3d=coords_3d,
                         coords_time=coords_time,
+                        attrs_ds=attrs_ds,
                         datavars=datavars,
                         coords=coords,
                         attrs=attrs,
@@ -632,6 +636,7 @@ def ds_contains(
     coords_2d=False,
     coords_3d=False,
     coords_time=False,
+    attrs_ds=False,
     datavars=None,
     coords=None,
     attrs=None,
@@ -650,6 +655,8 @@ def ds_contains(
         Shorthand for adding 3D coordinates. The default is False.
     coords_time : bool, optional
         Shorthand for adding time coordinates. The default is False.
+    attrs_ds : bool, optional
+        Shorthand for adding model dataset attributes. The default is False.
     datavars : list, optional
         List of data variables to check for. The default is an empty list.
     coords : list, optional
@@ -666,7 +673,7 @@ def ds_contains(
     if ds is None:
         msg = "No dataset provided"
         raise ValueError(msg)
-    if not coords_2d and not coords_3d and not datavars and not coords and not attrs:
+    if not coords_2d and not coords_3d and not coords_time and not attrs_ds and not datavars and not coords and not attrs:
         return ds
 
     isvertex = ds.attrs["gridtype"] == "vertex"
@@ -699,7 +706,9 @@ def ds_contains(
                 datavars.remove("delc")
 
         if "angrot" in ds.attrs:
-            attrs.append("angrot")
+            # set by `nlmod.base.to_model_ds()` and `nlmod.dims.resample._set_angrot_attributes()`
+            attrs_angrot_required = ["angrot", "xorigin", "yorigin"]
+            attrs.extend(attrs_angrot_required)
 
     if coords_3d:
         coords.append("layer")
@@ -712,6 +721,11 @@ def ds_contains(
         datavars.append("nstp")
         datavars.append("tsmult")
 
+    if attrs_ds:
+        # set by `nlmod.base.set_ds_attrs()`
+        attrs_ds_required = ["model_name", "mfversion", "created_on", "exe_name", "model_ws", "figdir", "cachedir"]
+        attrs_ds.extend(attrs_ds_required)
+
     # User-friendly error messages if missing from ds
     if "northsea" in datavars and "northsea" not in ds.data_vars:
         msg = "Northsea not in dataset. Run nlmod.read.rws.add_northsea() first."
@@ -721,7 +735,7 @@ def ds_contains(
         if "time" not in ds.coords:
             msg = "time not in dataset. Run nlmod.time.set_ds_time() first."
             raise ValueError(msg)
-        
+
         # Check if time-coord is complete
         time_attrs_required = ["start", "time_units"]
 
@@ -729,6 +743,12 @@ def ds_contains(
             if t_attr not in ds["time"].attrs:
                 msg = f"{t_attr} not in dataset['time'].attrs. " +\
                     "Run nlmod.time.set_ds_time() to set time."
+                raise ValueError(msg)
+
+    if attrs_ds:
+        for attr in attrs_ds_required:
+            if attr not in ds.attrs:
+                msg = f"{attr} not in dataset.attrs. Run nlmod.set_ds_attrs() first."
                 raise ValueError(msg)
 
     # User-unfriendly error messages

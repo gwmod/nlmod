@@ -728,7 +728,7 @@ def ds_contains(
     if attrs_ds:
         # set by `nlmod.base.set_ds_attrs()`
         attrs_ds_required = ["model_name", "mfversion", "created_on", "exe_name", "model_ws", "figdir", "cachedir"]
-        attrs_ds.extend(attrs_ds_required)
+        attrs.extend(attrs_ds_required)
 
     # User-friendly error messages if missing from ds
     if "northsea" in datavars and "northsea" not in ds.data_vars:

@@ -106,7 +106,7 @@ def get_exe_path(bindir=None, exe_name="mf6", download_if_not_found=True, versio
     Else:
     4. Download the executables.
 
-    The returned directory is checked to contain exe_name if exe_name is provided. If resorted
+    The returned directory is checked to contain exe_name if it is provided. If resorted
     search destination 3 or 4, the version tag and repository name are used to ensure the correct
     version is returned.
 

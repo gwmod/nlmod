@@ -131,7 +131,7 @@ def sim(ds, exe_name=None):
     logger.info("creating mf6 SIM")
 
     if exe_name is None:
-        exe_name = util.get_exe_path(ds.mfversion)
+        exe_name = util.get_exe_path(exe_name=ds.mfversion)
 
     # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(

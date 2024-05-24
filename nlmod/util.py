@@ -100,17 +100,16 @@ def get_exe_path(
     download_if_not_found=True,
     version_tag="latest",
     repo="executables",
+    disable_version_check=False,
 ):
     """Get the full path of the executable.
 
     Searching for the executables is done in the following order:
-    1. The directory specified with `bindir`. Raises no error if exe_name is provided
-        and not found, but resorts to option 2. Not checking `version_tag` and `repo`.
-    2. The directory used by nlmod installed in this environment. Not checking
-        `version_tag` and `repo`.
+    1. The directory specified with `bindir`. Raises error if exe_name is provided
+        and not found. Requires disable_version_check to be False.
+    2. The directory used by nlmod installed in this environment.
     3. If the executables were downloaded with flopy/nlmod from an other env,
         most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`.
 
     Else:
     4. Download the executables using `version_tag` and `repo`.
@@ -127,9 +126,12 @@ def get_exe_path(
         Download the executables if they are not found, by default True.
     repo : str, default "executables"
         Name of GitHub repository. Choose one of "executables" (default),
-        "modflow6", or "modflow6-nightly-build". Used only in search destinations 3 and 4.
+        "modflow6", or "modflow6-nightly-build".
     version_tag : str, default "latest"
-        GitHub release ID. Used only in search destinations 3 and 4.
+        GitHub release ID.
+    disable_version_check : bool, default False
+        If False, the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag` and `repo`.
 
     Returns
     -------
@@ -146,6 +148,7 @@ def get_exe_path(
             download_if_not_found=download_if_not_found,
             version_tag=version_tag,
             repo=repo,
+            disable_version_check=disable_version_check,
         )
         / exe_name
     )
@@ -162,7 +165,7 @@ def get_bin_directory(
     download_if_not_found=True,
     version_tag="latest",
     repo="executables",
-    disable_version_check=True,
+    disable_version_check=False,
 ) -> Path:
     """
     Get the directory where the executables are stored.
@@ -193,6 +196,9 @@ def get_bin_directory(
         "modflow6", or "modflow6-nightly-build". Used only if download is needed.
     version_tag : str, default "latest"
         GitHub release ID. Used only if download is needed.
+    disable_version_check : bool, default False
+        If False, the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag` and `repo`.
 
     Returns
     -------
@@ -210,8 +216,8 @@ def get_bin_directory(
         exe_name += ".exe"
 
     # If bindir is provided
-    if bindir is not None and disable_version_check:
-        msg = "Incompatible arguments. If bindir is provided, disable_version_check should be False."
+    if bindir is not None and not disable_version_check:
+        msg = "Incompatible arguments. If bindir is provided, disable_version_check should be True."
         raise ValueError(msg)
 
     use_bindir = (

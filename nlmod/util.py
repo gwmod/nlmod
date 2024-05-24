@@ -95,6 +95,7 @@ def get_model_dirs(model_ws):
 
 
 def get_exe_path(
+    *depr_args,
     bindir=None,
     exe_name="mf6",
     download_if_not_found=True,
@@ -138,6 +139,13 @@ def get_exe_path(
     exe_full_path : str
         full path of the executable.
     """
+    if depr_args:
+        msg = (
+            "The syntax of get_exe_path() has changed. Please keyword arguments"
+            'your function call: get_exe_path(exe_name="mf6").'
+        )
+        raise NotImplementedError(msg)
+
     if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
         exe_name += ".exe"
 

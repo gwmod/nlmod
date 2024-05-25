@@ -442,7 +442,7 @@ def refine(
     logger.info("create vertex grid using gridgen")
 
     if exe_name is None:
-        exe_name = util.get_exe_path("gridgen")
+        exe_name = util.get_exe_path(exe_name="gridgen")
 
     if model_ws is None:
         model_ws = os.path.join(ds.model_ws, "gridgen")

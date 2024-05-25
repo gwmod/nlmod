@@ -46,7 +46,7 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     ds.attrs["created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
-        exe_name = util.get_exe_path(mfversion)
+        exe_name = util.get_exe_path(exe_name=mfversion)
 
     ds.attrs["exe_name"] = exe_name
 

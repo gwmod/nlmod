@@ -1,11 +1,14 @@
+import json
 import logging
 import os
 import re
 import sys
+from pathlib import Path
 import warnings
 from typing import Dict, Optional
 
-import flopy
+from flopy.utils import get_modflow
+from flopy.utils.get_modflow import flopy_appdata_path, get_release
 import geopandas as gpd
 import requests
 import xarray as xr
@@ -13,6 +16,8 @@ from colorama import Back, Fore, Style
 from shapely.geometry import box
 
 logger = logging.getLogger(__name__)
+
+nlmod_bindir = Path(__file__).parent / "bin"
 
 
 class LayerError(Exception):
@@ -89,29 +94,276 @@ def get_model_dirs(model_ws):
     return figdir, cachedir
 
 
-def get_exe_path(exe_name="mf6"):
-    """Get the full path of the executable. Uses the bin directory in the nlmod package.
+def get_exe_path(
+    exe_name="mf6",
+    bindir=None,
+    download_if_not_found=True,
+    version_tag="latest",
+    repo="executables",
+    enable_version_check=True,
+):
+    """Get the full path of the executable.
+
+    Searching for the executables is done in the following order:
+    1. The directory specified with `bindir`. Raises error if exe_name is provided
+        and not found. Requires enable_version_check to be False.
+    2. The directory used by nlmod installed in this environment.
+    3. If the executables were downloaded with flopy/nlmod from an other env,
+        most recent installation location of MODFLOW is found in flopy metadata
+
+    Else:
+    4. Download the executables using `version_tag` and `repo`.
+
+    The returned directory is checked to contain exe_name if it is provided.
 
     Parameters
     ----------
     exe_name : str, optional
-        name of the executable. The default is 'mf6'.
+        The name of the executable, by default "mf6".
+    bindir : Path, optional
+        The directory where the executables are stored, by default None
+    download_if_not_found : bool, optional
+        Download the executables if they are not found, by default True.
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default),
+        "modflow6", or "modflow6-nightly-build".
+    version_tag : str, default "latest"
+        GitHub release ID.
+    enable_version_check : bool, default True
+        If False, the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag` and `repo`.
 
     Returns
     -------
-    exe_path : str
+    exe_full_path : str
         full path of the executable.
     """
-    exe_path = os.path.join(os.path.dirname(__file__), "bin", exe_name)
-    if sys.platform.startswith("win"):
-        exe_path += ".exe"
+    if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
+        exe_name += ".exe"
 
-    if not os.path.exists(exe_path):
-        logger.warning(
-            f"executable {exe_path} not found, download the binaries using nlmod.util.download_mfbinaries"
+    exe_full_path = str(
+        get_bin_directory(
+            exe_name=exe_name,
+            bindir=bindir,
+            download_if_not_found=download_if_not_found,
+            version_tag=version_tag,
+            repo=repo,
+            enable_version_check=enable_version_check,
+        )
+        / exe_name
+    )
+
+    msg = f"Executable path: {exe_full_path}"
+    logger.debug(msg)
+
+    return exe_full_path
+
+
+def get_bin_directory(
+    exe_name="mf6",
+    bindir=None,
+    download_if_not_found=True,
+    version_tag="latest",
+    repo="executables",
+    enable_version_check=True,
+) -> Path:
+    """
+    Get the directory where the executables are stored.
+
+    Searching for the executables is done in the following order:
+    1. The directory specified with `bindir`. Raises error if exe_name is provided
+        and not found. Requires enable_version_check to be False.
+    2. The directory used by nlmod installed in this environment.
+    3. If the executables were downloaded with flopy/nlmod from an other env,
+        most recent installation location of MODFLOW is found in flopy metadata
+
+    Else:
+    4. Download the executables using `version_tag` and `repo`.
+
+    The returned directory is checked to contain exe_name if exe_name is provided. If exe_name
+    is set to None only the existence of the directory is checked.
+
+    Parameters
+    ----------
+    exe_name : str, optional
+        The name of the executable, by default None.
+    bindir : Path, optional
+        The directory where the executables are stored, by default "mf6".
+    download_if_not_found : bool, optional
+        Download the executables if they are not found, by default True.
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default),
+        "modflow6", or "modflow6-nightly-build". Used only if download is needed.
+    version_tag : str, default "latest"
+        GitHub release ID. Used only if download is needed.
+    enable_version_check : bool, default True
+        If True, the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag` and `repo`.
+
+    Returns
+    -------
+    Path
+        The directory where the executables are stored.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the executables are not found in the specified directories.
+    """
+    bindir = Path(bindir) if bindir is not None else None
+
+    if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
+        exe_name += ".exe"
+
+    # If bindir is provided
+    if bindir is not None and enable_version_check:
+        msg = "Incompatible arguments. If bindir is provided, enable_version_check should be False."
+        raise ValueError(msg)
+
+    use_bindir = (
+        bindir is not None and exe_name is not None and (bindir / exe_name).exists()
+    )
+    use_bindir |= bindir is not None and exe_name is None and bindir.exists()
+
+    if use_bindir:
+        return bindir
+
+    # If the executables are in the flopy directory
+    flopy_bindirs = get_flopy_bin_directories(
+        version_tag=version_tag, repo=repo, enable_version_check=enable_version_check
+    )
+
+    if exe_name is not None:
+        flopy_bindirs = [
+            flopy_bindir
+            for flopy_bindir in flopy_bindirs
+            if Path(flopy_bindir / exe_name).exists()
+        ]
+    else:
+        flopy_bindirs = [
+            flopy_bindir
+            for flopy_bindir in flopy_bindirs
+            if Path(flopy_bindir).exists()
+        ]
+
+    if nlmod_bindir in flopy_bindirs:
+        return nlmod_bindir
+
+    if flopy_bindirs:
+        # Get most recent directory
+        return flopy_bindirs[-1]
+
+    # Else download the executables
+    if download_if_not_found:
+        download_mfbinaries(bindir=bindir, version_tag=version_tag, repo=repo)
+
+        # Check if the executables are in the flopy directory (or rerun this function)
+        return get_bin_directory(
+            exe_name=exe_name,
+            bindir=bindir,
+            download_if_not_found=False,
+            version_tag=version_tag,
+            repo=repo,
+            enable_version_check=enable_version_check,
         )
 
-    return exe_path
+    else:
+        msg = f"Could not find {exe_name} in {bindir}, {nlmod_bindir} and {flopy_bindirs}."
+        raise FileNotFoundError(msg)
+
+
+def get_flopy_bin_directories(
+    version_tag="latest", repo="executables", enable_version_check=True
+):
+    """Get the directories where the executables are stored.
+
+    Obtain the bin directory installed with flopy. If enable_version_check is True,
+    all installation location of MODFLOW are found in flopy metadata that respects
+    `version_tag` and `repo`.
+
+    Parameters
+    ----------
+    version_tag : str, default "latest"
+        GitHub release ID. Used only if download is needed.
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default),
+        "modflow6", or "modflow6-nightly-build". Used only if download is needed.
+    enable_version_check : bool, default False
+        If False, the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag` and `repo`.
+
+    Returns
+    -------
+    list
+        list of directories where the executables are stored.
+    """
+    flopy_metadata_fp = flopy_appdata_path / "get_modflow.json"
+
+    if not flopy_metadata_fp.exists():
+        return []
+
+    meta_raw = flopy_metadata_fp.read_text()
+
+    # Remove trailing characters that are not part of the JSON.
+    while meta_raw[-3:] != "}\n]":
+        meta_raw = meta_raw[:-1]
+
+    # Get metadata of all flopy installations
+    meta_list = json.loads(meta_raw)
+
+    # To convert latest into an explicit tag
+    if enable_version_check:
+        version_tag_pin = get_release(tag=version_tag, repo=repo, quiet=True)[
+            "tag_name"
+        ]
+
+        # get path to the most recent installation. Appended to end of get_modflow.json
+        meta_list_validversion = [
+            meta
+            for meta in meta_list
+            if (meta["release_id"] == version_tag_pin) and (meta["repo"] == repo)
+        ]
+
+    else:
+        meta_list_validversion = meta_list
+
+    path_list = [
+        Path(meta["bindir"])
+        for meta in meta_list_validversion
+        if Path(meta["bindir"]).exists()
+    ]
+    return path_list
+
+
+def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
+    """Download and unpack platform-specific modflow binaries.
+
+    Source: USGS
+
+    Parameters
+    ----------
+    binpath : str, optional
+        path to directory to download binaries to, if it doesnt exist it
+        is created. Default is None which sets dir to nlmod/bin.
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default),
+        "modflow6", or "modflow6-nightly-build".
+    version_tag : str, default "latest"
+        GitHub release ID.
+
+    """
+    if bindir is None:
+        # Path objects are immutable so a copy is implied
+        bindir = nlmod_bindir
+
+    if not os.path.isdir(bindir):
+        os.makedirs(bindir)
+
+    get_modflow(bindir=str(bindir), release_id=version_tag, repo=repo)
+
+    if sys.platform.startswith("win"):
+        # download the provisional version of modpath from Github
+        download_modpath_provisional_exe(bindir)
 
 
 def get_ds_empty(ds, keep_coords=None):
@@ -428,30 +680,6 @@ def download_file_from_google_drive(fid, destination=None):
             destination = os.path.join(destination, filename)
 
     save_response_content(response, destination)
-
-
-def download_mfbinaries(bindir=None):
-    """Download and unpack platform-specific modflow binaries.
-
-    Source: USGS
-
-    Parameters
-    ----------
-    binpath : str, optional
-        path to directory to download binaries to, if it doesnt exist it
-        is created. Default is None which sets dir to nlmod/bin.
-    version : str, optional
-        version string, by default 8.0
-    """
-
-    if bindir is None:
-        bindir = os.path.join(os.path.dirname(__file__), "bin")
-    if not os.path.isdir(bindir):
-        os.makedirs(bindir)
-    flopy.utils.get_modflow(bindir)
-    if sys.platform.startswith("win"):
-        # download the provisional version of modpath from Github
-        download_modpath_provisional_exe(bindir)
 
 
 def download_modpath_provisional_exe(bindir=None, timeout=120):

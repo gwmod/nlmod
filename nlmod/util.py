@@ -95,9 +95,8 @@ def get_model_dirs(model_ws):
 
 
 def get_exe_path(
-    *depr_args,
-    bindir=None,
     exe_name="mf6",
+    bindir=None,
     download_if_not_found=True,
     version_tag="latest",
     repo="executables",
@@ -119,10 +118,10 @@ def get_exe_path(
 
     Parameters
     ----------
-    bindir : Path, optional
-        The directory where the executables are stored, by default None
     exe_name : str, optional
         The name of the executable, by default "mf6".
+    bindir : Path, optional
+        The directory where the executables are stored, by default None
     download_if_not_found : bool, optional
         Download the executables if they are not found, by default True.
     repo : str, default "executables"
@@ -139,20 +138,13 @@ def get_exe_path(
     exe_full_path : str
         full path of the executable.
     """
-    if depr_args:
-        msg = (
-            "The syntax of get_exe_path() has changed. Please keyword arguments"
-            'your function call: get_exe_path(exe_name="mf6").'
-        )
-        raise NotImplementedError(msg)
-
     if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
         exe_name += ".exe"
 
     exe_full_path = str(
         get_bin_directory(
-            bindir=bindir,
             exe_name=exe_name,
+            bindir=bindir,
             download_if_not_found=download_if_not_found,
             version_tag=version_tag,
             repo=repo,
@@ -168,8 +160,8 @@ def get_exe_path(
 
 
 def get_bin_directory(
-    bindir=None,
     exe_name="mf6",
+    bindir=None,
     download_if_not_found=True,
     version_tag="latest",
     repo="executables",
@@ -193,10 +185,10 @@ def get_bin_directory(
 
     Parameters
     ----------
-    bindir : Path, optional
-        The directory where the executables are stored, by default "mf6".
     exe_name : str, optional
         The name of the executable, by default None.
+    bindir : Path, optional
+        The directory where the executables are stored, by default "mf6".
     download_if_not_found : bool, optional
         Download the executables if they are not found, by default True.
     repo : str, default "executables"
@@ -267,8 +259,8 @@ def get_bin_directory(
 
         # Check if the executables are in the flopy directory (or rerun this function)
         return get_bin_directory(
-            bindir=bindir,
             exe_name=exe_name,
+            bindir=bindir,
             download_if_not_found=False,
             version_tag=version_tag,
             repo=repo,

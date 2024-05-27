@@ -66,7 +66,7 @@ full = [
 ]
 knmi = ["h5netcdf", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
-test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
+test = ["pytest>=7", "pytest-cov", "pytest-dependency", "pytest-env"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]
 ci = ["nlmod[full,lint,test,nbtest]", "netCDF4>=1.6.3", "pandas<2.1.0"]
@@ -107,5 +107,6 @@ line-length = 88
 extend-include = ["*.ipynb"]
 
 [tool.pytest.ini_options]
+env = ["NLMOD_SUPPRESS_EXE_VERION_CHECK=True"]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"
 markers = ["notebooks: run notebooks", "slow: slow tests", "skip: skip tests"]

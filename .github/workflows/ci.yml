@@ -42,7 +42,7 @@ jobs:
       - name: Download executables needed for tests
         env:
           GITHUB_TOKEN: ${{ github.token }}  # Needed for downloading executables
-          NLMOD_SUPPRESS_VERION_CHECK: "True"
+          NLMOD_SUPPRESS_EXE_VERION_CHECK: "True"
         shell: bash -l {0}
         run: |
           python -c "import nlmod; nlmod.util.download_mfbinaries()"
@@ -52,7 +52,7 @@ jobs:
             NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}
             NHI_GWO_PASSWORD: ${{ secrets.NHI_GWO_PASSWORD}}
             GITHUB_TOKEN: ${{ github.token }}  # Needed for downloading executables
-            NLMOD_SUPPRESS_VERION_CHECK: "True"
+            NLMOD_SUPPRESS_EXE_VERION_CHECK: "True"
         run: |
           py.test ./tests -m "not notebooks"
 

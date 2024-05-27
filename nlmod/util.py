@@ -131,7 +131,8 @@ def get_exe_path(
         GitHub release ID.
     enable_version_check : bool, default True
         If False, the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`.
+        that respects `version_tag` and `repo`. Can be overruled by setting envvar
+        NLMOD_SUPPRESS_VERION_CHECK to True.
 
     Returns
     -------
@@ -198,7 +199,8 @@ def get_bin_directory(
         GitHub release ID. Used only if download is needed.
     enable_version_check : bool, default True
         If True, the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`.
+        that respects `version_tag` and `repo`. Can be overruled by setting envvar
+        NLMOD_SUPPRESS_VERION_CHECK to True.
 
     Returns
     -------
@@ -290,7 +292,8 @@ def get_flopy_bin_directories(
         "modflow6", or "modflow6-nightly-build". Used only if download is needed.
     enable_version_check : bool, default False
         If False, the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`.
+        that respects `version_tag` and `repo`. Can be overruled by setting envvar
+        NLMOD_SUPPRESS_VERION_CHECK to True.
 
     Returns
     -------
@@ -312,7 +315,20 @@ def get_flopy_bin_directories(
     meta_list = json.loads(meta_raw)
 
     # To convert latest into an explicit tag
-    if enable_version_check:
+    if (
+        "NLMOD_SUPPRESS_VERION_CHECK" in os.environ
+        and os.environ["NLMOD_SUPPRESS_VERION_CHECK"]
+    ).lower() in ("true", "1", "t"):
+        # envvars are always strings
+        suppress_version_check = True
+        logger.info(
+            "Suppressing version check by setting the NLMOD_SUPPRESS_VERION_CHECK "
+            "environment variable to True."
+        )
+    else:
+        suppress_version_check = False
+
+    if enable_version_check and not suppress_version_check:
         version_tag_pin = get_release(tag=version_tag, repo=repo, quiet=True)[
             "tag_name"
         ]

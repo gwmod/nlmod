@@ -40,6 +40,8 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
 
       - name: Download executables needed for tests
+        env:
+          GITHUB_TOKEN: ${{ github.token }}  # Needed for downloading executables
         shell: bash -l {0}
         run: |
           python -c "import nlmod; nlmod.util.download_mfbinaries()"
@@ -48,6 +50,7 @@ jobs:
         env:
             NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}
             NHI_GWO_PASSWORD: ${{ secrets.NHI_GWO_PASSWORD}}
+            GITHUB_TOKEN: ${{ github.token }}  # Needed for downloading executables
         run: |
           py.test ./tests -m "not notebooks"
 

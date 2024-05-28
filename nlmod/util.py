@@ -341,34 +341,20 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
     meta_list = json.loads(meta_raw)
 
     enable_version_check = version_tag is not None and repo is not None
-    SUPPRESS_EXE_VERION_CHECK = (
-        "NLMOD_SUPPRESS_EXE_VERION_CHECK" in os.environ
-        and os.environ["NLMOD_SUPPRESS_EXE_VERION_CHECK"]
-    ).lower() in ("true", "1", "t")  # envvars are always strings
 
-    # To convert latest into an explicit tag
-    if enable_version_check and SUPPRESS_EXE_VERION_CHECK:
-        msg = (
-            "The version of the executables would have been checked, because the "
-            "`version_tag` is passed to `get_flopy_bin_directories()`, but is "
-            "suppressed by a set NLMOD_SUPPRESS_EXE_VERION_CHECK."
-        )
-    elif enable_version_check and not SUPPRESS_EXE_VERION_CHECK:
+    if enable_version_check:
         msg = (
             "The version of the executables will be checked, because the "
             f"`version_tag={version_tag}` is passed to `get_flopy_bin_directories()`."
         )
-    else:
-        msg = (
-            "The version of the executables will not be checked, because the "
-            "`version_tag` is not passed to `get_flopy_bin_directories()`."
-        )
-    logger.info(msg)
 
-    if enable_version_check and not SUPPRESS_EXE_VERION_CHECK:
-        version_tag_pin = get_release(tag=version_tag, repo=repo, quiet=True)[
-            "tag_name"
-        ]
+        # To convert latest into an explicit tag
+        if version_tag == "latest":
+            version_tag_pin = get_release(tag=version_tag, repo=repo, quiet=True)[
+                "tag_name"
+            ]
+        else:
+            version_tag_pin = version_tag
 
         # get path to the most recent installation. Appended to end of get_modflow.json
         meta_list_validversion = [
@@ -378,7 +364,12 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
         ]
 
     else:
+        msg = (
+            "The version of the executables will not be checked, because the "
+            "`version_tag` is not passed to `get_flopy_bin_directories()`."
+        )
         meta_list_validversion = meta_list
+    logger.info(msg)
 
     path_list = [
         Path(meta["bindir"])

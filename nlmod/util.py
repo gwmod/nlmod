@@ -104,6 +104,7 @@ def get_exe_path(
     """Get the full path of the executable.
 
     Searching for the executables is done in the following order:
+    0. If exe_name is a full path, return the full path of the executable.
     1. The directory specified with `bindir`. Raises error if exe_name is provided
         and not found. Requires enable_version_check to be False.
     2. The directory used by nlmod installed in this environment.
@@ -143,16 +144,29 @@ def get_exe_path(
     if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
         exe_name += ".exe"
 
-    exe_full_path = str(
-        get_bin_directory(
-            exe_name=exe_name,
-            bindir=bindir,
-            download_if_not_found=download_if_not_found,
-            version_tag=version_tag,
-            repo=repo,
+    # If exe_name is a full path
+    if Path(exe_name).exists():
+        enable_version_check = version_tag is not None and repo is not None
+
+        if enable_version_check:
+            msg = (
+                "Incompatible arguments. If exe_name is provided, unable to check "
+                "the version."
+            )
+            raise ValueError(msg)
+        exe_full_path = exe_name
+
+    else:
+        exe_full_path = str(
+            get_bin_directory(
+                exe_name=exe_name,
+                bindir=bindir,
+                download_if_not_found=download_if_not_found,
+                version_tag=version_tag,
+                repo=repo,
+            )
+            / exe_name
         )
-        / exe_name
-    )
 
     msg = f"Executable path: {exe_full_path}"
     logger.debug(msg)
@@ -171,6 +185,7 @@ def get_bin_directory(
     Get the directory where the executables are stored.
 
     Searching for the executables is done in the following order:
+    0. If exe_name is a full path, return the full path of the executable.
     1. The directory specified with `bindir`. Raises error if exe_name is provided
         and not found. Requires enable_version_check to be False.
     2. The directory used by nlmod installed in this environment.
@@ -218,8 +233,19 @@ def get_bin_directory(
     if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
         exe_name += ".exe"
 
-    # If bindir is provided
     enable_version_check = version_tag is not None and repo is not None
+
+    # If exe_name is a full path
+    if Path(exe_name).exists():
+        if enable_version_check:
+            msg = (
+                "Incompatible arguments. If exe_name is provided, unable to check "
+                "the version."
+            )
+            raise ValueError(msg)
+        return Path(exe_name).parent
+
+    # If bindir is provided
     if bindir is not None and enable_version_check:
         msg = "Incompatible arguments. If bindir is provided, unable to check the version."
         raise ValueError(msg)
@@ -315,22 +341,31 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
     meta_list = json.loads(meta_raw)
 
     enable_version_check = version_tag is not None and repo is not None
-
-    # To convert latest into an explicit tag
-    if (
+    SUPPRESS_EXE_VERION_CHECK = (
         "NLMOD_SUPPRESS_EXE_VERION_CHECK" in os.environ
         and os.environ["NLMOD_SUPPRESS_EXE_VERION_CHECK"]
-    ).lower() in ("true", "1", "t"):
-        # envvars are always strings
-        suppress_version_check = True
-        logger.info(
-            "Suppressing version check by setting the NLMOD_SUPPRESS_EXE_VERION_CHECK "
-            "environment variable to True."
+    ).lower() in ("true", "1", "t")  # envvars are always strings
+
+    # To convert latest into an explicit tag
+    if enable_version_check and SUPPRESS_EXE_VERION_CHECK:
+        msg = (
+            "The version of the executables would have been checked, because the "
+            "`version_tag` is passed to `get_flopy_bin_directories()`, but is "
+            "suppressed by a set NLMOD_SUPPRESS_EXE_VERION_CHECK."
+        )
+    elif enable_version_check and not SUPPRESS_EXE_VERION_CHECK:
+        msg = (
+            "The version of the executables will be checked, because the "
+            f"`version_tag={version_tag}` is passed to `get_flopy_bin_directories()`."
         )
     else:
-        suppress_version_check = False
+        msg = (
+            "The version of the executables will not be checked, because the "
+            "`version_tag` is not passed to `get_flopy_bin_directories()`."
+        )
+    logger.info(msg)
 
-    if enable_version_check and not suppress_version_check:
+    if enable_version_check and not SUPPRESS_EXE_VERION_CHECK:
         version_tag_pin = get_release(tag=version_tag, repo=repo, quiet=True)[
             "tag_name"
         ]
@@ -353,7 +388,7 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
     return path_list
 
 
-def download_mfbinaries(bindir=None, version_tag=None, repo="executables"):
+def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
     """Download and unpack platform-specific modflow binaries.
 
     Source: USGS

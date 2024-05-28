@@ -107,7 +107,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
     return tdis_perioddata
 
 
-def sim(ds, exe_name=None):
+def sim(ds, exe_name=None, version_tag=None):
     """create sim from the model dataset.
 
     Parameters
@@ -117,9 +117,14 @@ def sim(ds, exe_name=None):
         attributes: model_name, mfversion, model_ws, time_units, start,
         perlen, nstp, tsmult
     exe_name: str, optional
-        path to modflow executable, default is None, which assumes binaries
-        are available in nlmod/bin directory. Binaries can be downloaded
-        using `nlmod.util.download_mfbinaries()`.
+        path to modflow executable, default is None. If None, the path is
+        obtained from the flopy metadata that respects `version_tag`. If not
+        found, the executables are downloaded. Not compatible with version_tag.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded.
+        Not compatible with exe_name.
 
     Returns
     -------
@@ -130,8 +135,19 @@ def sim(ds, exe_name=None):
     # start creating model
     logger.info("creating mf6 SIM")
 
-    if exe_name is None:
-        exe_name = util.get_exe_path(exe_name=ds.mfversion)
+    # Most likely exe_name was previously set with to_model_ds()
+    if exe_name is not None:
+        exe_name = util.get_exe_path(exe_name=exe_name, version_tag=version_tag)
+    elif "exe_name" in ds.attrs:
+        exe_name = util.get_exe_path(
+            exe_name=ds.attrs["exe_name"], version_tag=version_tag
+        )
+    elif "mfversion" in ds.attrs:
+        exe_name = util.get_exe_path(
+            exe_name=ds.attrs["mfversion"], version_tag=version_tag
+        )
+    else:
+        raise ValueError("No exe_name provided and no exe_name found in ds.attrs")
 
     # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(

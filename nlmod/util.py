@@ -404,9 +404,8 @@ def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
 
     get_modflow(bindir=str(bindir), release_id=version_tag, repo=repo)
 
-    if sys.platform.startswith("win"):
-        # download the provisional version of modpath from Github
-        download_modpath_provisional_exe(bindir)
+    # download the provisional version of modpath from Github
+    download_modpath_provisional_exe(bindir=bindir, timeout=120)
 
 
 def get_ds_empty(ds, keep_coords=None):

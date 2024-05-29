@@ -285,14 +285,13 @@ def get_bin_directory(
     if download_if_not_found:
         download_mfbinaries(bindir=bindir, version_tag=version_tag, repo=repo)
 
-        # Check if the executables are in the flopy directory (or rerun this function)
+        # Rerun this function
         return get_bin_directory(
             exe_name=exe_name,
             bindir=bindir,
             download_if_not_found=False,
             version_tag=version_tag,
             repo=repo,
-            enable_version_check=enable_version_check,
         )
 
     else:

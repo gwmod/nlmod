@@ -14,7 +14,9 @@ from .layers import fill_nan_top_botm_kh_kv
 logger = logging.getLogger(__name__)
 
 
-def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
+def set_ds_attrs(
+    ds, model_name, model_ws, mfversion="mf6", exe_name=None, version_tag=None
+):
     """Set the attribute of a model dataset.
 
     Parameters
@@ -31,6 +33,11 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
         path to modflow executable, default is None, which assumes binaries
         are available in nlmod/bin directory. Binaries can be downloaded
         using `nlmod.util.download_mfbinaries()`.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded.
+        Not compatible with exe_name.
 
     Returns
     -------
@@ -46,7 +53,9 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     ds.attrs["created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
-        exe_name = util.get_exe_path(exe_name=mfversion)
+        exe_name = util.get_exe_path(exe_name=mfversion, version_tag=version_tag)
+    else:
+        exe_name = util.get_exe_path(exe_name=exe_name, version_tag=version_tag)
 
     ds.attrs["exe_name"] = exe_name
 
@@ -78,6 +87,7 @@ def to_model_ds(
     drop_attributes=True,
     transport=False,
     remove_nan_layers=True,
+    version_tag=None,
 ):
     """Transform an input dataset to a groundwater model dataset.
 
@@ -136,6 +146,11 @@ def to_model_ds(
     remove_nan_layers : bool, optional
         if True remove layers with only nan values in the botm. Default is
         True.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded.
+        Not compatible with exe_name.
 
     Returns
     -------
@@ -176,7 +191,9 @@ def to_model_ds(
         ds = extrapolate_ds(ds)
 
     # add attributes
-    ds = set_ds_attrs(ds, model_name, model_ws)
+    ds = set_ds_attrs(
+        ds, model_name, model_ws, mfversion="mf6", version_tag=version_tag
+    )
     ds.attrs["transport"] = int(transport)
 
     # fill nan's

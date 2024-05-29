@@ -406,6 +406,7 @@ def refine(
     exe_name=None,
     remove_nan_layers=True,
     model_coordinates=False,
+    version_tag=None,
 ):
     """Refine the grid (discretization by vertices, disv), using Gridgen.
 
@@ -432,6 +433,11 @@ def refine(
         When model_coordinates is True, the features supplied in refinement_features are
         already in model-coordinates. Only used when a grid is rotated. The default is
         False.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded.
+        Not compatible with exe_name.
 
     Returns
     -------
@@ -442,7 +448,9 @@ def refine(
     logger.info("create vertex grid using gridgen")
 
     if exe_name is None:
-        exe_name = util.get_exe_path(exe_name="gridgen")
+        exe_name = util.get_exe_path(exe_name="gridgen", version_tag=version_tag)
+    else:
+        exe_name = util.get_exe_path(exe_name=exe_name, version_tag=version_tag)
 
     if model_ws is None:
         model_ws = os.path.join(ds.model_ws, "gridgen")

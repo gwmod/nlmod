@@ -1,9 +1,12 @@
 import flopy
+import logging
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from functools import partial
+from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
 from shapely.affinity import affine_transform
@@ -11,6 +14,8 @@ from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine_world_to_mod
+
+logger = logging.getLogger(__name__)
 
 
 class DatasetCrossSection:
@@ -322,6 +327,51 @@ class DatasetCrossSection:
         self.ax.add_collection(patch_collection)
         return patch_collection
 
+    def get_patches_array(self, z):
+        """similar to plot_array function, only computes the array to update an existing plot_array.
+
+        Parameters
+        ----------
+        z : DataArray
+            data to plot on the patches.
+
+        Returns
+        -------
+        list
+            plot data.
+        """
+        if isinstance(z, xr.DataArray):
+            z = z.data
+
+        if self.icell2d in self.ds.dims:
+            assert len(z.shape) == 2
+            assert z.shape[0] == len(self.layer)
+            assert z.shape[1] == len(self.ds[self.icell2d])
+
+            zcs = z[:, self.icell2ds]
+        else:
+            assert len(z.shape) == 3
+            assert z.shape[0] == len(self.layer)
+            assert z.shape[1] == len(self.ds[self.y])
+            assert z.shape[2] == len(self.ds[self.x])
+
+            zcs = z[:, self.rows, self.cols]
+
+        array = []
+        for i in range(zcs.shape[0]):
+            for j in range(zcs.shape[1]):
+                if not (
+                    np.isnan(self.top[i, j])
+                    or np.isnan(self.bot[i, j])
+                    or np.isnan(zcs[i, j])
+                ):
+                    if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
+                        continue
+
+                    array.append(zcs[i, j])
+
+        return array
+
     def plot_array(self, z, head=None, **kwargs):
         if isinstance(z, xr.DataArray):
             z = z.data
@@ -415,3 +465,69 @@ class DatasetCrossSection:
             top[top > self.zmax] = self.zmax
             bot[bot > self.zmax] = self.zmax
         return top, bot
+
+    def animate(
+        self,
+        da,
+        cmap="Spectral_r",
+        norm=None,
+        head=None,
+        plot_title="",
+        date_fmt="%Y-%m-%d",
+        cbar_label=None,
+        fname=None,
+    ):
+        """animate a cross section"""
+
+        f = self.ax.get_figure()
+
+        # plot first timeframe
+        iper = 0
+        if head is not None:
+            plot_head = head[iper].values
+            logger.info("varying head not supported for animation yet")
+
+        pc = self.plot_array(da[iper].squeeze(), cmap=cmap, norm=norm, head=plot_head)
+        cbar = f.colorbar(pc, ax=self.ax, shrink=1.0)
+
+        if cbar_label is not None:
+            cbar.set_label(cbar_label)
+        elif "units" in da.attrs:
+            cbar.set_label(da.units)
+
+        t = pd.Timestamp(da.time.values[iper])
+        title = self.ax.set_title(f"{plot_title}, t = {t.strftime(date_fmt)}")
+
+        # update func
+        def update(iper, pc, title):
+            array = self.get_patches_array(da[iper].squeeze())
+            pc.set_array(array)
+
+            # update title
+            t = pd.Timestamp(da.time.values[iper])
+            title.set_text(f"{plot_title}, t = {t.strftime(date_fmt)}")
+
+            return pc, title
+
+        # create animation
+        anim = FuncAnimation(
+            f,
+            partial(update, pc=pc, title=title),
+            frames=da["time"].shape[0],
+            blit=False,
+            interval=100,
+        )
+
+        # save animation
+        if fname is None:
+            return anim
+        else:
+            # save animation as mp4
+            writer = FFMpegWriter(
+                fps=10,
+                bitrate=-1,
+                extra_args=["-pix_fmt", "yuv420p"],
+                codec="libx264",
+            )
+            anim.save(fname, writer=writer)
+            return anim

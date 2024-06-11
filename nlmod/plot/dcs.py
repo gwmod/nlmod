@@ -1,10 +1,13 @@
 import flopy
 import logging
 import matplotlib
+
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+
 from functools import partial
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import LineCollection, PatchCollection
@@ -14,6 +17,8 @@ from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine_world_to_mod
+from .plotutil import get_map
+
 
 logger = logging.getLogger(__name__)
 
@@ -327,6 +332,49 @@ class DatasetCrossSection:
         self.ax.add_collection(patch_collection)
         return patch_collection
 
+    def plot_map_cs(
+        self,
+        ax=None,
+        figsize=5,
+        background=True,
+        lw=5,
+        ls="--",
+        label="cross section",
+        **kwargs,
+    ):
+        """Creates a different figure with the map of the cross section
+
+        Parameters
+        ----------
+        ax : None or matplotlib.Axes, optional
+            if None a new axis object is created using nlmod.plot.get_map()
+        figsize : int, optional
+            size of the figure, only used if ax is None, by default 5
+        background : bool, optional
+            add a backgroun map, only used if ax is None, by default True
+        lw : int, optional
+            linewidth of the cross section, by default 10
+        ls : str, optional
+            linestyle of the cross section, by default "--"
+        label : str, optional
+            label of the cross section, by default "cross section"
+        **kwargs are passed to the nlmod.plot.get_map() function. Only if ax is None
+
+        Returns
+        -------
+        matplotlib Axes
+            axes
+        """
+
+        if ax is None:
+            f, ax = get_map(
+                self.ds.extent, background=background, figsize=figsize, **kwargs
+            )
+        gpd.GeoDataFrame(geometry=[self.line]).plot(ax=ax, ls=ls, lw=lw, label=label)
+        ax.legend()
+
+        return ax
+
     def get_patches_array(self, z):
         """similar to plot_array function, only computes the array to update an existing plot_array.
 
@@ -477,7 +525,34 @@ class DatasetCrossSection:
         cbar_label=None,
         fname=None,
     ):
-        """animate a cross section"""
+        """animate a cross section
+
+        Parameters
+        ----------
+        da : DataArray
+            should have dimensions structured: time, y, x or vertex: time, icell2d
+        cmap : str, optional
+            passed to plot_array function, by default "Spectral_r"
+        norm : , optional
+            norm for the colorbar of the datarray, by default None
+        head : DataArray, optional
+            If not given the top cell is completely filled, by default None
+        plot_title : str or None, optional
+            if not None a title is added which is updated with every timestep (using
+            date_fmt for the date format), by default ""
+        date_fmt : str, optional
+            date format for plot title, by default "%Y-%m-%d"
+        cbar_label : str, optional
+            label for the colorbar, by default None
+        fname : str or Path, optional
+            filename if not None this is where the aniation is saved as mp4, by
+            default None
+
+        Returns
+        -------
+        matplotlib.animation.FuncAnimation
+            animation object
+        """
 
         f = self.ax.get_figure()
 
@@ -496,7 +571,10 @@ class DatasetCrossSection:
             cbar.set_label(da.units)
 
         t = pd.Timestamp(da.time.values[iper])
-        title = self.ax.set_title(f"{plot_title}, t = {t.strftime(date_fmt)}")
+        if plot_title is None:
+            title = None
+        else:
+            title = self.ax.set_title(f"{plot_title}, t = {t.strftime(date_fmt)}")
 
         # update func
         def update(iper, pc, title):
@@ -505,7 +583,8 @@ class DatasetCrossSection:
 
             # update title
             t = pd.Timestamp(da.time.values[iper])
-            title.set_text(f"{plot_title}, t = {t.strftime(date_fmt)}")
+            if title is not None:
+                title.set_text(f"{plot_title}, t = {t.strftime(date_fmt)}")
 
             return pc, title
 

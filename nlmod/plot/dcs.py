@@ -367,7 +367,7 @@ class DatasetCrossSection:
         """
 
         if ax is None:
-            f, ax = get_map(
+            _, ax = get_map(
                 self.ds.extent, background=background, figsize=figsize, **kwargs
             )
         gpd.GeoDataFrame(geometry=[self.line]).plot(ax=ax, ls=ls, lw=lw, label=label)

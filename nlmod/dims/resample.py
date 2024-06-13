@@ -93,22 +93,50 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
 
 
 def get_delr(ds):
-    """Get the distance along rows (delr) fromythe x-coordinate of a model dataset"""
+    """
+    Get the distance along rows (delr) from the x-coordinate of a structured model
+    dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        A model dataset containing an x-coordinate and an attribute 'extent'.
+
+    Returns
+    -------
+    delr : np.ndarray
+        The cell-size along rows (of length ncol).
+
+    """
     assert ds.gridtype == "structured"
     x = (ds.x - ds.extent[0]).values
-    delr = _get_delr_from_x(x)
+    delr = _get_delta_along_axis(x)
     return delr
 
 
 def get_delc(ds):
-    """Get the distance along columns (delr) from the x-coordinate of a model dataset"""
+    """
+    Get the distance along columns (delc) from the y-coordinate of a structured model
+    dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        A model dataset containing an y-coordinate and an attribute 'extent'.
+
+    Returns
+    -------
+    delc : np.ndarray
+        The cell-size along columns (of length nrow).
+
+    """
     assert ds.gridtype == "structured"
     y = (ds.extent[3] - ds.y).values
-    delc = _get_delr_from_x(y)
+    delc = _get_delta_along_axis(y)
     return delc
 
 
-def _get_delr_from_x(x):
+def _get_delta_along_axis(x):
     """Internal method to determine delr or delc from x or y relative to xmin or ymax"""
     delr = [x[0] * 2]
     for xi in x[1:]:

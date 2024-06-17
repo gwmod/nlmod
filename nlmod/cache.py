@@ -703,12 +703,6 @@ def ds_contains(
             datavars.append("yv")
             datavars.append("icvert")
 
-            # TODO: temporary fix until delr/delc are completely removed
-            if "delr" in datavars:
-                datavars.remove("delr")
-            if "delc" in datavars:
-                datavars.remove("delc")
-
         if "angrot" in ds.attrs:
             # set by `nlmod.base.to_model_ds()` and `nlmod.dims.resample._set_angrot_attributes()`
             attrs_angrot_required = ["angrot", "xorigin", "yorigin"]
@@ -745,8 +739,10 @@ def ds_contains(
 
         for t_attr in time_attrs_required:
             if t_attr not in ds["time"].attrs:
-                msg = f"{t_attr} not in dataset['time'].attrs. " +\
-                    "Run nlmod.time.set_ds_time() to set time."
+                msg = (
+                    f"{t_attr} not in dataset['time'].attrs. "
+                    + "Run nlmod.time.set_ds_time() to set time."
+                )
                 raise ValueError(msg)
 
     if attrs_ds:

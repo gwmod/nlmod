@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from ..dims.grid import gdf_to_grid
 from ..dims.layers import get_idomain
-from ..dims.resample import get_extent_polygon, extent_to_polygon
+from ..dims.resample import get_extent_polygon, extent_to_polygon, get_delr, get_delc
 from ..read import bgt, waterboard
 from ..cache import cache_pickle
 
@@ -147,7 +147,11 @@ def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
     # correction if group contains multiple shapes
     # but covers whole cell
     if group.area.sum() == A:
-        li = A / np.max([ds.delr, ds.delc])
+        delr = get_delr(ds)
+        assert len(np.unique(delr)) == 1, "Variable grid size is not yet supported"
+        delc = get_delc(ds)
+        assert len(np.unique(delc)) == 1, "Variable grid size is not yet supported"
+        li = A / np.max([delr[0], delc[0]])
 
     # width
     B = group.area.sum(skipna=True) / li

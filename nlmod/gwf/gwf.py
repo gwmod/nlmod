@@ -8,10 +8,10 @@ import numbers
 import warnings
 
 import flopy
-import numpy as np
 import xarray as xr
 
 from ..dims import grid
+from ..dims.resample import get_delr, get_delc
 from ..dims.layers import get_idomain
 from ..sim import ims, sim, tdis
 from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
@@ -109,11 +109,6 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
         return disv(ds, model, length_units=length_units)
 
     # check attributes
-    for att in ["delr", "delc"]:
-        if att in ds.attrs:
-            if isinstance(ds.attrs[att], np.float32):
-                ds.attrs[att] = float(ds.attrs[att])
-
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         xorigin = ds.attrs["xorigin"]
         yorigin = ds.attrs["yorigin"]
@@ -135,8 +130,8 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             nlay=ds.sizes["layer"],
             nrow=ds.sizes["y"],
             ncol=ds.sizes["x"],
-            delr=ds["delr"].values if "delr" in ds else ds.delr,
-            delc=ds["delc"].values if "delc" in ds else ds.delc,
+            delr=get_delr(ds),
+            delc=get_delc(ds),
             top=ds["top"].data,
             botm=ds["botm"].data,
             idomain=idomain,
@@ -154,8 +149,8 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             nlay=ds.sizes["layer"],
             nrow=ds.sizes["y"],
             ncol=ds.sizes["x"],
-            delr=ds["delr"].values if "delr" in ds else ds.delr,
-            delc=ds["delc"].values if "delc" in ds else ds.delc,
+            delr=get_delr(ds),
+            delc=get_delc(ds),
             top=ds["top"].data,
             botm=ds["botm"].data,
             idomain=idomain,

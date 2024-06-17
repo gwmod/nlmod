@@ -40,6 +40,8 @@ from .resample import (
     get_affine_mod_to_world,
     get_affine_world_to_mod,
     structured_da_to_ds,
+    get_delr,
+    get_delc,
 )
 
 logger = logging.getLogger(__name__)
@@ -211,17 +213,9 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
             raise TypeError(
                 f"extent should be a list, tuple or numpy array, not {type(ds.extent)}"
             )
-        if "delc" in ds:
-            delc = ds["delc"].values
-        else:
-            raise KeyError("delc not in dataset")
-        if "delr" in ds:
-            delr = ds["delr"].values
-        else:
-            raise KeyError("delr not in dataset")
         modelgrid = StructuredGrid(
-            delc=delc,
-            delr=delr,
+            delc=get_delc(ds),
+            delr=get_delr(ds),
             **kwargs,
         )
     elif ds.gridtype == "vertex":
@@ -463,8 +457,8 @@ def refine(
             gwf,
             nrow=len(ds.y),
             ncol=len(ds.x),
-            delr=ds.delr,
-            delc=ds.delc,
+            delr=get_delr(ds),
+            delc=get_delc(ds),
             xorigin=ds.extent[0],
             yorigin=ds.extent[2],
         )
@@ -1948,28 +1942,8 @@ def polygons_from_model_ds(model_ds):
     """
 
     if model_ds.gridtype == "structured":
-        # TODO: update with new delr/delc calculation
-        # check if coordinates are consistent with delr/delc values
-        delr_x = np.unique(model_ds.x.values[1:] - model_ds.x.values[:-1])
-        delc_y = np.unique(model_ds.y.values[:-1] - model_ds.y.values[1:])
-
-        delr = np.unique(model_ds.delr)
-        if len(delr) > 1:
-            raise ValueError("delr is variable")
-        else:
-            delr = delr.item()
-
-        delc = np.unique(model_ds.delc)
-        if len(delc) > 1:
-            raise ValueError("delc is variable")
-        else:
-            delc = delc.item()
-
-        if not ((delr_x == delr) and (delc_y == delc)):
-            raise ValueError(
-                "delr and delc attributes of model_ds inconsistent "
-                "with x and y coordinates"
-            )
+        delr = get_delr(model_ds)
+        delc = get_delc(model_ds)
 
         xmins = model_ds.x - (delr * 0.5)
         xmaxs = model_ds.x + (delr * 0.5)

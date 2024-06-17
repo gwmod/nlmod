@@ -370,6 +370,7 @@ def build_spd(
     celldata : geopandas.GeoDataFrame
         GeoDataFrame containing data. Cellid must be the index,
         and must have columns "rbot", "stage" and "cond".
+        Optional columns are 'boundname' and 'aux'. These columns should have type str.
     pkg : str
         Modflow package: RIV, DRN or GHB
     ds : xarray.DataSet

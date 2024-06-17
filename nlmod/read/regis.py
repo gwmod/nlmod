@@ -12,8 +12,7 @@ from . import geotop
 
 logger = logging.getLogger(__name__)
 
-REGIS_URL = "http://www.dinodata.nl:80/opendap/REGIS/REGIS.nc"
-# REGIS_URL = 'https://www.dinodata.nl/opendap/hyrax/REGIS/REGIS.nc'
+REGIS_URL = "https://dinodata.nl/opendap/REGIS/REGIS.nc"
 
 
 @cache.cache_netcdf()

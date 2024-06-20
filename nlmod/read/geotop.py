@@ -13,7 +13,7 @@ from ..util import MissingValueError
 
 logger = logging.getLogger(__name__)
 
-GEOTOP_URL = r"http://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
+GEOTOP_URL = "https://dinodata.nl/opendap/GeoTOP/geotop.nc"
 
 
 def get_lithok_props(rgb_colors=True):
@@ -591,7 +591,7 @@ def aggregate_to_ds(
             if "layer" in top.dims:
                 top = top[0].drop_vars("layer")
         else:
-            if "layer" in  ds["top"].dims:
+            if "layer" in ds["top"].dims:
                 top = ds["top"][ilay].drop_vars("layer")
             else:
                 top = ds["botm"][ilay - 1].drop_vars("layer")

@@ -364,7 +364,7 @@ def get_flow_lower_face(
                 mask = grb_ja[ia] >= ja_start_next_layer
                 if mask.any():
                     # assert mask.sum() == 1
-                    flf_index[ilay, icell2d] = int(ia[mask])
+                    flf_index[ilay, icell2d] = int(ia[mask][0])
         coords = ds["botm"][lays].coords
     else:
         coords = ds["botm"].coords

@@ -285,8 +285,8 @@ def get_bin_directory(
     # Else download the executables
     if download_if_not_found:
         download_mfbinaries(
-            bindir=bindir, 
-            version_tag=version_tag if version_tag is not None else "latest", 
+            bindir=bindir,
+            version_tag=version_tag if version_tag is not None else "latest",
             repo=repo
         )
 

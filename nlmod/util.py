@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from tkinter import W
 import warnings
 from typing import Dict, Optional
 
@@ -414,6 +415,11 @@ def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
     # 0748dcb9e4641b5ad9616af115dd3be906f98f50/flopy/utils/get_modflow.py#L623
     flopy_metadata_fp = flopy_appdata_path / "get_modflow.json"
     if not flopy_metadata_fp.exists():
+        logger.warning(
+            f"flopy metadata file not found at {flopy_metadata_fp}. "
+            "After downloading and installing the executables. "
+            "Most likely the script is run via pytest. Creating a new metadata file."
+        )
         meta = get_release(tag=version_tag, repo=repo, quiet=True)
         meta["bindir"] = str(bindir)
 

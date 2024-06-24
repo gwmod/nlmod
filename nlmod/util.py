@@ -201,7 +201,7 @@ def get_bin_directory(
     Parameters
     ----------
     exe_name : str, optional
-        The name of the executable, by default None.
+        The name of the executable, by default mf6.
     bindir : Path, optional
         The directory where the executables are stored, by default "mf6".
     download_if_not_found : bool, optional
@@ -211,12 +211,13 @@ def get_bin_directory(
         "modflow6", or "modflow6-nightly-build". If repo and version_tag are
         provided the most recent installation location of MODFLOW is found in flopy metadata
         that respects `version_tag` and `repo`. If not found, the executables are downloaded
-        using repo and version_tag.
+        using repo and version_tag. repo cannot be None. 
     version_tag : str, default None
         GitHub release ID: for example "18.0" or "latest". If repo and version_tag are
         provided the most recent installation location of MODFLOW is found in flopy metadata
         that respects `version_tag` and `repo`. If not found, the executables are downloaded
-        using repo and version_tag.
+        using repo and version_tag. If version_tag is None, no version check is performed
+        on present executables and if no exe is found, the latest version is downloaded.
 
     Returns
     -------
@@ -233,7 +234,7 @@ def get_bin_directory(
     if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
         exe_name += ".exe"
 
-    enable_version_check = version_tag is not None and repo is not None
+    enable_version_check = version_tag is not None
 
     # If exe_name is a full path
     if Path(exe_name).exists():
@@ -283,7 +284,11 @@ def get_bin_directory(
 
     # Else download the executables
     if download_if_not_found:
-        download_mfbinaries(bindir=bindir, version_tag=version_tag, repo=repo)
+        download_mfbinaries(
+            bindir=bindir, 
+            version_tag=version_tag if version_tag is not None else "latest", 
+            repo=repo
+        )
 
         # Rerun this function
         return get_bin_directory(

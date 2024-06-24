@@ -4,7 +4,6 @@ import os
 import re
 import sys
 from pathlib import Path
-from tkinter import W
 import warnings
 from typing import Dict, Optional
 

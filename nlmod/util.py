@@ -415,11 +415,13 @@ def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
     flopy_metadata_fp = flopy_appdata_path / "get_modflow.json"
 
     if not flopy_metadata_fp.exists():
-        logger.warning(
-            f"flopy metadata file not found at {flopy_metadata_fp}. "
-            "After downloading and installing the executables. "
-            "Most likely the script is run via pytest. Creating a new metadata file."
-        )
+        if "pytest" not in str(bindir) and "pytest" not in sys.modules:
+            logger.warning(
+                f"flopy metadata file not found at {flopy_metadata_fp}. "
+                "After downloading and installing the executables. "
+                "Creating a new metadata file."
+            )
+
         release_metadata = get_release(tag=version_tag, repo=repo, quiet=True)
         install_metadata = {
             "release_id": release_metadata["tag_name"],

@@ -71,8 +71,8 @@ def _get_time_index(fobj, ds=None, gwf_or_gwt=None):
     elif ds is not None:
         tindex = ds_time_idx(
             fobj.get_times(),
-            start_datetime=ds.time.attrs["start"],
-            time_units=ds.time.attrs["time_units"],
+            start_datetime=(ds.time.attrs["start"] if "time" in ds else None),
+            time_units=(ds.time.attrs["time_units"] if "time" in ds else None),
         )
     return tindex
 

@@ -259,7 +259,7 @@ def compute_scale_and_offset(min_value, max_value):
 
 def is_int16_allowed(vmin, vmax, dval_max):
     """Compute the loss of resolution by storing a float as int16 (`dval`).
-    
+
     Compare it with the maximum allowed loss of resolution (`dval_max`).
 
     Parameters

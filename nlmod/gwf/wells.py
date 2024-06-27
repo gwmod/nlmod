@@ -69,7 +69,6 @@ def wel_from_df(
     -------
     wel : flopy.mf6.ModflowGwfwel
         wel package.
-
     """
     if aux is None:
         aux = []

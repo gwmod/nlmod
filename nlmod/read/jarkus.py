@@ -1,12 +1,13 @@
-"""module with functions to deal with the northsea by:
+"""Module with functions to deal with the northsea.
 
-    - identifying model cells with the north sea
+    - identify model cells with the north sea
     - add bathymetry of the northsea to the layer model
-    - extrpolate the layer model below the northsea bed.
+    - extrapolate the layer model below the northsea bed.
 
 
 Note: if you like jazz please check this out: https://www.northseajazz.com
 """
+
 import datetime as dt
 import logging
 import os

@@ -288,7 +288,7 @@ def get_bin_directory(
         download_mfbinaries(
             bindir=bindir,
             version_tag=version_tag if version_tag is not None else "latest",
-            repo=repo
+            repo=repo,
         )
 
         # Rerun this function
@@ -501,7 +501,7 @@ def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
 
 def find_most_recent_file(folder, name, extension=".pklz"):
     """Find the most recent file in a folder.
-    
+
     File must startwith name and end width extension. If you want to look for the most
     recent folder use extension = ''.
 
@@ -635,7 +635,7 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
 
 def gdf_within_extent(gdf, extent):
     """Select only parts of the geodataframe within the extent.
-    
+
     Only accepts Polygon and Linestring geometry types.
 
     Parameters
@@ -690,7 +690,7 @@ def get_google_drive_filename(fid, timeout=120):
     warnings.warn(
         "this function is no longer supported use the gdown package instead",
         DeprecationWarning,
-        stacklevel=1
+        stacklevel=1,
     )
 
     if isinstance(id, requests.Response):
@@ -717,7 +717,7 @@ def download_file_from_google_drive(fid, destination=None):
     warnings.warn(
         "this function is no longer supported use the gdown package instead",
         DeprecationWarning,
-        stacklevel=1
+        stacklevel=1,
     )
 
     def get_confirm_token(response):

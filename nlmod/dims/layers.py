@@ -1299,7 +1299,7 @@ def get_idomain(ds):
     idomain.attrs.clear()
     # set idomain of cells  with a positive thickness to 1
     thickness = calculate_thickness(ds)
-    # subtracting floats can result in rounding errors. Mainly anoying for zero 
+    # subtracting floats can result in rounding errors. Mainly anoying for zero
     # thickness layers.
     thickness = thickness.where(~np.isclose(thickness, 0.0), 0.0)
     idomain.data[thickness.data > 0.0] = 1

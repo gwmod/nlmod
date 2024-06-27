@@ -720,7 +720,7 @@ def ds_contains(
         datavars.append("tsmult")
 
     if attrs_ds:
-        # set by `nlmod.base.to_model_ds()` and `nlmod.base.set_ds_attrs()`, 
+        # set by `nlmod.base.to_model_ds()` and `nlmod.base.set_ds_attrs()`,
         # excluding "created_on"
         attrs_ds_required = [
             "model_name",

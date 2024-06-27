@@ -884,8 +884,8 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
 
 
 def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
-    """Add a column names with the minimum surface level height near surface
-    water features.
+    """Add a column names with the minimum surface level height near surface water
+    features.
 
     Parameters
     ----------
@@ -906,7 +906,6 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
     """
-
     from geocube.api.core import make_geocube
     from geocube.rasterize import rasterize_image
 

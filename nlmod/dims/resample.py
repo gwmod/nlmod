@@ -508,7 +508,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     return xr.DataArray(z, dims=dims, coords=coords)
 
 
-def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
+def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
     """Resample a DataArray to the coordinates of a model dataset.
 
     Parameters

@@ -39,19 +39,17 @@ from .resample import (
     affine_transform_gdf,
     get_affine_mod_to_world,
     get_affine_world_to_mod,
-    structured_da_to_ds,
-    get_delr,
     get_delc,
+    get_delr,
+    structured_da_to_ds,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def snap_extent(extent, delr, delc):
-    """
-    snap the extent in such a way that an integer number of columns and rows fit
-    in the extent. The new extent is always equal to, or bigger than the
-    original extent.
+    """Snap the extent in such a way that an integer number of columns and rows fit in
+    the extent. The new extent is always equal to, or bigger than the original extent.
 
     Parameters
     ----------
@@ -96,7 +94,7 @@ def snap_extent(extent, delr, delc):
 
 
 def xy_to_icell2d(xy, ds):
-    """get the icell2d value of a point defined by its x and y coordinates.
+    """Get the icell2d value of a point defined by its x and y coordinates.
 
     Parameters
     ----------
@@ -118,7 +116,7 @@ def xy_to_icell2d(xy, ds):
 
 
 def xy_to_row_col(xy, ds):
-    """get the row and column values of a point defined by its x and y coordinates.
+    """Get the row and column values of a point defined by its x and y coordinates.
 
     Parameters
     ----------
@@ -142,7 +140,7 @@ def xy_to_row_col(xy, ds):
 
 
 def xyz_to_cid(xyz, ds=None, modelgrid=None):
-    """get the icell2d value of a point defined by its x and y coordinates.
+    """Get the icell2d value of a point defined by its x and y coordinates.
 
     Parameters
     ----------
@@ -231,7 +229,6 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
 
 def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     """Add information about the calculation-grid to a model dataset."""
-
     warnings.warn(
         "'modelgrid_to_vertex_ds' is deprecated and will be removed in a"
         "future version, please use 'modelgrid_to_ds' instead",
@@ -345,8 +342,9 @@ def get_dims_coords_from_modelgrid(mg):
 
 
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
-    """Gridprops is a dictionary containing keyword arguments needed to
-    generate a flopy modelgrid instance."""
+    """Gridprops is a dictionary containing keyword arguments needed to generate a flopy
+    modelgrid instance.
+    """
     _, xv, yv = zip(*gridprops["vertices"])
     ds["xv"] = ("iv", np.array(xv))
     ds["yv"] = ("iv", np.array(yv))
@@ -520,8 +518,8 @@ def refine(
 
 
 def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
-    """resample a dataset (xarray) on an structured grid to a new dataset with
-    a vertex grid.
+    """Resample a dataset (xarray) on an structured grid to a new dataset with a vertex
+    grid.
 
     Returns a dataset with resampled variables and the untouched variables.
 
@@ -577,7 +575,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
         # add other variables
         for not_interp_var in not_interp_vars:
             ds_out[not_interp_var] = structured_da_to_ds(
-                da=ds_in[not_interp_var], ds=ds_out, method=method, nodata=np.NaN
+                da=ds_in[not_interp_var], ds=ds_out, method=method, nodata=np.nan
             )
     has_rotation = "angrot" in ds_out.attrs and ds_out.attrs["angrot"] != 0.0
     if has_rotation:
@@ -601,8 +599,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
 
 
 def get_xyi_icell2d(gridprops=None, ds=None):
-    """Get x and y coordinates of the cell mids from the cellids in the grid
-    properties.
+    """Get x and y coordinates of the cell mids from the cellids in the grid properties.
 
     Parameters
     ----------
@@ -634,9 +631,9 @@ def get_xyi_icell2d(gridprops=None, ds=None):
 
 
 def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
-    """Add variables from a layer Dataset to a model Dataset. Keep de grid-
-    information from the model Dataset (x and y or icell2d), but update the
-    layer dimension when neccesary.
+    """Add variables from a layer Dataset to a model Dataset. Keep de grid- information
+    from the model Dataset (x and y or icell2d), but update the layer dimension when
+    neccesary.
 
     Parameters
     ----------
@@ -723,7 +720,6 @@ def col_to_list(col_in, ds, cellids):
     col_lst : list
         raster values from ds presented in a list per cell.
     """
-
     if isinstance(col_in, str) and col_in in ds:
         col_in = ds[col_in]
     if isinstance(col_in, xr.DataArray):
@@ -951,7 +947,6 @@ def cols_to_reclist(ds, cellids, *args, cellid_column=0):
     cellid_column : int, optional
         Adds the cellid ((layer, row, col) or (layer, icell2d)) to the reclist in this
         column number. Do not add cellid when cellid_column is None. The default is 0.
-
     """
     cols = [col_to_list(col, ds, cellids) for col in args]
     if cellid_column is not None:
@@ -1079,8 +1074,7 @@ def da_to_reclist(
 
 
 def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
-    """create a grid with the surface area in each cell based on a polygon
-    value.
+    """Create a grid with the surface area in each cell based on a polygon value.
 
     Parameters
     ----------
@@ -1126,8 +1120,8 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
 def gdf_to_data_array_struc(
     gdf, gwf, field="VALUE", agg_method=None, interp_method=None
 ):
-    """Project vector data on a structured grid. Aggregate data if multiple
-    geometries are in a single cell.
+    """Project vector data on a structured grid. Aggregate data if multiple geometries
+    are in a single cell.
 
     Parameters
     ----------
@@ -1192,11 +1186,11 @@ def gdf_to_data_array_struc(
 
 
 def gdf_to_da(
-    gdf, ds, column, agg_method=None, fill_value=np.NaN, min_total_overlap=0.0, ix=None
+    gdf, ds, column, agg_method=None, fill_value=np.nan, min_total_overlap=0.0, ix=None
 ):
-    """Project vector data on a grid. Aggregate data if multiple
-    geometries are in a single cell. Supports structured and vertex grids.
-    This method replaces gdf_to_data_array_struc.
+    """Project vector data on a grid. Aggregate data if multiple geometries are in a
+    single cell. Supports structured and vertex grids. This method replaces
+    gdf_to_data_array_struc.
 
     Parameters
     ----------
@@ -1273,7 +1267,7 @@ def gdf_to_da(
 
 
 def interpolate_gdf_to_array(gdf, gwf, field="values", method="nearest"):
-    """interpolate data from a point gdf.
+    """Interpolate data from a point gdf.
 
     Parameters
     ----------
@@ -1462,9 +1456,9 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
 
 
 def gdf_to_bool_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
-    """convert a GeoDataFrame with polygon geometries into a data array
-    corresponding to the modelgrid in which each cell is 1 (True) if one or
-    more geometries are (partly) in that cell.
+    """Convert a GeoDataFrame with polygon geometries into a data array corresponding to
+    the modelgrid in which each cell is 1 (True) if one or more geometries are (partly)
+    in that cell.
 
     Parameters
     ----------
@@ -1489,9 +1483,9 @@ def gdf_to_bool_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
 
 
 def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kwargs):
-    """convert a GeoDataFrame with polygon geometries into a model dataset with
-    a data_array named 'da_name' in which each cell is 1 (True) if one or more
-    geometries are (partly) in that cell.
+    """Convert a GeoDataFrame with polygon geometries into a model dataset with a
+    data_array named 'da_name' in which each cell is 1 (True) if one or more geometries
+    are (partly) in that cell.
 
     Parameters
     ----------
@@ -1703,7 +1697,7 @@ def gdf_to_grid(
 
 
 def get_thickness_from_topbot(top, bot):
-    """get thickness from data arrays with top and bots.
+    """Get thickness from data arrays with top and bots.
 
     Parameters
     ----------
@@ -1745,9 +1739,9 @@ def get_thickness_from_topbot(top, bot):
 
 
 def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
-    """get vertices of a vertex modelgrid from a ds or the modelgrid. Only
-    return the 4 corners of each cell and not the corners of adjacent cells
-    thus limiting the vertices per cell to 4 points.
+    """Get vertices of a vertex modelgrid from a ds or the modelgrid. Only return the 4
+    corners of each cell and not the corners of adjacent cells thus limiting the
+    vertices per cell to 4 points.
 
     This method uses the xvertices and yvertices attributes of the modelgrid.
     When no modelgrid is supplied, a modelgrid-object is created from ds.
@@ -1809,9 +1803,9 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
 
 
 def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
-    """get vertices of a vertex modelgrid from a ds or the modelgrid. Only
-    return the 4 corners of each cell and not the corners of adjacent cells
-    thus limiting the vertices per cell to 4 points.
+    """Get vertices of a vertex modelgrid from a ds or the modelgrid. Only return the 4
+    corners of each cell and not the corners of adjacent cells thus limiting the
+    vertices per cell to 4 points.
 
     This method uses the xvertices and yvertices attributes of the modelgrid.
     When no modelgrid is supplied, a modelgrid-object is created from ds.
@@ -1842,7 +1836,6 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
     vertices_da : xarray DataArray
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
-
     # obtain
 
     vertices_arr = get_vertices_arr(
@@ -1863,8 +1856,8 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
 
 @cache.cache_netcdf(coords_2d=True)
 def mask_model_edge(ds, idomain=None):
-    """get data array which is 1 for every active cell (defined by idomain) at
-    the boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
+    """Get data array which is 1 for every active cell (defined by idomain) at the
+    boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
 
     Parameters
     ----------
@@ -1940,7 +1933,6 @@ def polygons_from_model_ds(model_ds):
     polygons : list of shapely Polygons
         list with polygon of each raster cell.
     """
-
     if model_ds.gridtype == "structured":
         delr = get_delr(model_ds)
         delc = get_delc(model_ds)

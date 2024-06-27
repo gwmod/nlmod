@@ -1,12 +1,11 @@
+import io
 import logging
 import os
-import io
-import requests
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-
+import requests
 import rioxarray
 
 from ..dims.resample import structured_da_to_ds
@@ -15,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
-    """
-    Download a file from the NHI website.
+    """Download a file from the NHI website.
 
     Parameters
     ----------
@@ -37,7 +35,6 @@ def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
     -------
     fname : str
         The full path of the downloaded file.
-
     """
     if filename is None:
         filename = url.split("/")[-1]
@@ -51,8 +48,7 @@ def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
 
 
 def download_buisdrainage(pathname, overwrite=False):
-    """
-    Download resistance and depth of buisdrainage from the NHI website
+    """Download resistance and depth of buisdrainage from the NHI website.
 
     Parameters
     ----------
@@ -67,7 +63,6 @@ def download_buisdrainage(pathname, overwrite=False):
         The full path of the downloaded file containing the resistance of buisdrainage.
     fname_d : str
         The full path of the downloaded file containing the depth of buisdrainage.
-
     """
     url_bas = "https://thredds.data.nhi.nu/thredds/fileServer/opendap/models/nhi3_2/25m"
 
@@ -90,8 +85,7 @@ def add_buisdrainage(
     cond_method="average",
     depth_method="mode",
 ):
-    """
-    Add data about the buisdrainage to the model Dataset.
+    """Add data about the buisdrainage to the model Dataset.
 
     This data consists of the conductance of buisdrainage (m2/d) and the depth of
     buisdrainage (m to surface level). With the default settings for `cond_method` and
@@ -129,7 +123,6 @@ def add_buisdrainage(
     ds : xr.Dataset
         The model dataset with added variables with the names `cond_var` and
         `depth_var`.
-
     """
     if pathname is None:
         pathname = ds.cachedir
@@ -190,8 +183,7 @@ def get_gwo_wells(
     timeout=120,
     **kwargs,
 ):
-    """
-    Get metadata of extraction wells from the NHI GWO database
+    """Get metadata of extraction wells from the NHI GWO database.
 
     Parameters
     ----------
@@ -228,7 +220,6 @@ def get_gwo_wells(
     -------
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame containing the properties of the wells and their filters.
-
     """
     # zie https://gwo.nhi.nu/api/v1/download/
     url = "https://gwo.nhi.nu/api/v1/well_filters/"
@@ -284,8 +275,7 @@ def get_gwo_measurements(
     timeout=120,
     **kwargs,
 ):
-    """
-    Get extraction rates and metadata of wells from the NHI GWO database
+    """Get extraction rates and metadata of wells from the NHI GWO database.
 
     Parameters
     ----------
@@ -321,7 +311,6 @@ def get_gwo_measurements(
         A DataFrame containing the extraction rates of the wells in the database.
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame containing the properties of the wells and their filters.
-
     """
     url = "http://gwo.nhi.nu/api/v1/measurements/"
     properties = []

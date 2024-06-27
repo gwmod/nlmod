@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf(coords_3d=True, coords_time=True)
 def get_recharge(ds, method="linear", most_common_station=False):
-    """add multiple recharge packages to the groundwater flow model with knmi
+    """Add multiple recharge packages to the groundwater flow model with knmi
     data by following these steps:
        1. check for each cell (structured or vertex) which knmi measurement
           stations (prec and evap) are the closest.
@@ -50,7 +50,6 @@ def get_recharge(ds, method="linear", most_common_station=False):
     ds : xr.DataSet
         dataset with spatial model data including the rch raster
     """
-
     if "time" not in ds:
         raise (
             AttributeError(
@@ -159,7 +158,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
 
 
 def get_locations_vertex(ds):
-    """get dataframe with the locations of the grid cells of a vertex grid.
+    """Get dataframe with the locations of the grid cells of a vertex grid.
 
     Parameters
     ----------
@@ -193,7 +192,7 @@ def get_locations_vertex(ds):
 
 
 def get_locations_structured(ds):
-    """get dataframe with the locations of the grid cells of a structured grid.
+    """Get dataframe with the locations of the grid cells of a structured grid.
 
     Parameters
     ----------
@@ -206,7 +205,6 @@ def get_locations_structured(ds):
         DataFrame with the locations of all active grid cells.
         includes the columns: x, y, row, col and layer
     """
-
     # store x and y mids in locations of active cells
     fal = get_first_active_layer(ds)
     rows, columns = np.where(fal != fal.attrs["nodata"])
@@ -228,7 +226,7 @@ def get_locations_structured(ds):
 
 
 def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False):
-    """get knmi data at the locations of the active grid cells in ds.
+    """Get knmi data at the locations of the active grid cells in ds.
 
     Parameters
     ----------

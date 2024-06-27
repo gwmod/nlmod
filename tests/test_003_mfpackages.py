@@ -94,7 +94,7 @@ def get_value_from_ds_datavar():
         },
     )
     shape = list(ds.sizes.values())
-    ds["test_var"] = ("layer", "y", "x"), np.arange(np.product(shape)).reshape(shape)
+    ds["test_var"] = ("layer", "y", "x"), np.arange(np.prod(shape)).reshape(shape)
 
     # get value from ds
     v0 = nlmod.util._get_value_from_ds_datavar(

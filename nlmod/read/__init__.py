@@ -1,3 +1,4 @@
+# ruff: noqa: F401
 from . import (
     administrative,
     ahn,
@@ -9,11 +10,11 @@ from . import (
     knmi,
     knmi_data_platform,
     meteobase,
+    nhi,
     regis,
     rws,
     waterboard,
     webservices,
-    nhi,
 )
 from .geotop import get_geotop
 from .regis import get_regis

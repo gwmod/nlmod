@@ -103,7 +103,6 @@ def to_model_layers(
     ds: xr.DataSet
         dataset with top and botm (and optionally kh and kv) per geotop layer
     """
-
     if strat_props is None:
         strat_props = get_strat_props()
 
@@ -135,8 +134,8 @@ def to_model_layers(
     geulen = []
     for layer, unit in enumerate(units):
         mask = strat == unit
-        top[layer] = np.nanmax(np.where(mask, z, np.NaN), 0) + 0.25
-        bot[layer] = np.nanmin(np.where(mask, z, np.NaN), 0) - 0.25
+        top[layer] = np.nanmax(np.where(mask, z, np.nan), 0) + 0.25
+        bot[layer] = np.nanmin(np.where(mask, z, np.nan), 0) - 0.25
         if int(unit) in strat_props.index:
             layers.append(strat_props.at[unit, "code"])
         else:
@@ -236,8 +235,8 @@ def to_model_layers(
 @cache.cache_netcdf()
 def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
-    coordinates to match the cell centers and keep only the strat and lithok
-    data variables.
+    coordinates to match the cell centers and keep only the strat and lithok data
+    variables.
 
     Parameters
     ----------
@@ -319,12 +318,12 @@ def add_top_and_botm(ds):
     """
     bottom = np.expand_dims(ds.z.values - 0.25, axis=(1, 2))
     bottom = np.repeat(np.repeat(bottom, len(ds.y), 1), len(ds.x), 2)
-    bottom[np.isnan(ds.strat.values)] = np.NaN
+    bottom[np.isnan(ds.strat.values)] = np.nan
     ds["botm"] = ("z", "y", "x"), bottom
 
     top = np.expand_dims(ds.z.values + 0.25, axis=(1, 2))
     top = np.repeat(np.repeat(top, len(ds.y), 1), len(ds.x), 2)
-    top[np.isnan(ds.strat.values)] = np.NaN
+    top[np.isnan(ds.strat.values)] = np.nan
     ds["top"] = ("z", "y", "x"), top
     return ds
 
@@ -380,7 +379,6 @@ def add_kh_and_kv(
 
     Raises
     ------
-
         DESCRIPTION.
 
     Returns
@@ -411,8 +409,8 @@ def add_kh_and_kv(
     if stochastic is None:
         # calculate kh and kv from most likely lithoclass
         lithok = gt["lithok"].values
-        kh_ar = np.full(lithok.shape, np.NaN)
-        kv_ar = np.full(lithok.shape, np.NaN)
+        kh_ar = np.full(lithok.shape, np.nan)
+        kv_ar = np.full(lithok.shape, np.nan)
         if "strat" in df:
             combs = np.column_stack((strat.ravel(), lithok.ravel()))
             # drop nans
@@ -445,7 +443,7 @@ def add_kh_and_kv(
             probality = gt[f"kans_{ilithok}"].values
             if "strat" in df:
                 khi, kvi = _handle_nans_in_stochastic_approach(
-                    np.NaN, np.NaN, kh_method, kv_method
+                    np.nan, np.nan, kh_method, kv_method
                 )
                 khi = np.full(strat.shape, khi)
                 kvi = np.full(strat.shape, kvi)
@@ -508,7 +506,7 @@ def _get_kh_kv_from_df(df, ilithok, istrat=None, anisotropy=1.0, mask=None):
         else:
             msg = f"{msg}. Setting values of {mask.sum()} voxels to NaN."
         logger.warning(msg)
-        return np.NaN, np.NaN
+        return np.nan, np.nan
 
     kh = df.loc[mask_df, "kh"].mean()
     if "kv" in df:
@@ -540,8 +538,8 @@ def _handle_nans_in_stochastic_approach(kh, kv, kh_method, kv_method):
 def aggregate_to_ds(
     gt, ds, kh="kh", kv="kv", kd="kD", c="c", kh_gt="kh", kv_gt="kv", add_kd_and_c=False
 ):
-    """Aggregate voxels from GeoTOP to layers in a model DataSet with top and
-    botm, to calculate kh and kv.
+    """Aggregate voxels from GeoTOP to layers in a model DataSet with top and botm, to
+    calculate kh and kv.
 
     Parameters
     ----------

@@ -75,7 +75,7 @@ def test_get_ds_variable_delrc():
     )
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_create_small_model_grid_only(tmpdir, model_name="test"):
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
     # extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
@@ -117,7 +117,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     ds.to_netcdf(os.path.join(tst_model_dir, "small_model.nc"))
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_create_sea_model_grid_only(tmpdir, model_name="test"):
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
     # extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
@@ -143,7 +143,7 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
     ds.to_netcdf(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
     ds = get_ds_time_transient(tmpdir)
     extent = [95000.0, 105000.0, 494000.0, 500000.0]
@@ -160,7 +160,7 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
     ds.to_netcdf(os.path.join(tst_model_dir, "sea_model_grid_50.nc"))
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_create_sea_model(tmpdir):
     ds = xr.open_dataset(
         os.path.join(tst_model_dir, "basic_sea_model.nc"), mask_and_scale=False
@@ -210,7 +210,7 @@ def test_create_sea_model(tmpdir):
     _ = nlmod.sim.write_and_run(sim, ds)
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_create_sea_model_perlen_list(tmpdir):
     ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 
@@ -280,7 +280,7 @@ def test_create_sea_model_perlen_list(tmpdir):
     nlmod.sim.write_and_run(sim, ds)
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_create_sea_model_perlen_14(tmpdir):
     ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
 

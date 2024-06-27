@@ -75,7 +75,6 @@ def set_ds_time_deprecated(
     ds : xarray.Dataset
         dataset with time variant model data
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.time.set_ds_time() in the future.",
@@ -200,7 +199,6 @@ def set_ds_time(
     -------
     ds : xarray.Dataset
         model dataset with added time coordinate
-
     """
     logger.info(
         "Function set_ds_time() has changed since nlmod version 0.7."
@@ -280,7 +278,6 @@ def set_ds_time(
 def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units="D"):
     """Get time index from TDIS perioddata: perlen, nstp, tsmult.
 
-
     Parameters
     ----------
     start : str, pd.Timestamp
@@ -356,7 +353,6 @@ def estimate_nstp(
         if `return_dt_arr` is `True` returns the durations of the timesteps
         corresponding with the returned nstp.
     """
-
     nt = len(forcing)
 
     # Scaled linear between min and max. array nstp will be modified along the way
@@ -409,8 +405,7 @@ def estimate_nstp(
 
 
 def get_time_step_length(perlen, nstp, tsmult):
-    """
-    Get the length of the timesteps within a singe stress-period.
+    """Get the length of the timesteps within a singe stress-period.
 
     Parameters
     ----------
@@ -426,7 +421,6 @@ def get_time_step_length(perlen, nstp, tsmult):
     t : np.ndarray
         An array with the length of each of the timesteps within the stress period, in
         the same unit as perlen.
-
     """
     t = np.array([tsmult**x for x in range(nstp)])
     t = t * perlen / t.sum()
@@ -455,7 +449,6 @@ def ds_time_idx_from_model(gwf):
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-
     return ds_time_idx_from_modeltime(gwf.modeltime)
 
 
@@ -481,7 +474,6 @@ def ds_time_idx_from_modeltime(modeltime):
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-
     return ds_time_idx(
         np.cumsum(modeltime.perlen),
         start_datetime=modeltime.start_datetime,

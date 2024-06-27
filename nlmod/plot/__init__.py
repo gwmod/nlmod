@@ -1,3 +1,4 @@
+# ruff: noqa: F401
 from . import flopy
 from .dcs import DatasetCrossSection
 from .plot import (
@@ -7,6 +8,7 @@ from .plot import (
     geotop_lithok_in_cross_section,
     geotop_lithok_on_map,
     map_array,
+    modelextent,
     modelgrid,
     surface_water,
 )

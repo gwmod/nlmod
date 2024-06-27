@@ -24,8 +24,7 @@ def wel_from_df(
     auxmultname="multiplier",
     **kwargs,
 ):
-    """
-    Add a Well (WEL) package based on input from a (Geo)DataFrame.
+    """Add a Well (WEL) package based on input from a (Geo)DataFrame.
 
     Parameters
     ----------
@@ -140,8 +139,7 @@ def maw_from_df(
     ds=None,
     **kwargs,
 ):
-    """
-    Add a Multi-AquiferWell (MAW) package based on input from a (Geo)DataFrame.
+    """Add a Multi-AquiferWell (MAW) package based on input from a (Geo)DataFrame.
 
     Parameters
     ----------
@@ -188,7 +186,6 @@ def maw_from_df(
     -------
     wel : flopy.mf6.ModflowGwfmaw
         maw package.
-
     """
     if aux is None:
         aux = []
@@ -267,8 +264,7 @@ def maw_from_df(
 
 
 def _add_cellid(df, ds=None, gwf=None, x="x", y="y"):
-    """
-    Intersect a DataFrame of point Data with the model grid, and add cellid-column.
+    """Intersect a DataFrame of point Data with the model grid, and add cellid-column.
 
     Parameters
     ----------
@@ -290,7 +286,6 @@ def _add_cellid(df, ds=None, gwf=None, x="x", y="y"):
     df : gpd.GeoDataFrame
         A GeoDataFrame with a column named cellid that contains the icell2d-number
         (vertex-grid) or (row, column) (structured grid).
-
     """
     if not isinstance(df, gpd.GeoDataFrame):
         df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df[x], df[y]))
@@ -300,8 +295,7 @@ def _add_cellid(df, ds=None, gwf=None, x="x", y="y"):
 
 
 def _get_layer_multiplier_for_wells(df, top, botm, ds=None, gwf=None):
-    """
-    Get factors (pandas.DataFrame) for each layer that well screens intersects with.
+    """Get factors (pandas.DataFrame) for each layer that well screens intersects with.
 
     Parameters
     ----------
@@ -322,7 +316,6 @@ def _get_layer_multiplier_for_wells(df, top, botm, ds=None, gwf=None):
     multipliers : pd.DataFrame
         A DataFrame containg the multiplication factors, with the layers as the index
         and the name of the well screens (the index of df) as columns.
-
     """
     # get required data either from  gwf or ds
     if ds is not None:
@@ -351,8 +344,7 @@ def _get_layer_multiplier_for_wells(df, top, botm, ds=None, gwf=None):
 
 
 def _get_layer_multiplier_for_well(cid, well_top, well_bot, ml_top, ml_bot, ml_kh):
-    """
-    Get a factor (numpy array) for each layer that a well screen intersects with.
+    """Get a factor (numpy array) for each layer that a well screen intersects with.
 
     Parameters
     ----------
@@ -373,7 +365,6 @@ def _get_layer_multiplier_for_well(cid, well_top, well_bot, ml_top, ml_bot, ml_k
     -------
     multiplier : numpy array
         An array with a factor (between 0 and 1) for each of the model layers.
-
     """
     # keep the tops and botms of the cell where the well is in
     ml_top_cid = ml_top[cid].copy()

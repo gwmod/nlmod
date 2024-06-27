@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf()
 def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
-    """get bathymetry of the Northsea from the jarkus dataset.
+    """Get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
@@ -126,7 +126,6 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
         dataset containing bathymetry data
 
     """
-
     extent = [int(x) for x in extent]
 
     netcdf_tile_names = get_jarkus_tilenames(extent, kind)

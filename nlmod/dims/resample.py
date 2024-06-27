@@ -16,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_xy_mid_structured(extent, delr, delc, descending_y=True):
-    """Calculates the x and y coordinates of the cell centers of a structured
-    grid.
+    """Calculates the x and y coordinates of the cell centers of a structured grid.
 
     Parameters
     ----------
@@ -154,8 +153,8 @@ def ds_to_structured_grid(
     angrot=0.0,
     method="nearest",
 ):
-    """Resample a dataset (xarray) from a structured grid to a new dataset from
-    a different structured grid.
+    """Resample a dataset (xarray) from a structured grid to a new dataset from a
+    different structured grid.
 
     Parameters
     ----------
@@ -193,7 +192,6 @@ def ds_to_structured_grid(
         dataset with dimensions (layer, y, x). y and x are from the new
         grid.
     """
-
     assert isinstance(ds_in, xr.core.dataset.Dataset)
     if delc is None:
         delc = delr
@@ -224,8 +222,7 @@ def ds_to_structured_grid(
 
 
 def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
-    """Internal method to set the properties of the grid in an attribute
-    dictionary.
+    """Internal method to set the properties of the grid in an attribute dictionary.
 
     Parameters
     ----------
@@ -283,7 +280,7 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
 
 
 def fillnan_da_structured_grid(xar_in, method="nearest"):
-    """fill not-a-number values in a structured grid, DataArray.
+    """Fill not-a-number values in a structured grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
     scipy.interpolate.griddata function
@@ -343,7 +340,7 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
 
 
 def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
-    """fill not-a-number values in a vertex grid, DataArray.
+    """Fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
     scipy.interpolate.griddata function
@@ -373,7 +370,6 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     -----
     can be slow if the xar_in is a large raster
     """
-
     if xar_in.dims != ("icell2d",):
         raise ValueError(
             f"expected dataarray with dimensions ('icell2d'), got dimensions -> {xar_in.dims}"
@@ -405,7 +401,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
 
 
 def fillnan_da(da, ds=None, method="nearest"):
-    """fill not-a-number values in a DataArray.
+    """Fill not-a-number values in a DataArray.
 
     The fill values are determined using the 'nearest' method of the
     scipy.interpolate.griddata function
@@ -455,7 +451,6 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     xarray.DataArray
         A DataArray, with the same gridtype as ds.
     """
-
     if "icell2d" not in da.dims:
         return structured_da_to_ds(da, ds, method=method)
     points = np.array((da.x.data, da.y.data)).T

@@ -11,10 +11,10 @@ from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine_world_to_mod
 from ..mfoutput.mfoutput import (
     _get_budget_da,
-    _get_heads_da,
-    _get_time_index,
     _get_flopy_data_object,
     _get_grb_file,
+    _get_heads_da,
+    _get_time_index,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,6 @@ def get_heads_da(
     **kwargs,
 ):
     """Read binary heads file.
-
 
     Parameters
     ----------
@@ -202,9 +201,8 @@ def get_budget_da(
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):
-    """Get the groundwater level from a multi-dimensional head array where dry
-    cells are NaN. This methods finds the most upper non-nan-value of each cell
-    or timestep.
+    """Get the groundwater level from a multi-dimensional head array where dry cells are
+    NaN. This methods finds the most upper non-nan-value of each cell or timestep.
 
     Parameters
     ----------
@@ -249,8 +247,7 @@ def get_gwl_from_wet_cells(head, layer="layer", botm=None):
 
 
 def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
-    """
-    Get the flow residuals of a MODFLOW 6 simulation.
+    """Get the flow residuals of a MODFLOW 6 simulation.
 
     Parameters
     ----------
@@ -272,7 +269,6 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
     -------
     da : xr.DataArray
         The flow residual in each cell, in m3/d.
-
     """
     if grb_file is None:
         grb_file = _get_grb_file(ds)
@@ -289,7 +285,7 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
         for iflowja in flowja:
             # residuals.append(flopy.mf6.utils.get_residuals(iflowja, grb_file))
             # use our own faster method instead of a for loop:
-            residual = np.full(grb.shape, np.NaN)
+            residual = np.full(grb.shape, np.nan)
             residual.ravel()[mask_active] = iflowja.flatten()[flowja_index]
             residuals.append(residual)
         dims = ("time",) + dims
@@ -297,7 +293,7 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
     else:
         # residuals = flopy.mf6.utils.get_residuals(flowja[0], grb_file)
         # use our own faster method instead of a for loop:
-        residuals = np.full(grb.shape, np.NaN)
+        residuals = np.full(grb.shape, np.nan)
         residuals.ravel()[mask_active] = flowja[0].flatten()[flowja_index]
     da = xr.DataArray(residuals, dims=dims, coords=coords)
     return da
@@ -306,8 +302,7 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
 def get_flow_lower_face(
     ds, gwf=None, fname=None, grb_file=None, kstpkper=None, lays=None
 ):
-    """
-    Get the flow over the lower face of all model cells
+    """Get the flow over the lower face of all model cells.
 
     The flow Lower Face (flf) used to be written to the budget file in previous versions
     of MODFLOW. In MODFLOW 6 we determine these flows from the flow-ja-face-records.
@@ -335,7 +330,6 @@ def get_flow_lower_face(
     -------
     da : xr.DataArray
         The flow over the lower face of each cell, in m3/d.
-
     """
     if grb_file is None:
         grb_file = _get_grb_file(ds)
@@ -375,7 +369,7 @@ def get_flow_lower_face(
         flfs = []
         for iflowja in flowja:
             if ds.gridtype == "vertex":
-                flf = np.full(shape, np.NaN)
+                flf = np.full(shape, np.nan)
                 mask = flf_index >= 0
                 flf[mask] = iflowja[0, 0, flf_index[mask]]
             else:
@@ -385,7 +379,7 @@ def get_flow_lower_face(
         coords = dict(coords) | {"time": _get_time_index(cbf, ds)}
     else:
         if ds.gridtype == "vertex":
-            flfs = np.full(shape, np.NaN)
+            flfs = np.full(shape, np.nan)
             mask = flf_index >= 0
             flfs[mask] = flowja[0][0, 0, flf_index[mask]]
         else:

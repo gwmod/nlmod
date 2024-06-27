@@ -1,9 +1,11 @@
-import tempfile
 import os
-import numpy as np
-import xarray as xr
+import tempfile
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import numpy as np
+import xarray as xr
+
 import nlmod
 
 model_ws = os.path.join(tempfile.gettempdir(), "test_grid")
@@ -119,13 +121,13 @@ def test_vertex_da_to_ds():
 def test_fillnan_da():
     # for a structured grid
     ds = get_structured_model_ds()
-    ds["top"][5, 5] = np.NaN
+    ds["top"][5, 5] = np.nan
     top = nlmod.resample.fillnan_da(ds["top"], ds=ds)
     assert not np.isnan(top[5, 5])
 
     # also for a vertex grid
     ds = get_vertex_model_ds()
-    ds["top"][100] = np.NaN
+    ds["top"][100] = np.nan
     mask = ds["top"].isnull()
     assert mask.any()
     top = nlmod.resample.fillnan_da(ds["top"], ds=ds)

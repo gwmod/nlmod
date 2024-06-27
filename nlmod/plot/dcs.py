@@ -1,14 +1,13 @@
-import flopy
 import logging
-import matplotlib
+from functools import partial
 
+import flopy
 import geopandas as gpd
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
-
-from functools import partial
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
@@ -18,7 +17,6 @@ from shapely.geometry import LineString, MultiLineString, Point, Polygon
 from ..dims.grid import modelgrid_from_ds
 from ..dims.resample import get_affine_world_to_mod
 from .plotutil import get_map
-
 
 logger = logging.getLogger(__name__)
 
@@ -342,7 +340,7 @@ class DatasetCrossSection:
         label="cross section",
         **kwargs,
     ):
-        """Creates a different figure with the map of the cross section
+        """Creates a different figure with the map of the cross section.
 
         Parameters
         ----------
@@ -365,7 +363,6 @@ class DatasetCrossSection:
         matplotlib Axes
             axes
         """
-
         if ax is None:
             _, ax = get_map(
                 self.ds.extent, background=background, figsize=figsize, **kwargs
@@ -376,7 +373,7 @@ class DatasetCrossSection:
         return ax
 
     def get_patches_array(self, z):
-        """similar to plot_array function, only computes the array to update an existing plot_array.
+        """Similar to plot_array function, only computes the array to update an existing plot_array.
 
         Parameters
         ----------
@@ -525,7 +522,7 @@ class DatasetCrossSection:
         cbar_label=None,
         fname=None,
     ):
-        """animate a cross section
+        """Animate a cross section.
 
         Parameters
         ----------
@@ -553,7 +550,6 @@ class DatasetCrossSection:
         matplotlib.animation.FuncAnimation
             animation object
         """
-
         f = self.ax.get_figure()
 
         # plot first timeframe

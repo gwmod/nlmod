@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def gwt(ds, sim, modelname=None, **kwargs):
-    """create groundwater transport model from the model dataset.
+    """Create groundwater transport model from the model dataset.
 
     Parameters
     ----------
@@ -29,7 +29,6 @@ def gwt(ds, sim, modelname=None, **kwargs):
     gwt : flopy ModflowGwt
         groundwater transport object.
     """
-
     # start creating model
     logger.info("creating mf6 GWT")
 
@@ -46,7 +45,7 @@ def gwt(ds, sim, modelname=None, **kwargs):
 
 
 def dis(ds, gwt, length_units="METERS", pname="dis", **kwargs):
-    """create discretisation package from the model dataset.
+    """Create discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -68,7 +67,7 @@ def dis(ds, gwt, length_units="METERS", pname="dis", **kwargs):
 
 
 def disv(ds, gwt, length_units="METERS", pname="disv", **kwargs):
-    """create discretisation vertices package from the model dataset.
+    """Create discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -90,7 +89,7 @@ def disv(ds, gwt, length_units="METERS", pname="disv", **kwargs):
 
 
 def adv(ds, gwt, scheme=None, **kwargs):
-    """create advection package for groundwater transport model.
+    """Create advection package for groundwater transport model.
 
     Parameters
     ----------
@@ -114,7 +113,7 @@ def adv(ds, gwt, scheme=None, **kwargs):
 
 
 def dsp(ds, gwt, **kwargs):
-    """create dispersion package for groundwater transport model.
+    """Create dispersion package for groundwater transport model.
 
     Parameters
     ----------
@@ -139,7 +138,7 @@ def dsp(ds, gwt, **kwargs):
 
 
 def ssm(ds, gwt, sources=None, **kwargs):
-    """create source-sink mixing package for groundwater transport model.
+    """Create source-sink mixing package for groundwater transport model.
 
     Parameters
     ----------
@@ -177,7 +176,7 @@ def ssm(ds, gwt, sources=None, **kwargs):
 
 
 def mst(ds, gwt, porosity=None, **kwargs):
-    """create mass storage transfer package for groundwater transport model.
+    """Create mass storage transfer package for groundwater transport model.
 
     Parameters
     ----------
@@ -213,7 +212,7 @@ def mst(ds, gwt, porosity=None, **kwargs):
 
 
 def cnc(ds, gwt, da_mask, da_conc, pname="cnc", **kwargs):
-    """create constant concentration package for groundwater transport model.
+    """Create constant concentration package for groundwater transport model.
 
     Parameters
     ----------
@@ -251,7 +250,7 @@ def oc(
     pname="oc",
     **kwargs,
 ):
-    """create output control package for groundwater transport model.
+    """Create output control package for groundwater transport model.
 
     Parameters
     ----------
@@ -290,7 +289,7 @@ def oc(
 
 
 def ic(ds, gwt, strt, pname="ic", **kwargs):
-    """create initial condictions package for groundwater transport model.
+    """Create initial condictions package for groundwater transport model.
 
     Parameters
     ----------
@@ -319,7 +318,7 @@ def ic(ds, gwt, strt, pname="ic", **kwargs):
 
 
 def gwfgwt(ds, sim, exgtype="GWF6-GWT6", **kwargs):
-    """create GWF-GWT exchange package for mf6 simulation.
+    """Create GWF-GWT exchange package for mf6 simulation.
 
     Parameters
     ----------

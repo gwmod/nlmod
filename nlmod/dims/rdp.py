@@ -1,10 +1,11 @@
 """
-rdp
-~~~
+rdp 
+~~~ 
 Python implementation of the Ramer-Douglas-Peucker algorithm.
-:copyright: 2014-2016 Fabian Hirschmann <fabian@hirschmann.email>
+:copyright: 2014-2016 Fabian Hirschmann <fabian@hirschmann.email> 
 :license: MIT, see LICENSE.txt for more details.
 """
+
 import sys
 from functools import partial
 
@@ -15,8 +16,8 @@ if sys.version_info[0] >= 3:
 
 
 def pldist(point, start, end):
-    """Calculates the distance from ``point`` to the line given by the points
-    ``start`` and ``end``.
+    """Calculates the distance from ``point`` to the line given by the points ``start``
+    and ``end``.
 
     :param point: a point
     :type point: numpy array
@@ -113,9 +114,8 @@ def rdp_iter(M, epsilon, dist=pldist, return_mask=False):
 
 
 def rdp(M, epsilon=0, dist=pldist, algo="iter", return_mask=False):
-    """
-    Simplifies a given array of points using the Ramer-Douglas-Peucker
-    algorithm.
+    """Simplifies a given array of points using the Ramer-Douglas-Peucker algorithm.
+
     Example:
     >>> from rdp import rdp
     >>> rdp([[1, 1], [2, 2], [3, 3], [4, 4]])
@@ -153,7 +153,6 @@ def rdp(M, epsilon=0, dist=pldist, algo="iter", return_mask=False):
     :param return_mask: return mask instead of simplified array
     :type return_mask: bool
     """
-
     if algo == "iter":
         algo = partial(rdp_iter, return_mask=return_mask)
     elif algo == "rec":

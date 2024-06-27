@@ -720,8 +720,17 @@ def ds_contains(
         datavars.append("tsmult")
 
     if attrs_ds:
-        # set by `nlmod.base.to_model_ds()` and `nlmod.base.set_ds_attrs()`, excluding "created_on"
-        attrs_ds_required = ["model_name", "mfversion", "exe_name", "model_ws", "figdir", "cachedir", "transport"]
+        # set by `nlmod.base.to_model_ds()` and `nlmod.base.set_ds_attrs()`, 
+        # excluding "created_on"
+        attrs_ds_required = [
+            "model_name",
+            "mfversion",
+            "exe_name",
+            "model_ws",
+            "figdir",
+            "cachedir",
+            "transport",
+        ]
         attrs.extend(attrs_ds_required)
 
     # User-friendly error messages if missing from ds

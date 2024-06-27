@@ -200,7 +200,7 @@ def get_bin_directory(
     Parameters
     ----------
     exe_name : str, optional
-        The name of the executable, by default None.
+        The name of the executable, by default mf6.
     bindir : Path, optional
         The directory where the executables are stored, by default "mf6".
     download_if_not_found : bool, optional
@@ -232,7 +232,7 @@ def get_bin_directory(
     if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
         exe_name += ".exe"
 
-    enable_version_check = version_tag is not None and repo is not None
+    enable_version_check = version_tag is not None
 
     # If exe_name is a full path
     if Path(exe_name).exists():
@@ -285,7 +285,11 @@ def get_bin_directory(
 
     # Else download the executables
     if download_if_not_found:
-        download_mfbinaries(bindir=bindir, version_tag=version_tag, repo=repo)
+        download_mfbinaries(
+            bindir=bindir,
+            version_tag=version_tag if version_tag is not None else "latest",
+            repo=repo
+        )
 
         # Rerun this function
         return get_bin_directory(
@@ -407,6 +411,29 @@ def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
         os.makedirs(bindir)
 
     get_modflow(bindir=str(bindir), release_id=version_tag, repo=repo)
+
+    # Ensure metadata is saved.
+    # https://github.com/modflowpy/flopy/blob/
+    # 0748dcb9e4641b5ad9616af115dd3be906f98f50/flopy/utils/get_modflow.py#L623
+    flopy_metadata_fp = flopy_appdata_path / "get_modflow.json"
+
+    if not flopy_metadata_fp.exists():
+        if "pytest" not in str(bindir) and "pytest" not in sys.modules:
+            logger.warning(
+                f"flopy metadata file not found at {flopy_metadata_fp}. "
+                "After downloading and installing the executables. "
+                "Creating a new metadata file."
+            )
+
+        release_metadata = get_release(tag=version_tag, repo=repo, quiet=True)
+        install_metadata = {
+            "release_id": release_metadata["tag_name"],
+            "repo": repo,
+            "bindir": str(bindir),
+        }
+
+        with open(flopy_metadata_fp, "w", encoding="UTF-8") as f:
+            json.dump([install_metadata], f, indent=4)
 
     # download the provisional version of modpath from Github
     download_modpath_provisional_exe(bindir=bindir, timeout=120)

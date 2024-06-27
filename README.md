@@ -66,11 +66,4 @@ notoriously hard to install on certain platforms. Please see the
 
 ## Getting started
 
-If you are using `nlmod` for the first time you need to download the MODFLOW
-executables. You can easily download these executables by running this Python code:
-
-    import nlmod
-	nlmod.download_mfbinaries()
-
-After you've downloaded the executables you can run the Jupyter Notebooks in the
-examples folder. These notebooks illustrate how to use the `nlmod` package.
+Start with the Jupyter Notebooks in the examples folder. These notebooks illustrate how to use the `nlmod` package.

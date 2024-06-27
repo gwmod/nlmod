@@ -39,11 +39,6 @@ jobs:
           # exit-zero treats all errors as warnings.
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
 
-      - name: Download executables needed for tests
-        shell: bash -l {0}
-        run: |
-          python -c "import nlmod; nlmod.util.download_mfbinaries()"
-
       - name: Run tests only
         env:
             NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}

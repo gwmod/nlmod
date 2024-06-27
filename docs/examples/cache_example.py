@@ -1,11 +1,12 @@
-import nlmod
 import numpy as np
 import xarray as xr
+
+import nlmod
 
 
 @nlmod.cache.cache_netcdf()
 def func_to_create_a_dataset(number):
-    """create a dataarray as an example for the caching method.
+    """Create a dataarray as an example for the caching method.
 
     Parameters
     ----------

@@ -1,11 +1,13 @@
 # %%
-from glob import glob
-import nbformat
-from nbconvert.preprocessors import ExecutePreprocessor
-import time
-import numpy as np
-import nlmod
 import os
+import time
+from glob import glob
+
+import nbformat
+import numpy as np
+from nbconvert.preprocessors import ExecutePreprocessor
+
+import nlmod
 
 logger = nlmod.util.get_color_logger("INFO")
 
@@ -31,7 +33,7 @@ for notebook in notebook_list:
         logger.info(f"Running {notebook} succeeded in {seconds} seconds")
     except Exception as exception:
         logger.error(f"Running notebook failed: {notebook}")
-        elapsed_time[notebook] = np.NaN
+        elapsed_time[notebook] = np.nan
         exceptions[notebook] = exception
 
     # save results in notebook

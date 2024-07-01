@@ -195,6 +195,8 @@ def ds_to_structured_grid(
     """
 
     assert isinstance(ds_in, xr.core.dataset.Dataset)
+    if hasattr(ds_in, "gridtype"):
+        assert ds_in.attrs["gridtype"] == "structured"
     if delc is None:
         delc = delr
 

@@ -615,7 +615,7 @@ def affine_transform_gdf(gdf, affine):
 def get_extent(ds, rotated=True):
     """Get the model extent, corrected for angrot if necessary."""
     logger.warning(
-        "nlmod.resample.get_extent is deprecated. " "Use nlmod.grid.get_extent instead"
+        "nlmod.resample.get_extent is deprecated. Use nlmod.grid.get_extent instead"
     )
     from .grid import get_extent
 
@@ -647,8 +647,8 @@ def get_affine_world_to_mod(ds):
 def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates."""
     logger.warning(
-        "nlmod.resample.get_affine is deprecated. " "Use nlmod.grid.get_affine instead"
+        "nlmod.resample.get_affine is deprecated. Use nlmod.grid.get_affine instead"
     )
     from .grid import get_affine
 
-    return get_affine(ds)
+    return get_affine(ds, sx=sx, sy=sy)

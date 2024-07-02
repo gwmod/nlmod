@@ -4,13 +4,12 @@ import numbers
 import numpy as np
 import rasterio
 import xarray as xr
-from affine import Affine
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from shapely.affinity import affine_transform
-from shapely.geometry import Polygon
+
 
 from ..util import get_da_from_da_ds
+
 
 logger = logging.getLogger(__name__)
 
@@ -90,58 +89,6 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
 
     else:
         raise TypeError("unexpected type for delr and/or delc")
-
-
-def get_delr(ds):
-    """
-    Get the distance along rows (delr) from the x-coordinate of a structured model
-    dataset.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        A model dataset containing an x-coordinate and an attribute 'extent'.
-
-    Returns
-    -------
-    delr : np.ndarray
-        The cell-size along rows (of length ncol).
-
-    """
-    assert ds.gridtype == "structured"
-    x = (ds.x - ds.extent[0]).values
-    delr = _get_delta_along_axis(x)
-    return delr
-
-
-def get_delc(ds):
-    """
-    Get the distance along columns (delc) from the y-coordinate of a structured model
-    dataset.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        A model dataset containing an y-coordinate and an attribute 'extent'.
-
-    Returns
-    -------
-    delc : np.ndarray
-        The cell-size along columns (of length nrow).
-
-    """
-    assert ds.gridtype == "structured"
-    y = (ds.extent[3] - ds.y).values
-    delc = _get_delta_along_axis(y)
-    return delc
-
-
-def _get_delta_along_axis(x):
-    """Internal method to determine delr or delc from x or y relative to xmin or ymax"""
-    delr = [x[0] * 2]
-    for xi in x[1:]:
-        delr.append((xi - np.sum(delr)) * 2)
-    return np.array(delr)
 
 
 def ds_to_structured_grid(
@@ -576,6 +523,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             raise ValueError(
                 "No extent or delr and delc in ds. Cannot determine affine."
             )
+        from .grid import get_affine
+
         da_out = da.rio.reproject(
             dst_crs=ds.rio.crs,
             shape=(len(ds.y), len(ds.x)),
@@ -595,6 +544,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         dims.remove("x")
         dims.append("icell2d")
         da_out = get_da_from_da_ds(ds, dims=tuple(dims), data=nodata)
+        from .grid import get_affine
+
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
@@ -635,98 +586,74 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
 
 
 def extent_to_polygon(extent):
-    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])"""
-    nw = (extent[0], extent[2])
-    no = (extent[1], extent[2])
-    zo = (extent[1], extent[3])
-    zw = (extent[0], extent[3])
-    return Polygon([nw, no, zo, zw])
+    logger.warning(
+        "nlmod.resample.extent_to_polygon is deprecated. "
+        "Use nlmod.util.extent_to_polygon instead"
+    )
+    from ..util import extent_to_polygon
 
-
-def _get_attrs(ds):
-    if isinstance(ds, dict):
-        return ds
-    else:
-        return ds.attrs
+    return extent_to_polygon(extent)
 
 
 def get_extent_polygon(ds, rotated=True):
     """Get the model extent, as a shapely Polygon."""
-    attrs = _get_attrs(ds)
-    polygon = extent_to_polygon(attrs["extent"])
-    if rotated and "angrot" in ds.attrs and attrs["angrot"] != 0.0:
-        affine = get_affine_mod_to_world(ds)
-        polygon = affine_transform(polygon, affine.to_shapely())
-    return polygon
+    logger.warning(
+        "nlmod.resample.get_extent_polygon is deprecated. "
+        "Use nlmod.grid.get_extent_polygon instead"
+    )
+    from .grid import get_extent_polygon
+
+    return get_extent_polygon(ds, rotated=rotated)
 
 
 def affine_transform_gdf(gdf, affine):
     """Apply an affine transformation to a geopandas GeoDataFrame."""
-    if isinstance(affine, Affine):
-        affine = affine.to_shapely()
-    gdfm = gdf.copy()
-    gdfm.geometry = gdf.affine_transform(affine)
-    return gdfm
+    logger.warning(
+        "nlmod.resample.affine_transform_gdf is deprecated. "
+        "Use nlmod.grid.affine_transform_gdf instead"
+    )
+    from .grid import affine_transform_gdf
+
+    return affine_transform_gdf(gdf, affine)
 
 
 def get_extent(ds, rotated=True):
     """Get the model extent, corrected for angrot if necessary."""
-    attrs = _get_attrs(ds)
-    extent = attrs["extent"]
-    if rotated and "angrot" in attrs and attrs["angrot"] != 0.0:
-        affine = get_affine_mod_to_world(ds)
-        xc = np.array([extent[0], extent[1], extent[1], extent[0]])
-        yc = np.array([extent[2], extent[2], extent[3], extent[3]])
-        xc, yc = affine * (xc, yc)
-        extent = [xc.min(), xc.max(), yc.min(), yc.max()]
-    return extent
+    logger.warning(
+        "nlmod.resample.get_extent is deprecated. " "Use nlmod.grid.get_extent instead"
+    )
+    from .grid import get_extent
+
+    return get_extent(ds, rotated=rotated)
 
 
 def get_affine_mod_to_world(ds):
     """Get the affine-transformation from model to real-world coordinates."""
-    attrs = _get_attrs(ds)
-    xorigin = attrs["xorigin"]
-    yorigin = attrs["yorigin"]
-    angrot = attrs["angrot"]
-    return Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+    logger.warning(
+        "nlmod.resample.get_affine_mod_to_world is deprecated. "
+        "Use nlmod.grid.get_affine_mod_to_world instead"
+    )
+    from .grid import get_affine_mod_to_world
+
+    return get_affine_mod_to_world(ds)
 
 
 def get_affine_world_to_mod(ds):
     """Get the affine-transformation from real-world to model coordinates."""
-    attrs = _get_attrs(ds)
-    xorigin = attrs["xorigin"]
-    yorigin = attrs["yorigin"]
-    angrot = attrs["angrot"]
-    return Affine.rotation(-angrot) * Affine.translation(-xorigin, -yorigin)
+    logger.warning(
+        "nlmod.resample.get_affine_world_to_mod is deprecated. "
+        "Use nlmod.grid.get_affine_world_to_mod instead"
+    )
+    from .grid import get_affine_world_to_mod
+
+    return get_affine_world_to_mod(ds)
 
 
 def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates."""
-    attrs = _get_attrs(ds)
-    if sx is None:
-        sx = get_delr(ds)
-        assert len(np.unique(sx)) == 1, "Affine-transformation needs a constant delr"
-        sx = sx[0]
-    if sy is None:
-        sy = get_delc(ds)
-        assert len(np.unique(sy)) == 1, "Affine-transformation needs a constant delc"
-        sy = sy[0]
+    logger.warning(
+        "nlmod.resample.get_affine is deprecated. " "Use nlmod.grid.get_affine instead"
+    )
+    from .grid import get_affine
 
-    if "angrot" in attrs:
-        xorigin = attrs["xorigin"]
-        yorigin = attrs["yorigin"]
-        angrot = -attrs["angrot"]
-        # xorigin and yorigin represent the lower left corner, while for the transform we
-        # need the upper left
-        dy = attrs["extent"][3] - attrs["extent"][2]
-        xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
-        yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
-        return (
-            Affine.translation(xoff, yoff)
-            * Affine.scale(sx, sy)
-            * Affine.rotation(angrot)
-        )
-    else:
-        xoff = attrs["extent"][0]
-        yoff = attrs["extent"][3]
-        return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)
+    return get_affine(ds)

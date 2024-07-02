@@ -11,11 +11,13 @@ from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from geopandas import GeoDataFrame
-from shapely.geometry import Polygon
 
-from ..dims.grid import modelgrid_from_ds
-from ..dims.resample import get_affine_mod_to_world, get_extent
+from ..dims.grid import (
+    modelgrid_from_ds,
+    get_affine_mod_to_world,
+    get_extent,
+    get_extent_gdf,
+)
 from ..read import geotop, rws
 from .dcs import DatasetCrossSection
 from .plotutil import (
@@ -50,7 +52,7 @@ def modelgrid(ds, ax=None, **kwargs):
     return ax
 
 
-def modelextent(ds, ax=None, **kwargs):
+def modelextent(ds, dx=None, ax=None, rotated=True, **kwargs):
     """Plot model extent.
 
     Parameters
@@ -68,22 +70,15 @@ def modelextent(ds, ax=None, **kwargs):
     ax : matplotlib.axes.Axes
         axes object
     """
-    extent = xmin, xmax, ymin, ymax = get_extent(ds, rotated=True)
-    dx = 0.05 * (xmax - xmin)
-    dy = 0.05 * (ymax - ymin)
+    extent = xmin, xmax, ymin, ymax = get_extent(ds, rotated=rotated)
+    if dx is None:
+        dx = max(0.05 * (xmax - xmin), 0.05 * (ymax - ymin))
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
         ax.axis("scaled")
 
-        ax.axis([xmin - dx, xmax + dx, ymin - dy, ymax + dy])
-    xy = [
-        (xmin, ymin),
-        (xmax, ymin),
-        (xmax, ymax),
-        (xmin, ymax),
-        (xmin, ymin),
-    ]
-    gdf = GeoDataFrame(geometry=[Polygon(xy)])
+        ax.axis([xmin - dx, xmax + dx, ymin - dx, ymax + dx])
+    gdf = get_extent_gdf(ds, rotated=rotated)
     extent = None if ax.get_autoscale_on() else ax.axis()
     gdf.boundary.plot(ax=ax, **kwargs)
     if extent is not None:
@@ -259,7 +254,14 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
 
 
 def geotop_lithok_in_cross_section(
-    line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, alpha=None, **kwargs
+    line,
+    gt=None,
+    ax=None,
+    legend=True,
+    legend_loc=None,
+    lithok_props=None,
+    alpha=None,
+    **kwargs,
 ):
     """PLot the lithoclass-data of GeoTOP in a cross-section.
 
@@ -312,7 +314,7 @@ def geotop_lithok_in_cross_section(
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
     array, cmap, norm = _get_geotop_cmap_and_norm(gt["lithok"], lithok_props)
     cs.plot_array(array, norm=norm, cmap=cmap, alpha=alpha)
-    
+
     if legend:
         # make a legend with dummy handles
         _add_geotop_lithok_legend(lithok_props, ax, lithok=gt["lithok"], loc=legend_loc)

@@ -7,8 +7,11 @@ import xarray as xr
 
 import flopy
 
-from ..dims.grid import get_dims_coords_from_modelgrid, modelgrid_from_ds
-from ..dims.resample import get_affine_mod_to_world
+from ..dims.grid import (
+    get_dims_coords_from_modelgrid,
+    modelgrid_from_ds,
+    get_affine_mod_to_world,
+)
 from ..dims.time import ds_time_idx
 from .binaryfile import _get_binary_budget_data, _get_binary_head_data
 

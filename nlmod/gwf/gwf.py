@@ -11,7 +11,7 @@ import flopy
 import xarray as xr
 
 from ..dims import grid
-from ..dims.resample import get_delr, get_delc
+from ..dims.grid import get_delr, get_delc
 from ..dims.layers import get_idomain
 from ..sim import ims, sim, tdis
 from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar

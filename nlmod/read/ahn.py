@@ -13,7 +13,8 @@ from rasterio.io import MemoryFile
 from tqdm import tqdm
 
 from .. import cache
-from ..dims.resample import get_extent, structured_da_to_ds
+from ..dims.grid import get_extent
+from ..dims.resample import structured_da_to_ds
 from ..util import get_ds_empty
 from .webservices import arcrest, wcs
 

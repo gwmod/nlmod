@@ -8,7 +8,7 @@ from scipy.spatial import cKDTree
 
 from .. import util
 from ..epsg28992 import EPSG_28992
-from . import resample
+from . import resample, grid
 from .layers import fill_nan_top_botm_kh_kv
 
 logger = logging.getLogger(__name__)
@@ -364,7 +364,7 @@ def _get_structured_grid_ds(
     }
 
     if angrot != 0.0:
-        affine = resample.get_affine_mod_to_world(attrs)
+        affine = grid.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(xcenters, ycenters)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)
@@ -645,7 +645,7 @@ def get_ds(
     x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
     coords = {"x": x, "y": y, "layer": layer}
     if angrot != 0.0:
-        affine = resample.get_affine_mod_to_world(attrs)
+        affine = grid.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(x, y)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)

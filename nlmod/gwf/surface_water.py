@@ -10,9 +10,14 @@ from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
-from ..dims.grid import gdf_to_grid
+from ..util import extent_to_polygon
+from ..dims.grid import (
+    gdf_to_grid,
+    get_extent_polygon,
+    get_delr,
+    get_delc,
+)
 from ..dims.layers import get_idomain
-from ..dims.resample import get_extent_polygon, extent_to_polygon, get_delr, get_delc
 from ..read import bgt, waterboard
 from ..cache import cache_pickle
 

@@ -22,6 +22,7 @@ from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
+from affine import Affine
 from shapely.affinity import affine_transform
 from shapely.geometry import Point, Polygon
 from tqdm import tqdm
@@ -35,14 +36,6 @@ from .layers import (
     remove_inactive_layers,
 )
 from .rdp import rdp
-from .resample import (
-    affine_transform_gdf,
-    get_affine_mod_to_world,
-    get_affine_world_to_mod,
-    structured_da_to_ds,
-    get_delr,
-    get_delc,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +220,58 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
             **kwargs,
         )
     return modelgrid
+
+
+def get_delr(ds):
+    """
+    Get the distance along rows (delr) from the x-coordinate of a structured model
+    dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        A model dataset containing an x-coordinate and an attribute 'extent'.
+
+    Returns
+    -------
+    delr : np.ndarray
+        The cell-size along rows (of length ncol).
+
+    """
+    assert ds.gridtype == "structured"
+    x = (ds.x - ds.extent[0]).values
+    delr = _get_delta_along_axis(x)
+    return delr
+
+
+def get_delc(ds):
+    """
+    Get the distance along columns (delc) from the y-coordinate of a structured model
+    dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        A model dataset containing an y-coordinate and an attribute 'extent'.
+
+    Returns
+    -------
+    delc : np.ndarray
+        The cell-size along columns (of length nrow).
+
+    """
+    assert ds.gridtype == "structured"
+    y = (ds.extent[3] - ds.y).values
+    delc = _get_delta_along_axis(y)
+    return delc
+
+
+def _get_delta_along_axis(x):
+    """Internal method to determine delr or delc from x or y relative to xmin or ymax"""
+    delr = [x[0] * 2]
+    for xi in x[1:]:
+        delr.append((xi - np.sum(delr)) * 2)
+    return np.array(delr)
 
 
 def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
@@ -575,6 +620,8 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
         ds_out.coords.update({"layer": ds_in.layer, "x": x, "y": y})
 
         # add other variables
+        from .resample import structured_da_to_ds
+
         for not_interp_var in not_interp_vars:
             ds_out[not_interp_var] = structured_da_to_ds(
                 da=ds_in[not_interp_var], ds=ds_out, method=method, nodata=np.NaN
@@ -683,6 +730,8 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
         for var in layer_ds.data_vars:
             ds[var] = layer_ds[var]
     else:
+        from .resample import structured_da_to_ds
+
         for var in layer_ds.data_vars:
             ds[var] = structured_da_to_ds(layer_ds[var], ds, method=method)
     ds = extrapolate_ds(ds)
@@ -1978,3 +2027,97 @@ def polygons_from_model_ds(model_ds):
         polygons = [affine_transform(polygon, affine) for polygon in polygons]
 
     return polygons
+
+
+def _get_attrs(ds):
+    if isinstance(ds, dict):
+        return ds
+    else:
+        return ds.attrs
+
+
+def get_extent_polygon(ds, rotated=True):
+    """Get the model extent, as a shapely Polygon."""
+    attrs = _get_attrs(ds)
+    polygon = util.extent_to_polygon(attrs["extent"])
+    if rotated and "angrot" in ds.attrs and attrs["angrot"] != 0.0:
+        affine = get_affine_mod_to_world(ds)
+        polygon = affine_transform(polygon, affine.to_shapely())
+    return polygon
+
+
+def get_extent_gdf(ds, rotated=True, crs="EPSG:28992"):
+    polygon = get_extent_polygon(ds, rotated=rotated)
+    return gpd.GeoDataFrame(geometry=[polygon], crs=crs)
+
+
+def affine_transform_gdf(gdf, affine):
+    """Apply an affine transformation to a geopandas GeoDataFrame."""
+    if isinstance(affine, Affine):
+        affine = affine.to_shapely()
+    gdfm = gdf.copy()
+    gdfm.geometry = gdf.affine_transform(affine)
+    return gdfm
+
+
+def get_extent(ds, rotated=True):
+    """Get the model extent, corrected for angrot if necessary."""
+    attrs = _get_attrs(ds)
+    extent = attrs["extent"]
+    if rotated and "angrot" in attrs and attrs["angrot"] != 0.0:
+        affine = get_affine_mod_to_world(ds)
+        xc = np.array([extent[0], extent[1], extent[1], extent[0]])
+        yc = np.array([extent[2], extent[2], extent[3], extent[3]])
+        xc, yc = affine * (xc, yc)
+        extent = [xc.min(), xc.max(), yc.min(), yc.max()]
+    return extent
+
+
+def get_affine_mod_to_world(ds):
+    """Get the affine-transformation from model to real-world coordinates."""
+    attrs = _get_attrs(ds)
+    xorigin = attrs["xorigin"]
+    yorigin = attrs["yorigin"]
+    angrot = attrs["angrot"]
+    return Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+
+
+def get_affine_world_to_mod(ds):
+    """Get the affine-transformation from real-world to model coordinates."""
+    attrs = _get_attrs(ds)
+    xorigin = attrs["xorigin"]
+    yorigin = attrs["yorigin"]
+    angrot = attrs["angrot"]
+    return Affine.rotation(-angrot) * Affine.translation(-xorigin, -yorigin)
+
+
+def get_affine(ds, sx=None, sy=None):
+    """Get the affine-transformation, from pixel to real-world coordinates."""
+    attrs = _get_attrs(ds)
+    if sx is None:
+        sx = get_delr(ds)
+        assert len(np.unique(sx)) == 1, "Affine-transformation needs a constant delr"
+        sx = sx[0]
+    if sy is None:
+        sy = get_delc(ds)
+        assert len(np.unique(sy)) == 1, "Affine-transformation needs a constant delc"
+        sy = sy[0]
+
+    if "angrot" in attrs:
+        xorigin = attrs["xorigin"]
+        yorigin = attrs["yorigin"]
+        angrot = -attrs["angrot"]
+        # xorigin and yorigin represent the lower left corner, while for the transform we
+        # need the upper left
+        dy = attrs["extent"][3] - attrs["extent"][2]
+        xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
+        yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
+        return (
+            Affine.translation(xoff, yoff)
+            * Affine.scale(sx, sy)
+            * Affine.rotation(angrot)
+        )
+    else:
+        xoff = attrs["extent"][0]
+        yoff = attrs["extent"][3]
+        return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)

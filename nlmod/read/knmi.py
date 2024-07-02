@@ -8,7 +8,7 @@ from hydropandas.io import knmi as hpd_knmi
 
 from .. import cache, util
 from ..dims.layers import get_first_active_layer
-from ..dims.resample import get_affine_mod_to_world
+from ..dims.grid import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 

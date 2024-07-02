@@ -13,7 +13,7 @@ import geopandas as gpd
 import requests
 import xarray as xr
 from colorama import Back, Fore, Style
-from shapely.geometry import box
+from shapely.geometry import box, Polygon
 
 logger = logging.getLogger(__name__)
 
@@ -561,6 +561,51 @@ def compare_model_extents(extent1, extent2):
     raise NotImplementedError("other options are not yet implemented")
 
 
+def extent_to_polygon(extent):
+    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])
+
+
+    Parameters
+    ----------
+    extent : tuple, list or array
+        extent (xmin, xmax, ymin, ymax).
+
+    Returns
+    -------
+    shapely.geometry.Polygon
+        polygon of the extent.
+
+    """
+    nw = (extent[0], extent[2])
+    no = (extent[1], extent[2])
+    zo = (extent[1], extent[3])
+    zw = (extent[0], extent[3])
+    return Polygon([nw, no, zo, zw])
+
+
+def extent_to_gdf(extent, crs="EPSG:28992"):
+    """Create a geodataframe with a single polygon with the extent given.
+
+    Parameters
+    ----------
+    extent : tuple, list or array
+        extent.
+    crs : str, optional
+        coördinate reference system of the extent, default is EPSG:28992
+        (RD new)
+
+    Returns
+    -------
+    gdf_extent : geopandas.GeoDataFrame
+        geodataframe with extent.
+    """
+
+    geom_extent = extent_to_polygon(extent)
+    gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
+
+    return gdf_extent
+
+
 def polygon_from_extent(extent):
     """Create a shapely polygon from a given extent.
 
@@ -574,7 +619,10 @@ def polygon_from_extent(extent):
     polygon_ext : shapely.geometry.polygon.Polygon
         polygon of the extent.
     """
-
+    logger.warning(
+        "nlmod.util.polygon_from_extent is deprecated. "
+        "Use nlmod.util.extent_to_polygon instead"
+    )
     bbox = (extent[0], extent[2], extent[1], extent[3])
     polygon_ext = box(*tuple(bbox))
 
@@ -597,7 +645,10 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
     gdf_extent : GeoDataFrame
         geodataframe with extent.
     """
-
+    logger.warning(
+        "nlmod.util.gdf_from_extent is deprecated. "
+        "Use nlmod.util.extent_to_gdf instead"
+    )
     geom_extent = polygon_from_extent(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
 
@@ -621,7 +672,7 @@ def gdf_within_extent(gdf, extent):
         dataframe with only polygon features within the extent.
     """
     # create geodataframe from the extent
-    gdf_extent = gdf_from_extent(extent, crs=gdf.crs)
+    gdf_extent = extent_to_gdf(extent, crs=gdf.crs)
 
     # check type
     geom_types = gdf.geom_type.unique()

@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
-from ..dims.resample import get_affine_mod_to_world
+from ..dims.grid import get_affine_mod_to_world
 from ..epsg28992 import EPSG_28992
 
 

@@ -2,10 +2,10 @@ import warnings
 from functools import partial
 
 import flopy as fp
-import xarray as xr
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import xarray as xr
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap, Normalize
@@ -97,7 +97,7 @@ def facet_plot(
     xlim=None,
     ylim=None,
 ):
-    """make a 2d plot of every modellayer, store them in a grid.
+    """Make a 2d plot of every modellayer, store them in a grid.
 
     Parameters
     ----------
@@ -130,7 +130,6 @@ def facet_plot(
     axes : TYPE
         DESCRIPTION.
     """
-
     warnings.warn(
         "this function is out of date and will probably be removed in a future version",
         DeprecationWarning,
@@ -351,7 +350,6 @@ def geotop_lithok_on_map(
     Returns
     -------
     qm : matplotlib.collections.QuadMesh
-
     """
     if ax is None:
         ax = plt.gca()
@@ -375,7 +373,7 @@ def geotop_lithok_on_map(
 
 
 def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
-    """Add a legend with lithok-data"""
+    """Add a legend with lithok-data."""
     handles = []
     if lithok is None:
         lithoks = lithok_props.index
@@ -390,10 +388,10 @@ def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
 
 
 def _get_geotop_cmap_and_norm(lithok, lithok_props):
-    """Get an array of lithok-values, with a corresponding colormap and norm"""
+    """Get an array of lithok-values, with a corresponding colormap and norm."""
     lithok_un = np.unique(lithok)
     lithok_un = lithok_un[~np.isnan(lithok_un)]
-    array = np.full(lithok.shape, np.NaN)
+    array = np.full(lithok.shape, np.nan)
     colors = []
     for i, ilithok in enumerate(lithok_un):
         ilithok = int(ilithok)

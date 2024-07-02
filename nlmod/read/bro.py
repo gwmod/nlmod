@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def add_modelled_head(oc, ml=None, ds=None, method="linear"):
-    """add modelled heads as seperate observations to the ObsCollection.
+    """Add modelled heads as seperate observations to the ObsCollection.
 
     Parameters
     ----------
@@ -30,7 +30,6 @@ def add_modelled_head(oc, ml=None, ds=None, method="linear"):
     ObsCollection
         combination of observed and modelled groundwater heads.
     """
-
     oc["modellayer"] = oc.gwobs.get_modellayers(gwf=ml)
     if ds is not None and "heads" in ds:
         heads = ds["heads"]
@@ -100,7 +99,7 @@ def get_bro(
     max_screen_top=None,
     min_screen_bot=None,
 ):
-    """get bro groundwater measurements within an extent.
+    """Get bro groundwater measurements within an extent.
 
     Parameters
     ----------
@@ -168,10 +167,10 @@ def get_bro(
 
 @cache.cache_pickle
 def get_bro_metadata(extent, max_dx=20000, max_dy=20000):
-    """wrapper around hpd.read_bro that deals with large extents and only
-    returns metadata (location, tube top/bot, ground level, ..) of the wells
-    and no actual measurements. This is useful when the extent is too big
-    to obtain all measurements at once.
+    """Wrapper around hpd.read_bro that deals with large extents and only returns
+    metadata (location, tube top/bot, ground level, ..) of the wells and no actual
+    measurements. This is useful when the extent is too big to obtain all measurements
+    at once.
 
     Parameters
     ----------
@@ -188,7 +187,6 @@ def get_bro_metadata(extent, max_dx=20000, max_dy=20000):
     -------
     ObsCollection
     """
-
     # check if extent is within limits
     dx = extent[1] - extent[0]
     dy = extent[3] - extent[2]

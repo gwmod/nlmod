@@ -1,8 +1,8 @@
 import pandas as pd
-import xarray as xr
-from shapely.geometry import LineString
 import pytest
 import test_001_model
+import xarray as xr
+from shapely.geometry import LineString
 
 import nlmod
 

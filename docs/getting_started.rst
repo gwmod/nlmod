@@ -72,10 +72,8 @@ MODFLOW 6 model given a model dataset::
 
     # ... add some boundary condition packages (GHB, RIV, DRN, ...)
 
-Running the model requires the modflow binaries provided by the USGS. Those can
-be downloaded with::
-
-    nlmod.download_mfbinaries()
+The MODFLOW 6 executable is automatically downloaded and installed to your system
+when building the first model.
 
 Writing and running the model can then be done using::
 

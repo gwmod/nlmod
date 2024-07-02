@@ -44,7 +44,6 @@ def set_ds_attrs(
     ds : xarray dataset
         model dataset.
     """
-
     if model_name is not None and len(model_name) > 16 and mfversion == "mf6":
         raise ValueError("model_name can not have more than 16 characters")
     ds.attrs["model_name"] = model_name
@@ -338,7 +337,6 @@ def _get_structured_grid_ds(
         dictionary, and a coordinate reference system specified by `crs`, if
         provided.
     """
-
     if attrs is None:
         attrs = {}
     attrs.update({"gridtype": "structured"})

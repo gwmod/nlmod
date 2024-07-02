@@ -183,7 +183,7 @@ def arcrest(
 
 
 def _get_data(url, params, timeout=120, **kwargs):
-    """get data using a request
+    """Get data using a request.
 
     Parameters
     ----------
@@ -197,7 +197,6 @@ def _get_data(url, params, timeout=120, **kwargs):
     Returns
     -------
     data
-
     """
     r = requests.get(url, params=params, timeout=timeout, **kwargs)
     if not r.ok:
@@ -432,9 +431,8 @@ def _split_wcs_extent(
     fmt,
     crs,
 ):
-    """There is a max height and width limit for the wcs server. This function
-    splits your extent in chunks smaller than the limit. It returns a list of
-    Memory files.
+    """There is a max height and width limit for the wcs server. This function splits
+    your extent in chunks smaller than the limit. It returns a list of Memory files.
 
     Parameters
     ----------
@@ -463,12 +461,12 @@ def _split_wcs_extent(
     -------
     MemoryFile
         Rasterio MemoryFile of the merged data
+
     Notes
     -----
     1. The resolution is used to obtain the data from the wcs server. Not sure
     what kind of interpolation is used to resample the original grid.
     """
-
     # write tiles
     datasets = []
     start_x = extent[0]

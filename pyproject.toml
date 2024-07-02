@@ -57,13 +57,7 @@ repository = "https://github.com/gwmod/nlmod"
 documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
-full = [
-    "nlmod[knmi]",
-    "gdown",
-    "geocube",
-    "contextily",
-    "scikit-image",
-]
+full = ["nlmod[knmi]", "gdown", "geocube", "contextily", "scikit-image"]
 knmi = ["h5netcdf", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
@@ -103,8 +97,31 @@ line-length = 88
 profile = "black"
 
 [tool.ruff]
-line-length = 88    
+line-length = 88
 extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
+# See: https://docs.astral.sh/ruff/rules/
+select = [
+    "C4",  # flake8-comprehensions
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "PT",  # pytest-style
+    "D",   # pydocstyle
+    "B",   # flake8-bugbear
+    "NPY", # numpy
+]
+ignore = [
+    "D401", # Imperative mood for docstring. Be glad we have docstrings at all :P!
+    "D100", # Missing docstring in module.
+    "D104", # Missing docstring in public package.
+]
+
+[tool.ruff.format]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"

@@ -1,8 +1,10 @@
-from shapely.geometry import LineString, Polygon
-import geopandas as gpd
+# ruff: noqa: D103
 import flopy
-import nlmod
+import geopandas as gpd
 import util
+from shapely.geometry import LineString, Polygon
+
+import nlmod
 
 
 def test_get_hfb_spd():

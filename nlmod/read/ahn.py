@@ -1,10 +1,10 @@
 import datetime as dt
 import logging
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import rasterio
 import rioxarray
 import xarray as xr
@@ -91,8 +91,7 @@ def get_ahn_at_point(
     res=0.5,
     **kwargs,
 ):
-    """
-    Get the height of the surface level at a certain point, defined by x and y.
+    """Get the height of the surface level at a certain point, defined by x and y.
 
     Parameters
     ----------
@@ -118,7 +117,6 @@ def get_ahn_at_point(
     -------
     float
         The surface level value at the requested point.
-
     """
     extent = [x - buffer, x + buffer, y - buffer, y + buffer]
     ahn = get_latest_ahn_from_wcs(extent, identifier=identifier, res=res, **kwargs)
@@ -134,8 +132,7 @@ def get_ahn_at_point(
 
 
 def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=False):
-    """
-    Get the height of the surface level along a line.
+    """Get the height of the surface level along a line.
 
     Parameters
     ----------
@@ -162,7 +159,6 @@ def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=
     -------
     z : xr.DataArray
         A DataArray with dimension s, containing surface level values along the line.
-
     """
     if ahn is None:
         bbox = line.bounds
@@ -237,7 +233,6 @@ def get_latest_ahn_from_wcs(
     xr.DataArray or MemoryFile
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
-
     url = "https://service.pdok.nl/rws/ahn/wcs/v1_0?SERVICE=WCS&request=GetCapabilities"
 
     if isinstance(extent, xr.DataArray):
@@ -276,10 +271,9 @@ def get_latest_ahn_from_wcs(
 def get_ahn2_tiles(extent=None):
     """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame.
 
-    The links in the tiles are cuurently incorrect. Thereore
-    get_ahn3_tiles is used in get_ahn2 and get_ahn1, as the tiles from
-    get_ahn3_tiles also contain information about the tiles of ahn1 and
-    ahn2
+    The links in the tiles are cuurently incorrect. Thereore get_ahn3_tiles is used in
+    get_ahn2 and get_ahn1, as the tiles from get_ahn3_tiles also contain information
+    about the tiles of ahn1 and ahn2
     """
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN2/FeatureServer"
     layer = 0
@@ -300,8 +294,7 @@ def get_ahn3_tiles(extent=None):
 
 
 def get_ahn4_tiles(extent=None):
-    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download
-    links."""
+    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download links."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN4/FeatureServer"
     layer = 0
     gdf = arcrest(url, layer, extent)

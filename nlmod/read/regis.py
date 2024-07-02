@@ -25,7 +25,7 @@ def get_combined_layer_models(
     geotop_layers="HLc",
     geotop_k=None,
 ):
-    """combine layer models into a single layer model.
+    """Combine layer models into a single layer model.
 
     Possibilities so far include:
         - use_regis -> full model based on regis
@@ -64,7 +64,6 @@ def get_combined_layer_models(
     ValueError
         if an invalid combination of layers is used.
     """
-
     if use_regis:
         regis_ds = get_regis(
             extent, regis_botm_layer, remove_nan_layers=remove_nan_layers
@@ -101,7 +100,7 @@ def get_regis(
     drop_layer_dim_from_top=True,
     probabilities=False,
 ):
-    """get a regis dataset projected on the modelgrid.
+    """Get a regis dataset projected on the modelgrid.
 
     Parameters
     ----------
@@ -132,7 +131,6 @@ def get_regis(
     regis_ds : xarray dataset
         dataset with regis data projected on the modelgrid.
     """
-
     ds = xr.open_dataset(REGIS_URL, decode_times=False)
 
     # set x and y dimensions to cell center
@@ -195,10 +193,16 @@ def get_regis(
 
 
 def add_geotop_to_regis_layers(
-    rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True, anisotropy=1.0
+    rg,
+    gt,
+    layers="HLc",
+    geotop_k=None,
+    remove_nan_layers=True,
+    anisotropy=1.0,
+    gt_layered=None,
 ):
-    """Combine geotop and regis in such a way that the one or more layers in
-    Regis are replaced by the geo_eenheden of geotop.
+    """Combine geotop and regis in such a way that the one or more layers in Regis are
+    replaced by the geo_eenheden of geotop.
 
     Parameters
     ----------
@@ -216,6 +220,10 @@ def add_geotop_to_regis_layers(
     anisotropy : float, optional
         The anisotropy value (kh/kv) used when there are no kv values in df. The
         default is 1.0.
+    gt_layered : xarray.Dataset
+        A layered representation of the geotop-dataset. By supplying this parameter, the
+        user can change the GeoTOP-layering, which is usueally defined by
+        nlmod.read.geotop.to_model_layers(gt).
 
     Returns
     -------
@@ -253,8 +261,11 @@ def add_geotop_to_regis_layers(
         rg["top"] = rg["botm"] + calculate_thickness(rg)
 
     for layer in layers:
-        # transform geotop data into layers
-        gtl = geotop.to_model_layers(gt)
+        if gt_layered is not None:
+            gtl = gt_layered.copy(deep=True)
+        else:
+            # transform geotop data into layers
+            gtl = geotop.to_model_layers(gt)
 
         # temporarily add layer dimension to top in gtl
         gtl["top"] = gtl["botm"] + calculate_thickness(gtl)
@@ -290,14 +301,13 @@ def add_geotop_to_regis_layers(
 
 
 def get_layer_names():
-    """get all the available regis layer names.
+    """Get all the available regis layer names.
 
     Returns
     -------
     layer_names : np.array
         array with names of all the regis layers.
     """
-
     layer_names = xr.open_dataset(REGIS_URL).layer.astype(str).values
 
     return layer_names

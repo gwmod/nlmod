@@ -49,7 +49,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
             raise ValueError("2d top should have same last dimension as bot")
 
     # subtracting floats can result in rounding errors. Mainly anoying for zero thickness layers.
-    thickness = thickness.where(~np.isclose(thickness, 0.), 0.)
+    thickness = thickness.where(~np.isclose(thickness, 0.0), 0.0)
 
     if isinstance(ds[bot], xr.DataArray):
         thickness.name = "thickness"
@@ -69,8 +69,8 @@ def calculate_thickness(ds, top="top", bot="botm"):
 def calculate_transmissivity(
     ds, kh="kh", thickness="thickness", top="top", botm="botm"
 ):
-    """calculate the transmissivity (T) as the product of the horizontal
-    conductance (kh) and the thickness (D).
+    """Calculate the transmissivity (T) as the product of the horizontal conductance
+    (kh) and the thickness (D).
 
     Parameters
     ----------
@@ -94,7 +94,6 @@ def calculate_transmissivity(
     T : xarray.DataArray
         DataArray containing transmissivity (T). NaN where layer thickness is zero
     """
-
     if thickness in ds:
         thickness = ds[thickness]
     else:
@@ -123,7 +122,7 @@ def calculate_transmissivity(
 
 
 def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="botm"):
-    """calculate vertical resistance (c) between model layers from the vertical
+    """Calculate vertical resistance (c) between model layers from the vertical
     conductivity (kv) and the thickness. The resistance between two layers is assigned
     to the top layer. The bottom model layer gets a resistance of infinity.
 
@@ -149,7 +148,6 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
     c : xarray.DataArray
         DataArray containing vertical resistance (c). NaN where layer thickness is zero
     """
-
     if thickness in ds:
         thickness = ds[thickness]
     else:
@@ -224,7 +222,6 @@ def split_layers_ds(
         Dataset with new tops and bottoms taking into account split layers, and filled
         data for other variables.
     """
-
     layers = list(ds.layer.data)
 
     # Work on a shallow copy of split_dict
@@ -569,7 +566,6 @@ def combine_layers_ds(
         Dataset with new tops and bottoms taking into account combined layers,
         and recalculated values for parameters (kh, kv, kD, c).
     """
-
     data_vars = []
     for dv in [kh, kv, kD, c]:
         if dv is not None:
@@ -644,7 +640,7 @@ def combine_layers_ds(
 def add_kh_kv_from_ml_layer_to_ds(
     ml_layer_ds, ds, anisotropy, fill_value_kh, fill_value_kv
 ):
-    """add kh and kv from a model layer dataset to the model dataset.
+    """Add kh and kv from a model layer dataset to the model dataset.
 
     Supports structured and vertex grids.
 
@@ -811,8 +807,9 @@ def set_layer_thickness(ds, layer, thickness, change="botm", copy=True):
 
 
 def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm", copy=True):
-    """Make sure layer has a minimum thickness by lowering the botm of the
-    layer where neccesary."""
+    """Make sure layer has a minimum thickness by lowering the botm of the layer where
+    neccesary.
+    """
     assert layer in ds.layer
     assert change == "botm", "Only change=botm allowed for now"
     if copy:
@@ -834,8 +831,8 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm", copy=Tr
 def remove_thin_layers(
     ds, min_thickness=0.1, update_thickness_every_layer=False, copy=True
 ):
-    """
-    Remove cells with a thickness less than min_thickness (setting the thickness to 0)
+    """Remove cells with a thickness less than min_thickness (setting the thickness to
+    0)
 
     The thickness of the removed cells is added to the first active layer below
 
@@ -855,11 +852,11 @@ def remove_thin_layers(
     copy : bool, optional
         If copy=True, data in the return value is always copied, so the original Dataset
         is not altered. The default is True.
+
     Returns
     -------
     ds : xr.Dataset
         Dataset containing information about layers.
-
     """
     if "layer" in ds["top"].dims:
         msg = "remove_thin_layers does not support top with a layer dimension"
@@ -904,8 +901,8 @@ def remove_thin_layers(
 
 
 def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=None):
-    """create kh en kv grid data for flopy from existing kh, kv and anistropy
-    grids with nan values (typically from REGIS).
+    """Create kh en kv grid data for flopy from existing kh, kv and anistropy grids with
+    nan values (typically from REGIS).
 
     fill nans in kh grid in these steps:
     1. take kv and multiply by anisotropy, if this is nan:
@@ -1018,7 +1015,6 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask):
     ds : xr.DataSet
         model dataset with adjusted data variables: 'top', 'botm', 'kh', 'kv'
     """
-
     # zee cellen hebben altijd een top gelijk aan 0
     ds["top"].values = np.where(fill_mask, 0, ds["top"])
 
@@ -1065,7 +1061,6 @@ def fill_nan_top_botm_kh_kv(
     2. Remove inactive layers, with no positive thickness anywhere
     3. Compute kh and kv, filling nans with anisotropy or fill_values
     """
-
     # 1
     ds = remove_layer_dim_from_top(ds)
 
@@ -1088,8 +1083,7 @@ def fill_nan_top_botm_kh_kv(
 
 
 def fill_nan_top_botm(ds):
-    """
-    Remove Nans in non-existent layers in botm and top variables
+    """Remove Nans in non-existent layers in botm and top variables.
 
     The NaNs are removed by setting the value to the top and botm of higher/lower
     layers that do exist.
@@ -1122,8 +1116,7 @@ def fill_nan_top_botm(ds):
 
 
 def set_nan_top_and_botm(ds, copy=True):
-    """
-    Sets Nans for non-existent layers in botm and top variables
+    """Sets Nans for non-existent layers in botm and top variables.
 
     Nans are only added to top when it contains a layer dimension.
 
@@ -1159,8 +1152,7 @@ def remove_layer_dim_from_top(
     return_inconsistencies=False,
     copy=True,
 ):
-    """
-    Change top from 3d to 2d, removing NaNs in top and botm in the process.
+    """Change top from 3d to 2d, removing NaNs in top and botm in the process.
 
     This method sets variable `top` to the top of the upper layer (like the definition
     in MODFLOW). This removes redundant data, as the top of all layers exept the most
@@ -1220,8 +1212,7 @@ def remove_layer_dim_from_top(
 
 
 def add_layer_dim_to_top(ds, set_non_existing_layers_to_nan=True, copy=True):
-    """
-    Change top from 2d to 3d, setting top and botm to NaN for non-existent layers.
+    """Change top from 2d to 3d, setting top and botm to NaN for non-existent layers.
 
     Parameters
     ----------
@@ -1248,28 +1239,23 @@ def add_layer_dim_to_top(ds, set_non_existing_layers_to_nan=True, copy=True):
 
 
 def convert_to_modflow_top_bot(ds, **kwargs):
-    """
-    Removes the layer dimension from top and fills nans in top and botm.
+    """Removes the layer dimension from top and fills nans in top and botm.
 
     Alias to remove_layer_dim_from_top
-
     """
     ds = remove_layer_dim_from_top(ds, **kwargs)
 
 
 def convert_to_regis_top_bot(ds, **kwargs):
-    """
-    Adds a layer dimension to top and sets non-existing cells to nan in top and botm.
+    """Adds a layer dimension to top and sets non-existing cells to nan in top and botm.
 
     Alias to add_layer_dim_to_top
-
     """
     ds = add_layer_dim_to_top(ds, **kwargs)
 
 
 def remove_inactive_layers(ds):
-    """
-    Remove layers which only contain inactive cells
+    """Remove layers which only contain inactive cells.
 
     Parameters
     ----------
@@ -1280,7 +1266,6 @@ def remove_inactive_layers(ds):
     -------
     ds : xr.Dataset
         The model Dataset without inactive layers.
-
     """
     idomain = get_idomain(ds)
     # only keep layers with at least one active cell
@@ -1314,8 +1299,9 @@ def get_idomain(ds):
     idomain.attrs.clear()
     # set idomain of cells  with a positive thickness to 1
     thickness = calculate_thickness(ds)
-    # subtracting floats can result in rounding errors. Mainly anoying for zero thickness layers.
-    thickness = thickness.where(~np.isclose(thickness, 0.), 0.)
+    # subtracting floats can result in rounding errors. Mainly anoying for zero
+    # thickness layers.
+    thickness = thickness.where(~np.isclose(thickness, 0.0), 0.0)
     idomain.data[thickness.data > 0.0] = 1
     # set idomain above/below the first/last active layer to 0
     idomain.data[idomain.where(idomain > 0).ffill(dim="layer").isnull()] = 0
@@ -1347,7 +1333,7 @@ def get_first_active_layer(ds, **kwargs):
 
 
 def get_first_active_layer_from_idomain(idomain, nodata=-999):
-    """get the first (top) active layer in each cell from the idomain.
+    """Get the first (top) active layer in each cell from the idomain.
 
     Parameters
     ----------
@@ -1377,7 +1363,7 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
 
 
 def get_last_active_layer_from_idomain(idomain, nodata=-999):
-    """get the last (bottom) active layer in each cell from the idomain.
+    """Get the last (bottom) active layer in each cell from the idomain.
 
     Parameters
     ----------
@@ -1444,7 +1430,7 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):
-    """get new idomain from thickness in the cells where mask is 1 (or True).
+    """Get new idomain from thickness in the cells where mask is 1 (or True).
 
     Idomain becomes:
     -    1: if cell thickness is bigger than 0
@@ -1517,7 +1503,7 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
     ValueError
         if source_ds does not have a layer dimension
 
-    See also
+    See Also
     --------
     nlmod.read.geotop.aggregate_to_ds
     """
@@ -1559,7 +1545,7 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
 def check_elevations_consistency(ds):
     if "layer" in ds["top"].dims:
         tops = ds["top"].data
-        top_ref = np.full(tops.shape[1:], np.NaN)
+        top_ref = np.full(tops.shape[1:], np.nan)
         for lay, layer in zip(range(tops.shape[0]), ds.layer.data):
             top = tops[lay]
             mask = ~np.isnan(top)
@@ -1572,7 +1558,7 @@ def check_elevations_consistency(ds):
             top_ref[mask] = top[mask]
 
     bots = ds["botm"].data
-    bot_ref = np.full(bots.shape[1:], np.NaN)
+    bot_ref = np.full(bots.shape[1:], np.nan)
     for lay, layer in zip(range(bots.shape[0]), ds.layer.data):
         bot = bots[lay]
         mask = ~np.isnan(bot)
@@ -1591,8 +1577,7 @@ def check_elevations_consistency(ds):
 
 
 def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
-    """
-    Inserts a layer in a model Dataset, burning it in an existing layer model.
+    """Inserts a layer in a model Dataset, burning it in an existing layer model.
 
     This method loops over the existing layers, and checks if (part of) the new layer
     needs to be inserted above the existing layer, and if the top or bottom of the
@@ -1652,7 +1637,6 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
     -------
     ds : xarray.Dataset
         xarray Dataset containing the new layer(s)
-
     """
     shape = ds["botm"].shape[1:]
     assert top.shape == shape

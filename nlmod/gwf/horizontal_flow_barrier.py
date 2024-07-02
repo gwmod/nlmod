@@ -9,10 +9,10 @@ from ..dims.grid import gdf_to_da, gdf_to_grid
 
 
 def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
-    """Generate a stress period data for horizontal flow barrier between two
-    cell nodes, with several limitations. The stress period data can be used
-    directly in the HFB package of flopy. The hfb is placed at the cell
-    interface; it follows the sides of the cells.
+    """Generate a stress period data for horizontal flow barrier between two cell nodes,
+    with several limitations. The stress period data can be used directly in the HFB
+    package of flopy. The hfb is placed at the cell interface; it follows the sides of
+    the cells.
 
     The estimation of the cross-sectional area at the interface is pretty crude, as the
     thickness at the cell interface is just the average of the thicknesses of the two
@@ -101,8 +101,8 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
 
 
 def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
-    """Obtain the cells with a horizontal flow barrier between them from a
-    geodataframe with line elements.
+    """Obtain the cells with a horizontal flow barrier between them from a geodataframe
+    with line elements.
 
     Parameters
     ----------
@@ -278,7 +278,7 @@ def polygon_to_hfb(
 
 
 def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
-    """plots a horizontal flow barrier.
+    """Plots a horizontal flow barrier.
 
     Parameters
     ----------

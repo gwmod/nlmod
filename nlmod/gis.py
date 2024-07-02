@@ -219,7 +219,6 @@ def ds_to_vector_file(
     fnames : str or list of str
         filename(s) of exported geopackage or shapefiles.
     """
-
     # get default combination dictionary
     if combine_dic is None:
         combine_dic = {
@@ -449,7 +448,6 @@ def _break_down_dimension(
 
     Copied and altered from imod-python.
     """
-
     keep_vars = []
     for var in variables:
         if dim in ds[var].dims:

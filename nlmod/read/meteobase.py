@@ -11,8 +11,7 @@ from xarray import DataArray
 
 
 class MeteobaseType(Enum):
-    """Enum class to couple folder names to observation type (from in
-    LEESMIJ.txt)"""
+    """Enum class to couple folder names to observation type (from in LEESMIJ.txt)"""
 
     NEERSLAG = "Neerslagradargegevens in Arc/Info-formaat."
     MAKKINK = "Verdampingsgegevens volgens Makkink."
@@ -56,8 +55,7 @@ def read_leesmij(fo: FileIO) -> Dict[str, Dict[str, str]]:
 
 
 def get_timestamp_from_fname(fname: str) -> Timestamp:
-    """Get the Timestamp from a filename (with some assumptions about the
-    formatting)"""
+    """Get the Timestamp from a filename (with some assumptions about the formatting)"""
     datestr = re.search("([0-9]{8})", fname)  # assumes YYYYMMDD
     if datestr is not None:
         match = datestr.group(0)
@@ -130,7 +128,7 @@ def read_ascii(fo: FileIO) -> Union[np.ndarray, dict]:
 
 
 def get_xy_from_ascii_meta(
-    meta: Dict[str, Union[int, float]]
+    meta: Dict[str, Union[int, float]],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Get the xy coordinates Esri ASCII raster format header.
 
@@ -268,7 +266,6 @@ def read_meteobase(
     -------
     List[DataArray]
     """
-
     with ZipFile(Path(path)) as zfile:
         with zfile.open("LEESMIJ.TXT") as fo:
             meta = read_leesmij(fo)

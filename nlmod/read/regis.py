@@ -193,7 +193,13 @@ def get_regis(
 
 
 def add_geotop_to_regis_layers(
-    rg, gt, layers="HLc", geotop_k=None, remove_nan_layers=True, anisotropy=1.0
+    rg,
+    gt,
+    layers="HLc",
+    geotop_k=None,
+    remove_nan_layers=True,
+    anisotropy=1.0,
+    gt_layered=None,
 ):
     """Combine geotop and regis in such a way that the one or more layers in Regis are
     replaced by the geo_eenheden of geotop.
@@ -214,6 +220,10 @@ def add_geotop_to_regis_layers(
     anisotropy : float, optional
         The anisotropy value (kh/kv) used when there are no kv values in df. The
         default is 1.0.
+    gt_layered : xarray.Dataset
+        A layered representation of the geotop-dataset. By supplying this parameter, the
+        user can change the GeoTOP-layering, which is usueally defined by
+        nlmod.read.geotop.to_model_layers(gt).
 
     Returns
     -------
@@ -251,8 +261,11 @@ def add_geotop_to_regis_layers(
         rg["top"] = rg["botm"] + calculate_thickness(rg)
 
     for layer in layers:
-        # transform geotop data into layers
-        gtl = geotop.to_model_layers(gt)
+        if gt_layered is not None:
+            gtl = gt_layered.copy(deep=True)
+        else:
+            # transform geotop data into layers
+            gtl = geotop.to_model_layers(gt)
 
         # temporarily add layer dimension to top in gtl
         gtl["top"] = gtl["botm"] + calculate_thickness(gtl)

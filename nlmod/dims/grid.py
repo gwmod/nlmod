@@ -1956,7 +1956,7 @@ def mask_model_edge(ds, idomain=None):
             ds["vertices"] = get_vertices(ds)
         polygons_grid = polygons_from_model_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
-        extent_edge = util.polygon_from_extent(ds.extent).exterior
+        extent_edge = get_extent_polygon(ds).exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
         ds_out["edge_mask"] = util.get_da_from_da_ds(
             ds, dims=("layer", "icell2d"), data=0

@@ -2,7 +2,7 @@
 from . import base, grid, layers, resample, time
 from .attributes_encodings import *
 from .base import *
-from .grid import *
-from .layers import *
 from .resample import *
+from .grid import *  # import from grid after resample, to ignore deprecated methods
+from .layers import *
 from .time import *

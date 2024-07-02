@@ -28,7 +28,6 @@ from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 from .. import cache, util
-from .base import _get_structured_grid_ds, _get_vertex_grid_ds, extrapolate_ds
 from .layers import (
     fill_nan_top_botm_kh_kv,
     get_first_active_layer,
@@ -312,6 +311,7 @@ def modelgrid_to_ds(mg):
     """
     if mg.grid_type == "structured":
         x, y = mg.xyedges
+        from .base import _get_structured_grid_ds
 
         ds = _get_structured_grid_ds(
             xedges=x,
@@ -326,6 +326,8 @@ def modelgrid_to_ds(mg):
             crs=None,
         )
     elif mg.grid_type == "vertex":
+        from .base import _get_vertex_grid_ds
+
         ds = _get_vertex_grid_ds(
             x=mg.xcellcenters,
             y=mg.ycellcenters,
@@ -734,6 +736,8 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
 
         for var in layer_ds.data_vars:
             ds[var] = structured_da_to_ds(layer_ds[var], ds, method=method)
+    from .base import extrapolate_ds
+
     ds = extrapolate_ds(ds)
     ds = fill_nan_top_botm_kh_kv(ds, **kwargs)
     return ds

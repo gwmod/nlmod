@@ -6,10 +6,7 @@ import rasterio
 import xarray as xr
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-
-
 from ..util import get_da_from_da_ds
-
 
 logger = logging.getLogger(__name__)
 

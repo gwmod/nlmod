@@ -7,7 +7,7 @@ __version__ = "0.7.3b"
 def show_versions() -> None:
     """Method to print the version of dependencies."""
     msg = (
-        f"Python version     : {python_version}\n"
+        f"Python version     : {python_version()}\n"
         f"NumPy version      : {metadata.version('numpy')}\n"
         f"Xarray version     : {metadata.version('xarray')}\n"
         f"Matplotlib version : {metadata.version('matplotlib')}\n"

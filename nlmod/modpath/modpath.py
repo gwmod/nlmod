@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
-    """write modpath files and run the model. Extra options include removing
-    previous output and copying the modelscript to the model workspace.
+    """Write modpath files and run the model. Extra options include removing previous
+    output and copying the modelscript to the model workspace.
 
     Parameters
     ----------
@@ -55,9 +55,8 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
 
 
 def xy_to_nodes(xy_list, mpf, ds, layer=0):
-    """convert a list of points, defined by x and y coordinates, to a list of
-    nodes. A node is a unique cell in a model. The icell2d is a unique cell in
-    a layer.
+    """Convert a list of points, defined by x and y coordinates, to a list of nodes. A
+    node is a unique cell in a model. The icell2d is a unique cell in a layer.
 
     Parameters
     ----------
@@ -145,7 +144,7 @@ def package_to_nodes(gwf, package_name, mpf):
 
 
 def layer_to_nodes(mpf, modellayer):
-    """get the nodes of all cells in one ore more model layer(s).
+    """Get the nodes of all cells in one ore more model layer(s).
 
     Parameters
     ----------
@@ -264,16 +263,14 @@ def bas(mpf, porosity=0.3, **kwargs):
     mpfbas : flopy.modpath.mp7bas.Modpath7Bas
         modpath bas package.
     """
-
     mpfbas = flopy.modpath.Modpath7Bas(mpf, porosity=porosity, **kwargs)
 
     return mpfbas
 
 
 def remove_output(mpf):
-    """Remove the output of a previous modpath run. Commonly used before
-    starting a new modpath run to avoid loading the wrong data when a modpath
-    run has failed.
+    """Remove the output of a previous modpath run. Commonly used before starting a new
+    modpath run to avoid loading the wrong data when a modpath run has failed.
 
     Parameters
     ----------
@@ -456,6 +453,7 @@ def sim(
     simulationtype="combined",
     weaksinkoption="pass_through",
     weaksourceoption="pass_through",
+    **kwargs,
 ):
     """Create a modpath backward simulation from a particle group.
 
@@ -505,6 +503,7 @@ def sim(
         stoptimeoption=stoptimeoption,
         stoptime=stoptime,
         particlegroups=particlegroups,
+        **kwargs,
     )
 
     return mpsim

@@ -1,7 +1,9 @@
-import tempfile
 import os
+import tempfile
+
 import pandas as pd
 import xarray as xr
+
 import nlmod
 
 

@@ -10,11 +10,11 @@ from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
+from ..cache import cache_pickle
 from ..dims.grid import gdf_to_grid
 from ..dims.layers import get_idomain
-from ..dims.resample import get_extent_polygon, extent_to_polygon, get_delr, get_delc
+from ..dims.resample import extent_to_polygon, get_delc, get_delr, get_extent_polygon
 from ..read import bgt, waterboard
-from ..cache import cache_pickle
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,6 @@ def aggregate(gdf, method, ds=None):
     celldata : pd.DataFrame
         DataFrame with aggregated surface water parameters per grid cell
     """
-
     required_cols = {"stage", "c0", "botm"}
     missing_cols = required_cols.difference(gdf.columns)
     if len(missing_cols) > 0:
@@ -300,9 +299,10 @@ def estimate_polygon_length(gdf):
 def distribute_cond_over_lays(
     cond, cellid, rivbot, laytop, laybot, idomain=None, kh=None, stage=None
 ):
-    """Distribute the conductance in a cell over the layers in that cell, based
-    on the the river-bottom and the layer bottoms, and optionally based on the
-    stage and the hydraulic conductivity."""
+    """Distribute the conductance in a cell over the layers in that cell, based on the
+    the river-bottom and the layer bottoms, and optionally based on the stage and the
+    hydraulic conductivity.
+    """
     if isinstance(rivbot, (np.ndarray, xr.DataArray)):
         rivbot = float(rivbot[cellid])
     if len(laybot.shape) == 3:
@@ -393,7 +393,6 @@ def build_spd(
         - DRN: [(cellid), elev, cond]
         - GHB: [(cellid), elev, cond]
     """
-
     spd = []
 
     top = ds.top.data
@@ -517,7 +516,9 @@ def add_info_to_gdf(
     geom_type="Polygon",
     add_index_from_column=None,
 ):
-    """Add information from 'gdf_from' to 'gdf_to', based on the spatial intersection."""
+    """Add information from 'gdf_from' to 'gdf_to', based on the spatial
+    intersection.
+    """
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
@@ -702,7 +703,7 @@ def download_watercourses(
 
 
 def _get_waterboard_selection(gdf=None, extent=None, config=None):
-    """Internal method to select waterboards to get data from"""
+    """Internal method to select waterboards to get data from."""
     if config is None:
         config = waterboard.get_configuration()
     if gdf is None and extent is None:
@@ -759,7 +760,7 @@ def add_stages_from_waterboards(
         la = download_level_areas(gdf, extent=extent, config=config)
     if columns is None:
         columns = ["summer_stage", "winter_stage"]
-    gdf[columns] = np.NaN
+    gdf[columns] = np.nan
     for wb in la.keys():
         if len(la[wb]) == 0:
             continue
@@ -813,7 +814,7 @@ def add_bottom_height_from_waterboards(
         wc = download_watercourses(gdf, extent=extent, config=config)
     if columns is None:
         columns = ["bottom_height"]
-    gdf[columns] = np.NaN
+    gdf[columns] = np.nan
     for wb in wc.keys():
         if len(wc[wb]) == 0:
             continue
@@ -883,8 +884,8 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
 
 
 def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
-    """Add a column names with the minimum surface level height near surface
-    water features.
+    """Add a column names with the minimum surface level height near surface water
+    features.
 
     Parameters
     ----------
@@ -905,7 +906,6 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
     """
-
     from geocube.api.core import make_geocube
     from geocube.rasterize import rasterize_image
 
@@ -995,7 +995,7 @@ def gdf_to_seasonal_pkg(
 
     # make sure we have a bottom height
     if "rbot" not in gdf:
-        gdf["rbot"] = np.NaN
+        gdf["rbot"] = np.nan
     mask = gdf["rbot"].isna()
     if mask.any():
         logger.info(

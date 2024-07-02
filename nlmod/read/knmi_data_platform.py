@@ -58,7 +58,7 @@ def get_list_of_files(
     start_after_filename: Optional[str] = None,
     timeout: int = 120,
 ) -> List[str]:
-    """Download list of files from KNMI data platform"""
+    """Download list of files from KNMI data platform."""
     if api_key is None:
         api_key = get_anonymous_api_key()
     files = []
@@ -89,7 +89,7 @@ def download_file(
     api_key: Optional[str] = None,
     timeout: int = 120,
 ) -> None:
-    """Download file from KNMI data platform"""
+    """Download file from KNMI data platform."""
     if api_key is None:
         api_key = get_anonymous_api_key()
     url = (
@@ -119,7 +119,7 @@ def download_files(
     api_key: Optional[str] = None,
     timeout: int = 120,
 ) -> None:
-    """Download multiple files from KNMI data platform"""
+    """Download multiple files from KNMI data platform."""
     for fname in tqdm(fnames):
         download_file(
             dataset_name=dataset_name,
@@ -132,7 +132,7 @@ def download_files(
 
 
 def read_nc(fo: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
-    """Read netcdf (.nc) file to xarray Dataset"""
+    """Read netcdf (.nc) file to xarray Dataset."""
     # could help to provide argument: engine="h5netcdf"
     return xr.open_dataset(fo, **kwargs)
 
@@ -161,7 +161,7 @@ def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
 
 
 def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str, Any]:
-    """Read metadata from hdf5 (.h5) file and add to existing metadata dictionary"""
+    """Read metadata from hdf5 (.h5) file and add to existing metadata dictionary."""
 
     def cleanup(val: Any) -> Any:
         if isinstance(val, (ndarray, list)):
@@ -174,7 +174,7 @@ def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str
         return val
 
     if hasattr(h5obj, "attrs"):
-        attrs = getattr(h5obj, "attrs")
+        attrs = h5obj.attrs
         submeta = {f"{orig_ky}/{ky}": cleanup(val) for ky, val in attrs.items()}
         meta.update(submeta)
 
@@ -186,7 +186,7 @@ class MultipleDatasetsFound(Exception):
 
 
 def read_h5_contents(h5fo: FileIO) -> Tuple[ndarray, Dict[str, Any]]:
-    """Read contents from a hdf5 (.h5) file"""
+    """Read contents from a hdf5 (.h5) file."""
     from h5py import Dataset as h5Dataset
 
     data = None
@@ -206,7 +206,7 @@ def read_h5_contents(h5fo: FileIO) -> Tuple[ndarray, Dict[str, Any]]:
 
 
 def read_h5(fo: Union[str, FileIO]) -> xr.Dataset:
-    """Read hdf5 (.h5) file to xarray Dataset"""
+    """Read hdf5 (.h5) file to xarray Dataset."""
     from h5py import File as h5File
 
     with h5File(fo) as h5fo:
@@ -231,7 +231,7 @@ def read_h5(fo: Union[str, FileIO]) -> xr.Dataset:
 def read_grib(
     fo: Union[str, FileIO], filter_by_keys=None, **kwargs: dict
 ) -> xr.Dataset:
-    """Read GRIB file to xarray Dataset"""
+    """Read GRIB file to xarray Dataset."""
     if kwargs is None:
         kwargs = {}
 
@@ -248,7 +248,7 @@ def read_grib(
 def read_dataset_from_zip(
     fname: str, hour: Optional[int] = None, **kwargs: dict
 ) -> xr.Dataset:
-    """Read KNMI data platfrom .zip file to xarray Dataset"""
+    """Read KNMI data platfrom .zip file to xarray Dataset."""
     if fname.endswith(".zip"):
         with ZipFile(fname) as zipfo:
             fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])
@@ -276,7 +276,7 @@ def read_dataset(
     hour: Optional[int] = None,
     **kwargs: dict,
 ) -> xr.Dataset:
-    """Read xarray dataset from different file types; .nc, .h5 or grib file"""
+    """Read xarray dataset from different file types; .nc, .h5 or grib file."""
     if hour is not None:
         if hour == 24:
             hour = 0

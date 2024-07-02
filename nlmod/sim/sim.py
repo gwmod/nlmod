@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
-    """write modflow files and run the model. Extra options include writing the
-    model dataset to a netcdf file in the model workspace and copying the
-    modelscript to the model workspace.
+    """Write modflow files and run the model. Extra options include writing the model
+    dataset to a netcdf file in the model workspace and copying the modelscript to the
+    model workspace.
 
     Parameters
     ----------
@@ -108,7 +108,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
 
 
 def sim(ds, exe_name=None, version_tag=None):
-    """create sim from the model dataset.
+    """Create sim from the model dataset.
 
     Parameters
     ----------
@@ -131,7 +131,6 @@ def sim(ds, exe_name=None, version_tag=None):
     sim : flopy MFSimulation
         simulation object.
     """
-
     # start creating model
     logger.info("creating mf6 SIM")
 
@@ -161,7 +160,7 @@ def sim(ds, exe_name=None, version_tag=None):
 
 
 def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
-    """create tdis package from the model dataset.
+    """Create tdis package from the model dataset.
 
     Parameters
     ----------
@@ -180,7 +179,6 @@ def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
     dis : flopy TDis
         tdis object.
     """
-
     # start creating model
     logger.info("creating mf6 TDIS")
 
@@ -201,7 +199,7 @@ def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
 
 
 def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
-    """create IMS package.
+    """Create IMS package.
 
     Parameters
     ----------
@@ -217,7 +215,6 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
     ims : flopy ModflowIms
         ims object.
     """
-
     logger.info("creating mf6 IMS")
 
     print_option = kwargs.pop("print_option", "summary")

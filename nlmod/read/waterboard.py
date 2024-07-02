@@ -511,7 +511,6 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
     Raises
     ------
-
         DESCRIPTION.
 
     Returns
@@ -594,11 +593,12 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
 
 def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
-    """Retrieve values from one or more Geo)DataFrame-columns and set these
-    values as another column."""
+    """Retrieve values from one or more Geo)DataFrame-columns and set these values as
+    another column.
+    """
     if set_column in gdf.columns:
         raise (Exception(f"Column {set_column} allready exists"))
-    gdf[set_column] = np.NaN
+    gdf[set_column] = np.nan
     if from_columns is None:
         return gdf
     if isinstance(from_columns, str):
@@ -634,5 +634,5 @@ def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
         if nan_values is not None:
             if isinstance(nan_values, (float, int)):
                 nan_values = [nan_values]
-            gdf.loc[gdf[set_column].isin(nan_values), set_column] = np.NaN
+            gdf.loc[gdf[set_column].isin(nan_values), set_column] = np.nan
     return gdf

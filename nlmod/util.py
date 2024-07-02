@@ -3,16 +3,16 @@ import logging
 import os
 import re
 import sys
-from pathlib import Path
 import warnings
+from pathlib import Path
 from typing import Dict, Optional
 
-from flopy.utils import get_modflow
-from flopy.utils.get_modflow import flopy_appdata_path, get_release
 import geopandas as gpd
 import requests
 import xarray as xr
 from colorama import Back, Fore, Style
+from flopy.utils import get_modflow
+from flopy.utils.get_modflow import flopy_appdata_path, get_release
 from shapely.geometry import box
 
 logger = logging.getLogger(__name__)
@@ -125,16 +125,16 @@ def get_exe_path(
     download_if_not_found : bool, optional
         Download the executables if they are not found, by default True.
     repo : str, default "executables"
-        Name of GitHub repository. Choose one of "executables" (default),
-        "modflow6", or "modflow6-nightly-build". If repo and version_tag are
-        provided the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`. If not found, the executables are downloaded
+        Name of GitHub repository. Choose one of "executables" (default), "modflow6",
+        or "modflow6-nightly-build". If repo and version_tag are provided the most
+        recent installation location of MODFLOW is found in flopy metadata that
+        respects `version_tag` and `repo`. If not found, the executables are downloaded
         using repo and version_tag.
     version_tag : str, default None
         GitHub release ID: for example "18.0" or "latest". If repo and version_tag are
-        provided the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`. If not found, the executables are downloaded
-        using repo and version_tag.
+        provided the most recent installation location of MODFLOW is found in flopy
+        metadata that respects `version_tag` and `repo`. If not found, the executables
+        are downloaded using repo and version_tag.
 
     Returns
     -------
@@ -181,8 +181,7 @@ def get_bin_directory(
     version_tag=None,
     repo="executables",
 ) -> Path:
-    """
-    Get the directory where the executables are stored.
+    """Get the directory where the executables are stored.
 
     Searching for the executables is done in the following order:
     0. If exe_name is a full path, return the full path of the executable.
@@ -195,8 +194,8 @@ def get_bin_directory(
     Else:
     4. Download the executables using `version_tag` and `repo`.
 
-    The returned directory is checked to contain exe_name if exe_name is provided. If exe_name
-    is set to None only the existence of the directory is checked.
+    The returned directory is checked to contain exe_name if exe_name is provided. If
+    exe_name is set to None only the existence of the directory is checked.
 
     Parameters
     ----------
@@ -207,17 +206,16 @@ def get_bin_directory(
     download_if_not_found : bool, optional
         Download the executables if they are not found, by default True.
     repo : str, default "executables"
-        Name of GitHub repository. Choose one of "executables" (default),
-        "modflow6", or "modflow6-nightly-build". If repo and version_tag are
-        provided the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`. If not found, the executables are downloaded
-        using repo and version_tag. repo cannot be None. 
+        Name of GitHub repository. Choose one of "executables" (default), "modflow6",
+        or "modflow6-nightly-build". If repo and version_tag are provided the most
+        recent installation location of MODFLOW is found in flopy metadata that
+        respects `version_tag` and `repo`. If not found, the executables are downloaded
+        using repo and version_tag.
     version_tag : str, default None
         GitHub release ID: for example "18.0" or "latest". If repo and version_tag are
-        provided the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`. If not found, the executables are downloaded
-        using repo and version_tag. If version_tag is None, no version check is performed
-        on present executables and if no exe is found, the latest version is downloaded.
+        provided the most recent installation location of MODFLOW is found in flopy
+        metadata that respects `version_tag` and `repo`. If not found, the executables
+        are downloaded using repo and version_tag.
 
     Returns
     -------
@@ -248,7 +246,10 @@ def get_bin_directory(
 
     # If bindir is provided
     if bindir is not None and enable_version_check:
-        msg = "Incompatible arguments. If bindir is provided, unable to check the version."
+        msg = (
+            "Incompatible arguments. If bindir is provided, "
+            "unable to check the version."
+        )
         raise ValueError(msg)
 
     use_bindir = (
@@ -287,7 +288,7 @@ def get_bin_directory(
         download_mfbinaries(
             bindir=bindir,
             version_tag=version_tag if version_tag is not None else "latest",
-            repo=repo
+            repo=repo,
         )
 
         # Rerun this function
@@ -300,7 +301,10 @@ def get_bin_directory(
         )
 
     else:
-        msg = f"Could not find {exe_name} in {bindir}, {nlmod_bindir} and {flopy_bindirs}."
+        msg = (
+            f"Could not find {exe_name} in {bindir}, "
+            f"{nlmod_bindir} and {flopy_bindirs}."
+        )
         raise FileNotFoundError(msg)
 
 
@@ -315,15 +319,15 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
     ----------
     repo : str, default "executables"
         Name of GitHub repository. Choose one of "executables" (default),
-        "modflow6", or "modflow6-nightly-build". If repo and version_tag are
-        provided the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`. If not found, the executables are downloaded
-        using repo and version_tag.
+        "modflow6", or "modflow6-nightly-build". If repo and version_tag are provided
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag` and `repo`. If not found, the executables are
+        downloaded using repo and version_tag.
     version_tag : str, default None
         GitHub release ID: for example "18.0" or "latest". If repo and version_tag are
-        provided the most recent installation location of MODFLOW is found in flopy metadata
-        that respects `version_tag` and `repo`. If not found, the executables are downloaded
-        using repo and version_tag.
+        provided the most recent installation location of MODFLOW is found in flopy
+        metadata that respects `version_tag` and `repo`. If not found, the executables
+        are downloaded using repo and version_tag.
 
     Returns
     -------
@@ -398,7 +402,6 @@ def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
         "modflow6", or "modflow6-nightly-build".
     version_tag : str, default "latest"
         GitHub release ID.
-
     """
     if bindir is None:
         # Path objects are immutable so a copy is implied
@@ -497,8 +500,10 @@ def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
 
 
 def find_most_recent_file(folder, name, extension=".pklz"):
-    """Find the most recent file in a folder. File must startwith name and end width
-    extension. If you want to look for the most recent folder use extension = ''.
+    """Find the most recent file in a folder.
+
+    File must startwith name and end width extension. If you want to look for the most
+    recent folder use extension = ''.
 
     Parameters
     ----------
@@ -514,7 +519,6 @@ def find_most_recent_file(folder, name, extension=".pklz"):
     newest_file : str
         name of the most recent file
     """
-
     i = 0
     for file in os.listdir(folder):
         if file.startswith(name) and file.endswith(extension):
@@ -551,7 +555,6 @@ def compare_model_extents(extent1, extent2):
             1: extent1 is completely within extent2
             2: extent2 is completely within extent1
     """
-
     # option1 extent1 is completely within extent2
     check_xmin = extent1[0] >= extent2[0]
     check_xmax = extent1[1] <= extent2[1]
@@ -602,7 +605,6 @@ def polygon_from_extent(extent):
     polygon_ext : shapely.geometry.polygon.Polygon
         polygon of the extent.
     """
-
     bbox = (extent[0], extent[2], extent[1], extent[3])
     polygon_ext = box(*tuple(bbox))
 
@@ -625,7 +627,6 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
     gdf_extent : GeoDataFrame
         geodataframe with extent.
     """
-
     geom_extent = polygon_from_extent(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
 
@@ -633,8 +634,9 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
 
 
 def gdf_within_extent(gdf, extent):
-    """Select only parts of the geodataframe within the extent. Only accepts Polygon and
-    Linestring geometry types.
+    """Select only parts of the geodataframe within the extent.
+
+    Only accepts Polygon and Linestring geometry types.
 
     Parameters
     ----------
@@ -688,6 +690,7 @@ def get_google_drive_filename(fid, timeout=120):
     warnings.warn(
         "this function is no longer supported use the gdown package instead",
         DeprecationWarning,
+        stacklevel=1,
     )
 
     if isinstance(id, requests.Response):
@@ -714,6 +717,7 @@ def download_file_from_google_drive(fid, destination=None):
     warnings.warn(
         "this function is no longer supported use the gdown package instead",
         DeprecationWarning,
+        stacklevel=1,
     )
 
     def get_confirm_token(response):
@@ -805,14 +809,12 @@ class ColoredFormatter(logging.Formatter):
         self, *args, colors: Optional[Dict[str, str]] = None, **kwargs
     ) -> None:
         """Initialize the formatter with specified format strings."""
-
         super().__init__(*args, **kwargs)
 
         self.colors = colors if colors else {}
 
     def format(self, record) -> str:
         """Format the specified record as text."""
-
         record.color = self.colors.get(record.levelname, "")
         record.reset = Style.RESET_ALL
 
@@ -820,6 +822,18 @@ class ColoredFormatter(logging.Formatter):
 
 
 def get_color_logger(level="INFO"):
+    """Get a logger with colored output.
+
+    Parameters
+    ----------
+    level : str, optional
+        The logging level to set for the logger. Default is "INFO".
+
+    Returns
+    -------
+    logger : logging.Logger
+        The configured logger object.
+    """
     if level == "DEBUG":
         FORMAT = "{color}{levelname}:{name}.{funcName}:{lineno}:{message}{reset}"
     else:

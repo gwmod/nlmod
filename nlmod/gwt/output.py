@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 
 from ..dims.layers import calculate_thickness
-from ..mfoutput.mfoutput import _get_heads_da, _get_time_index, _get_flopy_data_object
+from ..mfoutput.mfoutput import _get_flopy_data_object, _get_heads_da, _get_time_index
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +91,9 @@ def get_concentration_da(
 
 
 def get_concentration_at_gw_surface(conc, layer="layer"):
-    """Get the concentration level from a multi-dimensional concentration array
-    where dry or inactive cells are NaN. This methods finds the most upper non-
-    nan-value of each cell or timestep.
+    """Get the concentration level from a multi-dimensional concentration array where
+    dry or inactive cells are NaN. This methods finds the most upper non- nan-value of
+    each cell or timestep.
 
     Parameters
     ----------
@@ -137,8 +137,8 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
 
 
 def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
-    """Calculate equivalent freshwater head from point water heads.
-    Heads file produced by mf6 contains point water heads.
+    """Calculate equivalent freshwater head from point water heads. Heads file produced
+    by mf6 contains point water heads.
 
     Parameters
     ----------
@@ -180,8 +180,8 @@ def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
 
 
 def pointwater_head(ds, hf, conc, denseref=None, drhodc=None):
-    """Calculate point water head from freshwater heads.
-    Heads file produced by mf6 contains point water heads.
+    """Calculate point water head from freshwater heads. Heads file produced by mf6
+    contains point water heads.
 
     Parameters
     ----------

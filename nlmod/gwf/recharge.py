@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 def ds_to_rch(
     gwf, ds, mask=None, pname="rch", recharge="recharge", auxiliary=None, **kwargs
 ):
-    """Convert the recharge data in the model dataset to a rch package with
-    time series.
+    """Convert the recharge data in the model dataset to a rch package with time series.
 
     Parameters
     ----------
@@ -110,8 +109,8 @@ def ds_to_evt(
     auxiliary=None,
     **kwargs,
 ):
-    """Convert the evaporation data in the model dataset to a evt package with
-    time series.
+    """Convert the evaporation data in the model dataset to a evt package with time
+    series.
 
     Parameters
     ----------
@@ -141,7 +140,6 @@ def ds_to_evt(
 
     Raises
     ------
-
         DESCRIPTION.
     ValueError
         DESCRIPTION.
@@ -542,8 +540,7 @@ def ds_to_uzf(
 
 
 def _get_unique_series(ds, var, pname):
-    """Get the location and values of unique time series from a variable var in
-    ds.
+    """Get the location and values of unique time series from a variable var in ds.
 
     Parameters
     ----------

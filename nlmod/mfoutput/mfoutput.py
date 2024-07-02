@@ -1,11 +1,10 @@
-import os
 import logging
+import os
 import warnings
 
 import dask
-import xarray as xr
-
 import flopy
+import xarray as xr
 
 from ..dims.grid import get_dims_coords_from_modelgrid, modelgrid_from_ds
 from ..dims.resample import get_affine_mod_to_world
@@ -243,7 +242,7 @@ def _get_flopy_data_object(
     var, ds=None, gwml=None, fname=None, grb_file=None, **kwargs
 ):
     """Get modflow HeadFile or CellBudgetFile object, containg heads, budgets or
-    concentrations
+    concentrations.
 
     Provide one of ds, gwf or fname.
 

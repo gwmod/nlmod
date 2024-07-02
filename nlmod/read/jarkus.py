@@ -1,12 +1,13 @@
-"""module with functions to deal with the northsea by:
+"""Module with functions to deal with the northsea.
 
-    - identifying model cells with the north sea
+    - identify model cells with the north sea
     - add bathymetry of the northsea to the layer model
-    - extrpolate the layer model below the northsea bed.
+    - extrapolate the layer model below the northsea bed.
 
 
 Note: if you like jazz please check this out: https://www.northseajazz.com
 """
+
 import datetime as dt
 import logging
 import os
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf()
 def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
-    """get bathymetry of the Northsea from the jarkus dataset.
+    """Get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
@@ -126,7 +127,6 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
         dataset containing bathymetry data
 
     """
-
     extent = [int(x) for x in extent]
 
     netcdf_tile_names = get_jarkus_tilenames(extent, kind)

@@ -5,8 +5,8 @@ import geopandas as gpd
 import numpy as np
 
 from .dims.grid import polygons_from_model_ds
-from .dims.resample import get_affine_mod_to_world
 from .dims.layers import calculate_thickness
+from .dims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +220,6 @@ def ds_to_vector_file(
     fnames : str or list of str
         filename(s) of exported geopackage or shapefiles.
     """
-
     # get default combination dictionary
     if combine_dic is None:
         combine_dic = {
@@ -450,7 +449,6 @@ def _break_down_dimension(
 
     Copied and altered from imod-python.
     """
-
     keep_vars = []
     for var in variables:
         if dim in ds[var].dims:

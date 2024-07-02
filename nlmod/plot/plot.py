@@ -13,10 +13,10 @@ from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ..dims.grid import (
-    modelgrid_from_ds,
     get_affine_mod_to_world,
     get_extent,
     get_extent_gdf,
+    modelgrid_from_ds,
 )
 from ..read import geotop, rws
 from .dcs import DatasetCrossSection

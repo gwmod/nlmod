@@ -1,8 +1,8 @@
 """
-rdp 
-~~~ 
+rdp
+~~~
 Python implementation of the Ramer-Douglas-Peucker algorithm.
-:copyright: 2014-2016 Fabian Hirschmann <fabian@hirschmann.email> 
+:copyright: 2014-2016 Fabian Hirschmann <fabian@hirschmann.email>
 :license: MIT, see LICENSE.txt for more details.
 """
 

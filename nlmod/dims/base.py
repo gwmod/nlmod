@@ -8,7 +8,7 @@ from scipy.spatial import cKDTree
 
 from .. import util
 from ..epsg28992 import EPSG_28992
-from . import resample, grid
+from . import grid, resample
 from .layers import fill_nan_top_botm_kh_kv
 
 logger = logging.getLogger(__name__)

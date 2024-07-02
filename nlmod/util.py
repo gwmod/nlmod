@@ -13,7 +13,7 @@ import xarray as xr
 from colorama import Back, Fore, Style
 from flopy.utils import get_modflow
 from flopy.utils.get_modflow import flopy_appdata_path, get_release
-from shapely.geometry import box, Polygon
+from shapely.geometry import Polygon, box
 
 logger = logging.getLogger(__name__)
 
@@ -595,7 +595,6 @@ def compare_model_extents(extent1, extent2):
 def extent_to_polygon(extent):
     """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])
 
-
     Parameters
     ----------
     extent : tuple, list or array
@@ -630,7 +629,6 @@ def extent_to_gdf(extent, crs="EPSG:28992"):
     gdf_extent : geopandas.GeoDataFrame
         geodataframe with extent.
     """
-
     geom_extent = extent_to_polygon(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
 

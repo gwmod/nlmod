@@ -16,13 +16,13 @@ import numpy as np
 import pandas as pd
 import shapely
 import xarray as xr
+from affine import Affine
 from flopy.discretization.structuredgrid import StructuredGrid
 from flopy.discretization.vertexgrid import VertexGrid
 from flopy.utils.gridgen import Gridgen
 from flopy.utils.gridintersect import GridIntersect
 from packaging import version
 from scipy.interpolate import griddata
-from affine import Affine
 from shapely.affinity import affine_transform
 from shapely.geometry import Point, Polygon
 from tqdm import tqdm

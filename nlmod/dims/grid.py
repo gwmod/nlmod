@@ -6,7 +6,6 @@
 -   fill, interpolate and resample grid data
 """
 
-# ruff: noqa: E402
 import logging
 import os
 import warnings

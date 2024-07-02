@@ -8,7 +8,7 @@ from nlmod.read import knmi_data_platform
 
 data_path = Path(__file__).parent / "data"
 
-pytest.mark.skip(reason="FileNotFoundError: download/INTER_OPER_R___EV24____L3__20240626T000000_20240627T000000_0003.nc not found")
+@pytest.mark.skip(reason="FileNotFoundError: download/INTER_OPER_R___EV24____L3__20240626T000000_20240627T000000_0003.nc not found")
 def test_download_multiple_nc_files() -> None:
     dataset_name = "EV24"
     dataset_version = "2"
@@ -33,7 +33,7 @@ def test_download_multiple_nc_files() -> None:
     # plot the mean evaporation
     ds["prediction"].mean("time").plot()
 
-pytest.mark.skip(reason="KeyError: 'files'")
+@pytest.mark.skip(reason="KeyError: 'files'")
 def test_download_read_zip_file() -> None:
     dataset_name = "rad_nl25_rac_mfbs_24h_netcdf4"
     dataset_version = "2.0"

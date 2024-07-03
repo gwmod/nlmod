@@ -1,3 +1,4 @@
+import logging
 import warnings
 from functools import partial
 
@@ -28,6 +29,8 @@ from .plotutil import (
     title_inside,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def surface_water(model_ds, ax=None, **kwargs):
     surf_water = rws.get_gdf_surface_water(model_ds)
@@ -52,7 +55,7 @@ def modelgrid(ds, ax=None, **kwargs):
     return ax
 
 
-def modelextent(ds, dx=None, ax=None, rotated=True, **kwargs):
+def modelextent(ds, dx=None, ax=None, rotated=False, **kwargs):
     """Plot model extent.
 
     Parameters
@@ -65,8 +68,8 @@ def modelextent(ds, dx=None, ax=None, rotated=True, **kwargs):
         The axes object to plot on. If not provided, a new figure and axes will be
         created.
     rotated : bool, optional
-        Plot the model extent in real-world coordinates for rotated grids. Default is
-        True. Set to False to plot model extent in local coordinates.
+        When True, plot the model extent in real-world coordinates for rotated grids.
+        The default is False, which plots the model extent in local coordinates.
     **kwargs
         Additional keyword arguments to pass to the boundary plot.
 
@@ -212,7 +215,8 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
     ax : matplotlib.Axes, optional
         The axes used for plotting. Set to current axes when None. The default is None.
     rotated : bool, optional
-        Plot the data-array in rotated coordinates
+        When True, plot the data-array in real-world coordinates for rotated grids.
+        The default is False, which plots the data-array in local coordinates.
     **kwargs : cit
         Kwargs are passed to PatchCollection (vertex) or pcolormesh (structured).
 
@@ -407,7 +411,7 @@ def _get_geotop_cmap_and_norm(lithok, lithok_props):
     return array, cmap, norm
 
 
-def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True, extent=None):
+def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=False, extent=None):
     # figure
     if ax is not None:
         f = ax.figure
@@ -458,7 +462,7 @@ def map_array(
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
-    rotated=True,
+    rotated=False,
     add_to_plot=None,
     background=False,
     figsize=None,
@@ -519,7 +523,10 @@ def map_array(
 
     # bgmap
     if background:
-        add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
+        if not rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            logger.warning("Background map not supported in in model coordinates")
+        else:
+            add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
     if add_to_plot is not None:
@@ -578,7 +585,7 @@ def animate_map(
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
-    rotated=True,
+    rotated=False,
     background=False,
     figsize=None,
     ax=None,
@@ -625,7 +632,7 @@ def animate_map(
     plot_grid : bool, optional
         Whether to plot the model grid. Default is True.
     rotated : bool, optional
-        Whether to plot rotated model, if applicable. Default is True.
+        Whether to plot rotated model, if applicable. Default is False.
     background : bool, optional
         Whether to add a background map. Default is False.
     figsize : tuple, optional

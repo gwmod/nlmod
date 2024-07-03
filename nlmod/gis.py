@@ -4,9 +4,8 @@ import os
 import geopandas as gpd
 import numpy as np
 
-from .dims.grid import polygons_from_model_ds
+from .dims.grid import get_affine_mod_to_world, polygons_from_model_ds
 from .dims.layers import calculate_thickness
-from .dims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 

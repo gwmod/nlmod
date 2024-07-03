@@ -6,8 +6,8 @@ import flopy
 import xarray as xr
 
 from ..dims import grid
+from ..dims.grid import get_delc, get_delr
 from ..dims.layers import get_idomain
-from ..dims.resample import get_delc, get_delr
 from ..sim import ims, sim, tdis
 from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
 from . import recharge

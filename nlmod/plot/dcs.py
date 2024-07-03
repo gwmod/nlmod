@@ -14,8 +14,7 @@ from matplotlib.patches import Rectangle
 from shapely.affinity import affine_transform
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
-from ..dims.grid import modelgrid_from_ds
-from ..dims.resample import get_affine_world_to_mod
+from ..dims.grid import get_affine_world_to_mod, modelgrid_from_ds
 from .plotutil import get_map
 
 logger = logging.getLogger(__name__)

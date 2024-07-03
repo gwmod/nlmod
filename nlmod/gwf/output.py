@@ -7,8 +7,7 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Point
 
-from ..dims.grid import modelgrid_from_ds
-from ..dims.resample import get_affine_world_to_mod
+from ..dims.grid import get_affine_world_to_mod, modelgrid_from_ds
 from ..mfoutput.mfoutput import (
     _get_budget_da,
     _get_flopy_data_object,

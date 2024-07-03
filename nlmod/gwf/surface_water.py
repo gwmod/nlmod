@@ -11,10 +11,15 @@ from shapely.strtree import STRtree
 from tqdm import tqdm
 
 from ..cache import cache_pickle
-from ..dims.grid import gdf_to_grid
+from ..dims.grid import (
+    gdf_to_grid,
+    get_delc,
+    get_delr,
+    get_extent_polygon,
+)
 from ..dims.layers import get_idomain
-from ..dims.resample import extent_to_polygon, get_delc, get_delr, get_extent_polygon
 from ..read import bgt, waterboard
+from ..util import extent_to_polygon
 
 logger = logging.getLogger(__name__)
 

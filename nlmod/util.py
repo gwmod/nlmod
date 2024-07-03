@@ -106,10 +106,10 @@ def get_exe_path(
     Searching for the executables is done in the following order:
     0. If exe_name is a full path, return the full path of the executable.
     1. The directory specified with `bindir`. Raises error if exe_name is provided
-        and not found. Requires enable_version_check to be False.
+       and not found.
     2. The directory used by nlmod installed in this environment.
     3. If the executables were downloaded with flopy/nlmod from an other env,
-        most recent installation location of MODFLOW is found in flopy metadata
+       most recent installation location of MODFLOW is found in flopy metadata
 
     Else:
     4. Download the executables using `version_tag` and `repo`.

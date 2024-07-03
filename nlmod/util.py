@@ -377,7 +377,7 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
             "`version_tag` is not passed to `get_flopy_bin_directories()`."
         )
         meta_list_validversion = meta_list
-    logger.info(msg)
+    logger.debug(msg)
 
     path_list = [
         Path(meta["bindir"])

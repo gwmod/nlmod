@@ -542,3 +542,24 @@ def dataframe_to_flopy_timeseries(
         time_series_namerecord=time_series_namerecord,
         interpolation_methodrecord=interpolation_methodrecord,
     )
+
+
+def ds_time_to_pandas_index(ds, include_start=True):
+    """Convert xarray time index to pandas datetime index.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with time index
+    include_start : bool, optional
+        include the start time in the index, by default True
+
+    Returns
+    -------
+    pd.DatetimeIndex
+        pandas datetime index
+    """
+    if include_start:
+        return ds.time.to_index().insert(0, pd.Timestamp(ds.time.start))
+    else:
+        return ds.time.to_index()

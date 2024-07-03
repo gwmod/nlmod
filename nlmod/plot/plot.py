@@ -59,9 +59,14 @@ def modelextent(ds, dx=None, ax=None, rotated=True, **kwargs):
     ----------
     ds : xarray.Dataset
         The dataset containing the data.
+    dx : float, optional
+        The buffer around the model extent. Default is 5% of the longest model edge.
     ax : matplotlib.axes.Axes, optional
         The axes object to plot on. If not provided, a new figure and axes will be
         created.
+    rotated : bool, optional
+        Plot the model extent in real-world coordinates for rotated grids. Default is
+        True. Set to False to plot model extent in local coordinates.
     **kwargs
         Additional keyword arguments to pass to the boundary plot.
 

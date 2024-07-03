@@ -200,11 +200,6 @@ def set_ds_time(
     ds : xarray.Dataset
         model dataset with added time coordinate
     """
-    logger.info(
-        "Function set_ds_time() has changed since nlmod version 0.7."
-        " For the old behavior, use `nlmod.time.set_ds_time_deprecated()`."
-    )
-
     if time is None and perlen is None:
         raise (ValueError("Please specify either time or perlen in set_ds_time"))
     elif perlen is not None:

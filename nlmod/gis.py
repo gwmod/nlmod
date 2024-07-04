@@ -4,13 +4,16 @@ import os
 import geopandas as gpd
 import numpy as np
 
-from .dims.grid import get_affine_mod_to_world, polygons_from_model_ds
-from .dims.layers import calculate_thickness
+from nlmod.dims.grid import get_affine_mod_to_world, polygons_from_model_ds
+from nlmod.dims.layers import calculate_thickness
+from nlmod.epsg28992 import EPSG_28992
 
 logger = logging.getLogger(__name__)
 
 
-def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
+def vertex_da_to_gdf(
+    model_ds, data_variables, polygons=None, dealing_with_time="mean", crs=EPSG_28992
+):
     """Convert one or more DataArrays from a vertex model dataset to a Geodataframe.
 
     Parameters
@@ -28,6 +31,9 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
         becomes very slow. For now only the time averaged data will be
         saved in the geodataframe. Later this can be extended with multiple
         possibilities. The default is 'mean'.
+    crs : str, optional
+        coordinate reference system for the geodataframe. The default
+        is EPSG:28992 (RD).
 
     Raises
     ------
@@ -86,7 +92,9 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
     return gdf
 
 
-def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
+def struc_da_to_gdf(
+    model_ds, data_variables, polygons=None, dealing_with_time="mean", crs=EPSG_28992
+):
     """Convert one or more DataArrays from a structured model dataset to a Geodataframe.
 
     Parameters
@@ -99,6 +107,9 @@ def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="
     polygons : list of shapely Polygons, optional
         geometries used for the GeoDataframe, if None the polygons are created
         from the data variable 'vertices' in model_ds. The default is None.
+    crs : str, optional
+        coordinate reference system for the geodataframe. The default
+        is EPSG:28992 (RD).
 
     Raises
     ------
@@ -152,7 +163,7 @@ def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="
         polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
-    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
+    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
 
     return gdf
 
@@ -173,7 +184,6 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
         geometries used for the GeoDataframe, if None the polygons are created
         from the data variable 'vertices' in model_ds. The default is None.
 
-
     Returns
     -------
     None.
@@ -191,6 +201,7 @@ def ds_to_vector_file(
     driver="GPKG",
     combine_dic=None,
     exclude=("x", "y", "time_steps", "area", "vertices", "rch_name", "icvert"),
+    crs=EPSG_28992,
 ):
     """Save all data variables in a model dataset to multiple shapefiles.
 
@@ -213,6 +224,9 @@ def ds_to_vector_file(
     exclude : tuple of str, optional
         data variables that are not exported to shapefiles. The default is
         ('x', 'y', 'time_steps', 'area', 'vertices').
+    crs : str, optional
+        coordinate reference system for the vector file. The default
+        is EPSG:28992 (RD).
 
     Returns
     -------
@@ -264,9 +278,9 @@ def ds_to_vector_file(
     for key, item in combine_dic.items():
         if set(item).issubset(da_names):
             if model_ds.gridtype == "structured":
-                gdf = struc_da_to_gdf(model_ds, item, polygons=polygons)
+                gdf = struc_da_to_gdf(model_ds, item, polygons=polygons, crs=crs)
             elif model_ds.gridtype == "vertex":
-                gdf = vertex_da_to_gdf(model_ds, item, polygons=polygons)
+                gdf = vertex_da_to_gdf(model_ds, item, polygons=polygons, crs=crs)
             if driver == "GPKG":
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
             else:
@@ -282,9 +296,9 @@ def ds_to_vector_file(
     # create unique shapefiles for the other data variables
     for da_name in da_names:
         if model_ds.gridtype == "structured":
-            gdf = struc_da_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = struc_da_to_gdf(model_ds, (da_name,), polygons=polygons, crs=crs)
         elif model_ds.gridtype == "vertex":
-            gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons, crs=crs)
         if driver == "GPKG":
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:

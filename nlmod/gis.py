@@ -71,7 +71,8 @@ def vertex_da_to_gdf(
                     dv_dic[f"{da_name}_mean"] = da_mean.values
                 else:
                     raise NotImplementedError(
-                        "Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'"
+                        "Can only use the mean of a DataArray with dimension time, "
+                        "use dealing_with_time='mean'"
                     )
             else:
                 raise ValueError(
@@ -79,7 +80,8 @@ def vertex_da_to_gdf(
                 )
         else:
             raise NotImplementedError(
-                f"expected one or two dimensions got {no_dims} for data variable {da_name}"
+                f"expected one or two dimensions got {no_dims} for "
+                f"data variable {da_name}"
             )
 
     # create geometries
@@ -87,7 +89,7 @@ def vertex_da_to_gdf(
         polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
-    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
+    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
 
     return gdf
 

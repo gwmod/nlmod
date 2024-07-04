@@ -2,13 +2,11 @@
 import os
 from pathlib import Path
 
-import pytest
-
 from nlmod.read import knmi_data_platform
 
 data_path = Path(__file__).parent / "data"
 
-@pytest.mark.skip(reason="FileNotFoundError: download/INTER_OPER_R___EV24____L3__20240626T000000_20240627T000000_0003.nc not found")
+
 def test_download_multiple_nc_files() -> None:
     dataset_name = "EV24"
     dataset_version = "2"
@@ -22,10 +20,10 @@ def test_download_multiple_nc_files() -> None:
     )
 
     # download the last 10 files
-    fnames = files[-10:]
+    fnames = files[:2]
     dirname = "download"
     knmi_data_platform.download_files(
-        dataset_name, dataset_version, files[-10:], dirname=dirname
+        dataset_name, dataset_version, fnames, dirname=dirname
     )
 
     ds = knmi_data_platform.read_nc(os.path.join(dirname, fnames[0]))
@@ -33,7 +31,7 @@ def test_download_multiple_nc_files() -> None:
     # plot the mean evaporation
     ds["prediction"].mean("time").plot()
 
-@pytest.mark.skip(reason="KeyError: 'files'")
+
 def test_download_read_zip_file() -> None:
     dataset_name = "rad_nl25_rac_mfbs_24h_netcdf4"
     dataset_version = "2.0"
@@ -43,7 +41,7 @@ def test_download_read_zip_file() -> None:
 
     # download the last file
     dirname = "download"
-    fname = files[-1]
+    fname = files[1]
     knmi_data_platform.download_file(
         dataset_name, dataset_version, fname=fname, dirname=dirname
     )

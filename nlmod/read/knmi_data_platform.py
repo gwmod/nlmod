@@ -21,25 +21,26 @@ base_url = "https://api.dataplatform.knmi.nl/open-data/v1"
 
 def get_anonymous_api_key() -> Union[str, None]:
     try:
-        url = "https://developer.dataplatform.knmi.nl/get-started"
-        tables = read_html(url)  # get all tables from url
-        for table in tables:
-            for coln in table.columns:
-                if "KEY" in coln.upper():  # look for columns with key
-                    api_key_str = table.iloc[0].loc[
-                        coln
-                    ]  # get entry with key (first row)
-                    api_key = max(
-                        api_key_str.split(), key=len
-                    )  # get key base on str length
-                    logger.info(f"Retrieved anonymous API Key from {url}")
-                    return api_key
+        url = "https://developer.dataplatform.knmi.nl/open-data-api#token"
+        webpage = requests.get(url, timeout=120)  # get webpage
+        api_key = (
+            webpage.text.split("</code></pre>")[0].split("<pre><code>")[-1].strip()
+        )  # obtain apikey from codeblock on webpage
+        if len(api_key) != 120:
+            msg = f"Could not obtain API Key from {url}, trying API Key from memory. Found API Key = {api_key}"
+            logger.error(msg)
+            raise ValueError(msg)
+        logger.info(f"Retrieved anonymous API Key from {url}")
+        return api_key
     except Exception as exc:
-        if Timestamp.today() < Timestamp("2024-07-01"):
-            logger.info("Retrieved anonymous API Key from memory")
+        api_key_memory_date = "2025-07-01"
+        if Timestamp.today() < Timestamp(api_key_memory_date):
+            logger.info(
+                f"Retrieved anonymous API Key (available till {api_key_memory_date}) from memory"
+            )
             api_key = (
-                "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6ImE1OGI5"
-                "NGZmMDY5NDRhZDNhZjFkMDBmNDBmNTQyNjBkIiwiaCI6Im11cm11cjEyOCJ9"
+                "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6ImE1OGI5N"
+                "GZmMDY5NDRhZDNhZjFkMDBmNDBmNTQyNjBkIiwiaCI6Im11cm11cjEyOCJ9"
             )
             return api_key
         else:

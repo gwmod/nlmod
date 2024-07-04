@@ -922,6 +922,7 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         rasterize_function=partial(rasterize_image, all_touched=True),
     )
     gc["ahn"] = ahn
+    gc = gc.set_coords("index")
     ahn_min = gc.groupby("index").min()["ahn"].to_pandas()
     ahn_min.index = ahn_min.index.astype(int)
     gdf[column] = ahn_min

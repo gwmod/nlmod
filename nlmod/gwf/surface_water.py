@@ -10,11 +10,16 @@ from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
-from ..dims.grid import gdf_to_grid
-from ..dims.layers import get_idomain
-from ..dims.resample import get_extent_polygon
-from ..read import bgt, waterboard
 from ..cache import cache_pickle
+from ..dims.grid import (
+    gdf_to_grid,
+    get_delc,
+    get_delr,
+    get_extent_polygon,
+)
+from ..dims.layers import get_idomain
+from ..read import bgt, waterboard
+from ..util import extent_to_polygon
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +47,6 @@ def aggregate(gdf, method, ds=None):
     celldata : pd.DataFrame
         DataFrame with aggregated surface water parameters per grid cell
     """
-
     required_cols = {"stage", "c0", "botm"}
     missing_cols = required_cols.difference(gdf.columns)
     if len(missing_cols) > 0:
@@ -147,7 +151,11 @@ def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
     # correction if group contains multiple shapes
     # but covers whole cell
     if group.area.sum() == A:
-        li = A / np.max([ds.delr, ds.delc])
+        delr = get_delr(ds)
+        assert len(np.unique(delr)) == 1, "Variable grid size is not yet supported"
+        delc = get_delc(ds)
+        assert len(np.unique(delc)) == 1, "Variable grid size is not yet supported"
+        li = A / np.max([delr[0], delc[0]])
 
     # width
     B = group.area.sum(skipna=True) / li
@@ -296,9 +304,10 @@ def estimate_polygon_length(gdf):
 def distribute_cond_over_lays(
     cond, cellid, rivbot, laytop, laybot, idomain=None, kh=None, stage=None
 ):
-    """Distribute the conductance in a cell over the layers in that cell, based
-    on the the river-bottom and the layer bottoms, and optionally based on the
-    stage and the hydraulic conductivity."""
+    """Distribute the conductance in a cell over the layers in that cell, based on the
+    the river-bottom and the layer bottoms, and optionally based on the stage and the
+    hydraulic conductivity.
+    """
     if isinstance(rivbot, (np.ndarray, xr.DataArray)):
         rivbot = float(rivbot[cellid])
     if len(laybot.shape) == 3:
@@ -366,6 +375,7 @@ def build_spd(
     celldata : geopandas.GeoDataFrame
         GeoDataFrame containing data. Cellid must be the index,
         and must have columns "rbot", "stage" and "cond".
+        Optional columns are 'boundname' and 'aux'. These columns should have type str.
     pkg : str
         Modflow package: RIV, DRN or GHB
     ds : xarray.DataSet
@@ -388,7 +398,6 @@ def build_spd(
         - DRN: [(cellid), elev, cond]
         - GHB: [(cellid), elev, cond]
     """
-
     spd = []
 
     top = ds.top.data
@@ -512,7 +521,9 @@ def add_info_to_gdf(
     geom_type="Polygon",
     add_index_from_column=None,
 ):
-    """Add information from 'gdf_from' to 'gdf_to', based on the spatial intersection."""
+    """Add information from 'gdf_from' to 'gdf_to', based on the spatial
+    intersection.
+    """
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
@@ -571,15 +582,20 @@ def get_gdf_stage(gdf, season="winter"):
 
 
 def download_level_areas(
-    gdf, extent=None, config=None, raise_exceptions=True, **kwargs
+    gdf=None,
+    extent=None,
+    config=None,
+    raise_exceptions=True,
+    drop_duplicates=True,
+    **kwargs,
 ):
     """Download level areas (peilgebieden) of bronhouders.
 
     Parameters
     ----------
-    gdf : geopandas.GeoDataFrame
+    gdf : geopandas.GeoDataFrame, optional
         A GeoDataFrame with surface water features, containing the column "bronhouder".
-    extent : list, tuple or np.array
+    extent : list, tuple or np.array, optional
         Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
         water boards in gdf are downloaded downloaded.
     config : dict, optional
@@ -590,6 +606,9 @@ def download_level_areas(
         Raises exceptions, mostly caused by a webservice that is offline. When
         raise_exceptions is False, the error is raised as a warning. The default is
         True.
+    drop_duplicates : bool, optional
+        Drop features with a duplicate index, keeping the first occurence. The default
+        is True.
 
     Returns
     -------
@@ -599,48 +618,57 @@ def download_level_areas(
     """
     if config is None:
         config = waterboard.get_configuration()
-    bronhouders = gdf["bronhouder"].unique()
+    wbs = _get_waterboard_selection(gdf=gdf, extent=extent, config=config)
+
     la = {}
     data_kind = "level_areas"
-    for wb in config.keys():
-        if config[wb]["bgt_code"] in bronhouders:
-            logger.info(f"Downloading {data_kind} for {wb}")
-            try:
-                lawb = waterboard.get_data(wb, data_kind, extent, **kwargs)
-                if len(lawb) == 0:
-                    logger.info(f"No {data_kind} for {wb} found within model area")
-                    continue
-                la[wb] = lawb
-                mask = ~la[wb].is_valid
+    for wb in wbs:
+        logger.info(f"Downloading {data_kind} for {wb}")
+        try:
+            lawb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            if len(lawb) == 0:
+                logger.info(f"No {data_kind} for {wb} found within model area")
+                continue
+            if drop_duplicates:
+                mask = lawb.index.duplicated()
                 if mask.any():
-                    logger.warning(
-                        f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
-                    )
-                    # first copy to prevent ValueError: assignment destination is read-only
-                    la[wb] = la[wb].copy()
-                    la[wb].loc[mask, "geometry"] = la[wb][mask].buffer(0.0)
-            except Exception as e:
-                if str(e) == f"{data_kind} not available for {wb}":
-                    logger.warning(e)
-                elif raise_exceptions:
-                    raise
-                else:
-                    logger.warning(e)
+                    msg = "Dropping {} level area(s) of {} with duplicate indexes"
+                    logger.warning(msg.format(mask.sum(), wb))
+                    lawb = lawb.loc[~mask]
+
+            la[wb] = lawb
+            mask = ~la[wb].is_valid
+            if mask.any():
+                logger.warning(
+                    f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
+                )
+                # first copy to prevent ValueError: assignment destination is read-only
+                la[wb] = la[wb].copy()
+                la[wb].loc[mask, "geometry"] = la[wb][mask].buffer(0.0)
+        except Exception as e:
+            if str(e) == f"{data_kind} not available for {wb}":
+                logger.warning(e)
+            elif raise_exceptions:
+                raise
+            else:
+                logger.warning(e)
     return la
 
 
 def download_watercourses(
-    gdf, extent=None, config=None, raise_exceptions=True, **kwargs
+    gdf=None, extent=None, config=None, raise_exceptions=True, **kwargs
 ):
     """Download watercourses of bronhouders.
 
     Parameters
     ----------
-    gdf : geopandas.GeoDataFrame
+    gdf : geopandas.GeoDataFrame, optional
         A GeoDataFrame with surface water features, containing the column "bronhouder".
-    extent : list, tuple or np.array
+        Determine the required waterboards for this gdf, when not None. The default is
+        None.
+    extent : list, tuple or np.array, optional
         Model extent (xmin, xmax, ymin, ymax). When extent is None, all data of the
-        water boards in gdf are downloaded downloaded.
+        water boards in gdf are downloaded downloaded. The default is None.
     config : dict, optional
         A dictionary with information about the webservices of the water boards. When
         config is None, it is created with nlmod.read.waterboard.get_configuration().
@@ -658,26 +686,44 @@ def download_watercourses(
     """
     if config is None:
         config = waterboard.get_configuration()
-    bronhouders = gdf["bronhouder"].unique()
+    wbs = _get_waterboard_selection(gdf=gdf, extent=extent, config=config)
     wc = {}
     data_kind = "watercourses"
-    for wb in config.keys():
-        if config[wb]["bgt_code"] in bronhouders:
-            logger.info(f"Downloading {data_kind} for {wb}")
-            try:
-                wcwb = waterboard.get_data(wb, data_kind, extent, **kwargs)
-                if len(wcwb) == 0:
-                    logger.info(f"No {data_kind} for {wb} found within model area")
-                    continue
-                wc[wb] = wcwb
-            except Exception as e:
-                if str(e) == f"{data_kind} not available for {wb}":
-                    logger.warning(e)
-                elif raise_exceptions:
-                    raise
-                else:
-                    logger.warning(e)
+    for wb in wbs:
+        logger.info(f"Downloading {data_kind} for {wb}")
+        try:
+            wcwb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            if len(wcwb) == 0:
+                logger.info(f"No {data_kind} for {wb} found within model area")
+                continue
+            wc[wb] = wcwb
+        except Exception as e:
+            if str(e) == f"{data_kind} not available for {wb}":
+                logger.warning(e)
+            elif raise_exceptions:
+                raise
+            else:
+                logger.warning(e)
     return wc
+
+
+def _get_waterboard_selection(gdf=None, extent=None, config=None):
+    """Internal method to select waterboards to get data from."""
+    if config is None:
+        config = waterboard.get_configuration()
+    if gdf is None and extent is None:
+        raise (ValueError("Please specify either gdf or extent"))
+
+    if gdf is not None:
+        bronhouders = gdf["bronhouder"].unique()
+        wbs = []
+        for wb in config.keys():
+            if config[wb]["bgt_code"] in bronhouders:
+                wbs.append(wb)
+    elif extent is not None:
+        wb_gdf = waterboard.get_polygons()
+        wbs = wb_gdf.index[wb_gdf.intersects(extent_to_polygon(extent))]
+    return wbs
 
 
 def add_stages_from_waterboards(
@@ -719,7 +765,7 @@ def add_stages_from_waterboards(
         la = download_level_areas(gdf, extent=extent, config=config)
     if columns is None:
         columns = ["summer_stage", "winter_stage"]
-    gdf[columns] = np.NaN
+    gdf[columns] = np.nan
     for wb in la.keys():
         if len(la[wb]) == 0:
             continue
@@ -773,7 +819,7 @@ def add_bottom_height_from_waterboards(
         wc = download_watercourses(gdf, extent=extent, config=config)
     if columns is None:
         columns = ["bottom_height"]
-    gdf[columns] = np.NaN
+    gdf[columns] = np.nan
     for wb in wc.keys():
         if len(wc[wb]) == 0:
             continue
@@ -843,8 +889,8 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
 
 
 def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
-    """Add a column names with the minimum surface level height near surface
-    water features.
+    """Add a column names with the minimum surface level height near surface water
+    features.
 
     Parameters
     ----------
@@ -865,7 +911,6 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
     """
-
     from geocube.api.core import make_geocube
     from geocube.rasterize import rasterize_image
 
@@ -877,7 +922,7 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         rasterize_function=partial(rasterize_image, all_touched=True),
     )
     gc["ahn"] = ahn
-
+    gc = gc.set_coords("index")
     ahn_min = gc.groupby("index").min()["ahn"].to_pandas()
     ahn_min.index = ahn_min.index.astype(int)
     gdf[column] = ahn_min
@@ -955,7 +1000,7 @@ def gdf_to_seasonal_pkg(
 
     # make sure we have a bottom height
     if "rbot" not in gdf:
-        gdf["rbot"] = np.NaN
+        gdf["rbot"] = np.nan
     mask = gdf["rbot"].isna()
     if mask.any():
         logger.info(
@@ -999,10 +1044,11 @@ def gdf_to_seasonal_pkg(
     # the value to scale is also represented with a time series
     # So we switch the conductance (column 2) and the multiplier (column 3/4)
     spd = np.array(spd, dtype=object)
-    if pkg == "RIV":
-        spd[:, [2, 4]] = spd[:, [4, 2]]
-    else:
-        spd[:, [2, 3]] = spd[:, [3, 2]]
+    if len(spd) > 0:
+        if pkg == "RIV":
+            spd[:, [2, 4]] = spd[:, [4, 2]]
+        else:
+            spd[:, [2, 3]] = spd[:, [3, 2]]
     spd = spd.tolist()
 
     if boundname_column is None:

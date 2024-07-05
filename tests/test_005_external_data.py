@@ -1,6 +1,8 @@
 import pandas as pd
 import pytest
 import test_001_model
+import xarray as xr
+from shapely.geometry import LineString
 
 import nlmod
 
@@ -65,9 +67,13 @@ def test_get_ahn3():
 
 def test_get_ahn4():
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
-    da = nlmod.read.ahn.get_ahn4(extent)
+    ahn = nlmod.read.ahn.get_ahn4(extent)
+    assert isinstance(ahn, xr.DataArray)
+    assert not ahn.isnull().all(), "AHN only has nan values"
 
-    assert not da.isnull().all(), "AHN only has nan values"
+    line = LineString([(99000, 495000), (100000, 496000)])
+    ahn_line = nlmod.read.ahn.get_ahn_along_line(line, ahn=ahn)
+    assert isinstance(ahn_line, xr.DataArray)
 
 
 def test_get_ahn():
@@ -80,6 +86,10 @@ def test_get_ahn():
     assert not ahn_ds["ahn"].isnull().all(), "AHN only has nan values"
 
 
+def test_get_ahn_at_point():
+    nlmod.read.ahn.get_ahn_at_point(100010, 400010)
+
+
 def test_get_surface_water_ghb():
     # model with sea
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
@@ -88,13 +98,13 @@ def test_get_surface_water_ghb():
     sim = nlmod.sim.sim(ds)
 
     # create time discretisation
-    tdis = nlmod.sim.tdis(ds, sim)
+    nlmod.sim.tdis(ds, sim)
 
     # create groundwater flow model
     gwf = nlmod.gwf.gwf(ds, sim)
 
     # create ims
-    ims = nlmod.sim.ims(sim)
+    nlmod.sim.ims(sim)
 
     nlmod.gwf.dis(ds, gwf)
 

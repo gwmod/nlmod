@@ -138,13 +138,24 @@ def _get_binary_budget_data(kstpkper, fobj, text, column="q"):
         idx = np.array([idx])
 
     header = fobj.recordarray[idx]
-    ipos = fobj.iposarray[idx].item()
-    imeth = header["imeth"][0]
 
     t = header["text"][0]
     if isinstance(t, bytes):
         t = t.decode("utf-8")
 
+    data = []
+    for ipos in fobj.iposarray[idx]:
+        data.append(_get_binary_budget_record(fobj, ipos, header, column))
+
+    if len(data) == 1:
+        return data[0]
+    else:
+        return np.ma.sum(data, axis=0)
+
+
+def _get_binary_budget_record(fobj, ipos, header, column):
+    """Get a single data record from the budget file."""
+    imeth = header["imeth"][0]
     nlay = abs(header["nlay"][0])
     nrow = header["nrow"][0]
     ncol = header["ncol"][0]

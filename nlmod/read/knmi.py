@@ -7,15 +7,15 @@ import pandas as pd
 from hydropandas.io import knmi as hpd_knmi
 
 from .. import cache, util
+from ..dims.grid import get_affine_mod_to_world
 from ..dims.layers import get_first_active_layer
-from ..dims.resample import get_affine_mod_to_world
 
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf(coords_3d=True, coords_time=True)
 def get_recharge(ds, method="linear", most_common_station=False):
-    """add multiple recharge packages to the groundwater flow model with knmi
+    """Add multiple recharge packages to the groundwater flow model with knmi
     data by following these steps:
        1. check for each cell (structured or vertex) which knmi measurement
           stations (prec and evap) are the closest.
@@ -50,7 +50,6 @@ def get_recharge(ds, method="linear", most_common_station=False):
     ds : xr.DataSet
         dataset with spatial model data including the rch raster
     """
-
     if "time" not in ds:
         raise (
             AttributeError(
@@ -159,7 +158,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
 
 
 def get_locations_vertex(ds):
-    """get dataframe with the locations of the grid cells of a vertex grid.
+    """Get dataframe with the locations of the grid cells of a vertex grid.
 
     Parameters
     ----------
@@ -193,7 +192,7 @@ def get_locations_vertex(ds):
 
 
 def get_locations_structured(ds):
-    """get dataframe with the locations of the grid cells of a structured grid.
+    """Get dataframe with the locations of the grid cells of a structured grid.
 
     Parameters
     ----------
@@ -206,7 +205,6 @@ def get_locations_structured(ds):
         DataFrame with the locations of all active grid cells.
         includes the columns: x, y, row, col and layer
     """
-
     # store x and y mids in locations of active cells
     fal = get_first_active_layer(ds)
     rows, columns = np.where(fal != fal.attrs["nodata"])
@@ -228,7 +226,7 @@ def get_locations_structured(ds):
 
 
 def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False):
-    """get knmi data at the locations of the active grid cells in ds.
+    """Get knmi data at the locations of the active grid cells in ds.
 
     Parameters
     ----------
@@ -277,20 +275,38 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
     stns_ev24 = locations["stn_ev24"].unique()
 
     # get knmi data stations closest to any grid cell
-    oc_knmi_prec = hpd.ObsCollection.from_knmi(
-        stns=stns_rd,
-        starts=[start],
-        ends=[end],
-        meteo_vars=["RD"],
-        fill_missing_obs=True,
-    )
+    olist_rd, new_stns_rd = [], []
+    for stnrd in stns_rd:
+        o = hpd.PrecipitationObs.from_knmi(
+            meteo_var="RD", stn=stnrd, start=start, end=end, fill_missing_obs=True
+        )
 
-    oc_knmi_evap = hpd.ObsCollection.from_knmi(
-        stns=stns_ev24,
-        starts=[start],
-        ends=[end],
-        meteo_vars=["EV24"],
-        fill_missing_obs=True,
-    )
+        # if a station has no data in the given period another station is selected
+        if o.station != stnrd:
+            locations["stn_rd"] = locations["stn_rd"].replace(stnrd, o.station)
+
+        # only add the station if it does not exist yet
+        if o.station not in new_stns_rd:
+            olist_rd.append(o)
+            new_stns_rd.append(o.station)
+
+    oc_knmi_prec = hpd.ObsCollection(olist_rd)
+
+    olist_ev24, new_stns_ev24 = [], []
+    for stnev24 in stns_ev24:
+        o = hpd.EvaporationObs.from_knmi(
+            meteo_var="EV24", stn=stnev24, start=start, end=end, fill_missing_obs=True
+        )
+
+        # if a station has no data in the given period another station is selected
+        if o.station != stnev24:
+            locations["stn_ev24"] = locations["stn_rd"].replace(stnev24, o.station)
+
+        # only add the station if it does not exist yet
+        if o.station not in new_stns_ev24:
+            olist_ev24.append(o)
+            new_stns_ev24.append(o.station)
+
+    oc_knmi_evap = hpd.ObsCollection(olist_ev24)
 
     return locations, oc_knmi_prec, oc_knmi_evap

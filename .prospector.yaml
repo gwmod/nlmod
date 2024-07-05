@@ -29,6 +29,8 @@ pylint:
     - too-many-branches
     - too-many-statements
     - logging-fstring-interpolation
+    - import-outside-toplevel
+    - implicit-str-concat
 
 mccabe:
   disable:

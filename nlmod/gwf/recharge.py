@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 def ds_to_rch(
     gwf, ds, mask=None, pname="rch", recharge="recharge", auxiliary=None, **kwargs
 ):
-    """Convert the recharge data in the model dataset to a rch package with
-    time series.
+    """Convert the recharge data in the model dataset to a rch package with time series.
 
     Parameters
     ----------
@@ -110,8 +109,8 @@ def ds_to_evt(
     auxiliary=None,
     **kwargs,
 ):
-    """Convert the evaporation data in the model dataset to a evt package with
-    time series.
+    """Convert the evaporation data in the model dataset to a evt package with time
+    series.
 
     Parameters
     ----------
@@ -141,7 +140,6 @@ def ds_to_evt(
 
     Raises
     ------
-
         DESCRIPTION.
     ValueError
         DESCRIPTION.
@@ -387,10 +385,11 @@ def ds_to_uzf(
     if landflag is None:
         landflag = xr.full_like(ds["botm"], 0, dtype=int)
         # set the landflag in the top layer to 1
-        fal = get_first_active_layer_from_idomain(idomain, nodata=0)
+        fal = get_first_active_layer_from_idomain(idomain)
+        # for the inactive domain set fal to 0 (setting nodata to 0 gives problems)
+        fal.data[fal == fal.nodata] = 0
         landflag[fal] = 1
-
-        # set landflag to 0 in inactivate domain
+        # set landflag to 0 in inactivate domain (where we set fal to 0 before)
         landflag = xr.where(idomain > 0, landflag, 0)
 
     # determine ivertcon, by setting its value to iuzno of the layer below
@@ -541,8 +540,7 @@ def ds_to_uzf(
 
 
 def _get_unique_series(ds, var, pname):
-    """Get the location and values of unique time series from a variable var in
-    ds.
+    """Get the location and values of unique time series from a variable var in ds.
 
     Parameters
     ----------

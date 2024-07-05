@@ -1,14 +1,16 @@
-import os
 import logging
+import os
 import warnings
 
 import dask
+import flopy
 import xarray as xr
 
-import flopy
-
-from ..dims.grid import get_dims_coords_from_modelgrid, modelgrid_from_ds
-from ..dims.resample import get_affine_mod_to_world
+from ..dims.grid import (
+    get_affine_mod_to_world,
+    get_dims_coords_from_modelgrid,
+    modelgrid_from_ds,
+)
 from ..dims.time import ds_time_idx
 from .binaryfile import _get_binary_budget_data, _get_binary_head_data
 
@@ -71,8 +73,8 @@ def _get_time_index(fobj, ds=None, gwf_or_gwt=None):
     elif ds is not None:
         tindex = ds_time_idx(
             fobj.get_times(),
-            start_datetime=ds.time.attrs["start"],
-            time_units=ds.time.attrs["time_units"],
+            start_datetime=(ds.time.attrs["start"] if "time" in ds else None),
+            time_units=(ds.time.attrs["time_units"] if "time" in ds else None),
         )
     return tindex
 
@@ -239,9 +241,11 @@ def _get_budget_da(
     return da
 
 
-def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
+def _get_flopy_data_object(
+    var, ds=None, gwml=None, fname=None, grb_file=None, **kwargs
+):
     """Get modflow HeadFile or CellBudgetFile object, containg heads, budgets or
-    concentrations
+    concentrations.
 
     Provide one of ds, gwf or fname.
 
@@ -255,7 +259,7 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         groundwater flow or transport model, by default None
     fname : str, optional
         path to Head- or CellBudgetFile, by default None
-    grbfile : str, optional
+    grb_file : str, optional
         path to file containing binary grid information, if None modelgrid
         information is obtained from ds. By default None
 
@@ -283,14 +287,11 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
             # return gwf.output.head(), gwf.output.budget() or gwt.output.concentration()
             return getattr(gwml.output, var)()
         fname = os.path.join(ds.model_ws, ds.model_name + extension)
-    if grbfile is None and ds is not None:
+    if grb_file is None and ds is not None:
         # get grb file
-        if ds.gridtype == "vertex":
-            grbfile = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
-        elif ds.gridtype == "structured":
-            grbfile = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
-    if grbfile is not None and os.path.exists(grbfile):
-        modelgrid = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
+        grb_file = _get_grb_file(ds)
+    if grb_file is not None and os.path.exists(grb_file):
+        modelgrid = flopy.mf6.utils.MfGrdFile(grb_file).modelgrid
     elif ds is not None:
         modelgrid = modelgrid_from_ds(ds)
     else:
@@ -301,9 +302,17 @@ def _get_flopy_data_object(var, ds=None, gwml=None, fname=None, grbfile=None):
         if modelgrid is None:
             logger.error(msg)
             raise ValueError(msg)
-        return flopy.utils.CellBudgetFile(fname, modelgrid=modelgrid)
+        return flopy.utils.CellBudgetFile(fname, modelgrid=modelgrid, **kwargs)
     else:
         if modelgrid is None:
             logger.warning(msg)
             warnings.warn(msg)
-        return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid)
+        return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid, **kwargs)
+
+
+def _get_grb_file(ds):
+    if ds.gridtype == "vertex":
+        grb_file = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
+    elif ds.gridtype == "structured":
+        grb_file = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+    return grb_file

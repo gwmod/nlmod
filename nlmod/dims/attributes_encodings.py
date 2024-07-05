@@ -228,9 +228,12 @@ def get_encodings(
 
 
 def compute_scale_and_offset(min_value, max_value):
-    """
-    Computes the scale_factor and offset for the dataset using a min_value and max_value,
-    and int16. Useful for maximizing the compression of a dataset.
+    """Reduce precision of the dataset by storing it as int16.
+
+    Computes the scale_factor and offset for the dataset using a min_value and max_value
+    to transform the range of the dataset to the range of valid int16 values. The packed
+    value is computed as:
+        packed_value = (unpacked_value - add_offset) / scale_factor
 
     Parameters
     ----------
@@ -250,13 +253,14 @@ def compute_scale_and_offset(min_value, max_value):
     # from -32766 to 32767, because -32767 is the default fillvalue.
     width = 32766 + 32767
     scale_factor = (max_value - min_value) / width
-    add_offset = 1.0 + scale_factor * (width - 1) / 2
+    add_offset = max_value - scale_factor * 32767
     return scale_factor, add_offset
 
 
 def is_int16_allowed(vmin, vmax, dval_max):
-    """compute the loss of resolution by storing a float as int16 (`dval`). And
-    compare it with the maximum allowed loss of resolution (`dval_max`).
+    """Compute the loss of resolution by storing a float as int16 (`dval`).
+
+    Compare it with the maximum allowed loss of resolution (`dval_max`).
 
     Parameters
     ----------
@@ -270,7 +274,8 @@ def is_int16_allowed(vmin, vmax, dval_max):
     Returns
     -------
     bool
-        True if the loss of resolution is allowed, False otherwise"""
+        True if the loss of resolution is allowed, False otherwise
+    """
     nsteps = 32766 + 32767
     dval = (vmax - vmin) / nsteps
     return dval <= dval_max

@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+import pathlib
 from shutil import copyfile
 
 import flopy
@@ -13,9 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
-    """write modflow files and run the model. Extra options include writing the
-    model dataset to a netcdf file in the model workspace and copying the
-    modelscript to the model workspace.
+    """Write modflow files and run the model. Extra options include writing the model
+    dataset to a netcdf file in the model workspace and copying the modelscript to the
+    model workspace.
 
     Parameters
     ----------
@@ -51,7 +52,10 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
         ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
             "%Y%m%d_%H:%M:%S"
         )
-        ds.to_netcdf(os.path.join(ds.attrs["model_ws"], f"{ds.model_name}.nc"))
+        if isinstance(ds.attrs["model_ws"], pathlib.PurePath):
+            ds.to_netcdf(ds.attrs["model_ws"] / f"{ds.model_name}.nc")
+        else:
+            ds.to_netcdf(os.path.join(ds.attrs["model_ws"], f"{ds.model_name}.nc"))
 
     logger.info("write modflow files to model workspace")
     sim.write_simulation(silent=silent)
@@ -107,8 +111,8 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
     return tdis_perioddata
 
 
-def sim(ds, exe_name=None):
-    """create sim from the model dataset.
+def sim(ds, exe_name=None, version_tag=None):
+    """Create sim from the model dataset.
 
     Parameters
     ----------
@@ -117,21 +121,36 @@ def sim(ds, exe_name=None):
         attributes: model_name, mfversion, model_ws, time_units, start,
         perlen, nstp, tsmult
     exe_name: str, optional
-        path to modflow executable, default is None, which assumes binaries
-        are available in nlmod/bin directory. Binaries can be downloaded
-        using `nlmod.util.download_mfbinaries()`.
+        path to modflow executable, default is None. If None, the path is
+        obtained from the flopy metadata that respects `version_tag`. If not
+        found, the executables are downloaded. Not compatible with version_tag.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded.
+        Not compatible with exe_name.
 
     Returns
     -------
     sim : flopy MFSimulation
         simulation object.
     """
-
     # start creating model
     logger.info("creating mf6 SIM")
 
-    if exe_name is None:
-        exe_name = util.get_exe_path(ds.mfversion)
+    # Most likely exe_name was previously set with to_model_ds()
+    if exe_name is not None:
+        exe_name = util.get_exe_path(exe_name=exe_name, version_tag=version_tag)
+    elif "exe_name" in ds.attrs:
+        exe_name = util.get_exe_path(
+            exe_name=ds.attrs["exe_name"], version_tag=version_tag
+        )
+    elif "mfversion" in ds.attrs:
+        exe_name = util.get_exe_path(
+            exe_name=ds.attrs["mfversion"], version_tag=version_tag
+        )
+    else:
+        raise ValueError("No exe_name provided and no exe_name found in ds.attrs")
 
     # Create the Flopy simulation object
     sim = flopy.mf6.MFSimulation(
@@ -145,7 +164,7 @@ def sim(ds, exe_name=None):
 
 
 def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
-    """create tdis package from the model dataset.
+    """Create tdis package from the model dataset.
 
     Parameters
     ----------
@@ -164,7 +183,6 @@ def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
     dis : flopy TDis
         tdis object.
     """
-
     # start creating model
     logger.info("creating mf6 TDIS")
 
@@ -185,7 +203,7 @@ def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
 
 
 def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
-    """create IMS package.
+    """Create IMS package.
 
     Parameters
     ----------
@@ -201,7 +219,6 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
     ims : flopy ModflowIms
         ims object.
     """
-
     logger.info("creating mf6 IMS")
 
     print_option = kwargs.pop("print_option", "summary")

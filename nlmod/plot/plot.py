@@ -1,19 +1,24 @@
+import logging
 import warnings
 from functools import partial
 
 import flopy as fp
-import xarray as xr
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import xarray as xr
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from ..dims.grid import modelgrid_from_ds
-from ..dims.resample import get_affine_mod_to_world, get_extent
+from ..dims.grid import (
+    get_affine_mod_to_world,
+    get_extent,
+    get_extent_gdf,
+    modelgrid_from_ds,
+)
 from ..read import geotop, rws
 from .dcs import DatasetCrossSection
 from .plotutil import (
@@ -23,6 +28,8 @@ from .plotutil import (
     get_patches,
     title_inside,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def surface_water(model_ds, ax=None, **kwargs):
@@ -38,9 +45,52 @@ def surface_water(model_ds, ax=None, **kwargs):
 def modelgrid(ds, ax=None, **kwargs):
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
-        ax.axis("scaled")
+        ax.set_aspect("auto")
     modelgrid = modelgrid_from_ds(ds)
+    extent = None if ax.get_autoscale_on() else ax.axis()
     modelgrid.plot(ax=ax, **kwargs)
+    if extent is not None:
+        ax.axis(extent)
+
+    return ax
+
+
+def modelextent(ds, dx=None, ax=None, rotated=False, **kwargs):
+    """Plot model extent.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        The dataset containing the data.
+    dx : float, optional
+        The buffer around the model extent. Default is 5% of the longest model edge.
+    ax : matplotlib.axes.Axes, optional
+        The axes object to plot on. If not provided, a new figure and axes will be
+        created.
+    rotated : bool, optional
+        When True, plot the model extent in real-world coordinates for rotated grids.
+        The default is False, which plots the model extent in local coordinates.
+    **kwargs
+        Additional keyword arguments to pass to the boundary plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        axes object
+    """
+    extent = xmin, xmax, ymin, ymax = get_extent(ds, rotated=rotated)
+    if dx is None:
+        dx = max(0.05 * (xmax - xmin), 0.05 * (ymax - ymin))
+    if ax is None:
+        _, ax = plt.subplots(figsize=(10, 10))
+        ax.axis("scaled")
+
+        ax.axis([xmin - dx, xmax + dx, ymin - dx, ymax + dx])
+    gdf = get_extent_gdf(ds, rotated=rotated)
+    extent = None if ax.get_autoscale_on() else ax.axis()
+    gdf.boundary.plot(ax=ax, **kwargs)
+    if extent is not None:
+        ax.axis(extent)
     return ax
 
 
@@ -55,7 +105,7 @@ def facet_plot(
     xlim=None,
     ylim=None,
 ):
-    """make a 2d plot of every modellayer, store them in a grid.
+    """Make a 2d plot of every modellayer, store them in a grid.
 
     Parameters
     ----------
@@ -88,7 +138,6 @@ def facet_plot(
     axes : TYPE
         DESCRIPTION.
     """
-
     warnings.warn(
         "this function is out of date and will probably be removed in a future version",
         DeprecationWarning,
@@ -166,7 +215,8 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
     ax : matplotlib.Axes, optional
         The axes used for plotting. Set to current axes when None. The default is None.
     rotated : bool, optional
-        Plot the data-array in rotated coordinates
+        When True, plot the data-array in real-world coordinates for rotated grids.
+        The default is False, which plots the data-array in local coordinates.
     **kwargs : cit
         Kwargs are passed to PatchCollection (vertex) or pcolormesh (structured).
 
@@ -212,7 +262,14 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
 
 
 def geotop_lithok_in_cross_section(
-    line, gt=None, ax=None, legend=True, legend_loc=None, lithok_props=None, **kwargs
+    line,
+    gt=None,
+    ax=None,
+    legend=True,
+    legend_loc=None,
+    lithok_props=None,
+    alpha=None,
+    **kwargs,
 ):
     """PLot the lithoclass-data of GeoTOP in a cross-section.
 
@@ -234,6 +291,9 @@ def geotop_lithok_in_cross_section(
     lithok_props : pd.DataFrame, optional
         A DataFrame containing the properties of the lithoclasses.
         Will call nlmod.read.geotop.get_lithok_props() when None. The default is None.
+    alpha : float, optional
+        Opacity for plot_array function, The default is None.
+
 
     **kwargs : dict
         kwargs are passed onto DatasetCrossSection.
@@ -261,7 +321,8 @@ def geotop_lithok_in_cross_section(
 
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
     array, cmap, norm = _get_geotop_cmap_and_norm(gt["lithok"], lithok_props)
-    cs.plot_array(array, norm=norm, cmap=cmap)
+    cs.plot_array(array, norm=norm, cmap=cmap, alpha=alpha)
+
     if legend:
         # make a legend with dummy handles
         _add_geotop_lithok_legend(lithok_props, ax, lithok=gt["lithok"], loc=legend_loc)
@@ -298,7 +359,6 @@ def geotop_lithok_on_map(
     Returns
     -------
     qm : matplotlib.collections.QuadMesh
-
     """
     if ax is None:
         ax = plt.gca()
@@ -322,7 +382,7 @@ def geotop_lithok_on_map(
 
 
 def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
-    """Add a legend with lithok-data"""
+    """Add a legend with lithok-data."""
     handles = []
     if lithok is None:
         lithoks = lithok_props.index
@@ -337,10 +397,10 @@ def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
 
 
 def _get_geotop_cmap_and_norm(lithok, lithok_props):
-    """Get an array of lithok-values, with a corresponding colormap and norm"""
+    """Get an array of lithok-values, with a corresponding colormap and norm."""
     lithok_un = np.unique(lithok)
     lithok_un = lithok_un[~np.isnan(lithok_un)]
-    array = np.full(lithok.shape, np.NaN)
+    array = np.full(lithok.shape, np.nan)
     colors = []
     for i, ilithok in enumerate(lithok_un):
         ilithok = int(ilithok)
@@ -351,7 +411,7 @@ def _get_geotop_cmap_and_norm(lithok, lithok_props):
     return array, cmap, norm
 
 
-def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=True, extent=None):
+def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=False, extent=None):
     # figure
     if ax is not None:
         f = ax.figure
@@ -402,7 +462,7 @@ def map_array(
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
-    rotated=True,
+    rotated=False,
     add_to_plot=None,
     background=False,
     figsize=None,
@@ -463,7 +523,10 @@ def map_array(
 
     # bgmap
     if background:
-        add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
+        if not rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            logger.warning("Background map not supported in in model coordinates")
+        else:
+            add_background_map(ax, map_provider="nlmaps.water", alpha=0.5)
 
     # add other info to plot
     if add_to_plot is not None:
@@ -522,7 +585,7 @@ def animate_map(
     colorbar=True,
     colorbar_label="",
     plot_grid=True,
-    rotated=True,
+    rotated=False,
     background=False,
     figsize=None,
     ax=None,
@@ -569,7 +632,7 @@ def animate_map(
     plot_grid : bool, optional
         Whether to plot the model grid. Default is True.
     rotated : bool, optional
-        Whether to plot rotated model, if applicable. Default is True.
+        Whether to plot rotated model, if applicable. Default is False.
     background : bool, optional
         Whether to add a background map. Default is False.
     figsize : tuple, optional

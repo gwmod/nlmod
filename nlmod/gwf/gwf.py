@@ -1,17 +1,12 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 17:20:34 2021.
-
-@author: oebbe
-"""
 import logging
 import numbers
 import warnings
 
 import flopy
-import numpy as np
 import xarray as xr
 
 from ..dims import grid
+from ..dims.grid import get_delc, get_delr
 from ..dims.layers import get_idomain
 from ..sim import ims, sim, tdis
 from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
@@ -21,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def gwf(ds, sim, under_relaxation=False, **kwargs):
-    """create groundwater flow model from the model dataset.
+    """Create groundwater flow model from the model dataset.
 
     Parameters
     ----------
@@ -37,7 +32,6 @@ def gwf(ds, sim, under_relaxation=False, **kwargs):
     gwf : flopy ModflowGwf
         groundwaterflow object.
     """
-
     # start creating model
     logger.info("creating mf6 GWF")
 
@@ -63,7 +57,7 @@ def gwf(ds, sim, under_relaxation=False, **kwargs):
 
 
 def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
-    """create discretisation package from the model dataset.
+    """Create discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -85,7 +79,7 @@ def dis(ds, gwf, length_units="METERS", pname="dis", **kwargs):
 
 
 def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
-    """create discretisation package from the model dataset.
+    """Create discretisation package from the model dataset.
 
     Parameters
     ----------
@@ -109,11 +103,6 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
         return disv(ds, model, length_units=length_units)
 
     # check attributes
-    for att in ["delr", "delc"]:
-        if att in ds.attrs:
-            if isinstance(ds.attrs[att], np.float32):
-                ds.attrs[att] = float(ds.attrs[att])
-
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         xorigin = ds.attrs["xorigin"]
         yorigin = ds.attrs["yorigin"]
@@ -135,8 +124,8 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             nlay=ds.sizes["layer"],
             nrow=ds.sizes["y"],
             ncol=ds.sizes["x"],
-            delr=ds["delr"].values if "delr" in ds else ds.delr,
-            delc=ds["delc"].values if "delc" in ds else ds.delc,
+            delr=get_delr(ds),
+            delc=get_delc(ds),
             top=ds["top"].data,
             botm=ds["botm"].data,
             idomain=idomain,
@@ -154,8 +143,8 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
             nlay=ds.sizes["layer"],
             nrow=ds.sizes["y"],
             ncol=ds.sizes["x"],
-            delr=ds["delr"].values if "delr" in ds else ds.delr,
-            delc=ds["delc"].values if "delc" in ds else ds.delc,
+            delr=get_delr(ds),
+            delc=get_delc(ds),
             top=ds["top"].data,
             botm=ds["botm"].data,
             idomain=idomain,
@@ -169,7 +158,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
 
 
 def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
-    """create discretisation vertices package from the model dataset.
+    """Create discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -191,7 +180,7 @@ def disv(ds, gwf, length_units="METERS", pname="disv", **kwargs):
 
 
 def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
-    """create discretisation vertices package from the model dataset.
+    """Create discretisation vertices package from the model dataset.
 
     Parameters
     ----------
@@ -272,7 +261,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
 def npf(
     ds, gwf, k="kh", k33="kv", icelltype=0, save_flows=False, pname="npf", **kwargs
 ):
-    """create node property flow package from model dataset.
+    """Create node property flow package from model dataset.
 
     Parameters
     ----------
@@ -336,7 +325,7 @@ def ghb(
     layer=None,
     **kwargs,
 ):
-    """create general head boundary from model dataset.
+    """Create general head boundary from model dataset.
 
     Parameters
     ----------
@@ -419,7 +408,7 @@ def drn(
     layer=None,
     **kwargs,
 ):
-    """create drain from model dataset.
+    """Create drain from model dataset.
 
     Parameters
     ----------
@@ -492,7 +481,7 @@ def riv(
     layer=None,
     **kwargs,
 ):
-    """create river package from model dataset.
+    """Create river package from model dataset.
 
     Parameters
     ----------
@@ -575,7 +564,7 @@ def chd(
     layer=0,
     **kwargs,
 ):
-    """create constant head package from model dataset.
+    """Create constant head package from model dataset.
 
     Parameters
     ----------
@@ -650,7 +639,7 @@ def chd(
 
 
 def ic(ds, gwf, starting_head="starting_head", pname="ic", **kwargs):
-    """create initial condictions package from model dataset.
+    """Create initial condictions package from model dataset.
 
     Parameters
     ----------
@@ -694,7 +683,7 @@ def sto(
     pname="sto",
     **kwargs,
 ):
-    """create storage package from model dataset.
+    """Create storage package from model dataset.
 
     Parameters
     ----------
@@ -746,8 +735,7 @@ def sto(
 
 
 def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs):
-    """create surface level drain (maaivelddrainage in Dutch) from the model
-    dataset.
+    """Create surface level drain (maaivelddrainage in Dutch) from the model dataset.
 
     Parameters
     ----------
@@ -770,7 +758,6 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
     drn : flopy ModflowGwfdrn
         drn package
     """
-
     ds.attrs["surface_drn_resistance"] = resistance
 
     maskarr = _get_value_from_ds_datavar(ds, "elev", elev, return_da=True)
@@ -798,7 +785,7 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
 
 
 def rch(ds, gwf, pname="rch", **kwargs):
-    """create recharge package from model dataset.
+    """Create recharge package from model dataset.
 
     Parameters
     ----------
@@ -822,7 +809,7 @@ def rch(ds, gwf, pname="rch", **kwargs):
 
 
 def evt(ds, gwf, pname="evt", **kwargs):
-    """create evapotranspiration package from model dataset.
+    """Create evapotranspiration package from model dataset.
 
     Parameters
     ----------
@@ -847,7 +834,7 @@ def evt(ds, gwf, pname="evt", **kwargs):
 
 
 def uzf(ds, gwf, pname="uzf", **kwargs):
-    """create unsaturated zone flow package from model dataset.
+    """Create unsaturated zone flow package from model dataset.
 
     Parameters
     ----------
@@ -891,7 +878,8 @@ def _set_record(out, budget, output="head"):
 
 
 def buy(ds, gwf, pname="buy", **kwargs):
-    """create buoyancy package from model dataset.
+    """Create buoyancy package from model dataset.
+
     Parameters
     ----------
     ds : xarray.Dataset
@@ -951,7 +939,7 @@ def oc(
     pname="oc",
     **kwargs,
 ):
-    """create output control package from model dataset.
+    """Create output control package from model dataset.
 
     Parameters
     ----------
@@ -1031,7 +1019,6 @@ def ds_to_gwf(ds, complexity="SIMPLE", icelltype=0, under_relaxation=False):
     flopy.mf6.ModflowGwf
         MODFLOW6 GroundwaterFlow model object.
     """
-
     # create simulation
     mf_sim = sim(ds)
 

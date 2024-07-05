@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
-from ..dims.resample import get_affine_mod_to_world
+from ..dims.grid import get_affine_mod_to_world
 from ..epsg28992 import EPSG_28992
 
 
@@ -186,8 +186,7 @@ def rotate_yticklabels(ax):
 
 
 def rd_ticks(ax, base=1000.0, fmt_base=1000.0, fmt="{:.0f}"):
-    """Add ticks every 1000 (base) m, and divide ticklabels by 1000
-    (fmt_base)"""
+    """Add ticks every 1000 (base) m, and divide ticklabels by 1000 (fmt_base)."""
 
     def fmt_rd_ticks(x, _):
         return fmt.format(x / fmt_base)

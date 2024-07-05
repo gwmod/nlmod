@@ -4,13 +4,16 @@ import os
 import geopandas as gpd
 import numpy as np
 
-from .dims.grid import polygons_from_model_ds
-from .dims.resample import get_affine_mod_to_world
+from nlmod.dims.grid import get_affine_mod_to_world, polygons_from_model_ds
+from nlmod.dims.layers import calculate_thickness
+from nlmod.epsg28992 import EPSG_28992
 
 logger = logging.getLogger(__name__)
 
 
-def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
+def vertex_da_to_gdf(
+    model_ds, data_variables, polygons=None, dealing_with_time="mean", crs=EPSG_28992
+):
     """Convert one or more DataArrays from a vertex model dataset to a Geodataframe.
 
     Parameters
@@ -28,6 +31,9 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
         becomes very slow. For now only the time averaged data will be
         saved in the geodataframe. Later this can be extended with multiple
         possibilities. The default is 'mean'.
+    crs : str, optional
+        coordinate reference system for the geodataframe. The default
+        is EPSG:28992 (RD).
 
     Raises
     ------
@@ -65,7 +71,8 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
                     dv_dic[f"{da_name}_mean"] = da_mean.values
                 else:
                     raise NotImplementedError(
-                        "Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'"
+                        "Can only use the mean of a DataArray with dimension time, "
+                        "use dealing_with_time='mean'"
                     )
             else:
                 raise ValueError(
@@ -73,7 +80,8 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
                 )
         else:
             raise NotImplementedError(
-                f"expected one or two dimensions got {no_dims} for data variable {da_name}"
+                f"expected one or two dimensions got {no_dims} for "
+                f"data variable {da_name}"
             )
 
     # create geometries
@@ -81,12 +89,14 @@ def vertex_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time=
         polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
-    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
+    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
 
     return gdf
 
 
-def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="mean"):
+def struc_da_to_gdf(
+    model_ds, data_variables, polygons=None, dealing_with_time="mean", crs=EPSG_28992
+):
     """Convert one or more DataArrays from a structured model dataset to a Geodataframe.
 
     Parameters
@@ -99,6 +109,9 @@ def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="
     polygons : list of shapely Polygons, optional
         geometries used for the GeoDataframe, if None the polygons are created
         from the data variable 'vertices' in model_ds. The default is None.
+    crs : str, optional
+        coordinate reference system for the geodataframe. The default
+        is EPSG:28992 (RD).
 
     Raises
     ------
@@ -152,7 +165,7 @@ def struc_da_to_gdf(model_ds, data_variables, polygons=None, dealing_with_time="
         polygons = polygons_from_model_ds(model_ds)
 
     # construct geodataframe
-    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons)
+    gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
 
     return gdf
 
@@ -173,7 +186,6 @@ def dataarray_to_shapefile(model_ds, data_variables, fname, polygons=None):
         geometries used for the GeoDataframe, if None the polygons are created
         from the data variable 'vertices' in model_ds. The default is None.
 
-
     Returns
     -------
     None.
@@ -191,6 +203,7 @@ def ds_to_vector_file(
     driver="GPKG",
     combine_dic=None,
     exclude=("x", "y", "time_steps", "area", "vertices", "rch_name", "icvert"),
+    crs=EPSG_28992,
 ):
     """Save all data variables in a model dataset to multiple shapefiles.
 
@@ -213,13 +226,15 @@ def ds_to_vector_file(
     exclude : tuple of str, optional
         data variables that are not exported to shapefiles. The default is
         ('x', 'y', 'time_steps', 'area', 'vertices').
+    crs : str, optional
+        coordinate reference system for the vector file. The default
+        is EPSG:28992 (RD).
 
     Returns
     -------
     fnames : str or list of str
         filename(s) of exported geopackage or shapefiles.
     """
-
     # get default combination dictionary
     if combine_dic is None:
         combine_dic = {
@@ -265,9 +280,9 @@ def ds_to_vector_file(
     for key, item in combine_dic.items():
         if set(item).issubset(da_names):
             if model_ds.gridtype == "structured":
-                gdf = struc_da_to_gdf(model_ds, item, polygons=polygons)
+                gdf = struc_da_to_gdf(model_ds, item, polygons=polygons, crs=crs)
             elif model_ds.gridtype == "vertex":
-                gdf = vertex_da_to_gdf(model_ds, item, polygons=polygons)
+                gdf = vertex_da_to_gdf(model_ds, item, polygons=polygons, crs=crs)
             if driver == "GPKG":
                 gdf.to_file(fname_gpkg, layer=key, driver=driver)
             else:
@@ -283,9 +298,9 @@ def ds_to_vector_file(
     # create unique shapefiles for the other data variables
     for da_name in da_names:
         if model_ds.gridtype == "structured":
-            gdf = struc_da_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = struc_da_to_gdf(model_ds, (da_name,), polygons=polygons, crs=crs)
         elif model_ds.gridtype == "vertex":
-            gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons)
+            gdf = vertex_da_to_gdf(model_ds, (da_name,), polygons=polygons, crs=crs)
         if driver == "GPKG":
             gdf.to_file(fname_gpkg, layer=da_name, driver=driver)
         else:
@@ -308,6 +323,9 @@ def ds_to_ugrid_nc_file(
     xv="xv",
     yv="yv",
     face_node_connectivity="icvert",
+    split_layer_dimension=True,
+    split_time_dimension=False,
+    for_imod_qgis_plugin=False,
 ):
     """Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh Layer
     in qgis.
@@ -335,13 +353,24 @@ def ds_to_ugrid_nc_file(
     face_node_connectivity : str, optional
         The name of the variable that contains the indexes of the vertices for
         each face. The default is 'icvert'.
+    split_layer_dimension : bool, optional
+        Splits the layer dimension into seperate variables when True. The defaults is
+        True.
+    split_time_dimension : bool, optional
+        Splits the time dimension into seperate variables when True. The defaults is
+        False.
+    for_imod_qgis_plugin : bool, optional
+        When True, set some properties of the netcdf file to improve compatibility with
+        the iMOD-QGIS plugin. Layers are renamed to 'layer_i' until 'layer_n', a
+        variable 'top' is added for each layer, and the variable 'botm' is renamed to
+        'bottom'. The default is False.
 
     Returns
     -------
     ds : xr.DataSet
         The dataset that was saved to a NetCDF-file. Can be used for debugging.
     """
-    assert model_ds.gridtype == "vertex", "Only vertex grids are supported"
+    assert model_ds.gridtype == "vertex", "Only vertex grids are supported for now"
 
     # copy the dataset, so we do not alter the original one
     ds = model_ds.copy()
@@ -377,6 +406,10 @@ def ds_to_ugrid_nc_file(
     ds[face_node_connectivity].attrs["cf_role"] = "face_node_connectivity"
     ds[face_node_connectivity].attrs["start_index"] = 0
 
+    if for_imod_qgis_plugin and "botm" in ds:
+        ds["top"] = ds["botm"] + calculate_thickness(ds)
+        ds = ds.rename({"botm": "bottom"})
+
     # set for each of the variables that they describe the faces
     if variables is None:
         variables = list(ds.keys())
@@ -405,9 +438,16 @@ def ds_to_ugrid_nc_file(
             ds[var].encoding["dtype"] = np.int32
 
     # Breaks down variables with a layer dimension into separate variables.
-    ds, variables = _break_down_dimension(ds, variables, "layer")
-    # Breaks down variables with a time dimension into separate variables.
-    ds, variables = _break_down_dimension(ds, variables, "time")
+    if split_layer_dimension:
+        if for_imod_qgis_plugin:
+            ds, variables = _break_down_dimension(
+                ds, variables, "layer", add_dim_name=True, add_one_based_index=True
+            )
+        else:
+            ds, variables = _break_down_dimension(ds, variables, "layer")
+    if split_time_dimension:
+        # Breaks down variables with a time dimension into separate variables.
+        ds, variables = _break_down_dimension(ds, variables, "time")
 
     # only keep the selected variables
     ds = ds[variables + [dummy_var, xv, yv, face_node_connectivity]]
@@ -417,14 +457,26 @@ def ds_to_ugrid_nc_file(
     return ds
 
 
-def _break_down_dimension(ds, variables, dim):
-    # Copied and altered from imod-python.
+def _break_down_dimension(
+    ds, variables, dim, add_dim_name=False, add_one_based_index=False
+):
+    """Internal method to split a dimension of a variable into multiple variables.
+
+    Copied and altered from imod-python.
+    """
     keep_vars = []
     for var in variables:
         if dim in ds[var].dims:
             stacked = ds[var]
-            for value in stacked[dim].values:
-                name = f"{var}_{value}"
+            for i, value in enumerate(stacked[dim].values):
+                name = var
+                if add_dim_name:
+                    name = f"{name}_{dim}"
+                if add_one_based_index:
+                    name = f"{name}_{i+1}"
+                else:
+                    name = f"{name}_{value}"
+
                 ds[name] = stacked.sel({dim: value}, drop=True)
                 if "long_name" in ds[name].attrs:
                     long_name = ds[name].attrs["long_name"]

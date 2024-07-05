@@ -1,18 +1,23 @@
+import json
 import logging
 import os
 import re
 import sys
 import warnings
+from pathlib import Path
 from typing import Dict, Optional
 
-import flopy
 import geopandas as gpd
 import requests
 import xarray as xr
 from colorama import Back, Fore, Style
-from shapely.geometry import box
+from flopy.utils import get_modflow
+from flopy.utils.get_modflow import flopy_appdata_path, get_release
+from shapely.geometry import Polygon, box
 
 logger = logging.getLogger(__name__)
+
+nlmod_bindir = Path(__file__).parent / "bin"
 
 
 class LayerError(Exception):
@@ -89,29 +94,349 @@ def get_model_dirs(model_ws):
     return figdir, cachedir
 
 
-def get_exe_path(exe_name="mf6"):
-    """Get the full path of the executable. Uses the bin directory in the nlmod package.
+def get_exe_path(
+    exe_name="mf6",
+    bindir=None,
+    download_if_not_found=True,
+    version_tag=None,
+    repo="executables",
+):
+    """Get the full path of the executable.
+
+    Searching for the executables is done in the following order:
+    0. If exe_name is a full path, return the full path of the executable.
+    1. The directory specified with `bindir`. Raises error if exe_name is provided
+       and not found.
+    2. The directory used by nlmod installed in this environment.
+    3. If the executables were downloaded with flopy/nlmod from an other env,
+       most recent installation location of MODFLOW is found in flopy metadata
+
+    Else:
+    4. Download the executables using `version_tag` and `repo`.
+
+    The returned directory is checked to contain exe_name if it is provided.
 
     Parameters
     ----------
     exe_name : str, optional
-        name of the executable. The default is 'mf6'.
+        The name of the executable, by default "mf6".
+    bindir : Path, optional
+        The directory where the executables are stored, by default None
+    download_if_not_found : bool, optional
+        Download the executables if they are not found, by default True.
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default), "modflow6",
+        or "modflow6-nightly-build". If repo and version_tag are provided the most
+        recent installation location of MODFLOW is found in flopy metadata that
+        respects `version_tag` and `repo`. If not found, the executables are downloaded
+        using repo and version_tag.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If repo and version_tag are
+        provided the most recent installation location of MODFLOW is found in flopy
+        metadata that respects `version_tag` and `repo`. If not found, the executables
+        are downloaded using repo and version_tag.
 
     Returns
     -------
-    exe_path : str
+    exe_full_path : str
         full path of the executable.
     """
-    exe_path = os.path.join(os.path.dirname(__file__), "bin", exe_name)
-    if sys.platform.startswith("win"):
-        exe_path += ".exe"
+    if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
+        exe_name += ".exe"
 
-    if not os.path.exists(exe_path):
-        logger.warning(
-            f"executable {exe_path} not found, download the binaries using nlmod.util.download_mfbinaries"
+    # If exe_name is a full path
+    if Path(exe_name).exists():
+        enable_version_check = version_tag is not None and repo is not None
+
+        if enable_version_check:
+            msg = (
+                "Incompatible arguments. If exe_name is provided, unable to check "
+                "the version."
+            )
+            raise ValueError(msg)
+        exe_full_path = exe_name
+
+    else:
+        exe_full_path = str(
+            get_bin_directory(
+                exe_name=exe_name,
+                bindir=bindir,
+                download_if_not_found=download_if_not_found,
+                version_tag=version_tag,
+                repo=repo,
+            )
+            / exe_name
         )
 
-    return exe_path
+    msg = f"Executable path: {exe_full_path}"
+    logger.debug(msg)
+
+    return exe_full_path
+
+
+def get_bin_directory(
+    exe_name="mf6",
+    bindir=None,
+    download_if_not_found=True,
+    version_tag=None,
+    repo="executables",
+) -> Path:
+    """Get the directory where the executables are stored.
+
+    Searching for the executables is done in the following order:
+    0. If exe_name is a full path, return the full path of the executable.
+    1. The directory specified with `bindir`. Raises error if exe_name is provided
+        and not found. Requires enable_version_check to be False.
+    2. The directory used by nlmod installed in this environment.
+    3. If the executables were downloaded with flopy/nlmod from an other env,
+        most recent installation location of MODFLOW is found in flopy metadata
+
+    Else:
+    4. Download the executables using `version_tag` and `repo`.
+
+    The returned directory is checked to contain exe_name if exe_name is provided. If
+    exe_name is set to None only the existence of the directory is checked.
+
+    Parameters
+    ----------
+    exe_name : str, optional
+        The name of the executable, by default mf6.
+    bindir : Path, optional
+        The directory where the executables are stored, by default "mf6".
+    download_if_not_found : bool, optional
+        Download the executables if they are not found, by default True.
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default), "modflow6",
+        or "modflow6-nightly-build". If repo and version_tag are provided the most
+        recent installation location of MODFLOW is found in flopy metadata that
+        respects `version_tag` and `repo`. If not found, the executables are downloaded
+        using repo and version_tag.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If repo and version_tag are
+        provided the most recent installation location of MODFLOW is found in flopy
+        metadata that respects `version_tag` and `repo`. If not found, the executables
+        are downloaded using repo and version_tag.
+
+    Returns
+    -------
+    Path
+        The directory where the executables are stored.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the executables are not found in the specified directories.
+    """
+    bindir = Path(bindir) if bindir is not None else None
+
+    if sys.platform.startswith("win") and not exe_name.endswith(".exe"):
+        exe_name += ".exe"
+
+    enable_version_check = version_tag is not None
+
+    # If exe_name is a full path
+    if Path(exe_name).exists():
+        if enable_version_check:
+            msg = (
+                "Incompatible arguments. If exe_name is provided, unable to check "
+                "the version."
+            )
+            raise ValueError(msg)
+        return Path(exe_name).parent
+
+    # If bindir is provided
+    if bindir is not None and enable_version_check:
+        msg = (
+            "Incompatible arguments. If bindir is provided, "
+            "unable to check the version."
+        )
+        raise ValueError(msg)
+
+    use_bindir = (
+        bindir is not None and exe_name is not None and (bindir / exe_name).exists()
+    )
+    use_bindir |= bindir is not None and exe_name is None and bindir.exists()
+
+    if use_bindir:
+        return bindir
+
+    # If the executables are in the flopy directory
+    flopy_bindirs = get_flopy_bin_directories(version_tag=version_tag, repo=repo)
+
+    if exe_name is not None:
+        flopy_bindirs = [
+            flopy_bindir
+            for flopy_bindir in flopy_bindirs
+            if Path(flopy_bindir / exe_name).exists()
+        ]
+    else:
+        flopy_bindirs = [
+            flopy_bindir
+            for flopy_bindir in flopy_bindirs
+            if Path(flopy_bindir).exists()
+        ]
+
+    if nlmod_bindir in flopy_bindirs:
+        return nlmod_bindir
+
+    if flopy_bindirs:
+        # Get most recent directory
+        return flopy_bindirs[-1]
+
+    # Else download the executables
+    if download_if_not_found:
+        download_mfbinaries(
+            bindir=bindir,
+            version_tag=version_tag if version_tag is not None else "latest",
+            repo=repo,
+        )
+
+        # Rerun this function
+        return get_bin_directory(
+            exe_name=exe_name,
+            bindir=bindir,
+            download_if_not_found=False,
+            version_tag=version_tag,
+            repo=repo,
+        )
+
+    else:
+        msg = (
+            f"Could not find {exe_name} in {bindir}, "
+            f"{nlmod_bindir} and {flopy_bindirs}."
+        )
+        raise FileNotFoundError(msg)
+
+
+def get_flopy_bin_directories(version_tag=None, repo="executables"):
+    """Get the directories where the executables are stored.
+
+    Obtain the bin directory installed with flopy. If enable_version_check is True,
+    all installation location of MODFLOW are found in flopy metadata that respects
+    `version_tag` and `repo`.
+
+    Parameters
+    ----------
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default),
+        "modflow6", or "modflow6-nightly-build". If repo and version_tag are provided
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag` and `repo`. If not found, the executables are
+        downloaded using repo and version_tag.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If repo and version_tag are
+        provided the most recent installation location of MODFLOW is found in flopy
+        metadata that respects `version_tag` and `repo`. If not found, the executables
+        are downloaded using repo and version_tag.
+
+    Returns
+    -------
+    list
+        list of directories where the executables are stored.
+    """
+    flopy_metadata_fp = flopy_appdata_path / "get_modflow.json"
+
+    if not flopy_metadata_fp.exists():
+        return []
+
+    meta_raw = flopy_metadata_fp.read_text()
+
+    # Remove trailing characters that are not part of the JSON.
+    while meta_raw[-3:] != "}\n]":
+        meta_raw = meta_raw[:-1]
+
+    # Get metadata of all flopy installations
+    meta_list = json.loads(meta_raw)
+
+    enable_version_check = version_tag is not None and repo is not None
+
+    if enable_version_check:
+        msg = (
+            "The version of the executables will be checked, because the "
+            f"`version_tag={version_tag}` is passed to `get_flopy_bin_directories()`."
+        )
+
+        # To convert latest into an explicit tag
+        if version_tag == "latest":
+            version_tag_pin = get_release(tag=version_tag, repo=repo, quiet=True)[
+                "tag_name"
+            ]
+        else:
+            version_tag_pin = version_tag
+
+        # get path to the most recent installation. Appended to end of get_modflow.json
+        meta_list_validversion = [
+            meta
+            for meta in meta_list
+            if (meta["release_id"] == version_tag_pin) and (meta["repo"] == repo)
+        ]
+
+    else:
+        msg = (
+            "The version of the executables will not be checked, because the "
+            "`version_tag` is not passed to `get_flopy_bin_directories()`."
+        )
+        meta_list_validversion = meta_list
+    logger.debug(msg)
+
+    path_list = [
+        Path(meta["bindir"])
+        for meta in meta_list_validversion
+        if Path(meta["bindir"]).exists()
+    ]
+    return path_list
+
+
+def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
+    """Download and unpack platform-specific modflow binaries.
+
+    Source: USGS
+
+    Parameters
+    ----------
+    binpath : str, optional
+        path to directory to download binaries to, if it doesnt exist it
+        is created. Default is None which sets dir to nlmod/bin.
+    repo : str, default "executables"
+        Name of GitHub repository. Choose one of "executables" (default),
+        "modflow6", or "modflow6-nightly-build".
+    version_tag : str, default "latest"
+        GitHub release ID.
+    """
+    if bindir is None:
+        # Path objects are immutable so a copy is implied
+        bindir = nlmod_bindir
+
+    if not os.path.isdir(bindir):
+        os.makedirs(bindir)
+
+    get_modflow(bindir=str(bindir), release_id=version_tag, repo=repo)
+
+    # Ensure metadata is saved.
+    # https://github.com/modflowpy/flopy/blob/
+    # 0748dcb9e4641b5ad9616af115dd3be906f98f50/flopy/utils/get_modflow.py#L623
+    flopy_metadata_fp = flopy_appdata_path / "get_modflow.json"
+
+    if not flopy_metadata_fp.exists():
+        if "pytest" not in str(bindir) and "pytest" not in sys.modules:
+            logger.warning(
+                f"flopy metadata file not found at {flopy_metadata_fp}. "
+                "After downloading and installing the executables. "
+                "Creating a new metadata file."
+            )
+
+        release_metadata = get_release(tag=version_tag, repo=repo, quiet=True)
+        install_metadata = {
+            "release_id": release_metadata["tag_name"],
+            "repo": repo,
+            "bindir": str(bindir),
+        }
+
+        with open(flopy_metadata_fp, "w", encoding="UTF-8") as f:
+            json.dump([install_metadata], f, indent=4)
+
+    # download the provisional version of modpath from Github
+    download_modpath_provisional_exe(bindir=bindir, timeout=120)
 
 
 def get_ds_empty(ds, keep_coords=None):
@@ -175,8 +500,10 @@ def get_da_from_da_ds(da_ds, dims=("y", "x"), data=None):
 
 
 def find_most_recent_file(folder, name, extension=".pklz"):
-    """Find the most recent file in a folder. File must startwith name and end width
-    extension. If you want to look for the most recent folder use extension = ''.
+    """Find the most recent file in a folder.
+
+    File must startwith name and end width extension. If you want to look for the most
+    recent folder use extension = ''.
 
     Parameters
     ----------
@@ -192,7 +519,6 @@ def find_most_recent_file(folder, name, extension=".pklz"):
     newest_file : str
         name of the most recent file
     """
-
     i = 0
     for file in os.listdir(folder):
         if file.startswith(name) and file.endswith(extension):
@@ -229,7 +555,6 @@ def compare_model_extents(extent1, extent2):
             1: extent1 is completely within extent2
             2: extent2 is completely within extent1
     """
-
     # option1 extent1 is completely within extent2
     check_xmin = extent1[0] >= extent2[0]
     check_xmax = extent1[1] <= extent2[1]
@@ -267,6 +592,49 @@ def compare_model_extents(extent1, extent2):
     raise NotImplementedError("other options are not yet implemented")
 
 
+def extent_to_polygon(extent):
+    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])
+
+    Parameters
+    ----------
+    extent : tuple, list or array
+        extent (xmin, xmax, ymin, ymax).
+
+    Returns
+    -------
+    shapely.geometry.Polygon
+        polygon of the extent.
+
+    """
+    nw = (extent[0], extent[2])
+    no = (extent[1], extent[2])
+    zo = (extent[1], extent[3])
+    zw = (extent[0], extent[3])
+    return Polygon([nw, no, zo, zw])
+
+
+def extent_to_gdf(extent, crs="EPSG:28992"):
+    """Create a geodataframe with a single polygon with the extent given.
+
+    Parameters
+    ----------
+    extent : tuple, list or array
+        extent.
+    crs : str, optional
+        coördinate reference system of the extent, default is EPSG:28992
+        (RD new)
+
+    Returns
+    -------
+    gdf_extent : geopandas.GeoDataFrame
+        geodataframe with extent.
+    """
+    geom_extent = extent_to_polygon(extent)
+    gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
+
+    return gdf_extent
+
+
 def polygon_from_extent(extent):
     """Create a shapely polygon from a given extent.
 
@@ -280,7 +648,10 @@ def polygon_from_extent(extent):
     polygon_ext : shapely.geometry.polygon.Polygon
         polygon of the extent.
     """
-
+    logger.warning(
+        "nlmod.util.polygon_from_extent is deprecated. "
+        "Use nlmod.util.extent_to_polygon instead"
+    )
     bbox = (extent[0], extent[2], extent[1], extent[3])
     polygon_ext = box(*tuple(bbox))
 
@@ -303,7 +674,10 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
     gdf_extent : GeoDataFrame
         geodataframe with extent.
     """
-
+    logger.warning(
+        "nlmod.util.gdf_from_extent is deprecated. "
+        "Use nlmod.util.extent_to_gdf instead"
+    )
     geom_extent = polygon_from_extent(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
 
@@ -311,8 +685,9 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
 
 
 def gdf_within_extent(gdf, extent):
-    """Select only parts of the geodataframe within the extent. Only accepts Polygon and
-    Linestring geometry types.
+    """Select only parts of the geodataframe within the extent.
+
+    Only accepts Polygon and Linestring geometry types.
 
     Parameters
     ----------
@@ -327,7 +702,7 @@ def gdf_within_extent(gdf, extent):
         dataframe with only polygon features within the extent.
     """
     # create geodataframe from the extent
-    gdf_extent = gdf_from_extent(extent, crs=gdf.crs)
+    gdf_extent = extent_to_gdf(extent, crs=gdf.crs)
 
     # check type
     geom_types = gdf.geom_type.unique()
@@ -366,6 +741,7 @@ def get_google_drive_filename(fid, timeout=120):
     warnings.warn(
         "this function is no longer supported use the gdown package instead",
         DeprecationWarning,
+        stacklevel=1,
     )
 
     if isinstance(id, requests.Response):
@@ -392,6 +768,7 @@ def download_file_from_google_drive(fid, destination=None):
     warnings.warn(
         "this function is no longer supported use the gdown package instead",
         DeprecationWarning,
+        stacklevel=1,
     )
 
     def get_confirm_token(response):
@@ -428,30 +805,6 @@ def download_file_from_google_drive(fid, destination=None):
             destination = os.path.join(destination, filename)
 
     save_response_content(response, destination)
-
-
-def download_mfbinaries(bindir=None):
-    """Download and unpack platform-specific modflow binaries.
-
-    Source: USGS
-
-    Parameters
-    ----------
-    binpath : str, optional
-        path to directory to download binaries to, if it doesnt exist it
-        is created. Default is None which sets dir to nlmod/bin.
-    version : str, optional
-        version string, by default 8.0
-    """
-
-    if bindir is None:
-        bindir = os.path.join(os.path.dirname(__file__), "bin")
-    if not os.path.isdir(bindir):
-        os.makedirs(bindir)
-    flopy.utils.get_modflow(bindir)
-    if sys.platform.startswith("win"):
-        # download the provisional version of modpath from Github
-        download_modpath_provisional_exe(bindir)
 
 
 def download_modpath_provisional_exe(bindir=None, timeout=120):
@@ -507,14 +860,12 @@ class ColoredFormatter(logging.Formatter):
         self, *args, colors: Optional[Dict[str, str]] = None, **kwargs
     ) -> None:
         """Initialize the formatter with specified format strings."""
-
         super().__init__(*args, **kwargs)
 
         self.colors = colors if colors else {}
 
     def format(self, record) -> str:
         """Format the specified record as text."""
-
         record.color = self.colors.get(record.levelname, "")
         record.reset = Style.RESET_ALL
 
@@ -522,6 +873,18 @@ class ColoredFormatter(logging.Formatter):
 
 
 def get_color_logger(level="INFO"):
+    """Get a logger with colored output.
+
+    Parameters
+    ----------
+    level : str, optional
+        The logging level to set for the logger. Default is "INFO".
+
+    Returns
+    -------
+    logger : logging.Logger
+        The configured logger object.
+    """
     if level == "DEBUG":
         FORMAT = "{color}{levelname}:{name}.{funcName}:{lineno}:{message}{reset}"
     else:

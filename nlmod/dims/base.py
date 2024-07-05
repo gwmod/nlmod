@@ -8,14 +8,16 @@ from scipy.spatial import cKDTree
 
 from .. import util
 from ..epsg28992 import EPSG_28992
-from . import resample
+from . import grid, resample
 from .layers import fill_nan_top_botm_kh_kv
 
 logger = logging.getLogger(__name__)
 
 
-def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
-    """set the attribute of a model dataset.
+def set_ds_attrs(
+    ds, model_name, model_ws, mfversion="mf6", exe_name=None, version_tag=None
+):
+    """Set the attribute of a model dataset.
 
     Parameters
     ----------
@@ -31,13 +33,17 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
         path to modflow executable, default is None, which assumes binaries
         are available in nlmod/bin directory. Binaries can be downloaded
         using `nlmod.util.download_mfbinaries()`.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded.
+        Not compatible with exe_name.
 
     Returns
     -------
     ds : xarray dataset
         model dataset.
     """
-
     if model_name is not None and len(model_name) > 16 and mfversion == "mf6":
         raise ValueError("model_name can not have more than 16 characters")
     ds.attrs["model_name"] = model_name
@@ -46,7 +52,9 @@ def set_ds_attrs(ds, model_name, model_ws, mfversion="mf6", exe_name=None):
     ds.attrs["created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
-        exe_name = util.get_exe_path(mfversion)
+        exe_name = util.get_exe_path(exe_name=mfversion, version_tag=version_tag)
+    else:
+        exe_name = util.get_exe_path(exe_name=exe_name, version_tag=version_tag)
 
     ds.attrs["exe_name"] = exe_name
 
@@ -78,6 +86,7 @@ def to_model_ds(
     drop_attributes=True,
     transport=False,
     remove_nan_layers=True,
+    version_tag=None,
 ):
     """Transform an input dataset to a groundwater model dataset.
 
@@ -113,13 +122,20 @@ def to_model_ds(
     fill_value_kv : int or float, optional
         use this value for kv if there is no data. The default is 0.1.
     xorigin : int or float, optional
-        lower left x coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
     yorigin : int or float, optional
-        lower left y coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
     angrot : int or float, optinal
-        the rotation of the grid in counter clockwise degrees, default is 0.0
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     drop_attributes : bool, optional
         if True drop the attributes from the layer model dataset. Otherwise
         keep the attributes. Default is True.
@@ -129,6 +145,11 @@ def to_model_ds(
     remove_nan_layers : bool, optional
         if True remove layers with only nan values in the botm. Default is
         True.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded.
+        Not compatible with exe_name.
 
     Returns
     -------
@@ -154,13 +175,12 @@ def to_model_ds(
     if delc is None:
         delc = delr
     if isinstance(delr, (numbers.Number)) and isinstance(delc, (numbers.Number)):
-        ds["area"] = ("y", "x"), ds.delr * ds.delc * np.ones(
-            (ds.sizes["y"], ds.sizes["x"])
+        ds["area"] = (
+            ("y", "x"),
+            delr * delc * np.ones((ds.sizes["y"], ds.sizes["x"])),
         )
     elif isinstance(delr, np.ndarray) and isinstance(delc, np.ndarray):
         ds["area"] = ("y", "x"), np.outer(delc, delr)
-        ds["delr"] = ("x"), delr
-        ds["delc"] = ("y"), delc
     else:
         raise TypeError("unexpected type for delr and/or delc")
 
@@ -168,7 +188,9 @@ def to_model_ds(
         ds = extrapolate_ds(ds)
 
     # add attributes
-    ds = set_ds_attrs(ds, model_name, model_ws)
+    ds = set_ds_attrs(
+        ds, model_name, model_ws, mfversion="mf6", version_tag=version_tag
+    )
     ds.attrs["transport"] = int(transport)
 
     # fill nan's
@@ -274,13 +296,21 @@ def _get_structured_grid_ds(
         A 2D array of the top elevation of the grid cells. Default is NaN.
     botm : array_like, optional
         A 3D array of the bottom elevation of the grid cells. Default is NaN.
-    xorigin : float, optional
-        The x-coordinate origin of the grid. Default is 0.0.
-    yorigin : float, optional
-        The y-coordinate origin of the grid. Default is 0.0.
-    angrot : float, optional
-        The counter-clockwise rotation angle of the grid, in degrees.
-        Default is 0.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         A dictionary of attributes to add to the xarray dataset. Default is an
         empty dictionary.
@@ -307,7 +337,6 @@ def _get_structured_grid_ds(
         dictionary, and a coordinate reference system specified by `crs`, if
         provided.
     """
-
     if attrs is None:
         attrs = {}
     attrs.update({"gridtype": "structured"})
@@ -333,7 +362,7 @@ def _get_structured_grid_ds(
     }
 
     if angrot != 0.0:
-        affine = resample.get_affine_mod_to_world(attrs)
+        affine = grid.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(xcenters, ycenters)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)
@@ -350,17 +379,6 @@ def _get_structured_grid_ds(
         coords=coords,
         attrs=attrs,
     )
-    # set delr and delc
-    delr = np.diff(xedges)
-    if len(np.unique(delr)) == 1:
-        ds.attrs["delr"] = np.unique(delr)[0]
-    else:
-        ds["delr"] = ("x"), delr
-    delc = -np.diff(yedges)
-    if len(np.unique(delc)) == 1:
-        ds.attrs["delc"] = np.unique(delc)[0]
-    else:
-        ds["delc"] = ("y"), delc
 
     if crs is not None:
         ds.rio.set_crs(crs)
@@ -406,13 +424,21 @@ def _get_vertex_grid_ds(
         A 2D array of the top elevation of the grid cells. Default is NaN.
     botm : array_like, optional
         A 3D array of the bottom elevation of the grid cells. Default is NaN.
-    xorigin : float, optional
-        The x-coordinate origin of the grid. Default is 0.0.
-    yorigin : float, optional
-        The y-coordinate origin of the grid. Default is 0.0.
-    angrot : float, optional
-        The counter-clockwise rotation angle of the grid, in degrees.
-        Default is 0.0.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         A dictionary of attributes to add to the xarray dataset. Default is an
         empty dictionary.
@@ -546,15 +572,21 @@ def get_ds(
         is a float or a list/array of len(layer). The default is 1.0.
     crs : int, optional
         The coordinate reference system of the model. The default is 28992.
-    xorigin : float, optional
-        x-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0. The defauls is 0.0.
-    yorigin : float, optional
-        y-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0. The defauls is 0.0.
-    angrot : float, optional
-        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
-        model grid. The default is 0.0
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict, optional
         Attributes of the model dataset. The default is None.
     extrapolate : bool, optional
@@ -611,7 +643,7 @@ def get_ds(
     x, y = resample.get_xy_mid_structured(attrs["extent"], delr, delc)
     coords = {"x": x, "y": y, "layer": layer}
     if angrot != 0.0:
-        affine = resample.get_affine_mod_to_world(attrs)
+        affine = grid.get_affine_mod_to_world(attrs)
         xc, yc = affine * np.meshgrid(x, y)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)
@@ -660,7 +692,7 @@ def get_ds(
         ds,
         model_name=model_name,
         model_ws=model_ws,
-        extent=extent,
+        extent=attrs["extent"],
         delr=delr,
         delc=delc,
         drop_attributes=False,

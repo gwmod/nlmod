@@ -1,6 +1,10 @@
 import datetime as dt
 import logging
 
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import rasterio
 import rioxarray
 import xarray as xr
@@ -9,14 +13,15 @@ from rasterio.io import MemoryFile
 from tqdm import tqdm
 
 from .. import cache
-from ..dims.resample import get_extent, structured_da_to_ds
+from ..dims.grid import get_extent
+from ..dims.resample import structured_da_to_ds
 from ..util import get_ds_empty
 from .webservices import arcrest, wcs
 
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf(coords_2d=True)
 def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     """Get a model dataset with ahn variable.
 
@@ -86,6 +91,33 @@ def get_ahn_at_point(
     res=0.5,
     **kwargs,
 ):
+    """Get the height of the surface level at a certain point, defined by x and y.
+
+    Parameters
+    ----------
+    x : float
+        The x-coordinate fo the point.
+    y : float
+        The y-coordinate fo the point..
+    buffer : float, optional
+        The buffer around x and y that is downloaded. The default is 0.75.
+    return_da : bool, optional
+        Return the downloaded DataArray when True. The default is False.
+    return_mean : bool, optional
+        Resturn the mean of all non-nan pixels within buffer. Return the center pixel
+        when False. The default is False.
+    identifier : str, optional
+        The identifier passed onto get_latest_ahn_from_wcs. The default is "dsm_05m".
+    res : float, optional
+        The resolution that is passed onto get_latest_ahn_from_wcs. The default is 0.5.
+    **kwargs : dict
+        kwargs are passed onto the method get_latest_ahn_from_wcs.
+
+    Returns
+    -------
+    float
+        The surface level value at the requested point.
+    """
     extent = [x - buffer, x + buffer, y - buffer, y + buffer]
     ahn = get_latest_ahn_from_wcs(extent, identifier=identifier, res=res, **kwargs)
     if return_da:
@@ -99,7 +131,66 @@ def get_ahn_at_point(
         return ahn.data[int((ahn.shape[0] - 1) / 2), int((ahn.shape[1] - 1) / 2)]
 
 
-@cache.cache_netcdf
+def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=False):
+    """Get the height of the surface level along a line.
+
+    Parameters
+    ----------
+    line : shapely.LineString
+        The line along which the surface level is calculated.
+    ahn : xr.DataArray, optional
+        The 2d DataArray containing surface level values. If None, ahn4-values are
+        downloaded from the web. The default is None.
+    dx : float, optional
+        The distance between the points along the line at which the surface level is
+        calculated. Only used when num is None. When dx is None, it is set to the
+        resolution of ahn. The default is None.
+    num : int, optional
+        If not None, the surface level is calculated at num equally spaced points along
+        the line. The default is None.
+    method : string, optional
+        The method to interpolate the 2d surface level values to the points along the
+        line. The default is "linear".
+    plot : bool, optional
+        if True, plot the 2d surface level, the line and the calculated heights. The
+        default is False.
+
+    Returns
+    -------
+    z : xr.DataArray
+        A DataArray with dimension s, containing surface level values along the line.
+    """
+    if ahn is None:
+        bbox = line.bounds
+        extent = [bbox[0], bbox[2], bbox[1], bbox[3]]
+        ahn = get_ahn4(extent)
+    if num is not None:
+        s = np.linspace(0.0, line.length, num)
+    else:
+        if dx is None:
+            dx = float(ahn.x[1] - ahn.x[0])
+        s = np.arange(0.0, line.length, dx)
+
+    x, y = zip(*[p.xy for p in line.interpolate(s)])
+
+    x = np.array(x)[:, 0]
+    y = np.array(y)[:, 0]
+
+    x = xr.DataArray(x, dims="s", coords={"s": s})
+    y = xr.DataArray(y, dims="s", coords={"s": s})
+    z = ahn.interp(x=x, y=y, method=method)
+
+    if plot:
+        _, ax = plt.subplots(figsize=(10, 10))
+        ahn.plot(ax=ax)
+        gpd.GeoDataFrame(geometry=[line]).plot(ax=ax)
+
+        _, ax = plt.subplots(figsize=(10, 10))
+        z.plot(ax=ax)
+    return z
+
+
+@cache.cache_netcdf()
 def get_latest_ahn_from_wcs(
     extent=None,
     identifier="dsm_05m",
@@ -142,7 +233,6 @@ def get_latest_ahn_from_wcs(
     xr.DataArray or MemoryFile
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
-
     url = "https://service.pdok.nl/rws/ahn/wcs/v1_0?SERVICE=WCS&request=GetCapabilities"
 
     if isinstance(extent, xr.DataArray):
@@ -181,10 +271,9 @@ def get_latest_ahn_from_wcs(
 def get_ahn2_tiles(extent=None):
     """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame.
 
-    The links in the tiles are cuurently incorrect. Thereore
-    get_ahn3_tiles is used in get_ahn2 and get_ahn1, as the tiles from
-    get_ahn3_tiles also contain information about the tiles of ahn1 and
-    ahn2
+    The links in the tiles are cuurently incorrect. Thereore get_ahn3_tiles is used in
+    get_ahn2 and get_ahn1, as the tiles from get_ahn3_tiles also contain information
+    about the tiles of ahn1 and ahn2
     """
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN2/FeatureServer"
     layer = 0
@@ -205,8 +294,7 @@ def get_ahn3_tiles(extent=None):
 
 
 def get_ahn4_tiles(extent=None):
-    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download
-    links."""
+    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download links."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN4/FeatureServer"
     layer = 0
     gdf = arcrest(url, layer, extent)
@@ -215,7 +303,7 @@ def get_ahn4_tiles(extent=None):
     return gdf
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     """Download AHN1.
 
@@ -242,7 +330,7 @@ def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
     return da
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     """Download AHN2.
 
@@ -266,7 +354,7 @@ def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     """Download AHN3.
 
@@ -289,7 +377,7 @@ def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     """Download AHN4.
 
@@ -319,6 +407,11 @@ def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
     datasets = []
     for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[name, identifier]
+        if isinstance(url, pd.Series):
+            logger.warning(
+                f"Multiple tiles with the same name: {name}. Choosing the first one."
+            )
+            url = url.iloc[0]
         path = url.split("/")[-1].replace(".zip", ".TIF")
         if path.lower().endswith(".tif.tif"):
             path = path[:-4]

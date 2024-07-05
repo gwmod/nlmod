@@ -75,7 +75,6 @@ def set_ds_time_deprecated(
     ds : xarray.Dataset
         dataset with time variant model data
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.time.set_ds_time() in the future.",
@@ -200,13 +199,7 @@ def set_ds_time(
     -------
     ds : xarray.Dataset
         model dataset with added time coordinate
-
     """
-    logger.info(
-        "Function set_ds_time() has changed since nlmod version 0.7."
-        " For the old behavior, use `nlmod.time.set_ds_time_deprecated()`."
-    )
-
     if time is None and perlen is None:
         raise (ValueError("Please specify either time or perlen in set_ds_time"))
     elif perlen is not None:
@@ -279,7 +272,6 @@ def set_ds_time(
 
 def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units="D"):
     """Get time index from TDIS perioddata: perlen, nstp, tsmult.
-
 
     Parameters
     ----------
@@ -356,7 +348,6 @@ def estimate_nstp(
         if `return_dt_arr` is `True` returns the durations of the timesteps
         corresponding with the returned nstp.
     """
-
     nt = len(forcing)
 
     # Scaled linear between min and max. array nstp will be modified along the way
@@ -408,6 +399,29 @@ def estimate_nstp(
         return nstp_ceiled
 
 
+def get_time_step_length(perlen, nstp, tsmult):
+    """Get the length of the timesteps within a singe stress-period.
+
+    Parameters
+    ----------
+    perlen : float
+        The length of the stress period, in the time unit of the model (generally days).
+    nstp : int
+        The numer of timesteps within the stress period.
+    tsmult : float
+        THe time step multiplier, generally equal or lager than 1.
+
+    Returns
+    -------
+    t : np.ndarray
+        An array with the length of each of the timesteps within the stress period, in
+        the same unit as perlen.
+    """
+    t = np.array([tsmult**x for x in range(nstp)])
+    t = t * perlen / t.sum()
+    return t
+
+
 def ds_time_from_model(gwf):
     warnings.warn(
         "this function was renamed to `ds_time_idx_from_model`. "
@@ -430,7 +444,6 @@ def ds_time_idx_from_model(gwf):
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-
     return ds_time_idx_from_modeltime(gwf.modeltime)
 
 
@@ -456,7 +469,6 @@ def ds_time_idx_from_modeltime(modeltime):
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-
     return ds_time_idx(
         np.cumsum(modeltime.perlen),
         start_datetime=modeltime.start_datetime,
@@ -530,3 +542,24 @@ def dataframe_to_flopy_timeseries(
         time_series_namerecord=time_series_namerecord,
         interpolation_methodrecord=interpolation_methodrecord,
     )
+
+
+def ds_time_to_pandas_index(ds, include_start=True):
+    """Convert xarray time index to pandas datetime index.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with time index
+    include_start : bool, optional
+        include the start time in the index, by default True
+
+    Returns
+    -------
+    pd.DatetimeIndex
+        pandas datetime index
+    """
+    if include_start:
+        return ds.time.to_index().insert(0, pd.Timestamp(ds.time.start))
+    else:
+        return ds.time.to_index()

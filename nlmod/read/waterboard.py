@@ -49,15 +49,16 @@ def get_configuration():
     config["Amstel, Gooi en Vecht"] = {
         "bgt_code": "W0155",
         "watercourses": {
-            "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/AGV_Onderh_Secundaire_Watergangen/MapServer",
-            "layer": 40,
-            "bottom_width": "BODEMBREEDTE",
-            "bottom_height": "BODEMHOOGTE",
-            "water_depth": "WATERDIEPTE",
+            "url": "https://maps.waternet.nl/arcgis/rest/services/Publiek/WNET_GEO_LEGGER_WL_2021/MapServer",
+            "layer": 0,  # Primaire Waterloop Legger
+            "bottom_width": "AVVBODDR",
+            "bottom_height": "AVVBODH",
+            "water_depth": "AVVDIEPT",
+            "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://maps.waternet.nl/arcgis/rest/services/AGV_Legger/Vastgestelde_Waterpeilen/MapServer",
-            "layer": 0,
+            "url": "https://maps.waternet.nl/arcgis/rest/services/Publiek/GW_GPG/MapServer",
+            "layer": 5,  # Vigerende peilgebieden
             "index": "GPGIDENT",
             "summer_stage": [
                 "GPGZMRPL",
@@ -201,18 +202,6 @@ def get_configuration():
         },
         "level_areas": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
-            "layer": 4,
-            "table": {
-                "id": 6,
-                "SOORTSTREEFPEIL": {
-                    901: "STREEFPEIL_JAARROND",  # vast peilbeheer
-                    902: "STREEFPEIL_WINTER",
-                    903: "STREEFPEIL_ZOMER",
-                    904: "STREEFPEIL_JAARROND",  # dynamisch peilbeheer
-                    905: "ONDERGRENS_JAARROND",
-                    906: "BOVENGRENS_JAARROND",
-                },
-            },
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",
@@ -522,7 +511,6 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
     Raises
     ------
-
         DESCRIPTION.
 
     Returns
@@ -605,11 +593,12 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
 
 def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
-    """Retrieve values from one or more Geo)DataFrame-columns and set these
-    values as another column."""
+    """Retrieve values from one or more Geo)DataFrame-columns and set these values as
+    another column.
+    """
     if set_column in gdf.columns:
         raise (Exception(f"Column {set_column} allready exists"))
-    gdf[set_column] = np.NaN
+    gdf[set_column] = np.nan
     if from_columns is None:
         return gdf
     if isinstance(from_columns, str):
@@ -645,5 +634,5 @@ def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
         if nan_values is not None:
             if isinstance(nan_values, (float, int)):
                 nan_values = [nan_values]
-            gdf.loc[gdf[set_column].isin(nan_values), set_column] = np.NaN
+            gdf.loc[gdf[set_column].isin(nan_values), set_column] = np.nan
     return gdf

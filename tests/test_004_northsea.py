@@ -60,7 +60,7 @@ def test_get_bathymetry_seamodel():
     assert (~ds_bathymetry.bathymetry.isnull()).sum() > 0
 
 
-def test_get_bathymetrie_nosea():
+def test_get_bathymetry_nosea():
     # model without sea
     ds = test_001_model.get_ds_from_cache("small_model")
     ds.update(nlmod.read.rws.get_northsea(ds))
@@ -69,7 +69,7 @@ def test_get_bathymetrie_nosea():
     assert (~ds_bathymetry.bathymetry.isnull()).sum() == 0
 
 
-def test_add_bathymetrie_to_top_bot_kh_kv_seamodel():
+def test_add_bathymetry_to_top_bot_kh_kv_seamodel():
     # model with sea
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
     ds.update(nlmod.read.rws.get_northsea(ds))

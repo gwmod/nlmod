@@ -1,12 +1,13 @@
-"""module with functions to deal with the northsea by:
+"""Module with functions to deal with the northsea.
 
-    - identifying model cells with the north sea
+    - identify model cells with the north sea
     - add bathymetry of the northsea to the layer model
-    - extrpolate the layer model below the northsea bed.
+    - extrapolate the layer model below the northsea bed.
 
 
 Note: if you like jazz please check this out: https://www.northseajazz.com
 """
+
 import datetime as dt
 import logging
 import os
@@ -17,15 +18,16 @@ import requests
 import xarray as xr
 
 from .. import cache
-from ..dims.resample import fillnan_da, get_extent, structured_da_to_ds
+from ..dims.grid import get_extent
+from ..dims.resample import fillnan_da, structured_da_to_ds
 from ..util import get_da_from_da_ds, get_ds_empty
 
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
-    """get bathymetry of the Northsea from the jarkus dataset.
+    """Get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
@@ -75,7 +77,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     # fill nan values in bathymetry
     da_bathymetry_filled = fillnan_da(da_bathymetry_raw)
 
-    # bathymetrie mag nooit groter zijn dan NAP 0.0
+    # bathymetry can never be larger than NAP 0.0
     da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
 
     # bathymetry projected on model grid
@@ -92,7 +94,7 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     return ds_out
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf()
 def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
     """Get bathymetry from Jarkus within a certain extent. If return_tiles is False, the
     following actions are performed:
@@ -126,7 +128,6 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
         dataset containing bathymetry data
 
     """
-
     extent = [int(x) for x in extent]
 
     netcdf_tile_names = get_jarkus_tilenames(extent, kind)
@@ -272,7 +273,7 @@ def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea
 
     ds["kv"][lay] = xr.where(fill_mask, kv_sea, ds["kv"][lay])
 
-    # reset bot for all layers based on bathymetrie
+    # reset bot for all layers based on bathymetry
     for lay in range(1, ds.sizes["layer"]):
         ds["botm"][lay] = np.where(
             ds["botm"][lay] > ds["botm"][lay - 1],

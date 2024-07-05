@@ -4,10 +4,13 @@ Created on Fri Dec 23 20:40:21 2022
 
 @author: ruben
 """
+
 import os
-import nlmod
+
 import art_tools
 import matplotlib.pyplot as plt
+
+import nlmod
 
 filled = False
 n = 2

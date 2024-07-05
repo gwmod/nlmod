@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
-from ..dims.resample import extent_to_polygon
+from ..util import extent_to_polygon
 
 
 def get_bgt(

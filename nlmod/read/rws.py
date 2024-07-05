@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_gdf_surface_water(ds):
-    """read a shapefile with surface water as a geodataframe, cut by the extent
-    of the model.
+    """Read a shapefile with surface water as a geodataframe, cut by the extent of the
+    model.
 
     Parameters
     ----------
@@ -37,9 +37,9 @@ def get_gdf_surface_water(ds):
     return gdf_swater
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf(coords_3d=True)
 def get_surface_water(ds, da_basename):
-    """create 3 data-arrays from the shapefile with surface water:
+    """Create 3 data-arrays from the shapefile with surface water:
 
     - area: area of the shape in the cell
     - cond: conductance based on the area and "bweerstand" column in shapefile
@@ -58,7 +58,6 @@ def get_surface_water(ds, da_basename):
     ds : xarray.Dataset
         dataset with modelgrid data.
     """
-
     modelgrid = dims.modelgrid_from_ds(ds)
     gdf = get_gdf_surface_water(ds)
 
@@ -91,10 +90,10 @@ def get_surface_water(ds, da_basename):
     return ds_out
 
 
-@cache.cache_netcdf
+@cache.cache_netcdf(coords_2d=True)
 def get_northsea(ds, da_name="northsea"):
-    """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is
-    defined by rws surface water shapefile.
+    """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is defined by
+    rws surface water shapefile.
 
     Parameters
     ----------
@@ -109,7 +108,6 @@ def get_northsea(ds, da_name="northsea"):
         Dataset with a single DataArray, this DataArray is 1 at sea and 0
         everywhere else. Grid dimensions according to ds.
     """
-
     gdf_surf_water = get_gdf_surface_water(ds)
 
     # find grid cells with sea
@@ -140,7 +138,6 @@ def add_northsea(ds, cachedir=None):
     b) fill top, bot, kh and kv add northsea cell by extrapolation
     c) get bathymetry (northsea depth) from jarkus.
     """
-
     logger.info(
         "Filling NaN values in top/botm and kh/kv in "
         "North Sea using bathymetry data from jarkus"
@@ -181,8 +178,7 @@ def calculate_sea_coverage(
     nodata=-1,
     return_filled_dtm=False,
 ):
-    """
-    Determine where the sea is by interpreting the digital terrain model.
+    """Determine where the sea is by interpreting the digital terrain model.
 
     This method assumes the pixel defined in xy_sea (by default top-left) of the
     DTM-DataArray is sea. It then determines the height of the sea that is required for
@@ -190,7 +186,6 @@ def calculate_sea_coverage(
 
     Parameters
     ----------
-
     dtm : xr.DataArray
         The digital terrain data, which can be of higher resolution than ds, Nans are
         filled by the minial value of dtm.
@@ -223,7 +218,6 @@ def calculate_sea_coverage(
     sea : xr.DataArray
         A DataArray with value of 1 where the sea is and 0 where it is not.
     """
-
     from skimage.morphology import reconstruction
 
     if not (dtm < zmax).any():

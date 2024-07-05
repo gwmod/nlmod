@@ -1,7 +1,10 @@
+import io
 import logging
 import os
 
+import geopandas as gpd
 import numpy as np
+import pandas as pd
 import requests
 import rioxarray
 
@@ -11,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
-    """
-    Download a file from the NHI website.
+    """Download a file from the NHI website.
 
     Parameters
     ----------
@@ -33,7 +35,6 @@ def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
     -------
     fname : str
         The full path of the downloaded file.
-
     """
     if filename is None:
         filename = url.split("/")[-1]
@@ -47,8 +48,7 @@ def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
 
 
 def download_buisdrainage(pathname, overwrite=False):
-    """
-    Download resistance and depth of buisdrainage from the NHI website
+    """Download resistance and depth of buisdrainage from the NHI website.
 
     Parameters
     ----------
@@ -63,7 +63,6 @@ def download_buisdrainage(pathname, overwrite=False):
         The full path of the downloaded file containing the resistance of buisdrainage.
     fname_d : str
         The full path of the downloaded file containing the depth of buisdrainage.
-
     """
     url_bas = "https://thredds.data.nhi.nu/thredds/fileServer/opendap/models/nhi3_2/25m"
 
@@ -86,8 +85,7 @@ def add_buisdrainage(
     cond_method="average",
     depth_method="mode",
 ):
-    """
-    Add data about the buisdrainage to the model Dataset.
+    """Add data about the buisdrainage to the model Dataset.
 
     This data consists of the conductance of buisdrainage (m2/d) and the depth of
     buisdrainage (m to surface level). With the default settings for `cond_method` and
@@ -125,7 +123,6 @@ def add_buisdrainage(
     ds : xr.Dataset
         The model dataset with added variables with the names `cond_var` and
         `depth_var`.
-
     """
     if pathname is None:
         pathname = ds.cachedir
@@ -173,3 +170,208 @@ def add_buisdrainage(
     ds[depth_var] = ds[depth_var] / 100.0
 
     return ds
+
+
+def get_gwo_wells(
+    username,
+    password,
+    n_well_filters=1_000,
+    well_site=None,
+    organisation=None,
+    status=None,
+    well_index="Name",
+    timeout=120,
+    **kwargs,
+):
+    """Get metadata of extraction wells from the NHI GWO database.
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_well_filters : int, optional
+        The number of wells that are requested per page. This number determines in how
+        many pieces the request is split. The default is 1000.
+    organisation : str, optional
+        The organisation that manages the wells. If not None, the organisation will be
+        used to filter the wells. The default is None.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    status : str, optional
+        The status of the wells. If not None, the status will be used to filter the
+        wells. Possible values are "Active", "Inactive" or "Abandoned". The default is
+        None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    timeout : int, optional
+        The timeout time (in seconds) for requests to the database. The default is
+        120 seconds.
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame containing the properties of the wells and their filters.
+    """
+    # zie https://gwo.nhi.nu/api/v1/download/
+    url = "https://gwo.nhi.nu/api/v1/well_filters/"
+
+    page = 1
+    properties = []
+    while page is not None:
+        params = {"format": "csv", "n_well_filters": n_well_filters, "page": page}
+        if status is not None:
+            params["well__status"] = status
+        if organisation is not None:
+            params["well__organization"] = organisation
+        if well_site is not None:
+            params["well__site"] = well_site
+        params.update(kwargs)
+
+        r = requests.get(url, auth=(username, password), params=params, timeout=timeout)
+        content = r.content.decode("utf-8")
+        if len(content) == 0:
+            if page == 1:
+                msg = "No extraction wells found for the requested parameters"
+                raise ValueError(msg)
+            else:
+                # the number of wells is exactly a multiple of n_well_filters
+                page = None
+                continue
+        lines = content.split("\n")
+        empty_lines = np.where([set(line) == set(";") for line in lines])[0]
+        assert len(empty_lines) == 1, "Returned extraction wells cannot be interpreted"
+        skiprows = list(range(empty_lines[0] + 1)) + [empty_lines[0] + 2]
+        df = pd.read_csv(io.StringIO(content), skiprows=skiprows, sep=";")
+        properties.append(df)
+
+        if len(df) == n_well_filters:
+            page += 1
+        else:
+            page = None
+    df = pd.concat(properties)
+    geometry = gpd.points_from_xy(df.XCoordinate, df.YCoordinate)
+    gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=28992)
+    if well_index is not None:
+        gdf = gdf.set_index(well_index)
+    return gdf
+
+
+def get_gwo_measurements(
+    username,
+    password,
+    n_measurements=10_000,
+    well_site=None,
+    well_index="Name",
+    measurement_index=("Name", "DateTime"),
+    timeout=120,
+    **kwargs,
+):
+    """Get extraction rates and metadata of wells from the NHI GWO database.
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_measurements : int, optional
+        The number of measurements that are requested per page, with a maximum of
+        200,000. This number determines in how many pieces the request is split. The
+        default is 10,000.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    measurement_index :  str, tuple or list, optional, optional
+        The column(s) in the resulting measurement-DataFrame that is/are used as the
+        index of this DataFrame. The default is ("Name", "DateTime").
+    timeout : int, optional
+        The timeout time (in seconds) of requests to the database. The default is
+        120 seconds.
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    measurements : pandas.DataFrame
+        A DataFrame containing the extraction rates of the wells in the database.
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame containing the properties of the wells and their filters.
+    """
+    url = "http://gwo.nhi.nu/api/v1/measurements/"
+    properties = []
+    measurements = []
+    page = 1
+    while page is not None:
+        params = {
+            "format": "csv",
+            "n_measurements": n_measurements,
+            "page": page,
+        }
+        if well_site is not None:
+            params["filter__well__site"] = well_site
+        params.update(kwargs)
+        r = requests.get(url, auth=(username, password), params=params, timeout=timeout)
+
+        content = r.content.decode("utf-8")
+        if len(content) == 0:
+            if page == 1:
+                msg = "No extraction rates found for the requested parameters"
+                raise (ValueError(msg))
+            else:
+                # the number of measurements is exactly a multiple of n_measurements
+                page = None
+                continue
+        lines = content.split("\n")
+        empty_lines = np.where([set(line) == set(";") for line in lines])[0]
+        assert len(empty_lines) == 2, "Returned extraction rates cannot be interpreted"
+
+        # read properties
+        skiprows = list(range(empty_lines[0] + 1)) + [empty_lines[0] + 2]
+        nrows = empty_lines[1] - empty_lines[0] - 3
+        df = pd.read_csv(io.StringIO(content), sep=";", skiprows=skiprows, nrows=nrows)
+        properties.append(df)
+
+        # read measurements
+        skiprows = list(range(empty_lines[1] + 1)) + [empty_lines[1] + 2]
+        df = pd.read_csv(
+            io.StringIO(content),
+            skiprows=skiprows,
+            sep=";",
+            parse_dates=["DateTime"],
+            dayfirst=True,
+        )
+        measurements.append(df)
+        if len(df) == n_measurements:
+            page += 1
+        else:
+            page = None
+    measurements = pd.concat(measurements)
+    # drop columns without measurements
+    measurements = measurements.loc[:, ~measurements.isna().all()]
+    if measurement_index is not None:
+        if isinstance(measurement_index, tuple):
+            measurement_index = list(measurement_index)
+        measurements = measurements.set_index(["Name", "DateTime"])
+    df = pd.concat(properties)
+    geometry = gpd.points_from_xy(df.XCoordinate, df.YCoordinate)
+    gdf = gpd.GeoDataFrame(df, geometry=geometry)
+    if well_index is not None:
+        gdf = gdf.set_index(well_index)
+        # drop duplicate properties from multiple pages
+        gdf = gdf[~gdf.index.duplicated()]
+    return measurements, gdf

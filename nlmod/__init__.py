@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Created on Thu Jan  7 12:13:44 2021.
-
-@author: oebbe
-"""
-
+# ruff: noqa: F401 E402
 import os
 
 NLMOD_DATADIR = os.path.join(os.path.dirname(__file__), "data")

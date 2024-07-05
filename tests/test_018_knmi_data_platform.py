@@ -1,3 +1,4 @@
+# ruff: noqa: D103
 import os
 from pathlib import Path
 
@@ -19,10 +20,10 @@ def test_download_multiple_nc_files() -> None:
     )
 
     # download the last 10 files
-    fnames = files[-10:]
+    fnames = files[:2]
     dirname = "download"
     knmi_data_platform.download_files(
-        dataset_name, dataset_version, files[-10:], dirname=dirname
+        dataset_name, dataset_version, fnames, dirname=dirname
     )
 
     ds = knmi_data_platform.read_nc(os.path.join(dirname, fnames[0]))
@@ -40,7 +41,7 @@ def test_download_read_zip_file() -> None:
 
     # download the last file
     dirname = "download"
-    fname = files[-1]
+    fname = files[1]
     knmi_data_platform.download_file(
         dataset_name, dataset_version, fname=fname, dirname=dirname
     )

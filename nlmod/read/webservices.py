@@ -150,31 +150,40 @@ def arcrest(
         else:
             gdf = gpd.GeoDataFrame.from_features(features, crs=sr)
             if table is not None:
-                url_query = f"{url}/{table.pop('id')}/query"
-                pgbids = ",".join([str(v) for v in gdf["OBJECTID"].values])
-                params["where"] = f"PEILGEBIEDVIGERENDID IN ({pgbids})"
                 params["f"] = "json"
-                data = _get_data(url_query, params, timeout=timeout)
+                url_query = f"{url}/{table.pop('id')}/query"
+
+                # loop over chunks of 100 pgbids. Long where clauses can cause
+                # the request to fail. 1300 pgbids fails but 130 works
+                chunk_size = 100
+                ids_chunks = [
+                    gdf["OBJECTID"].values[i : i + chunk_size]
+                    for i in range(0, len(gdf), chunk_size)
+                ]
+                data = {}
+                features = []
+
+                for ids_chunk in ids_chunks:
+                    pgbids = ",".join([str(v) for v in ids_chunk])
+                    where = f"PEILGEBIEDVIGERENDID IN ({pgbids})"
+                    params["where"] = where
+                    _data = _get_data(url_query, params, timeout=timeout, **kwargs)
+
+                    data.update(_data)
+                    features.extend(_data["features"])
+
+                assert "exceededTransferLimit" not in data, "exceededTransferLimit"
+                data["features"] = features
+
                 df = pd.DataFrame(
                     [feature["attributes"] for feature in data["features"]]
                 )
-                # add peilen to gdf
-                for col, convert_dic in table.items():
-                    df[col].replace(convert_dic, inplace=True)
-                    df.set_index(col, inplace=True)
-                    for oid in gdf["OBJECTID"]:
-                        insert_s = df.loc[
-                            df["PEILGEBIEDVIGERENDID"] == oid, "WATERHOOGTE"
-                        ]
-                        gdf.loc[
-                            gdf["OBJECTID"] == oid, insert_s.index
-                        ] = insert_s.values
 
     return gdf
 
 
 def _get_data(url, params, timeout=120, **kwargs):
-    """get data using a request
+    """Get data using a request.
 
     Parameters
     ----------
@@ -188,7 +197,6 @@ def _get_data(url, params, timeout=120, **kwargs):
     Returns
     -------
     data
-
     """
     r = requests.get(url, params=params, timeout=timeout, **kwargs)
     if not r.ok:
@@ -423,9 +431,8 @@ def _split_wcs_extent(
     fmt,
     crs,
 ):
-    """There is a max height and width limit for the wcs server. This function
-    splits your extent in chunks smaller than the limit. It returns a list of
-    Memory files.
+    """There is a max height and width limit for the wcs server. This function splits
+    your extent in chunks smaller than the limit. It returns a list of Memory files.
 
     Parameters
     ----------
@@ -454,12 +461,12 @@ def _split_wcs_extent(
     -------
     MemoryFile
         Rasterio MemoryFile of the merged data
+
     Notes
     -----
     1. The resolution is used to obtain the data from the wcs server. Not sure
     what kind of interpolation is used to resample the original grid.
     """
-
     # write tiles
     datasets = []
     start_x = extent[0]

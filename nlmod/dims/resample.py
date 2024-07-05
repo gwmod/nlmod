@@ -4,11 +4,8 @@ import numbers
 import numpy as np
 import rasterio
 import xarray as xr
-from affine import Affine
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from shapely.affinity import affine_transform
-from shapely.geometry import Polygon
 
 from ..util import get_da_from_da_ds
 
@@ -16,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_xy_mid_structured(extent, delr, delc, descending_y=True):
-    """Calculates the x and y coordinates of the cell centers of a structured
-    grid.
+    """Calculates the x and y coordinates of the cell centers of a structured grid.
 
     Parameters
     ----------
@@ -102,8 +98,8 @@ def ds_to_structured_grid(
     angrot=0.0,
     method="nearest",
 ):
-    """Resample a dataset (xarray) from a structured grid to a new dataset from
-    a different structured grid.
+    """Resample a dataset (xarray) from a structured grid to a new dataset from a
+    different structured grid.
 
     Parameters
     ----------
@@ -117,13 +113,20 @@ def ds_to_structured_grid(
     delc : int or float
         cell size along columns of the desired grid (dy).
     xorigin : int or float, optional
-        lower left x coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
     yorigin : int or float, optional
-        lower left y coordinate of the model grid only used if angrot != 0.
-        Default is 0.0.
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
     angrot : int or float, optinal
-        the rotation of the grid in counter clockwise degrees, default is 0.0
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     method : str, optional
         type of interpolation used to resample. Sea structured_da_to_ds for
         possible values of method. The default is 'nearest'.
@@ -134,21 +137,23 @@ def ds_to_structured_grid(
         dataset with dimensions (layer, y, x). y and x are from the new
         grid.
     """
-
     assert isinstance(ds_in, xr.core.dataset.Dataset)
+    if hasattr(ds_in, "gridtype"):
+        assert ds_in.attrs["gridtype"] == "structured"
     if delc is None:
         delc = delr
-
-    x, y = get_xy_mid_structured(extent, delr, delc)
 
     attrs = ds_in.attrs.copy()
     _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs)
 
+    x, y = get_xy_mid_structured(attrs["extent"], delr, delc)
+
     # add new attributes
     attrs["gridtype"] = "structured"
+
     if isinstance(delr, numbers.Number) and isinstance(delc, numbers.Number):
-        attrs["delr"] = delr
-        attrs["delc"] = delc
+        delr = np.full_like(x, delr)
+        delc = np.full_like(y, delc)
 
     if method in ["nearest", "linear"] and angrot == 0.0:
         ds_out = ds_in.interp(
@@ -164,22 +169,27 @@ def ds_to_structured_grid(
 
 
 def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
-    """Internal method to set the properties of the grid in an attribute
-    dictionary.
+    """Internal method to set the properties of the grid in an attribute dictionary.
 
     Parameters
     ----------
     extent : list, tuple or np.array of length 4
         extent (xmin, xmax, ymin, ymax) of the desired grid.
-    xorigin : float
-        x-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0.
-    yorigin : float
-        y-position of the lower-left corner of the model grid. Only used when angrot is
-        not 0.
-    angrot : float
-        counter-clockwise rotation angle (in degrees) of the lower-left corner of the
-        model grid.
+    xorigin : int or float, optional
+        lower left x coordinate of the model grid. When angrot == 0, xorigin is added to
+        the first two values of extent. Otherwise it is the x-coordinate of the point
+        the grid is rotated around, and xorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    yorigin : int or float, optional
+        lower left y coordinate of the model grid. When angrot == 0, yorigin is added to
+        the last two values of extent. Otherwise it is the y-coordinate of the point
+        the grid is rotated around, and yorigin is added to the Dataset-attributes.
+        The default is 0.0.
+    angrot : int or float, optinal
+        the rotation of the grid in counter clockwise degrees. When angrot != 0 the grid
+        is rotated, and all coordinates of the model are in model coordinates. See
+        https://nlmod.readthedocs.io/en/stable/examples/11_grid_rotation.html for more
+        infomation. The default is 0.0.
     attrs : dict
         Attributes of a model dataset.
 
@@ -217,7 +227,7 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
 
 
 def fillnan_da_structured_grid(xar_in, method="nearest"):
-    """fill not-a-number values in a structured grid, DataArray.
+    """Fill not-a-number values in a structured grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
     scipy.interpolate.griddata function
@@ -277,7 +287,7 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
 
 
 def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
-    """fill not-a-number values in a vertex grid, DataArray.
+    """Fill not-a-number values in a vertex grid, DataArray.
 
     The fill values are determined using the 'nearest' method of the
     scipy.interpolate.griddata function
@@ -307,6 +317,10 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     -----
     can be slow if the xar_in is a large raster
     """
+    if xar_in.dims != ("icell2d",):
+        raise ValueError(
+            f"expected dataarray with dimensions ('icell2d'), got dimensions -> {xar_in.dims}"
+        )
 
     # get list of coordinates from all points in raster
     if x is None:
@@ -334,7 +348,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
 
 
 def fillnan_da(da, ds=None, method="nearest"):
-    """fill not-a-number values in a DataArray.
+    """Fill not-a-number values in a DataArray.
 
     The fill values are determined using the 'nearest' method of the
     scipy.interpolate.griddata function
@@ -384,7 +398,6 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     xarray.DataArray
         A DataArray, with the same gridtype as ds.
     """
-
     if "icell2d" not in da.dims:
         return structured_da_to_ds(da, ds, method=method)
     points = np.array((da.x.data, da.y.data)).T
@@ -431,7 +444,9 @@ def vertex_da_to_ds(da, ds, method="nearest"):
         coords = dict(da.coords)
         coords["x"] = ds.x
         coords["y"] = ds.y
-        coords.pop("icell2d")
+        for key in list(coords):
+            if "icell2d" in coords[key].dims:
+                coords.pop(key)
     else:
         # just use griddata
         z = griddata(points, da.data, xi, method=method)
@@ -440,7 +455,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
     return xr.DataArray(z, dims=dims, coords=coords)
 
 
-def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
+def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
     """Resample a DataArray to the coordinates of a model dataset.
 
     Parameters
@@ -499,13 +514,12 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
             # xmin, xmax, ymin, ymax
             dx = (ds.attrs["extent"][1] - ds.attrs["extent"][0]) / len(ds.x)
             dy = (ds.attrs["extent"][3] - ds.attrs["extent"][2]) / len(ds.y)
-        elif "delr" in ds.attrs and "delc" in ds.attrs:
-            dx = ds.attrs["delr"]
-            dy = ds.attrs["delc"]
         else:
             raise ValueError(
                 "No extent or delr and delc in ds. Cannot determine affine."
             )
+        from .grid import get_affine
+
         da_out = da.rio.reproject(
             dst_crs=ds.rio.crs,
             shape=(len(ds.y), len(ds.x)),
@@ -525,6 +539,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
         dims.remove("x")
         dims.append("icell2d")
         da_out = get_da_from_da_ds(ds, dims=tuple(dims), data=nodata)
+        from .grid import get_affine
+
         for area in np.unique(ds["area"]):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
@@ -565,94 +581,74 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.NaN):
 
 
 def extent_to_polygon(extent):
-    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])"""
-    nw = (extent[0], extent[2])
-    no = (extent[1], extent[2])
-    zo = (extent[1], extent[3])
-    zw = (extent[0], extent[3])
-    return Polygon([nw, no, zo, zw])
+    logger.warning(
+        "nlmod.resample.extent_to_polygon is deprecated. "
+        "Use nlmod.util.extent_to_polygon instead"
+    )
+    from ..util import extent_to_polygon
 
-
-def _get_attrs(ds):
-    if isinstance(ds, dict):
-        return ds
-    else:
-        return ds.attrs
+    return extent_to_polygon(extent)
 
 
 def get_extent_polygon(ds, rotated=True):
     """Get the model extent, as a shapely Polygon."""
-    attrs = _get_attrs(ds)
-    polygon = extent_to_polygon(attrs["extent"])
-    if rotated and "angrot" in ds.attrs and attrs["angrot"] != 0.0:
-        affine = get_affine_mod_to_world(ds)
-        polygon = affine_transform(polygon, affine.to_shapely())
-    return polygon
+    logger.warning(
+        "nlmod.resample.get_extent_polygon is deprecated. "
+        "Use nlmod.grid.get_extent_polygon instead"
+    )
+    from .grid import get_extent_polygon
+
+    return get_extent_polygon(ds, rotated=rotated)
 
 
 def affine_transform_gdf(gdf, affine):
     """Apply an affine transformation to a geopandas GeoDataFrame."""
-    if isinstance(affine, Affine):
-        affine = affine.to_shapely()
-    gdfm = gdf.copy()
-    gdfm.geometry = gdf.affine_transform(affine)
-    return gdfm
+    logger.warning(
+        "nlmod.resample.affine_transform_gdf is deprecated. "
+        "Use nlmod.grid.affine_transform_gdf instead"
+    )
+    from .grid import affine_transform_gdf
+
+    return affine_transform_gdf(gdf, affine)
 
 
 def get_extent(ds, rotated=True):
     """Get the model extent, corrected for angrot if necessary."""
-    attrs = _get_attrs(ds)
-    extent = attrs["extent"]
-    if rotated and "angrot" in attrs and attrs["angrot"] != 0.0:
-        affine = get_affine_mod_to_world(ds)
-        xc = np.array([extent[0], extent[1], extent[1], extent[0]])
-        yc = np.array([extent[2], extent[2], extent[3], extent[3]])
-        xc, yc = affine * (xc, yc)
-        extent = [xc.min(), xc.max(), yc.min(), yc.max()]
-    return extent
+    logger.warning(
+        "nlmod.resample.get_extent is deprecated. Use nlmod.grid.get_extent instead"
+    )
+    from .grid import get_extent
+
+    return get_extent(ds, rotated=rotated)
 
 
 def get_affine_mod_to_world(ds):
     """Get the affine-transformation from model to real-world coordinates."""
-    attrs = _get_attrs(ds)
-    xorigin = attrs["xorigin"]
-    yorigin = attrs["yorigin"]
-    angrot = attrs["angrot"]
-    return Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+    logger.warning(
+        "nlmod.resample.get_affine_mod_to_world is deprecated. "
+        "Use nlmod.grid.get_affine_mod_to_world instead"
+    )
+    from .grid import get_affine_mod_to_world
+
+    return get_affine_mod_to_world(ds)
 
 
 def get_affine_world_to_mod(ds):
     """Get the affine-transformation from real-world to model coordinates."""
-    attrs = _get_attrs(ds)
-    xorigin = attrs["xorigin"]
-    yorigin = attrs["yorigin"]
-    angrot = attrs["angrot"]
-    return Affine.rotation(-angrot) * Affine.translation(-xorigin, -yorigin)
+    logger.warning(
+        "nlmod.resample.get_affine_world_to_mod is deprecated. "
+        "Use nlmod.grid.get_affine_world_to_mod instead"
+    )
+    from .grid import get_affine_world_to_mod
+
+    return get_affine_world_to_mod(ds)
 
 
 def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates."""
-    attrs = _get_attrs(ds)
-    if sx is None:
-        sx = attrs["delr"]
-    if sy is None:
-        sy = -attrs["delc"]
+    logger.warning(
+        "nlmod.resample.get_affine is deprecated. Use nlmod.grid.get_affine instead"
+    )
+    from .grid import get_affine
 
-    if "angrot" in attrs:
-        xorigin = attrs["xorigin"]
-        yorigin = attrs["yorigin"]
-        angrot = -attrs["angrot"]
-        # xorigin and yorigin represent the lower left corner, while for the transform we
-        # need the upper left
-        dy = attrs["extent"][3] - attrs["extent"][2]
-        xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
-        yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
-        return (
-            Affine.translation(xoff, yoff)
-            * Affine.scale(sx, sy)
-            * Affine.rotation(angrot)
-        )
-    else:
-        xoff = attrs["extent"][0]
-        yoff = attrs["extent"][3]
-        return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)
+    return get_affine(ds, sx=sx, sy=sy)

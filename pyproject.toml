@@ -35,7 +35,8 @@ dependencies = [
     "matplotlib",
     "dask",
     "colorama",
-    "joblib"
+    "joblib",
+    "bottleneck",
 ]
 keywords = ["hydrology", "groundwater", "modeling", "Modflow 6", "flopy"]
 classifiers = [
@@ -56,20 +57,13 @@ repository = "https://github.com/gwmod/nlmod"
 documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
-full = [
-    "nlmod[knmi]",
-    "gdown",
-    "geocube",
-    "bottleneck",
-    "contextily",
-    "scikit-image",
-]
+full = ["nlmod[knmi]", "gdown", "geocube", "contextily", "scikit-image"]
 knmi = ["h5netcdf", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]
-ci = ["nlmod[full,lint,test,nbtest]", "netCDF4>=1.6.3", "pandas<2.1.0"]
+ci = ["nlmod[full,lint,test,nbtest]", "netCDF4<1.7.0", "pandas<2.1.0"]
 rtd = [
     "nlmod[full]",
     "ipython",
@@ -78,7 +72,7 @@ rtd = [
     "nbsphinx",
     "sphinx_rtd_theme==1.0.0",
     "nbconvert==7.13.0",
-    "netCDF4>=1.6.3",
+    "netCDF4<1.7.0",
 ]
 
 [tool.setuptools.dynamic]
@@ -92,7 +86,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "nlmod.data" = ["*.gleg"]
-"nlmod.data.geotop" = ["*.csv"]
+"nlmod.data.geotop" = ["*"]
 "nlmod.data.shapes" = ["*"]
 "nlmod.bin" = ["mp7_2_002_provisional"]
 
@@ -101,6 +95,33 @@ line-length = 88
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff]
+line-length = 88
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
+# See: https://docs.astral.sh/ruff/rules/
+select = [
+    "C4",  # flake8-comprehensions
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "PT",  # pytest-style
+    "D",   # pydocstyle
+    "B",   # flake8-bugbear
+    "NPY", # numpy
+]
+ignore = [
+    "D401", # Imperative mood for docstring. Be glad we have docstrings at all :P!
+    "D100", # Missing docstring in module.
+    "D104", # Missing docstring in public package.
+]
+
+[tool.ruff.format]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"

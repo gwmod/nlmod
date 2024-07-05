@@ -1044,10 +1044,11 @@ def gdf_to_seasonal_pkg(
     # the value to scale is also represented with a time series
     # So we switch the conductance (column 2) and the multiplier (column 3/4)
     spd = np.array(spd, dtype=object)
-    if pkg == "RIV":
-        spd[:, [2, 4]] = spd[:, [4, 2]]
-    else:
-        spd[:, [2, 3]] = spd[:, [3, 2]]
+    if len(spd) > 0:
+        if pkg == "RIV":
+            spd[:, [2, 4]] = spd[:, [4, 2]]
+        else:
+            spd[:, [2, 3]] = spd[:, [3, 2]]
     spd = spd.tolist()
 
     if boundname_column is None:

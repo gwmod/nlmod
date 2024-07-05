@@ -1706,6 +1706,9 @@ def gdf_to_grid(
     if ml is None and ix is None:
         raise (ValueError("Either specify ml or ix"))
 
+    if gdf.index.has_duplicates or gdf.columns.has_duplicates:
+        raise ValueError("gdf should not have duplicate columns or index.")
+
     if ml is not None:
         if isinstance(ml, xr.Dataset):
             ds = ml

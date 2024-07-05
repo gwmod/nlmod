@@ -8,7 +8,7 @@ from .plot import (
     geotop_lithok_in_cross_section,
     geotop_lithok_on_map,
     map_array,
-    # modelextent,
+    modelextent,
     modelgrid,
     surface_water,
 )

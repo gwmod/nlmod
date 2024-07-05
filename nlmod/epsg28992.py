@@ -1,8 +1,10 @@
 """
-NOTE: this is the correct epsg:28992 definition for plotting backgroundmaps in RD
-More info (in Dutch) here:
-https://qgis.nl/2011/12/05/epsg28992-of-rijksdriehoekstelsel-verschuiving/
-This was still a problem in October 2023
+NOTE: this is the correct epsg:28992 definition for plotting backgroundmaps in RD.
+
+Related information (in Dutch):
+https://geoforum.nl/t/betrouwbare-bron-voor-proj4-definitie-van-rd-new-epsg-28992/5144/15
+This was still a problem in July 2024.
+
 """
 
 EPSG_28992 = (

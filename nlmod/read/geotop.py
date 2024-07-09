@@ -41,8 +41,24 @@ def get_lithok_colors():
 
 
 def get_strat_props():
-    fname = os.path.join(NLMOD_DATADIR, "geotop", "geo_eenheden.csv")
-    df = pd.read_csv(fname, index_col=0, keep_default_na=False)
+    fname = os.path.join(NLMOD_DATADIR, "geotop", "REF_GTP_STR_UNIT.csv")
+    df = pd.read_csv(fname)
+    # rename the columns to previously used values
+    # so existing nlmod-code will keep working
+    df = df.rename(
+        columns={"STR_UNIT_CD": "code", "VOXEL_NR": "strat", "DESCRIPTION": "name"}
+    )
+    # calculate color from red, green and blue columns
+    color = {}
+    for index in df.index:
+        color[index] = (
+            df.at[index, "RED_DEC"] / 255,
+            df.at[index, "GREEN_DEC"] / 255,
+            df.at[index, "BLUE_DEC"] / 255,
+        )
+    df["color"] = color
+    df = df.drop(columns=["RED_DEC", "GREEN_DEC", "BLUE_DEC"]).set_index("strat")
+
     return df
 
 
@@ -116,9 +132,13 @@ def to_model_layers(
     units = units[~np.isnan(units)].astype(int)
     shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
-    # stratigraphy unit (geo eenheid) 2000 is above 1130
-    if (2000 in units) and (1130 in units):
-        units[(units == 2000) + (units == 1130)] = [2000, 1130]
+    if "SEQ_NR" in strat_props.columns:
+        # sort units based on SEQ_NR in strat_props
+        units = strat_props.loc[units, "SEQ_NR"].sort_values().index.values
+    else:
+        # stratigraphy unit (geo eenheid) 2000 is above 1130
+        if (2000 in units) and (1130 in units):
+            units[(units == 2000) + (units == 1130)] = [2000, 1130]
 
     # fill top and bot
     top = np.full(shape, np.nan)
@@ -620,3 +640,21 @@ def aggregate_to_ds(
     ds[kh] = xr.concat(kh_ar, ds.layer)
     ds[kv] = xr.concat(kv_ar, ds.layer)
     return ds
+
+
+def _save_excel_files_as_csv():
+    """
+    This method takes the files REF_GTP_STR_UNIT.xlsx and REF_GTP_LITHO_CLASS.xlsx that
+    are taken from the GeoTOP 1.6 zipfile downloaded from DINOloket, and saves them as
+    csv-files. In this way version-control can better process the changes in future
+    versions of GeoTOP.
+
+    Returns
+    -------
+    None.
+
+    """
+    for name in ["REF_GTP_STR_UNIT.xlsx", "REF_GTP_LITHO_CLASS.xlsx"]:
+        fname = os.path.join(NLMOD_DATADIR, "geotop", name)
+        df = pd.read_excel(fname, keep_default_na=False)
+        df.to_csv(fname.replace(".xlsx", ".csv"), index=False)

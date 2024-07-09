@@ -1,0 +1,107 @@
+STR_UNIT_CD,DESCRIPTION,VOXEL_NR,SEQ_NR,RED_DEC,GREEN_DEC,BLUE_DEC
+AAOP,"Antropogene afzettingen, opgebrachte grond",1000,1,200,200,200
+AAES,"Antropogene afzettingen, esdekken",1005,2,110,110,110
+NIGR,"Formatie van Nieuwkoop, Laagpakket van Griendtsveen",1010,3,132,88,44
+NINB,"Formatie van Nieuwkoop, Laag van Nij Beets",1045,4,180,90,20
+NASC,"Formatie van Naaldwijk, Laagpakket van Schoorl",1020,5,255,255,160
+ONAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren (gedeelte boven NAZA)",1030,6,152,220,117
+NAZA,"Formatie van Naaldwijk, Laagpakket van Zandvoort",1040,7,254,183,56
+NAWAZU,"Formatie van Naaldwijk, Laagpakket van Walcheren, Zuiderzee Laag",1048,14,177,160,199
+NAWAAL,"Formatie van Naaldwijk, Laagpakket van Walcheren, Almere Laag",1049,15,96,73,122
+NAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort",1050,16,152,220,117
+BHEC,Formatie van Echteld (gedeelte buiten NIHO),1060,,170,255,245
+OEC,Formatie van Echteld (gedeelte boven NIHO),1070,13,170,255,245
+NAWOBE,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen",1080,18,0,157,155
+KK1,Kreekrak Formatie (gedeelte boven NIHO),1085,17,68,138,112
+NIFL,"Formatie van Nieuwkoop, Flevomeer Laag",1089,19,252,213,180
+NIHO,"Formatie van Nieuwkoop, Hollandveen Laagpakket",1090,20,208,130,40
+NAZA2,"Formatie van Naaldwijk, Laagpakket van Zandvoort (gedeelte onder NIHO)",1095,21,254,183,56
+NAWO,"Formatie van Naaldwijk, Laagpakket van Wormer",1100,27,63,165,76
+NWNZ,"Formatie van Naaldwijk, laagpakketten van Wormer en Zandvoort",1110,,63,165,76
+NAWOVE,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen",1120,29,189,183,107
+KK2,Kreekrak Formatie (gedeelte onder NIHO),1125,30,68,138,112
+NIBA,"Formatie van Nieuwkoop, Basisveen Laag",1130,31,152,47,10
+NA,Formatie van Naaldwijk,2000,12,105,200,100
+EC,Formatie van Echteld,2010,28,170,255,245
+NI,Formatie van Nieuwkoop,2020,,208,130,40
+KK,Kreekrak Formatie,2030,,68,138,112
+BXKO,"Formatie van Boxtel, Laagpakket van Kootwijk",3000,34,255,255,190
+BXSI,"Formatie van Boxtel, Laagpakket van Singraven",3010,,190,190,0
+BXSI1,Formatie van Boxtel Laagpakket van Singraven (bovenste deel),3011,35,190,190,0
+BXWI,"Formatie van Boxtel, Laagpakket van Wierden",3020,36,255,255,80
+BXSI2,Formatie van Boxtel Laagpakket van Singraven (onderste deel),3012,37,255,255,130
+BXWIKO,"Formatie van Boxtel, laagpakketten van Wierden en Kootwijk",3025,38,255,255,80
+BXWISIKO,"Formatie van Boxtel, laagpakketten van Wierden, Singraven en Kootwijk",3030,39,255,255,80
+BXDE,"Formatie van Boxtel, Laagpakket van Delwijnen",3040,40,225,225,130
+BXDEKO,"Formatie van Boxtel, laagpakketten van Delwijnen en Kootwijk",3045,41,225,225,130
+BXSC,"Formatie van Boxtel, Laagpakket van Schimmert",3050,42,255,205,0
+BXLM,"Formatie van Boxtel, Laagpakket van Liempde",3060,43,225,190,0
+BXBS,"Formatie van Boxtel, Laagpakket van Best",3090,46,235,205,0
+BX,Formatie van Boxtel,3100,47,255,235,0
+KRWY,"Formatie van Kreftenheye, Laag van Wijchen",4000,48,86,0,0
+KRBXDE,"Formatie van Kreftenheye en Formatie van Boxtel, Laagpakket van Delwijnen",4010,49,176,48,96
+KRZU,"Formatie van Kreftenheye, Laagpakket van Zutphen",4020,50,136,0,0
+KROE,"Formatie van Kreftenheye, gelegen onder de Eem Formatie",4030,61,176,48,96
+KRTW,"Formatie van Kreftenheye, Laagpakket van Twello",4040,51,156,18,46
+KR,Formatie van Kreftenheye,4050,52,176,48,96
+BEOM,"Formatie van Beegden, Laagpakket van Oost-Maarland",4055,32,129,105,123
+BEWY,"Formatie van Beegden, Laag van Wijchen",4060,53,170,155,180
+BERO,"Formatie van Beegden, Laag van Rosmalen",4070,54,160,140,155
+BE,Formatie van Beegden,4080,55,200,200,255
+KW1,Formatie van Koewacht (kleiige top),4085,56,152,139,0
+KW,Formatie van Koewacht,4090,57,172,169,43
+WB,Formatie van Woudenberg,4100,58,137,67,30
+EE,Eem Formatie,4110,59,210,255,115
+EEWB,Formatie van Woudenberg en Eem Formatie,4120,60,210,255,115
+DR,Formatie van Drente,5000,62,255,127,80
+DRGI,"Formatie van Drente, Laagpakket van Gieten",5010,63,235,97,30
+GE,Door landijs gestuwde afzettingen,5020,64,156,156,156
+DN,Formatie van Drachten,5030,65,250,250,210
+URTY,"Formatie van Urk, Laagpakket van Tynje",5040,66,169,163,87
+PE,Formatie van Peelo,5050,67,238,130,238
+UR,Formatie van Urk,5060,68,189,183,107
+ST,Formatie van Sterksel,5070,69,205,92,92
+AP,Formatie van Appelscha,5080,70,218,165,32
+SY,Formatie van Stramproy,5090,71,255,228,181
+PZ,Formatie van Peize,5100,72,255,255,0
+WA,Formatie van Waalre,5110,73,255,165,0
+PZWA,Formatie van Peize en Formatie van Waalre,5120,74,255,204,0
+MS,Formatie van Maassluis,5130,75,135,206,235
+KI,Kiezeloöliet Formatie,5140,76,188,143,143
+OO,Formatie van Oosterhout,5150,77,118,157,39
+IE,Formatie van Inden,5160,78,236,121,193
+VI,Formatie van Ville,5170,79,153,102,0
+BR,Formatie van Breda,5180,80,108,188,150
+VE,Formatie van Veldhoven,5185,,102,100,16
+RUBO,"Rupel Formatie, Laagpakket van Boom",5190,81,154,78,163
+RU,Rupel Formatie,5200,82,184,123,238
+TOZEWA,"Formatie van Tongeren, Laagpakket van Zelzate, Laag van Watervliet",5210,83,80,144,194
+TOGO,"Formatie van Tongeren, Laagpakket van Goudsberg",5220,84,70,129,169
+TO,Formatie van Tongeren,5230,85,90,159,219
+DOAS,"Formatie van Dongen, Laagpakket van Asse",5240,86,186,146,141
+DOIE,"Formatie van Dongen, Laagpakket van Ieper",5250,87,206,176,191
+DO,Formatie van Dongen,5260,88,216,191,216
+LA,Formatie van Landen,5270,89,208,32,144
+HT,Formatie van Heijenrath,5280,90,178,34,34
+HO,Formatie van Houthem,5290,91,210,105,30
+MT,Formatie van Maastricht,5300,92,255,160,102
+GU,Formatie van Gulpen,5310,93,245,222,179
+VA,Formatie van Vaals,5320,94,21,153,79
+AK,Formatie van Aken,5330,95,152,231,205
+AEC,Formatie van Echteld (geulafzettingen generatie A),6000,9,118,147,60
+ABEOM,"Formatie van Beegden, Laagpakket van Oost-Maarland (geulafzettingen generatie A)",6005,33,118,147,60
+ANAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie A)",6010,8,118,147,60
+ANAWO,"Formatie van Naaldwijk, Laagpakket van Wormer (geulafzettingen generatie A)",6020,,118,147,60
+BEC,Formatie van Echteld (geulafzettingen generatie B),6100,11,102,205,171
+BNAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie B)",6110,10,102,205,171
+BNAWO,"Formatie van Naaldwijk, Laagpakket van Wormer (geulafzettingen generatie B)",6120,,102,205,171
+CEC,Formatie van Echteld (geulafzettingen generatie C),6200,22,170,196,255
+CNAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie C)",6210,,170,196,255
+CNAWO,"Formatie van Naaldwijk, Laagpakket van Wormer (geulafzettingen generatie C)",6220,,170,196,255
+DEC,Formatie van Echteld (geulafzettingen generatie D),6300,24,102,153,205
+DNAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie D)",6310,,102,153,205
+DNAWO,"Formatie van Naaldwijk, Laagpakket van Wormer (geulafzettingen generatie D)",6320,23,102,153,205
+EEC,Formatie van Echteld (geulafzettingen generatie E),6400,26,27,101,175
+ENAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren (geulafzettingen generatie E)",6410,,27,101,175
+ENAWO,"Formatie van Naaldwijk, Laagpakket van Wormer (geulafzettingen generatie E)",6420,25,27,101,175
+NN,Niet formeel ingedeelde afzettingen of onbekend,0,,85,85,85

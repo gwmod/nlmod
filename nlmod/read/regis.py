@@ -126,6 +126,9 @@ def get_regis(
         possibilities of gaps between layers. The default is True.
     probabilities : bool, optional
         if True, also download probability data. The default is False.
+    nodata : int or float, optional
+        When nodata is not None, set values equal to nodata to nan. The default is
+        -9999.
 
     Returns
     -------
@@ -167,8 +170,9 @@ def get_regis(
 
     # since version REGIS v02r2s2 (22.07.2024) NaN values are replaced by -9999
     # we set these values to NaN again
-    for var in variables:
-        ds[var] = ds[var].where(ds[var] != nodata)
+    if nodata is not None:
+        for var in variables:
+            ds[var] = ds[var].where(ds[var] != nodata)
 
     if remove_nan_layers:
         # only keep layers with at least one active cell

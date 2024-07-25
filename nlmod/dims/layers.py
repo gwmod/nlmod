@@ -536,7 +536,7 @@ def combine_layers_ds(
     ds : xarray.Dataset
         xarray Dataset containing information about layers
         (layers, top and bot)
-    combine_layers : list of tuple of ints
+    combine_layers : list of tuple of ints, or dict of layer names
         list of tuples, with each tuple containing integers indicating
         layer indices to combine into one layer. E.g. [(0, 1), (2, 3)] will
         combine layers 0 and 1 into a single layer (with index 0) and layers
@@ -586,6 +586,17 @@ def combine_layers_ds(
         ds = ds.copy()
         ds["top"] = ds["botm"] + calculate_thickness(ds)
 
+    if isinstance(combine_layers, dict):
+        new_layer_names = combine_layers.keys()
+        combine_layers = [
+            tuple(np.where(ds.layer.isin(x))[0]) for x in combine_layers.values()
+        ]
+        # make sure there are no layers in between
+        assert np.all([(np.diff(x) == 1).all() for x in combine_layers])
+    else:
+        new_layer_names = [ds.layer.data[x[0]] for x in combine_layers]
+    new_layer_names = dict(zip(combine_layers, new_layer_names))
+
     da_dict = {}
 
     new_top, new_bot, reindexer = layer_combine_top_bot(
@@ -604,10 +615,10 @@ def combine_layers_ds(
     if kv is not None:
         logger.info(f"Calculate equivalent '{kv}' for combined layers.")
         da_dict[kv] = kveq_combined_layers(ds[kv], thickness, reindexer)
-    if kD is not None:
+    if kD is not None and kD in ds:
         logger.info(f"Calculate value '{kD}' for combined layers with sum.")
         da_dict[kD] = sum_param_combined_layers(ds[kD], reindexer)
-    if c is not None:
+    if c is not None and c in ds:
         logger.info(f"Calculate value '{c}' for combined layers with sum.")
         da_dict[c] = sum_param_combined_layers(ds[c], reindexer)
 
@@ -615,8 +626,9 @@ def combine_layers_ds(
     layer_names = []
     for _, i in reindexer.items():
         if isinstance(i, tuple):
-            i = i[0]
-        layercode = ds[layer].data[i]
+            layercode = new_layer_names[i]
+        else:
+            layercode = ds[layer].data[i]
         layer_names.append(layercode)
 
     # assign new layer names

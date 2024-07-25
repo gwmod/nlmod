@@ -99,6 +99,7 @@ def get_regis(
     remove_nan_layers=True,
     drop_layer_dim_from_top=True,
     probabilities=False,
+    nodata=-9999,
 ):
     """Get a regis dataset projected on the modelgrid.
 
@@ -158,6 +159,17 @@ def get_regis(
     # rename bottom to botm, as it is called in FloPy
     ds = ds.rename_vars({"bottom": "botm"})
 
+    # slice data vars
+    if variables is not None:
+        if probabilities:
+            variables = variables + ("sdh", "sdv")
+        ds = ds[list(variables)]
+
+    # since version REGIS v02r2s2 (22.07.2024) NaN values are replaced by -9999
+    # we set these values to NaN again
+    for var in variables:
+        ds[var] = ds[var].where(ds[var] != nodata)
+
     if remove_nan_layers:
         # only keep layers with at least one active cell
         ds = ds.sel(layer=~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:]))
@@ -167,12 +179,6 @@ def get_regis(
 
     if drop_layer_dim_from_top:
         ds = remove_layer_dim_from_top(ds)
-
-    # slice data vars
-    if variables is not None:
-        if probabilities:
-            variables = variables + ("sdh", "sdv")
-        ds = ds[list(variables)]
 
     ds.attrs["gridtype"] = "structured"
     ds.attrs["extent"] = extent

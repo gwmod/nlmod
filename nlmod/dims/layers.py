@@ -472,6 +472,7 @@ def kheq_combined_layers(kh, thickness, reindexer):
             kheq = np.nansum(
                 thickness.data[v, :, :] * kh.data[v, :, :], axis=0
             ) / np.nansum(thickness.data[v, :, :], axis=0)
+            kheq[np.isinf(kheq)] = np.nan
         else:
             kheq = kh.data[v]
         da_kh.data[k] = kheq
@@ -512,6 +513,7 @@ def kveq_combined_layers(kv, thickness, reindexer):
             kveq = np.nansum(thickness.data[v, :, :], axis=0) / np.nansum(
                 thickness.data[v, :, :] / kv.data[v, :, :], axis=0
             )
+            kveq[np.isinf(kveq)] = np.nan
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq

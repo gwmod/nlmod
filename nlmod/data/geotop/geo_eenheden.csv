@@ -6,13 +6,14 @@ strat,code,name
 1030,ONAWA,"Formatie van Naaldwijk, Laagpakket van
 Walcheren, gelegen boven Formatie van Naaldwijk, Laagpakket van Zandvoort"
 1040,NAZA,"Formatie van Naaldwijk, Laagpakket van Zandvoort"
+1045,NINB,"Formatie van Nieuwkoop, Laag van Nij Beets"
 1050,NAWA,"Formatie van Naaldwijk, Laagpakket van Walcheren, gelegen onder Formatie van Naaldwijk, Laagpakket van Zandvoort"
 1060,BHEC,"Formatie van Echteld, gelegen buiten de
 verbreiding van de Formatie van Nieuwkoop, Hollandveen Laagpakket"
 1070,OEC,"Formatie van Echteld, gelegen boven de Formatie van Nieuwkoop, Hollandveen Laagpakket"
 1080,NAWOBE,"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen"
 1090,NIHO,"Formatie van Nieuwkoop, Hollandveen Laagpakket"
-1095,NINB,"Formatie van Nieuwkoop, Laagpakket van Nij Beets"
+1095,NAZA2,"Formatie van Naaldwijk, Laagpakket van Zandvoort (gedeelte onder NIHO)"
 1100,NAWO,"Formatie van Naaldwijk, Laagpakket van Wormer"
 1110,NWNZ,"Formatie van Naaldwijk, Laagpakketten van
 Wormer en Zandvoort (gecombineerde eenheid in modelgebied Zeeland)"

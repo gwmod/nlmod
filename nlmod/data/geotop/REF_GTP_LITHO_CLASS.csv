@@ -1,0 +1,12 @@
+LITHO_CLASS_CD,DESCRIPTION,VOXEL_NR,SEQ_NR,RED_DEC,GREEN_DEC,BLUE_DEC
+a,antropogeen,0,0,200,200,200
+v,organisch materiaal (veen),1,1,157,78,64
+k,klei,2,2,0,146,0
+kz,"kleiig zand, zandige klei en leem",3,3,194,207,92
+zf,zand fijn,5,5,255,255,0
+zm,zand midden,6,6,243,225,6
+zg,zand grof,7,7,231,195,22
+g,grind,8,8,216,163,32
+she,schelpen,9,9,95,95,255
+z,zand niet gedifferentieerd,Null,Null,243,225,6
+o,overig,Null,Null,144,144,144

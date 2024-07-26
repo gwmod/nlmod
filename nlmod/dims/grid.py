@@ -702,8 +702,6 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
         Dataset with variables from layer_ds.
     """
     if not layer_ds.layer.equals(ds.layer):
-        # do not change the original Dataset
-        layer_ds = layer_ds.copy()
         # update layers in ds
         drop_vars = []
         for var in ds.data_vars:
@@ -1201,7 +1199,7 @@ def gdf_to_data_array_struc(
         DESCRIPTION.
     """
     warnings.warn(
-        "The method gdf_to_data_array_struc is deprecated. Please use gdf_to_da instead",
+        "The method gdf_to_data_array_struc is deprecated. Please use gdf_to_da instead.",
         DeprecationWarning,
     )
 
@@ -1770,7 +1768,7 @@ def get_thickness_from_topbot(top, bot):
         or (layer, icell2d).
     """
     warnings.warn(
-        "The method get_thickness_from_topbot is deprecated. Please use nlmod.layers.calculate_thickness instead",
+        "The method get_thickness_from_topbot is deprecated. Please use nlmod.layers.calculate_thickness instead.",
         DeprecationWarning,
     )
 

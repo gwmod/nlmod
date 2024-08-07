@@ -263,7 +263,7 @@ def split_layers_ds(
     for lay0 in split_dict:
         for i, _ in enumerate(split_dict[lay0]):
             index = layers.index(lay0)
-            layers.insert(index, lay0 + "_" + str(i + 1))
+            layers.insert(index, lay0 + "_" + str(i))
             layers_org.insert(index, lay0)
     ds = ds.reindex({"layer": layers})
 
@@ -300,7 +300,7 @@ def split_layers_ds(
 def _split_var(ds, var, layer, thickness, fctrs, top, bot):
     """Internal method to split a variable of one layer in multiple layers."""
     for i in range(len(fctrs)):
-        name = layer + "_" + str(i + 1)
+        name = layer + "_" + str(i)
         if var == top:
             # take orignal top and subtract thickness of higher splitted layers
             ds[var].loc[name] = ds[var].loc[layer] - np.sum(fctrs[:i]) * thickness

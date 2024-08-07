@@ -181,7 +181,8 @@ class DatasetCrossSection:
         if isinstance(colors, pd.DataFrame):
             colors = colors["color"]
         if isinstance(colors, (dict, pd.Series)):
-            colors = [colors[layer] for layer in self.layer]
+            # split on _ in case layers were split and appended with a numbered suffix
+            colors = [colors[layer.split("_")[0]] for layer in self.layer]
 
         if colors == "none":
             colors = ["none"] * len(self.layer)

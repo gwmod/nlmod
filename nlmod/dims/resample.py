@@ -583,7 +583,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
 def extent_to_polygon(extent):
     logger.warning(
         "nlmod.resample.extent_to_polygon is deprecated. "
-        "Use nlmod.util.extent_to_polygon instead"
+        "Use nlmod.util.extent_to_polygon instead."
     )
     from ..util import extent_to_polygon
 
@@ -594,7 +594,7 @@ def get_extent_polygon(ds, rotated=True):
     """Get the model extent, as a shapely Polygon."""
     logger.warning(
         "nlmod.resample.get_extent_polygon is deprecated. "
-        "Use nlmod.grid.get_extent_polygon instead"
+        "Use nlmod.grid.get_extent_polygon instead."
     )
     from .grid import get_extent_polygon
 
@@ -605,7 +605,7 @@ def affine_transform_gdf(gdf, affine):
     """Apply an affine transformation to a geopandas GeoDataFrame."""
     logger.warning(
         "nlmod.resample.affine_transform_gdf is deprecated. "
-        "Use nlmod.grid.affine_transform_gdf instead"
+        "Use nlmod.grid.affine_transform_gdf instead."
     )
     from .grid import affine_transform_gdf
 
@@ -615,7 +615,7 @@ def affine_transform_gdf(gdf, affine):
 def get_extent(ds, rotated=True):
     """Get the model extent, corrected for angrot if necessary."""
     logger.warning(
-        "nlmod.resample.get_extent is deprecated. Use nlmod.grid.get_extent instead"
+        "nlmod.resample.get_extent is deprecated. Use nlmod.grid.get_extent instead."
     )
     from .grid import get_extent
 
@@ -626,7 +626,7 @@ def get_affine_mod_to_world(ds):
     """Get the affine-transformation from model to real-world coordinates."""
     logger.warning(
         "nlmod.resample.get_affine_mod_to_world is deprecated. "
-        "Use nlmod.grid.get_affine_mod_to_world instead"
+        "Use nlmod.grid.get_affine_mod_to_world instead."
     )
     from .grid import get_affine_mod_to_world
 
@@ -637,7 +637,7 @@ def get_affine_world_to_mod(ds):
     """Get the affine-transformation from real-world to model coordinates."""
     logger.warning(
         "nlmod.resample.get_affine_world_to_mod is deprecated. "
-        "Use nlmod.grid.get_affine_world_to_mod instead"
+        "Use nlmod.grid.get_affine_world_to_mod instead."
     )
     from .grid import get_affine_world_to_mod
 
@@ -647,7 +647,7 @@ def get_affine_world_to_mod(ds):
 def get_affine(ds, sx=None, sy=None):
     """Get the affine-transformation, from pixel to real-world coordinates."""
     logger.warning(
-        "nlmod.resample.get_affine is deprecated. Use nlmod.grid.get_affine instead"
+        "nlmod.resample.get_affine is deprecated. Use nlmod.grid.get_affine instead."
     )
     from .grid import get_affine
 

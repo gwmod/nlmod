@@ -206,7 +206,7 @@ def to_model_ds(
     return ds
 
 
-def extrapolate_ds(ds, mask=None, layer="layer"):
+def extrapolate_ds(ds, mask=None, layer="layer", mask_values=None):
     """Fill missing data in layermodel based on nearest interpolation.
 
     Used for ensuring layer model contains data everywhere. Useful for
@@ -223,6 +223,10 @@ def extrapolate_ds(ds, mask=None, layer="layer"):
         variable. The default is None.
     layer : str, optional
         The name of the layer dimension. The default is 'layer'.
+    mask_values : np.ndarray, optional
+        Boolean mask for each cell, with a value of True if its value is used to fill
+        data in mask. When mask_values is None, it is determined from mask. The default
+        is None.
 
     Returns
     -------
@@ -234,6 +238,8 @@ def extrapolate_ds(ds, mask=None, layer="layer"):
     if not mask.any():
         # all of the model cells are is inside the known area
         return ds
+    if mask_values is None:
+        mask_values = ~mask
     if mask.all():
         raise (ValueError("The model only contains NaNs"))
     if "gridtype" in ds.attrs and ds.gridtype == "vertex":
@@ -243,7 +249,7 @@ def extrapolate_ds(ds, mask=None, layer="layer"):
     else:
         x, y = np.meshgrid(ds.x, ds.y)
         dims = ("y", "x")
-    points = np.stack((x[~mask], y[~mask]), axis=1)
+    points = np.stack((x[mask_values], y[mask_values]), axis=1)
     xi = np.stack((x[mask], y[mask]), axis=1)
     # geneterate the tree only once, to increase speed
     tree = cKDTree(points)
@@ -254,11 +260,11 @@ def extrapolate_ds(ds, mask=None, layer="layer"):
         data = ds[key].data
         if ds[key].dims == dims:
             if np.isnan(data[mask]).sum() > 0:  # do not update if no NaNs
-                data[mask] = data[~mask][i]
+                data[mask] = data[mask_values][i]
         elif ds[key].dims == (layer,) + dims:
             for lay in range(len(ds[layer])):
                 if np.isnan(data[lay, mask]).sum() > 0:  # do not update if no NaNs
-                    data[lay, mask] = data[lay, ~mask][i]
+                    data[lay, mask] = data[lay, mask_values][i]
         else:
             logger.warning(
                 f"Data variable '{key}' not extrapolated because "

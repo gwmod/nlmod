@@ -42,7 +42,7 @@ def get_lithok_colors():
 
 def get_strat_props():
     fname = os.path.join(NLMOD_DATADIR, "geotop", "REF_GTP_STR_UNIT.csv")
-    df = pd.read_csv(fname)
+    df = pd.read_csv(fname, keep_default_na=False, na_values="")
     # rename the columns to previously used values
     # so existing nlmod-code will keep working
     df = df.rename(
@@ -119,10 +119,6 @@ def to_model_layers(
     ds: xr.DataSet
         dataset with top and botm (and optionally kh and kv) per geotop layer
     """
-    if strat_props is None:
-        strat_props = get_strat_props()
-
-    # stap 2 create layer for each stratigraphy unit (geo-eenheid)
     if strat_props is None:
         strat_props = get_strat_props()
 

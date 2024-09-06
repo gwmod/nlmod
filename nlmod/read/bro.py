@@ -237,7 +237,7 @@ def get_bro_metadata(extent, max_dx=20000, max_dy=20000):
     else:
         oc = hpd.read_bro(extent, only_metadata=True, name="BRO", ignore_max_obs=True)
 
-    oc.add_meta_to_df("gld_ids")
+    oc = oc.add_meta_to_df("gld_ids")
 
     if oc.empty:
         logger.warning("no observation wells within extent")

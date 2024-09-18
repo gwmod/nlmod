@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import requests
+from requests.exceptions import HTTPError
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_2d=True)
-def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None):
+def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kwargs):
     """Get a model dataset with ahn variable.
 
     Parameters
@@ -54,7 +55,7 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None):
     """
     if extent is None and ds is not None:
         extent = get_extent(ds)
-    ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier)
+    ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
     if ds is None:
@@ -296,15 +297,19 @@ def get_ahn4_tiles(extent=None):
     return gdf
 
 
-def _get_tiles_ellipsis(extent=None, crs=28992):
-    url = "https://api.ellipsis-drive.com/v3/path"
-    path_id = "a9d410ad-a2f6-404c-948a-fdf6b43e77a6"
-    timestamp_id = "87a21a71-c39f-4e92-a43b-207bc7dfe714"
-    url = f"{url}/{path_id}/vector/timestamp/{timestamp_id}/listFeatures"
+def _get_tiles_ellipsis(
+    extent=None,
+    crs=28992,
+    timeout=120.0,
+    base_url="https://api.ellipsis-drive.com/v3",
+    path_id="a9d410ad-a2f6-404c-948a-fdf6b43e77a6",
+    timestamp_id="87a21a71-c39f-4e92-a43b-207bc7dfe714",
+):
+    url = f"{base_url}/path/{path_id}/vector/timestamp/{timestamp_id}/listFeatures"
 
-    r = requests.get(url)
+    r = requests.get(url, timeout=timeout)
     if not r.ok:
-        raise (Exception(""))
+        raise (HTTPError(f"Request not successful: {r.url}"))
     gdf = gpd.GeoDataFrame.from_features(r.json()["result"]["features"], crs=4326)
     gdf = gdf.to_crs(crs)
     # remove small digits becuase of tcrs-transformation
@@ -333,7 +338,7 @@ def _round_coordinates(geom, ndigits=2):
 
 
 @cache.cache_netcdf()
-def get_ahn1(extent, identifier="AHN1_5M", as_data_array=None):
+def get_ahn1(extent, identifier="AHN1_5M", as_data_array=None, **kwargs):
     """Download AHN1.
 
     Parameters
@@ -351,8 +356,10 @@ def get_ahn1(extent, identifier="AHN1_5M", as_data_array=None):
     """
     _assert_as_data_array_is_none(as_data_array)
     identifier = _rename_identifier(identifier)
-
-    return _get_ahn_ellipsis(extent, identifier)
+    da = _get_ahn_ellipsis(extent, identifier, **kwargs)
+    # original data is in cm. Convert the data to m, which is the unit of other ahns
+    da = da / 100
+    return da
 
 
 @cache.cache_netcdf()
@@ -383,7 +390,7 @@ def get_ahn1_legacy(extent, identifier="ahn1_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn2(extent, identifier="AHN2_5M_M", as_data_array=None):
+def get_ahn2(extent, identifier="AHN2_5M_M", as_data_array=None, **kwargs):
     """Download AHN2.
 
     Parameters
@@ -401,7 +408,7 @@ def get_ahn2(extent, identifier="AHN2_5M_M", as_data_array=None):
     """
     _assert_as_data_array_is_none(as_data_array)
     identifier = _rename_identifier(identifier)
-    return _get_ahn_ellipsis(extent, identifier)
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
@@ -429,7 +436,7 @@ def get_ahn2_legacy(extent, identifier="ahn2_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn3(extent, identifier="AHN3_5M_M", as_data_array=None):
+def get_ahn3(extent, identifier="AHN3_5M_M", as_data_array=None, **kwargs):
     """Download AHN3.
 
     Parameters
@@ -447,7 +454,7 @@ def get_ahn3(extent, identifier="AHN3_5M_M", as_data_array=None):
     """
     _assert_as_data_array_is_none(as_data_array)
     identifier = _rename_identifier(identifier)
-    return _get_ahn_ellipsis(extent, identifier)
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
@@ -474,7 +481,7 @@ def get_ahn3_legacy(extent, identifier="AHN3_5m_DTM", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn4(extent, identifier="AHN4_5M_M", as_data_array=None):
+def get_ahn4(extent, identifier="AHN4_5M_M", as_data_array=None, **kwargs):
     """Download AHN4.
 
     Parameters
@@ -492,7 +499,7 @@ def get_ahn4(extent, identifier="AHN4_5M_M", as_data_array=None):
     """
     _assert_as_data_array_is_none(as_data_array)
     identifier = _rename_identifier(identifier)
-    return _get_ahn_ellipsis(extent, identifier)
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
@@ -519,7 +526,7 @@ def get_ahn4_legacy(extent, identifier="AHN4_DTM_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn5(extent, identifier="AHN5_5M_M"):
+def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
     """Download AHN5.
 
     Parameters
@@ -536,11 +543,11 @@ def get_ahn5(extent, identifier="AHN5_5M_M"):
         DataArray of the AHN
     """
 
-    return _get_ahn_ellipsis(extent, identifier)
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
-def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M"):
+def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     """Download AHN5.
 
     Parameters
@@ -556,7 +563,7 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M"):
     xr.DataArray
         DataArray of the AHN
     """
-    tiles = _get_tiles_ellipsis(extent=extent)
+    tiles = _get_tiles_ellipsis(extent=extent, **kwargs)
     if identifier not in tiles.columns:
         raise (ValueError(f"Unknown ahn-identifier: {identifier}"))
     tiles = tiles[~tiles[identifier].isna()]

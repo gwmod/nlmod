@@ -300,7 +300,7 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
 
         # if a station has no data in the given period another station is selected
         if o.station != stnev24:
-            locations["stn_ev24"] = locations["stn_rd"].replace(stnev24, o.station)
+            locations["stn_ev24"] = locations["stn_ev24"].replace(stnev24, o.station)
 
         # only add the station if it does not exist yet
         if o.station not in new_stns_ev24:

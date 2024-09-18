@@ -334,13 +334,11 @@ def ghb(
     gwf : flopy ModflowGwf
         groundwaterflow object.
     bhead : str or xarray.DataArray, optional
-        ghb boundary head, either as string pointing to data
-        array in ds or as data array. By default None, which assumes
-        data array is stored under "ghb_bhead".
+        ghb boundary head, either as string pointing to data array in ds or as data
+        array. By default None, which assumes data array is stored under "ghb_bhead".
     cond : str or xarray.DataArray, optional
-        ghb conductance, either as string pointing to data
-        array in ds or as data array. By default None, which assumes
-        data array is stored under "ghb_cond".
+        ghb conductance, either as string pointing to data array in ds or as data array.
+        By default None, which assumes data array is stored under "ghb_cond".
     pname : str, optional
         package name
     auxiliary : str or list of str

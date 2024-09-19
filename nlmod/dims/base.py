@@ -387,7 +387,7 @@ def _get_structured_grid_ds(
     )
 
     if crs is not None:
-        ds.rio.set_crs(crs)
+        ds.rio.write_crs(crs, inplace=True)
     return ds
 
 
@@ -513,7 +513,7 @@ def _get_vertex_grid_ds(
     ds["icvert"].attrs["nodata"] = nodata
 
     if crs is not None:
-        ds.rio.set_crs(crs)
+        ds.rio.write_crs(crs, inplace=True)
     return ds
 
 
@@ -707,5 +707,5 @@ def get_ds(
         transport=transport,
         **kwargs,
     )
-    ds.rio.set_crs(crs)
+    ds.rio.write_crs(crs, inplace=True)
     return ds

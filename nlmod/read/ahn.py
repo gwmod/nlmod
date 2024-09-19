@@ -40,6 +40,8 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kw
             AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
             AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
             AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
         The default is 'AHN4_5M_M'.
     method : str, optional
         Method used to resample ahn to grid of ds. See documentation of
@@ -312,8 +314,8 @@ def _get_tiles_ellipsis(
         raise (HTTPError(f"Request not successful: {r.url}"))
     gdf = gpd.GeoDataFrame.from_features(r.json()["result"]["features"], crs=4326)
     gdf = gdf.to_crs(crs)
-    # remove small digits becuase of tcrs-transformation
-    gdf.geometry = gdf.geometry.apply(_round_coordinates, ndigits=1)
+    # remove small digits becuase of crs-transformation
+    gdf.geometry = gdf.geometry.apply(_round_coordinates, ndigits=0)
 
     gdf = gdf.set_index("AHN")
 
@@ -398,8 +400,10 @@ def get_ahn2(extent, identifier="AHN2_5M_M", as_data_array=None, **kwargs):
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' and
-        'AHN2_5M_M'. The default is "AHN2_5M_M".
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' and 'AHN2_5M_M'.
+        The default is "AHN2_5M_M".
 
     Returns
     -------
@@ -444,8 +448,10 @@ def get_ahn3(extent, identifier="AHN3_5M_M", as_data_array=None, **kwargs):
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' and
-        'AHN3_5M_R'. The default is "AHN3_5M_M".
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' and 'AHN3_5M_R'.
+        The default is "AHN3_5M_M".
 
     Returns
     -------
@@ -489,8 +495,10 @@ def get_ahn4(extent, identifier="AHN4_5M_M", as_data_array=None, **kwargs):
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' and
-        'AHN4_5M_R'. The default is "AHN4_5M_M".
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' and 'AHN4_5M_R'.
+        The default is "AHN4_5M_M".
 
     Returns
     -------
@@ -534,8 +542,10 @@ def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN5_5M_M' (dtm), 'AHN5_5M_R' (dsm), 'AHN5_05M_M' (dtm) and
-        'AHN5_05M_R' (dsm). The default is "AHN5_5M_M".
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' and'AHN5_05M_R'.
+        The default is "AHN5_5M_M".
 
     Returns
     -------

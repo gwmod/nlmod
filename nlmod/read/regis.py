@@ -197,7 +197,7 @@ def get_regis(
             ds[datavar].attrs["units"] = "m/day"
 
     # set the crs to dutch rd-coordinates
-    ds.rio.set_crs(28992)
+    ds.rio.write_crs(28992, inplace=True)
 
     return ds
 

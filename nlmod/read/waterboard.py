@@ -127,7 +127,7 @@ def get_configuration():
             # "layer": 43, # Leggervak droge sloot
         },
         "level_areas": {
-            "url": "https://geoservices.hdsr.nl/arcgis/rest/services/Extern/PeilbesluitenExtern_damo/FeatureServer",
+            "url": "https://geoservices.hdsr.nl/arcgis/rest/services/Extern/PeilbesluitenExtern_damo24/FeatureServer",
             "layer": 1,
             "index": "WS_PGID",
             "summer_stage": ["WS_ZP", "WS_BP", "WS_OP", "WS_VP"],

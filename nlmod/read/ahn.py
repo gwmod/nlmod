@@ -1,12 +1,16 @@
 import datetime as dt
 import logging
+import requests
+from requests.exceptions import HTTPError
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import shapely
 import rasterio
 import rioxarray
+from rioxarray.merge import merge_arrays
 import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
@@ -15,14 +19,14 @@ from tqdm import tqdm
 from .. import cache
 from ..dims.grid import get_extent
 from ..dims.resample import structured_da_to_ds
-from ..util import get_ds_empty
+from ..util import get_ds_empty, extent_to_polygon
 from .webservices import arcrest, wcs
 
 logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_2d=True)
-def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
+def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kwargs):
     """Get a model dataset with ahn variable.
 
     Parameters
@@ -31,11 +35,14 @@ def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
         dataset with the model information.
     identifier : str, optional
         Possible values for the different AHN-versions are (casing is important):
-            AHN1: 'ahn1_5m'
-            AHN2: 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' or 'ahn2_5m'
-            AHN3: 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' or 'AHN3_5m_DTM'
-            AHN4: 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' or 'AHN4_DSM_5m'
-        The default is 'AHN4_DTM_5m'.
+            AHN1: 'AHN1_5M'
+            AHN2: 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' or 'AHN2_5M_M'
+            AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
+            AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
+            AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        The default is 'AHN4_5M_M'.
     method : str, optional
         Method used to resample ahn to grid of ds. See documentation of
         nlmod.resample.structured_da_to_ds for possible values. The default is
@@ -50,18 +57,7 @@ def get_ahn(ds=None, identifier="AHN4_DTM_5m", method="average", extent=None):
     """
     if extent is None and ds is not None:
         extent = get_extent(ds)
-    version = int(identifier[3])
-    if version == 1:
-        ahn_ds_raw = get_ahn1(extent, identifier=identifier)
-    elif version == 2:
-        ahn_ds_raw = get_ahn2(extent, identifier=identifier)
-    elif version == 3:
-        ahn_ds_raw = get_ahn3(extent, identifier=identifier)
-    elif version == 4:
-        ahn_ds_raw = get_ahn4(extent, identifier=identifier)
-    else:
-        raise (ValueError(f"Unknown ahn-version: {version}"))
-
+    ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
     ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
     if ds is None:
@@ -303,15 +299,80 @@ def get_ahn4_tiles(extent=None):
     return gdf
 
 
+def _get_tiles_ellipsis(
+    extent=None,
+    crs=28992,
+    timeout=120.0,
+    base_url="https://api.ellipsis-drive.com/v3",
+    path_id="a9d410ad-a2f6-404c-948a-fdf6b43e77a6",
+    timestamp_id="87a21a71-c39f-4e92-a43b-207bc7dfe714",
+):
+    url = f"{base_url}/path/{path_id}/vector/timestamp/{timestamp_id}/listFeatures"
+
+    r = requests.get(url, timeout=timeout)
+    if not r.ok:
+        raise (HTTPError(f"Request not successful: {r.url}"))
+    gdf = gpd.GeoDataFrame.from_features(r.json()["result"]["features"], crs=4326)
+    gdf = gdf.to_crs(crs)
+    # remove small digits becuase of crs-transformation
+    gdf.geometry = gdf.geometry.apply(_round_coordinates, ndigits=0)
+
+    gdf = gdf.set_index("AHN")
+
+    if extent is not None:
+        gdf = gdf.loc[gdf.intersection(extent_to_polygon(extent)).area > 0]
+    return gdf
+
+
+def _round_coordinates(geom, ndigits=2):
+
+    def _round_coords(x, y, z=None):
+        x = round(x, ndigits)
+        y = round(y, ndigits)
+
+        if z is not None:
+            z = round(x, ndigits)
+            return (x, y, z)
+        else:
+            return (x, y)
+
+    return shapely.ops.transform(_round_coords, geom)
+
+
 @cache.cache_netcdf()
-def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
+def get_ahn1(extent, identifier="AHN1_5M", as_data_array=None, **kwargs):
     """Download AHN1.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         extent
-    identifier : TYPE, optional
+    identifier : str, optional
+        Only allowed value is 'AHN1_5M' (or the equivalent ahn1_5m). The default is
+        "AHN1_5M".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    _assert_as_data_array_is_none(as_data_array)
+    identifier = _rename_identifier(identifier)
+    da = _get_ahn_ellipsis(extent, identifier, **kwargs)
+    # original data is in cm. Convert the data to m, which is the unit of other ahns
+    da = da / 100
+    return da
+
+
+@cache.cache_netcdf()
+def get_ahn1_legacy(extent, identifier="ahn1_5m", as_data_array=True):
+    """Download AHN1.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
         Only allowed value is 'ahn1_5m'. The default is "ahn1_5m".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
@@ -331,14 +392,38 @@ def get_ahn1(extent, identifier="ahn1_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
+def get_ahn2(extent, identifier="AHN2_5M_M", as_data_array=None, **kwargs):
     """Download AHN2.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         extent
-    identifier : TYPE, optional
+    identifier : str, optional
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' and 'AHN2_5M_M'.
+        The default is "AHN2_5M_M".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    _assert_as_data_array_is_none(as_data_array)
+    identifier = _rename_identifier(identifier)
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+
+
+@cache.cache_netcdf()
+def get_ahn2_legacy(extent, identifier="ahn2_5m", as_data_array=True):
+    """Download AHN2.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
         Possible values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The
         default is "ahn2_5m".
     as_data_array : bool, optional
@@ -355,14 +440,38 @@ def get_ahn2(extent, identifier="ahn2_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
+def get_ahn3(extent, identifier="AHN3_5M_M", as_data_array=None, **kwargs):
     """Download AHN3.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         extent
-    identifier : TYPE, optional
+    identifier : str, optional
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' and 'AHN3_5M_R'.
+        The default is "AHN3_5M_M".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    _assert_as_data_array_is_none(as_data_array)
+    identifier = _rename_identifier(identifier)
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+
+
+@cache.cache_netcdf()
+def get_ahn3_legacy(extent, identifier="AHN3_5m_DTM", as_data_array=True):
+    """Download AHN3.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
         Possible values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and
         'AHN3_5m_DTM'. The default is "AHN3_5m_DTM".
     as_data_array : bool, optional
@@ -378,14 +487,38 @@ def get_ahn3(extent, identifier="AHN3_5m_DTM", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
+def get_ahn4(extent, identifier="AHN4_5M_M", as_data_array=None, **kwargs):
     """Download AHN4.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         extent
-    identifier : TYPE, optional
+    identifier : str, optional
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' and 'AHN4_5M_R'.
+        The default is "AHN4_5M_M".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    _assert_as_data_array_is_none(as_data_array)
+    identifier = _rename_identifier(identifier)
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+
+
+@cache.cache_netcdf()
+def get_ahn4_legacy(extent, identifier="AHN4_DTM_5m", as_data_array=True):
+    """Download AHN4.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
         Possible values are 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' and
         'AHN4_DSM_5m'. The default is "AHN4_DTM_5m".
     as_data_array : bool, optional
@@ -398,6 +531,67 @@ def get_ahn4(extent, identifier="AHN4_DTM_5m", as_data_array=True):
     """
     tiles = get_ahn4_tiles(extent)
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
+
+
+@cache.cache_netcdf()
+def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
+    """Download AHN5.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        Possible values are 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' and'AHN5_05M_R'.
+        The default is "AHN5_5M_M".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+
+    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+
+
+@cache.cache_netcdf()
+def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
+    """Download AHN5.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        Possible values are 'AHN5_5M_M' (dtm), 'AHN5_5M_R' (dsm), 'AHN5_05M_M' (dtm) and
+        'AHN5_05M_R' (dsm). The default is "AHN5_5M_M".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    tiles = _get_tiles_ellipsis(extent=extent, **kwargs)
+    if identifier not in tiles.columns:
+        raise (ValueError(f"Unknown ahn-identifier: {identifier}"))
+    tiles = tiles[~tiles[identifier].isna()]
+    das = []
+    for tile in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
+        url = tiles.at[tile, identifier]
+        if url.endswith(".zip"):
+            path = url.split("/")[-1].replace(".zip", ".TIF")
+            if path.lower().endswith(".tif.tif"):
+                path = path[:-4]
+            da = rioxarray.open_rasterio(
+                rasterio.open(f"zip+{url}!/{path}"), mask_and_scale=True
+            )[0]
+        else:
+            da = rioxarray.open_rasterio(url, mask_and_scale=True)[0]
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        das.append(da)
+    return merge_arrays(das)
 
 
 def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
@@ -423,3 +617,38 @@ def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
         da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         return da
     return memfile
+
+
+def _rename_identifier(identifier):
+    rename = {
+        "ahn1_5m": "AHN1_5M",
+        "ahn2_05m_i": "AHN2_05M_I",
+        "ahn2_05m_n": "AHN2_05M_N",
+        "ahn2_05m_r": "AHN2_05M_R",
+        "ahn2_5m": "AHN2_5M_M",
+        "AHN3_05m_DTM": "AHN3_05M_M",
+        "AHN3_05m_DSM": "AHN3_05M_R",
+        "AHN3_5m_DTM": "AHN3_5M_M",
+        "AHN3_5m_DSM": "AHN3_5M_R",
+        "AHN4_DTM_05m": "AHN4_05M_M",
+        "AHN4_DSM_05m": "AHN4_05M_R",
+        "AHN4_DTM_5m": "AHN4_5M_M",
+        "AHN4_DSM_5m": "AHN4_5M_R",
+    }
+    if identifier in rename:
+        id_new = rename[identifier]
+        logger.warning(f"The identifier {identifier} is deprecated. Rename to {id_new}")
+        identifier = id_new
+    return identifier
+
+
+def _assert_as_data_array_is_none(as_data_array):
+    if as_data_array is not None:
+        raise (
+            DeprecationWarning(
+                "The as_data_array-argument has been removed from the ahn-"
+                "methods, and these methods now allways return a DataArray. "
+                "Remove the as_data_array-argument or use the legcay ahn-"
+                "methods."
+            )
+        )

@@ -190,7 +190,13 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
 
 
 def split_layers_ds(
-    ds, split_dict, layer="layer", top="top", bot="botm", return_reindexer=False
+    ds,
+    split_dict,
+    layer="layer",
+    top="top",
+    bot="botm",
+    return_reindexer=False,
+    start_suffix_at=1,
 ):
     """Split layers based in Dataset.
 
@@ -215,6 +221,9 @@ def split_layers_ds(
     return_reindexer : bool, optional
         Return a OrderedDict that can be used to reindex variables from the original
         layer-dimension to the new layer-dimension when True. The default is False.
+    start_suffix_at : int, optional
+        The suffix that the first splitted layer will receive, for layers that were
+        splitted into multiple sub-layers. The default is 1.
 
     Returns
     -------
@@ -263,7 +272,7 @@ def split_layers_ds(
     for lay0 in split_dict:
         for i, _ in enumerate(split_dict[lay0]):
             index = layers.index(lay0)
-            layers.insert(index, lay0 + "_" + str(i))
+            layers.insert(index, lay0 + "_" + str(i + start_suffix_at))
             layers_org.insert(index, lay0)
     ds = ds.reindex({"layer": layers})
 
@@ -280,7 +289,9 @@ def split_layers_ds(
                     f"Fill values for variable '{var}' in split"
                     " layers with the values from the original layer."
                 )
-            ds = _split_var(ds, var, lay0, th0, split_dict[lay0], top, bot)
+            ds = _split_var(
+                ds, var, lay0, th0, split_dict[lay0], top, bot, start_suffix_at
+            )
 
     # drop the original layers
     ds = ds.drop_sel(layer=list(split_dict))
@@ -297,10 +308,10 @@ def split_layers_ds(
     return ds
 
 
-def _split_var(ds, var, layer, thickness, fctrs, top, bot):
+def _split_var(ds, var, layer, thickness, fctrs, top, bot, start_suffix_at):
     """Internal method to split a variable of one layer in multiple layers."""
     for i in range(len(fctrs)):
-        name = layer + "_" + str(i)
+        name = layer + "_" + str(i + start_suffix_at)
         if var == top:
             # take orignal top and subtract thickness of higher splitted layers
             ds[var].loc[name] = ds[var].loc[layer] - np.sum(fctrs[:i]) * thickness

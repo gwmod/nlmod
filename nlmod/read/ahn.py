@@ -582,7 +582,7 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
         url = tiles.at[tile, identifier]
         if url == "nan":
             continue
-        elif url.endswith(".zip"):
+        if url.endswith(".zip"):
             path = url.split("/")[-1].replace(".zip", ".TIF")
             if path.lower().endswith(".tif.tif"):
                 path = path[:-4]

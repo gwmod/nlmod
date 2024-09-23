@@ -600,7 +600,7 @@ def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
     """Internal method to download and combine ahn-data."""
     if tiles.empty:
         raise (Exception(f"{identifier} has no data for requested extent"))
-    das = []
+    datasets = []
     for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[name, identifier]
         if isinstance(url, pd.Series):
@@ -611,15 +611,14 @@ def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
         path = url.split("/")[-1].replace(".zip", ".TIF")
         if path.lower().endswith(".tif.tif"):
             path = path[:-4]
-        das.append(xr.open_dataset(f"zip+{url}!/{path}"))
-
-    dataarray = xr.merge(das)["band_data"]
-
+        datasets.append(rasterio.open(f"zip+{url}!/{path}"))
+    memfile = MemoryFile()
+    merge.merge(datasets, dst_path=memfile)
     if as_data_array:
-        return dataarray.sel(
-            x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
-
-    return dataarray
+        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        return da
+    return memfile
 
 
 def _rename_identifier(identifier):

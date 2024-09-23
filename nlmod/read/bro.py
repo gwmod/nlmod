@@ -166,7 +166,7 @@ def get_bro(
 
 
 @cache.cache_pickle
-def get_bro_metadata(extent, max_dx=20000, max_dy=20000):
+def get_bro_metadata(extent, max_dx=10000, max_dy=10000):
     """Wrapper around hpd.read_bro that deals with large extents and only returns
     metadata (location, tube top/bot, ground level, ..) of the wells and no actual
     measurements. This is useful when the extent is too big to obtain all measurements

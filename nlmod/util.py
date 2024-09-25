@@ -1191,6 +1191,7 @@ def zonal_statistics(
         if gc.index.isnull().all():
             raise (ValueError("There is no overlap between gdf and da"))
         gc["values"] = da
+        gc = gc.set_coords("index")
         groups = gc.groupby("index")
         for stat, column in zip(statistics, columns):
             if stat == "min":

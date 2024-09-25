@@ -1,13 +1,11 @@
 import logging
 import warnings
-from functools import partial
 
 import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import Polygon
-from shapely.strtree import STRtree
 from tqdm import tqdm
 
 from ..cache import cache_pickle
@@ -19,7 +17,7 @@ from ..dims.grid import (
 )
 from ..dims.layers import get_idomain
 from ..read import bgt, waterboard
-from ..util import extent_to_polygon
+from ..util import extent_to_polygon, add_info_to_gdf, zonal_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -511,50 +509,6 @@ def build_spd(
     return spd
 
 
-def add_info_to_gdf(
-    gdf_from,
-    gdf_to,
-    columns=None,
-    desc="",
-    silent=False,
-    min_total_overlap=0.5,
-    geom_type="Polygon",
-    add_index_from_column=None,
-):
-    """Add information from 'gdf_from' to 'gdf_to', based on the spatial
-    intersection.
-    """
-    gdf_to = gdf_to.copy()
-    if columns is None:
-        columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
-    s = STRtree(gdf_from.geometry)
-    for index in tqdm(gdf_to.index, desc=desc, disable=silent):
-        geom_to = gdf_to.geometry[index]
-        inds = s.query(geom_to)
-        if len(inds) == 0:
-            continue
-        overlap = gdf_from.geometry.iloc[inds].intersection(geom_to)
-        if geom_type is None:
-            geom_type = overlap.geom_type.iloc[0]
-        if geom_type in ["Polygon", "MultiPolygon"]:
-            measure_org = geom_to.area
-            measure = overlap.area
-        elif geom_type in ["LineString", "MultiLineString"]:
-            measure_org = geom_to.length
-            measure = overlap.length
-        else:
-            msg = f"Unsupported geometry type: {geom_type}"
-            raise TypeError(msg)
-
-        if np.any(measure.sum() > min_total_overlap * measure_org):
-            # take the largest
-            ind = measure.idxmax()
-            gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
-            if add_index_from_column:
-                gdf_to.loc[index, add_index_from_column] = ind
-    return gdf_to
-
-
 def get_gdf_stage(gdf, season="winter"):
     """Get the stage from a GeoDataFrame for a specific season.
 
@@ -888,9 +842,10 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
     return gdf
 
 
-def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
-    """Add a column names with the minimum surface level height near surface water
-    features.
+def add_min_ahn_to_gdf(
+    gdf, ahn, buffer=0.0, column="ahn_min", statistic="min", **kwargs
+):
+    """Add a column with the minimum surface level height near surface water features.
 
     Parameters
     ----------
@@ -904,6 +859,8 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
     column : string, optional
         The name of the new column in gdf containing the minimum surface level height.
         The default is 'ahn_min'.
+    statistic : string, optional
+        The statistic to calculate at each surface water feature. The default is 'min'.
 
     Returns
     -------
@@ -911,21 +868,10 @@ def add_min_ahn_to_gdf(gdf, ahn, buffer=0.0, column="ahn_min"):
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
     """
-    from geocube.api.core import make_geocube
-    from geocube.rasterize import rasterize_image
 
-    # use geocube
-    gc = make_geocube(
-        vector_data=gdf.buffer(buffer).reset_index().rename_geometry("geometry"),
-        measurements=["index"],
-        like=ahn,  # ensure the data are on the same grid
-        rasterize_function=partial(rasterize_image, all_touched=True),
+    gdf = zonal_statistics(
+        gdf, ahn, columns=column, buffer=buffer, statistics=statistic, **kwargs
     )
-    gc["ahn"] = ahn
-    gc = gc.set_coords("index")
-    ahn_min = gc.groupby("index").min()["ahn"].to_pandas()
-    ahn_min.index = ahn_min.index.astype(int)
-    gdf[column] = ahn_min
     return gdf
 
 

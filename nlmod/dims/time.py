@@ -172,11 +172,18 @@ def _pd_timestamp_to_cftime(time_pd):
     cftime.datetime or list of cftime.datetime
     """
 
-    if hasattr(time_pd, '__iter__'):
+    if hasattr(time_pd, "__iter__"):
         return [_pd_timestamp_to_cftime(tpd) for tpd in time_pd]
     else:
-        return cftime.datetime(time_pd.year, time_pd.month, time_pd.day, 
-                               time_pd.hour, time_pd.minute, time_pd.second)
+        return cftime.datetime(
+            time_pd.year,
+            time_pd.month,
+            time_pd.day,
+            time_pd.hour,
+            time_pd.minute,
+            time_pd.second,
+        )
+
 
 def set_ds_time(
     ds,
@@ -198,7 +205,7 @@ def set_ds_time(
     start : int, float, str, pandas.Timestamp or cftime.datetime
         model start. When start is an integer or float it is interpreted as the number
         of days of the first stress-period. When start is a string, pandas Timestamp or
-        cftime datetime it is the start datetime of the simulation. Use cftime datetime 
+        cftime datetime it is the start datetime of the simulation. Use cftime datetime
         when you get an OutOfBounds error using pandas.
     time : float, int or array-like, optional
         float(s) (indicating elapsed time) or timestamp(s) corresponding to the end of
@@ -248,7 +255,7 @@ def set_ds_time(
         try:
             start = time[0] - pd.to_timedelta(start, "D")
         except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-            msg = f'using cftime time index because of {e}'
+            msg = f"using cftime time index because of {e}"
             logger.debug(msg)
             time = _pd_timestamp_to_cftime(time)
             start = time[0] - dt.timedelta(days=start)
@@ -269,7 +276,7 @@ def set_ds_time(
             try:
                 time = start + pd.to_timedelta(time, time_units)
             except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-                msg = f'using cftime time index because of {e}'
+                msg = f"using cftime time index because of {e}"
                 logger.debug(msg)
                 start = _pd_timestamp_to_cftime(start)
                 time = [start + dt.timedelta(days=int(td)) for td in time]
@@ -285,12 +292,16 @@ def set_ds_time(
         if isinstance(start, cftime.datetime):
             time = _pd_timestamp_to_cftime(time)
     elif isinstance(time[0], (np.datetime64, xr.core.variable.Variable)):
-        logger.info('time arguments with types np.datetime64, xr.core.variable.Variable not tested!')
+        logger.info(
+            "time arguments with types np.datetime64, xr.core.variable.Variable not tested!"
+        )
         pass
     elif isinstance(time[0], cftime.datetime):
         start = _pd_timestamp_to_cftime(start)
     else:
-        msg = f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
+        msg = (
+            f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
+        )
         raise TypeError(msg)
 
     if time[0] <= start:
@@ -556,9 +567,9 @@ def ds_time_idx(t, start_datetime=None, time_units="D"):
     else:
         try:
             dtarr = pd.to_timedelta(t, time_units)
-            times = pd.Timestamp(start_datetime) + dtarr                
+            times = pd.Timestamp(start_datetime) + dtarr
         except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-            msg = f'using cftime time index because of {e}'
+            msg = f"using cftime time index because of {e}"
             logger.debug(msg)
             start = _pd_timestamp_to_cftime(pd.Timestamp(start_datetime))
             times = [start + dt.timedelta(days=int(td)) for td in t]
@@ -623,9 +634,9 @@ def ds_time_to_pandas_index(ds, include_start=True):
         pandas datetime index
     """
     if include_start:
-        if ds.time.dtype.kind=='M':
+        if ds.time.dtype.kind == "M":
             return ds.time.to_index().insert(0, pd.Timestamp(ds.time.start))
-        elif ds.time.dtype.kind =='O':
+        elif ds.time.dtype.kind == "O":
             start = _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start))
             return ds.time.to_index().insert(0, start)
     else:

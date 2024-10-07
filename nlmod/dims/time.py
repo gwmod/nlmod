@@ -1,9 +1,11 @@
+import cftime
 import datetime as dt
 import logging
 import warnings
 
 import numpy as np
 import pandas as pd
+from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime, OutOfBoundsTimedelta
 import xarray as xr
 from xarray import IndexVariable
 
@@ -86,7 +88,12 @@ def set_ds_time_deprecated(
         raise NotImplementedError()
     if time is not None:
         if isinstance(time, str):
-            time = pd.to_datetime(time)
+            try:
+                time = pd.to_datetime(time)
+            except OutOfBoundsDatetime as e:
+                msg = "pandas does not support a timestamp from before the year 1678 or after the year 2262, please use a cftime index (see https://github.com/gwmod/nlmod/issues/374)"
+                logger.error(msg)
+                raise e
         if not hasattr(time, "__iter__"):
             time = [time]
         start_time = time[0]
@@ -152,6 +159,25 @@ def set_ds_time_deprecated(
     return ds
 
 
+def _pd_timestamp_to_cftime(time_pd):
+    """convert a pandas timestamp into a cftime stamp
+
+    Parameters
+    ----------
+    time_pd : pd.Timestamp or list of pd.Timestamp
+        datetimes
+
+    Returns
+    -------
+    cftime.datetime or list of cftime.datetime
+    """
+
+    if hasattr(time_pd, '__iter__'):
+        return [_pd_timestamp_to_cftime(tpd) for tpd in time_pd]
+    else:
+        return cftime.datetime(time_pd.year, time_pd.month, time_pd.day, 
+                               time_pd.hour, time_pd.minute, time_pd.second)
+
 def set_ds_time(
     ds,
     start,
@@ -169,10 +195,11 @@ def set_ds_time(
     ----------
     ds : xarray.Dataset
         model dataset
-    start : int, float, str or pandas.Timestamp
+    start : int, float, str, pandas.Timestamp or cftime.datetime
         model start. When start is an integer or float it is interpreted as the number
-        of days of the first stress-period. When start is a string or pandas Timestamp
-        it is the start datetime of the simulation.
+        of days of the first stress-period. When start is a string, pandas Timestamp or
+        cftime datetime it is the start datetime of the simulation. Use cftime datetime 
+        when you get an OutOfBounds error using pandas.
     time : float, int or array-like, optional
         float(s) (indicating elapsed time) or timestamp(s) corresponding to the end of
         each stress period in the model. When time is a single value, the model will
@@ -216,25 +243,55 @@ def set_ds_time(
 
     # parse start
     if isinstance(start, (int, np.integer, float)):
-        if isinstance(time[0], (int, np.integer, float)):
+        if isinstance(time[0], (int, np.integer, float, str)):
             raise (ValueError("Make sure start or time contains a valid TimeStamp"))
-        start = time[0] - pd.to_timedelta(start, "D")
+        try:
+            start = time[0] - pd.to_timedelta(start, "D")
+        except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
+            msg = f'using cftime time index because of {e}'
+            logger.debug(msg)
+            time = _pd_timestamp_to_cftime(time)
+            start = time[0] - dt.timedelta(days=start)
     elif isinstance(start, str):
         start = pd.Timestamp(start)
-    elif isinstance(start, (pd.Timestamp, np.datetime64)):
+    elif isinstance(start, (pd.Timestamp, cftime.datetime)):
         pass
+    elif isinstance(start, np.datetime64):
+        start = pd.Timestamp(start)
     else:
         raise TypeError("Cannot parse start datetime.")
 
-    # convert time to Timestamps
+    # parse time make sure 'time' and 'start' are same type (pd.Timestamps or cftime.datetime)
     if isinstance(time[0], (int, np.integer, float)):
-        time = pd.Timestamp(start) + pd.to_timedelta(time, time_units)
+        if isinstance(start, cftime.datetime):
+            time = [start + dt.timedelta(days=int(td)) for td in time]
+        else:
+            try:
+                time = start + pd.to_timedelta(time, time_units)
+            except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
+                msg = f'using cftime time index because of {e}'
+                logger.debug(msg)
+                start = _pd_timestamp_to_cftime(start)
+                time = [start + dt.timedelta(days=int(td)) for td in time]
     elif isinstance(time[0], str):
-        time = pd.to_datetime(time)
-    elif isinstance(time[0], (pd.Timestamp, np.datetime64, xr.core.variable.Variable)):
+        try:
+            time = pd.to_datetime(time)
+            if isinstance(start, cftime.datetime):
+                time = _pd_timestamp_to_cftime(time)
+        except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
+            msg = f"Cannot process time argument combined with out of bound start {start}. Please use any of these types for the time or perlen argument: int, float, pd.Timestamp, np.datetime64, cftime.datetime"
+            raise TypeError(msg) from e
+    elif isinstance(time[0], (pd.Timestamp)):
+        if isinstance(start, cftime.datetime):
+            time = _pd_timestamp_to_cftime(time)
+    elif isinstance(time[0], (np.datetime64, xr.core.variable.Variable)):
+        logger.info('time arguments with types np.datetime64, xr.core.variable.Variable not tested!')
         pass
+    elif isinstance(time[0], cftime.datetime):
+        start = _pd_timestamp_to_cftime(start)
     else:
-        raise TypeError("Cannot process 'time' argument. Datatype not understood.")
+        msg = f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
+        raise TypeError(msg)
 
     if time[0] <= start:
         msg = (

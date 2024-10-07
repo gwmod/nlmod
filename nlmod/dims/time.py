@@ -368,6 +368,7 @@ def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units
         deltlist.append(delt)
 
     dt_arr = np.cumsum(np.concatenate(deltlist))
+
     return ds_time_idx(dt_arr, start_datetime=start, time_units=time_units)
 
 
@@ -550,12 +551,17 @@ def ds_time_idx(t, start_datetime=None, time_units="D"):
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-    if start_datetime is not None:
-        dt = pd.to_timedelta(t, time_units)
-        times = pd.Timestamp(start_datetime) + dt
-
-    else:
+    if start_datetime is None:
         times = t
+    else:
+        try:
+            dtarr = pd.to_timedelta(t, time_units)
+            times = pd.Timestamp(start_datetime) + dtarr                
+        except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
+            msg = f'using cftime time index because of {e}'
+            logger.debug(msg)
+            start = _pd_timestamp_to_cftime(pd.Timestamp(start_datetime))
+            times = [start + dt.timedelta(days=int(td)) for td in t]
 
     time = IndexVariable(["time"], times)
     time.attrs["time_units"] = time_units
@@ -617,6 +623,10 @@ def ds_time_to_pandas_index(ds, include_start=True):
         pandas datetime index
     """
     if include_start:
-        return ds.time.to_index().insert(0, pd.Timestamp(ds.time.start))
+        if ds.time.dtype.kind=='M':
+            return ds.time.to_index().insert(0, pd.Timestamp(ds.time.start))
+        elif ds.time.dtype.kind =='O':
+            start = _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start))
+            return ds.time.to_index().insert(0, start)
     else:
         return ds.time.to_index()

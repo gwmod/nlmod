@@ -96,14 +96,18 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
             (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
             / deltat
         ]
+        if len(ds["time"]) > 1:
+            perlen.extend(np.diff(ds["time"]) / deltat)
     elif ds.time.dtype.kind == "O":
         perlen = [
             (ds["time"].data[0] - _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start)))
             / deltat
         ]
-
-    if len(ds["time"]) > 1:
-        perlen.extend(np.diff(ds["time"]) / deltat)
+        if len(ds["time"]) > 1:
+            perlen.extend(np.diff(ds["time"]) / deltat)
+    elif ds.time.dtype.kind in ['i', 'f']:
+        perlen = ds['time'].values
+    
 
     nstp = util._get_value_from_ds_datavar(ds, "nstp", nstp, return_da=False)
 

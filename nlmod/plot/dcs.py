@@ -566,11 +566,15 @@ class DatasetCrossSection:
         elif "units" in da.attrs:
             cbar.set_label(da.units)
 
-        t = pd.Timestamp(da.time.values[iper])
+        if da.time.dtype.kind in ['M', 'O']:
+            t = pd.Timestamp(da.time.values[iper]).strftime(date_fmt)
+        else:
+            t = f'{da.time.values[iper]} {da.time.time_units}'
+            
         if plot_title is None:
             title = None
         else:
-            title = self.ax.set_title(f"{plot_title}, t = {t.strftime(date_fmt)}")
+            title = self.ax.set_title(f"{plot_title}, t = {t}")
 
         # update func
         def update(iper, pc, title):
@@ -578,9 +582,13 @@ class DatasetCrossSection:
             pc.set_array(array)
 
             # update title
-            t = pd.Timestamp(da.time.values[iper])
+            if da.time.dtype.kind in ['M', 'O']:
+                t = pd.Timestamp(da.time.values[iper]).strftime(date_fmt)
+            else:
+                t = f'{da.time.values[iper]} {da.time.time_units}'
+                
             if title is not None:
-                title.set_text(f"{plot_title}, t = {t.strftime(date_fmt)}")
+                title.set_text(f"{plot_title}, t = {t}")
 
             return pc, title
 

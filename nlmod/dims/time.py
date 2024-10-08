@@ -88,12 +88,7 @@ def set_ds_time_deprecated(
         raise NotImplementedError()
     if time is not None:
         if isinstance(time, str):
-            try:
-                time = pd.to_datetime(time)
-            except OutOfBoundsDatetime as e:
-                msg = "pandas does not support a timestamp from before the year 1678 or after the year 2262, please use a cftime index (see https://github.com/gwmod/nlmod/issues/374)"
-                logger.error(msg)
-                raise e
+            time = pd.to_datetime(time)
         if not hasattr(time, "__iter__"):
             time = [time]
         start_time = time[0]
@@ -189,12 +184,12 @@ def set_ds_time(
     ds,
     start,
     time=None,
+    perlen=None,
     steady=False,
     steady_start=True,
     time_units="DAYS",
-    perlen=None,
     nstp=1,
-    tsmult=1.0,
+    tsmult=1.0
 ):
     """Set time discretisation for model dataset.
 
@@ -212,6 +207,9 @@ def set_ds_time(
         each stress period in the model. When time is a single value, the model will
         have only one stress period. When time is None, the stress period lengths have
         to be supplied via perlen. The default is None.
+    perlen : float, int or array-like, optional
+        length of each stress-period. Only used when time is None. When perlen is a
+        single value, the model will have only one stress period. The default is None.
     steady : arraylike or bool, optional
         arraylike indicating which stress periods are steady-state, by default False,
         which sets all stress periods to transient with the first period determined by
@@ -221,9 +219,6 @@ def set_ds_time(
         when steady is passed as single boolean.
     time_units : str, optional
         time units, by default "DAYS"
-    perlen : float, int or array-like, optional
-        length of each stress-period. Only used when time is None. When perlen is a
-        single value, the model will have only one stress period. The default is None.
     nstp : int or array-like, optional
         number of steps per stress period, stored in ds.attrs, default is 1
     tsmult : float, optional
@@ -312,9 +307,134 @@ def set_ds_time(
         logger.error(msg)
         raise ValueError(msg)
 
+    # create time coordinates
     ds = ds.assign_coords(coords={"time": time})
     ds.coords["time"].attrs = dim_attrs["time"]
 
+    # add steady, nstp and tsmult to dataset
+    ds = set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, tsmult)
+
+    return ds
+
+
+def set_ds_time_numerical(ds,
+    start,
+    time=None,
+    perlen=None,
+    steady=False,
+    steady_start=True,
+    time_units="DAYS",
+    nstp=1,
+    tsmult=1.0):
+    """Set a numerical time discretisation for a model dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset
+    start : int, float, str, pandas.Timestamp or cftime.datetime
+        model start. When start is an integer or float it is interpreted as the number
+        of days of the first stress-period. When start is a string, pandas Timestamp or
+        cftime datetime it is the start datetime of the simulation. Use cftime datetime
+        when you get an OutOfBounds error using pandas.
+    time : float, int or array-like, optional
+        float(s) (indicating elapsed time) corresponding to the end of each stress
+        period in the model. When time is a single value, the model will have only one
+        stress period. When time is None, the stress period lengths have to be supplied
+        via perlen. The default is None.
+    perlen : float, int or array-like, optional
+        length of each stress-period. Only used when time is None. When perlen is a
+        single value, the model will have only one stress period. The default is None.
+    steady : arraylike or bool, optional
+        arraylike indicating which stress periods are steady-state, by default False,
+        which sets all stress periods to transient with the first period determined by
+        value of `steady_start`.
+    steady_start : bool, optional
+        whether to set the first period to steady-state, default is True, only used
+        when steady is passed as single boolean.
+    time_units : str, optional
+        time units, by default "DAYS"
+    nstp : int or array-like, optional
+        number of steps per stress period, stored in ds.attrs, default is 1
+    tsmult : float, optional
+        timestep multiplier within stress periods, stored in ds.attrs, default is 1.0
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        model dataset with added time coordinate
+    """
+
+    if time is None and perlen is None:
+        raise (ValueError("Please specify either time or perlen in set_ds_time"))
+    elif perlen is not None:
+        if time is not None:
+            msg = f"Cannot use both time and perlen. Ignoring perlen: {perlen}"
+            logger.warning(msg)
+        else:
+            if isinstance(perlen, (int, np.integer, float)):
+                perlen = [perlen]
+            time = np.cumsum(perlen)
+
+    if isinstance(time, str) or not hasattr(time, "__iter__"):
+        time = [time]
+
+    # check time
+    if isinstance(time[0], (str, pd.Timestamp, cftime.datetime)):
+        raise TypeError("'time' argument should be of a numerical type")
+    
+    time = np.asarray(time)
+    if (time <= 0).any():
+        msg = (
+            "timesteps smaller or equal to 0 are not allowed"
+        )
+        logger.error(msg)
+        raise ValueError(msg)
+
+    # create time coordinates
+    ds = ds.assign_coords(coords={"time": time})
+    ds.coords["time"].attrs = dim_attrs["time"]
+
+    # add steady, nstp and tsmult to dataset
+    ds = set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, tsmult)
+
+    return ds
+
+
+def set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, tsmult):
+    """add data variables: steady, nstp and tsmult, set attributes: start, time_units
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        model dataset
+    start : int, float, str, pandas.Timestamp or cftime.datetime
+        model start. When start is an integer or float it is interpreted as the number
+        of days of the first stress-period. When start is a string, pandas Timestamp or
+        cftime datetime it is the start datetime of the simulation. Use cftime datetime
+        when you get an OutOfBounds error using pandas.
+    time : array-like, optional
+        numerical (indicating elapsed time) or timestamps corresponding to the end
+        of each stress period in the model.
+    steady : arraylike or bool, optional
+        arraylike indicating which stress periods are steady-state, by default False,
+        which sets all stress periods to transient with the first period determined by
+        value of `steady_start`.
+    steady_start : bool, optional
+        whether to set the first period to steady-state, default is True, only used
+        when steady is passed as single boolean.
+    time_units : str, optional
+        time units, by default "DAYS"
+    nstp : int or array-like, optional
+        number of steps per stress period, stored in ds.attrs, default is 1
+    tsmult : float, optional
+        timestep multiplier within stress periods, stored in ds.attrs, default is 1.0
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     # add steady, nstp and tsmult to dataset
     if isinstance(steady, bool):
         steady = int(steady) * np.ones(len(time), dtype=int)
@@ -336,6 +456,7 @@ def set_ds_time(
     ds.time.attrs["start"] = str(start)
 
     return ds
+
 
 
 def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units="D"):
@@ -545,7 +666,7 @@ def ds_time_idx_from_modeltime(modeltime):
     )
 
 
-def ds_time_idx(t, start_datetime=None, time_units="D"):
+def ds_time_idx(t, start_datetime=None, time_units="D", dtype='datetime'):
     """Get time index variable from elapsed time array.
 
     Parameters
@@ -556,13 +677,16 @@ def ds_time_idx(t, start_datetime=None, time_units="D"):
         starting datetime
     time_units : str, optional
         time units, default is days
+    dtype : str, optional
+        dtype of time index. Can be 'datetime' or 'float'. If 'datetime' try to create
+        a pandas datetime index if that fails use cftime lib. Default is 'datetime'.
 
     Returns
     -------
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-    if start_datetime is None:
+    if (start_datetime is None) or (dtype in ['int', 'float']):
         times = t
     else:
         try:
@@ -592,6 +716,7 @@ def dataframe_to_flopy_timeseries(
     append=False,
 ):
     assert not df.isna().any(axis=None)
+    assert ds.time.dtype.kind == 'M', 'get recharge requires a datetime64[ns] time index'
     if ds is not None:
         # set index to days after the start of the simulation
         df = df.copy()
@@ -639,5 +764,7 @@ def ds_time_to_pandas_index(ds, include_start=True):
         elif ds.time.dtype.kind == "O":
             start = _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start))
             return ds.time.to_index().insert(0, start)
+        elif ds.time.dtype.kind in ['i', 'f']:
+            return ds.time.to_index().insert(0, 0)
     else:
         return ds.time.to_index()

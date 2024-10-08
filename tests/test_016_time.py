@@ -179,10 +179,13 @@ def test_time_out_of_bounds():
     with pytest.raises(TypeError):
         nlmod.dims.set_ds_time(ds, start=96500, time="1000-01-01")
 
-    # start befor christ (BC), not yet working
-    # start = '-0500-01-01'
-    # end = '2000-01-01'
-    # time = xr.date_range(start, end, freq='100YS')
-    # start_model = time[0] - timedelta(days=10*365+2)
+def test_numerical_time_index():
+    
+    ds = nlmod.get_ds([0, 1000, 2000, 3000])
 
-    # ds = nlmod.time.nlmod.dims.set_ds_time(ds, start=start_model, time=time)
+    # start str and time floats
+    _ = nlmod.dims.set_ds_time_numerical(ds, start='2000-1-1', time=[10.,20.,30.1])
+
+    # start timestamp and time ints
+    _ = nlmod.dims.set_ds_time_numerical(ds, start=pd.Timestamp("1000-01-01"), 
+                                            time=[10,20,30])

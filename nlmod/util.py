@@ -1060,7 +1060,7 @@ def _get_value_from_ds_datavar(
     return value
 
 
-def add_info_to_gdf(
+def gdf_intersection_join(
     gdf_from,
     gdf_to,
     columns=None,
@@ -1070,8 +1070,45 @@ def add_info_to_gdf(
     geom_type="Polygon",
     add_index_from_column=None,
 ):
-    """Add information from 'gdf_from' to 'gdf_to', based on the spatial
-    intersection.
+    """Add information from 'gdf_from' to 'gdf_to', based on the spatial intersection.
+
+    Parameters
+    ----------
+    gdf_from : gpd.GeoDataFrame
+        The GeoDataFrame to add information to.
+    gdf_to : gpd.GeoDataFrame
+        The GeoDataFrame containing the information to be added.
+    columns : list, optional
+        A list of the columns to add from gdf_from to gdf_to. When columns is None,
+        columns is set to all columns that are present in gdf_from but not in gdf_to.
+        The default is None.
+    desc : string, optional
+        The description of the progressbar. The default is "".
+    silent : bool, optional
+        If true, do not show the prgressbar. The default is False.
+    min_total_overlap : float, optional
+        The minimum required total overlap between geometries. If the total overlap of a
+        feature in gdf_to with the features of gdf_from, no information is added to the
+        feature of gdf_to. The default is 0.5.
+    geom_type : string, optional
+        The type of Geometries to evaluate. Can be "Polygon" or "LineString". When
+        geom_type is "Polygon" the overlap of features are ranked by the area of
+        features. When geom_type is "LineString", the overlap is ranked by the length of
+        features. The default is "Polygon".
+    add_index_from_column : string, optional
+        The name of the column to add the index of gdf_from to gdf_to. The default is
+        None.
+
+    Raises
+    ------
+    TypeError
+        DESCRIPTION.
+
+    Returns
+    -------
+    gdf_to : gpd.GeoDataFrame
+        gdf_to with extra columns from gdf_from.
+
     """
     gdf_to = gdf_to.copy()
     if columns is None:
@@ -1114,8 +1151,7 @@ def zonal_statistics(
     statistics="mean",
     add_to_gdf=True,
 ):
-    """
-    Calculate raster statistics in the features of a GeoDataFrame
+    """Calculate raster statistics in the features of a GeoDataFrame
 
     Parameters
     ----------

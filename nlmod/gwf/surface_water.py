@@ -17,7 +17,7 @@ from ..dims.grid import (
 )
 from ..dims.layers import get_idomain
 from ..read import bgt, waterboard
-from ..util import extent_to_polygon, add_info_to_gdf, zonal_statistics
+from ..util import extent_to_polygon, gdf_intersection_join, zonal_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -509,6 +509,14 @@ def build_spd(
     return spd
 
 
+def add_info_to_gdf(*args, **kwargs):
+    logger.warning(
+        "nlmod.gwf.surface_water.add_info_to_gdf is deprecated. "
+        "Use nlmod.util.gdf_intersection_join instead."
+    )
+    return gdf_intersection_join(*args, **kwargs)
+
+
 def get_gdf_stage(gdf, season="winter"):
     """Get the stage from a GeoDataFrame for a specific season.
 
@@ -724,7 +732,7 @@ def add_stages_from_waterboards(
         if len(la[wb]) == 0:
             continue
         mask = gdf["bronhouder"] == config[wb]["bgt_code"]
-        gdf.loc[mask, columns] = add_info_to_gdf(
+        gdf.loc[mask, columns] = gdf_intersection_join(
             la[wb],
             gdf[mask],
             columns=columns,
@@ -778,7 +786,7 @@ def add_bottom_height_from_waterboards(
         if len(wc[wb]) == 0:
             continue
         mask = gdf["bronhouder"] == config[wb]["bgt_code"]
-        gdf.loc[mask, columns] = add_info_to_gdf(
+        gdf.loc[mask, columns] = gdf_intersection_join(
             wc[wb],
             gdf[mask],
             columns=columns,

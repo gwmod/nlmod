@@ -383,8 +383,8 @@ def set_ds_time_numerical(ds,
     if isinstance(time[0], (str, pd.Timestamp, cftime.datetime)):
         raise TypeError("'time' argument should be of a numerical type")
     
-    time = np.asarray(time)
-    if (time <= 0).any():
+    time = np.asarray(time, dtype=float)
+    if (time <= 0.).any():
         msg = (
             "timesteps smaller or equal to 0 are not allowed"
         )

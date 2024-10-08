@@ -189,7 +189,7 @@ def set_ds_time(
     steady_start=True,
     time_units="DAYS",
     nstp=1,
-    tsmult=1.0
+    tsmult=1.0,
 ):
     """Set time discretisation for model dataset.
 
@@ -312,12 +312,15 @@ def set_ds_time(
     ds.coords["time"].attrs = dim_attrs["time"]
 
     # add steady, nstp and tsmult to dataset
-    ds = set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, tsmult)
+    ds = set_time_variables(
+        ds, start, time, steady, steady_start, time_units, nstp, tsmult
+    )
 
     return ds
 
 
-def set_ds_time_numerical(ds,
+def set_ds_time_numerical(
+    ds,
     start,
     time=None,
     perlen=None,
@@ -325,7 +328,8 @@ def set_ds_time_numerical(ds,
     steady_start=True,
     time_units="DAYS",
     nstp=1,
-    tsmult=1.0):
+    tsmult=1.0,
+):
     """Set a numerical time discretisation for a model dataset.
 
     Parameters
@@ -382,12 +386,10 @@ def set_ds_time_numerical(ds,
     # check time
     if isinstance(time[0], (str, pd.Timestamp, cftime.datetime)):
         raise TypeError("'time' argument should be of a numerical type")
-    
+
     time = np.asarray(time, dtype=float)
-    if (time <= 0.).any():
-        msg = (
-            "timesteps smaller or equal to 0 are not allowed"
-        )
+    if (time <= 0.0).any():
+        msg = "timesteps smaller or equal to 0 are not allowed"
         logger.error(msg)
         raise ValueError(msg)
 
@@ -396,7 +398,9 @@ def set_ds_time_numerical(ds,
     ds.coords["time"].attrs = dim_attrs["time"]
 
     # add steady, nstp and tsmult to dataset
-    ds = set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, tsmult)
+    ds = set_time_variables(
+        ds, start, time, steady, steady_start, time_units, nstp, tsmult
+    )
 
     return ds
 
@@ -456,7 +460,6 @@ def set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, 
     ds.time.attrs["start"] = str(start)
 
     return ds
-
 
 
 def ds_time_idx_from_tdis_settings(start, perlen, nstp=1, tsmult=1.0, time_units="D"):
@@ -666,7 +669,7 @@ def ds_time_idx_from_modeltime(modeltime):
     )
 
 
-def ds_time_idx(t, start_datetime=None, time_units="D", dtype='datetime'):
+def ds_time_idx(t, start_datetime=None, time_units="D", dtype="datetime"):
     """Get time index variable from elapsed time array.
 
     Parameters
@@ -686,7 +689,7 @@ def ds_time_idx(t, start_datetime=None, time_units="D", dtype='datetime'):
     IndexVariable
         time coordinate for xarray data-array or dataset
     """
-    if (start_datetime is None) or (dtype in ['int', 'float']):
+    if (start_datetime is None) or (dtype in ["int", "float"]):
         times = t
     else:
         try:
@@ -716,7 +719,9 @@ def dataframe_to_flopy_timeseries(
     append=False,
 ):
     assert not df.isna().any(axis=None)
-    assert ds.time.dtype.kind == 'M', 'get recharge requires a datetime64[ns] time index'
+    assert (
+        ds.time.dtype.kind == "M"
+    ), "get recharge requires a datetime64[ns] time index"
     if ds is not None:
         # set index to days after the start of the simulation
         df = df.copy()
@@ -764,7 +769,7 @@ def ds_time_to_pandas_index(ds, include_start=True):
         elif ds.time.dtype.kind == "O":
             start = _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start))
             return ds.time.to_index().insert(0, start)
-        elif ds.time.dtype.kind in ['i', 'f']:
+        elif ds.time.dtype.kind in ["i", "f"]:
             return ds.time.to_index().insert(0, 0)
     else:
         return ds.time.to_index()

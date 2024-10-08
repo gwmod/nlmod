@@ -110,8 +110,6 @@ def test_time_out_of_bounds():
     # start cf.datetime and time list of int
     _ = nlmod.dims.set_ds_time(ds, start=start_model, time=[10, 20, 21, 55])
 
-    ds = nlmod.dims.set_ds_time(ds, time="1000-1-1", start=1)
-
     # start cf.datetime and time list of int
     _ = nlmod.dims.set_ds_time(
         ds, start=start_model, time=pd.to_datetime(["2000-2-1", "2000-3-1"])
@@ -178,7 +176,8 @@ def test_time_out_of_bounds():
     _ = nlmod.dims.set_ds_time(ds, start=96500, time=pd.Timestamp("1000-01-01"))
 
     # start int and time str
-    _ = nlmod.dims.set_ds_time(ds, start=96500, time="1000-01-01")
+    with pytest.raises(TypeError):
+        nlmod.dims.set_ds_time(ds, start=96500, time="1000-01-01")
 
     # start befor christ (BC), not yet working
     # start = '-0500-01-01'

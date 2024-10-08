@@ -251,7 +251,7 @@ def set_ds_time(
     # parse start
     if isinstance(start, (int, np.integer, float)):
         if isinstance(time[0], (int, np.integer, float, str)):
-            raise (ValueError("Make sure start or time contains a valid TimeStamp"))
+            raise TypeError("Make sure 'start' or 'time' argument is a valid TimeStamp")
         try:
             start = time[0] - pd.to_timedelta(start, "D")
         except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:

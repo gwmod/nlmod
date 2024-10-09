@@ -63,7 +63,7 @@ grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]
-ci = ["nlmod[full,lint,test,nbtest]", "netCDF4<1.7.0", "pandas<2.1.0"]
+ci = ["nlmod[full,lint,test,nbtest]", "netCDF4<1.7.0"]
 rtd = [
     "nlmod[full]",
     "ipython",

@@ -274,7 +274,6 @@ def set_ds_time(
             logger.info(
                 "time arguments with types np.datetime64, xr.core.variable.Variable not tested!"
             )
-            pass
         elif isinstance(time[0], cftime.datetime):
             start = _pd_timestamp_to_cftime(start)
         else:
@@ -283,7 +282,7 @@ def set_ds_time(
             )
             raise TypeError(msg)
     except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-        msg = f"cannot convert 'start' and 'time' to pandas datetime, use cftime types for 'start' and 'time'"
+        msg = "cannot convert 'start' and 'time' to pandas datetime, use cftime types for 'start' and 'time'"
         raise type(e)(msg)
 
     if time[0] <= start:

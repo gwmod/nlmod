@@ -1111,6 +1111,8 @@ def add_season_timeseries(
     summer_name : str, optional
         The name of the time-series with ones in summer. The default is "summer".
     """
+    if ds.time.dtype.kind != "M":
+        raise TypeError("add_season_timeseries requires a datetime64[ns] time index")
     tmin = pd.to_datetime(ds.time.start)
     if tmin.month in summer_months:
         ts_data = [(0.0, 0.0, 1.0)]

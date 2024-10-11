@@ -248,6 +248,7 @@ def set_ds_time(
         if isinstance(start, (int, np.integer, float)):
             if isinstance(time[0], (int, np.integer, float, str)):
                 raise TypeError("Make sure 'start' or 'time' argument is a valid TimeStamp")
+            start = time[0] - pd.to_timedelta(start, "D")
         elif isinstance(start, str):
             start = pd.Timestamp(start)
         elif isinstance(start, (pd.Timestamp, cftime.datetime)):

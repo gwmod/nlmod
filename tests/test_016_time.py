@@ -116,7 +116,7 @@ def test_time_out_of_bounds():
     )
 
     # start cf.datetime and time list of str (no general method to convert str to cftime)
-    with pytest.raises(TypeError):
+    with pytest.raises(OutOfBoundsDatetime):
         nlmod.dims.set_ds_time(ds, start=start_model, time=["1000-01-02", "1000-01-03"])
 
     # start cf.datetime and perlen int
@@ -126,10 +126,12 @@ def test_time_out_of_bounds():
     _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", time=cftime_ind)
 
     # start str and time int
-    _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", time=1)
+    with pytest.raises(OutOfBoundsDatetime):
+        nlmod.dims.set_ds_time(ds, start="1000-01-01", time=1)
 
     # start str and time list of int
-    _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", time=[10, 20, 21, 55])
+    with pytest.raises(OutOfBoundsDatetime):
+        nlmod.dims.set_ds_time(ds, start="1000-01-01", time=[10, 20, 21, 55])
 
     # start str and time list of timestamp
     _ = nlmod.dims.set_ds_time(
@@ -137,16 +139,18 @@ def test_time_out_of_bounds():
     )
 
     # start str and time list of str (no general method to convert str to cftime)
-    with pytest.raises(TypeError):
+    with pytest.raises(OutOfBoundsDatetime):
         nlmod.dims.set_ds_time(ds, start="1000-01-01", time=["1000-2-1", "1000-3-1"])
 
     # start str and perlen int
-    _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", perlen=365000)
+    with pytest.raises(OutOfBoundsTimedelta):
+        nlmod.dims.set_ds_time(ds, start="1000-01-01", perlen=365000)
 
     # start numpy datetime and perlen list of int
-    _ = nlmod.dims.set_ds_time(
+    with pytest.raises(OutOfBoundsDatetime):
+        nlmod.dims.set_ds_time(
         ds, start=np.datetime64("1000-01-01"), perlen=[10, 100, 24]
-    )
+        )
 
     # start numpy datetime and time list of timestamps
     _ = nlmod.dims.set_ds_time(
@@ -156,13 +160,14 @@ def test_time_out_of_bounds():
     )
 
     # start numpy datetime and time list of str
-    with pytest.raises(TypeError):
+    with pytest.raises(OutOfBoundsDatetime):
         nlmod.dims.set_ds_time(
             ds, start=np.datetime64("1000-01-01"), time=["1000-2-1", "1000-3-1"]
         )
 
     # start timestamp and perlen list of int
-    _ = nlmod.dims.set_ds_time(
+    with pytest.raises(OutOfBoundsDatetime):
+        nlmod.dims.set_ds_time(
         ds, start=pd.Timestamp("1000-01-01"), perlen=[10, 100, 24]
     )
 
@@ -173,7 +178,8 @@ def test_time_out_of_bounds():
     _ = nlmod.dims.set_ds_time(ds, start=96500, time=cftime_ind)
 
     # start int and time timestamp
-    _ = nlmod.dims.set_ds_time(ds, start=96500, time=pd.Timestamp("1000-01-01"))
+    with pytest.raises(OutOfBoundsDatetime):
+        nlmod.dims.set_ds_time(ds, start=96500, time=pd.Timestamp("1000-01-01"))
 
     # start int and time str
     with pytest.raises(TypeError):
@@ -184,9 +190,9 @@ def test_numerical_time_index():
     ds = nlmod.get_ds([0, 1000, 2000, 3000])
 
     # start str and time floats
-    _ = nlmod.dims.set_ds_time_numerical(ds, start="2000-1-1", time=[10.0, 20.0, 30.1])
+    _ = nlmod.dims.set_ds_time_numeric(ds, start="2000-1-1", time=[10.0, 20.0, 30.1])
 
     # start timestamp and time ints
-    _ = nlmod.dims.set_ds_time_numerical(
+    _ = nlmod.dims.set_ds_time_numeric(
         ds, start=pd.Timestamp("1000-01-01"), time=[10, 20, 30]
     )

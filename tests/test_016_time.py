@@ -179,13 +179,14 @@ def test_time_out_of_bounds():
     with pytest.raises(TypeError):
         nlmod.dims.set_ds_time(ds, start=96500, time="1000-01-01")
 
+
 def test_numerical_time_index():
-    
     ds = nlmod.get_ds([0, 1000, 2000, 3000])
 
     # start str and time floats
-    _ = nlmod.dims.set_ds_time_numerical(ds, start='2000-1-1', time=[10.,20.,30.1])
+    _ = nlmod.dims.set_ds_time_numerical(ds, start="2000-1-1", time=[10.0, 20.0, 30.1])
 
     # start timestamp and time ints
-    _ = nlmod.dims.set_ds_time_numerical(ds, start=pd.Timestamp("1000-01-01"), 
-                                            time=[10,20,30])
+    _ = nlmod.dims.set_ds_time_numerical(
+        ds, start=pd.Timestamp("1000-01-01"), time=[10, 20, 30]
+    )

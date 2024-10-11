@@ -243,61 +243,48 @@ def set_ds_time(
     if isinstance(time, str) or not hasattr(time, "__iter__"):
         time = [time]
 
-    # parse start
-    if isinstance(start, (int, np.integer, float)):
-        if isinstance(time[0], (int, np.integer, float, str)):
-            raise TypeError("Make sure 'start' or 'time' argument is a valid TimeStamp")
-        try:
-            start = time[0] - pd.to_timedelta(start, "D")
-        except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-            msg = f"using cftime time index because of {e}"
-            logger.debug(msg)
-            time = _pd_timestamp_to_cftime(time)
-            start = time[0] - dt.timedelta(days=start)
-    elif isinstance(start, str):
-        start = pd.Timestamp(start)
-    elif isinstance(start, (pd.Timestamp, cftime.datetime)):
-        pass
-    elif isinstance(start, np.datetime64):
-        start = pd.Timestamp(start)
-    else:
-        raise TypeError("Cannot parse start datetime.")
-
-    # parse time make sure 'time' and 'start' are same type (pd.Timestamps or cftime.datetime)
-    if isinstance(time[0], (int, np.integer, float)):
-        if isinstance(start, cftime.datetime):
-            time = [start + dt.timedelta(days=int(td)) for td in time]
+    try:
+        # parse start
+        if isinstance(start, (int, np.integer, float)):
+            if isinstance(time[0], (int, np.integer, float, str)):
+                raise TypeError("Make sure 'start' or 'time' argument is a valid TimeStamp")
+        elif isinstance(start, str):
+            start = pd.Timestamp(start)
+        elif isinstance(start, (pd.Timestamp, cftime.datetime)):
+            pass
+        elif isinstance(start, np.datetime64):
+            start = pd.Timestamp(start)
         else:
-            try:
-                time = start + pd.to_timedelta(time, time_units)
-            except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-                msg = f"using cftime time index because of {e}"
-                logger.debug(msg)
-                start = _pd_timestamp_to_cftime(start)
+            raise TypeError("Cannot parse start datetime.")
+
+        # parse time make sure 'time' and 'start' are same type (pd.Timestamps or cftime.datetime)
+        if isinstance(time[0], (int, np.integer, float)):
+            if isinstance(start, cftime.datetime):
                 time = [start + dt.timedelta(days=int(td)) for td in time]
-    elif isinstance(time[0], str):
-        try:
+            else:
+                time = start + pd.to_timedelta(time, time_units)
+        elif isinstance(time[0], str):
             time = pd.to_datetime(time)
             if isinstance(start, cftime.datetime):
                 time = _pd_timestamp_to_cftime(time)
-        except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-            msg = f"Cannot process time argument combined with out of bound start {start}. Please use any of these types for the time or perlen argument: int, float, pd.Timestamp, np.datetime64, cftime.datetime"
-            raise TypeError(msg) from e
-    elif isinstance(time[0], (pd.Timestamp)):
-        if isinstance(start, cftime.datetime):
-            time = _pd_timestamp_to_cftime(time)
-    elif isinstance(time[0], (np.datetime64, xr.core.variable.Variable)):
-        logger.info(
-            "time arguments with types np.datetime64, xr.core.variable.Variable not tested!"
-        )
-        pass
-    elif isinstance(time[0], cftime.datetime):
-        start = _pd_timestamp_to_cftime(start)
-    else:
-        msg = (
-            f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
-        )
-        raise TypeError(msg)
+        elif isinstance(time[0], (pd.Timestamp)):
+            if isinstance(start, cftime.datetime):
+                time = _pd_timestamp_to_cftime(time)
+        elif isinstance(time[0], (np.datetime64, xr.core.variable.Variable)):
+            logger.info(
+                "time arguments with types np.datetime64, xr.core.variable.Variable not tested!"
+            )
+            pass
+        elif isinstance(time[0], cftime.datetime):
+            start = _pd_timestamp_to_cftime(start)
+        else:
+            msg = (
+                f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
+            )
+            raise TypeError(msg)
+    except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
+        msg = f"cannot convert 'start' and 'time' to pandas datetime, use cftime types for 'start' and 'time'"
+        raise type(e)(msg)
 
     if time[0] <= start:
         msg = (
@@ -319,7 +306,7 @@ def set_ds_time(
     return ds
 
 
-def set_ds_time_numerical(
+def set_ds_time_numeric(
     ds,
     start,
     time=None,
@@ -436,8 +423,8 @@ def set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, 
 
     Returns
     -------
-    _type_
-        _description_
+    ds : xarray.Dataset
+        model dataset with attributes added to the time coordinates
     """
     # add steady, nstp and tsmult to dataset
     if isinstance(steady, bool):
@@ -764,7 +751,7 @@ def ds_time_to_pandas_index(ds, include_start=True):
         pandas datetime index
     """
     if include_start:
-        if ds.time.dtype.kind == "M":
+        if ds.time.dtype.kind == "M": # "M" is a numpy datetime-type
             return ds.time.to_index().insert(0, pd.Timestamp(ds.time.start))
         elif ds.time.dtype.kind == "O":
             start = _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start))

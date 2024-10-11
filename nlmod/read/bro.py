@@ -38,8 +38,8 @@ def add_modelled_head(oc, ml=None, ds=None, method="linear"):
 
     # this function requires a flopy model object, see
     # https://github.com/ArtesiaWater/hydropandas/issues/146
-    if ds.time.dtype.kind != 'M':
-        raise TypeError('add modelled head requires a datetime64[ns] time index')
+    if ds.time.dtype.kind != "M":
+        raise TypeError("add modelled head requires a datetime64[ns] time index")
 
     oc_modflow = hpd.read_modflow(oc, ml, heads.values, ds.time.values, method=method)
 

@@ -57,8 +57,8 @@ def get_recharge(ds, method="linear", most_common_station=False):
                 "Please run nlmod.time.set_ds_time()"
             )
         )
-    if ds.time.dtype.kind != 'M':
-        raise TypeError('get recharge requires a datetime64[ns] time index')
+    if ds.time.dtype.kind != "M":
+        raise TypeError("get recharge requires a datetime64[ns] time index")
 
     start = pd.Timestamp(ds.time.attrs["start"])
     end = pd.Timestamp(ds.time.data[-1])

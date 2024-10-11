@@ -106,7 +106,8 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
         if len(ds["time"]) > 1:
             perlen.extend(np.diff(ds["time"]) / deltat)
     elif ds.time.dtype.kind in ["i", "f"]:
-        perlen = ds["time"].values
+        perlen = [ds['time'][0]]
+        perlen.extent(np.diff(ds["time"].values))
 
     nstp = util._get_value_from_ds_datavar(ds, "nstp", nstp, return_da=False)
 

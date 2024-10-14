@@ -293,19 +293,25 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
     return ds
 
 
-def modelgrid_to_ds(mg):
+def modelgrid_to_ds(mg=None, grbfile=None):
     """Create Dataset from flopy modelgrid object.
 
     Parameters
     ----------
     mg : flopy.discretization.Grid
         flopy modelgrid object
+    grbfile : str
+        path to a binary grid file
 
     Returns
     -------
     ds : xarray.Dataset
         Dataset containing grid information
     """
+    if mg is None and grbfile is not None:
+        mg = flopy.utils.MfGrdFile(grbfile).modelgrid
+    elif mg is None and grbfile is None:
+        raise ValueError("Either 'mg' or 'grbfile' should be specified!")
     if mg.grid_type == "structured":
         x, y = mg.xyedges
         from .base import _get_structured_grid_ds

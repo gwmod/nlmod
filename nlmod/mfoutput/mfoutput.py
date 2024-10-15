@@ -71,12 +71,18 @@ def _get_time_index(fobj, ds=None, gwf_or_gwt=None):
             time_units=gwf_or_gwt.modeltime.time_units,
         )
     elif ds is not None:
+        if "time" in ds:
+            dtype = "float" if ds.time.dtype.kind in ["i", "f"] else "datetime"
+        else:
+            dtype = "float"
         tindex = ds_time_idx(
             fobj.get_times(),
             start_datetime=(ds.time.attrs["start"] if "time" in ds else None),
             time_units=(ds.time.attrs["time_units"] if "time" in ds else None),
-            dtype="float" if ds.time.dtype.kind in ["i", "f"] else "datetime",
+            dtype=dtype,
         )
+    else:
+        raise ValueError("Provide either ds or gwf_or_gwt")
     return tindex
 
 

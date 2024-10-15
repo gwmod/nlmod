@@ -498,7 +498,10 @@ def map_array(
         except KeyError:
             nper = -1  # no dim time
         if nper >= 1:
-            t = pd.Timestamp(da["time"].isel(time=iper).item())
+            if da['time'].dtype.kind == 'M':
+                t = pd.Timestamp(da["time"].isel(time=iper).item())
+            else:
+                t = da["time"].isel(time=iper).item()
             da = da.isel(time=iper)
         elif nper < 0:
             iper = None
@@ -704,7 +707,10 @@ def animate_map(
     ax.set_title(axtitle.replace("(t=", "(tstart="))
 
     # add updating title
-    t = pd.Timestamp(da.time.values[0])
+    if da.time.dtype.kind == 'M':
+        t = pd.Timestamp(da.time.values[0])
+    else:
+        t = da.time.values[0]
     title = title_inside(
         f"t = {t.strftime(date_fmt)}",
         ax,
@@ -722,7 +728,10 @@ def animate_map(
         pc.set_array(da_i.values.ravel())
 
         # update title
-        t = pd.Timestamp(da.time.values[iper])
+        if da.time.dtype.kind == 'M':
+            t = pd.Timestamp(da.time.values[iper])
+        else:
+            t = da.time.values[iper]
         title.set_text(f"Layer {ilay}, t = {t.strftime(date_fmt)}")
 
         return pc, title

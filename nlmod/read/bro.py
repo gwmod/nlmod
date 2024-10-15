@@ -95,12 +95,15 @@ def add_modelled_head(oc, ml=None, ds=None, method="linear"):
     return oc_compare
 
 
-@cache.cache_pickle
 def get_bro(
     extent,
     regis_layers=None,
     max_screen_top=None,
     min_screen_bot=None,
+    max_dx=10000,
+    max_dy=10000,
+    only_metadata=False,
+    cachedir=None,
 ):
     """Get bro groundwater measurements within an extent.
 
@@ -116,13 +119,23 @@ def get_bro(
     min_screen_bot : int or float, optional
         get only measurements with a screen bottom higher than this, by default
         None.
+    max_dx : int, optional
+        maximum distance in y direction that can be downloaded at once, by
+        default 20000 meters (20 km)
+    max_dy : int, optional
+        maximum distance in x direction that can be downloaded at once, by
+        default 20000 meters (20 km)
+    only_metadata : bool, optional
+        if True an ObsCollection with only metadata is returned. The default is False.
+    cachedir : str, optional
+        path to cache the bro observation collections
 
     Returns
     -------
     ObsCollection
         obsevations
     """
-    oc_meta = get_bro_metadata(extent)
+    oc_meta = _get_bro_metadata(extent, max_dx=max_dx, max_dy=max_dy, cachedir=cachedir)
     oc_meta = oc_meta.loc[~oc_meta["gld_ids"].isna()]
     if oc_meta.empty:
         logger.warning("none of the observation wells have measurements")
@@ -156,6 +169,9 @@ def get_bro(
             )
             return oc_meta
 
+    if only_metadata:
+        return oc_meta
+
     # download measurements
     new_obs_list = []
     for gld_ids in oc_meta["gld_ids"]:
@@ -165,11 +181,12 @@ def get_bro(
                 new_obs_list.append(new_o)
     oc = hpd.ObsCollection.from_list(new_obs_list)
 
+    oc = _get_bro_measurement(oc_meta, cachedir=cachedir, cachename="bro.pklz")
+
     return oc
 
 
-@cache.cache_pickle
-def get_bro_metadata(extent, max_dx=10000, max_dy=10000):
+def _get_bro_metadata(extent, max_dx=10000, max_dy=10000, cachedir=None):
     """Wrapper around hpd.read_bro that deals with large extents and only returns
     metadata (location, tube top/bot, ground level, ..) of the wells and no actual
     measurements. This is useful when the extent is too big to obtain all measurements
@@ -217,14 +234,17 @@ def get_bro_metadata(extent, max_dx=10000, max_dy=10000):
                 xmax = min(extent[1], extent[0] + (tx + 1) * max_dx)
                 ymin = extent[2] + ty * max_dy
                 ymax = min(extent[3], extent[2] + (ty + 1) * max_dx)
+
                 logger.debug(
                     f"reading bro within extent {xmin}, {xmax}, {ymin}, {ymax}"
                 )
-                oc = hpd.read_bro(
-                    (xmin, xmax, ymin, ymax),
-                    only_metadata=True,
-                    name="BRO",
-                    ignore_max_obs=True,
+                oc = _get_bro_metadata_oc(
+                    xmin,
+                    xmax,
+                    ymin,
+                    ymax,
+                    cachedir=cachedir,
+                    cachename=f"bro_{xmin}_{xmax}_{ymin}_{ymax}.pklz",
                 )
                 d[f"{tx}_{ty}"] = oc
 
@@ -244,5 +264,57 @@ def get_bro_metadata(extent, max_dx=10000, max_dy=10000):
 
     if oc.empty:
         logger.warning("no observation wells within extent")
+
+    return oc
+
+
+@cache.cache_pickle
+def _get_bro_metadata_oc(xmin, xmax, ymin, ymax):
+    """get observation collection with only metadata in extent.
+
+    Parameters
+    ----------
+    xmin : int, float
+        lower x  bound, RD coordinate
+    xmax : int, float
+        upper x  bound, RD coordinate
+    ymin : int, float
+        lower y  bound, RD coordinate
+    ymax : int, float
+        upper y  bound, RD coordinate
+
+    Returns
+    -------
+    ObsCollection
+        BRO metadata within extent
+    """
+    oc = hpd.read_bro(
+        (xmin, xmax, ymin, ymax), only_metadata=True, name="BRO", ignore_max_obs=True
+    )
+
+    return oc
+
+
+@cache.cache_pickle
+def _get_bro_measurement(oc_meta):
+    """add measurements to BRO ObsCollection with only metadata.
+
+    Parameters
+    ----------
+    oc_meta : ObsCollection
+        collection with only metadata and a column 'gld_ids'
+
+    Returns
+    -------
+    ObsCollection
+        collection with measurements
+    """
+
+    obs_list = []
+    for _, row in oc_meta.iterrows():
+        o = hpd.GroundwaterObs.from_bro(row["monitoring_well"], tube_nr=row["tube_nr"])
+        if not o.empty:
+            obs_list.append(o)
+    oc = hpd.ObsCollection.from_list(obs_list)
 
     return oc

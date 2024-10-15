@@ -120,9 +120,10 @@ potential solutions.
 
 On top of that there are some optional dependecies:
 
-- geocube (used in add_min_ahn_to_gdf)
+- geocube (used in nlmod.util.zonal_statistics)
+- rasterstats  (used in nlmod.util.zonal_statistics)
 - h5netcdf (used for the hdf5 backend of xarray)
-- scikit-image (used in calculate_sea_coverage)
+- scikit-image (used in nlmod.read.rws.calculate_sea_coverage)
 
 These dependencies are only needed (and imported) in a single method or function.
 They can be installed using ``pip install nlmod[full]`` or ``pip install -e .[full]``.

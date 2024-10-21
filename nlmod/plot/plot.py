@@ -46,7 +46,7 @@ def modelgrid(ds, ax=None, **kwargs):
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
         ax.set_aspect("auto")
-    modelgrid = modelgrid_from_ds(ds)
+    modelgrid = modelgrid_from_ds(ds, rotated=kwargs.get("rotated", False))
     extent = None if ax.get_autoscale_on() else ax.axis()
     modelgrid.plot(ax=ax, **kwargs)
     if extent is not None:

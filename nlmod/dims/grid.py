@@ -309,7 +309,7 @@ def modelgrid_to_ds(mg=None, grbfile=None):
         Dataset containing grid information
     """
     if mg is None and grbfile is not None:
-        mg = flopy.utils.MfGrdFile(grbfile).modelgrid
+        mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
     elif mg is None and grbfile is None:
         raise ValueError("Either 'mg' or 'grbfile' should be specified!")
     if mg.grid_type == "structured":

@@ -70,10 +70,14 @@ def add_background_map(ax, crs=EPSG_28992, map_provider="nlmaps.standaard", **kw
     """
     import contextily as ctx
 
-    if isinstance(crs, (str, int)):
+    if isinstance(crs, str):
         import pyproj
 
-        proj = pyproj.Proj(crs)
+        proj = pyproj.CRS.from_string(crs)
+    elif isinstance(crs, int):
+        import pyproj
+
+        proj = pyproj.CRS.from_epsg(crs)
 
     providers = _list_contextily_providers()
     ctx.add_basemap(ax, source=providers[map_provider], crs=proj.srs, **kwargs)

@@ -1863,6 +1863,8 @@ def get_isosurface_1d(da, z, value):
 def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwargs):
     """Linear interpolation to compute the elevation of an isosurface.
 
+    Currently only supports linear interpolation.
+
     Parameters
     ----------
     da : xr.DataArray
@@ -1873,13 +1875,17 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         value at which to compute the elevations of the isosurface
     input_core_dims : list of lists, optional
         list of core dimensions for each input, if not provided assumes core dimensions
-        are any dimensions that are not x, y. Example input_core_dims for datasets
-        da ("time", "layer", "y", "x") and z ("layer", "y", "x"), and value (float)
-        would be: `input_core_dims=[["time", "layer"], ["layer"], []]`.
+        are any dimensions that are not x, y or icell2d. Example input_core_dims for
+        structured datasets da ("time", "layer", "y", "x") and z ("layer", "y", "x"),
+        and value (float) would be:
+        `input_core_dims=[["layer"], ["layer"], []]`.
     exclude_dims : set, optional
-        list of dimensions to exclude in result. The default is None, which
-        assumes any dimensions in da that are not in z will be excluded. In the example
-        above this would result in `exclude_dims={"time"}`.
+        set of dimensions that can change shape in computation. The default is None,
+        which assumes the layer dimension is allowed to change. In the example
+        above this would mean `exclude_dims={"layer"}`. This will result in the
+        an isosurface for each time step.
+    kwargs : dict
+        additional arguments passed to xarray.apply_ufunc
 
     Returns
     -------
@@ -1887,18 +1893,18 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         2D/3D DataArray with elevations of the isosurface
     """
     if input_core_dims is None:
-        dims_da = set(da.dims) - {"x", "y"}
-        dims_z = set(z.dims) - {"x", "y"}
+        dims_da = set(da.dims) - {"time", "x", "y", "icell2d"}
+        dims_z = set(z.dims) - {"x", "y", "icell2d"}
         input_core_dims = [list(dims_da), list(dims_z), []]
     if exclude_dims is None:
-        exclude_dims = dims_da - dims_z
+        exclude_dims = {"layer"}
 
     return xr.apply_ufunc(
         get_isosurface_1d,
         da,
         z,
         value,
-        vectorize=True,
+        vectorize=True,  # loop over time dimension
         input_core_dims=input_core_dims,
         exclude_dims=exclude_dims,
         dask="forbidden",

@@ -132,6 +132,14 @@ def test_gwt_model():
     # calculate concentration at groundwater surface
     nlmod.gwt.get_concentration_at_gw_surface(c)
 
+    # test isosurface: first elevation where 10_000 mg/l is reached
+    z = xr.DataArray(
+        gwf.modelgrid.zcellcenters,
+        coords={"layer": c.layer, "y": c.y, "x": c.x},
+        dims=("layer", "y", "x"),
+    )
+    nlmod.layers.get_isosurface(c, z, 10_000.0)
+
     # Convert calculated heads to equivalent freshwater heads, and vice versa
     hf = nlmod.gwt.output.freshwater_head(ds, h, c)
     hp = nlmod.gwt.output.pointwater_head(ds, hf, c)

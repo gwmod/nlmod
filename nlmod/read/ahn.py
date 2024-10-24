@@ -16,7 +16,7 @@ from rasterio import merge
 from rasterio.io import MemoryFile
 from tqdm import tqdm
 
-from .. import cache
+from .. import cache, NLMOD_DATADIR
 from ..dims.grid import get_extent
 from ..dims.resample import structured_da_to_ds
 from ..util import get_ds_empty, extent_to_polygon
@@ -324,6 +324,25 @@ def _get_tiles_ellipsis(
     return gdf
 
 
+def _get_tiles_from_file(
+    fname,
+    extent=None,
+    crs=28992,
+):
+    if crs != 28992:
+        raise ValueError('Only crs 28992 is supported')
+
+    gdf = gpd.read_file(fname)
+    
+    # remove small digits becuase of crs-transformation
+    gdf = gdf.set_index("AHN")
+
+    if extent is not None:
+        gdf = gdf.loc[gdf.intersection(extent_to_polygon(extent)).area > 0]
+
+    return gdf
+
+
 def _round_coordinates(geom, ndigits=2):
 
     def _round_coords(x, y, z=None):
@@ -573,7 +592,12 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     xr.DataArray
         DataArray of the AHN
     """
-    tiles = _get_tiles_ellipsis(extent=extent, **kwargs)
+    try:
+        tiles = _get_tiles_ellipsis(extent=extent, **kwargs)
+    except HTTPError as e:
+        fname = os.path.join(NLMOD_DATADIR, "shapes", "EllipsisDrive_index_fancy.geojson")
+        logger.warning(f"Could not download ahn tiles: {e}, use tiles from file {fname}")
+        tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
     if identifier not in tiles.columns:
         raise (ValueError(f"Unknown ahn-identifier: {identifier}"))
     tiles = tiles[~tiles[identifier].isna()]

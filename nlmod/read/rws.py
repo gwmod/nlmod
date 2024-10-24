@@ -6,9 +6,7 @@ import geopandas as gpd
 import numpy as np
 import xarray as xr
 
-import nlmod
-
-from .. import cache, dims, util
+from .. import cache, dims, util, NLMOD_DATADIR
 from . import jarkus
 
 logger = logging.getLogger(__name__)
@@ -29,7 +27,7 @@ def get_gdf_surface_water(ds):
         surface water geodataframe.
     """
     # laad bestanden in
-    fname = os.path.join(nlmod.NLMOD_DATADIR, "shapes", "opp_water.shp")
+    fname = os.path.join(NLMOD_DATADIR, "shapes", "opp_water.shp")
     gdf_swater = gpd.read_file(fname)
     extent = dims.get_extent(ds)
     gdf_swater = util.gdf_within_extent(gdf_swater, extent)
@@ -251,7 +249,7 @@ def calculate_sea_coverage(
     else:
         sea_dtm = sea_dtm.astype(float)
     if ds is not None:
-        sea = nlmod.resample.structured_da_to_ds(
+        sea = dims.structured_da_to_ds(
             sea_dtm, ds, method=method, nodata=nodata
         )
         if (sea == nodata).any():

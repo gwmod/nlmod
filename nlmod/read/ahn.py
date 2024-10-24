@@ -330,10 +330,10 @@ def _get_tiles_from_file(
     crs=28992,
 ):
     if crs != 28992:
-        raise ValueError('Only crs 28992 is supported')
+        raise ValueError("Only crs 28992 is supported")
 
     gdf = gpd.read_file(fname)
-    
+
     # remove small digits becuase of crs-transformation
     gdf = gdf.set_index("AHN")
 
@@ -344,7 +344,6 @@ def _get_tiles_from_file(
 
 
 def _round_coordinates(geom, ndigits=2):
-
     def _round_coords(x, y, z=None):
         x = round(x, ndigits)
         y = round(y, ndigits)
@@ -595,8 +594,12 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     try:
         tiles = _get_tiles_ellipsis(extent=extent, **kwargs)
     except HTTPError as e:
-        fname = os.path.join(NLMOD_DATADIR, "shapes", "EllipsisDrive_index_fancy.geojson")
-        logger.warning(f"Could not download ahn tiles: {e}, use tiles from file {fname}")
+        fname = os.path.join(
+            NLMOD_DATADIR, "shapes", "EllipsisDrive_index_fancy.geojson"
+        )
+        logger.warning(
+            f"Could not download ahn tiles: {e}, use tiles from file {fname}"
+        )
         tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
     if identifier not in tiles.columns:
         raise (ValueError(f"Unknown ahn-identifier: {identifier}"))

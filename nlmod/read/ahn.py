@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import os
 import requests
 from requests.exceptions import HTTPError
 

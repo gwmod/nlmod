@@ -247,7 +247,9 @@ def set_ds_time(
         # parse start
         if isinstance(start, (int, np.integer, float)):
             if isinstance(time[0], (int, np.integer, float, str)):
-                raise TypeError("Make sure 'start' or 'time' argument is a valid TimeStamp")
+                raise TypeError(
+                    "Make sure 'start' or 'time' argument is a valid TimeStamp"
+                )
             start = time[0] - pd.to_timedelta(start, "D")
         elif isinstance(start, str):
             start = pd.Timestamp(start)
@@ -278,13 +280,14 @@ def set_ds_time(
         elif isinstance(time[0], cftime.datetime):
             start = _pd_timestamp_to_cftime(start)
         else:
-            msg = (
-                f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
-            )
+            msg = f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
             raise TypeError(msg)
     except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
-        msg = "cannot convert 'start' and 'time' to pandas datetime, use cftime types for 'start' and 'time'"
-        raise type(e)(msg)
+        msg = (
+            "cannot convert 'start' and 'time' to pandas datetime, use cftime "
+            "types for 'start' and 'time'"
+        )
+        raise type(e)(msg) from e
 
     if time[0] <= start:
         msg = (
@@ -735,13 +738,13 @@ def dataframe_to_flopy_timeseries(
     )
 
 
-def ds_time_to_pandas_index(ds, include_start=True):
+def ds_time_to_pandas_index(da_or_ds, include_start=True):
     """Convert xarray time index to pandas datetime index.
 
     Parameters
     ----------
-    ds : xarray.Dataset
-        dataset with time index
+    da_or_ds : xarray.Dataset or xarray.DataArray
+        dataset with time index or time data array
     include_start : bool, optional
         include the start time in the index, by default True
 
@@ -750,13 +753,22 @@ def ds_time_to_pandas_index(ds, include_start=True):
     pd.DatetimeIndex
         pandas datetime index
     """
-    if include_start:
-        if ds.time.dtype.kind == "M": # "M" is a numpy datetime-type
-            return ds.time.to_index().insert(0, pd.Timestamp(ds.time.start))
-        elif ds.time.dtype.kind == "O":
-            start = _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start))
-            return ds.time.to_index().insert(0, start)
-        elif ds.time.dtype.kind in ["i", "f"]:
-            return ds.time.to_index().insert(0, 0)
+    if isinstance(da_or_ds, xr.Dataset):
+        da = da_or_ds["time"]
+    elif isinstance(da_or_ds, xr.DataArray):
+        da = da_or_ds
     else:
-        return ds.time.to_index()
+        raise ValueError(
+            "Either pass model dataset or time dataarray (e.g. `ds.time`)."
+        )
+
+    if include_start:
+        if da.dtype.kind == "M":  # "M" is a numpy datetime-type
+            return da.to_index().insert(0, pd.Timestamp(da.start))
+        elif da.dtype.kind == "O":
+            start = _pd_timestamp_to_cftime(pd.Timestamp(da.start))
+            return da.to_index().insert(0, start)
+        elif da.dtype.kind in ["i", "f"]:
+            return da.to_index().insert(0, 0)
+    else:
+        return da.to_index()

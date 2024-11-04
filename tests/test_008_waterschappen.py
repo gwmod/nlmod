@@ -1,5 +1,7 @@
 import matplotlib
 import pytest
+import requests
+from lxml import html
 
 import nlmod
 
@@ -11,9 +13,25 @@ def test_get_config():
     nlmod.read.waterboard.get_configuration()
 
 
+def bgt_bronhoudername(bgt):
+    assert "bronhouder_name" in bgt.columns
+
+    url = "https://www.kadaster.nl/-/bgt-bronhoudercodes"
+    response = requests.get(url, timeout=10)
+    tree = html.fromstring(response.content)
+    years = [
+        x.rsplit("-", 1)[-1] for x in tree.xpath("//a/@href") if "bronhoudercodes" in x
+    ]
+    assert (
+        max(years) == "2024"
+    ), "Bronhoudercodes are not up to date. Update `nlmod.read.bgt.get_bronhouder_names()`."
+
+
 def test_bgt_waterboards():
     extent = [116500, 120000, 439000, 442000]
     bgt = nlmod.read.bgt.get_bgt(extent)
+    bgt_bronhoudername(bgt)
+
     la = nlmod.gwf.surface_water.download_level_areas(
         bgt, extent=extent, raise_exceptions=False
     )

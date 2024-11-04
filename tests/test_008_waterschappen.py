@@ -2,6 +2,7 @@ import matplotlib
 import pytest
 import requests
 from lxml import html
+from pandas import to_datetime
 
 import nlmod
 
@@ -19,11 +20,16 @@ def bgt_bronhoudername(bgt):
     url = "https://www.kadaster.nl/-/bgt-bronhoudercodes"
     response = requests.get(url, timeout=10)
     tree = html.fromstring(response.content)
-    years = [
-        x.rsplit("-", 1)[-1] for x in tree.xpath("//a/@href") if "bronhoudercodes" in x
-    ]
+    dates = to_datetime(
+        [
+            "-".join(x.rsplit("-", 3)[-3:])
+            for x in tree.xpath("//a/@href")
+            if "bronhoudercodes" in x
+        ],
+        format="%d-%m-%Y",
+    )
     assert (
-        max(years) == "2024"
+        max(dates) == to_datetime("2024-01-01")
     ), "Bronhoudercodes are not up to date. Update `nlmod.read.bgt.get_bronhouder_names()`."
 
 

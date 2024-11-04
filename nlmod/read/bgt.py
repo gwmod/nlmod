@@ -343,7 +343,7 @@ def get_bronhouder_names() -> Dict[str, str]:
         are made, please add them manually to the bgt_bronhouder_names
         dictionary. A test is added for to check if the dictionary is up to
         date with the latest file from the Kadaster up to date with the .ods
-        file from 2024.
+        file from 2024-01-01.
     """
     bgt_bronhouder_names = {
         "G0003": "Appingedam",

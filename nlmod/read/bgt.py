@@ -334,6 +334,16 @@ def get_bronhouder_names() -> Dict[str, str]:
     -------
     dict
         A dictionary with the bronhouder codes as keys and the names as values.
+
+    Notes
+    -----
+        The bronhouder names are retrieved from
+        https://www.kadaster.nl/-/bgt-bronhoudercodes. The `Toelichting` sheet
+        in the .ods file gives the changes compared to the old file. If changes
+        are made, please add them manually to the bgt_bronhouder_names
+        dictionary. A test is added for to check if the dictionary is up to
+        date with the latest file from the Kadaster up to date with the .ods
+        file from 2024.
     """
     bgt_bronhouder_names = {
         "G0003": "Appingedam",

@@ -30,13 +30,14 @@ def get_bgt(
     extent : list or tuple of length 4 or shapely Polygon
         The extent (xmin, xmax, ymin, ymax) or polygon for which shapes are
         requested.
-    layer : string, optional
-        The layer for which shapes are requested. The default is "waterdeel".
+    layer : string or list of strings, optional
+        The layer(s) for which shapes are requested. When layer is "all", all layers are
+        requested. The default is "waterdeel".
     cut_by_extent : bool, optional
         Only return the intersection with the extent if True. The default is
         True
     make_valid : bool, optional
-        Make geometries valid by appying a buffer of 0 m when True. THe defaults is
+        Make geometries valid by appying a buffer of 0 m when True. The default is
         False.
     fname : string, optional
         Save the zipfile that is received by the request to file. The default

@@ -124,7 +124,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
     return tdis_perioddata
 
 
-def sim(ds, exe_name=None, version_tag=None):
+def sim(ds, exe_name=None, version_tag=None, **kwargs):
     """Create sim from the model dataset.
 
     Parameters
@@ -171,6 +171,7 @@ def sim(ds, exe_name=None, version_tag=None):
         exe_name=exe_name,
         version=ds.mfversion,
         sim_ws=ds.model_ws,
+        **kwargs,
     )
 
     return sim

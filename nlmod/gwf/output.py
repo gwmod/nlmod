@@ -5,9 +5,8 @@ import flopy
 import numpy as np
 import pandas as pd
 import xarray as xr
-from shapely.geometry import Point
 
-from ..dims.grid import get_affine_world_to_mod, modelgrid_from_ds
+from ..dims.grid import get_icell2d_from_xy
 from ..mfoutput.mfoutput import (
     _get_budget_da,
     _get_flopy_data_object,
@@ -389,9 +388,7 @@ def get_flow_lower_face(
     return da
 
 
-def get_head_at_point(
-    head, x, y, ds=None, gi=None, drop_nan_layers=True, rotated=False
-):
+def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True, rotated=True):
     """Get the head at a certain point from a head DataArray for all cells.
 
     Parameters
@@ -404,8 +401,8 @@ def get_head_at_point(
     y : float
         The y-coordinate of the requested head.
     ds : xarray.Dataset, optional
-        Xarray dataset with model data. Only used when a Vertex grid is used, and gi is
-        not supplied. The default is None.
+        Xarray dataset with model data. Only used when a Vertex grid is used. The
+        default is None.
     gi : flopy.utils.GridIntersect, optional
         A GridIntersect class, to determine the cell at point x,y. Only used when a
         Vertex grid is used, and it is determined from ds when None. The default is
@@ -414,29 +411,19 @@ def get_head_at_point(
         Drop layers that are NaN at all timesteps. The default is True.
     rotated : bool, optional
         If the model grid has a rotation, and rotated is False, x and y are in model
-        coordinates. Otherwise x and y are in real world coordinates. The defaults is
-        False.
+        coordinates. Otherwise x and y are in real world coordinates. The default is
+        True.
 
     Returns
     -------
     head_point : xarray.DataArray
         A DataArray with dimensions (time, layer).
     """
-    if rotated and "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
-        # calculate model coordinates from the specified real-world coordinates
-        x, y = get_affine_world_to_mod(ds) * (x, y)
-
     if "icell2d" in head.dims:
-        if gi is None:
-            if ds is None:
-                raise (
-                    ValueError(
-                        "Please supply either gi (GridIntersect) or ds for a vertex grid"
-                    )
-                )
-            gi = flopy.utils.GridIntersect(modelgrid_from_ds(ds), method="vertex")
-        icelld2 = gi.intersect(Point(x, y))["cellids"][0]
-        head_point = head[:, :, icelld2]
+        if ds is None:
+            raise (ValueError("Please supply ds for a vertex grid"))
+        icell2d = get_icell2d_from_xy(x, y, ds=ds, gi=gi, rotated=rotated)
+        head_point = head.sel(icell2d=icell2d)
     else:
         head_point = head.interp(x=x, y=y, method="nearest")
     if drop_nan_layers:

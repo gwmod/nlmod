@@ -107,6 +107,18 @@ def xy_to_icell2d(xy, ds):
     return icell2d
 
 
+def get_icell2d_from_xy(x, y, ds, gi=None, rotated=True):
+    if gi is None:
+        gi = flopy.utils.GridIntersect(
+            modelgrid_from_ds(ds, rotated=rotated), method="vertex"
+        )
+    cellids = gi.intersects(Point(x, y))["cellids"]
+    if len(cellids) < 1:
+        raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
+    icell2d = cellids[0]
+    return icell2d
+
+
 def xy_to_row_col(xy, ds):
     """Get the row and column values of a point defined by its x and y coordinates.
 

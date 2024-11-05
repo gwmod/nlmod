@@ -92,7 +92,9 @@ def get_map(
     crs=EPSG_28992,
     background=False,
     alpha=0.5,
-    tight_layout=True,
+    tight_layout=False,
+    layout="constrained",
+    xh=0.0,
 ):
     """Generate a motplotlib Figure with a map with the axis set to extent.
 
@@ -137,12 +139,14 @@ def get_map(
         the ax or axes (when ncols/nrows > 1).
     """
     if isinstance(figsize, (float, int)):
-        xh = 0.0
-        if base is None:
-            xh = 0.0
         figsize = get_figsize(extent, nrows=nrows, ncols=ncols, figw=figsize, xh=xh)
     f, axes = plt.subplots(
-        figsize=figsize, nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey
+        figsize=figsize,
+        nrows=nrows,
+        ncols=ncols,
+        sharex=sharex,
+        sharey=sharey,
+        layout=layout,
     )
     if isinstance(background, bool) and background is True:
         background = "nlmaps.standaard"

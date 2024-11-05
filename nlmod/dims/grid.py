@@ -2160,7 +2160,11 @@ def get_area(ds):
         model dataset with an area variable
     """
     if ds.gridtype == "structured":
-        ds["area"] = ("y", "x"), np.outer(get_delc(ds), get_delr(ds))
+        area = xr.DataArray(
+            np.outer(get_delc(ds), get_delr(ds)),
+            dims=("y", "x"),
+            coords={"y": ds["y"], "x": ds["x"]},
+        )
     elif ds.gridtype == "vertex":
         area = np.zeros(ds["icell2d"].size)
         for icell2d in ds["icell2d"]:
@@ -2168,7 +2172,11 @@ def get_area(ds):
                 ds["xv"][ds["icvert"].isel(icell2d=icell2d)],
                 ds["yv"][ds["icvert"].isel(icell2d=icell2d)],
             )
-        ds["area"] = ("icell2d",), area
+        area = xr.DataArray(
+            area,
+            dims=("icell2d"),
+            coords={"icell2d": ds["icell2d"]},
+        )
     else:
         raise ValueError("function only support structured or vertex gridtypes")
-    return ds
+    return area

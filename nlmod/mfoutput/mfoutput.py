@@ -240,6 +240,7 @@ def _get_budget_da(
         fobj=cbcobj,
         text=text,
         column=column,
+        **kwargs,
     )
 
     # create data array

@@ -1,12 +1,12 @@
-import cftime
 import datetime as dt
 import logging
 import warnings
 
+import cftime
 import numpy as np
 import pandas as pd
-from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime, OutOfBoundsTimedelta
 import xarray as xr
+from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime, OutOfBoundsTimedelta
 from xarray import IndexVariable
 
 from .attributes_encodings import dim_attrs
@@ -155,7 +155,7 @@ def set_ds_time_deprecated(
 
 
 def _pd_timestamp_to_cftime(time_pd):
-    """convert a pandas timestamp into a cftime stamp
+    """Convert a pandas timestamp into a cftime stamp
 
     Parameters
     ----------
@@ -166,7 +166,6 @@ def _pd_timestamp_to_cftime(time_pd):
     -------
     cftime.datetime or list of cftime.datetime
     """
-
     if hasattr(time_pd, "__iter__"):
         return [_pd_timestamp_to_cftime(tpd) for tpd in time_pd]
     else:
@@ -358,7 +357,6 @@ def set_ds_time_numeric(
     ds : xarray.Dataset
         model dataset with added time coordinate
     """
-
     if time is None and perlen is None:
         raise (ValueError("Please specify either time or perlen in set_ds_time"))
     elif perlen is not None:
@@ -396,7 +394,7 @@ def set_ds_time_numeric(
 
 
 def set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, tsmult):
-    """add data variables: steady, nstp and tsmult, set attributes: start, time_units
+    """Add data variables: steady, nstp and tsmult, set attributes: start, time_units
 
     Parameters
     ----------
@@ -770,5 +768,7 @@ def ds_time_to_pandas_index(da_or_ds, include_start=True):
             return da.to_index().insert(0, start)
         elif da.dtype.kind in ["i", "f"]:
             return da.to_index().insert(0, 0)
+        else:
+            raise TypeError("Unknown time dtype")
     else:
         return da.to_index()

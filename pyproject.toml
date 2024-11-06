@@ -89,6 +89,7 @@ include-package-data = true
 "nlmod.data" = ["*.gleg"]
 "nlmod.data.geotop" = ["*"]
 "nlmod.data.shapes" = ["*"]
+"nlmod.data.ahn" = ["*"]
 "nlmod.bin" = ["mp7_2_002_provisional"]
 
 [tool.black]

@@ -575,6 +575,15 @@ def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
+def _update_ellipsis_tiles_in_data():
+    tiles = _get_tiles_ellipsis()
+    pathname = os.path.join(NLMOD_DATADIR, "ahn")
+    if not os.path.isdir(pathname):
+        os.makedirs(pathname)
+    fname = os.path.join(pathname, "ellipsis_tiles.geojson")
+    tiles.to_file(fname)
+
+
 @cache.cache_netcdf()
 def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     """Download AHN5.
@@ -592,16 +601,9 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     xr.DataArray
         DataArray of the AHN
     """
-    try:
-        tiles = _get_tiles_ellipsis(extent=extent, **kwargs)
-    except HTTPError as e:
-        fname = os.path.join(
-            NLMOD_DATADIR, "shapes", "EllipsisDrive_index_fancy.geojson"
-        )
-        logger.warning(
-            f"Could not download ahn tiles: {e}, use tiles from file {fname}"
-        )
-        tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
+    fname = os.path.join(NLMOD_DATADIR, "ahn", "ellipsis_tiles.geojson")
+    tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
+
     if identifier not in tiles.columns:
         raise (ValueError(f"Unknown ahn-identifier: {identifier}"))
     tiles = tiles[~tiles[identifier].isna()]

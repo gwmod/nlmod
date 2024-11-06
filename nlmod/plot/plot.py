@@ -437,7 +437,7 @@ def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=False, extent=N
             fmt = "{:.1f}"
         else:
             fmt = "{:.0f}"
-        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False, fmt=fmt)
+        f, ax = get_map(extent, base=base, figsize=figsize, fmt=fmt)
         ax.set_aspect("equal", adjustable="box")
     return f, ax
 
@@ -498,7 +498,7 @@ def map_array(
         except KeyError:
             nper = -1  # no dim time
         if nper >= 1:
-            if da['time'].dtype.kind == 'M':
+            if da["time"].dtype.kind == "M":
                 t = pd.Timestamp(da["time"].isel(time=iper).item())
             else:
                 t = da["time"].isel(time=iper).item()
@@ -553,8 +553,6 @@ def map_array(
         title += f" (t={t.strftime(date_fmt)})"
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
-
-    f.tight_layout()
 
     # colorbar
     divider = make_axes_locatable(ax)
@@ -707,7 +705,7 @@ def animate_map(
     ax.set_title(axtitle.replace("(t=", "(tstart="))
 
     # add updating title
-    if da.time.dtype.kind == 'M':
+    if da.time.dtype.kind == "M":
         t = pd.Timestamp(da.time.values[0])
     else:
         t = da.time.values[0]
@@ -728,7 +726,7 @@ def animate_map(
         pc.set_array(da_i.values.ravel())
 
         # update title
-        if da.time.dtype.kind == 'M':
+        if da.time.dtype.kind == "M":
             t = pd.Timestamp(da.time.values[iper])
         else:
             t = da.time.values[iper]

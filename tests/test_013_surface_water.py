@@ -46,18 +46,17 @@ def test_gdf_lake():
     # add lake with outlet and evaporation
     gdf_lake = gpd.GeoDataFrame(
         {
-            "name": ["0", "0", "1"],
-            "lakeno": [0, 0, 1],
+            "name": ["lake_0", "lake_0", "lake_1"],
             "strt": [1.0, 1.0, 2.0],
             "clake": [10.0, 10.0, 10.0],
             "EVAPORATION": ["evap", "evap", "evap"],
-            "lakeout": [1, 1, None],
+            "lakeout": ["lake_1", "lake_1", None],
             "outlet_invert": ["use_elevation", "use_elevation", None],
         },
         index=[14, 15, 16],
     )
 
-    nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name", recharge=False)
+    nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name")
 
     # remove lake package
     gwf.remove_package("LAK_0")
@@ -66,14 +65,13 @@ def test_gdf_lake():
     ds["inflow"] = (("time",), [100.0])
     gdf_lake = gpd.GeoDataFrame(
         {
-            "name": ["0", "0", "1"],
-            "lakeno": [0, 0, 1],
+            "name": ["lake_0", "lake_0", "lake_1"],
             "strt": [1.0, 1.0, 2.0],
             "clake": [10.0, 10.0, 10.0],
             "INFLOW": ["inflow", "inflow", None],
             "lakeout": [
-                1,
-                1,
+                "lake_1",
+                "lake_1",
                 -1,
             ],  # lake 0 overflows in lake 1, the outlet from lake 1 is removed from the model
             "outlet_invert": [0, 0, None],
@@ -81,4 +79,4 @@ def test_gdf_lake():
         index=[14, 15, 16],
     )
 
-    nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name", recharge=False)
+    nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name")

@@ -186,18 +186,13 @@ def lake_from_gdf(
 
         # add outlets to lake
         if use_outlets and (not lake_gdf["lakeout"].isna().all()):
-            lakeout = lake_gdf["lakeout"].iloc[0]
-            if not (lake_gdf["lakeout"] == lakeout).all():
-                raise ValueError(
-                    f'expected single value for lakeout and lake number {lakeno}, got {lake_gdf["lakeout"]}'
-                )
-
+            lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
             if isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname
                 # we need to find the lakeno that belongs to this boundname
                 boundnameout = lakeout
                 if boundname_column not in gdf.columns:
-                    raise ValueError(
+                    raise KeyError(
                         f"Make sure column {boundname_column} is present in gdf"
                     )
                 mask = gdf[boundname_column] == boundnameout
@@ -252,14 +247,10 @@ def lake_from_gdf(
 
             # add other time variant settings to lake
             for lake_setting in lake_settings:
-                datavar = lake_gdf[lake_setting].iloc[0]
-                if not pd.notna(datavar):  # None or nan
+                datavar = _get_and_check_single_value(lake_gdf, lake_setting)
+                if pd.isna(datavar):  # None or nan
                     logger.debug(f"no {lake_setting} given for lake no {lakeno}")
                     continue
-                if not (lake_gdf[lake_setting] == datavar).all():
-                    raise ValueError(
-                        f"expected single data variable for {lake_setting} and lake number {lakeno}, got {lake_gdf[lake_setting]}"
-                    )
                 perioddata[iper].append(
                     [lakeno, lake_setting, ds[datavar].values[iper]]
                 )
@@ -335,6 +326,8 @@ def lake_from_gdf(
 
 def _get_and_check_single_value(lake_gdf, column):
     value = lake_gdf[column].iloc[0]
+    if lake_gdf[column].isna().all():
+        return value
     if not (lake_gdf[column] == value).all():
         raise (AssertionError(f"A single lake should have a single {column}"))
     return value
@@ -356,7 +349,7 @@ def _parse_laksetting_value(value, ds, key, iper):
 
 def add_lakeno_to_gdf(gdf, boundname_column):
     if boundname_column not in gdf.columns:
-        raise (Exception(f"Cannot find column {boundname_column} in gdf"))
+        raise (KeyError(f"Cannot find column {boundname_column} in gdf"))
     names = gdf[boundname_column].unique()
     gdf["lakeno"] = None
     for lakeno, name in enumerate(names):

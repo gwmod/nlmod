@@ -374,11 +374,13 @@ def _cut_da_from_ds(gdf, ds, variable, boundname_column=None):
         if "time" in ds[variable].dims:
             da_cells = ds[variable].loc[:, cellids].copy()
             ds[variable][:, cellids] = 0.0
+            # calculate thea area-weighted mean
+            df[column] = (da_cells * area).sum("icell2d") / area.sum()
         else:
             da_cells = ds[variable].loc[cellids].copy()
             ds[variable][cellids] = 0.0
-        # calculate thea area-weighted mean
-        df[column] = (da_cells * area).sum("icell2d") / area.sum()
+            # calculate thea area-weighted mean
+            df[column] = float((da_cells * area).sum("icell2d") / area.sum())
     return df
 
 

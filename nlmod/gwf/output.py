@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from ..dims.grid import get_icell2d_from_xy
+from ..dims.grid import get_row_col_from_xy, get_icell2d_from_xy
 from ..mfoutput.mfoutput import (
     _get_budget_da,
     _get_flopy_data_object,
@@ -425,7 +425,8 @@ def get_head_at_point(head, x, y, ds=None, gi=None, drop_nan_layers=True, rotate
         icell2d = get_icell2d_from_xy(x, y, ds=ds, gi=gi, rotated=rotated)
         head_point = head.sel(icell2d=icell2d)
     else:
-        head_point = head.interp(x=x, y=y, method="nearest")
+        row, col = get_row_col_from_xy(x, y, ds=ds, rotated=rotated)
+        head_point = head.sel(x=ds.x[col], y=ds.y[row])
     if drop_nan_layers:
         # only keep layers that are active at this location
         head_point = head_point[:, ~head_point.isnull().all("time")]

@@ -100,6 +100,10 @@ def xy_to_icell2d(xy, ds):
     icell2d : int
         number of the icell2d value of a cell containing the xy point.
     """
+    logger.warning(
+        "nlmod.grid.xy_to_icell2d is deprecated. "
+        "Use nlmod.grid.get_icell2d_from_xy instead"
+    )
     msg = "xy_to_icell2d can only be applied to a vertex grid"
     assert ds.gridtype == "vertex", msg
     icell2d = (np.abs(ds.x.data - xy[0]) + np.abs(ds.y.data - xy[1])).argmin().item()
@@ -108,6 +112,37 @@ def xy_to_icell2d(xy, ds):
 
 
 def get_icell2d_from_xy(x, y, ds, gi=None, rotated=True):
+    """Get the icell2d value of a point defined by its x and y coordinates.
+
+    Parameters
+    ----------
+    x : float
+        The x-coordinate of the point.
+    y : float
+        The y-coordinate of the point.
+    ds : xarary dataset
+        The model dataset.
+    gi : flopy.utils.GridIntersect, optional
+        Can be supplied to speed up the calculation, as the generation of the
+        GridIntersect-instance can take some time. The default is None.
+    rotated : bool, optional
+        If the model grid has a rotation, and rotated is False, x and y are in model
+        coordinates. Otherwise x and y are in real world coordinates. The default is
+        True.
+
+    Raises
+    ------
+
+        Raises a ValueError if the point is outside of the model grid.
+
+    Returns
+    -------
+    icell2d : int
+        The icell2d-number of the model cell containing the point (zero-based)
+
+    """
+    msg = "get_icell2d_from_xy can only be applied to a vertex grid"
+    assert ds.gridtype == "vertex", msg
     if gi is None:
         gi = flopy.utils.GridIntersect(
             modelgrid_from_ds(ds, rotated=rotated), method="vertex"
@@ -136,10 +171,68 @@ def xy_to_row_col(xy, ds):
     col : int
         number of the column value of a cell containing the xy point.
     """
+
+    logger.warning(
+        "nlmod.grid.xy_to_row_col is deprecated. "
+        "Use nlmod.grid.get_row_col_from_xy instead"
+    )
     msg = "xy_to_row_col can only be applied to a structured grid"
     assert ds.gridtype == "structured", msg
     row = np.abs(ds.y.data - xy[1]).argmin()
     col = np.abs(ds.x.data - xy[0]).argmin()
+    return row, col
+
+
+def get_row_col_from_xy(x, y, ds, rotated=True, gi=None):
+    """Get the row and column of a point defined by a x and y coordinate.
+
+    Parameters
+    ----------
+    x : float
+        The x-coordinate of the point.
+    y : float
+        The y-coordinate of the point.
+    ds : xarary dataset
+        The model dataset.
+    rotated : bool, optional
+        If the model grid has a rotation, and rotated is False, x and y are in model
+        coordinates. Otherwise x and y are in real world coordinates. The default is
+        True.
+    gi : flopy.utils.GridIntersect, optional
+        Can be supplied to use a GridIntersect-class instead of our own calculation
+
+    Raises
+    ------
+
+        Raises a ValueError if the point is outside of the model grid.
+
+    Returns
+    -------
+    row : int
+        The row-number of the model cell containing the point (zero-based)
+    col : int
+        The column-number of the model cell containing the point (zero-based)
+    """
+    msg = "get_row_col_from_xy can only be applied to a structured grid"
+    assert ds.gridtype == "structured", msg
+    if gi is not None:
+        cellids = gi.intersects(Point(x, y))["cellids"]
+        if len(cellids) < 1:
+            raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
+        row, col = cellids[0]
+        return row, col
+    if rotated and ("angrot" in ds.attrs) and (ds.attrs["angrot"] != 0.0):
+        # calculate the x and y in model coordinates
+        affine = get_affine_world_to_mod(ds)
+        x, y = affine * (x, y)
+    if x < ds.extent[0] or x > ds.extent[1] or y < ds.extent[2] or y > ds.extent[3]:
+        raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
+
+    y_bot = ds.y - get_delc(ds) / 2
+    row = np.where(y >= y_bot)[0][0]
+
+    x_left = ds.x - get_delr(ds) / 2
+    col = np.where(x >= x_left)[0][-1]
     return row, col
 
 
@@ -766,7 +859,7 @@ def col_to_list(col_in, ds, cellids):
     Parameters
     ----------
     col_in : xarray.DatArray, str, int or float
-        if col_in is a str type it is the name of the column in ds (if it exists).
+        if col_in is a str type it is the name of the variable in ds (if it exists).
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
     ds : xarray.Dataset

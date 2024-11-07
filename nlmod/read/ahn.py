@@ -616,14 +616,15 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
             path = url.split("/")[-1].replace(".zip", ".TIF")
             if path.lower().endswith(".tif.tif"):
                 path = path[:-4]
-            da = rioxarray.open_rasterio(
-                rasterio.open(f"zip+{url}!/{path}"), mask_and_scale=True
-            )[0]
+            da = rioxarray.open_rasterio(f"zip+{url}!/{path}", mask_and_scale=True)
         else:
-            da = rioxarray.open_rasterio(url, mask_and_scale=True)[0]
+            da = rioxarray.open_rasterio(url, mask_and_scale=True)
         da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)
-    return merge_arrays(das)
+    da = merge_arrays(das)
+    if da.dims[0] == "band":
+        da = da[0].drop_vars("band")
+    return da
 
 
 def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):

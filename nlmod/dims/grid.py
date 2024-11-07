@@ -414,7 +414,7 @@ def modelgrid_to_ds(mg=None, grbfile=None):
         Dataset containing grid information
     """
     if mg is None and grbfile is not None:
-        mg = flopy.utils.MfGrdFile(grbfile).modelgrid
+        mg = flopy.mf6.utils.MfGrdFile(grbfile).modelgrid
     elif mg is None and grbfile is None:
         raise ValueError("Either 'mg' or 'grbfile' should be specified!")
     if mg.grid_type == "structured":
@@ -2229,3 +2229,59 @@ def get_affine(ds, sx=None, sy=None):
         xoff = attrs["extent"][0]
         yoff = attrs["extent"][3]
         return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)
+
+
+def _shoelace_formula(x, y):
+    """Calculate the area of a polygon using the shoelace formula.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-coordinates of the polygon.
+    y : np.ndarray
+        y-coordinates of the polygon.
+
+    Returns
+    -------
+    area : float
+        area of the polygon.
+    """
+    x = x - np.min(x)
+    y = y - np.min(y)
+    return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
+
+def get_area(ds):
+    """Calculate the area of each cell in the model grid.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset.
+
+    Returns
+    -------
+    ds : xr.Dataset
+        model dataset with an area variable
+    """
+    if ds.gridtype == "structured":
+        area = xr.DataArray(
+            np.outer(get_delc(ds), get_delr(ds)),
+            dims=("y", "x"),
+            coords={"y": ds["y"], "x": ds["x"]},
+        )
+    elif ds.gridtype == "vertex":
+        area = np.zeros(ds["icell2d"].size)
+        for icell2d in ds["icell2d"]:
+            area[icell2d] = _shoelace_formula(
+                ds["xv"][ds["icvert"].isel(icell2d=icell2d)],
+                ds["yv"][ds["icvert"].isel(icell2d=icell2d)],
+            )
+        area = xr.DataArray(
+            area,
+            dims=("icell2d"),
+            coords={"icell2d": ds["icell2d"]},
+        )
+    else:
+        raise ValueError("function only support structured or vertex gridtypes")
+    return area

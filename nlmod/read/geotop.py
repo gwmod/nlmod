@@ -451,12 +451,12 @@ def add_kh_and_kv(
         strat_un = np.unique(strat[~np.isnan(strat)])
         kh_ar = np.full(strat.shape, 0.0)
         kv_ar = np.full(strat.shape, 0.0)
-        probality_total = np.full(strat.shape, 0.0)
+        probability_total = np.full(strat.shape, 0.0)
         for ilithok in df["lithok"].unique():
             if ilithok == 0:
                 # there are no probabilities defined for lithoclass 'antropogeen'
                 continue
-            probality = gt[f"kans_{ilithok}"].values
+            probability = gt[f"kans_{ilithok}"].values
             if "strat" in df:
                 khi, kvi = _handle_nans_in_stochastic_approach(
                     np.nan, np.nan, kh_method, kv_method
@@ -464,14 +464,14 @@ def add_kh_and_kv(
                 khi = np.full(strat.shape, khi)
                 kvi = np.full(strat.shape, kvi)
                 for istrat in strat_un:
-                    mask = (strat == istrat) & (probality > 0)
+                    mask = (strat == istrat) & (probability > 0)
                     if not mask.any():
                         continue
                     kh_sel, kv_sel = _get_kh_kv_from_df(
                         df, ilithok, istrat, anisotropy=anisotropy, mask=mask
                     )
                     if np.isnan(kh_sel):
-                        probality[mask] = 0.0
+                        probability[mask] = 0.0
                     kh_sel, kv_sel = _handle_nans_in_stochastic_approach(
                         kh_sel, kv_sel, kh_method, kv_method
                     )
@@ -479,27 +479,27 @@ def add_kh_and_kv(
             else:
                 khi, kvi = _get_kh_kv_from_df(df, ilithok, anisotropy=anisotropy)
                 if np.isnan(khi):
-                    probality[:] = 0.0
+                    probability[:] = 0.0
                 khi, kvi = _handle_nans_in_stochastic_approach(
                     khi, kvi, kh_method, kv_method
                 )
             if kh_method == "arithmetic_mean":
-                kh_ar = kh_ar + probality * khi
+                kh_ar = kh_ar + probability * khi
             else:
-                kh_ar = kh_ar + (probality / khi)
+                kh_ar = kh_ar + (probability / khi)
             if kv_method == "arithmetic_mean":
-                kv_ar = kv_ar + probality * kvi
+                kv_ar = kv_ar + probability * kvi
             else:
-                kv_ar = kv_ar + (probality / kvi)
-            probality_total += probality
+                kv_ar = kv_ar + (probability / kvi)
+            probability_total += probability
         if kh_method == "arithmetic_mean":
-            kh_ar = kh_ar / probality_total
+            kh_ar = kh_ar / probability_total
         else:
-            kh_ar = probality_total / kh_ar
+            kh_ar = probability_total / kh_ar
         if kv_method == "arithmetic_mean":
-            kv_ar = kv_ar / probality_total
+            kv_ar = kv_ar / probability_total
         else:
-            kv_ar = probality_total / kv_ar
+            kv_ar = probability_total / kv_ar
     else:
         raise (ValueError(f"Unsupported value for stochastic: '{stochastic}'"))
 

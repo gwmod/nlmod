@@ -59,7 +59,6 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kw
     if extent is None and ds is not None:
         extent = get_extent(ds)
     ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
-    ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
     if ds is None:
         ahn_da = ahn_ds_raw

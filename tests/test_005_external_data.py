@@ -98,6 +98,7 @@ def test_check_ahn_files_up_to_date():
     except:
         msg = "Cannot download ahn tiles. Will skip test to see if tiles are up to date"
         logging.warning(msg)
+        return
     fname = os.path.join(nlmod.NLMOD_DATADIR, "ahn", "ellipsis_tiles.geojson")
     tiles_old = nlmod.read.ahn._get_tiles_from_file(fname)
     assert tiles_old.shape == tiles_new.shape

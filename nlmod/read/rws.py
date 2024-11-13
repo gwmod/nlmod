@@ -1,13 +1,17 @@
 import datetime as dt
 import logging
 import os
+from typing import Optional, Union
 
 import geopandas as gpd
 import numpy as np
 import xarray as xr
+from rioxarray.merge import merge_arrays
+from tqdm.auto import tqdm
 
-from .. import cache, dims, util, NLMOD_DATADIR
-from . import jarkus
+from nlmod import NLMOD_DATADIR, cache, dims, util
+from nlmod.read import jarkus
+from nlmod.read.webservices import arcrest
 
 logger = logging.getLogger(__name__)
 
@@ -249,9 +253,7 @@ def calculate_sea_coverage(
     else:
         sea_dtm = sea_dtm.astype(float)
     if ds is not None:
-        sea = dims.structured_da_to_ds(
-            sea_dtm, ds, method=method, nodata=nodata
-        )
+        sea = dims.structured_da_to_ds(sea_dtm, ds, method=method, nodata=nodata)
         if (sea == nodata).any():
             logger.info(
                 "The dtm data does not cover the entire model domain."
@@ -260,3 +262,128 @@ def calculate_sea_coverage(
             sea = sea.where(sea != nodata, 1)
         return sea
     return sea_dtm
+
+
+def get_gdr_configuration() -> dict:
+    """Get configuration for GDR data.
+
+    Note: Currently only includes configuration for bathymetry data. Other datasets
+    can be added in the future. See
+    https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/ for available data.
+
+    Returns
+    -------
+    config : dict
+        configuration dictionary containing urls and layer numbers for GDR data.
+    """
+    config = {}
+    config["bodemhoogte"] = {
+        "index": {
+            "url": (
+                "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/"
+                "bodemhoogte_index/FeatureServer"
+            )
+        },
+        "20m": {"layer": 0},
+        "1m": {"layer": 2},
+    }
+    return config
+
+
+def get_bathymetry_gdf(
+    resolution: str = "1m",
+    extent: Optional[list[float]] = None,
+) -> gpd.GeoDataFrame:
+    """Get bathymetry dataframe from RWS.
+
+    Parameters
+    ----------
+    resolution : str, optional
+        resolution of the bathymetry data, "1m" or "20m". The default is "1m".
+    extent : tuple, optional
+        extent of the model domain. The default is None.
+    """
+    config = get_gdr_configuration()
+    url = config["bodemhoogte"]["index"]["url"]
+    layer = config["bodemhoogte"][resolution]["layer"]
+    return arcrest(url, layer, extent=extent)
+
+
+@cache.cache_netcdf()
+def get_bathymetry(
+    extent: list[float],
+    resolution: str = "1m",
+    res: Optional[float] = None,
+    method: Optional[str] = None,
+    chunks: Optional[Union[str, dict[str, int]]] = "default",
+) -> xr.DataArray:
+    """Get bathymetry data from RWS.
+
+    Bathymetry is available at 20m resolution and at 1m resolution. The 20m
+    resolution is available for large water bodies, but not in the rivers. The
+    1m dataset covers the whole Netherlands.
+
+    Parameters
+    ----------
+    extent : tuple
+        extent of the model domain
+    resolution : str, optional
+        resolution of the bathymetry data, "1m" or "20m". The default is "1m".
+    res : float, optional
+        resolution of the output data array. The default is None, which uses
+        resolution of the input datasets. Resampling method is provided by the method
+        kwarg.
+    method : str, optional
+        resampling method. The default is None. See rasterio.enums.Resampling for
+        supported methods. Examples are ["min", "max", "mean", "nearest"].
+    chunks : dict, optional
+        chunks for the output data array. The default is "default", which uses
+        {"x": 10_000, "y": 10_000}. Set to None to avoid chunking.
+
+    Returns
+    -------
+    bathymetry : xr.DataArray
+        bathymetry data
+    """
+    gdf = get_bathymetry_gdf(resolution=resolution, extent=extent)
+
+    xmin, xmax, ymin, ymax = extent
+    dataarrays = []
+
+    if chunks == "default":
+        chunks = {"x": 10_000, "y": 10_000}
+
+    for _, row in tqdm(
+        gdf.iterrows(), desc="Downloading bathymetry", total=gdf.index.size
+    ):
+        url = row["geotiff"]
+        # NOTE: link to 20m dataset is incorrect in the index
+        if resolution == "20m":
+            url = url.replace("Noordzee_20_LAT", "bodemhoogte_20mtr")
+        ds = xr.open_dataset(url, engine="rasterio")
+        ds = ds.assign_coords({"y": ds["y"].round(0), "x": ds["x"].round(0)})
+        da = (
+            ds["band_data"]
+            .sel(band=1, x=slice(xmin, xmax), y=slice(ymax, ymin))
+            .drop_vars("band")
+        )
+        if chunks:
+            da = da.chunk(chunks)
+        dataarrays.append(da)
+
+    if len(dataarrays) > 1:
+        da = merge_arrays(
+            dataarrays,
+            bounds=[xmin, ymin, xmax, ymax],
+            res=res,
+            method=method,
+        )
+    else:
+        da = dataarrays[0]
+        if res is not None:
+            da = da.rio.reproject(
+                da.rio.crs,
+                res=res,
+                resampling=method,
+            )
+    return da

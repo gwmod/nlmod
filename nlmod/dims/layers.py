@@ -121,10 +121,11 @@ def calculate_transmissivity(
     return T
 
 
-def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="botm"):
-    """Calculate vertical resistance (c) between model layers from the vertical
-    conductivity (kv) and the thickness. The resistance between two layers is assigned
-    to the top layer. The bottom model layer gets a resistance of infinity.
+def calculate_resistance(
+    ds, kv="kv", thickness="thickness", top="top", botm="botm", between_layers=False
+):
+    """Calculate vertical resistance (c) of model layers from the vertical conductivity
+    (kv) and the thickness.
 
     Parameters
     ----------
@@ -142,6 +143,12 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
     botm : str, optional
         name of data variable containing bottoms, only used to calculate thickness if not
         available in dataset. By default "botm"
+    between_layers : bool, optional
+        If True, calculate the resistance between the layers, which MODFLOW uses to
+        calculate the flow. The resistance between two layers is then assigned to the
+        top layer, and the bottom model layer gets a resistance of infinity.
+        If False, calculate the resistance of the layers themselves. The defauls is
+        False.
 
     Returns
     -------
@@ -152,26 +159,28 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
         thickness = ds[thickness]
     else:
         thickness = calculate_thickness(ds, top=top, bot=botm)
+    if between_layers:
+        # nan where layer does not exist (thickness is 0)
+        thickness_nan = xr.where(thickness == 0, np.nan, thickness)
+        kv_nan = xr.where(thickness == 0, np.nan, ds[kv])
 
-    # nan where layer does not exist (thickness is 0)
-    thickness_nan = xr.where(thickness == 0, np.nan, thickness)
-    kv_nan = xr.where(thickness == 0, np.nan, ds[kv])
+        # backfill thickness and kv to get the right value for the layer below
+        thickness_bfill = thickness_nan.bfill(dim="layer")
+        kv_bfill = kv_nan.bfill(dim="layer")
 
-    # backfill thickness and kv to get the right value for the layer below
-    thickness_bfill = thickness_nan.bfill(dim="layer")
-    kv_bfill = kv_nan.bfill(dim="layer")
-
-    # calculate resistance
-    c = xr.zeros_like(thickness)
-    for ilay in range(ds.sizes["layer"] - 1):
-        ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
-            layer=ds.layer[ilay]
-        )
-        cbot = (thickness_bfill.sel(layer=ds.layer[ilay + 1]) * 0.5) / kv_bfill.sel(
-            layer=ds.layer[ilay + 1]
-        )
-        c[ilay] = ctop + cbot
-    c[ilay + 1] = np.inf
+        # calculate resistance
+        c = xr.zeros_like(thickness)
+        for ilay in range(ds.sizes["layer"] - 1):
+            ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
+                layer=ds.layer[ilay]
+            )
+            cbot = (thickness_bfill.sel(layer=ds.layer[ilay + 1]) * 0.5) / kv_bfill.sel(
+                layer=ds.layer[ilay + 1]
+            )
+            c[ilay] = ctop + cbot
+        c[ilay + 1] = np.inf
+    else:
+        c = thickness / ds[kv]
 
     if hasattr(c, "long_name"):
         c.attrs["long_name"] = "resistance"

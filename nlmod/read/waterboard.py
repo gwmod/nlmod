@@ -9,8 +9,13 @@ logger = logging.getLogger(__name__)
 
 def get_polygons(**kwargs):
     """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame."""
-    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Waterschapsgrenzen/FeatureServer"
+    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/ArcGIS/rest/services/Waterschapsgrenzen/FeatureServer"
     layer = 0
+    # NOTE: Referer needed to avoid Unauthorized Access error (500)
+    if "headers" not in kwargs:
+        kwargs["headers"] = {
+            "Referer": "https://services.arcgis.com/nSZVuSZjHpEZZbRo/ArcGIS/rest/services"
+        }
     ws = webservices.arcrest(url, layer, **kwargs)
     # remove different prefixes
     ws["waterschap"] = ws["waterschap"].str.replace("HH van ", "")

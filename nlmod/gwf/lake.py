@@ -387,7 +387,7 @@ def _clip_da_from_ds(gdf, ds, variable, boundname_column=None):
 def clip_meteorological_data_from_ds(gdf, ds, boundname_column=None):
     """
     Clip meteorlogical data from the model dataset, and return rainfall and evaporation
-    This method retreives the values of rainfall and evaporation from a model Dataset.
+    This method retrieves the values of rainfall and evaporation from a model Dataset.
     It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
     returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
     each of the lakes. THe columns of this DataFrame are either the boundnames (when

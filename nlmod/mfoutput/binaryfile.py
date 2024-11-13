@@ -48,15 +48,15 @@ def _get_binary_head_data(kstpkper, fobj):
     return arr
 
 
-def __create3D(data, fobj, column="q"):
+def __create3D(data, fobj, column="q", node="node"):
     """Adapted from CellBudgetFile.__create3D.
 
     See flopy.utils.binaryfile.CellBudgetFile.__create3D.
     """
     out = np.ma.zeros(fobj.nnodes, dtype=np.float32)
     out.mask = True
-    for [node, q] in zip(data["node"], data[column]):
-        idx = node - 1
+    for n, q in zip(data[node], data[column]):
+        idx = n - 1
         out.data[idx] += q
         out.mask[idx] = False
     return np.ma.reshape(out, fobj.shape)
@@ -105,7 +105,7 @@ def _select_data_indices_budget(fobj, text, kstpkper):
     return select_indices
 
 
-def _get_binary_budget_data(kstpkper, fobj, text, column="q"):
+def _get_binary_budget_data(kstpkper, fobj, text, column="q", node="node"):
     """Get budget data from binary CellBudgetFile.
 
     Code copied from flopy.utils.binaryfile.CellBudgetFile and adapted to
@@ -145,7 +145,7 @@ def _get_binary_budget_data(kstpkper, fobj, text, column="q"):
 
     data = []
     for ipos in fobj.iposarray[idx]:
-        data.append(_get_binary_budget_record(fobj, ipos, header, column))
+        data.append(_get_binary_budget_record(fobj, ipos, header, column, node))
 
     if len(data) == 1:
         return data[0]
@@ -153,7 +153,7 @@ def _get_binary_budget_data(kstpkper, fobj, text, column="q"):
         return np.ma.sum(data, axis=0)
 
 
-def _get_binary_budget_record(fobj, ipos, header, column):
+def _get_binary_budget_record(fobj, ipos, header, column, node):
     """Get a single data record from the budget file."""
     imeth = header["imeth"][0]
     nlay = abs(header["nlay"][0])
@@ -218,14 +218,14 @@ def _get_binary_budget_record(fobj, ipos, header, column):
             naux = nauxp1 - 1
             dtype_list = [("node", np.int32), ("node2", np.int32), ("q", fobj.realtype)]
             for _ in range(naux):
-                auxname = binaryread(f, str, charlen=16)
+                auxname = binaryread(f, bytes, charlen=16)
                 if not isinstance(auxname, str):
                     auxname = auxname.decode()
                 dtype_list.append((auxname.strip(), fobj.realtype))
             dtype = np.dtype(dtype_list)
             nlist = binaryread(f, np.int32)[0]
             data = binaryread(f, dtype, shape=(nlist,))
-            data = __create3D(data, fobj, column=column)
+            data = __create3D(data, fobj, column=column, node=node)
             if fobj.modelgrid is not None:
                 return np.reshape(data, fobj.shape)
             else:

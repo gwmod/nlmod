@@ -42,11 +42,11 @@ def surface_water(model_ds, ax=None, **kwargs):
     return ax
 
 
-def modelgrid(ds, ax=None, **kwargs):
+def modelgrid(ds, ax=None, rotated=False, **kwargs):
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
         ax.set_aspect("auto")
-    modelgrid = modelgrid_from_ds(ds, rotated=kwargs.get("rotated", False))
+    modelgrid = modelgrid_from_ds(ds, rotated=rotated)
     extent = None if ax.get_autoscale_on() else ax.axis()
     modelgrid.plot(ax=ax, **kwargs)
     if extent is not None:
@@ -437,7 +437,9 @@ def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=False, extent=N
             fmt = "{:.1f}"
         else:
             fmt = "{:.0f}"
-        f, ax = get_map(extent, base=base, figsize=figsize, tight_layout=False, fmt=fmt)
+        f, ax = get_map(
+            extent, base=base, figsize=figsize, tight_layout=False, layout=None, fmt=fmt
+        )
         ax.set_aspect("equal", adjustable="box")
     return f, ax
 
@@ -498,7 +500,7 @@ def map_array(
         except KeyError:
             nper = -1  # no dim time
         if nper >= 1:
-            if da['time'].dtype.kind == 'M':
+            if da["time"].dtype.kind == "M":
                 t = pd.Timestamp(da["time"].isel(time=iper).item())
             else:
                 t = da["time"].isel(time=iper).item()
@@ -540,7 +542,7 @@ def map_array(
     if plot_grid:
         if ds is None:
             raise ValueError("Plotting modelgrid requires model Dataset!")
-        modelgrid(ds, ax=ax, lw=0.25, alpha=0.5, color="k")
+        modelgrid(ds, ax=ax, lw=0.25, alpha=0.5, color="k", rotated=rotated)
 
     # set extent
     if extent is not None:
@@ -554,8 +556,6 @@ def map_array(
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
 
-    f.tight_layout()
-
     # colorbar
     divider = make_axes_locatable(ax)
     if colorbar:
@@ -564,6 +564,8 @@ def map_array(
         if levels is not None:
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
+
+    f.tight_layout()
 
     if animate:
         return f, ax, pc
@@ -707,7 +709,7 @@ def animate_map(
     ax.set_title(axtitle.replace("(t=", "(tstart="))
 
     # add updating title
-    if da.time.dtype.kind == 'M':
+    if da.time.dtype.kind == "M":
         t = pd.Timestamp(da.time.values[0])
     else:
         t = da.time.values[0]
@@ -728,7 +730,7 @@ def animate_map(
         pc.set_array(da_i.values.ravel())
 
         # update title
-        if da.time.dtype.kind == 'M':
+        if da.time.dtype.kind == "M":
             t = pd.Timestamp(da.time.values[iper])
         else:
             t = da.time.values[iper]

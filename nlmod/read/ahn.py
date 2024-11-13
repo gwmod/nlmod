@@ -59,7 +59,6 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kw
     if extent is None and ds is not None:
         extent = get_extent(ds)
     ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
-    ahn_ds_raw = ahn_ds_raw.drop_vars("band")
 
     if ds is None:
         ahn_da = ahn_ds_raw
@@ -575,6 +574,15 @@ def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
+def _update_ellipsis_tiles_in_data():
+    tiles = _get_tiles_ellipsis()
+    pathname = os.path.join(NLMOD_DATADIR, "ahn")
+    if not os.path.isdir(pathname):
+        os.makedirs(pathname)
+    fname = os.path.join(pathname, "ellipsis_tiles.geojson")
+    tiles.to_file(fname)
+
+
 @cache.cache_netcdf()
 def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     """Download AHN5.
@@ -592,16 +600,9 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     xr.DataArray
         DataArray of the AHN
     """
-    try:
-        tiles = _get_tiles_ellipsis(extent=extent, **kwargs)
-    except HTTPError as e:
-        fname = os.path.join(
-            NLMOD_DATADIR, "shapes", "EllipsisDrive_index_fancy.geojson"
-        )
-        logger.warning(
-            f"Could not download ahn tiles: {e}, use tiles from file {fname}"
-        )
-        tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
+    fname = os.path.join(NLMOD_DATADIR, "ahn", "ellipsis_tiles.geojson")
+    tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
+
     if identifier not in tiles.columns:
         raise (ValueError(f"Unknown ahn-identifier: {identifier}"))
     tiles = tiles[~tiles[identifier].isna()]
@@ -614,14 +615,15 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
             path = url.split("/")[-1].replace(".zip", ".TIF")
             if path.lower().endswith(".tif.tif"):
                 path = path[:-4]
-            da = rioxarray.open_rasterio(
-                rasterio.open(f"zip+{url}!/{path}"), mask_and_scale=True
-            )[0]
+            da = rioxarray.open_rasterio(f"zip+{url}!/{path}", mask_and_scale=True)
         else:
-            da = rioxarray.open_rasterio(url, mask_and_scale=True)[0]
+            da = rioxarray.open_rasterio(url, mask_and_scale=True)
         da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)
-    return merge_arrays(das)
+    da = merge_arrays(das)
+    if da.dims[0] == "band":
+        da = da[0].drop_vars("band")
+    return da
 
 
 def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):

@@ -92,7 +92,7 @@ def xy_to_icell2d(xy, ds):
     ----------
     xy : list, tuple
         coordinates of ta point.
-    ds : xarary dataset
+    ds : xr.Dataset
         model dataset.
 
     Returns
@@ -120,7 +120,7 @@ def get_icell2d_from_xy(x, y, ds, gi=None, rotated=True):
         The x-coordinate of the point.
     y : float
         The y-coordinate of the point.
-    ds : xarary dataset
+    ds : xr.Dataset
         The model dataset.
     gi : flopy.utils.GridIntersect, optional
         Can be supplied to speed up the calculation, as the generation of the
@@ -161,7 +161,7 @@ def xy_to_row_col(xy, ds):
     ----------
     xy : list, tuple
         coordinates of ta point.
-    ds : xarary dataset
+    ds : xr.Dataset
         model dataset.
 
     Returns
@@ -192,7 +192,7 @@ def get_row_col_from_xy(x, y, ds, rotated=True, gi=None):
         The x-coordinate of the point.
     y : float
         The y-coordinate of the point.
-    ds : xarary dataset
+    ds : xr.Dataset
         The model dataset.
     rotated : bool, optional
         If the model grid has a rotation, and rotated is False, x and y are in model
@@ -243,7 +243,7 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
     ----------
     xyz : list, tuple
         coordinates of ta point.
-    ds : xarary dataset
+    ds : xr.Dataset
         model dataset.
     modelgrid : StructuredGrid, VertexGrid, optional
         A flopy grid-object
@@ -267,7 +267,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
 
     Parameters
     ----------
-    ds : xarray DataSet
+    ds : xr.Dataset
         model dataset.
 
     Returns
@@ -331,7 +331,7 @@ def get_delr(ds):
 
     Parameters
     ----------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         A model dataset containing an x-coordinate and an attribute 'extent'.
 
     Returns
@@ -353,7 +353,7 @@ def get_delc(ds):
 
     Parameters
     ----------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         A model dataset containing an y-coordinate and an attribute 'extent'.
 
     Returns
@@ -410,7 +410,7 @@ def modelgrid_to_ds(mg=None, grbfile=None):
 
     Returns
     -------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         Dataset containing grid information
     """
     if mg is None and grbfile is not None:
@@ -461,7 +461,7 @@ def modelgrid_to_ds(mg=None, grbfile=None):
 def get_dims_coords_from_modelgrid(mg):
     """Get dimensions and coordinates from modelgrid.
 
-    Used to build new xarray.DataArrays with appropriate dimensions and coordinates.
+    Used to build new xarray DataArrays with appropriate dimensions and coordinates.
 
     Parameters
     ----------
@@ -562,7 +562,7 @@ def refine(
 
     Parameters
     ----------
-    ds : xarray.Datset
+    ds : xr.Dataset
         A structured model Dataset.
     model_ws : str, optional
         The working directory for GridGen. Get from ds when model_ws is None.
@@ -591,7 +591,7 @@ def refine(
 
     Returns
     -------
-    xarray.Dataset
+    xr.Dataset
         A Vertex model Dataset
     """
     assert ds.gridtype == "structured", "Can only refine a structured grid"
@@ -676,14 +676,14 @@ def refine(
 
 
 def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
-    """Resample a dataset (xarray) on an structured grid to a new dataset with a vertex
+    """Resample a xarray dataset of a structured grid to a new dataset with a vertex
     grid.
 
     Returns a dataset with resampled variables and the untouched variables.
 
     Parameters
     ----------
-    ds_in : xarray.Dataset
+    ds_in : xr.Dataset
         dataset with dimensions (layer, y, x). y and x are from the original
         structured grid
     gridprops : dictionary
@@ -696,7 +696,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
 
     Returns
     -------
-    ds_out : xarray.Dataset
+    ds_out : xr.Dataset
         dataset with resampled variables and the untouched variables.
     """
     logger.info("resample model Dataset to vertex modelgrid")
@@ -766,7 +766,7 @@ def get_xyi_icell2d(gridprops=None, ds=None):
     gridprops : dictionary, optional
         dictionary with grid properties output from gridgen. If gridprops is
         None xyi and icell2d will be obtained from ds.
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data. Should have dimension (layer, icell2d).
 
     Returns
@@ -797,10 +797,10 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
 
     Parameters
     ----------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data. Can have dimension (layer, y, x) or
         (layer, icell2d).
-    layer_ds : xarray.Dataset
+    layer_ds : xr.Dataset
         dataset with layer data.
     method : str
         The method used for resampling layer_ds to the grid of ds.
@@ -809,7 +809,7 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
 
     Returns
     -------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         Dataset with variables from layer_ds.
     """
     if not layer_ds.layer.equals(ds.layer):
@@ -858,11 +858,11 @@ def col_to_list(col_in, ds, cellids):
 
     Parameters
     ----------
-    col_in : xarray.DatArray, str, int or float
+    col_in : xr.DataArray, str, int or float
         if col_in is a str type it is the name of the variable in ds (if it exists).
         if col_in is an int or a float it is a value that will be used for all
         cells in cellids.
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data. Can have dimension (layer, y, x) or
         (layer, icell2d).
     cellids : tuple of numpy arrays
@@ -926,7 +926,7 @@ def lrc_to_reclist(
     cellids : tuple of numpy arrays
         tuple with indices of the cells that will be used to create the list
         with values.
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data. Can have dimension (layer, y, x) or
         (layer, icell2d).
     col1 : str, int or float, optional
@@ -1022,7 +1022,7 @@ def lcid_to_reclist(
         with values for a column. There are 2 options:
             1. cellids contains (layers, cids)
             2. cellids contains (cids)
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data. Should have dimensions (layer, icell2d).
     col1 : str, int or float, optional
         1st column of the reclist, if None the reclist will be a list with
@@ -1097,13 +1097,13 @@ def cols_to_reclist(ds, cellids, *args, cellid_column=0):
 
     Parameters
     ----------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data. Should have dimensions (layer, icell2d).
     cellids : tuple of length 2 or 3
         tuple with indices of the cells that will be used to create the list. For a
         structured grid, cellids represents (layer, row, column). For a vertex grid
         cellid reprsents (layer, icell2d).
-    args : xarray.DatArray, str, int or float
+    args : xr.DataArray, str, int or float
         the args parameter represents the data to be used as the columns in the reclist.
         See col_to_list of the allowed values.
     cellid_column : int, optional
@@ -1134,9 +1134,9 @@ def da_to_reclist(
 
     Parameters
     ----------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data and dimensions (layer, icell2d)
-    mask : xarray.DataArray for booleans
+    mask : xr.DataArray for booleans
         True for the cells that will be used in the rec list.
     col1 : str, int or float, optional
         1st column of the reclist, if None the reclist will be a list with
@@ -1244,12 +1244,12 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
         grid.
     polygon : shapely.geometry.polygon.Polygon
         polygon feature.
-    da : xarray.DataArray
+    da : xr.DataArray
         data array that is filled with polygon data
 
     Returns
     -------
-    area_array : xarray.DataArray
+    area_array : xr.DataArray
         area of polygon within each modelgrid cell
     """
     if polygon.geom_type == "Polygon":
@@ -1306,8 +1306,8 @@ def gdf_to_data_array_struc(
 
     Returns
     -------
-    da : xarray DataArray
-        DESCRIPTION.
+    da : xr DataArray
+        The DataArray with the projected vector data.
     """
     warnings.warn(
         "The method gdf_to_data_array_struc is deprecated. Please use gdf_to_da instead.",
@@ -1358,7 +1358,7 @@ def gdf_to_da(
     ----------
     gdf : geopandas.GeoDataframe
         vector data can only contain a single geometry type.
-    ds : xarray.Dataset
+    ds : xr.Dataset
         model Datset
     column : str
         column name in the geodataframe.
@@ -1379,7 +1379,7 @@ def gdf_to_da(
 
     Returns
     -------
-    da : xarray DataArray
+    da : xr DataArray
         The DataArray with the projected vector data.
     """
     da = util.get_da_from_da_ds(ds, dims=ds.top.dims, data=fill_value)
@@ -1626,8 +1626,8 @@ def gdf_to_bool_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     ----------
     gdf : geopandas.GeoDataFrame or shapely.geometry
         shapes that will be rasterised.
-    ds : xr.DataSet
-        xarray with model data
+    ds : xr.Dataset
+        Dataset with model data.
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds.
     buffer : float, optional
@@ -1653,8 +1653,8 @@ def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kw
     ----------
     gdf : geopandas.GeoDataFrame
         polygon shapes with surface water.
-    ds : xr.DataSet
-        xarray with model data
+    ds : xr.Dataset
+        Dataset with model data.
     da_name : str
         The name of the variable with boolean data in the ds_out
     keep_coords : tuple or None, optional
@@ -1686,8 +1686,8 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     ----------
     gdf : geopandas.GeoDataFrame or shapely.geometry
         shapes that will be rasterised.
-    ds : xr.DataSet
-        xarray with model data
+    ds : xr.Dataset
+        Dataset with model data.
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds.
     buffer : float, optional
@@ -1747,8 +1747,8 @@ def gdf_to_count_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **k
     ----------
     gdf : geopandas.GeoDataFrame
         polygon shapes with surface water.
-    ds : xr.DataSet
-        xarray with model data
+    ds : xr.Dataset
+        Dataset with model data.
     da_name : str
         The name of the variable with boolean data in the ds_out
     keep_coords : tuple or None, optional
@@ -1792,7 +1792,7 @@ def gdf_to_grid(
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame that needs to be cut by the grid. The GeoDataFrame can consist of
         multiple types (Point, LineString, Polygon and the Multi-variants).
-    ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf or xarray.Dataset, optional
+    ml : flopy.modflow.Modflow or flopy.mf6.ModflowGwf or xr.Dataset, optional
         The flopy model or xarray dataset that defines the grid. When a Dataset is
         supplied, and the grid is rotated, the geodataframe is transformed in model
         coordinates. The default is None.
@@ -1913,7 +1913,7 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
 
     Parameters
     ----------
-    ds : xr.DataSet
+    ds : xr.Dataset
         model dataset, attribute grid_type should be 'vertex'
     modelgrid : flopy.discretization.vertexgrid.VertexGrid
         vertex grid with attributes xvertices and yvertices.
@@ -1977,7 +1977,7 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
 
     Parameters
     ----------
-    ds : xr.DataSet
+    ds : xr.Dataset
         model dataset, attribute grid_type should be 'vertex'
     modelgrid : flopy.discretization.vertexgrid.VertexGrid
         vertex grid with attributes xvertices and yvertices.
@@ -1998,7 +1998,7 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
 
     Returns
     -------
-    vertices_da : xarray DataArray
+    vertices_da : xr.DataArray
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
     # obtain
@@ -2026,15 +2026,15 @@ def mask_model_edge(ds, idomain=None):
 
     Parameters
     ----------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         dataset with model data.
-    idomain : xarray.DataArray, optional
+    idomain : xr.DataArray, optional
         idomain used to get active cells and shape of DataArray. Calculate from ds when
         None. The default is None.
 
     Returns
     -------
-    ds_out : xarray.Dataset
+    ds_out : xr.Dataset
         dataset with edge mask array
     """
     ds = ds.copy()  # avoid side effects
@@ -2085,8 +2085,8 @@ def polygons_from_model_ds(model_ds):
 
     Parameters
     ----------
-    model_ds : xr.DataSet
-        xarray with model data
+    model_ds : xr.Dataset
+        Dataset with model data.
 
     Raises
     ------

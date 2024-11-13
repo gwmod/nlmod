@@ -72,7 +72,7 @@ def lake_from_gdf(
             optinal columns are 'couttype', 'outlet_invert', 'outlet_width',
             'outlet_rough' and 'outlet_slope'. These columns should contain a
             unique value for each outlet.
-    ds : xr.DataSet
+    ds : xr.Dataset
         dataset containing relevant model grid and time information
     recharge : bool, optional
         if True recharge will be added to the lake as rainfall and removed from the rch
@@ -358,7 +358,7 @@ def add_lakeno_to_gdf(gdf, boundname_column):
     return gdf
 
 
-def _cut_da_from_ds(gdf, ds, variable, boundname_column=None):
+def _clip_da_from_ds(gdf, ds, variable, boundname_column=None):
     if boundname_column is None:
         columns = gdf["lakeno"].unique()
     else:
@@ -384,16 +384,45 @@ def _cut_da_from_ds(gdf, ds, variable, boundname_column=None):
     return df
 
 
-def cut_meteorological_data_from_ds(gdf, ds, boundname_column=None):
+def clip_meteorological_data_from_ds(gdf, ds, boundname_column=None):
+    """
+    Clip meteorlogical data from the model dataset, and return rainfall and evaporation
+    This method retreives the values of rainfall and evaporation from a model Dataset.
+    It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
+    returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
+    each of the lakes. THe columns of this DataFrame are either the boundnames (when
+    boundname_column is specified) or the lake-number (lakeno).
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataframe
+        geodataframe with the cellids as the index
+    ds : xr.Dataset
+        dataset containing relevant model grid and time information
+    boundname_column : str, optional
+        The name of the column in gdf to use for the boundnames. When boundname_column
+        is None, the lake-number (lakeno) is used to determine which rows in gdf belong
+        to each lake, and the columns of rainfall and evaporation are set by the
+        lake-number. If boundname_column is not None, the boundnames are used instead of
+        the lake-number. The default is None.
+
+    Returns
+    -------
+    rainfall : pd.DataFrame
+        The rainfall of each lake (columns) in time (index).
+    evaporation : pd.DataFrame
+        The evaporation of each lake (columns) in time (index).
+
+    """
     if "evaporation" in ds:
-        rainfall = _cut_da_from_ds(
+        rainfall = _clip_da_from_ds(
             gdf, ds, "recharge", boundname_column=boundname_column
         )
-        evaporation = _cut_da_from_ds(
+        evaporation = _clip_da_from_ds(
             gdf, ds, "evaporation", boundname_column=boundname_column
         )
     else:
-        recharge = _cut_da_from_ds(
+        recharge = _clip_da_from_ds(
             gdf, ds, "recharge", boundname_column=boundname_column
         )
         rainfall = recharge.where(recharge > 0.0, 0.0)

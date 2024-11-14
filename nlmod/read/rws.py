@@ -315,7 +315,7 @@ def get_bathymetry(
     resolution: str = "1m",
     res: Optional[float] = None,
     method: Optional[str] = None,
-    chunks: Optional[Union[str, dict[str, int]]] = "default",
+    chunks: Optional[Union[str, dict[str, int]]] = "auto",
 ) -> xr.DataArray:
     """Get bathymetry data from RWS.
 
@@ -337,8 +337,8 @@ def get_bathymetry(
         resampling method. The default is None. See rasterio.enums.Resampling for
         supported methods. Examples are ["min", "max", "mean", "nearest"].
     chunks : dict, optional
-        chunks for the output data array. The default is "default", which uses
-        {"x": 10_000, "y": 10_000}. Set to None to avoid chunking.
+        chunks for the output data array. The default is "auto", which lets xarray/dask
+        pick the chunksize. Set to None to avoid chunking.
 
     Returns
     -------
@@ -349,9 +349,6 @@ def get_bathymetry(
 
     xmin, xmax, ymin, ymax = extent
     dataarrays = []
-
-    if chunks == "default":
-        chunks = {"x": 10_000, "y": 10_000}
 
     for _, row in tqdm(
         gdf.iterrows(), desc="Downloading bathymetry", total=gdf.index.size

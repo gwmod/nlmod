@@ -1,4 +1,5 @@
 import pytest
+
 import nlmod
 
 
@@ -10,4 +11,3 @@ def test_bathymetry(resolution):
     ymax = ymin + 2 * resolution
     extent = [xmin, xmax, ymin, ymax]
     nlmod.read.rws.get_bathymetry(extent, resolution=f"{resolution}m")
-

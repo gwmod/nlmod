@@ -1,8 +1,10 @@
 import os
-import nlmod
 import tempfile
-import rioxarray
+
 import geopandas as gpd
+import rioxarray
+
+import nlmod
 
 model_ws = os.path.join(tempfile.gettempdir(), "test_util")
 extent = [98000.0, 99000.0, 489000.0, 490000.0]

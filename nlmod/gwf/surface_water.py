@@ -876,7 +876,6 @@ def add_min_ahn_to_gdf(
         A GeoDataFrame with surface water features, with an added column containing the
         minimum surface level height near the features.
     """
-
     gdf = zonal_statistics(
         gdf, ahn, columns=column, buffer=buffer, statistics=statistic, **kwargs
     )

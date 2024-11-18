@@ -1,13 +1,12 @@
-import numpy as np
-import xarray as xr
-import datetime as dt
-import pandas as pd
 
 import cftime
-import nlmod
+import numpy as np
+import pandas as pd
 import pytest
-
+import xarray as xr
 from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime, OutOfBoundsTimedelta
+
+import nlmod
 
 
 def test_estimate_nstp():
@@ -45,7 +44,6 @@ def test_time_options():
     """Attempt to list all the variations of start, time and perlen
     caling the nlmod.dims.set_ds_time functions
     """
-
     ds = nlmod.get_ds([0, 1000, 2000, 3000])
 
     # start_time str and time int
@@ -94,11 +92,10 @@ def test_time_options():
 
 
 def test_time_out_of_bounds():
-    """related to this issue: https://github.com/gwmod/nlmod/issues/374
+    """Related to this issue: https://github.com/gwmod/nlmod/issues/374
 
     pandas timestamps can only do computations with dates between the years 1678 and 2262.
     """
-
     ds = nlmod.get_ds([0, 1000, 2000, 3000])
 
     cftime_ind = xr.date_range("1000-01-02", "9999-01-01", freq="100YS")
@@ -149,7 +146,7 @@ def test_time_out_of_bounds():
     # start numpy datetime and perlen list of int
     with pytest.raises(OutOfBoundsDatetime):
         nlmod.dims.set_ds_time(
-        ds, start=np.datetime64("1000-01-01"), perlen=[10, 100, 24]
+            ds, start=np.datetime64("1000-01-01"), perlen=[10, 100, 24]
         )
 
     # start numpy datetime and time list of timestamps
@@ -168,8 +165,8 @@ def test_time_out_of_bounds():
     # start timestamp and perlen list of int
     with pytest.raises(OutOfBoundsDatetime):
         nlmod.dims.set_ds_time(
-        ds, start=pd.Timestamp("1000-01-01"), perlen=[10, 100, 24]
-    )
+            ds, start=pd.Timestamp("1000-01-01"), perlen=[10, 100, 24]
+        )
 
     # start timestamp and time CFTimeIndex
     _ = nlmod.dims.set_ds_time(ds, start=pd.Timestamp("1000-01-01"), time=cftime_ind)

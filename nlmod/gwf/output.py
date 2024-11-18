@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from ..dims.grid import get_row_col_from_xy, get_icell2d_from_xy
+from ..dims.grid import get_icell2d_from_xy, get_row_col_from_xy
 from ..mfoutput.mfoutput import (
     _get_budget_da,
     _get_flopy_data_object,

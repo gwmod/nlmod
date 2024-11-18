@@ -1,10 +1,11 @@
+import logging
 import os
+
 import pandas as pd
 import pytest
 import test_001_model
 import xarray as xr
 from shapely.geometry import LineString
-import logging
 
 import nlmod
 

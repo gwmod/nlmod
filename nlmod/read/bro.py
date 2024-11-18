@@ -270,7 +270,7 @@ def _get_bro_metadata(extent, max_dx=10000, max_dy=10000, cachedir=None):
 
 @cache.cache_pickle
 def _get_bro_metadata_oc(xmin, xmax, ymin, ymax):
-    """get observation collection with only metadata in extent.
+    """Get observation collection with only metadata in extent.
 
     Parameters
     ----------
@@ -297,7 +297,7 @@ def _get_bro_metadata_oc(xmin, xmax, ymin, ymax):
 
 @cache.cache_pickle
 def _get_bro_measurement(oc_meta):
-    """add measurements to BRO ObsCollection with only metadata.
+    """Add measurements to BRO ObsCollection with only metadata.
 
     Parameters
     ----------
@@ -309,7 +309,6 @@ def _get_bro_measurement(oc_meta):
     ObsCollection
         collection with measurements
     """
-
     obs_list = []
     for _, row in oc_meta.iterrows():
         o = hpd.GroundwaterObs.from_bro(row["monitoring_well"], tube_nr=row["tube_nr"])

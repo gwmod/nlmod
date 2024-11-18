@@ -1,26 +1,26 @@
 import datetime as dt
 import logging
 import os
-import requests
-from requests.exceptions import HTTPError
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import shapely
 import rasterio
+import requests
 import rioxarray
-from rioxarray.merge import merge_arrays
+import shapely
 import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
+from requests.exceptions import HTTPError
+from rioxarray.merge import merge_arrays
 from tqdm import tqdm
 
-from .. import cache, NLMOD_DATADIR
+from .. import NLMOD_DATADIR, cache
 from ..dims.grid import get_extent
 from ..dims.resample import structured_da_to_ds
-from ..util import get_ds_empty, extent_to_polygon
+from ..util import extent_to_polygon, get_ds_empty
 from .webservices import arcrest, wcs
 
 logger = logging.getLogger(__name__)
@@ -570,7 +570,6 @@ def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
     xr.DataArray
         DataArray of the AHN
     """
-
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 

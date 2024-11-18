@@ -4,12 +4,12 @@ import os
 import re
 import sys
 import warnings
+from functools import partial
 from pathlib import Path
 from typing import Dict, Optional
-from functools import partial
 
-import numpy as np
 import geopandas as gpd
+import numpy as np
 import requests
 import xarray as xr
 from colorama import Back, Fore, Style
@@ -1184,16 +1184,11 @@ def zonal_statistics(
         Add the result to the orignal GeoDataFrame if True. Otherwise return a
         GeoDataFrame with only the statistics. The default is True.
 
-    Raises
-    ------
-
-        DESCRIPTION.
 
     Returns
     -------
     gpd.GeoDataFrame
         A GeoDataFrame containing the the statistics in some of its columns.
-
     """
     if isinstance(statistics, str):
         statistics = [statistics]

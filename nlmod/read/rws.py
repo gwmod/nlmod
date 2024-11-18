@@ -291,19 +291,28 @@ def get_gdr_configuration() -> dict:
 
 
 def get_bathymetry_gdf(
-    resolution: str = "1m",
+    resolution: str = "20m",
     extent: Optional[list[float]] = None,
+    config: Optional[dict] = None,
 ) -> gpd.GeoDataFrame:
     """Get bathymetry dataframe from RWS.
+
+    Note that the 20m resolution does not contain bathymetry data for the major rivers.
+    If you need the bathymetry of the major rivers, use the 1m resolution.
 
     Parameters
     ----------
     resolution : str, optional
-        resolution of the bathymetry data, "1m" or "20m". The default is "1m".
+        resolution of the bathymetry data, "1m" or "20m". The default is "20m".
     extent : tuple, optional
         extent of the model domain. The default is None.
+    config : dict, optional
+        configuration dictionary containing urls and layer numbers for GDR data. The
+        default is None, which uses the default configuration provided by
+        the function `get_gdr_configuration()`.
     """
-    config = get_gdr_configuration()
+    if config is None:
+        config = get_gdr_configuration()
     url = config["bodemhoogte"]["index"]["url"]
     layer = config["bodemhoogte"][resolution]["layer"]
     return arcrest(url, layer, extent=extent)
@@ -312,23 +321,24 @@ def get_bathymetry_gdf(
 @cache.cache_netcdf()
 def get_bathymetry(
     extent: list[float],
-    resolution: str = "1m",
+    resolution: str = "20m",
     res: Optional[float] = None,
     method: Optional[str] = None,
     chunks: Optional[Union[str, dict[str, int]]] = "auto",
+    config: Optional[dict] = None,
 ) -> xr.DataArray:
     """Get bathymetry data from RWS.
 
     Bathymetry is available at 20m resolution and at 1m resolution. The 20m
-    resolution is available for large water bodies, but not in the rivers. The
-    1m dataset covers the whole Netherlands.
+    resolution is available for large water bodies, but not in the major rivers.
+    The 1m dataset covers the major waterbodies across all of the Netherlands.
 
     Parameters
     ----------
     extent : tuple
         extent of the model domain
     resolution : str, optional
-        resolution of the bathymetry data, "1m" or "20m". The default is "1m".
+        resolution of the bathymetry data, "1m" or "20m". The default is "20m".
     res : float, optional
         resolution of the output data array. The default is None, which uses
         resolution of the input datasets. Resampling method is provided by the method
@@ -339,13 +349,17 @@ def get_bathymetry(
     chunks : dict, optional
         chunks for the output data array. The default is "auto", which lets xarray/dask
         pick the chunksize. Set to None to avoid chunking.
+    config : dict, optional
+        configuration dictionary containing urls and layer numbers for GDR data. The
+        default is None, which uses the default configuration provided by
+        the function `get_gdr_configuration()`.
 
     Returns
     -------
     bathymetry : xr.DataArray
         bathymetry data
     """
-    gdf = get_bathymetry_gdf(resolution=resolution, extent=extent)
+    gdf = get_bathymetry_gdf(resolution=resolution, extent=extent, config=config)
 
     xmin, xmax, ymin, ymax = extent
     dataarrays = []

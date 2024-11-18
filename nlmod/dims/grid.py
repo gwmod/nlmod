@@ -132,7 +132,7 @@ def get_icell2d_from_xy(x, y, ds, gi=None, rotated=True):
 
     Raises
     ------
-
+    ValueError
         Raises a ValueError if the point is outside of the model grid.
 
     Returns
@@ -171,7 +171,6 @@ def xy_to_row_col(xy, ds):
     col : int
         number of the column value of a cell containing the xy point.
     """
-
     logger.warning(
         "nlmod.grid.xy_to_row_col is deprecated. "
         "Use nlmod.grid.get_row_col_from_xy instead"
@@ -203,7 +202,7 @@ def get_row_col_from_xy(x, y, ds, rotated=True, gi=None):
 
     Raises
     ------
-
+    ValueError
         Raises a ValueError if the point is outside of the model grid.
 
     Returns
@@ -242,7 +241,7 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
     Parameters
     ----------
     xyz : list, tuple
-        coordinates of ta point.
+        coordinates of a point.
     ds : xr.Dataset
         model dataset.
     modelgrid : StructuredGrid, VertexGrid, optional

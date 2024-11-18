@@ -36,7 +36,7 @@ def aggregate(gdf, method, ds=None):
         "area_weighted" for area-weighted params,
         "max_area" for max area params
         "de_lange" for De Lange formula for conductance
-    ds : xarray.DataSet, optional
+    ds : xr.Dataset, optional
         DataSet containing model layer information (only required for
         method='de_lange')
 
@@ -376,7 +376,7 @@ def build_spd(
         Optional columns are 'boundname' and 'aux'. These columns should have type str.
     pkg : str
         Modflow package: RIV, DRN or GHB
-    ds : xarray.DataSet
+    ds : xr.Dataset
         DataSet containing model layer information
     layer_method: layer_method : str, optional
         The method used to distribute the conductance over the layers. Possible
@@ -812,7 +812,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
         When not None, fname_ahn is the path to a tiff-file with ahn-data, to calculate
         the minimum height of the surface level near the surface water features. The
         default is None.
-    ahn : xarray.DataArray, optional
+    ahn : xr.DataArray, optional
         When not None, ahn is a DataArray containing the height of the surface level and
         is used to calculate the minimum height of the surface level near the surface
         water features. The default is None.
@@ -859,7 +859,7 @@ def add_min_ahn_to_gdf(
     ----------
     gdf : geopandas.GeoDataFrame
         A GeoDataFrame with surface water features
-    ahn : xarray.DataArray
+    ahn : xr.DataArray
         A DataArray containing the height of the surface level.
     buffer : float, optional
         The buffer that is applied around surface water features to calculate the
@@ -894,6 +894,8 @@ def gdf_to_seasonal_pkg(
     summer_months=(4, 5, 6, 7, 8, 9),
     layer_method="lay_of_rbot",
     silent=False,
+    start_summer=None,
+    start_winter=None,
     **kwargs,
 ):
     """Add a surface water package to a groundwater-model, based on input from a
@@ -910,8 +912,8 @@ def gdf_to_seasonal_pkg(
         'winter_stage' and 'summer_stage'.
     gwf : flopy ModflowGwf
         groundwaterflow object.
-    ds : xarray.Dataset
-        Dataset with model data
+    ds : xr.Dataset
+        Dataset with model data.
     pkg: str, optional
         The package to generate. Possible options are 'DRN', 'RIV' and 'GHB'.
         The default is 'DRN'.
@@ -925,12 +927,24 @@ def gdf_to_seasonal_pkg(
         The resistance of the surface water, in days. Only used when there is
         no 'cond' column in gdf. The default is 1.0.
     summer_months : list or tuple, optional
-        THe months in which 'summer_stage' is active. The default is
-        (4, 5, 6, 7, 8, 9), which means summer is from april through september.
+        The months in which 'summer_stage' is active (one-based). The parameter
+        summer_months is used to calculate start_summer or start_winter, when they are
+        None. The default is (4, 5, 6, 7, 8, 9), which means summer is from april
+        through september.
     layer_method : str, optional
         The method used to distribute the conductance over the layers. Possible
         values are 'lay_of_rbot' and 'distribute_cond_over_lays'. The default
         is "lay_of_rbot".
+    silent : bool, optional
+        Do not show a progressbar when silent is True. The default is False.
+    start_summer : str, optional
+        A string with the month and day of the start of summer (one-based), seperated by
+        '-'. For example '4-1' for april 1st. When start_summer is None it is calculated
+        from the parameter 'summer_months'. The default is None.
+    start_winter : str, optional
+        A string with the month and day of the start of winter (one-based), seperated by
+        '-'. For example '10-1' for october 1st. When start_winter is None it is
+        calculated from the parameter 'summer_months'. The default is None.
     **kwargs : dict
         Kwargs are passed onto ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb.
 
@@ -1036,6 +1050,8 @@ def gdf_to_seasonal_pkg(
         summer_months=summer_months,
         winter_name="winter",
         summer_name="summer",
+        start_summer=start_summer,
+        start_winter=start_winter,
     )
     return package
 
@@ -1045,53 +1061,151 @@ def add_season_timeseries(
     package,
     summer_months=(4, 5, 6, 7, 8, 9),
     filename="season.ts",
-    winter_name="winter",
     summer_name="summer",
+    winter_name="winter",
+    start_summer=None,
+    start_winter=None,
 ):
     """Add time series indicating which season is active (e.g. summer/winter).
 
     Parameters
     ----------
-    ds : xarray.Dataset
-        xarray dataset used for time discretization
+    ds : xr.Dataset
+        Xarray dataset used for time discretization.
     package : flopy.mf6 package
-        Modflow 6 package to add time series to
+        Modflow 6 package to add time series to.
     summer_months : tuple, optional
-        summer months. The default is (4, 5, 6, 7, 8, 9), so from april to september.
+        The summer months (one-based). The parameter summer_months is used to calculate
+        start_summer or start_winter, when they are None. The default is
+        (4, 5, 6, 7, 8, 9), so from april to september.
     filename : str, optional
-        name of time series file. The default is "season.ts".
+        The name of time series file. The default is "season.ts".
     winter_name : str, optional
         The name of the time-series with ones in winter. The default is "winter".
     summer_name : str, optional
         The name of the time-series with ones in summer. The default is "summer".
+    start_summer : str, optional
+        A string with the month and day of the start of summer (one-based), seperated by
+        '-'. For example '4-1' for april 1st. When start_summer is None it is calculated
+        from the parameter 'summer_months'. The default is None.
+    start_winter : str, optional
+        A string with the month and day of the start of winter (one-based), seperated by
+        '-'. For example '10-1' for october 1st. When start_winter is None it is
+        calculated from the parameter 'summer_months'. The default is None.
     """
     if ds.time.dtype.kind != "M":
         raise TypeError("add_season_timeseries requires a datetime64[ns] time index")
+    start_summer, start_winter = _get_start_summer_and_winter(
+        start_summer, start_winter, summer_months
+    )
     tmin = pd.to_datetime(ds.time.start)
-    if tmin.month in summer_months:
+    if _is_in_summer(tmin, start_summer, start_winter):
         ts_data = [(0.0, 0.0, 1.0)]
     else:
         ts_data = [(0.0, 1.0, 0.0)]
     tmax = pd.to_datetime(ds["time"].data[-1])
     years = range(tmin.year, tmax.year + 1)
     for year in years:
-        # add a record for the start of summer, on april 1
-        time = pd.Timestamp(year=year, month=summer_months[0], day=1)
-        time = (time - tmin) / pd.to_timedelta(1, "D")
-        if time > 0:
-            ts_data.append((time, 0.0, 1.0))
-        # add a record for the start of winter, on oktober 1
-        time = pd.Timestamp(year=year, month=summer_months[-1] + 1, day=1)
+        # add a record for the start of summer
+        time = pd.Timestamp(f"{year}-{start_summer}")
         time = (time - tmin) / pd.to_timedelta(1, "D")
         if time > 0:
             ts_data.append((time, 1.0, 0.0))
+        # add a record for the start of winter
+        time = pd.Timestamp(f"{year}-{start_winter}")
+        time = (time - tmin) / pd.to_timedelta(1, "D")
+        if time > 0:
+            ts_data.append((time, 0.0, 1.0))
 
     return package.ts.initialize(
         filename=filename,
         timeseries=ts_data,
-        time_series_namerecord=[winter_name, summer_name],
+        time_series_namerecord=[summer_name, winter_name],
         interpolation_methodrecord=["stepwise", "stepwise"],
     )
+
+
+def _get_start_summer_and_winter(start_summer, start_winter, summer_months):
+    if start_summer is None:
+        start_summer = f"{summer_months[0]}-1"
+    if start_winter is None:
+        start_winter = f"{summer_months[-1] + 1}-1"
+    return start_summer, start_winter
+
+
+def _is_in_summer(time, start_summer, start_winter):
+    after_start_summer = time >= pd.Timestamp(f"{time.year}-{start_summer}")
+    before_start_winter = time < pd.Timestamp(f"{time.year}-{start_winter}")
+    return after_start_summer and before_start_winter
+
+
+def get_seaonal_timeseries(
+    ds,
+    summer_value,
+    winter_value,
+    summer_months=(4, 5, 6, 7, 8, 9),
+    start_summer=None,
+    start_winter=None,
+):
+    """
+    Get a time-series of winter-values and summer-values.
+
+    The index of the returned series is set at the start of the period that the value
+    describes. This is the way that flopy uses this value in a timeseries, when
+    interpolation_methodrecord is set to 'stepwise'.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Xarray dataset used for time discretization.
+    summer_value : float
+        The value to be used in summer.
+    winter_value : float
+        The value to be used in winter.
+    summer_months : tuple, optional
+        summer months (one-based). The parameter summer_months is used to calculate
+        start_summer or start_winter, when they are None. The default is
+        (4, 5, 6, 7, 8, 9), so from april to september.
+    start_summer : str, optional
+        A string with the month and day of the start of summer (one-based), seperated by
+        '-'. For example '4-1' for april 1st. When start_summer is None it is calculated
+        from the parameter 'summer_months'. The default is None.
+    start_winter : str, optional
+        A string with the month and day of the start of winter (one-based), seperated by
+        '-'. For example '10-1' for october 1st. When start_winter is None it is
+        calculated from the parameter 'summer_months'. The default is None.
+
+    Returns
+    -------
+    s : pd.Series
+        A series with stages as the values and time as the index.
+
+    """
+    start_summer, start_winter = _get_start_summer_and_winter(
+        start_summer, start_winter, summer_months
+    )
+    tmin = pd.to_datetime(ds.time.start)
+    index = [tmin]
+    if _is_in_summer(tmin, start_summer, start_winter):
+        values = [summer_value]
+    else:
+        values = [winter_value]
+    tmax = pd.to_datetime(ds["time"].data[-1])
+    years = range(tmin.year, tmax.year + 1)
+    for year in years:
+        # add a record for the start of summer
+        time = pd.Timestamp(f"{year}-{start_summer}")
+        if time > tmin:
+            index.append(time)
+            values.append(summer_value)
+        # add a record for the start of winter
+        time = pd.Timestamp(f"{year}-{start_winter}")
+        if time > tmin:
+            index.append(time)
+            values.append(winter_value)
+
+    s = pd.Series(values, index=index)
+    return s
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):

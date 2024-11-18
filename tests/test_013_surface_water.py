@@ -26,6 +26,16 @@ def test_gdf_to_seasonal_pkg():
     nlmod.gwf.surface_water.gdf_to_seasonal_pkg(gdf, gwf, ds, pkg="DRN")
 
 
+def test_get_seaonal_timeseries():
+    extent = [119000, 120000, 523000, 524000]
+    ds = nlmod.get_ds(extent)
+    time = pd.date_range("2020", "2025", freq="MS")
+    ds = nlmod.time.set_ds_time(ds, start="2019", time=time)
+    s = nlmod.gwf.surface_water.get_seaonal_timeseries(ds, 1.0, 0.0)
+    assert s.index[0] <= pd.to_datetime(ds.time.start)
+    assert s.index[-1] >= ds.time[-1]
+
+
 def test_gdf_lake():
     model_name = "la"
     model_ws = os.path.join("data", model_name)

@@ -1095,10 +1095,10 @@ def add_season_timeseries(
     """
     if ds.time.dtype.kind != "M":
         raise TypeError("add_season_timeseries requires a datetime64[ns] time index")
-    tmin = pd.to_datetime(ds.time.start)
     start_summer, start_winter = _get_start_summer_and_winter(
         start_summer, start_winter, summer_months
     )
+    tmin = pd.to_datetime(ds.time.start)
     if _is_in_summer(tmin, start_summer, start_winter):
         ts_data = [(0.0, 0.0, 1.0)]
     else:
@@ -1127,9 +1127,9 @@ def add_season_timeseries(
 
 def _get_start_summer_and_winter(start_summer, start_winter, summer_months):
     if start_summer is None:
-        start_summer = "{}-1".format(summer_months[0])
+        start_summer = f"{summer_months[0]}-1"
     if start_winter is None:
-        start_winter = "{}-1".format(summer_months[-1] + 1)
+        start_winter = f"{summer_months[-1] + 1}-1"
     return start_summer, start_winter
 
 
@@ -1159,9 +1159,9 @@ def get_seaonal_timeseries(
     ds : xr.Dataset
         Xarray dataset used for time discretization.
     summer_value : float
-        THe value to be used in summer.
+        The value to be used in summer.
     winter_value : float
-        THe value to be used in winter.
+        The value to be used in winter.
     summer_months : tuple, optional
         summer months (one-based). The parameter summer_months is used to calculate
         start_summer or start_winter, when they are None. The default is
@@ -1181,6 +1181,9 @@ def get_seaonal_timeseries(
         A series with stages as the values and time as the index.
 
     """
+    start_summer, start_winter = _get_start_summer_and_winter(
+        start_summer, start_winter, summer_months
+    )
     tmin = pd.to_datetime(ds.time.start)
     index = [tmin]
     if _is_in_summer(tmin, start_summer, start_winter):

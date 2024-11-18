@@ -121,10 +121,11 @@ def calculate_transmissivity(
     return T
 
 
-def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="botm"):
-    """Calculate vertical resistance (c) between model layers from the vertical
-    conductivity (kv) and the thickness. The resistance between two layers is assigned
-    to the top layer. The bottom model layer gets a resistance of infinity.
+def calculate_resistance(
+    ds, kv="kv", thickness="thickness", top="top", botm="botm", between_layers=None
+):
+    """Calculate vertical resistance (c) of model layers from the vertical conductivity
+    (kv) and the thickness.
 
     Parameters
     ----------
@@ -142,36 +143,56 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
     botm : str, optional
         name of data variable containing bottoms, only used to calculate thickness if not
         available in dataset. By default "botm"
+    between_layers : bool, optional
+        If True, calculate the resistance between the layers, which MODFLOW uses to
+        calculate the flow. The resistance between two layers is then assigned to the
+        top layer, and the bottom model layer gets a resistance of infinity.
+        If False, calculate the resistance of the layers themselves. The default is
+        True. However, in a future version of nlmod the default will be changed to
+        False.
 
     Returns
     -------
     c : xarray.DataArray
         DataArray containing vertical resistance (c). NaN where layer thickness is zero
     """
+    if between_layers is None:
+        logger.warning(
+            (
+                "The default of between_layers=True in calculate_resistance is "
+                "deprecated and will be changed to False in a future version of nlmod. "
+                "Pass between_layers=True to retain current behavior or "
+                "between_layers=False to adopt the future default and silence "
+                "this warning."
+            )
+        )
+        between_layers = True  # will be changed to False in future version of nlmod
     if thickness in ds:
         thickness = ds[thickness]
     else:
         thickness = calculate_thickness(ds, top=top, bot=botm)
+    if between_layers:
+        # nan where layer does not exist (thickness is 0)
+        thickness_nan = xr.where(thickness == 0, np.nan, thickness)
+        kv_nan = xr.where(thickness == 0, np.nan, ds[kv])
 
-    # nan where layer does not exist (thickness is 0)
-    thickness_nan = xr.where(thickness == 0, np.nan, thickness)
-    kv_nan = xr.where(thickness == 0, np.nan, ds[kv])
+        # backfill thickness and kv to get the right value for the layer below
+        thickness_bfill = thickness_nan.bfill(dim="layer")
+        kv_bfill = kv_nan.bfill(dim="layer")
 
-    # backfill thickness and kv to get the right value for the layer below
-    thickness_bfill = thickness_nan.bfill(dim="layer")
-    kv_bfill = kv_nan.bfill(dim="layer")
-
-    # calculate resistance
-    c = xr.zeros_like(thickness)
-    for ilay in range(ds.sizes["layer"] - 1):
-        ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
-            layer=ds.layer[ilay]
-        )
-        cbot = (thickness_bfill.sel(layer=ds.layer[ilay + 1]) * 0.5) / kv_bfill.sel(
-            layer=ds.layer[ilay + 1]
-        )
-        c[ilay] = ctop + cbot
-    c[ilay + 1] = np.inf
+        # calculate resistance
+        c = xr.zeros_like(thickness)
+        for ilay in range(ds.sizes["layer"] - 1):
+            ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
+                layer=ds.layer[ilay]
+            )
+            cbot = (thickness_bfill.sel(layer=ds.layer[ilay + 1]) * 0.5) / kv_bfill.sel(
+                layer=ds.layer[ilay + 1]
+            )
+            c[ilay] = ctop + cbot
+        c[ilay + 1] = np.inf
+    else:
+        c = thickness / ds[kv]
 
     if hasattr(c, "long_name"):
         c.attrs["long_name"] = "resistance"
@@ -1189,7 +1210,7 @@ def remove_layer_dim_from_top(
         model DataSet
     check : bool, optional
         If True, checks for inconsistencies in the layer model and report to logger as
-        warning. The defaults is True.
+        warning. The default is True.
     set_non_existing_layers_to_nan bool, optional
         If True, sets the value of the botm-variable to NaN for non-existent layers.
         This is not recommended, as this might break some procedures in nlmod. The

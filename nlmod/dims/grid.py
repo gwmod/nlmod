@@ -626,11 +626,8 @@ def refine(
     ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if model_coordinates:
         if not ds_has_rotation:
-            raise (
-                ValueError("The supplied shapes need to be in realworld coordinates")
-            )
-    elif ds_has_rotation:
-        affine_matrix = get_affine_world_to_mod(ds).to_shapely()
+            msg = "The supplied shapes need to be in realworld coordinates"
+            raise ValueError(msg)
 
     if refinement_features is not None:
         for refinement_feature in refinement_features:
@@ -638,29 +635,26 @@ def refine(
                 # the feature is a file or a list of geometries
                 fname, geom_type, level = refinement_feature
                 if not model_coordinates and ds_has_rotation:
-                    raise (
-                        NotImplementedError(
-                            "Converting files to model coordinates not supported"
-                        )
-                    )
+                    msg = "Converting files to model coordinates not supported"
+                    raise NotImplementedError(msg)
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
                 # the feature is a geodataframe
                 gdf, level = refinement_feature
                 if not model_coordinates and ds_has_rotation:
-                    gdf = affine_transform_gdf(gdf, affine_matrix)
+                    affine = get_affine_world_to_mod(ds)
+                    gdf = affine_transform_gdf(gdf, affine)
                 geom_types = gdf.geom_type.str.replace("Multi", "")
                 geom_types = geom_types.str.replace("String", "")
                 geom_types = geom_types.str.lower()
                 for geom_type in geom_types.unique():
                     if flopy.__version__ == "3.3.5" and geom_type == "line":
                         # a bug in flopy that is fixed in the dev branch
-                        raise (
-                            Exception(
-                                "geom_type line is buggy in flopy 3.3.5. "
-                                "See https://github.com/modflowpy/flopy/issues/1405"
-                            )
+                        msg = (
+                            "geom_type line is buggy in flopy 3.3.5. "
+                            "See https://github.com/modflowpy/flopy/issues/1405"
                         )
+                        raise Exception(msg)
                     mask = geom_types == geom_type
                     # features = [gdf[mask].unary_union]
                     features = list(gdf[mask].geometry.explode(index_parts=True))

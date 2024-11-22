@@ -1878,7 +1878,8 @@ def get_isosurface_1d(da, z, value):
     float
         first elevation at which data crosses value
     """
-    return np.interp(value, da.squeeze(), z.squeeze())
+    mask = np.invert(np.isnan(da))
+    return np.interp(value, da[mask].squeeze(), z[mask].squeeze())
 
 
 def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwargs):

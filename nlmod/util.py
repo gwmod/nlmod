@@ -1157,8 +1157,9 @@ def zonal_statistics(
     ----------
     gdf : gpd.GeoDataFrame
         A GeoDataFrame with features for which to calculate the statistics.
-    da : xr.DataArray
-        A DataArray of the raster.
+    da : xr.DataArray or str
+        A DataArray of the raster. When engine=='rasterstats', da can also be the
+        filename of the raster.
     columns : str or list of str, optional
         The columns in gdf to add the statistics to. When columns is None, use the name
         of the statistics. When columns is a string, and more than one statistic is

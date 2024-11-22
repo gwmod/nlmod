@@ -619,6 +619,8 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
             da = rioxarray.open_rasterio(url, mask_and_scale=True)
         da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)
+    if len(das) == 0:
+        raise (ValueError("No data found within extent"))
     da = merge_arrays(das)
     if da.dims[0] == "band":
         da = da[0].drop_vars("band")

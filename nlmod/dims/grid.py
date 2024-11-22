@@ -654,7 +654,7 @@ def refine(
                             "geom_type line is buggy in flopy 3.3.5. "
                             "See https://github.com/modflowpy/flopy/issues/1405"
                         )
-                        raise Exception(msg)
+                        raise ValueError(msg)
                     mask = geom_types == geom_type
                     # features = [gdf[mask].unary_union]
                     features = list(gdf[mask].geometry.explode(index_parts=True))

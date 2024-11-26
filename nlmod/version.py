@@ -1,7 +1,7 @@
 from importlib import metadata
 from platform import python_version
 
-__version__ = "0.8.2.dev0"
+__version__ = "0.9.0"
 
 
 def show_versions() -> None:

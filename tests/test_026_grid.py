@@ -29,7 +29,7 @@ def get_regis():
             os.makedirs(model_ws)
         regis = nlmod.read.regis.get_regis(extent)
         regis.to_netcdf(fname)
-    return xr.open_dataset(fname)
+    return xr.open_dataset(fname, decode_coords="all")
 
 
 def get_structured_model_ds():

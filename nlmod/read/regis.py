@@ -135,7 +135,11 @@ def get_regis(
     regis_ds : xarray dataset
         dataset with regis data projected on the modelgrid.
     """
-    ds = xr.open_dataset(REGIS_URL, decode_times=False)
+    ds = xr.open_dataset(REGIS_URL, decode_coords="all")
+    if "crs" in ds.coords:
+        # remove the crs coordinate, as rioxarray does not recognise the crs
+        # and we set the crs at the end of this method by hand
+        ds = ds.drop_vars("crs")
 
     # set x and y dimensions to cell center
     ds["x"] = ds.x_bounds.mean("bounds")
@@ -187,7 +191,6 @@ def get_regis(
     ds.attrs["gridtype"] = "structured"
     ds.attrs["extent"] = extent
     for datavar in ds:
-        ds[datavar].attrs["grid_mapping"] = "crs"
         ds[datavar].attrs["source"] = "REGIS"
         ds[datavar].attrs["url"] = REGIS_URL
         ds[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
@@ -197,7 +200,7 @@ def get_regis(
             ds[datavar].attrs["units"] = "m/day"
 
     # set the crs to dutch rd-coordinates
-    ds.rio.set_crs(28992)
+    ds.rio.write_crs(28992, inplace=True)
 
     return ds
 

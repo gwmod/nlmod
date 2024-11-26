@@ -12,7 +12,7 @@ import nlmod
 tmpdir = tempfile.gettempdir()
 
 
-@pytest.mark.slow()
+@pytest.mark.slow
 def test_buisdrainage():
     model_ws = os.path.join(tmpdir, "buidrain")
     ds = nlmod.get_ds([110_000, 130_000, 435_000, 445_000], model_ws=model_ws)

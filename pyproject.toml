@@ -57,13 +57,13 @@ repository = "https://github.com/gwmod/nlmod"
 documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
-full = ["nlmod[knmi]", "gdown", "geocube", "contextily", "scikit-image"]
+full = ["nlmod[knmi]", "gdown", "geocube", "rasterstats", "contextily", "scikit-image"]
 knmi = ["h5netcdf", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["flake8", "isort", "black[jupyter]"]
-ci = ["nlmod[full,lint,test,nbtest]", "netCDF4<1.7.0", "pandas<2.1.0"]
+ci = ["nlmod[full,lint,test,nbtest]", "numpy==1.26.4"]
 rtd = [
     "nlmod[full]",
     "ipython",
@@ -73,6 +73,7 @@ rtd = [
     "sphinx_rtd_theme==1.0.0",
     "nbconvert==7.13.0",
     "netCDF4<1.7.0",
+	"numpy==1.26.4"
 ]
 
 [tool.setuptools.dynamic]
@@ -88,6 +89,8 @@ include-package-data = true
 "nlmod.data" = ["*.gleg"]
 "nlmod.data.geotop" = ["*"]
 "nlmod.data.shapes" = ["*"]
+"nlmod.data.ahn" = ["*"]
+"nlmod.data.bgt" = ["*"]
 "nlmod.bin" = ["mp7_2_002_provisional"]
 
 [tool.black]

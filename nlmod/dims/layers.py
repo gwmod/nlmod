@@ -121,10 +121,11 @@ def calculate_transmissivity(
     return T
 
 
-def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="botm"):
-    """Calculate vertical resistance (c) between model layers from the vertical
-    conductivity (kv) and the thickness. The resistance between two layers is assigned
-    to the top layer. The bottom model layer gets a resistance of infinity.
+def calculate_resistance(
+    ds, kv="kv", thickness="thickness", top="top", botm="botm", between_layers=None
+):
+    """Calculate vertical resistance (c) of model layers from the vertical conductivity
+    (kv) and the thickness.
 
     Parameters
     ----------
@@ -142,36 +143,56 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
     botm : str, optional
         name of data variable containing bottoms, only used to calculate thickness if not
         available in dataset. By default "botm"
+    between_layers : bool, optional
+        If True, calculate the resistance between the layers, which MODFLOW uses to
+        calculate the flow. The resistance between two layers is then assigned to the
+        top layer, and the bottom model layer gets a resistance of infinity.
+        If False, calculate the resistance of the layers themselves. The default is
+        True. However, in a future version of nlmod the default will be changed to
+        False.
 
     Returns
     -------
     c : xarray.DataArray
         DataArray containing vertical resistance (c). NaN where layer thickness is zero
     """
+    if between_layers is None:
+        logger.warning(
+            (
+                "The default of between_layers=True in calculate_resistance is "
+                "deprecated and will be changed to False in a future version of nlmod. "
+                "Pass between_layers=True to retain current behavior or "
+                "between_layers=False to adopt the future default and silence "
+                "this warning."
+            )
+        )
+        between_layers = True  # will be changed to False in future version of nlmod
     if thickness in ds:
         thickness = ds[thickness]
     else:
         thickness = calculate_thickness(ds, top=top, bot=botm)
+    if between_layers:
+        # nan where layer does not exist (thickness is 0)
+        thickness_nan = xr.where(thickness == 0, np.nan, thickness)
+        kv_nan = xr.where(thickness == 0, np.nan, ds[kv])
 
-    # nan where layer does not exist (thickness is 0)
-    thickness_nan = xr.where(thickness == 0, np.nan, thickness)
-    kv_nan = xr.where(thickness == 0, np.nan, ds[kv])
+        # backfill thickness and kv to get the right value for the layer below
+        thickness_bfill = thickness_nan.bfill(dim="layer")
+        kv_bfill = kv_nan.bfill(dim="layer")
 
-    # backfill thickness and kv to get the right value for the layer below
-    thickness_bfill = thickness_nan.bfill(dim="layer")
-    kv_bfill = kv_nan.bfill(dim="layer")
-
-    # calculate resistance
-    c = xr.zeros_like(thickness)
-    for ilay in range(ds.sizes["layer"] - 1):
-        ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
-            layer=ds.layer[ilay]
-        )
-        cbot = (thickness_bfill.sel(layer=ds.layer[ilay + 1]) * 0.5) / kv_bfill.sel(
-            layer=ds.layer[ilay + 1]
-        )
-        c[ilay] = ctop + cbot
-    c[ilay + 1] = np.inf
+        # calculate resistance
+        c = xr.zeros_like(thickness)
+        for ilay in range(ds.sizes["layer"] - 1):
+            ctop = (thickness_nan.sel(layer=ds.layer[ilay]) * 0.5) / kv_nan.sel(
+                layer=ds.layer[ilay]
+            )
+            cbot = (thickness_bfill.sel(layer=ds.layer[ilay + 1]) * 0.5) / kv_bfill.sel(
+                layer=ds.layer[ilay + 1]
+            )
+            c[ilay] = ctop + cbot
+        c[ilay + 1] = np.inf
+    else:
+        c = thickness / ds[kv]
 
     if hasattr(c, "long_name"):
         c.attrs["long_name"] = "resistance"
@@ -190,7 +211,13 @@ def calculate_resistance(ds, kv="kv", thickness="thickness", top="top", botm="bo
 
 
 def split_layers_ds(
-    ds, split_dict, layer="layer", top="top", bot="botm", return_reindexer=False
+    ds,
+    split_dict,
+    layer="layer",
+    top="top",
+    bot="botm",
+    return_reindexer=False,
+    start_suffix_at=1,
 ):
     """Split layers based in Dataset.
 
@@ -215,6 +242,9 @@ def split_layers_ds(
     return_reindexer : bool, optional
         Return a OrderedDict that can be used to reindex variables from the original
         layer-dimension to the new layer-dimension when True. The default is False.
+    start_suffix_at : int, optional
+        The suffix that the first splitted layer will receive, for layers that were
+        splitted into multiple sub-layers. The default is 1.
 
     Returns
     -------
@@ -263,7 +293,7 @@ def split_layers_ds(
     for lay0 in split_dict:
         for i, _ in enumerate(split_dict[lay0]):
             index = layers.index(lay0)
-            layers.insert(index, lay0 + "_" + str(i + 1))
+            layers.insert(index, lay0 + "_" + str(i + start_suffix_at))
             layers_org.insert(index, lay0)
     ds = ds.reindex({"layer": layers})
 
@@ -280,7 +310,9 @@ def split_layers_ds(
                     f"Fill values for variable '{var}' in split"
                     " layers with the values from the original layer."
                 )
-            ds = _split_var(ds, var, lay0, th0, split_dict[lay0], top, bot)
+            ds = _split_var(
+                ds, var, lay0, th0, split_dict[lay0], top, bot, start_suffix_at
+            )
 
     # drop the original layers
     ds = ds.drop_sel(layer=list(split_dict))
@@ -297,10 +329,10 @@ def split_layers_ds(
     return ds
 
 
-def _split_var(ds, var, layer, thickness, fctrs, top, bot):
+def _split_var(ds, var, layer, thickness, fctrs, top, bot, start_suffix_at):
     """Internal method to split a variable of one layer in multiple layers."""
     for i in range(len(fctrs)):
-        name = layer + "_" + str(i + 1)
+        name = layer + "_" + str(i + start_suffix_at)
         if var == top:
             # take orignal top and subtract thickness of higher splitted layers
             ds[var].loc[name] = ds[var].loc[layer] - np.sum(fctrs[:i]) * thickness
@@ -472,6 +504,7 @@ def kheq_combined_layers(kh, thickness, reindexer):
             kheq = np.nansum(
                 thickness.data[v, :, :] * kh.data[v, :, :], axis=0
             ) / np.nansum(thickness.data[v, :, :], axis=0)
+            kheq[np.isinf(kheq)] = np.nan
         else:
             kheq = kh.data[v]
         da_kh.data[k] = kheq
@@ -512,6 +545,7 @@ def kveq_combined_layers(kv, thickness, reindexer):
             kveq = np.nansum(thickness.data[v, :, :], axis=0) / np.nansum(
                 thickness.data[v, :, :] / kv.data[v, :, :], axis=0
             )
+            kveq[np.isinf(kveq)] = np.nan
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq
@@ -536,7 +570,7 @@ def combine_layers_ds(
     ds : xarray.Dataset
         xarray Dataset containing information about layers
         (layers, top and bot)
-    combine_layers : list of tuple of ints
+    combine_layers : list of tuple of ints, or dict of layer names
         list of tuples, with each tuple containing integers indicating
         layer indices to combine into one layer. E.g. [(0, 1), (2, 3)] will
         combine layers 0 and 1 into a single layer (with index 0) and layers
@@ -586,6 +620,17 @@ def combine_layers_ds(
         ds = ds.copy()
         ds["top"] = ds["botm"] + calculate_thickness(ds)
 
+    if isinstance(combine_layers, dict):
+        new_layer_names = combine_layers.keys()
+        combine_layers = [
+            tuple(np.where(ds.layer.isin(x))[0]) for x in combine_layers.values()
+        ]
+        # make sure there are no layers in between
+        assert np.all([(np.diff(x) == 1).all() for x in combine_layers])
+    else:
+        new_layer_names = [ds.layer.data[x[0]] for x in combine_layers]
+    new_layer_names = dict(zip(combine_layers, new_layer_names))
+
     da_dict = {}
 
     new_top, new_bot, reindexer = layer_combine_top_bot(
@@ -604,10 +649,10 @@ def combine_layers_ds(
     if kv is not None:
         logger.info(f"Calculate equivalent '{kv}' for combined layers.")
         da_dict[kv] = kveq_combined_layers(ds[kv], thickness, reindexer)
-    if kD is not None:
+    if kD is not None and kD in ds:
         logger.info(f"Calculate value '{kD}' for combined layers with sum.")
         da_dict[kD] = sum_param_combined_layers(ds[kD], reindexer)
-    if c is not None:
+    if c is not None and c in ds:
         logger.info(f"Calculate value '{c}' for combined layers with sum.")
         da_dict[c] = sum_param_combined_layers(ds[c], reindexer)
 
@@ -615,8 +660,9 @@ def combine_layers_ds(
     layer_names = []
     for _, i in reindexer.items():
         if isinstance(i, tuple):
-            i = i[0]
-        layercode = ds[layer].data[i]
+            layercode = new_layer_names[i]
+        else:
+            layercode = ds[layer].data[i]
         layer_names.append(layercode)
 
     # assign new layer names
@@ -1164,7 +1210,7 @@ def remove_layer_dim_from_top(
         model DataSet
     check : bool, optional
         If True, checks for inconsistencies in the layer model and report to logger as
-        warning. The defaults is True.
+        warning. The default is True.
     set_non_existing_layers_to_nan bool, optional
         If True, sets the value of the botm-variable to NaN for non-existent layers.
         This is not recommended, as this might break some procedures in nlmod. The
@@ -1810,3 +1856,79 @@ def remove_layer(ds, layer):
     layers.remove(layer)
     ds = ds.reindex({"layer": layers})
     return ds
+
+
+def get_isosurface_1d(da, z, value):
+    """Linear interpolation to get the elevation corresponding to value.
+
+    This function interpolates linearly along z, if da crosses the given interpolation
+    value at multiple depths, the first elevation is returned.
+
+    Parameters
+    ----------
+    da : 1d-array
+        array of values, e.g. concentration, pressure, etc.
+    z : 1d-array
+        array of elevations
+    value : float
+        value for which to compute the elevations corresponding to value
+
+    Returns
+    -------
+    float
+        first elevation at which data crosses value
+    """
+    mask = np.invert(np.isnan(da))
+    return np.interp(value, da[mask].squeeze(), z[mask].squeeze())
+
+
+def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwargs):
+    """Linear interpolation to compute the elevation of an isosurface.
+
+    Currently only supports linear interpolation.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        3D or 4D DataArray with values, e.g. concentration, pressure, etc.
+    z : xr.DataArray
+        3D DataArray with elevations
+    value : float
+        value at which to compute the elevations of the isosurface
+    input_core_dims : list of lists, optional
+        list of core dimensions for each input, if not provided assumes core dimensions
+        are any dimensions that are not x, y or icell2d. Example input_core_dims for
+        structured datasets da ("time", "layer", "y", "x") and z ("layer", "y", "x"),
+        and value (float) would be:
+        `input_core_dims=[["layer"], ["layer"], []]`.
+    exclude_dims : set, optional
+        set of dimensions that can change shape in computation. The default is None,
+        which assumes the layer dimension is allowed to change. In the example
+        above this would mean `exclude_dims={"layer"}`. This will result in the
+        an isosurface for each time step.
+    kwargs : dict
+        additional arguments passed to xarray.apply_ufunc
+
+    Returns
+    -------
+    xr.DataArray
+        2D/3D DataArray with elevations of the isosurface
+    """
+    if input_core_dims is None:
+        dims_da = set(da.dims) - {"time", "x", "y", "icell2d"}
+        dims_z = set(z.dims) - {"x", "y", "icell2d"}
+        input_core_dims = [list(dims_da), list(dims_z), []]
+    if exclude_dims is None:
+        exclude_dims = {"layer"}
+
+    return xr.apply_ufunc(
+        get_isosurface_1d,
+        da,
+        z,
+        value,
+        vectorize=True,  # loop over time dimension
+        input_core_dims=input_core_dims,
+        exclude_dims=exclude_dims,
+        dask="forbidden",
+        **kwargs,
+    )

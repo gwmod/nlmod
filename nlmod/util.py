@@ -4,16 +4,20 @@ import os
 import re
 import sys
 import warnings
+from functools import partial
 from pathlib import Path
 from typing import Dict, Optional
 
 import geopandas as gpd
+import numpy as np
 import requests
 import xarray as xr
 from colorama import Back, Fore, Style
 from flopy.utils import get_modflow
 from flopy.utils.get_modflow import flopy_appdata_path, get_release
 from shapely.geometry import Polygon, box
+from shapely.strtree import STRtree
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -1054,3 +1058,223 @@ def _get_value_from_ds_datavar(
             value = value.values
 
     return value
+
+
+def gdf_intersection_join(
+    gdf_from,
+    gdf_to,
+    columns=None,
+    desc="",
+    silent=False,
+    min_total_overlap=0.5,
+    geom_type="Polygon",
+    add_index_from_column=None,
+):
+    """Add information from 'gdf_from' to 'gdf_to', based on the spatial intersection.
+
+    Parameters
+    ----------
+    gdf_from : gpd.GeoDataFrame
+        The GeoDataFrame to add information to.
+    gdf_to : gpd.GeoDataFrame
+        The GeoDataFrame containing the information to be added.
+    columns : list, optional
+        A list of the columns to add from gdf_from to gdf_to. When columns is None,
+        columns is set to all columns that are present in gdf_from but not in gdf_to.
+        The default is None.
+    desc : string, optional
+        The description of the progressbar. The default is "".
+    silent : bool, optional
+        If true, do not show the prgressbar. The default is False.
+    min_total_overlap : float, optional
+        The minimum required total overlap between geometries. If the total overlap of a
+        feature in gdf_to with the features of gdf_from, no information is added to the
+        feature of gdf_to. The default is 0.5.
+    geom_type : string, optional
+        The type of Geometries to evaluate. Can be "Polygon" or "LineString". When
+        geom_type is "Polygon" the overlap of features are ranked by the area of
+        features. When geom_type is "LineString", the overlap is ranked by the length of
+        features. The default is "Polygon".
+    add_index_from_column : string, optional
+        The name of the column to add the index of gdf_from to gdf_to. The default is
+        None.
+
+    Raises
+    ------
+    TypeError
+        DESCRIPTION.
+
+    Returns
+    -------
+    gdf_to : gpd.GeoDataFrame
+        gdf_to with extra columns from gdf_from.
+
+    """
+    gdf_to = gdf_to.copy()
+    if columns is None:
+        columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
+    s = STRtree(gdf_from.geometry)
+    for index in tqdm(gdf_to.index, desc=desc, disable=silent):
+        geom_to = gdf_to.geometry[index]
+        inds = s.query(geom_to)
+        if len(inds) == 0:
+            continue
+        overlap = gdf_from.geometry.iloc[inds].intersection(geom_to)
+        if geom_type is None:
+            geom_type = overlap.geom_type.iloc[0]
+        if geom_type in ["Polygon", "MultiPolygon"]:
+            measure_org = geom_to.area
+            measure = overlap.area
+        elif geom_type in ["LineString", "MultiLineString"]:
+            measure_org = geom_to.length
+            measure = overlap.length
+        else:
+            msg = f"Unsupported geometry type: {geom_type}"
+            raise TypeError(msg)
+
+        if np.any(measure.sum() > min_total_overlap * measure_org):
+            # take the largest
+            ind = measure.idxmax()
+            gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
+            if add_index_from_column:
+                gdf_to.loc[index, add_index_from_column] = ind
+    return gdf_to
+
+
+def zonal_statistics(
+    gdf,
+    da,
+    columns=None,
+    buffer=0.0,
+    engine="geocube",
+    all_touched=True,
+    statistics="mean",
+    add_to_gdf=True,
+):
+    """Calculate raster statistics in the features of a GeoDataFrame
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        A GeoDataFrame with features for which to calculate the statistics.
+    da : xr.DataArray or str
+        A DataArray of the raster. When engine=='rasterstats', da can also be the
+        filename of the raster.
+    columns : str or list of str, optional
+        The columns in gdf to add the statistics to. When columns is None, use the name
+        of the statistics. When columns is a string, and more than one statistic is
+        calculated, the value of columns is used as the prefix before each statistic, to
+        form the column-names. The default is None.
+    buffer : float, optional
+        The buffer, in m, that is added to each of the features of gdf, before
+        calculating the statistics. The default is 0.0.
+    engine : str, optional
+        The engine to use for the calculation of the statistics. The possible values are
+        'geocube' and 'rasterstats'. The two engines should approximately result in the
+        same values. If features overlap (which will happen more frequently when
+        buffer > 0), the result will differ. If engine=='geocube', each raster-cell is
+        only designated to one feature. If engine='rasterstats' a raster-cell can be
+        designated to multiple features, if features overlap. The default is "geocube".
+    all_touched : bool, optional
+        If True, include every raster cell touched by a geometry. Otherwise only include
+        those having a center point within the polygon. The default is True.
+    statistics : str or list of str, optional
+        The name or a list of names of the statistics to be calculated. The default is
+        "mean".
+    add_to_gdf : bool, optional
+        Add the result to the orignal GeoDataFrame if True. Otherwise return a
+        GeoDataFrame with only the statistics. The default is True.
+
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        A GeoDataFrame containing the the statistics in some of its columns.
+    """
+    if isinstance(statistics, str):
+        statistics = [statistics]
+    if columns is None:
+        columns = statistics
+    elif isinstance(columns, str):
+        if len(statistics) == 1:
+            columns = [columns]
+        else:
+            columns = [f"{columns}_{stat}" for stat in statistics]
+    if add_to_gdf:
+        for column in columns:
+            if column in gdf.columns:
+                logger.warning(
+                    f"Column {column} allready exists. It is overwritten by new data."
+                )
+    # for geocube we need a unique integer index
+    geometry = gpd.GeoDataFrame(geometry=gdf.geometry.values, index=range(len(gdf)))
+    if buffer != 0.0:
+        geometry.geometry = geometry.buffer(buffer)
+    if engine == "geocube":
+        from geocube.api.core import make_geocube
+        from geocube.rasterize import rasterize_image
+
+        gc = make_geocube(
+            vector_data=geometry.reset_index(),
+            measurements=["index"],
+            like=da,  # ensure the data are on the same grid
+            rasterize_function=partial(rasterize_image, all_touched=all_touched),
+        )
+        if gc.index.isnull().all():
+            raise (ValueError("There is no overlap between gdf and da"))
+        gc["values"] = da
+        gc = gc.set_coords("index")
+        groups = gc.groupby("index")
+        for stat, column in zip(statistics, columns):
+            if stat == "min":
+                values = groups.min()
+            elif stat == "max":
+                values = groups.max()
+            elif stat == "count":
+                values = groups.count()
+            elif stat == "mean":
+                values = groups.mean()
+            elif stat == "median":
+                values = groups.median()
+            elif stat == "std":
+                values = groups.std()
+            elif stat == "sum":
+                values = groups.sum()
+            else:
+                raise (NotImplementedError(f"Statistic {stat} not implemented"))
+            values = values["values"].to_pandas()
+            values.index = values.index.astype(int)
+            geometry[column] = values
+
+    elif engine == "rasterstats":
+        from rasterstats import zonal_stats
+
+        if isinstance(da, xr.DataArray):
+            stats = zonal_stats(
+                geometry,
+                da.data,
+                stats=statistics,
+                all_touched=all_touched,
+                affine=da.rio.transform(),
+                nodata=da.rio.nodata,
+            )
+        else:
+            # we assume da is a filename
+            stats = zonal_stats(
+                geometry,
+                da,
+                stats=stat,
+                all_touched=all_touched,
+            )
+        for stat, column in zip(statistics, columns):
+            geometry[column] = [x[stat] for x in stats]
+
+    else:
+        raise (ValueError(f"Unknown engine: {engine}"))
+
+    if add_to_gdf:
+        gdf[columns] = geometry[columns].values
+        return gdf
+    else:
+        geometry.index = gdf.index
+        return geometry

@@ -10,7 +10,7 @@ from zipfile import ZipFile
 import requests
 import xarray as xr
 from numpy import arange, array, ndarray
-from pandas import Timedelta, Timestamp, read_html
+from pandas import Timedelta, Timestamp
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)

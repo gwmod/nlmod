@@ -1,6 +1,8 @@
 import json
+import os
 import time
 from io import BytesIO
+from typing import Dict
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
@@ -10,6 +12,7 @@ import pandas as pd
 import requests
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
+from nlmod import NLMOD_DATADIR
 from ..util import extent_to_polygon
 
 
@@ -30,13 +33,14 @@ def get_bgt(
     extent : list or tuple of length 4 or shapely Polygon
         The extent (xmin, xmax, ymin, ymax) or polygon for which shapes are
         requested.
-    layer : string, optional
-        The layer for which shapes are requested. The default is "waterdeel".
+    layer : string or list of strings, optional
+        The layer(s) for which shapes are requested. When layer is "all", all layers are
+        requested. The default is "waterdeel".
     cut_by_extent : bool, optional
         Only return the intersection with the extent if True. The default is
         True
     make_valid : bool, optional
-        Make geometries valid by appying a buffer of 0 m when True. THe defaults is
+        Make geometries valid by appying a buffer of 0 m when True. The default is
         False.
     fname : string, optional
         Save the zipfile that is received by the request to file. The default
@@ -118,6 +122,9 @@ def get_bgt(
 
     if len(layer) == 1:
         gdf = gdf[layer[0]]
+    bgt_bronhouder_names = get_bronhouder_names()
+    gdf["bronhouder_name"] = gdf["bronhouder"].map(bgt_bronhouder_names)
+
     return gdf
 
 
@@ -321,3 +328,27 @@ def get_bgt_layers():
     resp = requests.get(url, timeout=1200)  # 20 minutes
     data = resp.json()
     return [x["featuretype"] for x in data["timeliness"]]
+
+
+def get_bronhouder_names() -> Dict[str, str]:
+    """Get the names of the bronhouders of the BGT data.
+
+    Returns
+    -------
+    dict
+        A dictionary with the bronhouder codes as keys and the names as values.
+
+    Notes
+    -----
+        The bronhouder names are retrieved from
+        https://www.kadaster.nl/-/bgt-bronhoudercodes. The `Toelichting` sheet
+        in the .ods file gives the changes compared to the old file. If changes
+        are made, please add them manually to the bgt_bronhouder_names
+        dictionary. A test is added for to check if the dictionary is up to
+        date with the latest file from the Kadaster up to date with the .ods
+        file from 2024-01-01.
+    """
+    with open(os.path.join(NLMOD_DATADIR, 'bgt','bronhouder_names.json'),'r') as fo:
+        bgt_bronhouder_names = json.load(fo)
+
+    return bgt_bronhouder_names

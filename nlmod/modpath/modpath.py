@@ -10,7 +10,7 @@ import pandas as pd
 from packaging.version import parse as parse_version
 
 from .. import util
-from ..dims.grid import xy_to_icell2d, xy_to_row_col
+from ..dims.grid import get_row_col_from_xy, get_icell2d_from_xy
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
     assert mpf.run_model(silent=silent)[0], "Modpath run not succeeded"
 
 
-def xy_to_nodes(xy_list, mpf, ds, layer=0):
+def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
     """Convert a list of points, defined by x and y coordinates, to a list of nodes. A
     node is a unique cell in a model. The icell2d is a unique cell in a layer.
 
@@ -70,6 +70,10 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0):
         Layer number. If layer is an int all nodes are returned for that layer.
         If layer is a list the length should be the same as xy_list. The
         default is 0.
+    rotated : bool, optional
+        If the model grid has a rotation, and rotated is False, x and y are in model
+        coordinates. Otherwise x and y are in real world coordinates. The default is
+        True.
 
     Returns
     -------
@@ -82,11 +86,11 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0):
     nodes = []
     for i, xy in enumerate(xy_list):
         if len(mpf.ib.shape) == 3:
-            row, col = xy_to_row_col(xy, ds)
+            row, col = get_row_col_from_xy(xy[0], xy[1], ds, rotated=rotated)
             if mpf.ib[layer[i], row, col] > 0:
                 nodes.append(get_node_structured(layer[i], row, col, mpf.ib.shape))
         else:
-            icell2d = xy_to_icell2d(xy, ds)
+            icell2d = get_icell2d_from_xy(xy[0], xy[1], ds, rotated=rotated)
             if mpf.ib[layer[i], icell2d] > 0:
                 nodes.append(get_node_vertex(layer[i], icell2d, mpf.ib.shape))
 

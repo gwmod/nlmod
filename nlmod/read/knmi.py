@@ -57,6 +57,9 @@ def get_recharge(ds, method="linear", most_common_station=False):
                 "Please run nlmod.time.set_ds_time()"
             )
         )
+    if ds.time.dtype.kind != "M":
+        raise TypeError("get recharge requires a datetime64[ns] time index")
+
     start = pd.Timestamp(ds.time.attrs["start"])
     end = pd.Timestamp(ds.time.data[-1])
 
@@ -300,7 +303,7 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
 
         # if a station has no data in the given period another station is selected
         if o.station != stnev24:
-            locations["stn_ev24"] = locations["stn_rd"].replace(stnev24, o.station)
+            locations["stn_ev24"] = locations["stn_ev24"].replace(stnev24, o.station)
 
         # only add the station if it does not exist yet
         if o.station not in new_stns_ev24:

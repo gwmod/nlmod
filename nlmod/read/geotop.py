@@ -41,8 +41,24 @@ def get_lithok_colors():
 
 
 def get_strat_props():
-    fname = os.path.join(NLMOD_DATADIR, "geotop", "geo_eenheden.csv")
-    df = pd.read_csv(fname, index_col=0, keep_default_na=False)
+    fname = os.path.join(NLMOD_DATADIR, "geotop", "REF_GTP_STR_UNIT.csv")
+    df = pd.read_csv(fname, keep_default_na=False, na_values="")
+    # rename the columns to previously used values
+    # so existing nlmod-code will keep working
+    df = df.rename(
+        columns={"STR_UNIT_CD": "code", "VOXEL_NR": "strat", "DESCRIPTION": "name"}
+    )
+    # calculate color from red, green and blue columns
+    color = {}
+    for index in df.index:
+        color[index] = (
+            df.at[index, "RED_DEC"] / 255,
+            df.at[index, "GREEN_DEC"] / 255,
+            df.at[index, "BLUE_DEC"] / 255,
+        )
+    df["color"] = color
+    df = df.drop(columns=["RED_DEC", "GREEN_DEC", "BLUE_DEC"]).set_index("strat")
+
     return df
 
 
@@ -106,19 +122,19 @@ def to_model_layers(
     if strat_props is None:
         strat_props = get_strat_props()
 
-    # stap 2 create layer for each stratigraphy unit (geo-eenheid)
-    if strat_props is None:
-        strat_props = get_strat_props()
-
     # get all strat-units in Dataset
     strat = geotop_ds["strat"].values
     units = np.unique(strat)
     units = units[~np.isnan(units)].astype(int)
     shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
-    # stratigraphy unit (geo eenheid) 2000 is above 1130
-    if (2000 in units) and (1130 in units):
-        units[(units == 2000) + (units == 1130)] = [2000, 1130]
+    if "SEQ_NR" in strat_props.columns:
+        # sort units based on SEQ_NR in strat_props
+        units = strat_props.loc[units, "SEQ_NR"].sort_values().index.values
+    else:
+        # stratigraphy unit (geo eenheid) 2000 is above 1130
+        if (2000 in units) and (1130 in units):
+            units[(units == 2000) + (units == 1130)] = [2000, 1130]
 
     # fill top and bot
     top = np.full(shape, np.nan)
@@ -435,12 +451,12 @@ def add_kh_and_kv(
         strat_un = np.unique(strat[~np.isnan(strat)])
         kh_ar = np.full(strat.shape, 0.0)
         kv_ar = np.full(strat.shape, 0.0)
-        probality_total = np.full(strat.shape, 0.0)
+        probability_total = np.full(strat.shape, 0.0)
         for ilithok in df["lithok"].unique():
             if ilithok == 0:
                 # there are no probabilities defined for lithoclass 'antropogeen'
                 continue
-            probality = gt[f"kans_{ilithok}"].values
+            probability = gt[f"kans_{ilithok}"].values
             if "strat" in df:
                 khi, kvi = _handle_nans_in_stochastic_approach(
                     np.nan, np.nan, kh_method, kv_method
@@ -448,14 +464,14 @@ def add_kh_and_kv(
                 khi = np.full(strat.shape, khi)
                 kvi = np.full(strat.shape, kvi)
                 for istrat in strat_un:
-                    mask = (strat == istrat) & (probality > 0)
+                    mask = (strat == istrat) & (probability > 0)
                     if not mask.any():
                         continue
                     kh_sel, kv_sel = _get_kh_kv_from_df(
                         df, ilithok, istrat, anisotropy=anisotropy, mask=mask
                     )
                     if np.isnan(kh_sel):
-                        probality[mask] = 0.0
+                        probability[mask] = 0.0
                     kh_sel, kv_sel = _handle_nans_in_stochastic_approach(
                         kh_sel, kv_sel, kh_method, kv_method
                     )
@@ -463,27 +479,27 @@ def add_kh_and_kv(
             else:
                 khi, kvi = _get_kh_kv_from_df(df, ilithok, anisotropy=anisotropy)
                 if np.isnan(khi):
-                    probality[:] = 0.0
+                    probability[:] = 0.0
                 khi, kvi = _handle_nans_in_stochastic_approach(
                     khi, kvi, kh_method, kv_method
                 )
             if kh_method == "arithmetic_mean":
-                kh_ar = kh_ar + probality * khi
+                kh_ar = kh_ar + probability * khi
             else:
-                kh_ar = kh_ar + (probality / khi)
+                kh_ar = kh_ar + (probability / khi)
             if kv_method == "arithmetic_mean":
-                kv_ar = kv_ar + probality * kvi
+                kv_ar = kv_ar + probability * kvi
             else:
-                kv_ar = kv_ar + (probality / kvi)
-            probality_total += probality
+                kv_ar = kv_ar + (probability / kvi)
+            probability_total += probability
         if kh_method == "arithmetic_mean":
-            kh_ar = kh_ar / probality_total
+            kh_ar = kh_ar / probability_total
         else:
-            kh_ar = probality_total / kh_ar
+            kh_ar = probability_total / kh_ar
         if kv_method == "arithmetic_mean":
-            kv_ar = kv_ar / probality_total
+            kv_ar = kv_ar / probability_total
         else:
-            kv_ar = probality_total / kv_ar
+            kv_ar = probability_total / kv_ar
     else:
         raise (ValueError(f"Unsupported value for stochastic: '{stochastic}'"))
 
@@ -620,3 +636,21 @@ def aggregate_to_ds(
     ds[kh] = xr.concat(kh_ar, ds.layer)
     ds[kv] = xr.concat(kv_ar, ds.layer)
     return ds
+
+
+def _save_excel_files_as_csv():
+    """
+    This method takes the files REF_GTP_STR_UNIT.xlsx and REF_GTP_LITHO_CLASS.xlsx that
+    are taken from the GeoTOP 1.6 zipfile downloaded from DINOloket, and saves them as
+    csv-files. In this way version-control can better process the changes in future
+    versions of GeoTOP.
+
+    Returns
+    -------
+    None.
+
+    """
+    for name in ["REF_GTP_STR_UNIT.xlsx", "REF_GTP_LITHO_CLASS.xlsx"]:
+        fname = os.path.join(NLMOD_DATADIR, "geotop", name)
+        df = pd.read_excel(fname, keep_default_na=False)
+        df.to_csv(fname.replace(".xlsx", ".csv"), index=False)

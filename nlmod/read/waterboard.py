@@ -9,8 +9,13 @@ logger = logging.getLogger(__name__)
 
 def get_polygons(**kwargs):
     """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame."""
-    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Waterschapsgrenzen/FeatureServer"
+    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/ArcGIS/rest/services/Waterschapsgrenzen/FeatureServer"
     layer = 0
+    # NOTE: Referer needed to avoid Unauthorized Access error (500)
+    if "headers" not in kwargs:
+        kwargs["headers"] = {
+            "Referer": "https://services.arcgis.com/nSZVuSZjHpEZZbRo/ArcGIS/rest/services"
+        }
     ws = webservices.arcrest(url, layer, **kwargs)
     # remove different prefixes
     ws["waterschap"] = ws["waterschap"].str.replace("HH van ", "")
@@ -127,7 +132,7 @@ def get_configuration():
             # "layer": 43, # Leggervak droge sloot
         },
         "level_areas": {
-            "url": "https://geoservices.hdsr.nl/arcgis/rest/services/Extern/PeilbesluitenExtern_damo/FeatureServer",
+            "url": "https://geoservices.hdsr.nl/arcgis/rest/services/Extern/PeilbesluitenExtern_damo24/FeatureServer",
             "layer": 1,
             "index": "WS_PGID",
             "summer_stage": ["WS_ZP", "WS_BP", "WS_OP", "WS_VP"],

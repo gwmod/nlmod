@@ -32,8 +32,8 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kw
 
     Parameters
     ----------
-    ds : xr.Dataset
-        dataset with the model information.
+    ds : xr.Dataset, optional
+        dataset with the model information. If None the extent is used.
     identifier : str, optional
         Possible values for the different AHN-versions are (casing is important):
             AHN1: 'AHN1_5M'
@@ -49,7 +49,7 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kw
         nlmod.resample.structured_da_to_ds for possible values. The default is
         'average'.
     extent : list, tuple or np.array, optional
-        extent. The default is None.
+        extent xmin, xmax, ymin, ymax. Only used if ds is None. The default is None.
 
     Returns
     -------

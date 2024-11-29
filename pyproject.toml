@@ -57,7 +57,15 @@ repository = "https://github.com/gwmod/nlmod"
 documentation = "https://nlmod.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
-full = ["nlmod[knmi]", "gdown", "geocube", "rasterstats", "contextily", "scikit-image"]
+full = [
+    "nlmod[knmi]",
+    "gdown",
+    "geocube",
+    "rasterstats",
+    "contextily",
+    "scikit-image",
+    "py7zr"
+]
 knmi = ["h5netcdf", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]

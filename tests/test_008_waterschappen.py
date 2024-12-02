@@ -29,7 +29,7 @@ def bgt_bronhoudername(bgt):
         format="%d-%m-%Y",
     )
     assert (
-        max(dates) == to_datetime("2024-01-01")
+        max(dates) == to_datetime("2025-01-01")
     ), "Bronhoudercodes are not up to date. Update `nlmod.read.bgt.get_bronhouder_names()`."
 
 

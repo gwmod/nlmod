@@ -74,11 +74,28 @@ def lake_from_gdf(
             unique value for each outlet.
     ds : xr.Dataset
         dataset containing relevant model grid and time information
-    recharge : bool, optional
-        if True recharge will be added to the lake as rainfall and removed from the rch
-        package.
-    evaporation : bool, optional
-        if True evaporation will be added to the lake and removed from the evt package.
+    rainfall : int, float, str, np.array or pd.DataFrame, optional
+        The rainfall to be applied on the lakes. If rainfall is a DataFrame, there
+        should be one column for each lake, with lakeno as the column index, or the
+        boundnames if boundname_column is specified. There should be one row for each
+        stress period. To generate rainfall and evaporation from a model dataset, the
+        method `clip_meteorological_data_from_ds` can be used.
+        If rainfall is not a DataFrame, all lakes have the same rainfall-values.
+        When rainfall is a pandas Series or a numpy array, a value for rainfall for each
+        stress period is taken from this series/array.
+        When rainfall is a float, it is directly used as the rainfall-value.
+        The default is None.
+    evaporation : int, float, str, np.array or pd.DataFrame, optional
+        The evaporation to be applied on the lakes. If evaporation is a DataFrame, there
+        should be one column for each lake, with lakeno as the column index, or the
+        boundnames if boundname_column is specified. There should be one row for each
+        stress period. To generate rainfall and evaporation from a model dataset, the
+        method `clip_meteorological_data_from_ds` can be used.
+        If evaporation is not a DataFrame, all lakes have the same evaporation-values.
+        When evaporation is a pandas Series or a numpy array, a value for evaporation
+        for each stress period is taken from this series/array.
+        When evaporation is a float, it is directly used as the evaporation-value.
+        The default is None.
     claktype : str, optional
         defines the lake-GWF connection type. For now only VERTICAL is supported. The
         default is 'VERTICAL'.

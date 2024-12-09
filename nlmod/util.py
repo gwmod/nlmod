@@ -719,6 +719,8 @@ def gdf_within_extent(gdf, extent):
             raise TypeError(f"Only accepts single geometry type not {geom_types}")
     elif geom_types[0] == "Polygon":
         gdf = gpd.overlay(gdf, gdf_extent)
+    elif geom_types[0] == "MultiPolygon":
+        gdf = gpd.overlay(gdf, gdf_extent)
     elif geom_types[0] == "LineString":
         gdf = gpd.sjoin(gdf, gdf_extent)
     elif geom_types[0] == "Point":

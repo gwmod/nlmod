@@ -3,6 +3,7 @@ from . import (
     administrative,
     ahn,
     bgt,
+    bofek,
     bro,
     brp,
     geotop,

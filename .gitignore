@@ -145,7 +145,7 @@ cython_debug/
 nlmod/bin/*
 !nlmod/bin/
 !nlmod/bin/mp7_2_002_provisional
-flowchartnlmod.pptx
+nlmod/data/GIS
 
 tests/data/*
 !tests/data/**/

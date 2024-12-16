@@ -208,7 +208,8 @@ def cache_netcdf(
 
                 if pickle_check:
                     # Ensure that the pickle pairs with the netcdf, see #66.
-                    func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+                    # temporary disabled, see #389
+                    # func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
 
                     if dataset is not None:
                         # Check the coords of the dataset argument
@@ -261,8 +262,9 @@ def cache_netcdf(
                     result.to_netcdf(fname_cache)
 
                 # add netcdf hash to function arguments dic, see #66
-                with xr.open_dataset(fname_cache) as temp:
-                    func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
+                # temporary disabled, see #389
+                # with xr.open_dataset(fname_cache) as temp:
+                #     func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
 
                 # Add dataset argument hash to pickle
                 if dataset is not None:
@@ -448,9 +450,12 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
             pass
         elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple)):
             if item != func_args_dic_cache[key]:
-                logger.info(
-                    "cache was created using different function argument values, do not use cached data"
-                )
+                if key.endswith('_hash') and isinstance(item, str):
+                    msg = f"cached hashes do not match: {key}, do not use cached data"
+                    logger.info(msg)
+                else:
+                    msg = f"cache was created using different function argument: {key}, do not use cached data"
+                    logger.info(msg)
                 return False
         elif isinstance(item, np.ndarray):
             if not np.allclose(item, func_args_dic_cache[key]):

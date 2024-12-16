@@ -1,18 +1,24 @@
-import requests, zipfile, io
-import geopandas as gpd
-from pathlib import Path
-from nlmod import NLMOD_DATADIR, cache, dims, util
-import shutil
+import io
 import logging
+import shutil
+import zipfile
+from pathlib import Path
+
+import geopandas as gpd
+import requests
+
+from nlmod import NLMOD_DATADIR, cache, dims, util
 
 logger = logging.getLogger(__name__)
 
 
 @cache.cache_pickle
 def get_gdf_bofek(ds=None, extent=None):
-    """get geodataframe of bofek 2020 wihtin the extent of the model. It does so by
-    downloading a zip file (> 100 MB) and extracting the relevant geodatabase. Therefore
-    the function can be slow, ~35 seconds depending on your internet connection.
+    """Get geodataframe of bofek 2020 wihtin the extent of the model.
+    
+    It does so by downloading a zip file (> 100 MB) and extracting the relevant
+    geodatabase. Therefore the function can be slow, ~35 seconds depending on your
+    internet connection.
 
     Parameters
     ----------
@@ -27,7 +33,6 @@ def get_gdf_bofek(ds=None, extent=None):
         Bofek2020 geodataframe with a column 'BOFEK2020' containing the bofek cluster
         codes
     """
-
     import py7zr
 
     if extent is None and ds is not None:
@@ -43,14 +48,16 @@ def get_gdf_bofek(ds=None, extent=None):
     if not fname_bofek_geojson.exists():
         # download zip
         logger.info('Downloading BOFEK2020 GIS data (~35 seconds)')
-        r = requests.get(bofek_zip_url)
+        r = requests.get(bofek_zip_url, timeout=3600)
         z = zipfile.ZipFile(io.BytesIO(r.content))
 
         # extract 7z
         logger.debug('Extracting zipped BOFEK2020 GIS data')
         z.extractall(tmpdir)
         with py7zr.SevenZipFile(fname_7z, mode='r') as z:
-            z.extract(targets=['GIS/BOFEK2020_bestanden/BOFEK2020.gdb'], path=tmpdir, recursive=True)
+            z.extract(targets=['GIS/BOFEK2020_bestanden/BOFEK2020.gdb'],
+                      path=tmpdir,
+                      recursive=True)
 
         # clean up
         logger.debug('Remove zip files')

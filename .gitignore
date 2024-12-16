@@ -145,7 +145,7 @@ cython_debug/
 nlmod/bin/*
 !nlmod/bin/
 !nlmod/bin/mp7_2_002_provisional
-nlmod/data/GIS
+nlmod/data/bofek/*
 
 tests/data/*
 !tests/data/**/

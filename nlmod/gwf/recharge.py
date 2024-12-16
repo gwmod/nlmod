@@ -1,4 +1,5 @@
 import logging
+import numbers
 
 import flopy
 import numpy as np
@@ -370,7 +371,7 @@ def ds_to_uzf(
 
     # generate packagedata
     surfdep = _get_value_from_ds_datavar(ds, "surfdep", surfdep, return_da=True)
-    vks = _get_value_from_ds_datavar(ds, "vk", vks, return_da=True)
+    vks = _get_value_from_ds_datavar(ds, "vks", vks, return_da=True)
     thtr = _get_value_from_ds_datavar(ds, "thtr", thtr, return_da=True)
     thts = _get_value_from_ds_datavar(ds, "thts", thts, return_da=True)
     thti = _get_value_from_ds_datavar(ds, "thti", thti, return_da=True)
@@ -496,7 +497,9 @@ def ds_to_uzf(
         # account for surfdep, as this decreases the height of the top of the upper cell
         # otherwise modflow may return an error
         thickness = calculate_thickness(ds)
-        thickness = [thickness[x] - landflag[x] * surfdep / 2 for x in cellids_obs]
+        if isinstance(surfdep, numbers.Number):
+            surfdep = xr.ones_like(thickness) * surfdep
+        thickness = [thickness[x] - landflag[x] * surfdep[x] / 2 for x in cellids_obs]
 
         # create observations list
         obsdepths = []

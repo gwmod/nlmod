@@ -22,7 +22,7 @@ def bgt_bronhoudername(bgt):
     tree = html.fromstring(response.content)
     dates = to_datetime(
         [
-            "-".join(x.rsplit("-", 3)[-3:])
+            "-".rstrip("-").join(x.rsplit("-", 3)[-3:])
             for x in tree.xpath("//a/@href")
             if "bronhoudercodes" in x
         ],

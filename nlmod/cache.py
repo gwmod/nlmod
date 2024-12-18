@@ -1,4 +1,5 @@
 import functools
+import hashlib
 import importlib
 import inspect
 import logging
@@ -208,7 +209,8 @@ def cache_netcdf(
 
                 if pickle_check:
                     # Ensure that the pickle pairs with the netcdf, see #66.
-                    func_args_dic["_nc_hash"] = dask.base.tokenize(cached_ds)
+                    cache_bytes = open(fname_cache, 'rb').read()
+                    func_args_dic["_nc_hash"] = hashlib.sha256(cache_bytes).hexdigest()
 
                     if dataset is not None:
                         # Check the coords of the dataset argument
@@ -261,8 +263,8 @@ def cache_netcdf(
                     result.to_netcdf(fname_cache)
 
                 # add netcdf hash to function arguments dic, see #66
-                with xr.open_dataset(fname_cache) as temp:
-                    func_args_dic["_nc_hash"] = dask.base.tokenize(temp)
+                cache_bytes = open(fname_cache, 'rb').read()
+                func_args_dic["_nc_hash"] = hashlib.sha256(cache_bytes).hexdigest()
 
                 # Add dataset argument hash to pickle
                 if dataset is not None:

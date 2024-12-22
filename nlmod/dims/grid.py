@@ -1672,9 +1672,9 @@ def gdf_to_bool_da(
 
     if kwargs or contains_centroid or min_area_fraction is not None:
         r = ix.intersect(
-            multipolygon, 
-            contains_centroid=contains_centroid, 
-            min_area_fraction=min_area_fraction, 
+            multipolygon,
+            contains_centroid=contains_centroid,
+            min_area_fraction=min_area_fraction,
             **kwargs
         )
     else:

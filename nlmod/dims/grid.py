@@ -1638,7 +1638,8 @@ def gdf_to_bool_da(
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        buffer around the geometries. The default is 0.
+        The distance to buffer around the geometries in meters. A positive distance 
+        produces a dilation, a negative distance an erosion. The default is 0.
     contains_centroid :  bool, optional
         if True, only store intersection result if cell centroid is
         contained within intersection shape, only used if shape type is
@@ -1663,7 +1664,7 @@ def gdf_to_bool_da(
         msg = "gdf_to_bool_da() only support GeoDataFrame or shapely"
         raise TypeError(msg)
 
-    if buffer > 0.0:
+    if buffer != 0.0:
         multipolygon = multipolygon.buffer(buffer)
 
     if ix is None:
@@ -1731,7 +1732,8 @@ def gdf_to_bool_ds(
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        buffer around the geometries. The default is 0.
+        The distance to buffer around the geometries in meters. A positive distance 
+        produces a dilation, a negative distance an erosion. The default is 0.
     contains_centroid :  bool, optional
         if True, only store intersection result if cell centroid is
         contained within intersection shape, only used if shape type is

@@ -1612,12 +1612,12 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
 
 
 def gdf_to_bool_da(
-        gdf, 
-        ds, 
-        ix=None, 
-        buffer=0.0, 
-        contains_centroid=False, 
-        min_area_fraction=None, 
+        gdf,
+        ds,
+        ix=None,
+        buffer=0.0,
+        contains_centroid=False,
+        min_area_fraction=None,
         **kwargs
     ):
     """Return True if grid cell is partly in polygons, False otherwise.
@@ -1698,14 +1698,14 @@ def gdf_to_bool_da(
 
 
 def gdf_to_bool_ds(
-    gdf, 
-    ds, 
-    da_name, 
-    keep_coords=None, 
-    ix=None, 
-    buffer=0.0, 
-    contains_centroid=False, 
-    min_area_fraction=None, 
+    gdf,
+    ds,
+    da_name,
+    keep_coords=None,
+    ix=None,
+    buffer=0.0,
+    contains_centroid=False,
+    min_area_fraction=None,
     **kwargs
 ):
     """Return True if grid cell is partly in polygons, False otherwise.

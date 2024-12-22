@@ -1668,7 +1668,7 @@ def gdf_to_bool_da(
 
     if ix is None:
         modelgrid = modelgrid_from_ds(ds)
-        ix = GridIntersect(modelgrid)
+        ix = GridIntersect(modelgrid, method="vertex")
 
     if kwargs or contains_centroid or min_area_fraction is not None:
         r = ix.intersect(

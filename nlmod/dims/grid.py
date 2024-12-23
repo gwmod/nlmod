@@ -1684,7 +1684,7 @@ def gdf_to_bool_da(
     if ix is None:
         modelgrid = modelgrid_from_ds(ds, rotated=False)
         ix = GridIntersect(modelgrid, method="vertex")
-    
+
     grid_rotation = ds.attrs.get("angrot", 0.0)
     ix_rotation = ix.mfgrid.angrot
 

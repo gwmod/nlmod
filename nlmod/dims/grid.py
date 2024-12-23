@@ -1663,7 +1663,7 @@ def gdf_to_bool_da(
     else:
         msg = "gdf_to_bool_da() only support structured or vertex gridtypes"
         raise ValueError(msg)
-    
+
     if len(gdf) == 0:
         logger.warning("gdf passed to gdf_to_bool_da() is empty")
         return da

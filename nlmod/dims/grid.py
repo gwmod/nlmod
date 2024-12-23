@@ -1680,9 +1680,17 @@ def gdf_to_bool_da(
     if buffer != 0.0:
         multipolygon = multipolygon.buffer(buffer)
 
+    # Rotate the polygon instead of the modelgrid
     if ix is None:
-        modelgrid = modelgrid_from_ds(ds)
+        modelgrid = modelgrid_from_ds(ds, rotated=False)
         ix = GridIntersect(modelgrid, method="vertex")
+    
+    grid_rotation = ds.attrs.get("angrot", 0.0)
+    ix_rotation = ix.mfgrid.angrot
+
+    if grid_rotation != 0.0 and ix_rotation == 0.0:
+        affine = get_affine_mod_to_world(ds)
+        multipolygon = affine_transform_gdf(multipolygon, affine)
 
     if kwargs or contains_centroid or min_area_fraction is not None:
         r = ix.intersect(

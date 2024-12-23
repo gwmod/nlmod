@@ -1656,6 +1656,18 @@ def gdf_to_bool_da(
     da : xr.DataArray
         True if polygon is in cell, False otherwise.
     """
+    if ds.gridtype == "structured":
+        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=False)
+    elif ds.gridtype == "vertex":
+        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=False)
+    else:
+        msg = "gdf_to_bool_da() only support structured or vertex gridtypes"
+        raise ValueError(msg)
+    
+    if len(gdf) == 0:
+        logger.warning("gdf passed to gdf_to_bool_da() is empty")
+        return da
+
     if isinstance(gdf, gpd.GeoDataFrame):
         multipolygon = unary_union(gdf.geometry)
     elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
@@ -1680,14 +1692,6 @@ def gdf_to_bool_da(
         )
     else:
         r = ix.intersects(multipolygon)
-
-    if ds.gridtype == "structured":
-        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=False)
-    elif ds.gridtype == "vertex":
-        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=False)
-    else:
-        msg = "gdf_to_bool_da() only support structured or vertex gridtypes"
-        raise ValueError(msg)
 
     if ds.gridtype == "structured":
         ixs, iys = zip(*r["cellids"], strict=True)

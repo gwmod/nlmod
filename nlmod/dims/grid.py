@@ -1664,12 +1664,13 @@ def gdf_to_bool_da(
         msg = "gdf_to_bool_da() only support structured or vertex gridtypes"
         raise ValueError(msg)
 
-    if len(gdf) == 0:
-        logger.warning("gdf passed to gdf_to_bool_da() is empty")
-        return da
-
     if isinstance(gdf, gpd.GeoDataFrame):
-        multipolygon = unary_union(gdf.geometry)
+        if len(gdf) == 0:
+            return da
+        elif len(gdf) == 1:
+            multipolygon = gdf.geometry.values[0]
+        else:
+            multipolygon = unary_union(gdf.geometry)
     elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
         multipolygon = gdf
     else:

@@ -1649,7 +1649,7 @@ def gdf_to_bool_da(
         area is smaller than min_frac_area * cell_area, do not store
         intersection result.
     **kwargs : keyword arguments
-        keyword arguments are passed to the intersect_*-methods.
+        keyword arguments are passed to the intersect-method.
 
     Returns
     -------
@@ -1689,8 +1689,8 @@ def gdf_to_bool_da(
     ix_rotation = ix.mfgrid.angrot
 
     if grid_rotation != 0.0 and ix_rotation == 0.0:
-        affine = get_affine_mod_to_world(ds)
-        multipolygon = affine_transform_gdf(multipolygon, affine)
+        affine = get_affine_world_to_mod(ds).to_shapely()
+        multipolygon = affine_transform(multipolygon, affine)
 
     if kwargs or contains_centroid or min_area_fraction is not None:
         r = ix.intersect(
@@ -1702,10 +1702,10 @@ def gdf_to_bool_da(
     else:
         r = ix.intersects(multipolygon)
 
-    if ds.gridtype == "structured":
+    if r.size > 0 and ds.gridtype == "structured":
         ixs, iys = zip(*r["cellids"], strict=True)
         da.values[ixs, iys] = True
-    elif ds.gridtype == "vertex":
+    elif r.size > 0 and ds.gridtype == "vertex":
         da[r["cellids"].astype(int)] = True
 
     return da

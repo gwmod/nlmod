@@ -114,46 +114,34 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
 
     idomain = get_idomain(ds).data
     if model.model_type == "gwf6":
-        dis = flopy.mf6.ModflowGwfdis(
-            model,
-            pname=pname,
-            length_units=length_units,
-            xorigin=xorigin,
-            yorigin=yorigin,
-            angrot=angrot,
-            nlay=ds.sizes["layer"],
-            nrow=ds.sizes["y"],
-            ncol=ds.sizes["x"],
-            delr=get_delr(ds),
-            delc=get_delc(ds),
-            top=ds["top"].data,
-            botm=ds["botm"].data,
-            idomain=idomain,
-            filename=f"{ds.model_name}.dis",
-            **kwargs,
-        )
+        filename = f"{ds.model_name}.dis"
+        klass = flopy.mf6.ModflowGwfdis
     elif model.model_type == "gwt6":
-        dis = flopy.mf6.ModflowGwtdis(
-            model,
-            pname=pname,
-            length_units=length_units,
-            xorigin=xorigin,
-            yorigin=yorigin,
-            angrot=angrot,
-            nlay=ds.sizes["layer"],
-            nrow=ds.sizes["y"],
-            ncol=ds.sizes["x"],
-            delr=get_delr(ds),
-            delc=get_delc(ds),
-            top=ds["top"].data,
-            botm=ds["botm"].data,
-            idomain=idomain,
-            filename=f"{ds.model_name}_gwt.dis",
-            **kwargs,
-        )
+        filename = (f"{ds.model_name}_gwt.dis",)
+        klass = flopy.mf6.ModflowGwtdis
+    elif model.model_type == "prt6":
+        filename = f"{ds.model_name}_prt.dis"
+        klass = flopy.mf6.ModflowPrtdis
     else:
         raise ValueError("Unknown model type.")
-
+    dis = klass(
+        model,
+        pname=pname,
+        length_units=length_units,
+        xorigin=xorigin,
+        yorigin=yorigin,
+        angrot=angrot,
+        nlay=ds.sizes["layer"],
+        nrow=ds.sizes["y"],
+        ncol=ds.sizes["x"],
+        delr=get_delr(ds),
+        delc=get_delc(ds),
+        top=ds["top"].data,
+        botm=ds["botm"].data,
+        idomain=idomain,
+        filename=filename,
+        **kwargs,
+    )
     return dis
 
 
@@ -213,45 +201,34 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
     cell2d = grid.get_cell2d_from_ds(ds)
     idomain = get_idomain(ds).data
     if model.model_type == "gwf6":
-        disv = flopy.mf6.ModflowGwfdisv(
-            model,
-            idomain=idomain,
-            xorigin=xorigin,
-            yorigin=yorigin,
-            length_units=length_units,
-            angrot=angrot,
-            nlay=len(ds.layer),
-            ncpl=len(ds.icell2d),
-            nvert=len(ds.iv),
-            top=ds["top"].data,
-            botm=ds["botm"].data,
-            vertices=vertices,
-            cell2d=cell2d,
-            pname=pname,
-            **kwargs,
-        )
+        klass = flopy.mf6.ModflowGwfdisv
+        filename = f"{ds.model_name}.disv"
     elif model.model_type == "gwt6":
-        disv = flopy.mf6.ModflowGwtdisv(
-            model,
-            idomain=idomain,
-            xorigin=xorigin,
-            yorigin=yorigin,
-            length_units=length_units,
-            angrot=angrot,
-            nlay=len(ds.layer),
-            ncpl=len(ds.icell2d),
-            nvert=len(ds.iv),
-            top=ds["top"].data,
-            botm=ds["botm"].data,
-            vertices=vertices,
-            cell2d=cell2d,
-            pname=pname,
-            filename=f"{ds.model_name}_gwt.disv",
-            **kwargs,
-        )
+        klass = flopy.mf6.ModflowGwtdisv
+        filename = f"{ds.model_name}.disv"
+    elif model.model_type == "prt6":
+        klass = flopy.mf6.ModflowPrtdisv
+        filename = (f"{ds.model_name}_prt.disv",)
     else:
         raise ValueError("Unknown model type.")
-
+    disv = klass(
+        model,
+        idomain=idomain,
+        xorigin=xorigin,
+        yorigin=yorigin,
+        length_units=length_units,
+        angrot=angrot,
+        nlay=len(ds.layer),
+        ncpl=len(ds.icell2d),
+        nvert=len(ds.iv),
+        top=ds["top"].data,
+        botm=ds["botm"].data,
+        vertices=vertices,
+        cell2d=cell2d,
+        pname=pname,
+        filename=filename,
+        **kwargs,
+    )
     if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         model.modelgrid.set_coord_info(xoff=xorigin, yoff=yorigin, angrot=angrot)
 
@@ -875,7 +852,7 @@ def _set_record(out, budget, output="head"):
     return record
 
 
-def buy(ds, gwf, pname="buy", **kwargs):
+def buy(ds, gwf, pname="buy", gwt_modelname=None, **kwargs):
     """Create buoyancy package from model dataset.
 
     Parameters
@@ -886,6 +863,9 @@ def buy(ds, gwf, pname="buy", **kwargs):
         groundwaterflow object.
     pname : str, optional
         package name, by default "buy"
+    gwt_modelname : str, optional
+        name of the groundwater transport model, by default None,
+        which uses gwf modelname with '_gwt' appended.
 
     Returns
     -------
@@ -903,6 +883,7 @@ def buy(ds, gwf, pname="buy", **kwargs):
             "BUY package requires a groundwater transport model. "
             "Set 'transport' to True in model dataset."
         )
+    logger.info("creating mf6 BUY")
 
     drhodc = _get_value_from_ds_attr(
         ds, "drhodc", attr="drhodc", value=kwargs.pop("drhodc", None)
@@ -914,7 +895,9 @@ def buy(ds, gwf, pname="buy", **kwargs):
         ds, "denseref", attr="denseref", value=kwargs.pop("denseref", None)
     )
 
-    pdata = [(0, drhodc, crhoref, f"{ds.model_name}_gwt", "CONCENTRATION")]
+    if gwt_modelname is None:
+        gwt_modelname = f"{ds.model_name}_gwt"
+    pdata = [(0, drhodc, crhoref, gwt_modelname, "CONCENTRATION")]
 
     buy = flopy.mf6.ModflowGwfbuy(
         gwf,

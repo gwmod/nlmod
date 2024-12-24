@@ -252,8 +252,7 @@ def _get_budget_da(
 def _get_flopy_data_object(
     var, ds=None, gwml=None, fname=None, grb_file=None, **kwargs
 ):
-    """Get modflow HeadFile or CellBudgetFile object, containg heads, budgets or
-    concentrations.
+    """Get flopy data object, containing heads, budgets or concentrations.
 
     Provide one of ds, gwf or fname.
 

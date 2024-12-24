@@ -1,7 +1,11 @@
+from typing import Callable, Optional, Union
+
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import patheffects
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
+from shapely import LineString
 
 from ..dims.grid import get_affine_mod_to_world
 from ..epsg28992 import EPSG_28992
@@ -259,4 +263,136 @@ def title_inside(
         transform=ax.transAxes,
         bbox=bbox,
         **kwargs,
+    )
+
+
+def inset_map(
+    ax: plt.Axes,
+    extent: Union[tuple[float], list[float]],
+    axes_bounds: Union[tuple[float], list[float]] = (0.63, 0.025, 0.35, 0.35),
+    anchor: str = "SE",
+    provider: Optional[str] = "nlmaps.water",
+    add_to_plot: Optional[list[Callable]] = None,
+):
+    """Add an inset map to an axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.Axes
+        The axes to add the inset map to.
+    extent : list of 4 floats
+        The extent of the inset map.
+    axes_bounds : list of 4 floats, optional
+        The bounds (left, right, width height) of the inset axes, default
+        is [0.63, 0.025, 0.35, 0.35]. This is rescaled according to the extent of
+        the inset map.
+    anchor : str, optional
+        The anchor point of the inset map, default is 'SE'.
+    provider : str, optional
+        Add a backgroundmap if map provider is passed, default is 'nlmaps.water'. To
+        turn off the backgroundmap set provider to None.
+    add_to_plot : list of functions, optional
+        List of functions to plot on the inset map, default is None. The functions
+        must accept an ax argument. Hint: use `functools.partial` to set plot style,
+        and pass the partial function to add_to_plot.
+
+    Returns
+    -------
+    mapax : matplotlib.Axes
+        The inset map axes.
+    """
+    mapax = ax.inset_axes(axes_bounds)
+    mapax.axis(extent)
+    mapax.set_aspect("equal", adjustable="box", anchor=anchor)
+    mapax.set_xticks([])
+    mapax.set_yticks([])
+    mapax.set_xlabel("")
+    mapax.set_ylabel("")
+
+    if provider:
+        add_background_map(mapax, map_provider=provider, attribution=False)
+
+    if add_to_plot:
+        for fplot in add_to_plot:
+            fplot(ax=mapax)
+
+    return mapax
+
+
+def add_xsec_line_and_labels(
+    line: Union[list, LineString],
+    ax: plt.Axes,
+    mapax: plt.Axes,
+    x_offset: float = 0.0,
+    y_offset: float = 0.0,
+    label: str = "A",
+    **kwargs,
+):
+    """Add a cross-section line to an overview map and label the start and end points.
+
+    Parameters
+    ----------
+    line : list or shapely LineString
+        The line to plot.
+    ax : matplotlib.Axes
+        The axes to plot the labels on.
+    mapax : matplotlib.Axes
+        The axes of the overview map to plot the line on.
+    x_offset : float, optional
+        The x offset of the labels, default is 0.0.
+    y_offset : float, optional
+        The y offset of the labels, default is 0.0.
+    kwargs : dict
+        Keyword arguments to pass to the line plot function.
+
+    Raises
+    ------
+    ValueError
+        If the line is not a list or a shapely LineString.
+    """
+    if isinstance(line, list):
+        x, y = np.array(line).T
+    elif isinstance(line, LineString):
+        x, y = line.xy
+    else:
+        raise ValueError("line should be a list or a shapely LineString")
+    mapax.plot(x, y, **kwargs)
+    stroke = [patheffects.withStroke(linewidth=2, foreground="w")]
+    mapax.text(
+        x[0] + x_offset,
+        y[0] + y_offset,
+        f"{label}",
+        fontweight="bold",
+        path_effects=stroke,
+        fontsize=7,
+    )
+    mapax.text(
+        x[-1] + x_offset,
+        y[-1] + y_offset,
+        f"{label}'",
+        fontweight="bold",
+        path_effects=stroke,
+        fontsize=7,
+    )
+    ax.text(
+        0.01,
+        0.99,
+        f"{label}",
+        transform=ax.transAxes,
+        path_effects=stroke,
+        fontsize=14,
+        ha="left",
+        va="top",
+        fontweight="bold",
+    )
+    ax.text(
+        0.99,
+        0.99,
+        f"{label}'",
+        transform=ax.transAxes,
+        path_effects=stroke,
+        fontsize=14,
+        ha="right",
+        va="top",
+        fontweight="bold",
     )

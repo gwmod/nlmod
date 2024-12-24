@@ -878,7 +878,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_color_logger(level="INFO"):
+def get_color_logger(level="INFO", logger_name=None):
     """Get a logger with colored output.
 
     Parameters
@@ -911,7 +911,7 @@ def get_color_logger(level="INFO"):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger()
+    logger = logging.getLogger(logger_name)
     logger.handlers[:] = []
     logger.addHandler(handler)
     logger.setLevel(getattr(logging, level))
@@ -1137,7 +1137,13 @@ def gdf_intersection_join(
         if np.any(measure.sum() > min_total_overlap * measure_org):
             # take the largest
             ind = measure.idxmax()
-            gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
+            idf_from = gdf_from.loc[ind, columns]
+            if idf_from.index.size > 1:
+                logger.warning(
+                    f"Warning, multiple entries found for '{ind}'. Using the first one."
+                )
+                idf_from = idf_from.iloc[0]
+            gdf_to.loc[index, columns] = idf_from
             if add_index_from_column:
                 gdf_to.loc[index, add_index_from_column] = ind
     return gdf_to
@@ -1152,8 +1158,9 @@ def zonal_statistics(
     all_touched=True,
     statistics="mean",
     add_to_gdf=True,
+    progressbar=False,
 ):
-    """Calculate raster statistics in the features of a GeoDataFrame
+    """Calculate raster statistics in the features of a GeoDataFrame.
 
     Parameters
     ----------
@@ -1186,7 +1193,8 @@ def zonal_statistics(
     add_to_gdf : bool, optional
         Add the result to the orignal GeoDataFrame if True. Otherwise return a
         GeoDataFrame with only the statistics. The default is True.
-
+    progressbar : bool, optional
+        show progressbar when using rasterstats. The default is False.
 
     Returns
     -------
@@ -1259,6 +1267,7 @@ def zonal_statistics(
                 all_touched=all_touched,
                 affine=da.rio.transform(),
                 nodata=da.rio.nodata,
+                progress=progressbar,
             )
         else:
             # we assume da is a filename
@@ -1267,6 +1276,7 @@ def zonal_statistics(
                 da,
                 stats=stat,
                 all_touched=all_touched,
+                progress=progressbar,
             )
         for stat, column in zip(statistics, columns):
             geometry[column] = [x[stat] for x in stats]

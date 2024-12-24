@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import numbers
 import os
+import warnings
 from shutil import copyfile
 
 import flopy
@@ -10,7 +11,7 @@ import pandas as pd
 from packaging.version import parse as parse_version
 
 from .. import util
-from ..dims.grid import get_row_col_from_xy, get_icell2d_from_xy
+from ..dims.grid import get_icell2d_from_xy, get_row_col_from_xy
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ def get_node_vertex(lay, icell2d, shape):
     return lay * shape[1] + icell2d
 
 
-def package_to_nodes(gwf, package_name, mpf):
+def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
     """Return a list of nodes from the cells with certain boundary conditions.
 
     Parameters
@@ -114,8 +115,8 @@ def package_to_nodes(gwf, package_name, mpf):
         Groundwater flow model.
     package_name : str
         name of the package.
-    mpf : flopy.modpath.mp7.Modpath7
-        modpath object.
+    ibound : array
+        array indicating active cells
 
     Raises
     ------
@@ -127,6 +128,13 @@ def package_to_nodes(gwf, package_name, mpf):
     nodes : list of ints
         node numbers corresponding to the cells with a certain boundary condition.
     """
+    if mpf is not None:
+        warnings.warn(
+            "The 'mpf' parameter is deprecated and will be removed in a future version. "
+            "Please pass 'ibound' directly.",
+            DeprecationWarning,
+        )
+        ibound = mpf.ib
     gwf_package = gwf.get_package(package_name)
     if hasattr(gwf_package, "stress_period_data"):
         pkg_cid = gwf_package.stress_period_data.array[0]["cellid"]
@@ -138,17 +146,28 @@ def package_to_nodes(gwf, package_name, mpf):
         )
     nodes = []
     for cid in pkg_cid:
-        if len(mpf.ib.shape) == 3:
-            if mpf.ib[cid[0], cid[1], cid[2]] > 0:
-                nodes.append(get_node_structured(cid[0], cid[1], cid[2], mpf.ib.shape))
+        if ibound is None:
+            if gwf.modelgrid.grid_type == "structured":
+                nodes.append(
+                    get_node_structured(cid[0], cid[1], cid[2], gwf.modelgrid.shape)
+                )
+            elif gwf.modelgrid.grid_type == "vertex":
+                nodes.append(get_node_vertex(cid[0], cid[1], gwf.modelgrid.shape))
+            else:
+                raise NotImplementedError(
+                    "only structured and vertex grids are supported"
+                )
+        elif len(ibound.shape) == 3:
+            if ibound[cid[0], cid[1], cid[2]] > 0:
+                nodes.append(get_node_structured(cid[0], cid[1], cid[2], ibound.shape))
         else:
-            if mpf.ib[cid[0], cid[1]] > 0:
-                nodes.append(get_node_vertex(cid[0], cid[1], mpf.ib.shape))
+            if ibound[cid[0], cid[1]] > 0:
+                nodes.append(get_node_vertex(cid[0], cid[1], ibound.shape))
     return nodes
 
 
 def layer_to_nodes(mpf, modellayer):
-    """Get the nodes of all cells in one ore more model layer(s).
+    """Get the nodes of all cells in one or more model layer(s).
 
     Parameters
     ----------
@@ -403,7 +422,7 @@ def pg_from_fdt(nodes, divisions=3):
     return pg
 
 
-def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
+def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5, structured=False):
     """Create a particle group using the ParticleData.
 
     Parameters
@@ -429,6 +448,8 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
         be provided for each partloc. If localz is None, a value of
         0.5 (center of the cell) will be used (default is None). A localz
         value of 1.0 indicates the top of a cell.
+    structured : bool, optional
+        if True, assumes structured model grid.
 
     Returns
     -------
@@ -437,7 +458,7 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
     """
     p = flopy.modpath.ParticleData(
         partlocs=nodes,
-        structured=False,
+        structured=structured,
         localx=localx,
         localy=localy,
         localz=localz,

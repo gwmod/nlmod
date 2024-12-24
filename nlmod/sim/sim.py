@@ -170,7 +170,7 @@ def sim(ds, exe_name=None, version_tag=None, **kwargs):
         sim_name=ds.model_name,
         exe_name=exe_name,
         version=ds.mfversion,
-        sim_ws=ds.model_ws,
+        sim_ws=kwargs.pop("sim_ws", ds.model_ws),
         **kwargs,
     )
 

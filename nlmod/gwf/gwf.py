@@ -117,7 +117,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
         filename = f"{ds.model_name}.dis"
         klass = flopy.mf6.ModflowGwfdis
     elif model.model_type == "gwt6":
-        filename = (f"{ds.model_name}_gwt.dis",)
+        filename = f"{ds.model_name}_gwt.dis"
         klass = flopy.mf6.ModflowGwtdis
     elif model.model_type == "prt6":
         filename = f"{ds.model_name}_prt.dis"

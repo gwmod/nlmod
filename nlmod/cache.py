@@ -447,13 +447,13 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
     for key, item in func_args_dic.items():
         # check if cache and function call have same argument names
         if key not in func_args_dic_cache:
-            msg = f"cache was created using different function argument {key}, do not use cached data"
+            msg = f"cache was created using different function argument '{key}' not in cached arguments, do not use cached data"
             logger.info(msg)
             return False
 
         # check if cache and function call have same argument types
         if not isinstance(item, type(func_args_dic_cache[key])):
-            msg = f"cache was created using different function argument type: {key}: {type(func_args_dic_cache[key])}, do not use cached data"
+            msg = f"cache was created using different function argument types for {key}: current '{type(item)}' cache: '{type(func_args_dic_cache[key])}', do not use cached data"
             logger.info(msg)
             return False
 
@@ -469,11 +469,16 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 else:
                     msg = f"cache was created using different function argument: {key}, do not use cached data"
                     logger.info(msg)
+                logger.debug(f"{key}: {item} != {func_args_dic_cache[key]}")
                 return False
         elif isinstance(item, np.ndarray):
             if not np.allclose(item, func_args_dic_cache[key]):
                 msg = f"cache was created using different numpy array for: {key}, do not use cached data"
                 logger.info(msg)
+                logger.debug(
+                    f"array '{key}' max difference with stored copy is "
+                    f"{np.max(np.abs(item - func_args_dic_cache[key]))}"
+                )
                 return False
         elif isinstance(item, (pd.DataFrame, pd.Series, xr.DataArray)):
             if not item.equals(func_args_dic_cache[key]):

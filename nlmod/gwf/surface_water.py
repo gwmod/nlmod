@@ -869,6 +869,8 @@ def add_min_ahn_to_gdf(
         The default is 'ahn_min'.
     statistic : string, optional
         The statistic to calculate at each surface water feature. The default is 'min'.
+    progressbar : bool, optional
+        Show a progressbar when True. The default is False.
 
     Returns
     -------

@@ -133,7 +133,16 @@ def get_map(
     alpha: float, optional
         The alpha value of the background. The default is 0.5.
     tight_layout : bool, optional
-        set tight_layout, default is True. Set to False for e.g. saving animations.
+        Set tight_layout of the figure. The default value used to be True, but it has
+        been replaced by layout="constrained". Set to False for e.g. saving animations.
+        The default is False.
+    layout : str, optional
+        Used to set the layout of the figure to constrained. For more information see
+        https://matplotlib.org/stable/users/explain/axes/constrainedlayout_guide.html .
+        The default is "constrained".
+    xh : float
+        The extra height of the x-axis in inches, compared to the y-axis. The default is
+        0.0.
 
     Returns
     -------

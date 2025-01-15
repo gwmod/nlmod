@@ -3,17 +3,16 @@ import logging
 import shutil
 import zipfile
 from pathlib import Path
-
-import geopandas as gpd
 import requests
+import geopandas as gpd
+from .. import NLMOD_DATADIR, cache, dims, util
 
-from nlmod import NLMOD_DATADIR, cache, dims, util
 
 logger = logging.getLogger(__name__)
 
 
 @cache.cache_pickle
-def get_gdf_bofek(ds=None, extent=None):
+def get_gdf_bofek(ds=None, extent=None, timeout=3600):
     """Get geodataframe of bofek 2020 wihtin the extent of the model.
     
     It does so by downloading a zip file (> 100 MB) and extracting the relevant
@@ -26,6 +25,8 @@ def get_gdf_bofek(ds=None, extent=None):
         dataset containing relevant model information. The default is None.
     extent : list, tuple or np.array, optional
         extent xmin, xmax, ymin, ymax. Only used if ds is None. The default is None.
+    timeout : int, optional
+        timeout time of request in seconds. Default is 3600.
 
     Returns
     -------
@@ -40,6 +41,7 @@ def get_gdf_bofek(ds=None, extent=None):
 
     # set paths
     tmpdir = Path(NLMOD_DATADIR)
+
     fname_7z = tmpdir / 'BOFEK2020_GIS.7z'
     fname_bofek = tmpdir / 'GIS' / 'BOFEK2020_bestanden' / 'BOFEK2020.gdb'
     fname_bofek_geojson = tmpdir / 'bofek' / 'BOFEK2020.geojson'
@@ -48,16 +50,19 @@ def get_gdf_bofek(ds=None, extent=None):
     if not fname_bofek_geojson.exists():
         # download zip
         logger.info('Downloading BOFEK2020 GIS data (~35 seconds)')
-        r = requests.get(bofek_zip_url, timeout=3600)
-        z = zipfile.ZipFile(io.BytesIO(r.content))
-
-        # extract 7z
+        r = requests.get(bofek_zip_url, timeout=timeout)
+    
         logger.debug('Extracting zipped BOFEK2020 GIS data')
-        z.extractall(tmpdir)
-        with py7zr.SevenZipFile(fname_7z, mode='r') as z:
-            z.extract(targets=['GIS/BOFEK2020_bestanden/BOFEK2020.gdb'],
-                      path=tmpdir,
-                      recursive=True)
+        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+            # extract 7z
+            z.extractall(tmpdir)
+            
+        with py7zr.SevenZipFile(fname_7z, mode="r") as z:
+            z.extract(
+                targets=["GIS/BOFEK2020_bestanden/BOFEK2020.gdb"],
+                path=tmpdir,
+                recursive=True,
+            )
 
         # clean up
         logger.debug('Remove zip files')
@@ -77,7 +82,8 @@ def get_gdf_bofek(ds=None, extent=None):
     logger.debug(f'read bofek2020 geojson from {fname_bofek_geojson}')
     gdf_bofek = gpd.read_file(fname_bofek_geojson)
 
-    # slice to extent
-    gdf_bofek = util.gdf_within_extent(gdf_bofek, extent)
+    if extent is not None:
+        # slice to extent
+        gdf_bofek = util.gdf_within_extent(gdf_bofek, extent)
 
     return gdf_bofek

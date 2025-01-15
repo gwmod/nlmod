@@ -107,7 +107,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
             perlen.extend(np.diff(ds["time"]) / deltat)
     elif ds.time.dtype.kind in ["i", "f"]:
         perlen = [ds["time"][0]]
-        perlen.extent(np.diff(ds["time"].values))
+        perlen.extend(np.diff(ds["time"].values))
 
     nstp = util._get_value_from_ds_datavar(ds, "nstp", nstp, return_da=False)
 
@@ -170,7 +170,7 @@ def sim(ds, exe_name=None, version_tag=None, **kwargs):
         sim_name=ds.model_name,
         exe_name=exe_name,
         version=ds.mfversion,
-        sim_ws=ds.model_ws,
+        sim_ws=kwargs.pop("sim_ws", ds.model_ws),
         **kwargs,
     )
 

@@ -25,6 +25,7 @@ from packaging import version
 from scipy.interpolate import griddata
 from shapely.affinity import affine_transform
 from shapely.geometry import Point, Polygon
+from shapely.ops import unary_union
 from tqdm import tqdm
 
 from .. import cache, util
@@ -1610,10 +1611,23 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     return celldata
 
 
-def gdf_to_bool_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
-    """Convert a GeoDataFrame with polygon geometries into a data array corresponding to
-    the modelgrid in which each cell is 1 (True) if one or more geometries are (partly)
-    in that cell.
+def gdf_to_bool_da(
+        gdf,
+        ds,
+        ix=None,
+        buffer=0.0,
+        contains_centroid=False,
+        min_area_fraction=None,
+        **kwargs
+    ):
+    """Return True if grid cell is partly in polygons, False otherwise.
+
+    This function returns True for grid cells that are partly in the polygons. If
+    contains_centroid is True, only cells are returned where the centroid is in the
+    polygon. If min_area_fraction is set, only cells are returned where the area of the
+    intersection is larger than min_area_fraction * cell_area.
+
+    ix can be provided to speed up the process. If not provided it is computed from ds.
 
     Parameters
     ----------
@@ -1622,30 +1636,105 @@ def gdf_to_bool_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     ds : xr.Dataset
         Dataset with model data.
     ix : flopy.utils.GridIntersect, optional
-        If not provided it is computed from ds.
+        If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        buffer around the geometries. The default is 0.
+        The distance to buffer around the geometries in meters. A positive distance 
+        produces a dilation, a negative distance an erosion. The default is 0.
+    contains_centroid :  bool, optional
+        if True, only store intersection result if cell centroid is
+        contained within intersection shape, only used if shape type is
+        "polygon"
+    min_area_fraction : float, optional
+        float defining minimum intersection area threshold, if intersection
+        area is smaller than min_frac_area * cell_area, do not store
+        intersection result.
     **kwargs : keyword arguments
-        keyword arguments are passed to the intersect_*-methods.
+        keyword arguments are passed to the intersect-method.
 
     Returns
     -------
     da : xr.DataArray
-        True if polygon is in cell, False otherwise. Grid dimensions according to ds.
+        True if polygon is in cell, False otherwise.
     """
-    da = gdf_to_count_da(gdf, ds, ix=ix, buffer=buffer, **kwargs) > 0
+    if ds.gridtype == "structured":
+        da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=False)
+    elif ds.gridtype == "vertex":
+        da = util.get_da_from_da_ds(ds, dims=("icell2d",), data=False)
+    else:
+        msg = "gdf_to_bool_da() only support structured or vertex gridtypes"
+        raise ValueError(msg)
+
+    if isinstance(gdf, gpd.GeoDataFrame):
+        if len(gdf) == 0:
+            return da
+        elif len(gdf) == 1:
+            multipolygon = gdf.geometry.values[0]
+        else:
+            multipolygon = unary_union(gdf.geometry)
+    elif isinstance(gdf, shapely.geometry.base.BaseGeometry):
+        multipolygon = gdf
+    else:
+        msg = "gdf_to_bool_da() only support GeoDataFrame or shapely"
+        raise TypeError(msg)
+
+    if buffer != 0.0:
+        multipolygon = multipolygon.buffer(buffer)
+
+    # Rotate the polygon instead of the modelgrid
+    if ix is None:
+        modelgrid = modelgrid_from_ds(ds, rotated=False)
+        ix = GridIntersect(modelgrid, method="vertex")
+
+    grid_rotation = ds.attrs.get("angrot", 0.0)
+    ix_rotation = ix.mfgrid.angrot
+
+    if grid_rotation != 0.0 and ix_rotation == 0.0:
+        affine = get_affine_world_to_mod(ds).to_shapely()
+        multipolygon = affine_transform(multipolygon, affine)
+
+    if kwargs or contains_centroid or min_area_fraction is not None:
+        r = ix.intersect(
+            multipolygon,
+            contains_centroid=contains_centroid,
+            min_area_fraction=min_area_fraction,
+            **kwargs
+        )
+    else:
+        r = ix.intersects(multipolygon)
+
+    if r.size > 0 and ds.gridtype == "structured":
+        ixs, iys = zip(*r["cellids"], strict=True)
+        da.values[ixs, iys] = True
+    elif r.size > 0 and ds.gridtype == "vertex":
+        da[r["cellids"].astype(int)] = True
+
     return da
 
 
-def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kwargs):
-    """Convert a GeoDataFrame with polygon geometries into a model dataset with a
-    data_array named 'da_name' in which each cell is 1 (True) if one or more geometries
-    are (partly) in that cell.
+def gdf_to_bool_ds(
+    gdf,
+    ds,
+    da_name,
+    keep_coords=None,
+    ix=None,
+    buffer=0.0,
+    contains_centroid=False,
+    min_area_fraction=None,
+    **kwargs
+):
+    """Return True if grid cell is partly in polygons, False otherwise.
+
+    This function returns True for grid cells that are partly in the polygons. If
+    contains_centroid is True, only cells are returned where the centroid is in the
+    polygon. If min_area_fraction is set, only cells are returned where the area of the
+    intersection is larger than min_area_fraction * cell_area.
+
+    ix can be provided to speed up the process. If not provided it is computed from ds.
 
     Parameters
     ----------
-    gdf : geopandas.GeoDataFrame
-        polygon shapes with surface water.
+    gdf : geopandas.GeoDataFrame or shapely.geometry
+        shapes that will be rasterised.
     ds : xr.Dataset
         Dataset with model data.
     da_name : str
@@ -1654,20 +1743,36 @@ def gdf_to_bool_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **kw
         the coordinates in ds the you want keep in your empty ds. If None all
         coordinates are kept from original ds. The default is None.
     ix : flopy.utils.GridIntersect, optional
-        If not provided it is computed from ds.
+        If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        buffer around the geometries. The default is 0.
+        The distance to buffer around the geometries in meters. A positive distance 
+        produces a dilation, a negative distance an erosion. The default is 0.
+    contains_centroid :  bool, optional
+        if True, only store intersection result if cell centroid is
+        contained within intersection shape, only used if shape type is
+        "polygon"
+    min_area_fraction : float, optional
+        float defining minimum intersection area threshold, if intersection
+        area is smaller than min_frac_area * cell_area, do not store
+        intersection result.
     **kwargs : keyword arguments
         keyword arguments are passed to the intersect_*-methods.
 
     Returns
     -------
     ds_out : xr.Dataset
-        Dataset with a single DataArray, this DataArray is 1 if polygon is in
-        cell, 0 otherwise. Grid dimensions according to ds and mfgrid.
+        True if polygon is in cell, False otherwise.
     """
     ds_out = util.get_ds_empty(ds, keep_coords=keep_coords)
-    ds_out[da_name] = gdf_to_bool_da(gdf, ds, ix=ix, buffer=buffer, **kwargs)
+    ds_out[da_name] = gdf_to_bool_da(
+        gdf,
+        ds,
+        ix=ix,
+        buffer=buffer,
+        contains_centroid=contains_centroid,
+        min_area_fraction=min_area_fraction,
+        **kwargs,
+    )
 
     return ds_out
 

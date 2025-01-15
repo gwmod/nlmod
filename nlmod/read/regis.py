@@ -112,10 +112,10 @@ def get_regis(
         included in the model. the Default is "AKc" which is the bottom
         layer of regis. call nlmod.read.regis.get_layer_names() to get a list
         of regis names.
-    variables : tuple, optional
-        a tuple of the variables to keep from the regis Dataset. Possible
-        entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
-        'sdv'. The default is ("top", "botm", "kh", "kv").
+    variables : tuple or list, optional
+        The variables to keep from the regis Dataset. Possible entries in the list are
+        'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and 'sdv'. The default is
+        ("top", "botm", "kh", "kv").
     remove_nan_layers : bool, optional
         When True, layers that do not occur in the requested extent (layers that contain
         only NaN values for the botm array) are removed. The default is True.
@@ -167,7 +167,11 @@ def get_regis(
     ds = ds.rename_vars({"bottom": "botm"})
 
     # slice data vars
-    if variables is not None:
+    if variables is None:
+        variables = list(ds.data_vars)
+    else:
+        if isinstance(variables, str):
+            variables = [variables]
         if probabilities:
             variables = variables + ("sdh", "sdv")
         ds = ds[list(variables)]
@@ -180,12 +184,20 @@ def get_regis(
 
     if remove_nan_layers:
         # only keep layers with at least one active cell
-        ds = ds.sel(layer=~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:]))
+        if "botm" in ds:
+            mask_layer = ~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:])
+        else:
+            var = variables[0]
+            mask_layer = ~(np.isnan(ds[var])).all(ds[var].dims[1:])
+            for var in variables[1:]:
+                mask_layer = mask_layer | ~(np.isnan(ds[var])).all(ds[var].dims[1:])
+        ds = ds.sel(layer=mask_layer)
+
         if len(ds.layer) == 0:
             msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
             raise (Exception(msg))
 
-    if drop_layer_dim_from_top:
+    if drop_layer_dim_from_top and "botm" in ds and "top" in ds:
         ds = remove_layer_dim_from_top(ds)
 
     ds.attrs["gridtype"] = "structured"

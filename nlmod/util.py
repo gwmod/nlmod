@@ -1274,7 +1274,7 @@ def zonal_statistics(
             stats = zonal_stats(
                 geometry,
                 da,
-                stats=stat,
+                stats=statistics,
                 all_touched=all_touched,
                 progress=progressbar,
             )

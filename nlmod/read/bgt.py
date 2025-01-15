@@ -24,6 +24,7 @@ def get_bgt(
     fname=None,
     geometry=None,
     remove_expired=True,
+    add_bronhouder_names=True,
 ):
     """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
@@ -54,6 +55,9 @@ def get_bgt(
     remove_expired: bool, optional
         Remove expired items (that contain a value for 'eindRegistratie') when True. The
         default is True.
+    add_bronhouder_names: bool, optional
+        Add bronhouder in a column called 'bronhouder_name. names when True. The default
+        is True.
 
     Returns
     -------
@@ -118,12 +122,11 @@ def get_bgt(
         make_valid=make_valid,
         extent=polygon,
         remove_expired=remove_expired,
+        add_bronhouder_name=add_bronhouder_names,
     )
 
     if len(layer) == 1:
         gdf = gdf[layer[0]]
-    bgt_bronhouder_names = get_bronhouder_names()
-    gdf["bronhouder_name"] = gdf["bronhouder"].map(bgt_bronhouder_names)
 
     return gdf
 
@@ -136,6 +139,7 @@ def read_bgt_zipfile(
     make_valid=False,
     extent=None,
     remove_expired=True,
+    add_bronhouder_names=True,
 ):
     """Read data from a zipfile that was downloaded using get_bgt().
 
@@ -160,6 +164,9 @@ def read_bgt_zipfile(
     remove_expired: bool, optional
         Remove expired items (that contain a value for 'eindRegistratie') when True. The
         default is True.
+    add_bronhouder_names: bool, optional
+        Add bronhouder in a column called 'bronhouder_name. names when True. The default
+        is True.
 
     Returns
     -------
@@ -188,12 +195,21 @@ def read_bgt_zipfile(
             # by removing features with an eindRegistratie
             gdf[key] = gdf[key][gdf[key]["eindRegistratie"].isna()]
 
-        if make_valid:
+        if make_valid and isinstance(gdf[key], gpd.GeoDataFrame):
             gdf[key].geometry = gdf[key].geometry.buffer(0.0)
 
         if cut_by_extent and isinstance(gdf[key], gpd.GeoDataFrame):
             gdf[key].geometry = gdf[key].intersection(polygon)
             gdf[key] = gdf[key][~gdf[key].is_empty]
+
+    if add_bronhouder_names:
+        bgt_bronhouder_names = get_bronhouder_names()
+        for key in gdf:
+            if gdf[key] is None or "bronhouder" not in gdf[key].columns:
+                continue
+            gdf[key]["bronhouder_name"] = gdf[key]["bronhouder"].map(
+                bgt_bronhouder_names
+            )
 
     return gdf
 
@@ -348,7 +364,7 @@ def get_bronhouder_names() -> Dict[str, str]:
         date with the latest file from the Kadaster up to date with the .ods
         file from 2024-01-01.
     """
-    with open(os.path.join(NLMOD_DATADIR, 'bgt','bronhouder_names.json'),'r') as fo:
+    with open(os.path.join(NLMOD_DATADIR, "bgt", "bronhouder_names.json"), "r") as fo:
         bgt_bronhouder_names = json.load(fo)
 
     return bgt_bronhouder_names

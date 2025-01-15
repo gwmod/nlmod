@@ -566,9 +566,9 @@ class DatasetCrossSection:
         elif "units" in da.attrs:
             cbar.set_label(da.units)
 
-        if da.time.dtype.kind == 'M':
+        if da.time.dtype.kind == "M":
             t = pd.Timestamp(da.time.values[iper]).strftime(date_fmt)
-        elif da.time.dtype.kind == 'O':
+        elif da.time.dtype.kind == "O":
             t = da.time.values[iper].strftime(date_fmt)
         else:
             t = f"{da.time.values[iper]} {da.time.time_units}"
@@ -584,9 +584,9 @@ class DatasetCrossSection:
             pc.set_array(array)
 
             # update title
-            if da.time.dtype.kind == 'M':
+            if da.time.dtype.kind == "M":
                 t = pd.Timestamp(da.time.values[iper]).strftime(date_fmt)
-            elif da.time.dtype.kind == 'O':
+            elif da.time.dtype.kind == "O":
                 t = da.time.values[iper].strftime(date_fmt)
             else:
                 t = f"{da.time.values[iper]} {da.time.time_units}"

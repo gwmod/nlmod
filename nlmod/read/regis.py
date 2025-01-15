@@ -135,7 +135,7 @@ def get_regis(
     regis_ds : xarray dataset
         dataset with regis data projected on the modelgrid.
     """
-    ds = xr.open_dataset(REGIS_URL, decode_coords="all")
+    ds = xr.open_dataset(REGIS_URL, decode_times=False, decode_coords="all")
     if "crs" in ds.coords:
         # remove the crs coordinate, as rioxarray does not recognise the crs
         # and we set the crs at the end of this method by hand
@@ -172,11 +172,6 @@ def get_regis(
             variables = variables + ("sdh", "sdv")
         ds = ds[list(variables)]
 
-    # the 'c' value is specified as a timedelta[ns] and should be converted to a float in days.
-    # this needs to be done before the NaN replacement of -9999 values.
-    if "c" in variables and ds["c"].dtype.type is np.timedelta64:
-        ds["c"] = ds["c"] / np.timedelta64(1, "D")
-    
     # since version REGIS v02r2s2 (22.07.2024) NaN values are replaced by -9999
     # we set these values to NaN again
     if nodata is not None:
@@ -204,7 +199,9 @@ def get_regis(
         elif datavar in ["kh", "kv"]:
             ds[datavar].attrs["units"] = "m/day"
         elif datavar in ["c"]:
-            ds[datavar].attrs["units"] = "days"
+            ds[datavar].attrs["units"] = "day"
+        elif datavar in ["kD"]:
+            ds[datavar].attrs["units"] = "m2/day"
 
     # set the crs to dutch rd-coordinates
     ds.rio.write_crs(28992, inplace=True)

@@ -25,6 +25,7 @@ def get_bgt(
     geometry=None,
     remove_expired=True,
     add_bronhouder_names=True,
+    timeout=1200,
 ):
     """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
@@ -58,6 +59,9 @@ def get_bgt(
     add_bronhouder_names: bool, optional
         Add bronhouder in a column called 'bronhouder_name. names when True. The default
         is True.
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
 
     Returns
     -------
@@ -84,7 +88,7 @@ def get_bgt(
     headers = {"content-type": "application/json"}
 
     response = requests.post(
-        url, headers=headers, data=json.dumps(body), timeout=1200
+        url, headers=headers, data=json.dumps(body), timeout=timeout
     )  # 20 minutes
 
     # check api-status, if completed, download
@@ -94,7 +98,7 @@ def get_bgt(
         url = f"{api_url}{href}"
 
         while running:
-            response = requests.get(url, timeout=1200)  # 20 minutes
+            response = requests.get(url, timeout=timeout)
             if response.status_code in range(200, 300):
                 status = response.json()["status"]
                 if status == "COMPLETED":
@@ -108,7 +112,7 @@ def get_bgt(
         raise (Exception(msg))
 
     href = response.json()["_links"]["download"]["href"]
-    response = requests.get(f"{api_url}{href}", timeout=1200)  # 20 minutes
+    response = requests.get(f"{api_url}{href}", timeout=timeout)
 
     if fname is not None:
         with open(fname, "wb") as file:
@@ -122,7 +126,7 @@ def get_bgt(
         make_valid=make_valid,
         extent=polygon,
         remove_expired=remove_expired,
-        add_bronhouder_name=add_bronhouder_names,
+        add_bronhouder_names=add_bronhouder_names,
     )
 
     if len(layer) == 1:
@@ -339,9 +343,24 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
         return None
 
 
-def get_bgt_layers():
+def get_bgt_layers(timeout=1200):
+    """
+    Get the layers in the Basis Registratie Grootschalige Topografie (BGT)
+
+    Parameters
+    ----------
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
+
+    Returns
+    -------
+    list
+        A list with the layer names.
+
+    """
     url = "https://api.pdok.nl/lv/bgt/download/v1_0/dataset"
-    resp = requests.get(url, timeout=1200)  # 20 minutes
+    resp = requests.get(url, timeout=timeout)
     data = resp.json()
     return [x["featuretype"] for x in data["timeliness"]]
 

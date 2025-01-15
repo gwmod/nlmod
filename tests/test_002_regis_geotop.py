@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-
+import numpy as np
 import nlmod
 
 
@@ -18,6 +18,18 @@ def test_get_regis_botm_layer_BEk1(
     regis_ds = nlmod.read.regis.get_regis(extent, botm_layer)
     assert regis_ds.sizes["layer"] == 15
     assert regis_ds.layer.values[-1] == botm_layer
+
+
+def test_get_regis_only_c(extent=[98700.0, 99000.0, 489500.0, 489700.0]):
+    regis_ds = nlmod.read.regis.get_regis(extent, variables="c")
+    assert np.all([x == "c" for x in regis_ds.data_vars])
+    assert regis_ds.sizes["layer"] == 8
+
+
+def test_get_regis_only_c_and_kd(extent=[98700.0, 99000.0, 489500.0, 489700.0]):
+    regis_ds = nlmod.read.regis.get_regis(extent, variables=["c", "kD"])
+    assert np.all([x in ["c", "kD"] for x in regis_ds.data_vars])
+    assert regis_ds.sizes["layer"] == 18
 
 
 def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):

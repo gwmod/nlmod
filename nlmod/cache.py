@@ -181,8 +181,10 @@ def cache_netcdf(
             elif len(datasets) == 1:
                 dataset = datasets[0]
             else:
-                msg = "Function was called with multiple xarray dataset arguments. Currently unsupported."
-                raise NotImplementedError(msg)
+                raise NotImplementedError(
+                    "Function was called with multiple xarray dataset arguments. "
+                    "Currently unsupported."
+                )
 
             # only use cache if the cache file and the pickled function arguments exist
             if os.path.exists(fname_cache) and os.path.exists(fname_pickle_cache):
@@ -204,8 +206,10 @@ def cache_netcdf(
                 modification_check = time_mod_cache > time_mod_func
 
                 if not modification_check:
-                    msg = f"module of function {func.__name__} recently modified, not using cache"
-                    logger.info(msg)
+                    logger.info(
+                        f"module of function {func.__name__} recently modified, "
+                        "not using cache"
+                    )
 
                 with xr.open_dataset(fname_cache) as cached_ds:
                     cached_ds.load()
@@ -213,7 +217,8 @@ def cache_netcdf(
                 if pickle_check:
                     # Ensure that the pickle pairs with the netcdf, see #66.
                     if nc_hash:
-                        cache_bytes = open(fname_cache, "rb").read()
+                        with open(fname_cache, "rb") as myfile:
+                            cache_bytes = myfile.read()
                         func_args_dic["_nc_hash"] = hashlib.sha256(
                             cache_bytes
                         ).hexdigest()
@@ -360,7 +365,10 @@ def cache_pickle(func):
             modification_check = time_mod_cache > time_mod_func
 
             if not modification_check:
-                msg = f"module of function {func.__name__} recently modified, not using cache"
+                msg = (
+                    f"module of function {func.__name__} recently modified, "
+                    "not using cache"
+                )
                 logger.info(msg)
 
             # check if you can read the cached pickle, there are
@@ -447,13 +455,20 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
     for key, item in func_args_dic.items():
         # check if cache and function call have same argument names
         if key not in func_args_dic_cache:
-            msg = f"cache was created using different function argument '{key}' not in cached arguments, do not use cached data"
+            msg = (
+                f"cache was created using different function argument '{key}' "
+                "not in cached arguments, do not use cached data"
+            )
             logger.info(msg)
             return False
 
         # check if cache and function call have same argument types
         if not isinstance(item, type(func_args_dic_cache[key])):
-            msg = f"cache was created using different function argument types for {key}: current '{type(item)}' cache: '{type(func_args_dic_cache[key])}', do not use cached data"
+            msg = (
+                f"cache was created using different function argument types for {key}: "
+                f"current '{type(item)}' cache: '{type(func_args_dic_cache[key])}', "
+                "do not use cached data"
+            )
             logger.info(msg)
             return False
 
@@ -464,17 +479,22 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
         elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple)):
             if item != func_args_dic_cache[key]:
                 if key.endswith("_hash") and isinstance(item, str):
-                    msg = f"cached hashes do not match: {key}, do not use cached data"
-                    logger.info(msg)
+                    logger.info(
+                        f"cached hashes do not match: {key}, do not use cached data"
+                    )
                 else:
-                    msg = f"cache was created using different function argument: {key}, do not use cached data"
-                    logger.info(msg)
+                    logger.info(
+                        f"cache was created using different function argument: {key}, "
+                        "do not use cached data"
+                    )
                 logger.debug(f"{key}: {item} != {func_args_dic_cache[key]}")
                 return False
         elif isinstance(item, np.ndarray):
             if not np.allclose(item, func_args_dic_cache[key]):
-                msg = f"cache was created using different numpy array for: {key}, do not use cached data"
-                logger.info(msg)
+                logger.info(
+                    f"cache was created using different numpy array for: {key}, "
+                    "do not use cached data"
+                )
                 logger.debug(
                     f"array '{key}' max difference with stored copy is "
                     f"{np.max(np.abs(item - func_args_dic_cache[key]))}"
@@ -482,19 +502,25 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 return False
         elif isinstance(item, (pd.DataFrame, pd.Series, xr.DataArray)):
             if not item.equals(func_args_dic_cache[key]):
-                msg = f"cache was created using different DataFrame/Series/DataArray for: {key}, do not use cached data"
-                logger.info(msg)
+                logger.info(
+                    "cache was created using different DataFrame/Series/DataArray for: "
+                    f"{key}, do not use cached data"
+                )
                 return False
         elif isinstance(item, dict):
             # recursive checking
             if not _same_function_arguments(item, func_args_dic_cache[key]):
-                msg = f"cache was created using a different dictionary for: {key}, do not use cached data"
-                logger.info(msg)
+                logger.info(
+                    f"cache was created using a different dictionary for: {key}, "
+                    "do not use cached data"
+                )
                 return False
         elif isinstance(item, (flopy.mf6.ModflowGwf, flopy.modflow.mf.Modflow)):
             if str(item) != str(func_args_dic_cache[key]):
-                msg = f"cache was created using different groundwater flow model for: {key}, do not use cached data"
-                logger.info(msg)
+                logger.info(
+                    "cache was created using different groundwater flow model for: "
+                    f"{key}, do not use cached data"
+                )
                 return False
 
         elif isinstance(item, flopy.utils.gridintersect.GridIntersect):
@@ -515,8 +541,10 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
                 or mfgrid1.keys() != mfgrid2.keys()
                 or not is_same_length_props
             ):
-                msg = f"cache was created using different gridintersect object: {key}, do not use cached data"
-                logger.info(msg)
+                logger.info(
+                    f"cache was created using different gridintersect object: {key}, "
+                    "do not use cached data"
+                )
                 return False
 
             is_other_props_equal = all(
@@ -524,16 +552,17 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
             )
 
             if not is_other_props_equal:
-                msg = f"cache was created using different gridintersect object: {key}, do not use cached data"
-                logger.info(msg)
+                logger.info(
+                    f"cache was created using different gridintersect object: {key}, "
+                    "do not use cached data"
+                )
                 return False
 
         else:
-            msg = (
-                f"cannot check if cache argument {key} is valid, assuming invalid cache,"
-                f"function argument of type {type(item)}"
+            logger.info(
+                f"cannot check if cache argument {key} is valid, assuming invalid cache"
+                f", function argument of type {type(item)}"
             )
-            logger.info(msg)
             return False
 
     return True

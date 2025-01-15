@@ -208,10 +208,10 @@ def read_bgt_zipfile(
 
     if add_bronhouder_names:
         bgt_bronhouder_names = get_bronhouder_names()
-        for key in gdf:
-            if gdf[key] is None or "bronhouder" not in gdf[key].columns:
+        for gdf_layer in gdf.values():
+            if gdf_layer is None or "bronhouder" not in gdf_layer.columns:
                 continue
-            gdf[key]["bronhouder_name"] = gdf[key]["bronhouder"].map(
+            gdf_layer["bronhouder_name"] = gdf_layer["bronhouder"].map(
                 bgt_bronhouder_names
             )
 
@@ -383,7 +383,8 @@ def get_bronhouder_names() -> Dict[str, str]:
         date with the latest file from the Kadaster up to date with the .ods
         file from 2024-01-01.
     """
-    with open(os.path.join(NLMOD_DATADIR, "bgt", "bronhouder_names.json"), "r") as fo:
+    fname = os.path.join(NLMOD_DATADIR, "bgt", "bronhouder_names.json")
+    with open(fname, "r", encoding="utf-8") as fo:
         bgt_bronhouder_names = json.load(fo)
 
     return bgt_bronhouder_names

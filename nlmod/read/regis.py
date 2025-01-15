@@ -174,7 +174,7 @@ def get_regis(
 
     # the 'c' value is specified as a timedelta[ns] and should be converted to a float in days.
     # this needs to be done before the NaN replacement of -9999 values.
-    if "c" in variables:
+    if "c" in variables and ds["c"].dtype.type is np.timedelta64:
         ds["c"] = ds["c"] / np.timedelta64(1, "D")
     
     # since version REGIS v02r2s2 (22.07.2024) NaN values are replaced by -9999

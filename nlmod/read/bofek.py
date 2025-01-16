@@ -1,12 +1,13 @@
-import io
 import logging
 import shutil
 import zipfile
 from pathlib import Path
-import requests
-import geopandas as gpd
-from .. import NLMOD_DATADIR, cache, dims, util
 
+import geopandas as gpd
+import requests
+from tqdm.auto import tqdm
+
+from nlmod import NLMOD_DATADIR, cache, dims, util
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +51,22 @@ def get_gdf_bofek(ds=None, extent=None, timeout=3600):
     if not fname_bofek_geojson.exists():
         # download zip
         logger.info("Downloading BOFEK2020 GIS data (~35 seconds)")
-        r = requests.get(bofek_zip_url, timeout=timeout)
+        r = requests.get(bofek_zip_url, timeout=timeout, stream=True)
 
+        # show download progress
+        total_size = int(r.headers.get("content-length", 0))
+        block_size = 1024
+        with tqdm(
+            total=total_size, unit="B", unit_scale=True, desc="Downloading BOFEK"
+        ) as progress_bar:
+            with open(tmpdir / "bofek.zip", "wb") as file:
+                for data in r.iter_content(block_size):
+                    progress_bar.update(len(data))
+                    file.write(data)
+
+        # unpack zips
         logger.debug("Extracting zipped BOFEK2020 GIS data")
-        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        with zipfile.ZipFile(tmpdir / "bofek.zip") as z:
             # extract 7z
             z.extractall(tmpdir)
 
@@ -66,6 +79,7 @@ def get_gdf_bofek(ds=None, extent=None, timeout=3600):
 
         # clean up
         logger.debug("Remove zip files")
+        Path(tmpdir / "bofek.zip").unlink()
         Path(fname_7z).unlink()
 
         # read geodatabase

@@ -134,11 +134,12 @@ def test_get_brp():
 
 
 # disable because slow (~35 seconds depending on internet connection)
-# def test_get_bofek():
-#     # model with sea
-#     ds = test_001_model.get_ds_from_cache("basic_sea_model")
+@pytest.mark.skip(reason="slow")
+def test_get_bofek():
+    # model with sea
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
 
-#     # add knmi recharge to the model dataset
-#     gdf_bofek = nlmod.read.bofek.get_gdf_bofek(ds)
+    # add knmi recharge to the model dataset
+    gdf_bofek = nlmod.read.bofek.get_gdf_bofek(ds)
 
-#     assert not gdf_bofek.empty, "Bofek geodataframe is empty"
+    assert not gdf_bofek.empty, "Bofek geodataframe is empty"

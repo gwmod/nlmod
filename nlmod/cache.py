@@ -277,7 +277,8 @@ def cache_netcdf(
 
                 # add netcdf hash to function arguments dic, see #66
                 if nc_hash:
-                    cache_bytes = open(fname_cache, "rb").read()
+                    with open(fname_cache, "rb") as myfile:
+                        cache_bytes = myfile.read()
                     func_args_dic["_nc_hash"] = hashlib.sha256(cache_bytes).hexdigest()
 
                 # Add dataset argument hash to function arguments dic

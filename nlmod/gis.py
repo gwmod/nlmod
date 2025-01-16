@@ -75,13 +75,14 @@ def vertex_da_to_gdf(
                         "use dealing_with_time='mean'"
                     )
             else:
-                raise ValueError(
-                    f"expected dimensions ('layer', 'icell2d'), got {da.dims}"
+                logger.warning(
+                    "expected dimensions ('layer', 'icell2d') for data variable "
+                    f"{da_name}, got {da.dims}"
                 )
         else:
-            raise NotImplementedError(
-                f"expected one or two dimensions got {no_dims} for "
-                f"data variable {da_name}"
+            logger.warning(
+                f"expected one or two dimensions for data variable "
+                f"{da_name}, got {no_dims} dimensions"
             )
 
     # create geometries

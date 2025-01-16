@@ -719,6 +719,8 @@ def gdf_within_extent(gdf, extent):
             raise TypeError(f"Only accepts single geometry type not {geom_types}")
     elif geom_types[0] == "Polygon":
         gdf = gpd.overlay(gdf, gdf_extent)
+    elif geom_types[0] == "MultiPolygon":
+        gdf = gpd.overlay(gdf, gdf_extent)
     elif geom_types[0] == "LineString":
         gdf = gpd.sjoin(gdf, gdf_extent)
     elif geom_types[0] == "Point":
@@ -876,7 +878,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_color_logger(level="INFO"):
+def get_color_logger(level="INFO", logger_name=None):
     """Get a logger with colored output.
 
     Parameters
@@ -909,7 +911,7 @@ def get_color_logger(level="INFO"):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger()
+    logger = logging.getLogger(logger_name)
     logger.handlers[:] = []
     logger.addHandler(handler)
     logger.setLevel(getattr(logging, level))
@@ -1075,9 +1077,9 @@ def gdf_intersection_join(
     Parameters
     ----------
     gdf_from : gpd.GeoDataFrame
-        The GeoDataFrame to add information to.
-    gdf_to : gpd.GeoDataFrame
         The GeoDataFrame containing the information to be added.
+    gdf_to : gpd.GeoDataFrame
+        The GeoDataFrame to add information to.
     columns : list, optional
         A list of the columns to add from gdf_from to gdf_to. When columns is None,
         columns is set to all columns that are present in gdf_from but not in gdf_to.
@@ -1110,6 +1112,8 @@ def gdf_intersection_join(
         gdf_to with extra columns from gdf_from.
 
     """
+    assert gdf_from.index.is_unique, "The index of gdf_from is not unique"
+    assert gdf_to.index.is_unique, "The index of gdf_to is not unique"
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
@@ -1150,8 +1154,9 @@ def zonal_statistics(
     all_touched=True,
     statistics="mean",
     add_to_gdf=True,
+    progressbar=False,
 ):
-    """Calculate raster statistics in the features of a GeoDataFrame
+    """Calculate raster statistics in the features of a GeoDataFrame.
 
     Parameters
     ----------
@@ -1184,7 +1189,8 @@ def zonal_statistics(
     add_to_gdf : bool, optional
         Add the result to the orignal GeoDataFrame if True. Otherwise return a
         GeoDataFrame with only the statistics. The default is True.
-
+    progressbar : bool, optional
+        show progressbar when using rasterstats. The default is False.
 
     Returns
     -------
@@ -1257,14 +1263,16 @@ def zonal_statistics(
                 all_touched=all_touched,
                 affine=da.rio.transform(),
                 nodata=da.rio.nodata,
+                progress=progressbar,
             )
         else:
             # we assume da is a filename
             stats = zonal_stats(
                 geometry,
                 da,
-                stats=stat,
+                stats=statistics,
                 all_touched=all_touched,
+                progress=progressbar,
             )
         for stat, column in zip(statistics, columns):
             geometry[column] = [x[stat] for x in stats]

@@ -131,3 +131,15 @@ def test_get_surface_water_ghb():
 def test_get_brp():
     extent = [116500, 120000, 439000, 442000]
     nlmod.read.brp.get_percelen(extent)
+
+
+# disable because slow (~35 seconds depending on internet connection)
+@pytest.mark.skip(reason="slow")
+def test_get_bofek():
+    # model with sea
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+
+    # add knmi recharge to the model dataset
+    gdf_bofek = nlmod.read.bofek.get_gdf_bofek(ds)
+
+    assert not gdf_bofek.empty, "Bofek geodataframe is empty"

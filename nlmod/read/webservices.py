@@ -47,7 +47,7 @@ def arcrest(
     max_record_count : int, optional
         maximum number of records for request.
     timeout : int, optional
-        timeout time of request. Default is 120.
+        timeout time of request in seconds. Default is 120.
     table : int, optional
         can be used to link a layer to a table, not yet implemented.
 

@@ -24,6 +24,8 @@ def get_bgt(
     fname=None,
     geometry=None,
     remove_expired=True,
+    add_bronhouder_names=True,
+    timeout=1200,
 ):
     """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
@@ -54,6 +56,12 @@ def get_bgt(
     remove_expired: bool, optional
         Remove expired items (that contain a value for 'eindRegistratie') when True. The
         default is True.
+    add_bronhouder_names: bool, optional
+        Add bronhouder in a column called 'bronhouder_name. names when True. The default
+        is True.
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
 
     Returns
     -------
@@ -80,7 +88,7 @@ def get_bgt(
     headers = {"content-type": "application/json"}
 
     response = requests.post(
-        url, headers=headers, data=json.dumps(body), timeout=1200
+        url, headers=headers, data=json.dumps(body), timeout=timeout
     )  # 20 minutes
 
     # check api-status, if completed, download
@@ -90,7 +98,7 @@ def get_bgt(
         url = f"{api_url}{href}"
 
         while running:
-            response = requests.get(url, timeout=1200)  # 20 minutes
+            response = requests.get(url, timeout=timeout)
             if response.status_code in range(200, 300):
                 status = response.json()["status"]
                 if status == "COMPLETED":
@@ -104,7 +112,7 @@ def get_bgt(
         raise (Exception(msg))
 
     href = response.json()["_links"]["download"]["href"]
-    response = requests.get(f"{api_url}{href}", timeout=1200)  # 20 minutes
+    response = requests.get(f"{api_url}{href}", timeout=timeout)
 
     if fname is not None:
         with open(fname, "wb") as file:
@@ -118,12 +126,11 @@ def get_bgt(
         make_valid=make_valid,
         extent=polygon,
         remove_expired=remove_expired,
+        add_bronhouder_names=add_bronhouder_names,
     )
 
     if len(layer) == 1:
         gdf = gdf[layer[0]]
-    bgt_bronhouder_names = get_bronhouder_names()
-    gdf["bronhouder_name"] = gdf["bronhouder"].map(bgt_bronhouder_names)
 
     return gdf
 
@@ -136,6 +143,7 @@ def read_bgt_zipfile(
     make_valid=False,
     extent=None,
     remove_expired=True,
+    add_bronhouder_names=True,
 ):
     """Read data from a zipfile that was downloaded using get_bgt().
 
@@ -160,6 +168,9 @@ def read_bgt_zipfile(
     remove_expired: bool, optional
         Remove expired items (that contain a value for 'eindRegistratie') when True. The
         default is True.
+    add_bronhouder_names: bool, optional
+        Add bronhouder in a column called 'bronhouder_name. names when True. The default
+        is True.
 
     Returns
     -------
@@ -188,12 +199,21 @@ def read_bgt_zipfile(
             # by removing features with an eindRegistratie
             gdf[key] = gdf[key][gdf[key]["eindRegistratie"].isna()]
 
-        if make_valid:
+        if make_valid and isinstance(gdf[key], gpd.GeoDataFrame):
             gdf[key].geometry = gdf[key].geometry.buffer(0.0)
 
         if cut_by_extent and isinstance(gdf[key], gpd.GeoDataFrame):
             gdf[key].geometry = gdf[key].intersection(polygon)
             gdf[key] = gdf[key][~gdf[key].is_empty]
+
+    if add_bronhouder_names:
+        bgt_bronhouder_names = get_bronhouder_names()
+        for gdf_layer in gdf.values():
+            if gdf_layer is None or "bronhouder" not in gdf_layer.columns:
+                continue
+            gdf_layer["bronhouder_name"] = gdf_layer["bronhouder"].map(
+                bgt_bronhouder_names
+            )
 
     return gdf
 
@@ -323,9 +343,24 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
         return None
 
 
-def get_bgt_layers():
+def get_bgt_layers(timeout=1200):
+    """
+    Get the layers in the Basis Registratie Grootschalige Topografie (BGT)
+
+    Parameters
+    ----------
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
+
+    Returns
+    -------
+    list
+        A list with the layer names.
+
+    """
     url = "https://api.pdok.nl/lv/bgt/download/v1_0/dataset"
-    resp = requests.get(url, timeout=1200)  # 20 minutes
+    resp = requests.get(url, timeout=timeout)
     data = resp.json()
     return [x["featuretype"] for x in data["timeliness"]]
 
@@ -348,7 +383,8 @@ def get_bronhouder_names() -> Dict[str, str]:
         date with the latest file from the Kadaster up to date with the .ods
         file from 2024-01-01.
     """
-    with open(os.path.join(NLMOD_DATADIR, 'bgt','bronhouder_names.json'),'r') as fo:
+    fname = os.path.join(NLMOD_DATADIR, "bgt", "bronhouder_names.json")
+    with open(fname, "r", encoding="utf-8") as fo:
         bgt_bronhouder_names = json.load(fo)
 
     return bgt_bronhouder_names

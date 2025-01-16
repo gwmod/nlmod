@@ -3,14 +3,12 @@ import numpy as np
 import nlmod
 
 
-# @pytest.mark.skip(reason="too slow")
 def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     regis_ds = nlmod.read.regis.get_regis(extent)
 
     assert regis_ds.sizes["layer"] == 20
 
 
-# @pytest.mark.skip(reason="too slow")
 def test_get_regis_botm_layer_BEk1(
     extent=[98700.0, 99000.0, 489500.0, 489700.0],
     botm_layer="MSc",
@@ -44,7 +42,6 @@ def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     nlmod.plot.geotop_lithok_on_map(geotop_ds, z=-20.2, ax=ax)
 
 
-# @pytest.mark.skip(reason="too slow")
 def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
@@ -53,7 +50,6 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     assert regis_geotop_ds.sizes["layer"] == 24
 
 
-# @pytest.mark.skip(reason="too slow")
 def test_get_regis_geotop_keep_all_layers(
     extent=[98600.0, 99000.0, 489400.0, 489700.0],
 ):

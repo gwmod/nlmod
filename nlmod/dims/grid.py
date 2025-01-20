@@ -1612,14 +1612,14 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
 
 
 def gdf_to_bool_da(
-        gdf,
-        ds,
-        ix=None,
-        buffer=0.0,
-        contains_centroid=False,
-        min_area_fraction=None,
-        **kwargs
-    ):
+    gdf,
+    ds,
+    ix=None,
+    buffer=0.0,
+    contains_centroid=False,
+    min_area_fraction=None,
+    **kwargs,
+):
     """Return True if grid cell is partly in polygons, False otherwise.
 
     This function returns True for grid cells that are partly in the polygons. If
@@ -1638,7 +1638,7 @@ def gdf_to_bool_da(
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        The distance to buffer around the geometries in meters. A positive distance 
+        The distance to buffer around the geometries in meters. A positive distance
         produces a dilation, a negative distance an erosion. The default is 0.
     contains_centroid :  bool, optional
         if True, only store intersection result if cell centroid is
@@ -1697,7 +1697,7 @@ def gdf_to_bool_da(
             multipolygon,
             contains_centroid=contains_centroid,
             min_area_fraction=min_area_fraction,
-            **kwargs
+            **kwargs,
         )
     else:
         r = ix.intersects(multipolygon)
@@ -1720,7 +1720,7 @@ def gdf_to_bool_ds(
     buffer=0.0,
     contains_centroid=False,
     min_area_fraction=None,
-    **kwargs
+    **kwargs,
 ):
     """Return True if grid cell is partly in polygons, False otherwise.
 
@@ -1745,7 +1745,7 @@ def gdf_to_bool_ds(
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        The distance to buffer around the geometries in meters. A positive distance 
+        The distance to buffer around the geometries in meters. A positive distance
         produces a dilation, a negative distance an erosion. The default is 0.
     contains_centroid :  bool, optional
         if True, only store intersection result if cell centroid is
@@ -2307,7 +2307,7 @@ def get_affine(ds, sx=None, sy=None):
     if sy is None:
         sy = get_delc(ds)
         assert len(np.unique(sy)) == 1, "Affine-transformation needs a constant delc"
-        sy = sy[0]
+        sy = -sy[0]
 
     if "angrot" in attrs:
         xorigin = attrs["xorigin"]

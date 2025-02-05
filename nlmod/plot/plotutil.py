@@ -275,6 +275,76 @@ def title_inside(
     )
 
 
+def _get_axes_aspect_ratio(ax):
+    pos = ax.get_position()
+    width = pos.width * ax.figure.get_figwidth()
+    height = pos.height * ax.figure.get_figheight()
+    return width / height
+
+
+def get_inset_map_bounds(
+    ax: plt.Axes,
+    extent: Union[tuple[float], list[float]],
+    height: Optional[float] = None,
+    width: Optional[float] = None,
+    margin: Optional[float] = 0.025,
+    right: Optional[bool] = True,
+    bottom: Optional[bool] = True,
+):
+    """Get the bounds of the inset_map from a width or height, and a margin.
+
+    These bounds can be used for the parameter `axes_bounds` in the `inset_map` method.
+    The margin (in pixels) around this map is equal on all sides (unless the figure is
+    reshaped).
+
+    Parameters
+    ----------
+    ax : matplotlib.Axes
+        The axes to add the inset map to.
+    extent : list of 4 floats
+        The extent of the inset map.
+    height : float, optional
+        The height of the inset axes, in axes coordinates. Either height or width needs
+        to be specified. The default is None.
+    width : float, optional
+        The height of the inset axes, in axes coordinates. Either height or width needs
+        to be specified. The default is None.
+    margin : float, optional
+        The margin around, in axes coordinates. When height is specified, margin is
+        relative to the height of ax. When width is specified, margin is relative to the
+        width of ax. The default is 0.025.
+    right : bool, optional
+        If True, the inset axes is placed at the right corner. The default is True.
+    bottom : bool, optional
+        If True, the inset axes is placed at the bottom corner. The default is True.
+
+    Returns
+    -------
+    bounds: list of 4 floats
+        The bounds (left, right, width, height) of the inset axes.
+
+    """
+    msg = "Please specify either height or width"
+    assert (height is None) + (width is None) == 1, msg
+    ar = _get_axes_aspect_ratio(ax)
+    dxdy = (extent[1] - extent[0]) / (extent[3] - extent[2])
+    if height is None:
+        # the bounds are determined by width
+        height = width * ar / dxdy
+        bounds = [margin, margin * ar, width, height]
+    else:
+        # the bounds are determined by height
+        width = height * dxdy / ar
+        bounds = [margin / ar, margin, width, height]
+    if right:
+        # put the axes on the right side
+        bounds[0] = 1 - bounds[0] - width
+    if not bottom:
+        # put the axes on the top side
+        bounds[1] = 1 - bounds[1] - height
+    return bounds
+
+
 def inset_map(
     ax: plt.Axes,
     extent: Union[tuple[float], list[float]],
@@ -291,8 +361,8 @@ def inset_map(
         The axes to add the inset map to.
     extent : list of 4 floats
         The extent of the inset map.
-    axes_bounds : list of 4 floats, optional
-        The bounds (left, right, width height) of the inset axes, default
+    axes_bounds : list or tuple of 4 floats, optional
+        The bounds (left, right, width, height) of the inset axes, default
         is [0.63, 0.025, 0.35, 0.35]. This is rescaled according to the extent of
         the inset map.
     anchor : str, optional

@@ -294,8 +294,8 @@ def get_inset_map_bounds(
     """Get the bounds of the inset_map from a width or height, and a margin.
 
     These bounds can be used for the parameter `axes_bounds` in the `inset_map` method.
-    The margin (in pixels) around this map is equal on all sides (unless the figure is
-    reshaped).
+    The horizontal and vertical margin (in pixels) around this map are equal (unless the
+    figure is reshaped).
 
     Parameters
     ----------
@@ -307,7 +307,7 @@ def get_inset_map_bounds(
         The height of the inset axes, in axes coordinates. Either height or width needs
         to be specified. The default is None.
     width : float, optional
-        The height of the inset axes, in axes coordinates. Either height or width needs
+        The width of the inset axes, in axes coordinates. Either height or width needs
         to be specified. The default is None.
     margin : float, optional
         The margin around, in axes coordinates. When height is specified, margin is
@@ -363,7 +363,7 @@ def inset_map(
         The extent of the inset map.
     axes_bounds : list or tuple of 4 floats, optional
         The bounds (left, right, width, height) of the inset axes, default
-        is [0.63, 0.025, 0.35, 0.35]. This is rescaled according to the extent of
+        is (0.63, 0.025, 0.35, 0.35). This is rescaled according to the extent of
         the inset map.
     anchor : str, optional
         The anchor point of the inset map, default is 'SE'.

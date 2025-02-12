@@ -1,19 +1,14 @@
 import logging
-import requests
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import requests
 
 logger = logging.getLogger(__name__)
 
-def get_brt(
-    extent,
-    layer="waterdeel_lijn",
-    crs=28992,
-    limit=1000,
-    apif='json'
-):
+
+def get_brt(extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json"):
     """
     Get geometries within an extent from the Basis Registratie Topografie (BRT).
     Some useful links:
@@ -39,29 +34,35 @@ def get_brt(
         A GeoDataFrame containing all geometries and properties.
 
     """
-
     if isinstance(layer, (list, tuple, np.ndarray)):
         # recursively call this function for all layers
-        gdfs = [get_brt(extent=extent, layer=l, crs=crs, limit=limit, apif=apif) for l in layer]
+        gdfs = [
+            get_brt(extent=extent, layer=l, crs=crs, limit=limit, apif=apif)
+            for l in layer
+        ]
         return pd.concat(gdfs)
 
     api_url = "https://api.pdok.nl"
     url = f"{api_url}/brt/top10nl/ogc/v1/collections/{layer}/items?"
 
-    params = {'bbox':f'{extent[0]},{extent[2]},{extent[1]},{extent[3]}',
-              'f':apif,
-              'limit':limit}
+    params = {
+        "bbox": f"{extent[0]},{extent[2]},{extent[1]},{extent[3]}",
+        "f": apif,
+        "limit": limit,
+    }
 
-    if crs==28992:
-        params['crs']      = "http://www.opengis.net/def/crs/EPSG/0/28992"
-        params['bbox-crs'] = "http://www.opengis.net/def/crs/EPSG/0/28992"
-    elif crs!=4326:
-        raise ValueError('invalid crs, please choose between 28992 (RD) or 4326 (WGS84)')
+    if crs == 28992:
+        params["crs"] = "http://www.opengis.net/def/crs/EPSG/0/28992"
+        params["bbox-crs"] = "http://www.opengis.net/def/crs/EPSG/0/28992"
+    elif crs != 4326:
+        raise ValueError(
+            "invalid crs, please choose between 28992 (RD) or 4326 (WGS84)"
+        )
 
     response = requests.get(url, params=params)
     response.raise_for_status()
 
-    gdf = gpd.GeoDataFrame.from_features(response.json()['features'])
+    gdf = gpd.GeoDataFrame.from_features(response.json()["features"])
 
     if gdf.shape[0] == limit:
         msg = f'the number of features in your extent is probably higher than {limit}, consider increasing the "limit" argument in "get_brt"'

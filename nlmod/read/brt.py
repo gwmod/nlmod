@@ -1,16 +1,9 @@
-import json
 import logging
 import requests
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-
-from io import BytesIO
-from shapely.geometry import mapping, shape, Polygon
-from zipfile import ZipFile
-
-from ..util import extent_to_polygon
 
 logger = logging.getLogger(__name__)
 

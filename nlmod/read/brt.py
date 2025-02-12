@@ -8,7 +8,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-def get_brt(extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json"):
+def get_brt(extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json", timeout=1200):
     """
     Get geometries within an extent from the Basis Registratie Topografie (BRT).
     Some useful links:
@@ -27,6 +27,9 @@ def get_brt(extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json"):
         The maximum number of features that is requested. The default is 1000.
     apif : str, optional
         The output format of the api. The default is 'json'.
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
 
     Returns
     -------
@@ -37,8 +40,8 @@ def get_brt(extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json"):
     if isinstance(layer, (list, tuple, np.ndarray)):
         # recursively call this function for all layers
         gdfs = [
-            get_brt(extent=extent, layer=l, crs=crs, limit=limit, apif=apif)
-            for l in layer
+            get_brt(extent=extent, layer=lay, crs=crs, limit=limit, apif=apif, timeout=timeout)
+            for lay in layer
         ]
         return pd.concat(gdfs)
 
@@ -59,7 +62,7 @@ def get_brt(extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json"):
             "invalid crs, please choose between 28992 (RD) or 4326 (WGS84)"
         )
 
-    response = requests.get(url, params=params)
+    response = requests.get(url, params=params, timeout=timeout)
     response.raise_for_status()
 
     gdf = gpd.GeoDataFrame.from_features(response.json()["features"])

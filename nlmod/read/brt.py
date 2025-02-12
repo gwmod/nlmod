@@ -18,11 +18,12 @@ def get_brt(
     extent,
     layer="waterdeel_lijn",
     crs=28992,
-    pagesize=1000
+    limit=1000,
+    apif='json'
 ):
     """
-    Get geometries within an extent or polygon from the Basis Registratie
-    Topografie (BRT). Some useful links:
+    Get geometries within an extent from the Basis Registratie Topografie (BRT).
+    Some useful links:
     https://geoforum.nl/t/pdok-lanceert-de-brt-top10nl-in-ogc-api-s-als-demo/9821/5
     https://api.pdok.nl/brt/top10nl/ogc/v1/api
 
@@ -34,27 +35,29 @@ def get_brt(
         The layer for which shapes are requested. The default is 'waterdeel_lijn'.
     crs : int, optional
         The coordinate reference system. The default is 28992.
-    pagesize : int, optional
-        The number of features that is reqeusted per page. The default is 1000.
+    limit : int, optional
+        The maximum number of features that is requested. The default is 1000.
+    apif : str, optional
+        The output format of the api. The default is 'json'.
 
     Returns
     -------
-    gdf : GeoPandas GeoDataFrame or requests.models.Response
+    gdf : GeoPandas GeoDataFrame
         A GeoDataFrame containing all geometries and properties.
 
     """
 
     if isinstance(layer, (list, tuple, np.ndarray)):
         # recursively call this function for all layers
-        gdfs = [get_brt(extent=extent, layer=l, crs=crs, pagesize=pagesize) for l in layer]
+        gdfs = [get_brt(extent=extent, layer=l, crs=crs, limit=limit, apif=apif) for l in layer]
         return pd.concat(gdfs)
 
     api_url = "https://api.pdok.nl"
     url = f"{api_url}/brt/top10nl/ogc/v1/collections/{layer}/items?"
 
     params = {'bbox':f'{extent[0]},{extent[2]},{extent[1]},{extent[3]}',
-              'f':'json',
-              'limit':pagesize}
+              'f':apif,
+              'limit':limit}
 
     if crs==28992:
         params['crs']      = "http://www.opengis.net/def/crs/EPSG/0/28992"
@@ -66,5 +69,9 @@ def get_brt(
     response.raise_for_status()
 
     gdf = gpd.GeoDataFrame.from_features(response.json()['features'])
+
+    if gdf.shape[0] == limit:
+        msg = f'the number of features in your extent is probably higher than {limit}, consider increasing the "limit" argument in "get_brt"'
+        logger.warning(msg)
 
     return gdf

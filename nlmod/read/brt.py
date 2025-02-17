@@ -113,8 +113,7 @@ def get_brt(
             else:
                 running = False
     else:
-        msg = f"Download of brt-data failed: {response.text}"
-        raise (Exception(msg))
+        response.raise_for_status()
 
     href = response.json()["_links"]["download"]["href"]
     response = requests.get(f"{api_url}{href}", timeout=timeout)
@@ -392,7 +391,7 @@ def _get_ring_xy(exterior):
 
     Raises
     ------
-    Exception
+    NotImplementedError
         for unknown exterior types
     """
     assert len(exterior) == 1
@@ -400,7 +399,7 @@ def _get_ring_xy(exterior):
         lr = exterior.find("gml:LinearRing", NS)
         xy = _get_xy(lr.find("gml:posList", NS).text)
     else:
-        raise Exception(f"Unknown exterior type: {exterior[0].tag}")
+        raise NotImplementedError(f"Unknown exterior type: {exterior[0].tag}")
     return xy
 
 

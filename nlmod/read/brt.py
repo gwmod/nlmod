@@ -2,7 +2,6 @@ import json
 import logging
 import time
 from io import BytesIO
-from tqdm import tqdm
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
@@ -11,6 +10,7 @@ import numpy as np
 import pandas as pd
 import requests
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
+from tqdm import tqdm
 
 from ..util import extent_to_polygon
 
@@ -153,7 +153,6 @@ def get_brt_layers(timeout=1200):
     list
         A list with the layer names.
     """
-
     url = "https://api.pdok.nl/brt/top10nl/download/v1_0/dataset"
     resp = requests.get(url, timeout=timeout)
     data = resp.json()
@@ -224,7 +223,7 @@ def read_brt_zipfile(
             gdf_dic[lay].geometry = gdf_dic[lay].intersection(polygon)
             gdf_dic[lay] = gdf_dic[lay][~gdf_dic[lay].is_empty]
             rm_ft = no_ft - gdf_dic[lay].shape[0]
-            logger.info(f'removed {rm_ft} features that are outside the extent')
+            logger.info(f"removed {rm_ft} features that are outside the extent")
 
     return gdf_dic
 

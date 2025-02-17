@@ -1,24 +1,26 @@
 import json
 import logging
 import time
+from io import BytesIO
+from xml.etree import ElementTree
+from zipfile import ZipFile
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import requests
-
-from io import BytesIO
-from shapely.geometry import Point, Polygon, LineString, MultiPolygon
-from xml.etree import ElementTree
-from zipfile import ZipFile
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
 from ..util import extent_to_polygon
 
 logger = logging.getLogger(__name__)
 
-NS = {'top10nl': "http://register.geostandaarden.nl/gmlapplicatieschema/top10nl/1.2.0",
-      'brt': "http://register.geostandaarden.nl/gmlapplicatieschema/brt-algemeen/1.2.0",
-      'gml': "http://www.opengis.net/gml/3.2"}
+NS = {
+    "top10nl": "http://register.geostandaarden.nl/gmlapplicatieschema/top10nl/1.2.0",
+    "brt": "http://register.geostandaarden.nl/gmlapplicatieschema/brt-algemeen/1.2.0",
+    "gml": "http://www.opengis.net/gml/3.2",
+}
+
 
 def get_brt(
     extent,
@@ -27,10 +29,11 @@ def get_brt(
     make_valid=False,
     fname=None,
     geometry=None,
-    timeout=1200
+    timeout=1200,
 ):
-    """Get geometries within an extent or polygon from the Basis Registratie
-    Topografie (BRT). Useful links:
+    """Get geometries within an extent/polygon from the Basis Registratie Topografie.
+
+    Useful links:
     https://api.pdok.nl/brt/top10nl/download/v1_0/ui
 
     Parameters
@@ -53,9 +56,10 @@ def get_brt(
     geometry: string, optional
         When geometry is specified, this attribute is used as the geometry of the
         resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
-        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
-        hoofdGeometry. When geometry is None, the last tag in the xml ending
-        with the word "geometrie" or "Geometrie" is used as the geometry. The default is None.
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry
+        and a hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default
+        is None.
     timeout: int optional
         The amount of time in seconds to wait for the server to send data before giving
         up. The default is 1200 (20 minutes).
@@ -66,7 +70,6 @@ def get_brt(
         A GeoDataFrame (when only one layer is requested) or a dict of GeoDataFrames
         containing all geometries and properties.
     """
-
     if layer.lower() == "all":
         layer = get_brt_layers()
     if isinstance(layer, str):
@@ -87,7 +90,7 @@ def get_brt(
 
     response = requests.post(
         url, headers=headers, data=json.dumps(body), timeout=timeout
-    ) 
+    )
 
     # check api-status, if completed, download
     if response.status_code in range(200, 300):
@@ -133,7 +136,8 @@ def get_brt(
 
 def get_brt_layers(timeout=1200):
     """
-    Get the layers in the Basis Registratie Topografie (BRT)
+    Get the layers in the Basis Registratie Topografie (BRT).
+
     Parameters
     ----------
     timeout: int optional
@@ -152,14 +156,10 @@ def get_brt_layers(timeout=1200):
 
 
 def read_brt_zipfile(
-    fname,
-    geometry=None,
-    files=None,
-    cut_by_extent=True,
-    make_valid=False,
-    extent=None
+    fname, geometry=None, files=None, cut_by_extent=True, make_valid=False, extent=None
 ):
     """Read data from a zipfile that was downloaded using get_bgt().
+
     Parameters
     ----------
     fname : string
@@ -167,9 +167,10 @@ def read_brt_zipfile(
     geometry: string, optional
         When geometry is specified, this attribute is used as the geometry of the
         resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
-        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
-        hoofdGeometry. When geometry is None, the last tag in the xml ending
-        with the word "geometrie" of "Geometrie" is used as the geometry. The default is None.
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry
+        and a hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default
+        is None.
     files : string of list of strings, optional
         The files to read from the zipfile. Read all files when files is None. The
         default is None.
@@ -203,11 +204,11 @@ def read_brt_zipfile(
             polygon = extent_to_polygon(extent)
     for file in files:
         lay = file[8:-4]
-        if lay == 'relief':
-            logger.warning('Cannot read relief data, not implemented yet')
+        if lay == "relief":
+            logger.warning("Cannot read relief data, not implemented yet")
             continue
-        
-        logger.debug(f'reading brt file {file}')
+
+        logger.debug(f"reading brt file {file}")
         gdf_dic[lay] = read_brt_gml(zf.open(file), lay=lay, geometry=geometry)
 
         if make_valid and isinstance(gdf_dic[lay], gpd.GeoDataFrame):
@@ -220,9 +221,8 @@ def read_brt_zipfile(
     return gdf_dic
 
 
-
-def read_brt_gml(fname, lay='waterdeel', geometry=None, crs="epsg:28992"):
-    """read an xml file with features from the BRT
+def read_brt_gml(fname, lay="waterdeel", geometry=None, crs="epsg:28992"):
+    """Read an xml file with features from the BRT.
 
     Parameters
     ----------
@@ -233,9 +233,10 @@ def read_brt_gml(fname, lay='waterdeel', geometry=None, crs="epsg:28992"):
     geometry: string, optional
         When geometry is specified, this attribute is used as the geometry of the
         resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
-        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
-        hoofdGeometry. When geometry is None, the last tag in the xml ending
-        with the word "geometrie" of "Geometrie" is used as the geometry. The default is None.
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry
+        and a hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default
+        is None.
     crs : str, optional
         coordinate reference system, by default "epsg:28992"
 
@@ -244,18 +245,21 @@ def read_brt_gml(fname, lay='waterdeel', geometry=None, crs="epsg:28992"):
     GeoDataFrame or None
         with BRT feature data
     """
-
     tree = ElementTree.parse(fname)
 
-    data = [_read_single_brt_feature(com, lay=lay, geometry=geometry) for com in tree.findall("top10nl:FeatureMember",NS)]
-    
+    data = [
+        _read_single_brt_feature(com, lay=lay, geometry=geometry)
+        for com in tree.findall("top10nl:FeatureMember", NS)
+    ]
+
     if len(data) > 0:
-        return gpd.GeoDataFrame(data, geometry='geometry', crs=crs)
+        return gpd.GeoDataFrame(data, geometry="geometry", crs=crs)
     else:
         return None
 
-def _read_single_brt_feature(com, lay='waterdeel', geometry=None):
-    """read a single feature from an xml with multiple features
+
+def _read_single_brt_feature(com, lay="waterdeel", geometry=None):
+    """Read a single feature from an xml with multiple features.
 
     Parameters
     ----------
@@ -266,10 +270,11 @@ def _read_single_brt_feature(com, lay='waterdeel', geometry=None):
     geometry: string, optional
         When geometry is specified, this attribute is used as the geometry of the
         resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
-        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
-        hoofdGeometry. When geometry is None, the last tag in the xml ending
-        with the word "geometrie" of "Geometrie" is used as the geometry. The default is None.
-    
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry
+        and a hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default
+        is None.
+
 
     Returns
     -------
@@ -282,33 +287,34 @@ def _read_single_brt_feature(com, lay='waterdeel', geometry=None):
         if the feature is not a 'lijn' or 'vlak' geometry
     """
     if geometry is None:
-        geometry='geometrie'
+        geometry = "geometrie"
     else:
-        geometry = geometry.lower() # make sure geometry is lower case
-   
+        geometry = geometry.lower()  # make sure geometry is lower case
+
     assert len(com) == 1
     bp = com[0]
     d = {}
     for key, name in bp.attrib.items():
-        d[key.rpartition('}')[-1]] = name
+        d[key.rpartition("}")[-1]] = name
 
     for child in bp:
-        tag = child.tag.rpartition('}')[-1]
-        if tag.lower().endswith('geometrie'):
+        tag = child.tag.rpartition("}")[-1]
+        if tag.lower().endswith("geometrie"):
             geom = child[0]
-            d['geometry'] = _read_geometry(geom)
-        elif tag == 'geometrieVlak' and lay=='terrein':
-            d['geometry'] = _read_geometry(child)
-        elif tag == 'identificatie':
-            loc_id = child.find("brt:NEN3610ID",NS).find("brt:lokaalID",NS)
-            d['lokaalID'] = loc_id.text
+            d["geometry"] = _read_geometry(geom)
+        elif tag == "geometrieVlak" and lay == "terrein":
+            d["geometry"] = _read_geometry(child)
+        elif tag == "identificatie":
+            loc_id = child.find("brt:NEN3610ID", NS).find("brt:lokaalID", NS)
+            d["lokaalID"] = loc_id.text
         else:
             d[tag] = child.text
 
     return d
 
+
 def _read_geometry(geom):
-    """read geometry from a geometry xml tag
+    """Read geometry from a geometry xml tag.
 
     Parameters
     ----------
@@ -319,35 +325,35 @@ def _read_geometry(geom):
     -------
     shapely.Geometry or None
     """
-
     assert len(geom) == 1
     feature_geom = geom[0]
-    
-    geom_tag = feature_geom.tag.rpartition('}')[-1]
-    if geom_tag =='lijnGeometrie':
+
+    geom_tag = feature_geom.tag.rpartition("}")[-1]
+    if geom_tag == "lijnGeometrie":
         return LineString(_read_linestring(feature_geom[0]))
-    elif geom_tag == 'puntGeometrie':
+    elif geom_tag == "puntGeometrie":
         return Point(_read_point(feature_geom[0]))
-    elif geom_tag =='vlakGeometrie':
+    elif geom_tag == "vlakGeometrie":
         return Polygon(*_read_polygon(feature_geom[0]))
-    elif geom_tag =='hartGeometrie':
-        return Polygon(*_read_polygon(feature_geom[0]))    
-    elif geom_tag =='Polygon':
+    elif geom_tag == "hartGeometrie":
+        return Polygon(*_read_polygon(feature_geom[0]))
+    elif geom_tag == "Polygon":
         return Polygon(*_read_polygon(feature_geom))
-    elif geom_tag == 'multivlakGeometrie':
-        ms = feature_geom.find("gml:MultiSurface",NS)
+    elif geom_tag == "multivlakGeometrie":
+        ms = feature_geom.find("gml:MultiSurface", NS)
         polygons = []
         for sm in ms:
             assert len(sm) == 1
-            polygon = sm.find("gml:Polygon",NS)
+            polygon = sm.find("gml:Polygon", NS)
             polygons.append(_read_polygon(polygon))
         return MultiPolygon(polygons)
     else:
-        logger.warning(f'cannot read geometry type {geom_tag}, skipping these features')
+        logger.warning(f"cannot read geometry type {geom_tag}, skipping these features")
         return None
 
+
 def _get_xy(text):
-    """get x and y coordinates from a tag text
+    """Get x and y coordinates from a tag text.
 
     Parameters
     ----------
@@ -363,8 +369,9 @@ def _get_xy(text):
     xy = np.array(xy).reshape(int(len(xy) / 2), 2)
     return xy
 
+
 def _get_ring_xy(exterior):
-    """get x and y coordinates for a LinearRing
+    """Get x and y coordinates for a LinearRing.
 
     Parameters
     ----------
@@ -382,15 +389,16 @@ def _get_ring_xy(exterior):
         for unknown exterior types
     """
     assert len(exterior) == 1
-    if exterior[0].tag.rpartition('}')[-1] == "LinearRing":
-        lr = exterior.find("gml:LinearRing",NS)
-        xy = _get_xy(lr.find("gml:posList",NS).text)
+    if exterior[0].tag.rpartition("}")[-1] == "LinearRing":
+        lr = exterior.find("gml:LinearRing", NS)
+        xy = _get_xy(lr.find("gml:posList", NS).text)
     else:
         raise Exception(f"Unknown exterior type: {exterior[0].tag}")
     return xy
 
+
 def _read_polygon(polygon):
-    """read polygon geometry from an xml tag
+    """Read polygon geometry from an xml tag.
 
     Parameters
     ----------
@@ -402,15 +410,16 @@ def _read_polygon(polygon):
     shell, holes
         polygon definition
     """
-    exterior = polygon.find("gml:exterior",NS)
+    exterior = polygon.find("gml:exterior", NS)
     shell = _get_ring_xy(exterior)
     holes = []
-    for interior in polygon.findall("gml:interior",NS):
+    for interior in polygon.findall("gml:interior", NS):
         holes.append(_get_ring_xy(interior))
     return shell, holes
 
+
 def _read_linestring(linestring):
-    """read linestring geometry from an xml tag
+    """Read linestring geometry from an xml tag.
 
     Parameters
     ----------
@@ -422,10 +431,11 @@ def _read_linestring(linestring):
     np.ndarray
         x and y coordinates
     """
-    return _get_xy(linestring.find("gml:posList",NS).text)
+    return _get_xy(linestring.find("gml:posList", NS).text)
+
 
 def _read_point(point):
-    """read point geometry from an xml tag
+    """Read point geometry from an xml tag.
 
     Parameters
     ----------
@@ -437,13 +447,15 @@ def _read_point(point):
     list
         x and y coordinates
     """
-    xy = [float(x) for x in point.find("gml:pos",NS).text.split()]
+    xy = [float(x) for x in point.find("gml:pos", NS).text.split()]
     return xy
 
-def get_brt_ogc(extent, layer="waterdeel_lijn", crs=28992, limit=1000,
-                apif="json", timeout=1200):
-    """
-    Get geometries within an extent from the Basis Registratie Topografie (BRT).
+
+def get_brt_ogc(
+    extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json", timeout=1200
+):
+    """Get geometries within an extent from the Basis Registratie Topografie (BRT).
+
     Some useful links:
     https://geoforum.nl/t/pdok-lanceert-de-brt-top10nl-in-ogc-api-s-als-demo/9821/5
     https://api.pdok.nl/brt/top10nl/ogc/v1/api
@@ -457,7 +469,9 @@ def get_brt_ogc(extent, layer="waterdeel_lijn", crs=28992, limit=1000,
     crs : int, optional
         The coordinate reference system. The default is 28992.
     limit : int, optional
-        The maximum number of features that is requested. The default is 1000. This api does not seem to work properly when there are more than 1000 features in your extent.
+        The maximum number of features that is requested. The default is 1000. This api
+        does not seem to work properly when there are more than 1000 features in your
+        extent.
     apif : str, optional
         The output format of the api. The default is 'json'.
     timeout: int optional
@@ -473,7 +487,14 @@ def get_brt_ogc(extent, layer="waterdeel_lijn", crs=28992, limit=1000,
     if isinstance(layer, (list, tuple, np.ndarray)):
         # recursively call this function for all layers
         gdfs = [
-            get_brt_ogc(extent=extent, layer=lay, crs=crs, limit=limit, apif=apif, timeout=timeout)
+            get_brt_ogc(
+                extent=extent,
+                layer=lay,
+                crs=crs,
+                limit=limit,
+                apif=apif,
+                timeout=timeout,
+            )
             for lay in layer
         ]
         return pd.concat(gdfs)
@@ -501,7 +522,10 @@ def get_brt_ogc(extent, layer="waterdeel_lijn", crs=28992, limit=1000,
     gdf = gpd.GeoDataFrame.from_features(response.json()["features"])
 
     if gdf.shape[0] == limit:
-        msg = f'the number of features in your extent is probably higher than {limit}, consider increasing the "limit" argument in "get_brt"'
+        msg = (
+            f"the number of features in your extent is probably higher than {limit},"
+            ' consider increasing the "limit" argument in "get_brt"'
+        )
         logger.error(msg)
 
     return gdf

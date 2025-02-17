@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from io import BytesIO
+from tqdm import tqdm
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
@@ -88,6 +89,9 @@ def get_brt(
 
     headers = {"content-type": "application/json"}
 
+    msg = f"Downloading BRT data layers {layer} within {body['geofilter']}"
+    logger.info(msg)
+
     response = requests.post(
         url, headers=headers, data=json.dumps(body), timeout=timeout
     )
@@ -149,6 +153,7 @@ def get_brt_layers(timeout=1200):
     list
         A list with the layer names.
     """
+
     url = "https://api.pdok.nl/brt/top10nl/download/v1_0/dataset"
     resp = requests.get(url, timeout=timeout)
     data = resp.json()
@@ -178,7 +183,7 @@ def read_brt_zipfile(
         Cut the geoemetries by the supplied extent. When no extent is supplied,
         cut_by_extent is set to False. The default is True.
     make_valid : bool, optional
-        Make geometries valid by appying a buffer of 0 m when True. THe defaults is
+        Make geometries valid by appying a buffer of 0 m when True. The default is
         False.
     extent : list or tuple of length 4 or shapely Polygon
         The extent (xmin, xmax, ymin, ymax) or polygon by which the geometries are
@@ -208,13 +213,14 @@ def read_brt_zipfile(
             logger.warning("Cannot read relief data, not implemented yet")
             continue
 
-        logger.debug(f"reading brt file {file}")
+        logger.debug(f"reading brt layer {file}")
         gdf_dic[lay] = read_brt_gml(zf.open(file), lay=lay, geometry=geometry)
 
         if make_valid and isinstance(gdf_dic[lay], gpd.GeoDataFrame):
             gdf_dic[lay].geometry = gdf_dic[lay].geometry.buffer(0.0)
 
         if cut_by_extent and isinstance(gdf_dic[lay], gpd.GeoDataFrame):
+            logger.debug('only keep features within the extent')
             gdf_dic[lay].geometry = gdf_dic[lay].intersection(polygon)
             gdf_dic[lay] = gdf_dic[lay][~gdf_dic[lay].is_empty]
 
@@ -246,10 +252,10 @@ def read_brt_gml(fname, lay="waterdeel", geometry=None, crs="epsg:28992"):
         with BRT feature data
     """
     tree = ElementTree.parse(fname)
-
+    ft_members = tree.findall("top10nl:FeatureMember", NS)
     data = [
         _read_single_brt_feature(com, lay=lay, geometry=geometry)
-        for com in tree.findall("top10nl:FeatureMember", NS)
+        for com in tqdm(ft_members, desc=f"Downloading features of layer {lay}")
     ]
 
     if len(data) > 0:

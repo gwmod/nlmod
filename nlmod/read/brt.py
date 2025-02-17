@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 
 from io import BytesIO
-from shapely.geometry import mapping, shape, Polygon, LineString
+from shapely.geometry import Point, Polygon, LineString, MultiPolygon
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
@@ -16,87 +16,23 @@ from ..util import extent_to_polygon
 
 logger = logging.getLogger(__name__)
 
+NS = {'top10nl': "http://register.geostandaarden.nl/gmlapplicatieschema/top10nl/1.2.0",
+      'brt': "http://register.geostandaarden.nl/gmlapplicatieschema/brt-algemeen/1.2.0",
+      'gml': "http://www.opengis.net/gml/3.2"}
 
-def get_brt(extent, layer="waterdeel_lijn", crs=28992, limit=1000, apif="json", timeout=1200):
-    """
-    Get geometries within an extent from the Basis Registratie Topografie (BRT).
-    Some useful links:
-    https://geoforum.nl/t/pdok-lanceert-de-brt-top10nl-in-ogc-api-s-als-demo/9821/5
-    https://api.pdok.nl/brt/top10nl/ogc/v1/api
-
-    Parameters
-    ----------
-    extent : list or tuple of int or float
-        The extent (xmin, xmax, ymin, ymax) for which shapes are requested.
-    layer : string, optional
-        The layer for which shapes are requested. The default is 'waterdeel_lijn'.
-    crs : int, optional
-        The coordinate reference system. The default is 28992.
-    limit : int, optional
-        The maximum number of features that is requested. The default is 1000.
-    apif : str, optional
-        The output format of the api. The default is 'json'.
-    timeout: int optional
-        The amount of time in seconds to wait for the server to send data before giving
-        up. The default is 1200 (20 minutes).
-
-    Returns
-    -------
-    gdf : GeoPandas GeoDataFrame
-        A GeoDataFrame containing all geometries and properties.
-
-    """
-    if isinstance(layer, (list, tuple, np.ndarray)):
-        # recursively call this function for all layers
-        gdfs = [
-            get_brt(extent=extent, layer=lay, crs=crs, limit=limit, apif=apif, timeout=timeout)
-            for lay in layer
-        ]
-        return pd.concat(gdfs)
-
-    api_url = "https://api.pdok.nl"
-    url = f"{api_url}/brt/top10nl/ogc/v1/collections/{layer}/items?"
-
-    params = {
-        "bbox": f"{extent[0]},{extent[2]},{extent[1]},{extent[3]}",
-        "f": apif,
-        "limit": limit,
-    }
-
-    if crs == 28992:
-        params["crs"] = "http://www.opengis.net/def/crs/EPSG/0/28992"
-        params["bbox-crs"] = "http://www.opengis.net/def/crs/EPSG/0/28992"
-    elif crs != 4326:
-        raise ValueError(
-            "invalid crs, please choose between 28992 (RD) or 4326 (WGS84)"
-        )
-
-    response = requests.get(url, params=params, timeout=timeout)
-    response.raise_for_status()
-
-    gdf = gpd.GeoDataFrame.from_features(response.json()["features"])
-
-    if gdf.shape[0] == limit:
-        msg = f'the number of features in your extent is probably higher than {limit}, consider increasing the "limit" argument in "get_brt"'
-        logger.warning(msg)
-
-    return gdf
-
-
-
-def get_brt_v2(
+def get_brt(
     extent,
     layer="waterdeel",
     cut_by_extent=True,
     make_valid=False,
     fname=None,
-    remove_expired=True,
-    add_bronhouder_names=True,
-    timeout=1200,
+    geometry=None,
+    timeout=1200
 ):
     """Get geometries within an extent or polygon from the Basis Registratie
     Topografie (BRT). Useful links:
     https://api.pdok.nl/brt/top10nl/download/v1_0/ui
+
     Parameters
     ----------
     extent : list or tuple of length 4 or shapely Polygon
@@ -114,15 +50,16 @@ def get_brt_v2(
     fname : string, optional
         Save the zipfile that is received by the request to file. The default
         is None, which does not save anything to file.
-    remove_expired: bool, optional
-        Remove expired items (that contain a value for 'eindRegistratie') when True. The
-        default is True.
-    add_bronhouder_names: bool, optional
-        Add bronhouder in a column called 'bronhouder_name. names when True. The default
-        is True.
+    geometry: string, optional
+        When geometry is specified, this attribute is used as the geometry of the
+        resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
+        hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" or "Geometrie" is used as the geometry. The default is None.
     timeout: int optional
         The amount of time in seconds to wait for the server to send data before giving
         up. The default is 1200 (20 minutes).
+
     Returns
     -------
     gdf : GeoPandas GeoDataFrame or dict of GeoPandas GeoDataFrame
@@ -130,7 +67,7 @@ def get_brt_v2(
         containing all geometries and properties.
     """
 
-    if layer == "all":
+    if layer.lower() == "all":
         layer = get_brt_layers()
     if isinstance(layer, str):
         layer = [layer]
@@ -150,7 +87,7 @@ def get_brt_v2(
 
     response = requests.post(
         url, headers=headers, data=json.dumps(body), timeout=timeout
-    )  # 20 minutes
+    ) 
 
     # check api-status, if completed, download
     if response.status_code in range(200, 300):
@@ -179,16 +116,13 @@ def get_brt_v2(
         with open(fname, "wb") as file:
             file.write(response.content)
 
-    # raise NotImplementedError('this part is not yet implemented please use "read_brt"')
-
     zipfile = BytesIO(response.content)
     gdf_dic = read_brt_zipfile(
         zipfile,
+        geometry=geometry,
         cut_by_extent=cut_by_extent,
         make_valid=make_valid,
         extent=polygon,
-        remove_expired=remove_expired,
-        add_bronhouder_names=add_bronhouder_names,
     )
 
     if len(layer) == 1:
@@ -205,12 +139,13 @@ def get_brt_layers(timeout=1200):
     timeout: int optional
         The amount of time in seconds to wait for the server to send data before giving
         up. The default is 1200 (20 minutes).
+
     Returns
     -------
     list
         A list with the layer names.
     """
-    url = "https://api.pdok.nl/brt/top10nl/ogc/v1/collections/waterdeel_lijn"
+    url = "https://api.pdok.nl/brt/top10nl/download/v1_0/dataset"
     resp = requests.get(url, timeout=timeout)
     data = resp.json()
     return [x["featuretype"] for x in data["timeliness"]]
@@ -218,18 +153,23 @@ def get_brt_layers(timeout=1200):
 
 def read_brt_zipfile(
     fname,
+    geometry=None,
     files=None,
     cut_by_extent=True,
     make_valid=False,
-    extent=None,
-    remove_expired=True,
-    add_bronhouder_names=True,
+    extent=None
 ):
     """Read data from a zipfile that was downloaded using get_bgt().
     Parameters
     ----------
     fname : string
         The filename of the zip-file containing the BGT-data.
+    geometry: string, optional
+        When geometry is specified, this attribute is used as the geometry of the
+        resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
+        hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default is None.
     files : string of list of strings, optional
         The files to read from the zipfile. Read all files when files is None. The
         default is None.
@@ -242,13 +182,10 @@ def read_brt_zipfile(
     extent : list or tuple of length 4 or shapely Polygon
         The extent (xmin, xmax, ymin, ymax) or polygon by which the geometries are
         clipped. Only used when cut_by_extent is True. The defult is None.
-    remove_expired: bool, optional
-        Remove expired items (that contain a value for 'eindRegistratie') when True. The
-        default is True.
 
     Returns
     -------
-    gdf : dict of GeoPandas GeoDataFrame
+    gdf_dic : dict of GeoPandas GeoDataFrame
         A dict of GeoDataFrames containing all geometries and properties.
     """
     zf = ZipFile(fname)
@@ -265,88 +202,306 @@ def read_brt_zipfile(
         else:
             polygon = extent_to_polygon(extent)
     for file in files:
-        key = file[8:-4]
-        gdf_dic[key] = read_brt_gml(zf.open(file))
+        lay = file[8:-4]
+        if lay == 'relief':
+            logger.warning('Cannot read relief data, not implemented yet')
+            continue
+        
+        logger.debug(f'reading brt file {file}')
+        gdf_dic[lay] = read_brt_gml(zf.open(file), lay=lay, geometry=geometry)
 
-        if remove_expired and gdf_dic[key] is not None and "eindRegistratie" in gdf_dic[key]:
-            # remove double features
-            # by removing features with an eindRegistratie
-            gdf_dic[key] = gdf_dic[key][gdf_dic[key]["eindRegistratie"].isna()]
+        if make_valid and isinstance(gdf_dic[lay], gpd.GeoDataFrame):
+            gdf_dic[lay].geometry = gdf_dic[lay].geometry.buffer(0.0)
 
-        if make_valid and isinstance(gdf_dic[key], gpd.GeoDataFrame):
-            gdf_dic[key].geometry = gdf_dic[key].geometry.buffer(0.0)
-
-        if cut_by_extent and isinstance(gdf_dic[key], gpd.GeoDataFrame):
-            gdf_dic[key].geometry = gdf_dic[key].intersection(polygon)
-            gdf_dic[key] = gdf_dic[key][~gdf_dic[key].is_empty]
+        if cut_by_extent and isinstance(gdf_dic[lay], gpd.GeoDataFrame):
+            gdf_dic[lay].geometry = gdf_dic[lay].intersection(polygon)
+            gdf_dic[lay] = gdf_dic[lay][~gdf_dic[lay].is_empty]
 
     return gdf_dic
 
 
 
-def read_brt_gml(fname, crs="epsg:28992"):
-    def get_xy(text):
-        xy = [float(val) for val in text.split()]
-        xy = np.array(xy).reshape(int(len(xy) / 2), 2)
-        return xy
+def read_brt_gml(fname, lay='waterdeel', geometry=None, crs="epsg:28992"):
+    """read an xml file with features from the BRT
 
-    def get_ring_xy(exterior):
-        assert len(exterior) == 1
-        if exterior[0].tag.rpartition('}')[-1] == "LinearRing":
-            lr = exterior.find("gml:LinearRing",ns)
-            xy = get_xy(lr.find("gml:posList",ns).text)
-        else:
-            raise Exception(f"Unknown exterior type: {exterior[0].tag}")
-        return xy
+    Parameters
+    ----------
+    fname : str
+        filename
+    lay : str, optional
+        The layer to read. The default is "waterdeel".
+    geometry: string, optional
+        When geometry is specified, this attribute is used as the geometry of the
+        resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
+        hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default is None.
+    crs : str, optional
+        coordinate reference system, by default "epsg:28992"
 
-    def read_polygon(polygon):
-        exterior = polygon.find("gml:exterior",ns)
-        shell = get_ring_xy(exterior)
-        holes = []
-        for interior in polygon.findall("gml:interior",ns):
-            holes.append(get_ring_xy(interior))
-        return shell, holes
+    Returns
+    -------
+    GeoDataFrame or None
+        with BRT feature data
+    """
 
-    def read_linestring(linestring):
-        return get_xy(linestring.find("gml:posList",ns).text)
-
-    ns = {'top10nl': "http://register.geostandaarden.nl/gmlapplicatieschema/top10nl/1.2.0",
-          'brt': "http://register.geostandaarden.nl/gmlapplicatieschema/brt-algemeen/1.2.0",
-          'gml': "http://www.opengis.net/gml/3.2"}
     tree = ElementTree.parse(fname)
 
-    data = []
-    for com in tree.findall("top10nl:FeatureMember", ns):
-        assert len(com) == 1
-        bp = com[0]
-        d = {}
-        for key, name in bp.attrib.items():
-            d[key.rpartition('}')[-1]] = name
-
-        for child in bp:
-            tag = child.tag.rpartition('}')[-1]
-            if tag == 'geometrie':
-                geom = child.find('brt:BRTVlakLijnOfPunt',ns)
-                assert len(geom) == 1
-                for child in geom:
-                    tag = child.tag.rpartition('}')[-1]
-                if tag =='lijnGeometrie':
-                    d['geometry'] = LineString(read_linestring(child[0]))
-                elif tag =='vlakGeometrie':
-                    d['geometry'] = Polygon(*read_polygon(child[0]))
-                else:
-                    raise RuntimeError('unexpected geometry type')
-            elif tag == 'identificatie':
-                loc_id = child.find(f"brt:NEN3610ID",ns).find(f"brt:lokaalID",ns)
-                d['lokaalID'] = loc_id.text
-            else:
-                d[tag] = child.text
-        data.append(d)
-
+    data = [_read_single_brt_feature(com, lay=lay, geometry=geometry) for com in tree.findall("top10nl:FeatureMember",NS)]
+    
     if len(data) > 0:
         return gpd.GeoDataFrame(data, geometry='geometry', crs=crs)
     else:
         return None
 
-# endpoint = ["https://api.pdok.nl/brt/top10nl/download/v1_0/full/custom",
-#             "https://api.pdok.nl/brt/top10nl/ogc/v1"]
+def _read_single_brt_feature(com, lay='waterdeel', geometry=None):
+    """read a single feature from an xml with multiple features
+
+    Parameters
+    ----------
+    com : Element
+        xml reference to a feature of the BRT
+    lay : str, optional
+        The layer to read. The default is "waterdeel".
+    geometry: string, optional
+        When geometry is specified, this attribute is used as the geometry of the
+        resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry and a
+        hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default is None.
+    
+
+    Returns
+    -------
+    dict
+        dictionary with data from a single feature
+
+    Raises
+    ------
+    RuntimeError
+        if the feature is not a 'lijn' or 'vlak' geometry
+    """
+    if geometry is None:
+        geometry='geometrie'
+    else:
+        geometry = geometry.lower() # make sure geometry is lower case
+   
+    assert len(com) == 1
+    bp = com[0]
+    d = {}
+    for key, name in bp.attrib.items():
+        d[key.rpartition('}')[-1]] = name
+
+    for child in bp:
+        tag = child.tag.rpartition('}')[-1]
+        if tag.lower().endswith('geometrie'):
+            geom = child[0]
+            d['geometry'] = _read_geometry(geom)
+        elif tag == 'geometrieVlak' and lay=='terrein':
+            d['geometry'] = _read_geometry(child)
+        elif tag == 'identificatie':
+            loc_id = child.find("brt:NEN3610ID",NS).find("brt:lokaalID",NS)
+            d['lokaalID'] = loc_id.text
+        else:
+            d[tag] = child.text
+
+    return d
+
+def _read_geometry(geom):
+    """read geometry from a geometry xml tag
+
+    Parameters
+    ----------
+    geom : Element
+        xml reference to a geometry tag in the BRT
+
+    Returns
+    -------
+    shapely.Geometry or None
+    """
+
+    assert len(geom) == 1
+    feature_geom = geom[0]
+    
+    geom_tag = feature_geom.tag.rpartition('}')[-1]
+    if geom_tag =='lijnGeometrie':
+        return LineString(_read_linestring(feature_geom[0]))
+    elif geom_tag == 'puntGeometrie':
+        return Point(_read_point(feature_geom[0]))
+    elif geom_tag =='vlakGeometrie':
+        return Polygon(*_read_polygon(feature_geom[0]))
+    elif geom_tag =='hartGeometrie':
+        return Polygon(*_read_polygon(feature_geom[0]))    
+    elif geom_tag =='Polygon':
+        return Polygon(*_read_polygon(feature_geom))
+    elif geom_tag == 'multivlakGeometrie':
+        ms = feature_geom.find("gml:MultiSurface",NS)
+        polygons = []
+        for sm in ms:
+            assert len(sm) == 1
+            polygon = sm.find("gml:Polygon",NS)
+            polygons.append(_read_polygon(polygon))
+        return MultiPolygon(polygons)
+    else:
+        logger.warning(f'cannot read geometry type {geom_tag}, skipping these features')
+        return None
+
+def _get_xy(text):
+    """get x and y coordinates from a tag text
+
+    Parameters
+    ----------
+    text : str
+        x and y values in str format
+
+    Returns
+    -------
+    np.ndarray
+        x and y coordinates
+    """
+    xy = [float(val) for val in text.split()]
+    xy = np.array(xy).reshape(int(len(xy) / 2), 2)
+    return xy
+
+def _get_ring_xy(exterior):
+    """get x and y coordinates for a LinearRing
+
+    Parameters
+    ----------
+    exterior : Element
+        xml reference to an exterior tag of the BRT
+
+    Returns
+    -------
+    np.ndarray
+        x and y coordinates
+
+    Raises
+    ------
+    Exception
+        for unknown exterior types
+    """
+    assert len(exterior) == 1
+    if exterior[0].tag.rpartition('}')[-1] == "LinearRing":
+        lr = exterior.find("gml:LinearRing",NS)
+        xy = _get_xy(lr.find("gml:posList",NS).text)
+    else:
+        raise Exception(f"Unknown exterior type: {exterior[0].tag}")
+    return xy
+
+def _read_polygon(polygon):
+    """read polygon geometry from an xml tag
+
+    Parameters
+    ----------
+    polygon : Element
+        xml reference to a polygon tag.
+
+    Returns
+    -------
+    shell, holes
+        polygon definition
+    """
+    exterior = polygon.find("gml:exterior",NS)
+    shell = _get_ring_xy(exterior)
+    holes = []
+    for interior in polygon.findall("gml:interior",NS):
+        holes.append(_get_ring_xy(interior))
+    return shell, holes
+
+def _read_linestring(linestring):
+    """read linestring geometry from an xml tag
+
+    Parameters
+    ----------
+    linestring : Element
+        xml reference to a linestring tag.
+
+    Returns
+    -------
+    np.ndarray
+        x and y coordinates
+    """
+    return _get_xy(linestring.find("gml:posList",NS).text)
+
+def _read_point(point):
+    """read point geometry from an xml tag
+
+    Parameters
+    ----------
+    point : Element
+        xml reference to a point tag.
+
+    Returns
+    -------
+    list
+        x and y coordinates
+    """
+    xy = [float(x) for x in point.find("gml:pos",NS).text.split()]
+    return xy
+
+def get_brt_ogc(extent, layer="waterdeel_lijn", crs=28992, limit=1000,
+                apif="json", timeout=1200):
+    """
+    Get geometries within an extent from the Basis Registratie Topografie (BRT).
+    Some useful links:
+    https://geoforum.nl/t/pdok-lanceert-de-brt-top10nl-in-ogc-api-s-als-demo/9821/5
+    https://api.pdok.nl/brt/top10nl/ogc/v1/api
+
+    Parameters
+    ----------
+    extent : list or tuple of int or float
+        The extent (xmin, xmax, ymin, ymax) for which shapes are requested.
+    layer : string, optional
+        The layer for which shapes are requested. The default is 'waterdeel_lijn'.
+    crs : int, optional
+        The coordinate reference system. The default is 28992.
+    limit : int, optional
+        The maximum number of features that is requested. The default is 1000. This api does not seem to work properly when there are more than 1000 features in your extent.
+    apif : str, optional
+        The output format of the api. The default is 'json'.
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
+
+    Returns
+    -------
+    gdf : GeoPandas GeoDataFrame
+        A GeoDataFrame containing all geometries and properties.
+
+    """
+    if isinstance(layer, (list, tuple, np.ndarray)):
+        # recursively call this function for all layers
+        gdfs = [
+            get_brt_ogc(extent=extent, layer=lay, crs=crs, limit=limit, apif=apif, timeout=timeout)
+            for lay in layer
+        ]
+        return pd.concat(gdfs)
+
+    api_url = "https://api.pdok.nl"
+    url = f"{api_url}/brt/top10nl/ogc/v1/collections/{layer}/items?"
+
+    params = {
+        "bbox": f"{extent[0]},{extent[2]},{extent[1]},{extent[3]}",
+        "f": apif,
+        "limit": limit,
+    }
+
+    if crs == 28992:
+        params["crs"] = "http://www.opengis.net/def/crs/EPSG/0/28992"
+        params["bbox-crs"] = "http://www.opengis.net/def/crs/EPSG/0/28992"
+    elif crs != 4326:
+        raise ValueError(
+            "invalid crs, please choose between 28992 (RD) and 4326 (WGS84)"
+        )
+
+    response = requests.get(url, params=params, timeout=timeout)
+    response.raise_for_status()
+
+    gdf = gpd.GeoDataFrame.from_features(response.json()["features"])
+
+    if gdf.shape[0] == limit:
+        msg = f'the number of features in your extent is probably higher than {limit}, consider increasing the "limit" argument in "get_brt"'
+        logger.error(msg)
+
+    return gdf

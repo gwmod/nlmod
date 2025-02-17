@@ -220,9 +220,11 @@ def read_brt_zipfile(
             gdf_dic[lay].geometry = gdf_dic[lay].geometry.buffer(0.0)
 
         if cut_by_extent and isinstance(gdf_dic[lay], gpd.GeoDataFrame):
-            logger.debug('only keep features within the extent')
+            no_ft = gdf_dic[lay].shape[0]
             gdf_dic[lay].geometry = gdf_dic[lay].intersection(polygon)
             gdf_dic[lay] = gdf_dic[lay][~gdf_dic[lay].is_empty]
+            rm_ft = no_ft - gdf_dic[lay].shape[0]
+            logger.info(f'removed {rm_ft} features that are outside the extent')
 
     return gdf_dic
 

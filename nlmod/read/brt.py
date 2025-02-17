@@ -158,12 +158,12 @@ def get_brt_layers(timeout=1200):
 def read_brt_zipfile(
     fname, geometry=None, files=None, cut_by_extent=True, make_valid=False, extent=None
 ):
-    """Read data from a zipfile that was downloaded using get_bgt().
+    """Read data from a zipfile that was downloaded using get_brt().
 
     Parameters
     ----------
     fname : string
-        The filename of the zip-file containing the BGT-data.
+        The filename of the zip-file containing the BRT-data.
     geometry: string, optional
         When geometry is specified, this attribute is used as the geometry of the
         resulting GeoDataFrame. Some layers have multiple geometry-attributes. An

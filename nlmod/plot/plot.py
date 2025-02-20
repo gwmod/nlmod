@@ -553,7 +553,8 @@ def map_array(
     if ilay is not None:
         title += f" (layer={layer})"
     if t is not None:
-        title += f" (t={t.strftime(date_fmt)})"
+        timestr = t.strftime(date_fmt) if isinstance(t, pd.Timestamp) else f"{t:.2f}"
+        title += f" (t={timestr})"
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
 

@@ -1,14 +1,13 @@
 import logging
 import shutil
 import zipfile
-from io import BytesIO
 from pathlib import Path
-from tqdm import tqdm
 
 import geopandas as gpd
 import requests
+from tqdm import tqdm
 
-from nlmod import NLMOD_DATADIR, cache, util
+from nlmod import cache, util
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ def get_gdf_bofek(extent, dirname, timeout=3600):
     fname_7z = dirname / "BOFEK2020_GIS.7z"
     fname_bofek_gdb = dirname / "GIS" / "BOFEK2020_bestanden" / "BOFEK2020.gdb"
 
-    # create directories if they do not exist 
+    # create directories if they do not exist
     dirname.mkdir(exist_ok=True, parents=True)
 
     # url

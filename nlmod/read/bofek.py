@@ -1,6 +1,7 @@
 import logging
 import shutil
 import zipfile
+from io import BytesIO
 from pathlib import Path
 
 import geopandas as gpd
@@ -46,8 +47,6 @@ def get_gdf_bofek(extent, dirname, timeout=3600):
 
     # set paths
     dirname = Path(dirname)
-    fname_bofek_zip = dirname / "bofek.zip"
-    fname_7z = dirname / "BOFEK2020_GIS.7z"
     fname_bofek_gdb = dirname / "GIS" / "BOFEK2020_bestanden" / "BOFEK2020.gdb"
 
     # create directories if they do not exist
@@ -63,26 +62,22 @@ def get_gdf_bofek(extent, dirname, timeout=3600):
     # show download progress
     total_size = int(r.headers.get("content-length", 0))
     block_size = 1024
+    file_unzipped = BytesIO()
     with tqdm(
         total=total_size, unit="B", unit_scale=True, desc="Downloading BOFEK"
     ) as progress_bar:
-        with open(fname_bofek_zip, "wb") as file:
-            for data in r.iter_content(block_size):
-                progress_bar.update(len(data))
-                file.write(data)
-
-    # unpack 7z file from zip
-    logger.debug("Extracting zipped BOFEK2020 GIS data")
-    with zipfile.ZipFile(fname_bofek_zip) as z:
-        z.extractall(dirname)
+        for data in r.iter_content(block_size):
+            progress_bar.update(len(data))
+            file_unzipped.write(data)
 
     # extract geodatabase from 7z
-    with py7zr.SevenZipFile(fname_7z, mode="r") as z:
-        z.extract(
-            targets=["GIS/BOFEK2020_bestanden/BOFEK2020.gdb"],
-            path=dirname,
-            recursive=True,
-        )
+    with zipfile.ZipFile(file_unzipped, mode="r") as zf:
+        with py7zr.SevenZipFile(BytesIO(zf.read(zf.filelist[0])), mode="r") as z:
+            z.extract(
+                targets=["GIS/BOFEK2020_bestanden/BOFEK2020.gdb"],
+                path=dirname,
+                recursive=True,
+            )
 
     # read geodatabase
     logger.debug("convert geodatabase to geojson")
@@ -92,10 +87,6 @@ def get_gdf_bofek(extent, dirname, timeout=3600):
     gdf_bofek = util.gdf_within_extent(gdf_bofek, extent)
 
     # clean up
-    logger.debug("Remove zip files")
-    fname_bofek_zip.unlink()
-    fname_7z.unlink()
-
     logger.debug("Remove geodatabase")
     shutil.rmtree(fname_bofek_gdb)
 

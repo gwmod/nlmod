@@ -616,28 +616,52 @@ def combine_layers_ds(
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
 
-    if "layer" in ds["top"].dims:
+    if "layer" in ds[top].dims:
         msg = "Top in ds has a layer dimension. combine_layers_ds will remove the layer dimension from top in ds."
         logger.warning(msg)
     else:
         ds = ds.copy()
-        ds["top"] = ds["botm"] + calculate_thickness(ds)
+        ds[top] = ds[bot] + calculate_thickness(ds)
 
     if isinstance(combine_layers, dict):
+        # remove single layer entries if they exist:
+        combine_layers = {k: v for k, v in combine_layers.items() if len(v) > 1}
         new_layer_names = combine_layers.keys()
-        combine_layers = [
-            tuple(np.where(ds.layer.isin(x))[0]) for x in combine_layers.values()
+        combine_layers_integer = [
+            tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x
+            for x in combine_layers.values()
         ]
-        # make sure there are no layers in between
-        assert np.all([(np.diff(x) == 1).all() for x in combine_layers])
     else:
-        new_layer_names = [ds.layer.data[x[0]] for x in combine_layers]
-    new_layer_names = dict(zip(combine_layers, new_layer_names))
+        # remove single layer entries if they exist:
+        combine_layers = [x for x in combine_layers if len(x) > 1]
+        combine_layers_integer = [
+            tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x
+            for x in combine_layers
+        ]
+        new_layer_names = [ds.layer.data[x[0]] for x in combine_layers_integer]
 
+    # make sure there are no layers in between
+    check = [(np.diff(x) == 1).all() for x in combine_layers_integer]
+    if not np.all(check):
+        msg = ""
+        with np.printoptions(legacy="1.25"):
+            for m in np.nonzero(~np.array(check))[0]:
+                if isinstance(combine_layers, dict):
+                    layer_names = combine_layers[list(combine_layers.keys())[m]]
+                else:
+                    layer_names = combine_layers[m]
+                msg += f"\n{m}: {layer_names} {combine_layers_integer[m]}"
+        raise AssertionError(
+            f"Only consecutive layers can be combined. Check input: {msg}"
+        )
+    # set new layer name dictionary
+    new_layer_names = dict(zip(combine_layers_integer, new_layer_names))
+
+    # collection for data arrays
     da_dict = {}
 
     new_top, new_bot, reindexer = layer_combine_top_bot(
-        ds, combine_layers, layer=layer, top=top, bot=bot
+        ds, combine_layers_integer, layer=layer, top=top, bot=bot
     )
     da_dict[top] = new_top
     da_dict[bot] = new_bot

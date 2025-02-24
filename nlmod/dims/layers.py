@@ -1,6 +1,5 @@
 import logging
 import warnings
-from collections import OrderedDict
 
 import numpy as np
 import xarray as xr
@@ -240,7 +239,7 @@ def split_layers_ds(
     bot : str, optional
         name of data variable containing bottom of layers, by default 'botm'
     return_reindexer : bool, optional
-        Return a OrderedDict that can be used to reindex variables from the original
+        Return a dictionary that can be used to reindex variables from the original
         layer-dimension to the new layer-dimension when True. The default is False.
     start_suffix_at : int, optional
         The suffix that the first splitted layer will receive, for layers that were
@@ -322,7 +321,7 @@ def split_layers_ds(
 
     if return_reindexer:
         # determine reindexer
-        reindexer = OrderedDict(zip(layers, layers_org))
+        reindexer = dict(zip(layers, layers_org))
         for lay0 in split_dict:
             reindexer.pop(lay0)
         return ds, reindexer
@@ -369,7 +368,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     -------
     new_top, new_bot : xarray.DataArrays
         DataArrays containing new tops and bottoms after splitting layers.
-    reindexer : OrderedDict
+    reindexer : dict
         dictionary mapping new to old layer indices.
     """
     # calculate new number of layers
@@ -390,7 +389,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     )
 
     # dict to keep track of old and new layer indices
-    reindexer = OrderedDict()
+    reindexer = dict()
 
     j = 0  # new layer index
     icomb = 0  # combine layer index
@@ -445,7 +444,7 @@ def sum_param_combined_layers(da, reindexer):
     ----------
     da : xarray.DataArray
         data array to calculate combined parameters for
-    reindexer : OrderedDict
+    reindexer : dict
         dictionary mapping new layer indices to old layer indices
 
     Returns

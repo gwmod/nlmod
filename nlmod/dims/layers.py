@@ -401,14 +401,17 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
         if i in np.concatenate(combine_layers):
             # get indices of layers
             c = combine_layers[icomb]
+            old_names = ds.layer.isel(layer=list(c)).layer.to_numpy().tolist()
             # store new and original layer indices
             reindexer[j] = c
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
-                logger.debug(
-                    f"{j:2d}: Merge layers {c} as layer {j}, calculate new top/bot."
-                )
-                tops = ds[top].data[c, :, :]
+                with np.printoptions(legacy="1.25"):
+                    logger.debug(
+                        f"{j:2d}: Merge layers {c} ({old_names}) as layer {j}, "
+                        "calculate new top/bot."
+                    )
+                tops = ds[top].data[c, ...]
                 bots = ds[bot].data[c, :, :]
                 new_top.data[j] = np.nanmax(tops, axis=0)
                 new_bot.data[j] = np.nanmin(bots, axis=0)
@@ -425,7 +428,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
         else:
             # do not merge, only map old layer index to new layer index
             logger.debug(
-                f"{j:2d}: Do not merge, map old layer index to new layer index."
+                f"{j:2d}: Do not merge, map old layer index {i} to new layer index {j}."
             )
             new_top.data[j] = ds[top].data[i]
             new_bot.data[j] = ds[bot].data[i]

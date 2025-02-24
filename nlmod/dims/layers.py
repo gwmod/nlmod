@@ -572,11 +572,11 @@ def combine_layers_ds(
     ds : xarray.Dataset
         xarray Dataset containing information about layers
         (layers, top and bot)
-    combine_layers : list of tuple of ints, or dict of layer names
-        list of tuples, with each tuple containing integers indicating
-        layer indices to combine into one layer. E.g. [(0, 1), (2, 3)] will
-        combine layers 0 and 1 into a single layer (with index 0) and layers
-        2 and 3 into a second layer (with index 1).
+    combine_layers : dict or list of iterables
+        dictionary with new layer names as keys and a collection of layer names
+        or indices to merge as values. Alternatively a list of iterables, with
+        each iterable containing strings or integers indicating layers to
+        merge. The new layer will be named after the first of the layers to be merged.
     layer : str, optional
         name of layer dimension, by default 'layer'
     top : str, optional
@@ -601,6 +601,32 @@ def combine_layers_ds(
     ds_combine : xarray.Dataset
         Dataset with new tops and bottoms taking into account combined layers,
         and recalculated values for parameters (kh, kv, kD, c).
+
+    Examples
+    --------
+    Given some layer model Dataset with named layers. Specifying which layers to merge
+    can be done the following ways.
+
+    As a dictionary:
+
+    >>> combine_layers = {
+            "new_layer_name": [0, 1]  # as layer indices
+            "PZWAz": ["PZWAz2", "PZWAz3", "PZWAz4"],  # as strings
+        }
+
+    As a list of iterables:
+
+    >>> combine_layers = [
+            (0, 1),  # as layer indices
+            ("PZWAz2", "PZWAz3", "PZWAz4"),  # as strings
+        ]
+
+    Note
+    ----
+    When passing integers to combine_layers, these are always intepreted as the
+    layer index (i.e. starting at 0 and numbered consecutively), and not the
+    layer "name". If the dataset layer index is integer, only the layer index
+    can be used to specify which layers to merge.
     """
     data_vars = []
     for dv in [kh, kv, kD, c]:
@@ -704,7 +730,7 @@ def combine_layers_ds(
     ds_combine = xr.Dataset(da_dict, attrs=attrs)
 
     # remove layer dimension from top again
-    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
+    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=1e-3)
 
     return ds_combine
 
@@ -973,7 +999,7 @@ def remove_thin_layers(
 
 
 def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=None):
-    """Create kh en kv grid data for flopy from existing kh, kv and anistropy grids with
+    """Create kh and kv grid data for flopy from existing kh, kv and anistropy grids with
     nan values (typically from REGIS).
 
     fill nans in kh grid in these steps:
@@ -1174,6 +1200,7 @@ def fill_nan_top_botm(ds):
         top_max = ds["top"].max("layer")
     else:
         top_max = ds["top"]
+
     # fill nans in botm of the first layer
     ds["botm"][0] = ds["botm"][0].where(~ds["botm"][0].isnull(), top_max)
 
@@ -1227,8 +1254,8 @@ def remove_layer_dim_from_top(
     """Change top from 3d to 2d, removing NaNs in top and botm in the process.
 
     This method sets variable `top` to the top of the upper layer (like the definition
-    in MODFLOW). This removes redundant data, as the top of all layers exept the most
-    upper one is also defined as the bottom of lower layers.
+    in MODFLOW). This removes redundant data, as the top of all layers (except
+    the first layer) is equal to the botm of the layer above.
 
     Parameters
     ----------

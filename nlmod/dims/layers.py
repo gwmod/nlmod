@@ -405,7 +405,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
             reindexer[j] = c
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
-                with np.printoptions(legacy="1.25"):
+                with np.printoptions(legacy="1.21"):
                     logger.debug(
                         f"{j:2d}: Merge layers {c} ({old_names}) as layer {j}, "
                         "calculate new top/bot."
@@ -669,7 +669,7 @@ def combine_layers_ds(
     check = [(np.diff(x) == 1).all() for x in combine_layers_integer]
     if not np.all(check):
         msg = ""
-        with np.printoptions(legacy="1.25"):
+        with np.printoptions(legacy="1.21"):
             for m in np.nonzero(~np.array(check))[0]:
                 if isinstance(combine_layers, dict):
                     layer_names = combine_layers[list(combine_layers.keys())[m]]

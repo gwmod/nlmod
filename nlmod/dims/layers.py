@@ -400,7 +400,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
         if i in np.concatenate(combine_layers):
             # get indices of layers
             c = combine_layers[icomb]
-            old_names = ds.layer.isel(layer=list(c)).layer.to_numpy().tolist()
+            old_names = ds.layer.isel(layer=list(c)).to_numpy().tolist()
             # store new and original layer indices
             reindexer[j] = c
             # only need to calculate new top/bot once for each merged layer

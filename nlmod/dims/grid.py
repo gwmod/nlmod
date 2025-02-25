@@ -1612,14 +1612,14 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
 
 
 def gdf_to_bool_da(
-        gdf,
-        ds,
-        ix=None,
-        buffer=0.0,
-        contains_centroid=False,
-        min_area_fraction=None,
-        **kwargs
-    ):
+    gdf,
+    ds,
+    ix=None,
+    buffer=0.0,
+    contains_centroid=False,
+    min_area_fraction=None,
+    **kwargs,
+):
     """Return True if grid cell is partly in polygons, False otherwise.
 
     This function returns True for grid cells that are partly in the polygons. If
@@ -1638,7 +1638,7 @@ def gdf_to_bool_da(
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        The distance to buffer around the geometries in meters. A positive distance 
+        The distance to buffer around the geometries in meters. A positive distance
         produces a dilation, a negative distance an erosion. The default is 0.
     contains_centroid :  bool, optional
         if True, only store intersection result if cell centroid is
@@ -1697,7 +1697,7 @@ def gdf_to_bool_da(
             multipolygon,
             contains_centroid=contains_centroid,
             min_area_fraction=min_area_fraction,
-            **kwargs
+            **kwargs,
         )
     else:
         r = ix.intersects(multipolygon)
@@ -1720,7 +1720,7 @@ def gdf_to_bool_ds(
     buffer=0.0,
     contains_centroid=False,
     min_area_fraction=None,
-    **kwargs
+    **kwargs,
 ):
     """Return True if grid cell is partly in polygons, False otherwise.
 
@@ -1745,7 +1745,7 @@ def gdf_to_bool_ds(
     ix : flopy.utils.GridIntersect, optional
         If not provided it is computed from ds. Speeds up the the function
     buffer : float, optional
-        The distance to buffer around the geometries in meters. A positive distance 
+        The distance to buffer around the geometries in meters. A positive distance
         produces a dilation, a negative distance an erosion. The default is 0.
     contains_centroid :  bool, optional
         if True, only store intersection result if cell centroid is
@@ -2266,10 +2266,33 @@ def affine_transform_gdf(gdf, affine):
     return gdfm
 
 
-def get_extent(ds, rotated=True):
-    """Get the model extent, corrected for angrot if necessary."""
+def get_extent(ds, rotated=True, xmargin=0.0, ymargin=0.0):
+    """Get the model extent, corrected for angrot if necessary.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset.
+    rotated : bool, optional
+        if True, the extent is corrected for angrot. The default is True.
+    xmargin : float, optional
+        margin to add to the x-extent. The default is 0.0.
+    ymargin : float, optional
+        margin to add to the y-extent. The default is 0.0.
+
+    Returns
+    -------
+    extent : list
+        [xmin, xmax, ymin, ymax]
+    """
     attrs = _get_attrs(ds)
     extent = attrs["extent"]
+    extent = [
+        extent[0] - xmargin,
+        extent[1] + xmargin,
+        extent[2] - ymargin,
+        extent[3] + ymargin,
+    ]
     if rotated and "angrot" in attrs and attrs["angrot"] != 0.0:
         affine = get_affine_mod_to_world(ds)
         xc = np.array([extent[0], extent[1], extent[1], extent[0]])
@@ -2307,7 +2330,7 @@ def get_affine(ds, sx=None, sy=None):
     if sy is None:
         sy = get_delc(ds)
         assert len(np.unique(sy)) == 1, "Affine-transformation needs a constant delc"
-        sy = sy[0]
+        sy = -sy[0]
 
     if "angrot" in attrs:
         xorigin = attrs["xorigin"]

@@ -513,6 +513,7 @@ def map_array(
     else:
         t = None
 
+    fig_tight_layout = ax is None
     f, ax = _get_figure(
         ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated, extent=extent
     )
@@ -552,7 +553,8 @@ def map_array(
     if ilay is not None:
         title += f" (layer={layer})"
     if t is not None:
-        title += f" (t={t.strftime(date_fmt)})"
+        timestr = t.strftime(date_fmt) if isinstance(t, pd.Timestamp) else f"{t:.2f}"
+        title += f" (t={timestr})"
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
 
@@ -565,7 +567,7 @@ def map_array(
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
 
-    f.tight_layout()
+    _ = f.tight_layout() if fig_tight_layout else None
 
     if animate:
         return f, ax, pc

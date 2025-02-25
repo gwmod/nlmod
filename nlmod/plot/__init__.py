@@ -19,6 +19,7 @@ from .plotutil import (
     get_figsize,
     get_map,
     inset_map,
+    get_inset_map_bounds,
     rd_ticks,
     rotate_yticklabels,
     title_inside,

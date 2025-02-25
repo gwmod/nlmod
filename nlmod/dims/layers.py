@@ -1,11 +1,10 @@
 import logging
 import warnings
-from collections import OrderedDict
 
 import numpy as np
 import xarray as xr
 
-from ..util import LayerError
+from ..util import LayerError, _get_value_from_ds_datavar
 from . import resample
 
 logger = logging.getLogger(__name__)
@@ -240,7 +239,7 @@ def split_layers_ds(
     bot : str, optional
         name of data variable containing bottom of layers, by default 'botm'
     return_reindexer : bool, optional
-        Return a OrderedDict that can be used to reindex variables from the original
+        Return a dictionary that can be used to reindex variables from the original
         layer-dimension to the new layer-dimension when True. The default is False.
     start_suffix_at : int, optional
         The suffix that the first splitted layer will receive, for layers that were
@@ -322,7 +321,7 @@ def split_layers_ds(
 
     if return_reindexer:
         # determine reindexer
-        reindexer = OrderedDict(zip(layers, layers_org))
+        reindexer = dict(zip(layers, layers_org))
         for lay0 in split_dict:
             reindexer.pop(lay0)
         return ds, reindexer
@@ -369,7 +368,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     -------
     new_top, new_bot : xarray.DataArrays
         DataArrays containing new tops and bottoms after splitting layers.
-    reindexer : OrderedDict
+    reindexer : dict
         dictionary mapping new to old layer indices.
     """
     # calculate new number of layers
@@ -390,7 +389,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     )
 
     # dict to keep track of old and new layer indices
-    reindexer = OrderedDict()
+    reindexer = {}
 
     j = 0  # new layer index
     icomb = 0  # combine layer index
@@ -401,14 +400,17 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
         if i in np.concatenate(combine_layers):
             # get indices of layers
             c = combine_layers[icomb]
+            old_names = ds.layer.isel(layer=list(c)).to_numpy().tolist()
             # store new and original layer indices
             reindexer[j] = c
             # only need to calculate new top/bot once for each merged layer
             if i == np.min(c):
-                logger.debug(
-                    f"{j:2d}: Merge layers {c} as layer {j}, calculate new top/bot."
-                )
-                tops = ds[top].data[c, :, :]
+                with np.printoptions(legacy="1.21"):
+                    logger.debug(
+                        f"{j:2d}: Merge layers {c} ({old_names}) as layer {j}, "
+                        "calculate new top/bot."
+                    )
+                tops = ds[top].data[c, ...]
                 bots = ds[bot].data[c, :, :]
                 new_top.data[j] = np.nanmax(tops, axis=0)
                 new_bot.data[j] = np.nanmin(bots, axis=0)
@@ -425,7 +427,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
         else:
             # do not merge, only map old layer index to new layer index
             logger.debug(
-                f"{j:2d}: Do not merge, map old layer index to new layer index."
+                f"{j:2d}: Do not merge, map old layer index {i} to new layer index {j}."
             )
             new_top.data[j] = ds[top].data[i]
             new_bot.data[j] = ds[bot].data[i]
@@ -442,7 +444,7 @@ def sum_param_combined_layers(da, reindexer):
     ----------
     da : xarray.DataArray
         data array to calculate combined parameters for
-    reindexer : OrderedDict
+    reindexer : dict
         dictionary mapping new layer indices to old layer indices
 
     Returns
@@ -570,11 +572,11 @@ def combine_layers_ds(
     ds : xarray.Dataset
         xarray Dataset containing information about layers
         (layers, top and bot)
-    combine_layers : list of tuple of ints, or dict of layer names
-        list of tuples, with each tuple containing integers indicating
-        layer indices to combine into one layer. E.g. [(0, 1), (2, 3)] will
-        combine layers 0 and 1 into a single layer (with index 0) and layers
-        2 and 3 into a second layer (with index 1).
+    combine_layers : dict or list of iterables
+        dictionary with new layer names as keys and a collection of layer names
+        or indices to merge as values. Alternatively a list of iterables, with
+        each iterable containing strings or integers indicating layers to
+        merge. The new layer will be named after the first of the layers to be merged.
     layer : str, optional
         name of layer dimension, by default 'layer'
     top : str, optional
@@ -599,6 +601,32 @@ def combine_layers_ds(
     ds_combine : xarray.Dataset
         Dataset with new tops and bottoms taking into account combined layers,
         and recalculated values for parameters (kh, kv, kD, c).
+
+    Examples
+    --------
+    Given some layer model Dataset with named layers. Specifying which layers to merge
+    can be done the following ways.
+
+    As a dictionary:
+
+    >>> combine_layers = {
+            "new_layer_name": [0, 1]  # as layer indices
+            "PZWAz": ["PZWAz2", "PZWAz3", "PZWAz4"],  # as strings
+        }
+
+    As a list of iterables:
+
+    >>> combine_layers = [
+            (0, 1),  # as layer indices
+            ("PZWAz2", "PZWAz3", "PZWAz4"),  # as strings
+        ]
+
+    Note
+    ----
+    When passing integers to combine_layers, these are always intepreted as the
+    layer index (i.e. starting at 0 and numbered consecutively), and not the
+    layer "name". If the dataset layer index is integer, only the layer index
+    can be used to specify which layers to merge.
     """
     data_vars = []
     for dv in [kh, kv, kD, c]:
@@ -608,33 +636,61 @@ def combine_layers_ds(
 
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
-        logger.warning(f"Following data variables will be dropped: {dropped_dv}")
+        msg = f"Following data variables will be dropped: {dropped_dv}"
+        logger.warning(msg)
 
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
 
-    if "layer" in ds["top"].dims:
-        msg = "Top in ds has a layer dimension. combine_layers_ds will remove the layer dimension from top in ds."
-        logger.warning(msg)
+    if "layer" in ds[top].dims:
+        msg = (
+            f"Datavar {top} has a layer dimension. combine_layers_ds will"
+            " remove the layer dimension from {top}."
+        )
+        logger.info(msg)
     else:
         ds = ds.copy()
-        ds["top"] = ds["botm"] + calculate_thickness(ds)
+        ds[top] = ds[bot] + calculate_thickness(ds)
 
     if isinstance(combine_layers, dict):
+        # remove single layer entries if they exist:
+        combine_layers = {k: v for k, v in combine_layers.items() if len(v) > 1}
         new_layer_names = combine_layers.keys()
-        combine_layers = [
-            tuple(np.where(ds.layer.isin(x))[0]) for x in combine_layers.values()
+        combine_layers_integer = [
+            tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x
+            for x in combine_layers.values()
         ]
-        # make sure there are no layers in between
-        assert np.all([(np.diff(x) == 1).all() for x in combine_layers])
     else:
-        new_layer_names = [ds.layer.data[x[0]] for x in combine_layers]
-    new_layer_names = dict(zip(combine_layers, new_layer_names))
+        # remove single layer entries if they exist:
+        combine_layers = [x for x in combine_layers if len(x) > 1]
+        combine_layers_integer = [
+            tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x
+            for x in combine_layers
+        ]
+        new_layer_names = [ds.layer.data[x[0]] for x in combine_layers_integer]
 
+    # make sure there are no layers in between
+    check = [(np.diff(x) == 1).all() for x in combine_layers_integer]
+    if not np.all(check):
+        msg = ""
+        with np.printoptions(legacy="1.21"):
+            for m in np.nonzero(~np.array(check))[0]:
+                if isinstance(combine_layers, dict):
+                    layer_names = combine_layers[list(combine_layers.keys())[m]]
+                else:
+                    layer_names = combine_layers[m]
+                msg += f"\n{m}: {layer_names} {combine_layers_integer[m]}"
+        raise AssertionError(
+            f"Only consecutive layers can be combined. Check input: {msg}"
+        )
+    # set new layer name dictionary
+    new_layer_names = dict(zip(combine_layers_integer, new_layer_names))
+
+    # collection for data arrays
     da_dict = {}
 
     new_top, new_bot, reindexer = layer_combine_top_bot(
-        ds, combine_layers, layer=layer, top=top, bot=bot
+        ds, combine_layers_integer, layer=layer, top=top, bot=bot
     )
     da_dict[top] = new_top
     da_dict[bot] = new_bot
@@ -677,8 +733,8 @@ def combine_layers_ds(
     logger.info("Done! Created new dataset with combined layers!")
     ds_combine = xr.Dataset(da_dict, attrs=attrs)
 
-    # remove layer dimension from top again
-    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=0.001)
+    # remove layer dimension from top
+    ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=1e-5)
 
     return ds_combine
 
@@ -947,7 +1003,7 @@ def remove_thin_layers(
 
 
 def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=None):
-    """Create kh en kv grid data for flopy from existing kh, kv and anistropy grids with
+    """Create kh and kv grid data for flopy from existing kh, kv and anistropy grids with
     nan values (typically from REGIS).
 
     fill nans in kh grid in these steps:
@@ -1148,6 +1204,7 @@ def fill_nan_top_botm(ds):
         top_max = ds["top"].max("layer")
     else:
         top_max = ds["top"]
+
     # fill nans in botm of the first layer
     ds["botm"][0] = ds["botm"][0].where(~ds["botm"][0].isnull(), top_max)
 
@@ -1201,8 +1258,8 @@ def remove_layer_dim_from_top(
     """Change top from 3d to 2d, removing NaNs in top and botm in the process.
 
     This method sets variable `top` to the top of the upper layer (like the definition
-    in MODFLOW). This removes redundant data, as the top of all layers exept the most
-    upper one is also defined as the bottom of lower layers.
+    in MODFLOW). This removes redundant data, as the top of all layers (except
+    the first layer) is equal to the botm of the layer above.
 
     Parameters
     ----------
@@ -1319,19 +1376,22 @@ def remove_inactive_layers(ds):
     return ds
 
 
-def get_idomain(ds):
+def get_idomain(ds, active_domain="active_domain"):
     """Get idomain from a model Dataset.
 
     Idomain is calculated from the thickness of the layers, and will be 1 for all layers
-    with a positive thickness, and -1 (pass-through) otherwise. On top of this, an
-    "active_domain" DataArray is applied, which is taken from ds, and can be 2d or 3d.
+    with a positive thickness, and -1 (pass-through) otherwise. Additionally, an
+    "active_domain" DataArray can be applied which can be 2d or 3d.
     Idomain is set to 0 where "active_domain" is False or 0.
-
 
     Parameters
     ----------
     ds : xr.Dataset
         The model Dataset.
+    active_domain : str or xr.DataArray, optional
+        boolean array indicating the active model domain (True = active). Idomain is
+        set to 0 everywhere else. If passed as str, this variable is taken from ds, if
+        passed as xr.DataArray, this DataArray is used. The default is "active_domain".
 
     Returns
     -------
@@ -1353,8 +1413,11 @@ def get_idomain(ds):
     idomain.data[idomain.where(idomain > 0).ffill(dim="layer").isnull()] = 0
     idomain.data[idomain.where(idomain > 0).bfill(dim="layer").isnull()] = 0
     # set idomain to 0 in the inactive part of the model
-    if "active_domain" in ds:
-        idomain = idomain.where(ds["active_domain"], 0)
+    active = _get_value_from_ds_datavar(
+        ds, "active_domain", datavar=active_domain, default=None, warn=False
+    )
+    if active is not None:
+        idomain = idomain.where(active, 0)
     return idomain
 
 

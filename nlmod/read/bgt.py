@@ -108,7 +108,7 @@ def get_bgt(
             else:
                 running = False
     else:
-        msg = "Download of bgt-data failed: {response.text}"
+        msg = f"Download of bgt-data failed: {response.text}"
         raise (Exception(msg))
 
     href = response.json()["_links"]["download"]["href"]

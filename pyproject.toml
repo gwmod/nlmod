@@ -99,6 +99,7 @@ include-package-data = true
 "nlmod.data.shapes" = ["*"]
 "nlmod.data.ahn" = ["*"]
 "nlmod.data.bgt" = ["*"]
+"nlmod.data.bofek" = ["*"]
 "nlmod.bin" = ["mp7_2_002_provisional"]
 
 [tool.black]

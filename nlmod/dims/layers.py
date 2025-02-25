@@ -389,7 +389,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     )
 
     # dict to keep track of old and new layer indices
-    reindexer = dict()
+    reindexer = {}
 
     j = 0  # new layer index
     icomb = 0  # combine layer index
@@ -733,7 +733,7 @@ def combine_layers_ds(
     logger.info("Done! Created new dataset with combined layers!")
     ds_combine = xr.Dataset(da_dict, attrs=attrs)
 
-    # remove layer dimension from top again
+    # remove layer dimension from top
     ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=1e-5)
 
     return ds_combine

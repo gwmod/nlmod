@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 import xarray as xr
 
-from ..util import LayerError
+from ..util import LayerError, _get_value_from_ds_datavar
 from . import resample
 
 logger = logging.getLogger(__name__)
@@ -1372,19 +1372,22 @@ def remove_inactive_layers(ds):
     return ds
 
 
-def get_idomain(ds):
+def get_idomain(ds, active_domain="active_domain"):
     """Get idomain from a model Dataset.
 
     Idomain is calculated from the thickness of the layers, and will be 1 for all layers
-    with a positive thickness, and -1 (pass-through) otherwise. On top of this, an
-    "active_domain" DataArray is applied, which is taken from ds, and can be 2d or 3d.
+    with a positive thickness, and -1 (pass-through) otherwise. Additionally, an
+    "active_domain" DataArray can be applied which can be 2d or 3d.
     Idomain is set to 0 where "active_domain" is False or 0.
-
 
     Parameters
     ----------
     ds : xr.Dataset
         The model Dataset.
+    active_domain : str or xr.DataArray, optional
+        boolean array indicating the active model domain (True = active). Idomain is
+        set to 0 everywhere else. If passed as str, this variable is taken from ds, if
+        passed as xr.DataArray, this DataArray is used. The default is "active_domain".
 
     Returns
     -------
@@ -1406,8 +1409,11 @@ def get_idomain(ds):
     idomain.data[idomain.where(idomain > 0).ffill(dim="layer").isnull()] = 0
     idomain.data[idomain.where(idomain > 0).bfill(dim="layer").isnull()] = 0
     # set idomain to 0 in the inactive part of the model
-    if "active_domain" in ds:
-        idomain = idomain.where(ds["active_domain"], 0)
+    active = _get_value_from_ds_datavar(
+        ds, "active_domain", datavar=active_domain, default=None, warn=False
+    )
+    if active is not None:
+        idomain = idomain.where(active, 0)
     return idomain
 
 

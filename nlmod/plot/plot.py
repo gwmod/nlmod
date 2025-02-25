@@ -513,7 +513,7 @@ def map_array(
     else:
         t = None
 
-    fig_tight_layout = True if ax is None else False
+    fig_tight_layout = ax is None
     f, ax = _get_figure(
         ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated, extent=extent
     )
@@ -567,7 +567,7 @@ def map_array(
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
 
-    f.tight_layout() if fig_tight_layout else None
+    _ = f.tight_layout() if fig_tight_layout else None
 
     if animate:
         return f, ax, pc

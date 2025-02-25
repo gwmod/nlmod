@@ -438,8 +438,8 @@ def add_xsec_line_and_labels(
     mapax.plot(x, y, **kwargs)
     stroke = [patheffects.withStroke(linewidth=2, foreground="w")]
     mapax.text(
-        x[0] + x_offset,
-        y[0] + y_offset,
+        x[0] - x_offset,
+        y[0] - y_offset,
         f"{label}",
         fontweight="bold",
         path_effects=stroke,

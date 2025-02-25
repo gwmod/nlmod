@@ -636,14 +636,18 @@ def combine_layers_ds(
 
     dropped_dv = set(ds.data_vars.keys()) - parsed_dv
     if len(dropped_dv) > 0:
-        logger.warning(f"Following data variables will be dropped: {dropped_dv}")
+        msg = f"Following data variables will be dropped: {dropped_dv}"
+        logger.warning(msg)
 
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
 
     if "layer" in ds[top].dims:
-        msg = f"datavar {top} has a layer dimension. combine_layers_ds will remove the layer dimension from {top} in ds."
-        logger.warning(msg)
+        msg = (
+            f"Datavar {top} has a layer dimension. combine_layers_ds will"
+            " remove the layer dimension from {top}."
+        )
+        logger.info(msg)
     else:
         ds = ds.copy()
         ds[top] = ds[bot] + calculate_thickness(ds)
@@ -730,7 +734,7 @@ def combine_layers_ds(
     ds_combine = xr.Dataset(da_dict, attrs=attrs)
 
     # remove layer dimension from top again
-    ds = remove_layer_dim_from_top(ds, inconsistency_threshold=1e-3)
+    ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=1e-5)
 
     return ds_combine
 

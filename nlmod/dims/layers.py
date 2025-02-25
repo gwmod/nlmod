@@ -642,7 +642,7 @@ def combine_layers_ds(
     logger.info("Calculating new layer tops and bottoms...")
 
     if "layer" in ds[top].dims:
-        msg = "Top in ds has a layer dimension. combine_layers_ds will remove the layer dimension from top in ds."
+        msg = f"datavar {top} has a layer dimension. combine_layers_ds will remove the layer dimension from {top} in ds."
         logger.warning(msg)
     else:
         ds = ds.copy()

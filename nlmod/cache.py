@@ -127,13 +127,8 @@ def cache_netcdf(
         @functools.wraps(func)
         def wrapper(*args, cachedir=None, cachename=None, **kwargs):
             # 1 check if cachedir and name are provided
-            if cachedir is None and cachename is None:
+            if cachedir is None or cachename is None:
                 return func(*args, **kwargs)
-            elif cachedir is None or cachename is None:
-                raise ValueError(
-                    "Cannot cache result without specifying both "
-                    "cachedir and cachename!"
-                )
 
             if not cachename.endswith(".nc"):
                 cachename += ".nc"

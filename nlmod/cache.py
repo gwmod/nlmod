@@ -885,6 +885,8 @@ def ds_contains(
 def _explicit_dataset_coordinate_comparison(ds_in, ds_cache):
     """Perform explicit dataset coordinate comparison.
 
+    Uses `xarray.testing.assert_identical()`.
+
     Parameters
     ----------
     ds_in : xr.Dataset
@@ -894,21 +896,22 @@ def _explicit_dataset_coordinate_comparison(ds_in, ds_cache):
 
     Returns
     -------
-    None
+    bool
+        True if coordinates are identical, else False.
 
     Raises
     ------
     AssertionError
         If the coordinates are not equal.
     """
-    logger.info("cache -> performing explicit dataset coordinate comparison")
+    logger.debug("cache -> performing explicit dataset coordinate comparison")
     for coord in ds_cache.coords:
-        logger.debug("cache -> comparing coordinate: %s", coord)
+        logger.debug(f"cache -> comparing coordinate {coord}")
         try:
             assert_identical(ds_in[coord], ds_cache[coord])
         except AssertionError as e:
-            logger.info("cache -> coordinates are not equal")
-            logger.info(e)
+            logger.debug(f"cache -> coordinate {coord} not equal")
+            logger.debug(e)
             return False
     logger.debug("cache -> all coordinates equal")
     return True

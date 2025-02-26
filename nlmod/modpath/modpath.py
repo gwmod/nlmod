@@ -10,7 +10,7 @@ import pandas as pd
 from packaging.version import parse as parse_version
 
 from .. import util
-from ..dims.grid import get_row_col_from_xy, get_icell2d_from_xy
+from ..dims.grid import get_icell2d_from_xy, get_row_col_from_xy
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
 
     if script_path is not None:
         new_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(script_path)[-1]
+            f"{dt.datetime.now().strftime('%Y%m%d')}" + os.path.split(script_path)[-1]
         )
         dst = os.path.join(mpf.model_ws, new_fname)
         logger.info(f"write script {new_fname} to modpath workspace")
@@ -378,7 +378,7 @@ def pg_from_fdt(nodes, divisions=3):
         Particle group.
     """
     logger.info(
-        f"particle group with {divisions**2} particle per cell face, {6*divisions**2} particles per cell"
+        f"particle group with {divisions**2} particle per cell face, {6 * divisions**2} particles per cell"
     )
     sd = flopy.modpath.FaceDataType(
         drape=0,

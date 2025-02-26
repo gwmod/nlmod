@@ -10,20 +10,20 @@ def test_cache_ahn_data_array():
     cache_name = "ahn4.nc"
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        assert not os.path.exists(
-            os.path.join(tmpdir, cache_name)
-        ), "Cache should not exist yet1"
+        assert not os.path.exists(os.path.join(tmpdir, cache_name)), (
+            "Cache should not exist yet1"
+        )
         ahn_no_cache = nlmod.read.ahn.get_ahn4(extent)
-        assert not os.path.exists(
-            os.path.join(tmpdir, cache_name)
-        ), "Cache should not exist yet2"
+        assert not os.path.exists(os.path.join(tmpdir, cache_name)), (
+            "Cache should not exist yet2"
+        )
 
         ahn_cached = nlmod.read.ahn.get_ahn4(
             extent, cachedir=tmpdir, cachename=cache_name
         )
-        assert os.path.exists(
-            os.path.join(tmpdir, cache_name)
-        ), "Cache should have existed by now"
+        assert os.path.exists(os.path.join(tmpdir, cache_name)), (
+            "Cache should have existed by now"
+        )
         assert ahn_cached.equals(ahn_no_cache)
         modification_time1 = os.path.getmtime(os.path.join(tmpdir, cache_name))
 
@@ -41,9 +41,9 @@ def test_cache_ahn_data_array():
             extent, cachedir=tmpdir, cachename=cache_name
         )
         modification_time3 = os.path.getmtime(os.path.join(tmpdir, cache_name))
-        assert (
-            modification_time1 != modification_time3
-        ), "Cache should have been rewritten"
+        assert modification_time1 != modification_time3, (
+            "Cache should have been rewritten"
+        )
 
 
 def test_cache_northsea_data_array():
@@ -72,18 +72,18 @@ def test_cache_northsea_data_array():
     cache_name = "northsea.nc"
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        assert not os.path.exists(
-            os.path.join(tmpdir, cache_name)
-        ), "Cache should not exist yet1"
+        assert not os.path.exists(os.path.join(tmpdir, cache_name)), (
+            "Cache should not exist yet1"
+        )
         out1_no_cache = get_northsea(ds1)
-        assert not os.path.exists(
-            os.path.join(tmpdir, cache_name)
-        ), "Cache should not exist yet2"
+        assert not os.path.exists(os.path.join(tmpdir, cache_name)), (
+            "Cache should not exist yet2"
+        )
 
         out1_cached = get_northsea(ds1, cachedir=tmpdir, cachename=cache_name)
-        assert os.path.exists(
-            os.path.join(tmpdir, cache_name)
-        ), "Cache should exist by now"
+        assert os.path.exists(os.path.join(tmpdir, cache_name)), (
+            "Cache should exist by now"
+        )
         assert out1_cached.equals(out1_no_cache)
         modification_time1 = os.path.getmtime(os.path.join(tmpdir, cache_name))
 
@@ -103,7 +103,7 @@ def test_cache_northsea_data_array():
         # Different extent should not lead to using the cache
         out2_cache = get_northsea(ds2, cachedir=tmpdir, cachename=cache_name)
         modification_time3 = os.path.getmtime(os.path.join(tmpdir, cache_name))
-        assert (
-            modification_time1 != modification_time3
-        ), "Cache should have been rewritten"
+        assert modification_time1 != modification_time3, (
+            "Cache should have been rewritten"
+        )
         assert not out2_cache.equals(out1_no_cache)

@@ -348,7 +348,7 @@ def distribute_cond_over_lays(
             try:
                 first_active = np.where(idomain > 0)[0][0]
             except IndexError:
-                warnings.warn(f"No active layers in {cellid}, " "returning NaNs.")
+                warnings.warn(f"No active layers in {cellid}, returning NaNs.")
                 return np.nan, np.nan
         else:
             first_active = 0

@@ -14,6 +14,9 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from dask.diagnostics import ProgressBar
+from xarray.testing import assert_equal
+
+from .config import NLMOD_CACHE_OPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +127,13 @@ def cache_netcdf(
         @functools.wraps(func)
         def wrapper(*args, cachedir=None, cachename=None, **kwargs):
             # 1 check if cachedir and name are provided
-            if cachedir is None or cachename is None:
+            if cachedir is None and cachename is None:
                 return func(*args, **kwargs)
+            elif cachedir is None or cachename is None:
+                raise ValueError(
+                    "Cannot cache result without specifying both "
+                    "cachedir and cachename!"
+                )
 
             if not cachename.endswith(".nc"):
                 cachename += ".nc"
@@ -194,6 +202,7 @@ def cache_netcdf(
                     with open(fname_pickle_cache, "rb") as f:
                         func_args_dic_cache = pickle.load(f)
                     pickle_check = True
+
                 except (pickle.UnpicklingError, ModuleNotFoundError):
                     logger.info("could not read pickle, not using cache")
                     pickle_check = False
@@ -216,7 +225,7 @@ def cache_netcdf(
 
                 if pickle_check:
                     # Ensure that the pickle pairs with the netcdf, see #66.
-                    if nc_hash:
+                    if NLMOD_CACHE_OPTIONS["nc_hash"] and nc_hash:
                         with open(fname_cache, "rb") as myfile:
                             cache_bytes = myfile.read()
                         func_args_dic["_nc_hash"] = hashlib.sha256(
@@ -224,21 +233,51 @@ def cache_netcdf(
                         ).hexdigest()
 
                     if dataset is not None:
-                        # Check the coords of the dataset argument
-                        func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
-                            dict(dataset.coords)
-                        )
+                        if NLMOD_CACHE_OPTIONS["dataset_coords_hash"]:
+                            # Check the coords of the dataset argument
+                            func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
+                                dict(dataset.coords)
+                            )
+                        else:
+                            func_args_dic_cache.pop("_dataset_coords_hash", None)
+                            logger.warning(
+                                "cache -> dataset coordinates not checked, "
+                                "disabled in global config. See "
+                                "`nlmod.config.NLMOD_CACHE_OPTIONS`."
+                            )
+                            if not NLMOD_CACHE_OPTIONS[
+                                "explicit_dataset_coordinate_comparison"
+                            ]:
+                                logger.warning(
+                                    "It is recommended to turn on "
+                                    "`explicit_dataset_coordinate_comparison` "
+                                    "in global config when hash check is turned off!"
+                                )
 
-                        # Check the data_vars of the dataset argument
-                        func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(
-                            dict(dataset.data_vars)
-                        )
+                        if NLMOD_CACHE_OPTIONS["dataset_data_vars_hash"]:
+                            # Check the data_vars of the dataset argument
+                            func_args_dic["_dataset_data_vars_hash"] = (
+                                dask.base.tokenize(dict(dataset.data_vars))
+                            )
+                        else:
+                            func_args_dic_cache.pop("_dataset_data_vars_hash", None)
+                            logger.warning(
+                                "cache -> dataset data vars not checked, "
+                                "disabled in global config. See "
+                                "`nlmod.config.NLMOD_CACHE_OPTIONS`."
+                            )
 
                     # check if cache was created with same function arguments as
                     # function call
                     argument_check = _same_function_arguments(
                         func_args_dic, func_args_dic_cache
                     )
+
+                    # explicit check on input dataset coordinates and cached dataset
+                    if NLMOD_CACHE_OPTIONS[
+                        "explicit_dataset_coordinate_comparison"
+                    ] and isinstance(dataset, (xr.DataArray, xr.Dataset)):
+                        _explicit_dataset_coordinate_comparison(dataset, cached_ds)
 
                 cached_ds = _check_for_data_array(cached_ds)
                 if modification_check and argument_check and pickle_check:
@@ -276,19 +315,33 @@ def cache_netcdf(
                     result.to_netcdf(fname_cache)
 
                 # add netcdf hash to function arguments dic, see #66
-                if nc_hash:
+                if NLMOD_CACHE_OPTIONS["nc_hash"] and nc_hash:
                     with open(fname_cache, "rb") as myfile:
                         cache_bytes = myfile.read()
                     func_args_dic["_nc_hash"] = hashlib.sha256(cache_bytes).hexdigest()
 
                 # Add dataset argument hash to function arguments dic
                 if dataset is not None:
-                    func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
-                        dict(dataset.coords)
-                    )
-                    func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(
-                        dict(dataset.data_vars)
-                    )
+                    if NLMOD_CACHE_OPTIONS["dataset_coords_hash"]:
+                        func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
+                            dict(dataset.coords)
+                        )
+                    else:
+                        logger.warning(
+                            "cache -> not writing dataset coordinates hash to "
+                            "pickle file, disabled in global config. See "
+                            "`nlmod.config.NLMOD_CACHE_OPTIONS`."
+                        )
+                    if NLMOD_CACHE_OPTIONS["dataset_data_vars_hash"]:
+                        func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(
+                            dict(dataset.data_vars)
+                        )
+                    else:
+                        logger.warning(
+                            "cache -> not writing dataset data vars hash to "
+                            "pickle file, disabled in global config. See "
+                            "`nlmod.config.NLMOD_CACHE_OPTIONS`."
+                        )
 
                 # pickle function arguments
                 with open(fname_pickle_cache, "wb") as fpklz:
@@ -422,15 +475,14 @@ def cache_pickle(func):
 
 
 def _same_function_arguments(func_args_dic, func_args_dic_cache):
-    """Checks if two dictionaries with function arguments are identical by
-    checking:
+    """Checks if two dictionaries with function arguments are identical.
+
+    The following items are checked:
         1. if they have the same keys
         2. if the items have the same type
-        3. if the items have the same values (only possible for the types: int,
-                                              float, bool, str, bytes, list,
-                                              tuple, dict, np.ndarray,
-                                              xr.DataArray,
-                                              flopy.mf6.ModflowGwf).
+        3. if the items have the same values (only implemented for the types: int,
+           float, bool, str, bytes, list, tuple, dict, np.ndarray, xr.DataArray,
+           flopy.mf6.ModflowGwf).
 
     Parameters
     ----------
@@ -832,3 +884,29 @@ def ds_contains(
         coords={k: ds.coords[k] for k in coords},
         attrs={k: ds.attrs[k] for k in attrs},
     )
+
+
+def _explicit_dataset_coordinate_comparison(ds_in, ds_cache):
+    """Perform explicit dataset coordinate comparison.
+
+    Parameters
+    ----------
+    ds_in : xr.Dataset
+        Input dataset.
+    ds_cache : xr.Dataset
+        Cached dataset.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    AssertionError
+        If the coordinates are not equal.
+    """
+    logger.info("cache -> performing explicit dataset coordinate comparison")
+    for coord in ds_cache.coords:
+        logger.debug("cache -> comparing coordinate: %s", coord)
+        assert_equal(ds_in[coord], ds_cache[coord])
+    logger.debug("cache -> all coordinates equal")

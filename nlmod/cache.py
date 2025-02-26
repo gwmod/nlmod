@@ -793,7 +793,6 @@ def ds_contains(
     if coords_2d or coords_3d:
         coords.append("x")
         coords.append("y")
-        datavars.append("area")
         attrs.append("extent")
         attrs.append("gridtype")
 

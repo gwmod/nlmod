@@ -8,6 +8,7 @@ from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 
 from ..util import get_da_from_da_ds
+from .shared import get_area
 
 logger = logging.getLogger(__name__)
 

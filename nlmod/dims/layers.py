@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 
 from ..util import LayerError, _get_value_from_ds_datavar
-from . import resample
+from .resample import fillnan_da
 
 logger = logging.getLogger(__name__)
 
@@ -1122,13 +1122,13 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask):
 
     for lay in range(ds.sizes["layer"]):
         bottom_nan = xr.where(fill_mask, np.nan, ds["botm"][lay])
-        bottom_filled = resample.fillnan_da(bottom_nan, ds=ds)
+        bottom_filled = fillnan_da(bottom_nan, ds=ds)
 
         kh_nan = xr.where(fill_mask, np.nan, ds["kh"][lay])
-        kh_filled = resample.fillnan_da(kh_nan, ds=ds)
+        kh_filled = fillnan_da(kh_nan, ds=ds)
 
         kv_nan = xr.where(fill_mask, np.nan, ds["kv"][lay])
-        kv_filled = resample.fillnan_da(kv_nan, ds=ds)
+        kv_filled = fillnan_da(kv_nan, ds=ds)
 
         if lay == 0:
             # top ligt onder bottom_filled -> laagdikte wordt 0

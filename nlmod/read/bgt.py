@@ -13,6 +13,7 @@ import requests
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
 from nlmod import NLMOD_DATADIR
+
 from ..util import extent_to_polygon
 
 

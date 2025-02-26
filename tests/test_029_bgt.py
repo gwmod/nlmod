@@ -1,8 +1,10 @@
 import os
+
 import requests
-import nlmod
 from lxml import html
 from pandas import to_datetime
+
+import nlmod
 
 
 def test_bgt_bronhoudername_up_to_date():

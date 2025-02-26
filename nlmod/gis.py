@@ -47,9 +47,9 @@ def vertex_da_to_gdf(
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
     """
-    assert (
-        model_ds.gridtype == "vertex"
-    ), f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
+    assert model_ds.gridtype == "vertex", (
+        f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
+    )
 
     if isinstance(data_variables, str):
         data_variables = [data_variables]
@@ -126,9 +126,9 @@ def struc_da_to_gdf(
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
     """
-    assert (
-        model_ds.gridtype == "structured"
-    ), f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
+    assert model_ds.gridtype == "structured", (
+        f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
+    )
 
     if isinstance(data_variables, str):
         data_variables = [data_variables]
@@ -474,7 +474,7 @@ def _break_down_dimension(
                 if add_dim_name:
                     name = f"{name}_{dim}"
                 if add_one_based_index:
-                    name = f"{name}_{i+1}"
+                    name = f"{name}_{i + 1}"
                 else:
                     name = f"{name}_{value}"
 

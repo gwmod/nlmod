@@ -1,7 +1,7 @@
+import matplotlib.pyplot as plt
 import util
 
 import nlmod
-import matplotlib.pyplot as plt
 
 
 def test_dcs_structured():

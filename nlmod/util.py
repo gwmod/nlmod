@@ -679,8 +679,7 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
         geodataframe with extent.
     """
     logger.warning(
-        "nlmod.util.gdf_from_extent is deprecated. "
-        "Use nlmod.util.extent_to_gdf instead"
+        "nlmod.util.gdf_from_extent is deprecated. Use nlmod.util.extent_to_gdf instead"
     )
     geom_extent = polygon_from_extent(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
@@ -726,7 +725,7 @@ def gdf_within_extent(gdf, extent):
     elif geom_types[0] == "Point":
         gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
-        raise TypeError("Function is not tested for geometry type: " f"{geom_types[0]}")
+        raise TypeError(f"Function is not tested for geometry type: {geom_types[0]}")
 
     return gdf
 

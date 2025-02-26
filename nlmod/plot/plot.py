@@ -197,7 +197,7 @@ def facet_plot(
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(f"{plot_var}", rotation=270)
-    fig.suptitle(f"{plot_var} Time = {(ds.nper*ds.perlen)/365} year")
+    fig.suptitle(f"{plot_var} Time = {(ds.nper * ds.perlen) / 365} year")
     fig.tight_layout()
 
     return fig, axes

@@ -8,6 +8,7 @@ from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 
 from ..util import get_da_from_da_ds
+from .shared import get_area
 
 logger = logging.getLogger(__name__)
 
@@ -541,7 +542,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
         da_out = get_da_from_da_ds(ds, dims=tuple(dims), data=nodata)
         from .grid import get_affine
 
-        for area in np.unique(ds["area"]):
+        for area in np.unique(ds["area"] if "area" in ds else get_area(ds)):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
             da_temp = da.rio.reproject(

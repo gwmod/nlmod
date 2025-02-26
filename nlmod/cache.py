@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from dask.diagnostics import ProgressBar
-from xarray.testing import assert_equal
+from xarray.testing import assert_identical
 
 from .config import NLMOD_CACHE_OPTIONS
 
@@ -272,7 +272,9 @@ def cache_netcdf(
                     if NLMOD_CACHE_OPTIONS[
                         "explicit_dataset_coordinate_comparison"
                     ] and isinstance(dataset, (xr.DataArray, xr.Dataset)):
-                        _explicit_dataset_coordinate_comparison(dataset, cached_ds)
+                        b = _explicit_dataset_coordinate_comparison(dataset, cached_ds)
+                        # update argument check
+                        argument_check = argument_check and b
 
                 cached_ds = _check_for_data_array(cached_ds)
                 if modification_check and argument_check and pickle_check:
@@ -903,5 +905,11 @@ def _explicit_dataset_coordinate_comparison(ds_in, ds_cache):
     logger.info("cache -> performing explicit dataset coordinate comparison")
     for coord in ds_cache.coords:
         logger.debug("cache -> comparing coordinate: %s", coord)
-        assert_equal(ds_in[coord], ds_cache[coord])
+        try:
+            assert_identical(ds_in[coord], ds_cache[coord])
+        except AssertionError as e:
+            logger.info("cache -> coordinates are not equal")
+            logger.info(e)
+            return False
     logger.debug("cache -> all coordinates equal")
+    return True

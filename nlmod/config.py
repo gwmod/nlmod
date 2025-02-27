@@ -67,7 +67,7 @@ def get_options(key=None):
     if key is None:
         return NLMOD_CACHE_OPTIONS
     else:
-        return f"{key}: {NLMOD_CACHE_OPTIONS[key]}"
+        return {key: NLMOD_CACHE_OPTIONS[key]}
 
 
 def reset_options(options=None):

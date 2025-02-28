@@ -294,8 +294,12 @@ def lake_from_gdf(
         noutlets = len(outlets)
 
     if boundname_column is not None:
-        obs_list = [(x, obs_type, x) for x in np.unique(gdf[boundname_column])]
-        observations = {f"{pname}_{obs_type}.csv": obs_list}
+        observations = {}
+        if isinstance(obs_type, str):
+            obs_type = [obs_type]
+        for otype in obs_type:
+            obs_list = [(x, otype, x) for x in np.unique(gdf[boundname_column])]
+            observations[f"{pname}_{otype}.csv"] = obs_list
     else:
         observations = None
 

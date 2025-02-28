@@ -542,7 +542,8 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
         da_out = get_da_from_da_ds(ds, dims=tuple(dims), data=nodata)
         from .grid import get_affine
 
-        for area in np.unique(ds["area"] if "area" in ds else get_area(ds)):
+        area_da = ds["area"] if "area" in ds else get_area(ds)
+        for area in np.unique(area_da):
             dx = dy = np.sqrt(area)
             x, y = get_xy_mid_structured(ds.extent, dx, dy)
             da_temp = da.rio.reproject(
@@ -556,7 +557,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
                 # when grid-rotation is used, there are no x and y in coords
                 da_temp = da_temp.assign_coords(x=x, y=y)
 
-            mask = ds["area"] == area
+            mask = area_da == area
             da_out.loc[{"icell2d": mask}] = da_temp.sel(
                 y=ds["y"][mask], x=ds["x"][mask]
             )

@@ -216,7 +216,7 @@ def lake_from_gdf(
                 lakeout = gdf.loc[mask, "lakeno"].iloc[0]
                 if not (gdf.loc[mask, "lakeno"] == lakeout).all():
                     raise ValueError(
-                        f'expected single value of lakeno for lakeout {boundnameout}, got {gdf.loc[mask, "lakeno"]}'
+                        f"expected single value of lakeno for lakeout {boundnameout}, got {gdf.loc[mask, 'lakeno']}"
                     )
             assert lakeno != lakeout, "lakein and lakeout cannot be the same"
 

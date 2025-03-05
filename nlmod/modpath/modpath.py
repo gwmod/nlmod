@@ -38,7 +38,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
 
     if script_path is not None:
         new_fname = (
-            f"{dt.datetime.now().strftime('%Y%m%d')}" + os.path.split(script_path)[-1]
+            f"{dt.datetime.now().strftime('%Y%m%d')}_" + os.path.split(script_path)[-1]
         )
         dst = os.path.join(mpf.model_ws, new_fname)
         logger.info(f"write script {new_fname} to modpath workspace")

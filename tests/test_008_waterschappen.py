@@ -1,6 +1,7 @@
 import matplotlib
 import pytest
-
+import numpy as np
+import os
 import nlmod
 
 # def test_download_polygons(): # is tested in test_024_administrative.test_get_waterboards
@@ -21,10 +22,29 @@ def test_bgt_waterboards():
     bgt = nlmod.gwf.surface_water.add_stages_from_waterboards(bgt, la=la)
 
 
+def get_ahn_colormap(name="ahn", N=256):
+    colors = np.array(
+        [
+            [0, 98, 177],  # dark blue
+            [0, 156, 224],  # medium blue
+            [115, 216, 255],  # light blue
+            [128, 137, 0],  # dark green
+            [164, 221, 0],  # light green: center
+            [252, 220, 0],  # yellow
+            [251, 158, 0],  # orange
+            [211, 49, 21],  # light red
+            [159, 5, 0],  # dark red
+        ]
+    )
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list(name, colors / 255, N=N)
+    return cmap
+
+
 @pytest.mark.skip("too slow")
-def test_download_peilgebieden(plot=True):
+def test_download_peilgebieden(
+    data_kind="level_areas", plot=True, save=True, figdir=r"..\docs\_static"
+):
     waterboards = nlmod.read.waterboard.get_polygons()
-    data_kind = "level_areas"
 
     gdf = {}
     for wb in waterboards.index:
@@ -42,27 +62,38 @@ def test_download_peilgebieden(plot=True):
                 raise
 
     if plot:
-        # plot the winter_stage
-        f, ax = nlmod.plot.get_map([9000, 279000, 304000, 623000], base=100000)
-        waterboards.plot(edgecolor="k", facecolor="none", ax=ax)
-        norm = matplotlib.colors.Normalize(-10.0, 20.0)
-        cmap = "viridis"
-        for wb in waterboards.index:
-            if wb in gdf:
-                try:
-                    # gdf[wb].plot(ax=ax, zorder=0)
-                    gdf[wb].plot("winter_stage", ax=ax, zorder=0, norm=norm, cmap=cmap)
-                except Exception as e:
-                    print(f"plotting of {data_kind} for {wb} failed: {e}")
-            c = waterboards.at[wb, "geometry"].centroid
-            ax.text(c.x, c.y, wb.replace(" ", "\n"), ha="center", va="center")
-        nlmod.plot.colorbar_inside(
-            ax=ax,
-            norm=norm,
-            cmap=cmap,
-            bounds=[0.05, 0.55, 0.02, 0.4],
-            label="Summer stage (m NAP)",
-        )
+        if data_kind == "level_areas":
+            columns = ["winter_stage", "summer_stage"]
+            labels = ["Winter stage (m NAP)", "Summer stage (m NAP)"]
+        elif data_kind == "watercourses":
+            columns = ["bottom_height"]
+            labels = ["Bottom height (m NAP)"]
+        else:
+            raise (Exception(f"Unknown data_kind: {data_kind}"))
+        # plot the winter_stage and summer_stage
+        for column, label in zip(columns, labels):
+            f, ax = nlmod.plot.get_map([9000, 279000, 304000, 623000], base=100000)
+            waterboards.plot(edgecolor="k", facecolor="none", ax=ax)
+            norm = matplotlib.colors.Normalize(-10.0, 20.0)
+            cmap = get_ahn_colormap()
+            for wb in waterboards.index:
+                if wb in gdf:
+                    try:
+                        # gdf[wb].plot(ax=ax, zorder=0)
+                        gdf[wb].plot(column, ax=ax, zorder=0, norm=norm, cmap=cmap)
+                    except Exception as e:
+                        print(f"plotting of {data_kind} for {wb} failed: {e}")
+                c = waterboards.at[wb, "geometry"].centroid
+                ax.text(c.x, c.y, wb.replace(" ", "\n"), ha="center", va="center")
+            nlmod.plot.colorbar_inside(
+                ax=ax,
+                norm=norm,
+                cmap=cmap,
+                bounds=[0.05, 0.55, 0.02, 0.4],
+                label=label,
+            )
+            if save:
+                f.savefig(os.path.join(figdir, column))
 
 
 @pytest.mark.skip("too slow")

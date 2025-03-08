@@ -4,6 +4,7 @@ import flopy as fp
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from tqdm.auto import tqdm
 
 from ..dims.grid import gdf_to_grid
 
@@ -132,13 +133,13 @@ def maw_from_df(
     Q="Q",
     rw="rw",
     condeqn="THIEM",
-    strt=0.0,
+    strt=None,
     aux=None,
     boundnames=None,
     ds=None,
     **kwargs,
 ):
-    """Add a Multi-AquiferWell (MAW) package based on input from a (Geo)DataFrame.
+    """Add a Multi-Aquifer Well (MAW) package based on input from a (Geo)DataFrame.
 
     Parameters
     ----------
@@ -199,11 +200,26 @@ def maw_from_df(
     perioddata = []
 
     iw = 0
-    for index, irow in df.iterrows():
+    for index, irow in tqdm(df.iterrows(), total=len(df), desc="Adding MAW wells"):
         wlayers = np.where(multipliers[index] > 0)[0]
 
         # [wellno, radius, bottom, strt, condeqn, ngwfnodes]
-        pakdata = [iw, irow[rw], irow[botm], strt, condeqn, len(wlayers)]
+        if strt is None:
+            if isinstance(irow["cellid"], (np.integer, int)):
+                wstrt = (
+                    gwf.dis.top[irow["cellid"]]
+                    if ds is None
+                    else ds.top.values[irow["cellid"]]
+                )
+            else:
+                wstrt = (
+                    gwf.dis.top[irow["cellid"][0], irow["cellid"][1]]
+                    if ds is None
+                    else ds.top.values[irow["cellid"][0], irow["cellid"][1]]
+                )
+        else:
+            wstrt = strt
+        pakdata = [iw, irow[rw], irow[botm], wstrt, condeqn, len(wlayers)]
         for iaux in aux:
             pakdata.append(irow[iaux])
         if boundnames is not None:
@@ -215,10 +231,12 @@ def maw_from_df(
 
         for iwellpart, k in enumerate(wlayers):
             if k == 0:
-                laytop = gwf.modelgrid.top
+                laytop = gwf.modelgrid.top if ds is None else ds.top.values
             else:
-                laytop = gwf.modelgrid.botm[k - 1]
-            laybot = gwf.modelgrid.botm[k]
+                laytop = (
+                    gwf.modelgrid.botm[k - 1] if ds is None else ds.botm.values[k - 1]
+                )
+            laybot = gwf.modelgrid.botm[k] if ds is None else ds.botm.values[k]
 
             if isinstance(irow["cellid"], int):
                 # vertex grid
@@ -230,6 +248,7 @@ def maw_from_df(
                 cellid = (k, irow["cellid"][0], irow["cellid"][1])
                 laytop = laytop[irow["cellid"][0], irow["cellid"][1]]
                 laybot = laybot[irow["cellid"][0], irow["cellid"][1]]
+
             scrn_top = np.min([irow[top], laytop])
             scrn_bot = np.max([irow[botm], laybot])
 

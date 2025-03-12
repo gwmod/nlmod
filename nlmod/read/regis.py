@@ -100,6 +100,7 @@ def get_regis(
     drop_layer_dim_from_top=True,
     probabilities=False,
     nodata=-9999,
+    rename_layers_to_old_names=True,
 ):
     """Get a regis dataset projected on the modelgrid.
 
@@ -129,6 +130,10 @@ def get_regis(
     nodata : int or float, optional
         When nodata is not None, set values equal to nodata to nan. The default is
         -9999.
+    rename_layers_to_old_names : bool, toptional
+        From version 2.2.3 of regis, the names of stratigraphic layers change, compared
+        to previous versions. If rename_layers_to_old_names is True, the layer-names are
+        renamed back to their original names.
 
     Returns
     -------
@@ -159,8 +164,13 @@ def get_regis(
     if (ds["y"].diff("y") > 0).all():
         ds = ds.isel(y=slice(None, None, -1))
 
+    if rename_layers_to_old_names and ds.attrs["title"] == "REGIS v02r2s3":
+        df = get_table_name_changes()
+        layer = df.set_index("Nieuwe code")["Oude code"].loc[ds.layer]
+        ds = ds.assign_coords({"layer": layer})
+
     # slice layers
-    if botm_layer is not None:
+    if botm_layer is not None and botm_layer in ds.layer:
         ds = ds.sel(layer=slice(botm_layer))
 
     # rename bottom to botm, as it is called in FloPy
@@ -412,3 +422,32 @@ def read_voleg(fname):
     leg["color"] = clrs
     leg = leg.drop(["r", "g", "b", "a"], axis=1)
     return leg
+
+
+def get_table_name_changes(sheet_name="REGIS II"):
+    """
+    Get the table with name changes of REGIS or GeoTOP
+
+    Parameters
+    ----------
+    sheet_name : string, optional
+        Can be "REGIS II" or "GeoTOP". The default is "REGIS II".
+
+    Returns
+    -------
+    df : pd.DataFrame
+        A DataFrame containsing old and new names.
+
+    """
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = "Tabellen.bij.naamgevingsreleases.DGM.REGIS.II.en.GeoTOP.xlsx"
+    fname = os.path.join(dir_path, "..", "data", fname)
+    df = pd.read_excel(fname, sheet_name=sheet_name)
+
+    # remove (REGIS II) or (GeoTOP) for the header of the first column, after "Naam"
+    df.columns = df.columns.str.replace(f" ({sheet_name})", "")
+
+    # drop the lines after the first empty row
+    first_empty_row = np.where(df.iloc[:, 0].isna())[0][0]
+    df = df.iloc[:first_empty_row]
+    return df

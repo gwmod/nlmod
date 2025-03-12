@@ -100,7 +100,7 @@ def get_regis(
     drop_layer_dim_from_top=True,
     probabilities=False,
     nodata=-9999,
-    rename_layers_to_old_names=True,
+    rename_layers_to_version_2_2_2=True,
 ):
     """Get a regis dataset projected on the modelgrid.
 
@@ -130,10 +130,10 @@ def get_regis(
     nodata : int or float, optional
         When nodata is not None, set values equal to nodata to nan. The default is
         -9999.
-    rename_layers_to_old_names : bool, toptional
+    rename_layers_to_version_2_2_2 : bool, toptional
         From version 2.2.3 of regis, the names of stratigraphic layers change, compared
-        to previous versions. If rename_layers_to_old_names is True, the layer-names are
-        renamed back to their original names.
+        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names are
+        renamed back to their original names. The default is True.
 
     Returns
     -------
@@ -164,7 +164,7 @@ def get_regis(
     if (ds["y"].diff("y") > 0).all():
         ds = ds.isel(y=slice(None, None, -1))
 
-    if rename_layers_to_old_names and ds.attrs["title"] == "REGIS v02r2s3":
+    if rename_layers_to_version_2_2_2 and ds.attrs["title"] == "REGIS v02r2s3":
         df = get_table_name_changes()
         layer = df.set_index("Nieuwe code")["Oude code"].loc[ds.layer]
         ds = ds.assign_coords({"layer": layer})

@@ -562,6 +562,7 @@ def combine_layers_ds(
     kv="kv",
     kD="kD",
     c="c",
+    return_reindexer=False,
 ):
     """Combine layers in Dataset.
 
@@ -593,6 +594,9 @@ def combine_layers_ds(
     c : str, optional
         name of data variable containg resistance or c,
         by default 'c'. Not parsed if set to None.
+    return_reindexer : bool, optional
+        Return a dictionary that can be used to reindex variables from the original
+        layer-dimension to the new layer-dimension when True. The default is False.
 
     Returns
     -------
@@ -727,21 +731,19 @@ def combine_layers_ds(
     for k, da in da_dict.items():
         da_dict[k] = da.assign_coords(layer=layer_names)
 
-    # add reindexer to attributes
-    attrs = ds.attrs.copy()
-    attrs["combine_reindexer"] = reindexer
-
     # add original data variables to new dataset
     for dv in keep_dv:
         da_dict[dv] = ds[dv]
 
     # create new dataset
     logger.info("Done! Created new dataset with combined layers!")
-    ds_combine = xr.Dataset(da_dict, attrs=attrs)
+    ds_combine = xr.Dataset(da_dict, attrs=ds.attrs)
 
     # remove layer dimension from top
     ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=1e-5)
 
+    if return_reindexer:
+        return ds_combine, reindexer
     return ds_combine
 
 

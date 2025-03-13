@@ -1013,7 +1013,8 @@ def hash_xarray_data_vars(
     # get the raw bytes from the numpy array values
     combined_bytes = b""
     if isinstance(ds, xr.Dataset):
-        data_arrays = [ds[da] for da in ds.data_vars]
+        # sort data vars en ensure hashes remain the same
+        data_arrays = [ds[da] for da in sorted(ds.data_vars)]
     elif isinstance(ds, xr.DataArray):
         data_arrays = [ds]
     else:

@@ -472,6 +472,39 @@ def sum_param_combined_layers(da, reindexer):
     return da_new
 
 
+def _get_empty_layered_da(da, nlay):
+    """Get empty DataArray with number of layer specified by nlay.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        original data array
+    nlay : int
+        number of layers
+
+    Returns
+    -------
+    da_new : xarray.DataArray
+        new empty data array with updated number of layers
+    """
+    if set(GridTypeDims.STRUCTURED_LAYERED.value).issubset(da.dims):
+        dims = GridTypeDims.STRUCTURED_LAYERED.value
+        coords = {
+            "layer": np.arange(nlay),
+            "y": da["y"],
+            "x": da["x"],
+        }
+    elif set(GridTypeDims.VERTEX_LAYERED.value).issubset(da.dims):
+        dims = GridTypeDims.VERTEX_LAYERED.value
+        coords = {
+            "layer": np.arange(nlay),
+            "icell2d": da["icell2d"],
+        }
+    else:
+        raise TypeError("Cannot determine grid type of data array.")
+    return xr.DataArray(data=np.nan, dims=dims, coords=coords)
+
+
 def kheq_combined_layers(kh, thickness, reindexer):
     """Calculate equivalent horizontal hydraulic conductivity.
 

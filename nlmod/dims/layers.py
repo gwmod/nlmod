@@ -270,9 +270,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(np.sum(split_dict[lay0]), 1), (
-                f"Fractions for splitting layer '{lay0}' do not add up to 1."
-            )
+            assert np.isclose(
+                np.sum(split_dict[lay0]), 1
+            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(

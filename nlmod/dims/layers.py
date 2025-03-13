@@ -375,18 +375,9 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     new_nlay = (
         ds[layer].size - sum((len(c) for c in combine_layers)) + len(combine_layers)
     )
-
     # create new DataArrays for storing new top/bot
-    new_bot = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
-    new_top = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
+    new_bot = _get_empty_layered_da(ds[bot], nlay=new_nlay)
+    new_top = _get_empty_layered_da(ds[top], nlay=new_nlay)
 
     # dict to keep track of old and new layer indices
     reindexer = {}
@@ -453,16 +444,7 @@ def sum_param_combined_layers(da, reindexer):
         data array containing new parameters for combined layers and old
         parameters for unmodified layers.
     """
-    da_new = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={
-            "layer": np.arange(list(reindexer.keys())[-1] + 1),
-            "y": da["y"],
-            "x": da["x"],
-        },
-    )
-
+    da_new = _get_empty_layered_da(da, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
             psum = np.sum(da.data[v, :, :], axis=0)
@@ -524,16 +506,7 @@ def kheq_combined_layers(kh, thickness, reindexer):
         for combined layers and original hydraulic conductivity in unmodified
         layers
     """
-    da_kh = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={
-            "layer": np.arange(list(reindexer.keys())[-1] + 1),
-            "y": kh["y"],
-            "x": kh["x"],
-        },
-    )
-
+    da_kh = _get_empty_layered_da(kh, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
             kheq = np.nansum(
@@ -565,16 +538,7 @@ def kveq_combined_layers(kv, thickness, reindexer):
         for combined layers and original hydraulic conductivity in unmodified
         layers
     """
-    da_kv = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={
-            "layer": np.arange(list(reindexer.keys())[-1] + 1),
-            "y": kv["y"],
-            "x": kv["x"],
-        },
-    )
-
+    da_kv = _get_empty_layered_da(kv, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
             kveq = np.nansum(thickness.data[v, :, :], axis=0) / np.nansum(

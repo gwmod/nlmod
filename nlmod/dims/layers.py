@@ -622,7 +622,7 @@ def combine_layers_ds(
     ----
     When passing integers to combine_layers, these are always intepreted as the
     layer index (i.e. starting at 0 and numbered consecutively), and not the
-    layer "name". If the dataset layer index is integer, only the layer index
+    layer "name". If the dataset layer names are integers, only the layer index
     can be used to specify which layers to merge.
     """
     data_vars = []
@@ -631,10 +631,14 @@ def combine_layers_ds(
             data_vars.append(dv)
     parsed_dv = set([top, bot] + data_vars)
 
-    dropped_dv = set(ds.data_vars.keys()) - parsed_dv
-    if len(dropped_dv) > 0:
-        msg = f"Following data variables will be dropped: {dropped_dv}"
-        logger.warning(msg)
+    check_remaining_dv = set(ds.data_vars.keys()) - parsed_dv
+    keep_dv = []
+    for dv in check_remaining_dv:
+        if "layer" in ds[dv].dims:
+            msg = f"Data variable has 'layer' dimension and will be dropped: {dv}"
+            logger.warning(msg)
+        else:
+            keep_dv.append(dv)
 
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
@@ -697,16 +701,16 @@ def combine_layers_ds(
 
     # calculate equivalent kh/kv
     if kh is not None:
-        logger.info(f"Calculate equivalent '{kh}' for combined layers.")
+        logger.info("Calculate equivalent '%s' for combined layers.", kh)
         da_dict[kh] = kheq_combined_layers(ds[kh], thickness, reindexer)
     if kv is not None:
-        logger.info(f"Calculate equivalent '{kv}' for combined layers.")
+        logger.info("Calculate equivalent '%s' for combined layers.", kv)
         da_dict[kv] = kveq_combined_layers(ds[kv], thickness, reindexer)
     if kD is not None and kD in ds:
-        logger.info(f"Calculate value '{kD}' for combined layers with sum.")
+        logger.info("Calculate value '%s' for combined layers with sum.", kD)
         da_dict[kD] = sum_param_combined_layers(ds[kD], reindexer)
     if c is not None and c in ds:
-        logger.info(f"Calculate value '{c}' for combined layers with sum.")
+        logger.info("Calculate value '%s' for combined layers with sum.", c)
         da_dict[c] = sum_param_combined_layers(ds[c], reindexer)
 
     # get new layer names, based on first sub-layer from each combined layer
@@ -725,6 +729,10 @@ def combine_layers_ds(
     # add reindexer to attributes
     attrs = ds.attrs.copy()
     attrs["combine_reindexer"] = reindexer
+
+    # add original data variables to new dataset
+    for dv in keep_dv:
+        da_dict[dv] = ds[dv]
 
     # create new dataset
     logger.info("Done! Created new dataset with combined layers!")

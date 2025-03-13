@@ -1,5 +1,16 @@
+from enum import Enum
+
 import numpy as np
 import xarray as xr
+
+
+class GridTypeDims(Enum):
+    """Enum for grid dimensions."""
+
+    STRUCTURED_LAYERED = ("layer", "y", "x")
+    VERTEX_LAYERED = ("layer", "icell2d")
+    STRUCTURED = ("y", "x")
+    VERTEX = ("icell2d",)
 
 
 def get_delr(ds):

@@ -402,7 +402,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
                         "calculate new top/bot."
                     )
                 tops = ds[top].data[c, ...]
-                bots = ds[bot].data[c, :, :]
+                bots = ds[bot].data[c, ...]
                 new_top.data[j] = np.nanmax(tops, axis=0)
                 new_bot.data[j] = np.nanmin(bots, axis=0)
 
@@ -447,7 +447,7 @@ def sum_param_combined_layers(da, reindexer):
     da_new = _get_empty_layered_da(da, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            psum = np.sum(da.data[v, :, :], axis=0)
+            psum = np.sum(da.data[v, ...], axis=0)
         else:
             psum = da.data[v]
         da_new.data[k] = psum
@@ -510,8 +510,8 @@ def kheq_combined_layers(kh, thickness, reindexer):
     for k, v in reindexer.items():
         if isinstance(v, tuple):
             kheq = np.nansum(
-                thickness.data[v, :, :] * kh.data[v, :, :], axis=0
-            ) / np.nansum(thickness.data[v, :, :], axis=0)
+                thickness.data[v, ...] * kh.data[v, ...], axis=0
+            ) / np.nansum(thickness.data[v, ...], axis=0)
             kheq[np.isinf(kheq)] = np.nan
         else:
             kheq = kh.data[v]
@@ -541,8 +541,8 @@ def kveq_combined_layers(kv, thickness, reindexer):
     da_kv = _get_empty_layered_da(kv, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.nansum(thickness.data[v, :, :], axis=0) / np.nansum(
-                thickness.data[v, :, :] / kv.data[v, :, :], axis=0
+            kveq = np.nansum(thickness.data[v, ...], axis=0) / np.nansum(
+                thickness.data[v, ...] / kv.data[v, ...], axis=0
             )
             kveq[np.isinf(kveq)] = np.nan
         else:

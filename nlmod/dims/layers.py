@@ -6,6 +6,7 @@ import xarray as xr
 
 from ..util import LayerError, _get_value_from_ds_datavar
 from .resample import fillnan_da
+from .shared import GridTypeDims
 
 logger = logging.getLogger(__name__)
 

@@ -36,9 +36,57 @@ from .layers import (
     remove_inactive_layers,
 )
 from .rdp import rdp
-from .shared import get_area, get_delc, get_delr  # noqa: F401
+from .shared import GridTypeDims, get_area, get_delc, get_delr  # noqa: F401
 
 logger = logging.getLogger(__name__)
+
+
+def is_structured(ds):
+    """Check if a dataset is structured.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is structured.
+    """
+    return set(GridTypeDims.STRUCTURED.value).issubset(ds.dims)
+
+
+def is_vertex(ds):
+    """Check if a dataset is vertex.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is structured.
+    """
+    return set(GridTypeDims.VERTEX.value).issubset(ds.dims)
+
+
+def is_layered(ds):
+    """Check if a dataset is layered.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is layered.
+    """
+    return "layer" in ds.dims
 
 
 def snap_extent(extent, delr, delc):

@@ -24,6 +24,7 @@ def get_combined_layer_models(
     remove_nan_layers=True,
     geotop_layers="HLc",
     geotop_k=None,
+    gt_layered=None,
 ):
     """Combine layer models into a single layer model.
 
@@ -53,6 +54,10 @@ def get_combined_layer_models(
     geotop_k : pd.DataFrame, optional
         The DataFrame with information about kh and kv of the GeoTOP-data. This
         DataFrame must at least contain columns 'lithok' and 'kh'.
+    gt_layered : xarray.Dataset
+        A layered representation of the geotop-dataset. By supplying this parameter, the
+        user can change the GeoTOP-layering, which is usually defined by
+        nlmod.read.geotop.to_model_layers(gt).
 
     Returns
     -------
@@ -81,6 +86,7 @@ def get_combined_layer_models(
             layers=geotop_layers,
             geotop_k=geotop_k,
             remove_nan_layers=remove_nan_layers,
+            gt_layered=gt_layered,
         )
 
     elif use_regis:

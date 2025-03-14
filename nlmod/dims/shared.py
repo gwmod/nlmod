@@ -20,10 +20,22 @@ class GridTypeDims(Enum):
         ----------
         ds : xr.Dataset or xr.DataArray
             Dataset or DataArray to parse.
+
+        Returns
+        -------
+        gridtype : GridTypeDims
+            type of grid
+        
+        Raises
+        ------
+        ValueError
+            If no partially matching gridtype is found.
         """
         for gridtype in GridTypeDims:
             if set(gridtype.value).issubset(ds.dims):
                 return gridtype
+        # raises ValueError if no gridtype is found
+        return cls(ds.dims)
 
 
 def get_delr(ds):

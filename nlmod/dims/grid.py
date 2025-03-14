@@ -54,7 +54,10 @@ def is_structured(ds):
     bool
         True if the dataset is structured.
     """
-    return set(GridTypeDims.STRUCTURED.value).issubset(ds.dims)
+    return GridTypeDims.parse_dims(ds) in (
+        GridTypeDims.STRUCTURED,
+        GridTypeDims.STRUCTURED_LAYERED,
+    )
 
 
 def is_vertex(ds):
@@ -70,7 +73,10 @@ def is_vertex(ds):
     bool
         True if the dataset is structured.
     """
-    return set(GridTypeDims.VERTEX.value).issubset(ds.dims)
+    return GridTypeDims.parse_dims(ds) in (
+        GridTypeDims.VERTEX,
+        GridTypeDims.VERTEX_LAYERED,
+    )
 
 
 def is_layered(ds):

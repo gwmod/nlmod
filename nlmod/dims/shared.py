@@ -25,7 +25,7 @@ class GridTypeDims(Enum):
         -------
         gridtype : GridTypeDims
             type of grid
-        
+
         Raises
         ------
         ValueError

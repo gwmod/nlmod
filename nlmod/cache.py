@@ -1025,7 +1025,7 @@ def hash_xarray_data_vars(
         if include_metadata:
             # hash each coordinate separately
             coord_hashes = {}
-            for coord_name, coord in da.coords.items():
+            for coord_name, coord in sorted(da.coords.items()):
                 coord_hashes[coord_name] = hash_xarray_coords(
                     coord, include_metadata=False
                 )

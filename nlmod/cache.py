@@ -940,12 +940,12 @@ def _explicit_dataset_coordinate_comparison(ds_in, ds_cache):
 class NumpyEncoder(json.JSONEncoder):
     """Special json encoder for numpy types."""
 
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        return json.JSONEncoder.default(self, obj)
+    def default(self, o):
+        if isinstance(o, np.integer):
+            return int(o)
+        elif isinstance(o, np.floating):
+            return float(o)
+        return json.JSONEncoder.default(self, o)
 
 
 def hash_xarray_coords(ds, include_metadata: bool = False):

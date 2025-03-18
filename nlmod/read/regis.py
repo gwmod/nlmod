@@ -424,14 +424,9 @@ def read_voleg(fname):
     return leg
 
 
-def get_table_name_changes(sheet_name="REGIS II"):
+def get_table_name_changes():
     """
-    Get the table with name changes of REGIS or GeoTOP
-
-    Parameters
-    ----------
-    sheet_name : string, optional
-        Can be "REGIS II" or "GeoTOP". The default is "REGIS II".
+    Get the table with name changes of REGIS
 
     Returns
     -------
@@ -440,12 +435,12 @@ def get_table_name_changes(sheet_name="REGIS II"):
 
     """
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    fname = "Tabellen.bij.naamgevingsreleases.DGM.REGIS.II.en.GeoTOP.xlsx"
+    fname = "Tabellen.bij.naamgevingsreleases.REGIS.II.csv"
     fname = os.path.join(dir_path, "..", "data", "regis", fname)
-    df = pd.read_excel(fname, sheet_name=sheet_name)
+    df = pd.read_csv(fname)
 
-    # remove (REGIS II) or (GeoTOP) for the header of the first column, after "Naam"
-    df.columns = df.columns.str.replace(f" ({sheet_name})", "")
+    # remove (REGIS II) for the header of the first column, after "Naam"
+    df.columns = df.columns.str.replace(f" (REGIS II)", "")
 
     # drop the lines after the first empty row
     first_empty_row = np.where(df.iloc[:, 0].isna())[0][0]

@@ -4,6 +4,7 @@ import flopy as fp
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from tqdm.auto import tqdm
 
 from ..dims.grid import gdf_to_grid
 
@@ -132,13 +133,14 @@ def maw_from_df(
     Q="Q",
     rw="rw",
     condeqn="THIEM",
-    strt=0.0,
+    strt=None,
     aux=None,
     boundnames=None,
     ds=None,
+    silent=False,
     **kwargs,
 ):
-    """Add a Multi-AquiferWell (MAW) package based on input from a (Geo)DataFrame.
+    """Add a Multi-Aquifer Well (MAW) package based on input from a (Geo)DataFrame.
 
     Parameters
     ----------
@@ -170,7 +172,8 @@ def maw_from_df(
         String that defines the conductance equation that is used to calculate the
         saturated conductance for the multi-aquifer well. The default is "THIEM".
     strt : float, optional
-        The starting head for the multi-aquifer well. The default is 0.0.
+        The starting head for the multi-aquifer well. The default is None, which uses
+        model surface level as the strt value.
     aux : str of list of str, optional
         The column(s) in df that contain auxiliary variables. The default is None.
     boundnames : str, optional
@@ -178,6 +181,8 @@ def maw_from_df(
     ds : xarray.Dataset
         Dataset with model data. Needed to determine cellid when grid-rotation is used.
         The default is None.
+    silent : bool, optional
+        Hide progressbar when silent is True. Default is False.
     **kwargs : TYPE
         Kwargs are passed onto ModflowGwfmaw.
 
@@ -191,7 +196,7 @@ def maw_from_df(
     if not isinstance(aux, list):
         aux = [aux]
 
-    df = _add_cellid(df, ds=ds, gwf=gwf, x=x, y=y)
+    df = _add_cellid(df, ds=ds, gwf=gwf, x=x, y=y, silent=silent)
     multipliers = _get_layer_multiplier_for_wells(df, top, botm, ds=ds, gwf=gwf)
 
     packagedata = []
@@ -199,11 +204,26 @@ def maw_from_df(
     perioddata = []
 
     iw = 0
-    for index, irow in df.iterrows():
+    for index, irow in tqdm(
+        df.iterrows(), total=len(df), desc="Adding MAW wells", disable=silent
+    ):
         wlayers = np.where(multipliers[index] > 0)[0]
 
         # [wellno, radius, bottom, strt, condeqn, ngwfnodes]
-        pakdata = [iw, irow[rw], irow[botm], strt, condeqn, len(wlayers)]
+        if strt is None:
+            if isinstance(irow["cellid"], (np.integer, int)):
+                if ds is None:
+                    wstrt = gwf.dis.top[irow["cellid"]]
+                else:
+                    wstrt = ds.top.values[irow["cellid"]]
+            else:
+                if ds is None:
+                    wstrt = gwf.dis.top[irow["cellid"][0], irow["cellid"][1]]
+                else:
+                    wstrt = ds.top.values[irow["cellid"][0], irow["cellid"][1]]
+        else:
+            wstrt = strt
+        pakdata = [iw, irow[rw], irow[botm], wstrt, condeqn, len(wlayers)]
         for iaux in aux:
             pakdata.append(irow[iaux])
         if boundnames is not None:
@@ -215,10 +235,12 @@ def maw_from_df(
 
         for iwellpart, k in enumerate(wlayers):
             if k == 0:
-                laytop = gwf.modelgrid.top
+                laytop = gwf.modelgrid.top if ds is None else ds.top.values
             else:
-                laytop = gwf.modelgrid.botm[k - 1]
-            laybot = gwf.modelgrid.botm[k]
+                laytop = (
+                    gwf.modelgrid.botm[k - 1] if ds is None else ds.botm.values[k - 1]
+                )
+            laybot = gwf.modelgrid.botm[k] if ds is None else ds.botm.values[k]
 
             if isinstance(irow["cellid"], int):
                 # vertex grid
@@ -230,6 +252,7 @@ def maw_from_df(
                 cellid = (k, irow["cellid"][0], irow["cellid"][1])
                 laytop = laytop[irow["cellid"][0], irow["cellid"][1]]
                 laybot = laybot[irow["cellid"][0], irow["cellid"][1]]
+
             scrn_top = np.min([irow[top], laytop])
             scrn_bot = np.max([irow[botm], laybot])
 
@@ -262,7 +285,7 @@ def maw_from_df(
     return maw
 
 
-def _add_cellid(df, ds=None, gwf=None, x="x", y="y"):
+def _add_cellid(df, ds=None, gwf=None, x="x", y="y", silent=False):
     """Intersect a DataFrame of point Data with the model grid, and add cellid-column.
 
     Parameters
@@ -279,6 +302,8 @@ def _add_cellid(df, ds=None, gwf=None, x="x", y="y"):
     y : str, optional
         The column in df that contains the y-coordinate of the well. Only used when df
         is a DataFrame. The default is 'y'.
+    silent : bool, optional
+        Hide progressbar when silent is True. Default is False.
 
     Returns
     -------
@@ -289,7 +314,7 @@ def _add_cellid(df, ds=None, gwf=None, x="x", y="y"):
     if not isinstance(df, gpd.GeoDataFrame):
         df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df[x], df[y]))
     if "cellid" not in df.columns:
-        df = gdf_to_grid(df, gwf if ds is None else ds)
+        df = gdf_to_grid(df, gwf if ds is None else ds, silent=silent)
     return df
 
 

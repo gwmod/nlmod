@@ -5,7 +5,8 @@ import numpy as np
 import xarray as xr
 
 from ..util import LayerError, _get_value_from_ds_datavar
-from . import resample
+from .resample import fillnan_da
+from .shared import GridTypeDims
 
 logger = logging.getLogger(__name__)
 
@@ -375,18 +376,9 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
     new_nlay = (
         ds[layer].size - sum((len(c) for c in combine_layers)) + len(combine_layers)
     )
-
     # create new DataArrays for storing new top/bot
-    new_bot = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
-    new_top = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={"layer": np.arange(new_nlay), "y": ds.y.data, "x": ds.x.data},
-    )
+    new_bot = _get_empty_layered_da(ds[bot], nlay=new_nlay)
+    new_top = _get_empty_layered_da(ds[top], nlay=new_nlay)
 
     # dict to keep track of old and new layer indices
     reindexer = {}
@@ -411,7 +403,7 @@ def layer_combine_top_bot(ds, combine_layers, layer="layer", top="top", bot="bot
                         "calculate new top/bot."
                     )
                 tops = ds[top].data[c, ...]
-                bots = ds[bot].data[c, :, :]
+                bots = ds[bot].data[c, ...]
                 new_top.data[j] = np.nanmax(tops, axis=0)
                 new_bot.data[j] = np.nanmin(bots, axis=0)
 
@@ -453,23 +445,47 @@ def sum_param_combined_layers(da, reindexer):
         data array containing new parameters for combined layers and old
         parameters for unmodified layers.
     """
-    da_new = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={
-            "layer": np.arange(list(reindexer.keys())[-1] + 1),
-            "y": da["y"],
-            "x": da["x"],
-        },
-    )
-
+    da_new = _get_empty_layered_da(da, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            psum = np.sum(da.data[v, :, :], axis=0)
+            psum = np.sum(da.data[v, ...], axis=0)
         else:
             psum = da.data[v]
         da_new.data[k] = psum
     return da_new
+
+
+def _get_empty_layered_da(da, nlay):
+    """Get empty DataArray with number of layer specified by nlay.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        original data array
+    nlay : int
+        number of layers
+
+    Returns
+    -------
+    da_new : xarray.DataArray
+        new empty data array with updated number of layers
+    """
+    if set(GridTypeDims.STRUCTURED_LAYERED.value).issubset(da.dims):
+        dims = GridTypeDims.STRUCTURED_LAYERED.value
+        coords = {
+            "layer": np.arange(nlay),
+            "y": da["y"],
+            "x": da["x"],
+        }
+    elif set(GridTypeDims.VERTEX_LAYERED.value).issubset(da.dims):
+        dims = GridTypeDims.VERTEX_LAYERED.value
+        coords = {
+            "layer": np.arange(nlay),
+            "icell2d": da["icell2d"],
+        }
+    else:
+        raise TypeError("Cannot determine grid type of data array.")
+    return xr.DataArray(data=np.nan, dims=dims, coords=coords)
 
 
 def kheq_combined_layers(kh, thickness, reindexer):
@@ -491,21 +507,12 @@ def kheq_combined_layers(kh, thickness, reindexer):
         for combined layers and original hydraulic conductivity in unmodified
         layers
     """
-    da_kh = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={
-            "layer": np.arange(list(reindexer.keys())[-1] + 1),
-            "y": kh["y"],
-            "x": kh["x"],
-        },
-    )
-
+    da_kh = _get_empty_layered_da(kh, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
             kheq = np.nansum(
-                thickness.data[v, :, :] * kh.data[v, :, :], axis=0
-            ) / np.nansum(thickness.data[v, :, :], axis=0)
+                thickness.data[v, ...] * kh.data[v, ...], axis=0
+            ) / np.nansum(thickness.data[v, ...], axis=0)
             kheq[np.isinf(kheq)] = np.nan
         else:
             kheq = kh.data[v]
@@ -532,20 +539,11 @@ def kveq_combined_layers(kv, thickness, reindexer):
         for combined layers and original hydraulic conductivity in unmodified
         layers
     """
-    da_kv = xr.DataArray(
-        data=np.nan,
-        dims=["layer", "y", "x"],
-        coords={
-            "layer": np.arange(list(reindexer.keys())[-1] + 1),
-            "y": kv["y"],
-            "x": kv["x"],
-        },
-    )
-
+    da_kv = _get_empty_layered_da(kv, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.nansum(thickness.data[v, :, :], axis=0) / np.nansum(
-                thickness.data[v, :, :] / kv.data[v, :, :], axis=0
+            kveq = np.nansum(thickness.data[v, ...], axis=0) / np.nansum(
+                thickness.data[v, ...] / kv.data[v, ...], axis=0
             )
             kveq[np.isinf(kveq)] = np.nan
         else:
@@ -564,6 +562,7 @@ def combine_layers_ds(
     kv="kv",
     kD="kD",
     c="c",
+    return_reindexer=False,
 ):
     """Combine layers in Dataset.
 
@@ -595,6 +594,9 @@ def combine_layers_ds(
     c : str, optional
         name of data variable containg resistance or c,
         by default 'c'. Not parsed if set to None.
+    return_reindexer : bool, optional
+        Return a dictionary that can be used to reindex variables from the original
+        layer-dimension to the new layer-dimension when True. The default is False.
 
     Returns
     -------
@@ -625,7 +627,7 @@ def combine_layers_ds(
     ----
     When passing integers to combine_layers, these are always intepreted as the
     layer index (i.e. starting at 0 and numbered consecutively), and not the
-    layer "name". If the dataset layer index is integer, only the layer index
+    layer "name". If the dataset layer names are integers, only the layer index
     can be used to specify which layers to merge.
     """
     data_vars = []
@@ -634,10 +636,14 @@ def combine_layers_ds(
             data_vars.append(dv)
     parsed_dv = set([top, bot] + data_vars)
 
-    dropped_dv = set(ds.data_vars.keys()) - parsed_dv
-    if len(dropped_dv) > 0:
-        msg = f"Following data variables will be dropped: {dropped_dv}"
-        logger.warning(msg)
+    check_remaining_dv = set(ds.data_vars.keys()) - parsed_dv
+    keep_dv = []
+    for dv in check_remaining_dv:
+        if "layer" in ds[dv].dims:
+            msg = f"Data variable has 'layer' dimension and will be dropped: {dv}"
+            logger.warning(msg)
+        else:
+            keep_dv.append(dv)
 
     # calculate new tops/bots
     logger.info("Calculating new layer tops and bottoms...")
@@ -700,16 +706,16 @@ def combine_layers_ds(
 
     # calculate equivalent kh/kv
     if kh is not None:
-        logger.info(f"Calculate equivalent '{kh}' for combined layers.")
+        logger.info("Calculate equivalent '%s' for combined layers.", kh)
         da_dict[kh] = kheq_combined_layers(ds[kh], thickness, reindexer)
     if kv is not None:
-        logger.info(f"Calculate equivalent '{kv}' for combined layers.")
+        logger.info("Calculate equivalent '%s' for combined layers.", kv)
         da_dict[kv] = kveq_combined_layers(ds[kv], thickness, reindexer)
     if kD is not None and kD in ds:
-        logger.info(f"Calculate value '{kD}' for combined layers with sum.")
+        logger.info("Calculate value '%s' for combined layers with sum.", kD)
         da_dict[kD] = sum_param_combined_layers(ds[kD], reindexer)
     if c is not None and c in ds:
-        logger.info(f"Calculate value '{c}' for combined layers with sum.")
+        logger.info("Calculate value '%s' for combined layers with sum.", c)
         da_dict[c] = sum_param_combined_layers(ds[c], reindexer)
 
     # get new layer names, based on first sub-layer from each combined layer
@@ -725,17 +731,19 @@ def combine_layers_ds(
     for k, da in da_dict.items():
         da_dict[k] = da.assign_coords(layer=layer_names)
 
-    # add reindexer to attributes
-    attrs = ds.attrs.copy()
-    attrs["combine_reindexer"] = reindexer
+    # add original data variables to new dataset
+    for dv in keep_dv:
+        da_dict[dv] = ds[dv]
 
     # create new dataset
     logger.info("Done! Created new dataset with combined layers!")
-    ds_combine = xr.Dataset(da_dict, attrs=attrs)
+    ds_combine = xr.Dataset(da_dict, attrs=ds.attrs)
 
     # remove layer dimension from top
     ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=1e-5)
 
+    if return_reindexer:
+        return ds_combine, reindexer
     return ds_combine
 
 
@@ -1122,13 +1130,13 @@ def fill_top_bot_kh_kv_at_mask(ds, fill_mask):
 
     for lay in range(ds.sizes["layer"]):
         bottom_nan = xr.where(fill_mask, np.nan, ds["botm"][lay])
-        bottom_filled = resample.fillnan_da(bottom_nan, ds=ds)
+        bottom_filled = fillnan_da(bottom_nan, ds=ds)
 
         kh_nan = xr.where(fill_mask, np.nan, ds["kh"][lay])
-        kh_filled = resample.fillnan_da(kh_nan, ds=ds)
+        kh_filled = fillnan_da(kh_nan, ds=ds)
 
         kv_nan = xr.where(fill_mask, np.nan, ds["kv"][lay])
-        kv_filled = resample.fillnan_da(kv_nan, ds=ds)
+        kv_filled = fillnan_da(kv_nan, ds=ds)
 
         if lay == 0:
             # top ligt onder bottom_filled -> laagdikte wordt 0

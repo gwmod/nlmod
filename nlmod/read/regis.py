@@ -24,6 +24,7 @@ def get_combined_layer_models(
     remove_nan_layers=True,
     geotop_layers="HLc",
     geotop_k=None,
+    gt_layered=None,
 ):
     """Combine layer models into a single layer model.
 
@@ -53,6 +54,10 @@ def get_combined_layer_models(
     geotop_k : pd.DataFrame, optional
         The DataFrame with information about kh and kv of the GeoTOP-data. This
         DataFrame must at least contain columns 'lithok' and 'kh'.
+    gt_layered : xarray.Dataset
+        A layered representation of the geotop-dataset. By supplying this parameter, the
+        user can change the GeoTOP-layering, which is usually defined by
+        nlmod.read.geotop.to_model_layers(gt).
 
     Returns
     -------
@@ -81,6 +86,7 @@ def get_combined_layer_models(
             layers=geotop_layers,
             geotop_k=geotop_k,
             remove_nan_layers=remove_nan_layers,
+            gt_layered=gt_layered,
         )
 
     elif use_regis:
@@ -100,6 +106,7 @@ def get_regis(
     drop_layer_dim_from_top=True,
     probabilities=False,
     nodata=-9999,
+    rename_layers_to_version_2_2_2=True,
 ):
     """Get a regis dataset projected on the modelgrid.
 
@@ -129,6 +136,10 @@ def get_regis(
     nodata : int or float, optional
         When nodata is not None, set values equal to nodata to nan. The default is
         -9999.
+    rename_layers_to_version_2_2_2 : bool, toptional
+        From version 2.2.3 of regis, the names of stratigraphic layers change, compared
+        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names are
+        renamed back to their original names. The default is True.
 
     Returns
     -------
@@ -159,8 +170,13 @@ def get_regis(
     if (ds["y"].diff("y") > 0).all():
         ds = ds.isel(y=slice(None, None, -1))
 
+    if rename_layers_to_version_2_2_2 and ds.attrs["title"] == "REGIS v02r2s3":
+        df = get_table_name_changes()
+        layer = df.set_index("Nieuwe code")["Oude code"].loc[ds.layer]
+        ds = ds.assign_coords({"layer": layer})
+
     # slice layers
-    if botm_layer is not None:
+    if botm_layer is not None and botm_layer in ds.layer:
         ds = ds.sel(layer=slice(botm_layer))
 
     # rename bottom to botm, as it is called in FloPy
@@ -352,7 +368,7 @@ def get_legend(kind="REGIS"):
         raise (ValueError(f"Only allowed values for kind are {allowed_kinds}"))
     if kind in ["REGIS", "combined"]:
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+        fname = os.path.join(dir_path, "..", "data", "regis", "regis_2_2.gleg")
         leg_regis = read_gleg(fname)
         if kind == "REGIS":
             return leg_regis
@@ -412,3 +428,27 @@ def read_voleg(fname):
     leg["color"] = clrs
     leg = leg.drop(["r", "g", "b", "a"], axis=1)
     return leg
+
+
+def get_table_name_changes():
+    """
+    Get the table with name changes of REGIS
+
+    Returns
+    -------
+    df : pd.DataFrame
+        A DataFrame containsing old and new names.
+
+    """
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = "Tabellen.bij.naamgevingsreleases.REGIS.II.csv"
+    fname = os.path.join(dir_path, "..", "data", "regis", fname)
+    df = pd.read_csv(fname)
+
+    # remove (REGIS II) for the header of the first column, after "Naam"
+    df.columns = df.columns.str.replace(" (REGIS II)", "")
+
+    # drop the lines after the first empty row
+    first_empty_row = np.where(df.iloc[:, 0].isna())[0][0]
+    df = df.iloc[:first_empty_row]
+    return df

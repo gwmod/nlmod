@@ -7,7 +7,7 @@ import geopandas as gpd
 import numpy as np
 import xarray as xr
 from rioxarray.merge import merge_arrays
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from nlmod import NLMOD_DATADIR, cache, dims, util
 from nlmod.read import jarkus

@@ -474,7 +474,7 @@ def _break_down_dimension(
                 if add_dim_name:
                     name = f"{name}_{dim}"
                 if add_one_based_index:
-                    name = f"{name}_{i+1}"
+                    name = f"{name}_{i + 1}"
                 else:
                     name = f"{name}_{value}"
 

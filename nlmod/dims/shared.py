@@ -1,11 +1,46 @@
+from enum import Enum
+
 import numpy as np
 import xarray as xr
 
 
+class GridTypeDims(Enum):
+    """Enum for grid dimensions."""
+
+    STRUCTURED_LAYERED = ("layer", "y", "x")
+    VERTEX_LAYERED = ("layer", "icell2d")
+    STRUCTURED = ("y", "x")
+    VERTEX = ("icell2d",)
+
+    @classmethod
+    def parse_dims(cls, ds):
+        """Get GridTypeDim from dataset or dataarray.
+
+        Parameters
+        ----------
+        ds : xr.Dataset or xr.DataArray
+            Dataset or DataArray to parse.
+
+        Returns
+        -------
+        gridtype : GridTypeDims
+            type of grid
+
+        Raises
+        ------
+        ValueError
+            If no partially matching gridtype is found.
+        """
+        for gridtype in GridTypeDims:
+            if set(gridtype.value).issubset(ds.dims):
+                return gridtype
+        # raises ValueError if no gridtype is found
+        return cls(ds.dims)
+
+
 def get_delr(ds):
     """
-    Get the distance along rows (delr) from the x-coordinate of a structured model
-    dataset.
+    Get the distance along rows (delr) from the x-coordinate of a structured model ds.
 
     Parameters
     ----------

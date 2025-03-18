@@ -362,7 +362,7 @@ def get_legend(kind="REGIS"):
         raise (ValueError(f"Only allowed values for kind are {allowed_kinds}"))
     if kind in ["REGIS", "combined"]:
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+        fname = os.path.join(dir_path, "..", "data", "regis", "regis_2_2.gleg")
         leg_regis = read_gleg(fname)
         if kind == "REGIS":
             return leg_regis
@@ -441,7 +441,7 @@ def get_table_name_changes(sheet_name="REGIS II"):
     """
     dir_path = os.path.dirname(os.path.realpath(__file__))
     fname = "Tabellen.bij.naamgevingsreleases.DGM.REGIS.II.en.GeoTOP.xlsx"
-    fname = os.path.join(dir_path, "..", "data", fname)
+    fname = os.path.join(dir_path, "..", "data", "regis", fname)
     df = pd.read_excel(fname, sheet_name=sheet_name)
 
     # remove (REGIS II) or (GeoTOP) for the header of the first column, after "Naam"

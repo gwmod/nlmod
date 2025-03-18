@@ -440,7 +440,7 @@ def get_table_name_changes():
     df = pd.read_csv(fname)
 
     # remove (REGIS II) for the header of the first column, after "Naam"
-    df.columns = df.columns.str.replace(f" (REGIS II)", "")
+    df.columns = df.columns.str.replace(" (REGIS II)", "")
 
     # drop the lines after the first empty row
     first_empty_row = np.where(df.iloc[:, 0].isna())[0][0]

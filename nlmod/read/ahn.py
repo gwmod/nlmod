@@ -59,6 +59,8 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kw
     if extent is None and ds is not None:
         extent = get_extent(ds)
     ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
+    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+        return ahn_ds_raw
 
     if ds is None:
         ahn_da = ahn_ds_raw
@@ -377,6 +379,8 @@ def get_ahn1(extent, identifier="AHN1_5M", as_data_array=None, **kwargs):
     _assert_as_data_array_is_none(as_data_array)
     identifier = _rename_identifier(identifier)
     da = _get_ahn_ellipsis(extent, identifier, **kwargs)
+    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+        return da
     # original data is in cm. Convert the data to m, which is the unit of other ahns
     da = da / 100
     return da
@@ -583,7 +587,7 @@ def _update_ellipsis_tiles_in_data():
 
 
 @cache.cache_netcdf()
-def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
+def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", return_tiles=False, **kwargs):
     """Download AHN5.
 
     Parameters
@@ -617,11 +621,12 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
             da = rioxarray.open_rasterio(f"zip+{url}!/{path}", mask_and_scale=True)
         else:
             da = rioxarray.open_rasterio(url, mask_and_scale=True)
-        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)
+    if return_tiles:
+        return das
     if len(das) == 0:
         raise (ValueError("No data found within extent"))
-    da = merge_arrays(das)
+    da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
     if da.dims[0] == "band":
         da = da[0].drop_vars("band")
     return da

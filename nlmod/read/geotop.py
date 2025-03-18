@@ -383,7 +383,7 @@ def add_kh_and_kv(
         or "linear". Allowed values are "arithmetic_mean" and "harmonic_mean". The
         default is "arithmetic_mean".
     anisotropy : float, optional
-        THe anisotropy value used when there are no kv values in df. The default is 1.0.
+        The anisotropy value used when there are no kv values in df. The default is 1.0.
     kh : str, optional
         THe name of the new variable with kh values in gt. The default is "kh".
     kv : str, optional

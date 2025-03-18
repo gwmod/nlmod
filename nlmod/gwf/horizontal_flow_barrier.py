@@ -38,9 +38,9 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
     """
-    assert sum([depth is None, elevation is None]) == 1, (
-        "Use either depth or elevation argument"
-    )
+    assert (
+        sum([depth is None, elevation is None]) == 1
+    ), "Use either depth or elevation argument"
 
     tops = np.concatenate((gwf.disv.top.array[None], gwf.disv.botm.array))
     thick = tops[:-1] - tops[1:]

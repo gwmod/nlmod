@@ -1,3 +1,4 @@
+# %%
 import os
 
 import matplotlib.pyplot as plt
@@ -17,6 +18,14 @@ def get_regis_horstermeer():
         extent, cachedir=cachedir, cachename="regis_horstermeer"
     )
     return regis
+
+
+def get_regis_unstructured():
+    regis = get_regis_horstermeer()
+    cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+    if not os.path.isdir(cachedir):
+        os.makedirs(cachedir)
+    return nlmod.grid.refine(regis, cachedir)
 
 
 def compare_layer_models(
@@ -91,10 +100,8 @@ def test_add_layer_dim_to_top():
 def test_combine_layers(plot=False):
     regis = get_regis_horstermeer()
     combine_layers = [
-        tuple(np.argwhere(regis.layer.str.startswith("URz").data).squeeze().tolist()),
-        tuple(
-            np.argwhere(regis.layer.isin(["PZWAz2", "PZWAz3"]).data).squeeze().tolist()
-        ),
+        regis.layer[regis.layer.str.startswith("URz")].data.tolist(),
+        ["PZWAz2", "PZWAz3"],
     ]
     regis_combined = nlmod.layers.combine_layers_ds(
         regis, combine_layers, kD=None, c=None
@@ -105,6 +112,23 @@ def test_combine_layers(plot=False):
 
     if plot:
         plot_test(regis, regis_combined)
+
+
+def test_combine_layers_unstructured(plot=False):
+    regis_u = get_regis_unstructured()
+    combine_layers = [
+        regis_u.layer[regis_u.layer.str.startswith("URz")].data.tolist(),
+        ["PZWAz2", "PZWAz3"],
+    ]
+    regis_combined = nlmod.layers.combine_layers_ds(
+        regis_u, combine_layers, kD=None, c=None
+    )
+
+    th_new = nlmod.layers.calculate_thickness(regis_combined)
+    assert (th_new >= 0).all()
+
+    if plot:
+        plot_test(regis_u, regis_combined)
 
 
 def test_set_layer_thickness(plot=False):

@@ -15,6 +15,7 @@ import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
 from requests.exceptions import HTTPError
+from rioxarray.merge import merge_arrays
 from tqdm import tqdm
 
 from .. import NLMOD_DATADIR, cache
@@ -700,7 +701,7 @@ def _get_ahn_ellipsis(
         return das
     if len(das) == 0:
         raise (ValueError("No data found within extent"))
-    da = merge.merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
+    da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
     if da.dims[0] == "band":
         da = da[0].drop_vars("band")
     return da

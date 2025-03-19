@@ -11,7 +11,6 @@ import pandas as pd
 import rasterio
 import requests
 import rioxarray
-import rioxarray.raster_array
 import shapely
 import xarray as xr
 from rasterio import merge

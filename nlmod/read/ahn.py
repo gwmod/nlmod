@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+import tempfile
 from typing import Literal
 
 import geopandas as gpd
@@ -10,6 +11,7 @@ import pandas as pd
 import rasterio
 import requests
 import rioxarray
+import rioxarray.raster_array
 import shapely
 import xarray as xr
 from rasterio import merge
@@ -730,16 +732,28 @@ def _download_and_combine_tiles(
 
 
 def _merge_arrays(
-    images: list[xr.DataArray], extent: list[float], as_data_array: bool = True
+    images: list[rasterio.io.DatasetReader | xr.DataArray],
+    extent: list[float],
+    as_data_array: bool = True,
 ) -> xr.DataArray | MemoryFile:
     """Merge the AHN DataArrays into a single DataArray."""
+    if isinstance(images[0], xr.DataArray):
+        images = [_array_to_reader(da) for da in images]
+
     memfile = MemoryFile()
-    merge.merge(images, dst_path=memfile)
+    _ = merge.merge(images, dst_path=memfile, nodata=np.nan)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
-        return da
+        return da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
     return memfile
+
+
+def _array_to_reader(da: xr.DataArray) -> rasterio.io.DatasetReader:
+    """Convert a xarray DataArray to a rasterio DatasetReader."""
+    with tempfile.NamedTemporaryFile(suffix=".tif") as tmpfile:
+        logger.info(f"Writing DataArray to temporary file {tmpfile.name}")
+        da.rio.to_raster(tmpfile.name, driver="GTiff")
+        return rasterio.open(tmpfile.name, driver="GTiff")
 
 
 def _rename_identifier(identifier: str) -> str:

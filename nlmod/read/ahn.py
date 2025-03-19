@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+from typing import Literal
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -14,7 +15,6 @@ import xarray as xr
 from rasterio import merge
 from rasterio.io import MemoryFile
 from requests.exceptions import HTTPError
-from rioxarray.merge import merge_arrays
 from tqdm import tqdm
 
 from .. import NLMOD_DATADIR, cache
@@ -27,7 +27,13 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_2d=True)
-def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kwargs):
+def get_ahn(
+    ds: xr.Dataset | None = None,
+    identifier: str = "AHN4_5M_M",
+    method: str = "average",
+    extent: list[float] | None = None,
+    **kwargs,
+) -> xr.Dataset:
     """Get a model dataset with ahn variable.
 
     Parameters
@@ -80,15 +86,15 @@ def get_ahn(ds=None, identifier="AHN4_5M_M", method="average", extent=None, **kw
 
 
 def get_ahn_at_point(
-    x,
-    y,
-    buffer=0.75,
-    return_da=False,
-    return_mean=False,
-    identifier="dsm_05m",
-    res=0.5,
+    x: float,
+    y: float,
+    buffer: float = 0.75,
+    return_da: bool = False,
+    return_mean: bool = False,
+    identifier: str = "dsm_05m",
+    res: float = 0.5,
     **kwargs,
-):
+) -> float:
     """Get the height of the surface level at a certain point, defined by x and y.
 
     Parameters
@@ -129,7 +135,14 @@ def get_ahn_at_point(
         return ahn.data[int((ahn.shape[0] - 1) / 2), int((ahn.shape[1] - 1) / 2)]
 
 
-def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=False):
+def get_ahn_along_line(
+    line: shapely.LineString,
+    ahn: xr.DataArray | None = None,
+    dx: float | None = None,
+    num: int | None = None,
+    method: str = "linear",
+    plot: bool = False,
+) -> xr.DataArray:
     """Get the height of the surface level along a line.
 
     Parameters
@@ -190,15 +203,16 @@ def get_ahn_along_line(line, ahn=None, dx=None, num=None, method="linear", plot=
 
 @cache.cache_netcdf()
 def get_latest_ahn_from_wcs(
-    extent=None,
-    identifier="dsm_05m",
-    res=None,
-    version="1.0.0",
-    fmt="image/tiff",
-    crs="EPSG:28992",
-    maxsize=2000,
-):
-    """
+    extent: list[float] = None,
+    identifier: Literal["dsm_05m", "dtm_05m"] = "dsm_05m",
+    res: float | None = None,
+    version: str = "1.0.0",
+    fmt: str = "image/tiff",
+    crs: str = "EPSG:28992",
+    maxsize: int = 2000,
+) -> xr.DataArray:
+    """Get the latest AHN from the wcs service.
+
     Parameters
     ----------
     extent : list, tuple or np.array, optional
@@ -228,8 +242,7 @@ def get_latest_ahn_from_wcs(
 
     Returns
     -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    xr.DataArray
     """
     url = "https://service.pdok.nl/rws/ahn/wcs/v1_0?SERVICE=WCS&request=GetCapabilities"
 
@@ -266,7 +279,7 @@ def get_latest_ahn_from_wcs(
     return da
 
 
-def get_ahn2_tiles(extent=None):
+def get_ahn2_tiles(extent: list[float] | None = None) -> gpd.GeoDataFrame:
     """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame.
 
     The links in the tiles are cuurently incorrect. Thereore get_ahn3_tiles is used in
@@ -281,7 +294,7 @@ def get_ahn2_tiles(extent=None):
     return gdf
 
 
-def get_ahn3_tiles(extent=None):
+def get_ahn3_tiles(extent: list[float] | None = None) -> gpd.GeoDataFrame:
     """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN3/FeatureServer"
     layer = 0
@@ -291,7 +304,7 @@ def get_ahn3_tiles(extent=None):
     return gdf
 
 
-def get_ahn4_tiles(extent=None):
+def get_ahn4_tiles(extent: list[float] | None = None) -> gpd.GeoDataFrame:
     """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download links."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN4/FeatureServer"
     layer = 0
@@ -302,13 +315,13 @@ def get_ahn4_tiles(extent=None):
 
 
 def _get_tiles_ellipsis(
-    extent=None,
-    crs=28992,
-    timeout=120.0,
-    base_url="https://api.ellipsis-drive.com/v3",
-    path_id="a9d410ad-a2f6-404c-948a-fdf6b43e77a6",
-    timestamp_id="87a21a71-c39f-4e92-a43b-207bc7dfe714",
-):
+    extent: list[float] | None = None,
+    crs: int = 28992,
+    timeout: float = 120.0,
+    base_url: str = "https://api.ellipsis-drive.com/v3",
+    path_id: str = "a9d410ad-a2f6-404c-948a-fdf6b43e77a6",
+    timestamp_id: str = "87a21a71-c39f-4e92-a43b-207bc7dfe714",
+) -> gpd.GeoDataFrame:
     url = f"{base_url}/path/{path_id}/vector/timestamp/{timestamp_id}/listFeatures"
 
     r = requests.get(url, timeout=timeout)
@@ -327,10 +340,10 @@ def _get_tiles_ellipsis(
 
 
 def _get_tiles_from_file(
-    fname,
-    extent=None,
-    crs=28992,
-):
+    fname: str,
+    extent: list[float] | None = None,
+    crs: int = 28992,
+) -> gpd.GeoDataFrame:
     if crs != 28992:
         raise ValueError("Only crs 28992 is supported")
 
@@ -345,7 +358,7 @@ def _get_tiles_from_file(
     return gdf
 
 
-def _round_coordinates(geom, ndigits=2):
+def _round_coordinates(geom: shapely.Geometry, ndigits: int = 2) -> shapely.Geometry:
     def _round_coords(x, y, z=None):
         x = round(x, ndigits)
         y = round(y, ndigits)
@@ -360,7 +373,12 @@ def _round_coordinates(geom, ndigits=2):
 
 
 @cache.cache_netcdf()
-def get_ahn1(extent, identifier="AHN1_5M", as_data_array=None, **kwargs):
+def get_ahn1(
+    extent: list[float],
+    identifier: Literal["AHN1_5M"] = "AHN1_5M",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
     """Download AHN1.
 
     Parameters
@@ -387,7 +405,11 @@ def get_ahn1(extent, identifier="AHN1_5M", as_data_array=None, **kwargs):
 
 
 @cache.cache_netcdf()
-def get_ahn1_legacy(extent, identifier="ahn1_5m", as_data_array=True):
+def get_ahn1_legacy(
+    extent: list[float],
+    identifier: Literal["ahn1_5m"] = "ahn1_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray:
     """Download AHN1.
 
     Parameters
@@ -414,7 +436,12 @@ def get_ahn1_legacy(extent, identifier="ahn1_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn2(extent, identifier="AHN2_5M_M", as_data_array=None, **kwargs):
+def get_ahn2(
+    extent: list[float],
+    identifier: Literal["AHN_05M_I", "AHN_05M_N", "AHN_05M_R", "AHN_5M_M"] = "AHN_5M_M",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
     """Download AHN2.
 
     Parameters
@@ -438,7 +465,13 @@ def get_ahn2(extent, identifier="AHN2_5M_M", as_data_array=None, **kwargs):
 
 
 @cache.cache_netcdf()
-def get_ahn2_legacy(extent, identifier="ahn2_5m", as_data_array=True):
+def get_ahn2_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "ahn2_05m_i", "ahn2_05m_n", "ahn2_05m_r", "ahn2_5m"
+    ] = "ahn2_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
     """Download AHN2.
 
     Parameters
@@ -462,7 +495,14 @@ def get_ahn2_legacy(extent, identifier="ahn2_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn3(extent, identifier="AHN3_5M_M", as_data_array=None, **kwargs):
+def get_ahn3(
+    extent: list[float],
+    identifier: Literal[
+        "AHN3_05M_M", "AHN3_05M_R", "AHN3_5M_M", "AHN3_5M_R"
+    ] = "AHN3_5M_M",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
     """Download AHN3.
 
     Parameters
@@ -486,7 +526,13 @@ def get_ahn3(extent, identifier="AHN3_5M_M", as_data_array=None, **kwargs):
 
 
 @cache.cache_netcdf()
-def get_ahn3_legacy(extent, identifier="AHN3_5m_DTM", as_data_array=True):
+def get_ahn3_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "AHN3_05m_DSM", "AHN3_05m_DTM", "AHN3_5m_DSM", "AHN3_5m_DTM"
+    ] = "AHN3_5m_DTM",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
     """Download AHN3.
 
     Parameters
@@ -509,7 +555,14 @@ def get_ahn3_legacy(extent, identifier="AHN3_5m_DTM", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn4(extent, identifier="AHN4_5M_M", as_data_array=None, **kwargs):
+def get_ahn4(
+    extent: list[float],
+    identifier: Literal[
+        "AHN4_05M_M", "AHN4_05M_R", "AHN4_5M_M", "AHN4_5M_R"
+    ] = "AHN4_5M_M",
+    as_data_array: bool | None = None,
+    **kwargs,
+):
     """Download AHN4.
 
     Parameters
@@ -533,7 +586,13 @@ def get_ahn4(extent, identifier="AHN4_5M_M", as_data_array=None, **kwargs):
 
 
 @cache.cache_netcdf()
-def get_ahn4_legacy(extent, identifier="AHN4_DTM_5m", as_data_array=True):
+def get_ahn4_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "AHN4_DTM_05m", "AHN4_DSM_05m", "AHN4_DTM_5m", "AHN4_DSM_5m"
+    ] = "AHN4_DTM_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
     """Download AHN4.
 
     Parameters
@@ -556,7 +615,13 @@ def get_ahn4_legacy(extent, identifier="AHN4_DTM_5m", as_data_array=True):
 
 
 @cache.cache_netcdf()
-def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
+def get_ahn5(
+    extent: list[float],
+    identifier: Literal[
+        "AHN5_5M_M", "AHN5_5M_R", "AHN5_05M_M", "AHN5_05M_R"
+    ] = "AHN5_5M_M",
+    **kwargs,
+) -> xr.DataArray:
     """Download AHN5.
 
     Parameters
@@ -577,7 +642,7 @@ def get_ahn5(extent, identifier="AHN5_5M_M", **kwargs):
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
-def _update_ellipsis_tiles_in_data():
+def _update_ellipsis_tiles_in_data() -> None:
     tiles = _get_tiles_ellipsis()
     pathname = os.path.join(NLMOD_DATADIR, "ahn")
     if not os.path.isdir(pathname):
@@ -587,16 +652,25 @@ def _update_ellipsis_tiles_in_data():
 
 
 @cache.cache_netcdf()
-def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", return_tiles=False, **kwargs):
-    """Download AHN5.
+def _get_ahn_ellipsis(
+    extent: list[float], identifier: str, return_tiles: bool = False, **kwargs
+) -> xr.DataArray | list[xr.DataArray]:
+    """Download AHN from the ellipsis.
 
     Parameters
     ----------
     extent : list, tuple or np.array
         extent
-    identifier : str, optional
-        Possible values are 'AHN5_5M_M' (dtm), 'AHN5_5M_R' (dsm), 'AHN5_05M_M' (dtm) and
-        'AHN5_05M_R' (dsm). The default is "AHN5_5M_M".
+    identifier : str
+        Possible values for the different AHN-versions are (casing is important):
+            AHN1: 'AHN1_5M'
+            AHN2: 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' or 'AHN2_5M_M'
+            AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
+            AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
+            AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        The default is 'AHN4_5M_M'.
 
     Returns
     -------
@@ -626,17 +700,19 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", return_tiles=False, **kwar
         return das
     if len(das) == 0:
         raise (ValueError("No data found within extent"))
-    da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
+    da = merge.merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
     if da.dims[0] == "band":
         da = da[0].drop_vars("band")
     return da
 
 
-def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
+def _download_and_combine_tiles(
+    tiles: gpd.GeoDataFrame, identifier: str, extent: list[float], as_data_array: bool
+) -> xr.DataArray | MemoryFile:
     """Internal method to download and combine ahn-data."""
     if tiles.empty:
         raise (Exception(f"{identifier} has no data for requested extent"))
-    datasets = []
+    das = []
     for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[name, identifier]
         if isinstance(url, pd.Series):
@@ -647,9 +723,17 @@ def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
         path = url.split("/")[-1].replace(".zip", ".TIF")
         if path.lower().endswith(".tif.tif"):
             path = path[:-4]
-        datasets.append(rasterio.open(f"zip+{url}!/{path}"))
+        das.append(rasterio.open(f"zip+{url}!/{path}"))
+    ret = _merge_arrays(images=das, extent=extent, as_data_array=as_data_array)
+    return ret
+
+
+def _merge_arrays(
+    images: list[xr.DataArray], extent: list[float], as_data_array: bool = True
+) -> xr.DataArray | MemoryFile:
+    """Merge the AHN DataArrays into a single DataArray."""
     memfile = MemoryFile()
-    merge.merge(datasets, dst_path=memfile)
+    merge.merge(images, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
         da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
@@ -657,7 +741,7 @@ def _download_and_combine_tiles(tiles, identifier, extent, as_data_array):
     return memfile
 
 
-def _rename_identifier(identifier):
+def _rename_identifier(identifier: str) -> str:
     rename = {
         "ahn1_5m": "AHN1_5M",
         "ahn2_05m_i": "AHN2_05M_I",
@@ -680,7 +764,7 @@ def _rename_identifier(identifier):
     return identifier
 
 
-def _assert_as_data_array_is_none(as_data_array):
+def _assert_as_data_array_is_none(as_data_array: bool | None) -> None:
     if as_data_array is not None:
         raise (
             DeprecationWarning(

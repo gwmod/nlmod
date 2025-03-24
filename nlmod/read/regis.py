@@ -164,17 +164,18 @@ def get_regis(
         msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
         raise (ValueError(msg))
 
-    # make sure layer names are regular strings
-    ds["layer"] = ds["layer"].astype(str)
+    regis_version = extract_version_from_title(ds.attrs["title"])
+
+    if rename_layers_to_version_2_2_2 and regis_version >= parse_version("2.2.3"):
+        pre223_layer_names = get_layer_names(rename_layers_to_version_2_2_2=True)
+        ds = ds.assign_coords({"layer": pre223_layer_names})
+    else:
+        ds["layer"] = ds["layer"].astype(str)
+
 
     # make sure y is descending
     if (ds["y"].diff("y") > 0).all():
         ds = ds.isel(y=slice(None, None, -1))
-
-    if rename_layers_to_version_2_2_2 and ds.attrs["title"] == "REGIS v02r2s3":
-        df = get_table_name_changes()
-        layer = df.set_index("Nieuwe code")["Oude code"].loc[ds.layer]
-        ds = ds.assign_coords({"layer": layer})
 
     # slice layers
     if botm_layer is not None and botm_layer in ds.layer:
@@ -349,17 +350,17 @@ def add_geotop_to_regis_layers(
 def extract_version_from_title(version_string):
     """
     Extract version number in format X.Y.Z from a string like "REGIS vXXrYsZ".
-    
+
     Parameters
     ----------
     version_string : str
         The input string containing version information in format "REGIS vXXrYsZ".
-    
+
     Returns
     -------
     packaging.version.Version
         Extracted version in format "X.Y.Z".
-    
+
     Examples
     --------
     >>> extract_version("REGIS v02r2s3")
@@ -368,12 +369,12 @@ def extract_version_from_title(version_string):
     # Extract digits from the string after 'v', 'r', and 's'
     parts = version_string.split()
     code = parts[1]  # Get 'vXXrYsZ' part
-    
+
     # Extract the numbers after v, r, and s
     major = code[1:3].lstrip('0') or '0'  # Remove leading zeros, but keep at least one digit
     minor = code[code.find('r')+1:code.find('s')].lstrip('0') or '0'
     patch = code[code.find('s')+1:].lstrip('0') or '0'
-    
+
     # Combine into version format
     version = f"{major}.{minor}.{patch}"
     return parse_version(version)

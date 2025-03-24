@@ -399,8 +399,8 @@ class DatasetCrossSection:
                     np.isnan(self.top[i, j])
                     or np.isnan(self.bot[i, j])
                     or np.isnan(zcs[i, j])
-                    or (self.bot[i, j] == self.zmax)
-                    or (self.top[i, j] == self.zmin)
+                    or (self.bot[i, j] >= self.zmax)
+                    or (self.top[i, j] <= self.zmin)
                 ):
                     yield i, j
 
@@ -481,54 +481,6 @@ class DatasetCrossSection:
         self.ax.add_collection(patch_collection)
         return patch_collection
 
-    # def plot_array(self, z, head=None, **kwargs):
-    #     if isinstance(z, xr.DataArray):
-    #         z = z.data
-    #     if head is not None:
-    #         if isinstance(head, xr.DataArray):
-    #             head = head.data
-    #         assert head.shape == z.shape
-    #     if self.icell2d in self.ds.dims:
-    #         assert len(z.shape) == 2
-    #         assert z.shape[0] == len(self.layer)
-    #         assert z.shape[1] == len(self.ds[self.icell2d])
-
-    #         zcs = z[:, self.icell2ds]
-    #         if head is not None:
-    #             head = head[:, self.icell2ds]
-    #     else:
-    #         assert len(z.shape) == 3
-    #         assert z.shape[0] == len(self.layer)
-    #         assert z.shape[1] == len(self.ds[self.y])
-    #         assert z.shape[2] == len(self.ds[self.x])
-
-    #         zcs = z[:, self.rows, self.cols]
-    #         if head is not None:
-    #             head = head[:, self.rows, self.cols]
-    #     patches = []
-    #     array = []
-    #     for i in range(zcs.shape[0]):
-    #         for j in range(zcs.shape[1]):
-    #             if not (
-    #                 np.isnan(self.top[i, j])
-    #                 or np.isnan(self.bot[i, j])
-    #                 or np.isnan(zcs[i, j])
-    #             ):
-    #                 if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
-    #                     continue
-    #                 width = self.s[j, 1] - self.s[j, 0]
-    #                 top = self.top[i, j]
-    #                 if head is not None:
-    #                     top = max(min(top, head[i, j]), self.bot[i, j])
-    #                 height = top - self.bot[i, j]
-    #                 xy = (self.s[j, 0], self.bot[i, j])
-    #                 rect = Rectangle(xy, width, height)
-    #                 patches.append(rect)
-    #                 array.append(zcs[i, j])
-    #     patch_collection = PatchCollection(patches, **kwargs)
-    #     patch_collection.set_array(np.array(array))
-    #     self.ax.add_collection(patch_collection)
-    #     return patch_collection
 
     def plot_surface(self, z, **kwargs):
         if isinstance(z, xr.DataArray):
@@ -615,6 +567,11 @@ class DatasetCrossSection:
             animation object
         """
         f = self.ax.get_figure()
+
+        if norm is None:
+            vmin = np.nanmin(da)
+            vmax = np.nanmax(da)
+            norm = matplotlib.colors.Normalize(vmin, vmax)
 
         # plot first timeframe
         iper = 0

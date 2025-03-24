@@ -423,10 +423,9 @@ class DatasetCrossSection:
             rectangle patch.
         """
         width = self.s[j, 1] - self.s[j, 0]
+        top = self.top[i, j]
         if hcs is not None:
             top = max(min(top, hcs[i, j]), self.bot[i, j])
-        else:
-            top = self.top[i, j]
         height = top - self.bot[i, j]
         xy = (self.s[j, 0], self.bot[i, j])
         rect = Rectangle(xy, width, height)
@@ -622,7 +621,6 @@ class DatasetCrossSection:
         if head is not None:
             plot_head = head
             self.pc = self.plot_array(da[iper].squeeze(), cmap=cmap, norm=norm, head=head.values[iper].squeeze())
-            logger.info("varying head not supported for animation yet")
         else:
             self.pc = self.plot_array(da[iper].squeeze(), cmap=cmap, norm=norm)
             plot_head = None

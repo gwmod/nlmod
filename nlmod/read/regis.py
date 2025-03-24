@@ -1,11 +1,11 @@
 import datetime as dt
 import logging
 import os
-from packaging.version import parse as parse_version
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+from packaging.version import parse as parse_version
 
 from .. import cache
 from ..dims.layers import calculate_thickness, remove_layer_dim_from_top
@@ -171,7 +171,6 @@ def get_regis(
         ds = ds.assign_coords({"layer": pre223_layer_names})
     else:
         ds["layer"] = ds["layer"].astype(str)
-
 
     # make sure y is descending
     if (ds["y"].diff("y") > 0).all():
@@ -371,9 +370,11 @@ def extract_version_from_title(version_string):
     code = parts[1]  # Get 'vXXrYsZ' part
 
     # Extract the numbers after v, r, and s
-    major = code[1:3].lstrip('0') or '0'  # Remove leading zeros, but keep at least one digit
-    minor = code[code.find('r')+1:code.find('s')].lstrip('0') or '0'
-    patch = code[code.find('s')+1:].lstrip('0') or '0'
+    major = (
+        code[1:3].lstrip("0") or "0"
+    )  # Remove leading zeros, but keep at least one digit
+    minor = code[code.find("r") + 1 : code.find("s")].lstrip("0") or "0"
+    patch = code[code.find("s") + 1 :].lstrip("0") or "0"
 
     # Combine into version format
     version = f"{major}.{minor}.{patch}"
@@ -400,7 +401,9 @@ def get_layer_names(rename_layers_to_version_2_2_2=True):
 
     if rename_layers_to_version_2_2_2 and regis_version >= parse_version("2.2.3"):
         df = get_table_name_changes()
-        return df.set_index("Nieuwe code").loc[layer_names]["Oude code"].values.astype(str)
+        return (
+            df.set_index("Nieuwe code").loc[layer_names]["Oude code"].values.astype(str)
+        )
     else:
         return layer_names
 
@@ -479,7 +482,7 @@ def read_voleg(fname):
 
 def get_table_name_changes():
     """
-    Get the table with name changes of REGIS
+    Get the table with name changes of REGIS.
 
     Returns
     -------

@@ -396,7 +396,7 @@ def get_layer_names(ds=None, rename_layers_to_version_2_2_2=True):
     """
     if ds is None:
         ds = xr.open_dataset(REGIS_URL, decode_times=False, decode_coords=False)
-    
+
     regis_version = extract_version_from_title(ds.attrs["title"])
 
     layer_names = ds.layer.values.astype(str)

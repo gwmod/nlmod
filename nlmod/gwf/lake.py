@@ -332,9 +332,9 @@ def lake_from_gdf(
     if gwt is not None:
         if boundname_column is not None:
             observations_gwt = {}
-            if isinstance(obs_type, str):
-                obs_type = [obs_type_gwt]
-            for otype in obs_type:
+            if isinstance(obs_type_gwt, str):
+                obs_type_gwt = [obs_type_gwt]
+            for otype in obs_type_gwt:
                 obs_list_gwt = [(x, otype, x) for x in np.unique(gdf[boundname_column])]
                 observations_gwt[f"{pname}_{otype}.gwt.csv"] = obs_list_gwt
         else:

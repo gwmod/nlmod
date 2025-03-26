@@ -2,7 +2,6 @@ import datetime as dt
 import logging
 import os
 
-from arrow import get
 import numpy as np
 import pandas as pd
 import xarray as xr

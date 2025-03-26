@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import os
 
+from arrow import get
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -164,13 +165,9 @@ def get_regis(
         msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
         raise (ValueError(msg))
 
-    regis_version = extract_version_from_title(ds.attrs["title"])
-
-    if rename_layers_to_version_2_2_2 and regis_version >= parse_version("2.2.3"):
-        pre223_layer_names = get_layer_names(rename_layers_to_version_2_2_2=True)
-        ds = ds.assign_coords({"layer": pre223_layer_names})
-    else:
-        ds["layer"] = ds["layer"].astype(str)
+    ds["layer"] = get_layer_names(
+        ds=ds, rename_layers_to_version_2_2_2=rename_layers_to_version_2_2_2
+    )
 
     # make sure y is descending
     if (ds["y"].diff("y") > 0).all():
@@ -381,20 +378,26 @@ def extract_version_from_title(version_string):
     return parse_version(version)
 
 
-def get_layer_names(rename_layers_to_version_2_2_2=True):
+def get_layer_names(ds=None, rename_layers_to_version_2_2_2=True):
     """Get all the available regis layer names.
 
     Parameters
     ----------
+    ds : xarray.Dataset, optional
+        The regis dataset. If None, a connection is made to the REGIS server.
+        The default is None.
     rename_layers_to_version_2_2_2 : bool, optional
-        If True, the layer names are renamed to their pre-v2.2.3 names. The default is True.
+        If True, the layer names are renamed to their pre-v2.2.3 names. The default is 
+        True.
 
     Returns
     -------
     layer_names : np.array
         array with names of all the regis layers.
     """
-    ds = xr.open_dataset(REGIS_URL, decode_times=False, decode_coords=False)
+    if ds is None:
+        ds = xr.open_dataset(REGIS_URL, decode_times=False, decode_coords=False)
+    
     regis_version = extract_version_from_title(ds.attrs["title"])
 
     layer_names = ds.layer.values.astype(str)

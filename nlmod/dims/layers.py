@@ -740,7 +740,7 @@ def combine_layers_ds(
     ds_combine = xr.Dataset(da_dict, attrs=ds.attrs)
 
     # remove layer dimension from top
-    ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=1e-5)
+    ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=0.001)
 
     if return_reindexer:
         return ds_combine, reindexer

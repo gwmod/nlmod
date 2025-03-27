@@ -42,7 +42,7 @@ def test_get_recharge_steady_state():
 def test_get_recharge_not_available():
     ds = nlmod.get_ds([100000, 110000, 420000, 430000])
     time = [pd.Timestamp.now().normalize()]
-    ds = nlmod.time.set_ds_time(ds, start=time[0] - pd.Timedelta(days=5), time=time)
+    ds = nlmod.time.set_ds_time(ds, start=time[0] - pd.Timedelta(days=21), time=time)
     with pytest.raises(ValueError):
         ds.update(nlmod.read.knmi.get_recharge(ds))
 

@@ -27,6 +27,9 @@ def test_buisdrainage():
     assert np.all(~np.isnan(ds["buisdrain_depth"].data[mask]))
 
 
+@pytest.mark.xfail(
+    reason="NHI GWO migration till 28-03-2025. Remove me after this date."
+)
 def test_gwo():
     username = os.environ["NHI_GWO_USERNAME"]
     password = os.environ["NHI_GWO_PASSWORD"]

@@ -318,7 +318,7 @@ def get_bathymetry_gdf(
     return arcrest(url, layer, extent=extent)
 
 
-@cache.cache_netcdf()
+# @cache.cache_netcdf()
 def get_bathymetry(
     extent: list[float],
     resolution: str = "20m",

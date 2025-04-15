@@ -1,6 +1,4 @@
 import logging
-from functools import partial
-
 import flopy
 import geopandas as gpd
 import matplotlib
@@ -14,7 +12,7 @@ from matplotlib.patches import Rectangle
 from shapely.affinity import affine_transform
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
-from ..dims.grid import get_affine_world_to_mod, modelgrid_from_ds
+from ..dims.grid import get_affine_world_to_mod, modelgrid_from_ds, get_delr, get_delc
 from .plotutil import get_map
 
 logger = logging.getLogger(__name__)
@@ -125,9 +123,12 @@ class DatasetCrossSection:
             x and y edges of the dataset.
         """
         x = self.ds[self.x].values
-        x = np.hstack((x[:-1] - np.diff(x) / 2, x[-2:] + np.diff(x[-3:]) / 2))
+        dx = get_delr(self.ds)
+        x = np.hstack((x - dx / 2, x[-1] + dx[-1] / 2))
+
         y = self.ds[self.y].values
-        y = np.hstack((y[:-1] - np.diff(y) / 2, y[-2:] + np.diff(y[-3:]) / 2))
+        dy = get_delc(self.ds)
+        y = np.hstack((y + dy / 2, y[-1] - dy[-1] / 2))
         return x, y
 
     def coordinates_in_dataset(self, xy):
@@ -381,7 +382,7 @@ class DatasetCrossSection:
 
     def iterate_active_cells(self, zcs):
         """Iterate over the cell indices of the cells in an array that are visible in the cross section and active in the model.
-        
+
         Parameters
         ----------
         zcs : np.ndarray
@@ -390,8 +391,8 @@ class DatasetCrossSection:
         Yields
         ------
         tuple
-            i, j indices of the cells that are active and visible in cross section. 
-        
+            i, j indices of the cells that are active and visible in cross section.
+
         """
         for i in range(zcs.shape[0]):
             for j in range(zcs.shape[1]):
@@ -430,7 +431,6 @@ class DatasetCrossSection:
         xy = (self.s[j, 0], self.bot[i, j])
         rect = Rectangle(xy, width, height)
         return rect
-
 
     def array_on_cs(self, z):
         """Select cells in an array that are in the cross section.
@@ -473,14 +473,15 @@ class DatasetCrossSection:
         else:
             hcs = None
 
-        patches = [self._get_rect(i,j, hcs=hcs) for i, j in self.iterate_active_cells(zcs)]
+        patches = [
+            self._get_rect(i, j, hcs=hcs) for i, j in self.iterate_active_cells(zcs)
+        ]
         array = [zcs[i, j] for i, j in self.iterate_active_cells(zcs)]
 
         patch_collection = PatchCollection(patches, **kwargs)
         patch_collection.set_array(np.array(array))
         self.ax.add_collection(patch_collection)
         return patch_collection
-
 
     def plot_surface(self, z, **kwargs):
         if isinstance(z, xr.DataArray):
@@ -577,7 +578,12 @@ class DatasetCrossSection:
         iper = 0
         if head is not None:
             plot_head = head
-            self.pc = self.plot_array(da[iper].squeeze(), cmap=cmap, norm=norm, head=head.values[iper].squeeze())
+            self.pc = self.plot_array(
+                da[iper].squeeze(),
+                cmap=cmap,
+                norm=norm,
+                head=head.values[iper].squeeze(),
+            )
         else:
             self.pc = self.plot_array(da[iper].squeeze(), cmap=cmap, norm=norm)
             plot_head = None
@@ -607,9 +613,12 @@ class DatasetCrossSection:
             if plot_head is not None:
                 # create new patches
                 hcs = self.array_on_cs(plot_head[iper].squeeze())
-                patches = [self._get_rect(i,j, hcs=hcs) for i, j in self.iterate_active_cells(zcs)]
+                patches = [
+                    self._get_rect(i, j, hcs=hcs)
+                    for i, j in self.iterate_active_cells(zcs)
+                ]
                 array = [zcs[i, j] for i, j in self.iterate_active_cells(zcs)]
-                self.pc.remove() # remove previous patches
+                self.pc.remove()  # remove previous patches
                 self.pc = PatchCollection(patches, cmap=cmap, norm=norm)
                 self.pc.set_array(np.array(array))
                 self.ax.add_collection(self.pc)
@@ -617,7 +626,6 @@ class DatasetCrossSection:
                 # only set new values of existing patches
                 array = [zcs[i, j] for i, j in self.iterate_active_cells(zcs)]
                 self.pc.set_array(np.array(array))
-
 
             # update title
             if da.time.dtype.kind == "M":

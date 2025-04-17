@@ -2020,7 +2020,7 @@ def get_modellayers_screens(ds, screen_top, screen_bottom, xy=None, icell2d=None
     screen_bottom : np.ndarray of shape(nobs)
         collection of screen bottom values. Should have the same length as screen_top
         and xy.
-    xy : np.ndarray of shape(nobs, 3), optional
+    xy : np.ndarray of shape(nobs, 2), optional
         list of x,y coordinates
     icell2d : np.ndarray of shape(nobs), optional
         To speed up the process for vertex grids a list of icell2d indices can be 
@@ -2044,7 +2044,7 @@ def get_modellayers_screens(ds, screen_top, screen_bottom, xy=None, icell2d=None
         dimname = 'icell2d'
     elif grid.is_structured(ds):
         # make dataset of observations
-        dimname = 'no_obs'
+        dimname = 'n_obs'
         x = xr.DataArray(np.asarray(xy)[:,0], dims=dimname)
         y = xr.DataArray(np.asarray(xy)[:,1], dims=dimname)
         ds_obs = ds.sel(x=x,y=y, method='nearest')
@@ -2054,7 +2054,7 @@ def get_modellayers_screens(ds, screen_top, screen_bottom, xy=None, icell2d=None
     modellayers = _get_modellayers_dsobs(ds_obs, dimname=dimname)
     return modellayers
 
-def _get_modellayers_dsobs(ds_obs, dimname='no_obs'):
+def _get_modellayers_dsobs(ds_obs, dimname='n_obs'):
     """Get modellayers from a dataset of observation point data
 
     Parameters
@@ -2062,8 +2062,8 @@ def _get_modellayers_dsobs(ds_obs, dimname='no_obs'):
     ds_obs : xr.Dataset
         typically a subset of a model dataset with only data for observations.
     dimname : str, optional
-        name of the observation dimension. Usually 'icell2d' or 'no_obs', 
-        by default 'no_obs'.
+        name of the observation dimension. 'icell2d' is used for vertex grids
+        and 'n_obs' for structured grid, by default 'n_obs'.
 
     Returns
     -------
@@ -2099,7 +2099,7 @@ def _get_modellayers_dsobs(ds_obs, dimname='no_obs'):
     ds_obs['screen_bot'] = xr.where(mask, ds_obs['botm'][-1], ds_obs['screen_bot'])
 
     # combine modellayer_top and modellayer_bot to get modellayer
-    def get_thickest_mlayer(i):
+    def get_max_overlap_model_layer(i):
         mtop = ds_obs['modellayer_top'].values[i]
         mbot = ds_obs['modellayer_bot'].values[i]
 
@@ -2115,6 +2115,6 @@ def _get_modellayers_dsobs(ds_obs, dimname='no_obs'):
         botm_single_obs[-1] = fbot
         return np.argmin(np.diff(botm_single_obs)) + mtop
 
-    modellayer = [get_thickest_mlayer(i) for i in range(ds_obs.sizes[dimname])]
+    modellayer = [get_max_overlap_model_layer(i) for i in range(ds_obs.sizes[dimname])]
 
     return modellayer

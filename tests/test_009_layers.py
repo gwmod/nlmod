@@ -1,12 +1,13 @@
 # %%
+import nlmod
 import os
+import test_001_model
 
 import matplotlib.pyplot as plt
 import numpy as np
-from shapely.geometry import LineString
 
-import nlmod
 from nlmod.plot import DatasetCrossSection
+from shapely.geometry import LineString
 
 
 def get_regis_horstermeer():
@@ -256,3 +257,18 @@ def test_remove_thin_layers():
 
     # test if all active cells in the new dataset were active in the original dataset
     assert (th.data[th_new2 > 0] > 0).all()
+
+
+def test_get_modellayers_screens():
+    ds = test_001_model.get_ds_from_cache("small_model")
+    xy = [[98900,489600],[98800,489500],[98980,489680],[98980,489680]]
+    screen_top = [10, -1, -35, 1000]
+    screen_bottom = [9, -20, -100, -1000]
+    modellayers = nlmod.layers.get_modellayers_screens(ds, screen_top, screen_bottom, xy=xy)
+    assert np.isnan(modellayers[0])
+    assert modellayers[1] == 1.0
+    assert modellayers[2] == ds.sizes['layer']-1
+
+    ds_ref = nlmod.grid.refine(ds, refinement_features=[])
+    modellayers_ref = nlmod.layers.get_modellayers_screens(ds_ref, screen_top, screen_bottom, xy=xy)
+    assert modellayers == modellayers_ref

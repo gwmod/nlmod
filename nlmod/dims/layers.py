@@ -2102,7 +2102,7 @@ def _get_modellayers_dsobs(ds_obs, dimname='no_obs'):
     def get_thickest_mlayer(i):
         mtop = ds_obs['modellayer_top'].values[i]
         mbot = ds_obs['modellayer_bot'].values[i]
-        
+
         if ~np.isfinite(mtop) & ~np.isfinite(mbot):
             return np.nan # observation below or above model boundaries
         if mtop == mbot:

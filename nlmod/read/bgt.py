@@ -15,8 +15,9 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 from nlmod import NLMOD_DATADIR
 
 from ..util import extent_to_polygon
+from .. import cache
 
-
+@cache.cache_pickle
 def get_bgt(
     extent,
     layer="waterdeel",

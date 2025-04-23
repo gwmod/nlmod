@@ -433,6 +433,7 @@ def cache_pickle(func):
             except (pickle.UnpicklingError, ModuleNotFoundError):
                 logger.info("could not read pickle, not using cache")
                 pickle_check = False
+                argument_check = False
 
             if pickle_check:
                 # add dataframe hash to function arguments dic

@@ -1,3 +1,4 @@
+import flopy
 import logging
 import warnings
 
@@ -5,6 +6,7 @@ import numpy as np
 import xarray as xr
 
 from ..util import LayerError, _get_value_from_ds_datavar
+from . import grid
 from .resample import fillnan_da
 from .shared import GridTypeDims
 
@@ -2003,7 +2005,6 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         **kwargs,
     )
 
-
 def add_bathymetry_to_layer_model(ds,
                                   datavar_sea="northsea",
                                   datavar_bathymetry="bathymetry",
@@ -2092,3 +2093,117 @@ def _add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea, kv_sea):
             ds["botm"][lay],
         )
     return ds
+
+
+def get_modellayers_screens(ds, screen_top, screen_bottom, xy=None, icell2d=None):
+    """Get the modellayer of a well based on a screen_top, screen_bottom and xy
+    coordinates.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        xarray Dataset with with top and bottoms, can be structured or vertex.
+    screen_top : np.ndarray of shape(nobs)
+        collection of screen top values).
+    screen_bottom : np.ndarray of shape(nobs)
+        collection of screen bottom values. Should have the same length as screen_top
+        and xy.
+    xy : np.ndarray of shape(nobs, 2), optional
+        list of x,y coordinates
+    icell2d : np.ndarray of shape(nobs), optional
+        To speed up the process for vertex grids a list of icell2d indices can be 
+        given instead of a list of xy coordinates.
+
+    Returns
+    -------
+    list of floats
+        zero-based indices of modellayers
+        nan if screen above or below model boundaries
+        if screen spans multiple layers, choose layer with most screen length.
+    """
+    if grid.is_vertex(ds):
+        if icell2d is None:
+            gi = flopy.utils.GridIntersect(grid.modelgrid_from_ds(ds), method="vertex")
+            icell2d = [grid.get_icell2d_from_xy(x, y, ds, gi=gi) for x,y in xy]
+        # make dataset of observations
+        ds_obs = ds.sel(icell2d=icell2d)
+        ds_obs['screen_top'] = (('icell2d'), screen_top)
+        ds_obs['screen_bot'] = (('icell2d'), screen_bottom)
+        dimname = 'icell2d'
+    elif grid.is_structured(ds):
+        # make dataset of observations
+        dimname = 'n_obs'
+        x = xr.DataArray(np.asarray(xy)[:,0], dims=dimname)
+        y = xr.DataArray(np.asarray(xy)[:,1], dims=dimname)
+        ds_obs = ds.sel(x=x,y=y, method='nearest')
+        ds_obs['screen_top'] = ((dimname), screen_top)
+        ds_obs['screen_bot'] = ((dimname), screen_bottom)
+
+    modellayers = _get_modellayers_dsobs(ds_obs, dimname=dimname)
+    return modellayers
+
+
+def _get_modellayers_dsobs(ds_obs, dimname='n_obs'):
+    """Get modellayers from a dataset of observation point data
+
+    Parameters
+    ----------
+    ds_obs : xr.Dataset
+        typically a subset of a model dataset with only data for observations.
+    dimname : str, optional
+        name of the observation dimension. 'icell2d' is used for vertex grids
+        and 'n_obs' for structured grid, by default 'n_obs'.
+
+    Returns
+    -------
+    list of floats
+        zero-based indices of modellayers
+        nan if screen above or below model boundaries
+        if screen spans multiple layers, choose layer with most screen length.
+
+    Raises
+    ------
+    ValueError
+        If any screen top is lower or equal to screen bottom.
+    """
+    if (ds_obs['screen_top'] <= ds_obs['screen_bot']).any():
+        raise ValueError('screen top is equal to or below screen bottom')
+
+    # get model layers for screen top and bottom
+    ds_obs['modellayer_top'] = (dimname,), [np.argmax(ds_obs['screen_top'].values[i]>ds_obs['botm'].values[:,i]) for i in range(ds_obs.sizes[dimname])]
+    ds_obs['modellayer_top'] = xr.where(ds_obs['screen_top'] >= ds_obs['top'], np.inf, ds_obs['modellayer_top'])
+    ds_obs['modellayer_top'] = xr.where(ds_obs['screen_top'] <= ds_obs['botm'].isel(layer=-1), -np.inf, ds_obs['modellayer_top'])
+    ds_obs['modellayer_bot'] = (dimname,), [np.argmax(ds_obs['screen_bot'].values[i]>ds_obs['botm'].values[:,i]) for i in range(ds_obs.sizes[dimname])]
+    ds_obs['modellayer_bot'] = xr.where(ds_obs['screen_bot'] >= ds_obs['top'], np.inf, ds_obs['modellayer_bot'])
+    ds_obs['modellayer_bot'] = xr.where(ds_obs['screen_bot'] <= ds_obs['botm'].isel(layer=-1), -np.inf, ds_obs['modellayer_bot'])
+
+    # screen top is above model top but screen bottom is below model top
+    mask = (ds_obs['modellayer_top']==np.inf) & ~(ds_obs['modellayer_bot']==np.inf)
+    ds_obs['modellayer_top'] = xr.where(mask, 0, ds_obs['modellayer_top'])
+    ds_obs['screen_top'] = xr.where(mask, ds_obs['top'], ds_obs['screen_top'])
+
+    # screen bot is below model botm but screen top is above model botm
+    mask = (ds_obs['modellayer_bot']==-np.inf) & ~(ds_obs['modellayer_top']==-np.inf)
+    ds_obs['modellayer_bot'] = xr.where(mask, ds_obs.sizes['layer']-1, ds_obs['modellayer_bot'])
+    ds_obs['screen_bot'] = xr.where(mask, ds_obs['botm'][-1], ds_obs['screen_bot'])
+
+    # combine modellayer_top and modellayer_bot to get modellayer
+    def get_max_overlap_model_layer(i):
+        mtop = ds_obs['modellayer_top'].values[i]
+        mbot = ds_obs['modellayer_bot'].values[i]
+
+        if ~np.isfinite(mtop) & ~np.isfinite(mbot):
+            return np.nan # observation below or above model boundaries
+        if mtop == mbot:
+            return mtop # screen top and bot in same layer
+        # find modellayer with the longest screen length
+        ftop = ds_obs['screen_top'].values[i]
+        fbot = ds_obs['screen_bot'].values[i]
+        botm_single_obs = ds_obs['botm'].isel(**{dimname:i}, layer=range(int(mtop-1), int(mbot+1))).values
+        botm_single_obs[0] = ftop
+        botm_single_obs[-1] = fbot
+        return np.argmin(np.diff(botm_single_obs)) + mtop
+
+    modellayer = [get_max_overlap_model_layer(i) for i in range(ds_obs.sizes[dimname])]
+
+    return modellayer

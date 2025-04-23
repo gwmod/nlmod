@@ -86,7 +86,7 @@ def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=Non
 
     elif method == "de_lange":
         if ds is None:
-            raise ValueError("Please supply model dataset (ds) when method==de_Lange")
+            raise ValueError("Please supply model dataset (ds) when method=='de_lange'")
         # get additional requisite parameters
         if delange_params is None:
             delange_params = {}

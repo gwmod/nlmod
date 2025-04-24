@@ -1316,7 +1316,7 @@ def gdf_to_da(
     agg_method : str, optional
         aggregation method to handle multiple geometries in one cell, options
         are:
-        - max, min, mean,
+        - max, min, mean, sum
         - length_weighted (lines), max_length (lines),
         - area_weighted (polygon), max_area (polygon).
         The default is 'max'.
@@ -1353,13 +1353,12 @@ def gdf_to_da(
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
+        modelgrid = None
         if agg_method in ["nearest"]:
             modelgrid = modelgrid_from_ds(ds)
-            gdf_agg = aggregate_vector_per_cell(
-                gdf_cellid, {column: agg_method}, modelgrid
-            )
-        else:
-            gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
+        gdf_agg = aggregate_vector_per_cell(
+            gdf_cellid, {column: agg_method}, modelgrid=modelgrid
+        )
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]

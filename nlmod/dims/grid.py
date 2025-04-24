@@ -1511,18 +1511,18 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     # check geometry types
     geom_types = gdf.geometry.type.unique()
     if len(geom_types) > 1:
-        if (
-            len(geom_types) == 2
-            and ("Polygon" in geom_types)
-            and ("MultiPolygon" in geom_types)
+        if len(geom_types) == 2 and (
+            (set(geom_types) == set(["LineString", "MultiLineString"]))
+            or set(geom_types) == set(["Polygon", "MultiPolygon"])
         ):
             pass
         else:
             raise TypeError("cannot aggregate geometries of different types")
     if bool({"length_weighted", "max_length"} & set(fields_methods.values())):
-        assert (
-            geom_types[0] == "LineString"
-        ), "can only use length methods with line geometries"
+        if ("LineString" in geom_types) or ("MultiLineString" in geom_types):
+            pass
+        else:
+            raise TypeError("can only use length methods with line geometries")
     if bool({"area_weighted", "max_area"} & set(fields_methods.values())):
         if ("Polygon" in geom_types) or ("MultiPolygon" in geom_types):
             pass

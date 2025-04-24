@@ -154,19 +154,26 @@ def test_gdf_to_da_methods():
     ds = nlmod.to_model_ds(regis)
     bgt["values"] = range(len(bgt))
 
+    bgt_line = bgt.copy()
+    bgt_line.geometry = bgt.boundary
+
     for agg_method in [
         "nearest",
         "area_weighted",
         "max_area",
-        # "length_weighted",
-        # "max_length",
+        "length_weighted",
+        "max_length",
         # "center_grid",
         "max",
         "min",
         "mean",
         "sum",
     ]:
-        nlmod.grid.gdf_to_da(bgt, ds, column="values", agg_method=agg_method)
+        if agg_method in ["length_weighted", "max_length"]:
+            gdf = bgt_line
+        else:
+            gdf = bgt
+        nlmod.grid.gdf_to_da(gdf, ds, column="values", agg_method=agg_method)
 
 
 def test_gdf_to_bool_da():

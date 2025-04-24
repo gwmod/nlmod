@@ -624,6 +624,8 @@ def _get_ahn_ellipsis(extent, identifier="AHN5_5M_M", **kwargs):
     da = merge_arrays(das)
     if da.dims[0] == "band":
         da = da[0].drop_vars("band")
+    if "_FillValue" in da.attrs:
+        del da.attrs["_FillValue"]
     return da
 
 

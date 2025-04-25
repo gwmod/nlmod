@@ -1512,7 +1512,7 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     geom_types = gdf.geometry.type.unique()
     if len(geom_types) > 1:
         if len(geom_types) == 2 and (
-            (set(geom_types) == set(["LineString", "MultiLineString"]))
+            set(geom_types) == set(["LineString", "MultiLineString"])
             or set(geom_types) == set(["Polygon", "MultiPolygon"])
         ):
             pass

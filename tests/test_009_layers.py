@@ -1,13 +1,14 @@
 # %%
-import nlmod
 import os
-import test_001_model
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-from nlmod.plot import DatasetCrossSection
+import test_001_model
+from pandas import DataFrame
 from shapely.geometry import LineString
+
+import nlmod
+from nlmod.plot import DatasetCrossSection
 
 
 def get_regis_horstermeer():
@@ -261,14 +262,62 @@ def test_remove_thin_layers():
 
 def test_get_modellayers_screens():
     ds = test_001_model.get_ds_from_cache("small_model")
-    xy = [[98900,489600],[98800,489500],[98980,489680],[98980,489680]]
+    xy = [
+        [98900, 489600],
+        [98800, 489500],
+        [98980, 489680],
+        [98980, 489680],
+    ]
     screen_top = [10, -1, -35, 1000]
     screen_bottom = [9, -20, -100, -1000]
-    modellayers = nlmod.layers.get_modellayers_screens(ds, screen_top, screen_bottom, xy=xy)
+    modellayers = nlmod.layers.get_modellayers_screens(
+        ds, screen_top, screen_bottom, xy=xy
+    )
     assert np.isnan(modellayers[0])
     assert modellayers[1] == 1.0
-    assert modellayers[2] == ds.sizes['layer']-1
+    assert modellayers[2] == ds.sizes["layer"] - 1
 
     ds_ref = nlmod.grid.refine(ds, refinement_features=[])
-    modellayers_ref = nlmod.layers.get_modellayers_screens(ds_ref, screen_top, screen_bottom, xy=xy)
+    modellayers_ref = nlmod.layers.get_modellayers_screens(
+        ds_ref, screen_top, screen_bottom, xy=xy
+    )
     assert modellayers == modellayers_ref
+
+
+def test_get_modellayers_indexer():
+    ds = test_001_model.get_ds_from_cache("small_model")
+    data = {
+        "x": [98900, 98800, 98980, 98980],
+        "y": [489600, 489500, 489680, 489680],
+        "screen_top": [10, -1, -35, 1000],
+        "screen_bottom": [9, -20, -100, -1000],
+    }
+    df = DataFrame(data)
+
+    # structured grid
+    idx = nlmod.layers.get_modellayers_indexer(ds, df)
+    # check result
+    assert np.isnan(idx["layer"].values[0])
+    assert idx["layer"].values[1] == 1.0
+    assert idx["layer"].values[2] == ds.sizes["layer"] - 1
+
+    # drop nans
+    idx = idx.dropna("index")
+    # get layer names (annoying step that maybe should be performed in the function)
+    idx["layer"].values = ds.layer[idx["layer"].astype(int)].values
+    # test getting bottom elevations using indexer
+    _ = ds["botm"].sel(**idx)
+
+    # vertex grid
+    ds_ref = nlmod.grid.refine(ds, refinement_features=[])
+    idx2 = nlmod.layers.get_modellayers_indexer(ds_ref, df)
+    idx2 = idx2.dropna("index")
+    idx2["layer"].values = ds_ref.layer[idx2["layer"].astype(int)].values
+    _ = ds_ref["botm"].sel(**idx2)
+
+    assert (idx2["layer"] == idx["layer"]).all()
+
+    # full output
+    idxfull = nlmod.layers.get_modellayers_indexer(ds, df, full_output=True)
+    assert (idxfull["modellayer_top"] == np.array([np.inf, 1, 4, 0])).all()
+    assert (idxfull["modellayer_bot"] == np.array([np.inf, 2, 4, 4])).all()

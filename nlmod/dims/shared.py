@@ -92,6 +92,22 @@ def is_layered(ds):
     return "layer" in ds.dims
 
 
+def is_rotated(ds):
+    """Check if a dataset is rotated.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is rotated.
+    """
+    return "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
+
+
 def get_delr(ds):
     """
     Get the distance along rows (delr) from the x-coordinate of a structured model ds.

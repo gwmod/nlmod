@@ -1714,7 +1714,7 @@ def check_elevations_consistency(ds):
     thickness = calculate_thickness(ds)
     mask = thickness < 0.0
     if mask.any():
-        logger.warning(f"Thickness of layers is negative in {mask.sum()} cells.")
+        logger.warning(f"Thickness of layers is negative in {int(mask.sum())} cells.")
 
 
 def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):

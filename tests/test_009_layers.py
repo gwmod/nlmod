@@ -195,9 +195,18 @@ def test_aggregate_by_weighted_mean_to_ds():
     # assert (kh_new.isnull() == regis["kh"].isnull()).all() # does not assert to True...
 
 
-def test_check_elevations_consistency():
+def test_check_elevations_consistency(caplog):
     regis = get_regis_horstermeer()
+    # there are no inconsistencies in this dataset, let's check for that:
     nlmod.layers.check_elevations_consistency(regis)
+    assert len(caplog.text) == 0
+
+    # add an inconsistency by lowering the top of the model in part of the model domain
+    regis["top"][10:20, 20:25] = -5
+    nlmod.layers.check_elevations_consistency(regis)
+    assert "check_elevations_consistency" not in caplog.text
+    assert len(caplog.text) > 0
+    assert "Thickness of layers is negative in 50 cells" in caplog.text
 
 
 def test_get_first_and_last_active_layer():

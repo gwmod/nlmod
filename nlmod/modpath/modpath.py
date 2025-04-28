@@ -10,7 +10,12 @@ import pandas as pd
 from packaging.version import parse as parse_version
 
 from .. import util
-from ..dims.grid import get_icell2d_from_xy, get_row_col_from_xy
+from ..dims.grid import (
+    get_icell2d_from_xy,
+    get_node_structured,
+    get_node_vertex,
+    get_row_col_from_xy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,14 +100,6 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
                 nodes.append(get_node_vertex(layer[i], icell2d, mpf.ib.shape))
 
     return nodes
-
-
-def get_node_structured(lay, row, col, shape):
-    return lay * shape[1] * shape[2] + row * shape[2] + col
-
-
-def get_node_vertex(lay, icell2d, shape):
-    return lay * shape[1] + icell2d
 
 
 def package_to_nodes(gwf, package_name, mpf):

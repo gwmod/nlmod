@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 from typing import Literal
+from io import StringIO
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -25,6 +26,8 @@ from ..dims.resample import structured_da_to_ds
 from ..util import extent_to_polygon, get_ds_empty
 from .webservices import arcrest, wcs
 
+log_stream = StringIO()
+logging.basicConfig(stream=log_stream)
 logger = logging.getLogger(__name__)
 
 
@@ -653,11 +656,12 @@ def _update_ellipsis_tiles_in_data() -> None:
     tiles.to_file(fname)
 
 
-@cache.cache_netcdf()
-def _get_ahn_ellipsis(
-    extent: list[float], identifier: str, return_tiles: bool = False, **kwargs
-) -> xr.DataArray | list[xr.DataArray]:
-    """Download AHN from the ellipsis.
+def _get_ahn_ellipsis_tiles(
+    extent: list[float],
+    identifier: str,
+    **kwargs,
+) -> list[xr.DataArray]:
+    """Download AHN tiles from the ellipsis.
 
     Parameters
     ----------
@@ -678,6 +682,7 @@ def _get_ahn_ellipsis(
     -------
     xr.DataArray
         DataArray of the AHN
+
     """
     fname = os.path.join(NLMOD_DATADIR, "ahn", "ellipsis_tiles.geojson")
     tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
@@ -698,14 +703,31 @@ def _get_ahn_ellipsis(
         else:
             da = rioxarray.open_rasterio(url, mask_and_scale=True)
         das.append(da)
-    if return_tiles:
-        return das
     if len(das) == 0:
         raise (ValueError("No data found within extent"))
-    da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
-    if da.dims[0] == "band":
-        da = da[0].drop_vars("band")
-    return da
+    return das
+
+
+@cache.cache_netcdf()
+def _get_ahn_ellipsis(extent: list[float], identifier: str, **kwargs) -> xr.DataArray:
+    """Download and merge AHN from the ellipsis server.
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    das = _get_ahn_ellipsis_tiles(extent, identifier, **kwargs)
+
+    while "Skipping source:" not in log_stream:
+        da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
+        if da.dims[0] == "band":
+            da = da[0].drop_vars("band")
+        return da
+    else:
+        raise ValueError(
+            "Extent is too large, try cutting up the extent into smaller tiles and merge those manually."
+        )
 
 
 def _download_and_combine_tiles(

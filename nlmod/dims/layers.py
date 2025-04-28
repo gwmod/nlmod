@@ -1470,6 +1470,8 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
 
     first_active_layer = xr.where(idomain[0] == 1, 0, nodata)
     for i in range(1, idomain.shape[0]):
+        if not (first_active_layer == nodata).any():
+            break
         first_active_layer = xr.where(
             (first_active_layer == nodata) & (idomain[i] == 1),
             i,
@@ -1477,6 +1479,26 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
         )
     first_active_layer.attrs["nodata"] = nodata
     return first_active_layer
+
+
+def get_last_active_layer(ds, **kwargs):
+    """Get the last active layer in each cell from a model ds.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        Model Dataset
+    **kwargs : dict
+        Kwargs are passed on to get_last_active_layer_from_idomain.
+
+    Returns
+    -------
+    last_active_layer : xr.DataArray
+        raster in which each cell has the zero based number of the last
+        active layer. Shape can be (y, x) or (icell2d)
+    """
+    idomain = get_idomain(ds)
+    return get_last_active_layer_from_idomain(idomain, **kwargs)
 
 
 def get_last_active_layer_from_idomain(idomain, nodata=-999):
@@ -1498,8 +1520,10 @@ def get_last_active_layer_from_idomain(idomain, nodata=-999):
     """
     logger.debug("get last active modellayer for each cell in idomain")
 
-    last_active_layer = xr.where(idomain[-1] == 1, 0, nodata)
+    last_active_layer = xr.where(idomain[-1] == 1, idomain.shape[0] - 1, nodata)
     for i in range(idomain.shape[0] - 2, -1, -1):
+        if not (last_active_layer == nodata).any():
+            break
         last_active_layer = xr.where(
             (last_active_layer == nodata) & (idomain[i] == 1),
             i,
@@ -1690,7 +1714,7 @@ def check_elevations_consistency(ds):
     thickness = calculate_thickness(ds)
     mask = thickness < 0.0
     if mask.any():
-        logger.warning(f"Thickness of layers is negative in {mask.sum()} cells.")
+        logger.warning(f"Thickness of layers is negative in {int(mask.sum())} cells.")
 
 
 def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):

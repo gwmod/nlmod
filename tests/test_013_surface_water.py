@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import geopandas as gpd
 import pandas as pd
 import flopy
@@ -55,6 +56,10 @@ def test_gdf_lake():
     )
     ds = nlmod.time.set_ds_time(ds, time=[1], start=pd.Timestamp.today())
     ds = nlmod.dims.refine(ds)
+    dims = ("time", "icell2d")
+    size = (len(ds.time), len(ds.icell2d))
+    ds["recharge"] = dims, np.full(size, 0.002)
+    ds["evaporation"] = dims, np.full(size, 0.001)
 
     sim = nlmod.sim.sim(ds)
     nlmod.sim.tdis(ds, sim)
@@ -62,7 +67,7 @@ def test_gdf_lake():
     gwf = nlmod.gwf.gwf(ds, sim)
     nlmod.gwf.dis(ds, gwf)
 
-    ds["evap"] = (("time",), [0.0004])
+    ds["lake_evap"] = (("time",), [0.0004])
 
     # add lake with outlet and evaporation
     gdf_lake = gpd.GeoDataFrame(
@@ -70,14 +75,20 @@ def test_gdf_lake():
             "name": ["lake_0", "lake_0", "lake_1"],
             "strt": [1.0, 1.0, 2.0],
             "clake": [10.0, 10.0, 10.0],
-            "EVAPORATION": ["evap", "evap", "evap"],
+            "EVAPORATION": ["lake_evap", "lake_evap", "lake_evap"],
             "lakeout": ["lake_1", "lake_1", None],
             "outlet_invert": ["use_elevation", "use_elevation", None],
         },
         index=[14, 15, 16],
     )
 
-    nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name")
+    rainfall, evaporation = nlmod.gwf.clip_meteorological_data_from_ds(
+        gdf_lake, ds, boundname_column="name"
+    )
+    # do not pass evaporation to lake_from_gdf, as we have specified it in gdf_lake
+    nlmod.gwf.lake_from_gdf(
+        gwf, gdf_lake, ds, boundname_column="name", rainfall=rainfall
+    )
 
     # remove lake package
     gwf.remove_package("LAK_0")

@@ -1,4 +1,5 @@
 import logging
+
 import flopy
 import geopandas as gpd
 import matplotlib
@@ -12,7 +13,7 @@ from matplotlib.patches import Rectangle
 from shapely.affinity import affine_transform
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
-from ..dims.grid import get_affine_world_to_mod, modelgrid_from_ds, get_delr, get_delc
+from ..dims.grid import get_affine_world_to_mod, get_delc, get_delr, modelgrid_from_ds
 from .plotutil import get_map
 
 logger = logging.getLogger(__name__)
@@ -445,7 +446,6 @@ class DatasetCrossSection:
         np.ndarray
             array with dimensions (layer, distance along cross section).
         """
-
         if isinstance(z, xr.DataArray):
             z = z.data
 
@@ -464,7 +464,6 @@ class DatasetCrossSection:
             return z[:, self.rows, self.cols]
 
     def plot_array(self, z, head=None, **kwargs):
-
         zcs = self.array_on_cs(z)
 
         if head is not None:

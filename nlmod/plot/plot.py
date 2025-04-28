@@ -477,7 +477,8 @@ def map_array(
 
     # select layer
     try:
-        nlay = da["layer"].shape[0]
+        # check if layer is a dimension
+        nlay = da["layer"].shape[0] if "layer" in da.dims else -1
     except IndexError:
         nlay = 0  # only one layer
     except KeyError:

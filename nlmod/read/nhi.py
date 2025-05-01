@@ -237,6 +237,8 @@ def get_gwo_wells(
         params.update(kwargs)
 
         r = requests.get(url, auth=(username, password), params=params, timeout=timeout)
+        if not r.ok:
+            r.raise_for_status()
         content = r.content.decode("utf-8")
         if len(content) == 0:
             if page == 1:

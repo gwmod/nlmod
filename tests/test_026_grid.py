@@ -134,6 +134,48 @@ def test_fillnan_da():
     assert not top[mask].isnull().any()
 
 
+def test_interpolate_gdf_to_array():
+    bgt = get_bgt()
+    bgt.geometry = bgt.centroid
+    bgt["values"] = range(len(bgt))
+
+    regis = get_regis()
+    ds = nlmod.to_model_ds(regis, model_ws=model_ws)
+    sim = nlmod.sim.sim(ds)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    nlmod.gwf.dis(ds, gwf)
+
+    nlmod.grid.interpolate_gdf_to_array(bgt, gwf, field="values", method="linear")
+
+
+def test_gdf_to_da_methods():
+    bgt = get_bgt()
+    regis = get_regis()
+    ds = nlmod.to_model_ds(regis)
+    bgt["values"] = range(len(bgt))
+
+    bgt_line = bgt.copy()
+    bgt_line.geometry = bgt.boundary
+
+    for agg_method in [
+        "nearest",
+        "area_weighted",
+        "max_area",
+        "length_weighted",
+        "max_length",
+        # "center_grid",
+        "max",
+        "min",
+        "mean",
+        "sum",
+    ]:
+        if agg_method in ["length_weighted", "max_length"]:
+            gdf = bgt_line
+        else:
+            gdf = bgt
+        nlmod.grid.gdf_to_da(gdf, ds, column="values", agg_method=agg_method)
+
+
 def test_gdf_to_bool_da():
     bgt = get_bgt()
 
@@ -155,6 +197,30 @@ def test_gdf_to_bool_da():
     # test for a rotated vertex grid
     ds = get_vertex_model_ds_rotated()
     da = nlmod.grid.gdf_to_bool_da(bgt, ds)
+    assert da.any()
+
+
+def test_gdf_to_count_da():
+    bgt = get_bgt()
+
+    # test for a structured grid
+    ds = get_structured_model_ds()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
+    assert da.any()
+
+    # test for a vertex grid
+    ds = get_vertex_model_ds()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
+    assert da.any()
+
+    # tets for a slightly rotated structured grid
+    ds = get_structured_model_ds_rotated()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
+    assert da.any()
+
+    # test for a rotated vertex grid
+    ds = get_vertex_model_ds_rotated()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
     assert da.any()
 
 

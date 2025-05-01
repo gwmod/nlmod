@@ -45,6 +45,9 @@ def test_cache_ahn_data_array():
             modification_time1 != modification_time3
         ), "Cache should have been rewritten"
 
+        # clear cache again
+        nlmod.cache.clear_cache(tmpdir, prompt=False)
+
 
 def test_cache_northsea_data_array():
     """Test caching of AHN data array. Does have dataset as argument."""

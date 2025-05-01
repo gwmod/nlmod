@@ -36,63 +36,17 @@ from .layers import (
     remove_inactive_layers,
 )
 from .rdp import rdp
-from .shared import GridTypeDims, get_area, get_delc, get_delr  # noqa: F401
+from .shared import (
+    GridTypeDims,
+    get_area,
+    get_delc,
+    get_delr,
+    is_structured,
+    is_vertex,
+    is_layered,
+)  # noqa: F401
 
 logger = logging.getLogger(__name__)
-
-
-def is_structured(ds):
-    """Check if a dataset is structured.
-
-    Parameters
-    ----------
-    ds : xr.Dataset or xr.Dataarray
-        dataset or dataarray
-
-    Returns
-    -------
-    bool
-        True if the dataset is structured.
-    """
-    return GridTypeDims.parse_dims(ds) in (
-        GridTypeDims.STRUCTURED,
-        GridTypeDims.STRUCTURED_LAYERED,
-    )
-
-
-def is_vertex(ds):
-    """Check if a dataset is vertex.
-
-    Parameters
-    ----------
-    ds : xr.Dataset or xr.Dataarray
-        dataset or dataarray
-
-    Returns
-    -------
-    bool
-        True if the dataset is structured.
-    """
-    return GridTypeDims.parse_dims(ds) in (
-        GridTypeDims.VERTEX,
-        GridTypeDims.VERTEX_LAYERED,
-    )
-
-
-def is_layered(ds):
-    """Check if a dataset is layered.
-
-    Parameters
-    ----------
-    ds : xr.Dataset or xr.Dataarray
-        dataset or dataarray
-
-    Returns
-    -------
-    bool
-        True if the dataset is layered.
-    """
-    return "layer" in ds.dims
 
 
 def snap_extent(extent, delr, delc):
@@ -1362,7 +1316,7 @@ def gdf_to_da(
     agg_method : str, optional
         aggregation method to handle multiple geometries in one cell, options
         are:
-        - max, min, mean,
+        - max, min, mean, sum
         - length_weighted (lines), max_length (lines),
         - area_weighted (polygon), max_area (polygon).
         The default is 'max'.
@@ -1399,13 +1353,12 @@ def gdf_to_da(
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
+        modelgrid = None
         if agg_method in ["nearest"]:
             modelgrid = modelgrid_from_ds(ds)
-            gdf_agg = aggregate_vector_per_cell(
-                gdf_cellid, {column: agg_method}, modelgrid
-            )
-        else:
-            gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
+        gdf_agg = aggregate_vector_per_cell(
+            gdf_cellid, {column: agg_method}, modelgrid=modelgrid
+        )
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]
@@ -1558,18 +1511,18 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     # check geometry types
     geom_types = gdf.geometry.type.unique()
     if len(geom_types) > 1:
-        if (
-            len(geom_types) == 2
-            and ("Polygon" in geom_types)
-            and ("MultiPolygon" in geom_types)
+        if len(geom_types) == 2 and (
+            set(geom_types) == set(["LineString", "MultiLineString"])
+            or set(geom_types) == set(["Polygon", "MultiPolygon"])
         ):
             pass
         else:
             raise TypeError("cannot aggregate geometries of different types")
     if bool({"length_weighted", "max_length"} & set(fields_methods.values())):
-        assert (
-            geom_types[0] == "LineString"
-        ), "can only use length methods with line geometries"
+        if ("LineString" in geom_types) or ("MultiLineString" in geom_types):
+            pass
+        else:
+            raise TypeError("can only use length methods with line geometries")
     if bool({"area_weighted", "max_area"} & set(fields_methods.values())):
         if ("Polygon" in geom_types) or ("MultiPolygon" in geom_types):
             pass

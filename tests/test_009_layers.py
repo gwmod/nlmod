@@ -9,14 +9,13 @@ import nlmod
 from nlmod.plot import DatasetCrossSection
 
 
-def get_regis_horstermeer():
+def get_regis_horstermeer(cachedir=None, cachename="regis_horstermeer"):
     extent = [131000, 136800, 471500, 475700]
-    cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+    if cachedir is None:
+        cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
-    regis = nlmod.read.get_regis(
-        extent, cachedir=cachedir, cachename="regis_horstermeer"
-    )
+    regis = nlmod.read.get_regis(extent, cachedir=cachedir, cachename=cachename)
     return regis
 
 
@@ -157,6 +156,68 @@ def test_set_minimum_layer_thickness(plot=False):
 
     if plot:
         plot_test(regis, ds_new)
+
+
+def test_calculate_transmissivity():
+    regis = get_regis_horstermeer()
+    nlmod.layers.calculate_transmissivity(regis)
+
+
+def test_calculate_resistance():
+    regis = get_regis_horstermeer()
+    # with the default value of between_layers=True
+    nlmod.layers.calculate_resistance(regis)
+    # and also with between_layers=False
+    nlmod.layers.calculate_resistance(regis, between_layers=False)
+
+
+def test_get_layer_of_z():
+    regis = get_regis_horstermeer()
+    z = -100
+
+    layer = nlmod.layers.get_layer_of_z(regis, z)
+
+    assert (regis["botm"].isel(layer=layer) < z).all()
+    top = regis["botm"] + nlmod.layers.calculate_thickness(regis)
+    assert (top.isel(layer=layer) > z).all()
+
+
+def test_aggregate_by_weighted_mean_to_ds():
+    regis = get_regis_horstermeer()
+    regis2 = regis.copy(deep=True)
+
+    # botm needs to have the name "bottom'
+    regis2["bottom"] = regis2["botm"]
+    # top needs to be 3d
+    regis2["top"] = regis2["botm"] + nlmod.layers.calculate_thickness(regis2)
+    kh_new = nlmod.layers.aggregate_by_weighted_mean_to_ds(regis, regis2, "kh")
+    assert np.abs(kh_new - regis["kh"]).max() < 1e-5
+    # assert (kh_new.isnull() == regis["kh"].isnull()).all() # does not assert to True...
+
+
+def test_check_elevations_consistency(caplog):
+    regis = get_regis_horstermeer()
+    # there are no inconsistencies in this dataset, let's check for that:
+    nlmod.layers.check_elevations_consistency(regis)
+    assert len(caplog.text) == 0
+
+    # add an inconsistency by lowering the top of the model in part of the model domain
+    regis["top"][10:20, 20:25] = -5
+    nlmod.layers.check_elevations_consistency(regis)
+    assert "check_elevations_consistency" not in caplog.text
+    assert len(caplog.text) > 0
+    assert "Thickness of layers is negative in 50 cells" in caplog.text
+
+
+def test_get_first_and_last_active_layer():
+    regis = get_regis_horstermeer()
+    thickness = nlmod.layers.calculate_thickness(regis)
+
+    fal = nlmod.layers.get_first_active_layer(regis)
+    assert (thickness[fal] > 0).all()
+
+    lal = nlmod.layers.get_last_active_layer(regis)
+    assert (thickness[lal] > 0).all()
 
 
 def test_set_model_top(plot=False):

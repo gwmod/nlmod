@@ -709,6 +709,8 @@ def _get_ahn_ellipsis(
         da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
         if da.dims[0] == "band":
             da = da[0].drop_vars("band")
+        if "_FillValue" in da.attrs:
+            del da.attrs["_FillValue"]
         return da
     return das
 

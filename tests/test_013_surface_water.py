@@ -1,29 +1,41 @@
 import os
 
+import numpy as np
 import geopandas as gpd
 import pandas as pd
+import flopy
 
 import nlmod
 
 
-def test_gdf_to_seasonal_pkg():
+def get_ds_and_gdf():
     model_name = "sw"
     model_ws = os.path.join("data", model_name)
     extent = [119000, 120000, 523000, 524000]
     ds = nlmod.get_ds(extent, model_ws=model_ws, model_name=model_name)
     ds = nlmod.time.set_ds_time(ds, time=[365.0], start=pd.Timestamp.today())
-    gdf = nlmod.gwf.surface_water.get_gdf(ds)
+    fname = os.path.join(ds.model_ws, "sw_gdf.gpkg")
+    if not os.path.isfile(fname):
+        gdf = nlmod.gwf.surface_water.get_gdf(ds)
+        gdf.to_file(fname)
+    gdf = gpd.read_file(fname)
+    gdf["cellid"] = [eval(x) for x in gdf["cellid"]]
+    gdf = gdf.set_index("cellid")
+    return ds, gdf
+
+
+def test_gdf_to_seasonal_pkg():
+    ds, gdf = get_ds_and_gdf()
 
     sim = nlmod.sim.sim(ds)
     nlmod.sim.tdis(ds, sim)
-    nlmod.sim.ims(sim)
     gwf = nlmod.gwf.gwf(ds, sim)
     nlmod.gwf.dis(ds, gwf)
-    nlmod.gwf.npf(ds, gwf)
-    nlmod.gwf.ic(ds, gwf, starting_head=1.0)
-    nlmod.gwf.oc(ds, gwf)
 
-    nlmod.gwf.surface_water.gdf_to_seasonal_pkg(gdf, gwf, ds, pkg="DRN")
+    for layer_method in ["lay_of_rbot" and "distribute_cond_over_lays"]:
+        nlmod.gwf.surface_water.gdf_to_seasonal_pkg(
+            gdf, gwf, ds, pkg="DRN", layer_method=layer_method
+        )
 
 
 def test_get_seaonal_timeseries():
@@ -44,6 +56,10 @@ def test_gdf_lake():
     )
     ds = nlmod.time.set_ds_time(ds, time=[1], start=pd.Timestamp.today())
     ds = nlmod.dims.refine(ds)
+    dims = ("time", "icell2d")
+    size = (len(ds.time), len(ds.icell2d))
+    ds["recharge"] = dims, np.full(size, 0.002)
+    ds["evaporation"] = dims, np.full(size, 0.001)
 
     sim = nlmod.sim.sim(ds)
     nlmod.sim.tdis(ds, sim)
@@ -51,7 +67,7 @@ def test_gdf_lake():
     gwf = nlmod.gwf.gwf(ds, sim)
     nlmod.gwf.dis(ds, gwf)
 
-    ds["evap"] = (("time",), [0.0004])
+    ds["lake_evap"] = (("time",), [0.0004])
 
     # add lake with outlet and evaporation
     gdf_lake = gpd.GeoDataFrame(
@@ -59,14 +75,20 @@ def test_gdf_lake():
             "name": ["lake_0", "lake_0", "lake_1"],
             "strt": [1.0, 1.0, 2.0],
             "clake": [10.0, 10.0, 10.0],
-            "EVAPORATION": ["evap", "evap", "evap"],
+            "EVAPORATION": ["lake_evap", "lake_evap", "lake_evap"],
             "lakeout": ["lake_1", "lake_1", None],
             "outlet_invert": ["use_elevation", "use_elevation", None],
         },
         index=[14, 15, 16],
     )
 
-    nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name")
+    rainfall, evaporation = nlmod.gwf.clip_meteorological_data_from_ds(
+        gdf_lake, ds, boundname_column="name"
+    )
+    # do not pass evaporation to lake_from_gdf, as we have specified it in gdf_lake
+    nlmod.gwf.lake_from_gdf(
+        gwf, gdf_lake, ds, boundname_column="name", rainfall=rainfall
+    )
 
     # remove lake package
     gwf.remove_package("LAK_0")
@@ -90,3 +112,23 @@ def test_gdf_lake():
     )
 
     nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name")
+
+
+def test_aggregate():
+    ds, gdf = get_ds_and_gdf()
+    gdf = gdf.reset_index()
+    gdf["stage"] = gdf[["summer_stage", "winter_stage"]].mean(1)
+    gdf["botm"] = gdf["bottom_height"]
+    mask = gdf["botm"].isna()
+    gdf.loc[mask, "botm"] = gdf.loc[mask, "stage"] - 0.5
+    gdf["c0"] = 1.0
+
+    sim = nlmod.sim.sim(ds)
+    nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    nlmod.gwf.dis(ds, gwf)
+    for method in ["area_weighted", "max_area", "de_lange"]:
+        celldata = nlmod.gwf.aggregate(gdf, method, ds=ds)
+        assert not celldata.isna().any(axis=None)
+        riv_spd = nlmod.gwf.surface_water.build_spd(celldata, "RIV", ds)
+        flopy.mf6.ModflowGwfriv(gwf, stress_period_data=riv_spd)

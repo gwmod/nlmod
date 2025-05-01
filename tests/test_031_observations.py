@@ -33,15 +33,15 @@ def test_interpolate_points(h, request):
     h = request.getfixturevalue(h)
     xi = [98_775, 98_900, 98_950, 98_950]
     yi = [489_600, 489_600, 489_650, 489_650]
-    hi = nlmod.observations.interpolate_points(h.isel(time=0, layer=0), xi, yi)
+    hi = nlmod.observations.interpolate_to_points_2d(h.isel(time=0, layer=0), xi, yi)
     assert (hi == np.array([2.5, 0.5, 0.0, 0.0])).all()
 
     # error when data is not 2D/1D
     with pytest.raises(AssertionError):
-        hi = nlmod.observations.interpolate_points(h.isel(layer=0), xi, yi)
+        hi = nlmod.observations.interpolate_to_points_2d(h.isel(layer=0), xi, yi)
 
 
-def test_interpolate_points_ds_structured(head_structured):
+def test_interpolate_to_points_structured(head_structured):
     head = head_structured
     head.loc[{"x": head.x[0]}] = 3.0
     head.loc[{"x": head.x[-1]}] = 0.0
@@ -60,7 +60,7 @@ def test_interpolate_points_ds_structured(head_structured):
     idx = nlmod.layers.get_modellayers_indexer(ds, df, full_output=True)
 
     # planar
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head.isel(time=0, layer=0),  # planar
         idx,
         xi="x_obs",
@@ -73,7 +73,7 @@ def test_interpolate_points_ds_structured(head_structured):
     assert (hi == np.array([2.5, 0.5, 0.0, 0.0])).all()
 
     # planar with time
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head.isel(layer=0),  # planar with time
         idx,
         xi="x_obs",
@@ -86,7 +86,7 @@ def test_interpolate_points_ds_structured(head_structured):
     assert (hi.isel(time=-1) == np.array([2.5, 0.5, 0.0, 0.0])).all()
 
     # layered
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head.isel(time=0),  # layered
         idx,
         xi="x_obs",
@@ -98,7 +98,7 @@ def test_interpolate_points_ds_structured(head_structured):
     )
     assert (hi == np.array([2.5, 0.5, 0.0, 0.0])).all()
     # layered with time
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head,
         idx,
         xi="x_obs",
@@ -111,7 +111,7 @@ def test_interpolate_points_ds_structured(head_structured):
     assert (hi.isel(time=-1) == np.array([2.5, 0.5, 0.0, 0.0])).all()
 
 
-def test_interpolate_points_ds_vertex(head_vertex):
+def test_interpolate_to_points_vertex(head_vertex):
     head = head_vertex
     grb_file = "./tests/data/mf6output/vertex/test.disv.grb"
     ds = nlmod.grid.modelgrid_to_ds(grbfile=grb_file)
@@ -126,7 +126,7 @@ def test_interpolate_points_ds_vertex(head_vertex):
 
     idx = nlmod.layers.get_modellayers_indexer(ds, df, full_output=True)
     # planar
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head.isel(time=0, layer=0),  # planar
         idx,
         xi="x",
@@ -138,7 +138,7 @@ def test_interpolate_points_ds_vertex(head_vertex):
     )
     assert (hi == np.array([2.5, 0.5, 0.0, 0.0])).all()
     # planar with time
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head.isel(layer=0),  # planar with time
         idx,
         xi="x",
@@ -150,7 +150,7 @@ def test_interpolate_points_ds_vertex(head_vertex):
     )
     assert (hi.isel(time=-1) == np.array([2.5, 0.5, 0.0, 0.0])).all()
     # layered
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head.isel(time=0),  # layered
         idx,
         xi="x",
@@ -162,7 +162,7 @@ def test_interpolate_points_ds_vertex(head_vertex):
     )
     assert (hi == np.array([2.5, 0.5, 0.0, 0.0])).all()
     # layered with time
-    hi = nlmod.observations.interpolate_points_ds(
+    hi = nlmod.observations.interpolate_to_points(
         head,
         idx,
         xi="x",

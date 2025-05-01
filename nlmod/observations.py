@@ -5,7 +5,7 @@ from scipy.spatial import Delaunay
 from nlmod.dims import grid
 
 
-def compute_interpolation_weights(xy, uv, d=2):
+def _compute_interpolation_weights(xy, uv, d=2):
     """Calculate interpolation weights for barycentric interpolation [1]_.
 
     Parameters
@@ -41,7 +41,7 @@ def compute_interpolation_weights(xy, uv, d=2):
     return vertices, np.hstack((bary, 1 - bary.sum(axis=1, keepdims=True)))
 
 
-def interpolate_vertices_weights(values, vertices, weights, fill_value=np.nan):
+def _interpolate_vertices_weights(values, vertices, weights, fill_value=np.nan):
     """Interpolate values at locations given computed vertices and weights.
 
     As calculated by compute_barycentric_interpolation_weights function [2]_.
@@ -76,7 +76,7 @@ def interpolate_vertices_weights(values, vertices, weights, fill_value=np.nan):
     return ret
 
 
-def interpolate_points(da, xi, yi, x="x", y="y"):
+def interpolate_to_points_2d(da, xi, yi, x="x", y="y"):
     """Interpolate values at locations given by x and y coordinates.
 
     This function only works for 2D (planar) data, both for structured
@@ -118,11 +118,11 @@ def interpolate_points(da, xi, yi, x="x", y="y"):
         xy = np.vstack([x, y]).T
     else:
         raise ValueError("da must be structured or vertex grid")
-    vertices, weights = compute_interpolation_weights(xy, xyi, d=2)
-    return interpolate_vertices_weights(da.values, vertices, weights)
+    vertices, weights = _compute_interpolation_weights(xy, xyi, d=2)
+    return _interpolate_vertices_weights(da.values, vertices, weights)
 
 
-def interpolate_points_ds(
+def interpolate_to_points(
     da, pts, xi="x", yi="y", x="x", y="y", layer="layer", full_output=False
 ):
     """Linear interpolation of point values from dataarray.
@@ -190,7 +190,7 @@ def interpolate_points_ds(
             input_dims = ["icell2d"]
         else:
             raise ValueError("da must be structured or vertex grid")
-        vertices, weights = compute_interpolation_weights(xy, xyi, d=2)
+        vertices, weights = _compute_interpolation_weights(xy, xyi, d=2)
         dim = xi.dims[0]
         interp_da["vertices"] = (dim, "iv"), vertices
         interp_da["weights"] = (dim, "iv"), weights
@@ -200,7 +200,7 @@ def interpolate_points_ds(
     # interpolations are carried out than strictly necessary, but maybe
     # this is still faster?
     interpolated = xr.apply_ufunc(
-        interpolate_vertices_weights,
+        _interpolate_vertices_weights,
         da,  # DataArray with dimensions  e.g. (time, layer, y, x)
         interp_da["vertices"],  # DataArray with dimensions (dim, iv)
         interp_da["weights"],  # DataArray with dimensions (dim, iv)

@@ -1,7 +1,6 @@
 import datetime as dt
 import logging
 import os
-import tempfile
 from typing import Literal
 
 import geopandas as gpd
@@ -739,14 +738,6 @@ def _download_and_combine_tiles(
         da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         return da
     return memfile
-
-
-def _array_to_reader(da: xr.DataArray) -> rasterio.io.DatasetReader:
-    """Convert a xarray DataArray to a rasterio DatasetReader."""
-    with tempfile.NamedTemporaryFile(suffix=".tif") as tmpfile:
-        logger.info(f"Writing DataArray to temporary file {tmpfile.name}")
-        da.rio.to_raster(tmpfile.name, driver="GTiff")
-        return rasterio.open(tmpfile.name, driver="GTiff")
 
 
 def _rename_identifier(identifier: str) -> str:

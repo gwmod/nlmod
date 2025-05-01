@@ -3,7 +3,6 @@ import logging
 import os
 import tempfile
 from typing import Literal
-from io import StringIO
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -26,8 +25,6 @@ from ..dims.resample import structured_da_to_ds
 from ..util import extent_to_polygon, get_ds_empty
 from .webservices import arcrest, wcs
 
-log_stream = StringIO()
-logging.basicConfig(stream=log_stream)
 logger = logging.getLogger(__name__)
 
 
@@ -656,12 +653,11 @@ def _update_ellipsis_tiles_in_data() -> None:
     tiles.to_file(fname)
 
 
-def _get_ahn_ellipsis_tiles(
-    extent: list[float],
-    identifier: str,
-    **kwargs,
-) -> list[xr.DataArray]:
-    """Download AHN tiles from the ellipsis.
+@cache.cache_netcdf()
+def _get_ahn_ellipsis(
+    extent: list[float], identifier: str, merge_tiles: bool = True, **kwargs
+) -> xr.DataArray | list[xr.DataArray]:
+    """Download and merge AHN tiles from the ellipsis.
 
     Parameters
     ----------
@@ -677,6 +673,9 @@ def _get_ahn_ellipsis_tiles(
         The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
         type of height data (M = DTM = surface level, R = DSM = also other features).
         The default is 'AHN4_5M_M'.
+    merge_tiles : bool, optional
+        If True, the function returns a merged DataArray. If False, the function
+        returns a list of DataArrays with the original tiles. The default is True.
 
     Returns
     -------
@@ -703,31 +702,16 @@ def _get_ahn_ellipsis_tiles(
         else:
             da = rioxarray.open_rasterio(url, mask_and_scale=True)
         das.append(da)
+
     if len(das) == 0:
         raise (ValueError("No data found within extent"))
-    return das
 
-
-@cache.cache_netcdf()
-def _get_ahn_ellipsis(extent: list[float], identifier: str, **kwargs) -> xr.DataArray:
-    """Download and merge AHN from the ellipsis server.
-
-    Returns
-    -------
-    xr.DataArray
-        DataArray of the AHN
-    """
-    das = _get_ahn_ellipsis_tiles(extent, identifier, **kwargs)
-
-    while "Skipping source:" not in log_stream:
+    if merge_tiles:
         da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
         if da.dims[0] == "band":
             da = da[0].drop_vars("band")
         return da
-    else:
-        raise ValueError(
-            "Extent is too large, try cutting up the extent into smaller tiles and merge those manually."
-        )
+    return das
 
 
 def _download_and_combine_tiles(
@@ -736,7 +720,7 @@ def _download_and_combine_tiles(
     """Internal method to download and combine ahn-data."""
     if tiles.empty:
         raise (Exception(f"{identifier} has no data for requested extent"))
-    das = []
+    datasets = []
     for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[name, identifier]
         if isinstance(url, pd.Series):
@@ -747,25 +731,13 @@ def _download_and_combine_tiles(
         path = url.split("/")[-1].replace(".zip", ".TIF")
         if path.lower().endswith(".tif.tif"):
             path = path[:-4]
-        das.append(rasterio.open(f"zip+{url}!/{path}"))
-    ret = _merge_arrays(images=das, extent=extent, as_data_array=as_data_array)
-    return ret
-
-
-def _merge_arrays(
-    images: list[rasterio.io.DatasetReader | xr.DataArray],
-    extent: list[float],
-    as_data_array: bool = True,
-) -> xr.DataArray | MemoryFile:
-    """Merge the AHN DataArrays into a single DataArray."""
-    if isinstance(images[0], xr.DataArray):
-        images = [_array_to_reader(da) for da in images]
-
+        datasets.append(rasterio.open(f"zip+{url}!/{path}"))
     memfile = MemoryFile()
-    _ = merge.merge(images, dst_path=memfile, nodata=np.nan)
+    merge.merge(datasets, dst_path=memfile)
     if as_data_array:
         da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        return da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        return da
     return memfile
 
 

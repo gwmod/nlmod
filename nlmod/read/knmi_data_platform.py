@@ -19,7 +19,20 @@ logger = logging.getLogger(__name__)
 base_url = "https://api.dataplatform.knmi.nl/open-data/v1"
 
 
+class KNMIDataPlatformError(Exception):
+    """Custom exception for KNMI Data Platform errors."""
+
+    pass
+
+
+class MultipleDatasetsFound(Exception):
+    """Custom exception for multiple datasets found in a file."""
+
+    pass
+
+
 def get_anonymous_api_key() -> Union[str, None]:
+    """Get anonymous API Key from KNMI data platform."""
     try:
         url = "https://developer.dataplatform.knmi.nl/open-data-api#token"
         webpage = requests.get(url, timeout=120)  # get webpage
@@ -27,7 +40,10 @@ def get_anonymous_api_key() -> Union[str, None]:
             webpage.text.split("</code></pre>")[0].split("<pre><code>")[-1].strip()
         )  # obtain apikey from codeblock on webpage
         if len(api_key) != 120:
-            msg = f"Could not obtain API Key from {url}, trying API Key from memory. Found API Key = {api_key}"
+            msg = (
+                f"Could not obtain API Key from {url}, trying API "
+                f"Key from memory. Found API Key = {api_key}"
+            )
             logger.error(msg)
             raise ValueError(msg)
         logger.info(f"Retrieved anonymous API Key from {url}")
@@ -36,7 +52,8 @@ def get_anonymous_api_key() -> Union[str, None]:
         api_key_memory_date = "2025-07-01"
         if Timestamp.today() < Timestamp(api_key_memory_date):
             logger.info(
-                f"Retrieved anonymous API Key (available till {api_key_memory_date}) from memory"
+                "Retrieved anonymous API Key (available till"
+                f" {api_key_memory_date}) from memory"
             )
             api_key = (
                 "eyJvcmciOiI1ZTU1NGUxOTI3NGE5NjAwMDEyYTNlYjEiLCJpZCI6ImE1OGI5N"
@@ -66,7 +83,7 @@ def get_list_of_files(
     is_trucated = True
     while is_trucated:
         url = f"{base_url}/datasets/{dataset_name}/versions/{dataset_version}/files"
-        r = requests.get(url, headers={"Authorization": api_key}, timeout=timeout)
+        # r = requests.get(url, headers={"Authorization": api_key}, timeout=timeout)
         params = {"maxKeys": f"{max_keys}"}
         if start_after_filename is not None:
             params["startAfterFilename"] = start_after_filename
@@ -75,6 +92,8 @@ def get_list_of_files(
             url, params=params, headers={"Authorization": api_key}, timeout=timeout
         )
         rjson = r.json()
+        if "error" in rjson:
+            raise KNMIDataPlatformError(f"Error in response: {rjson['error']}")
         files.extend([x["filename"] for x in rjson["files"]])
         is_trucated = rjson["isTruncated"]
         start_after_filename = files[-1]
@@ -98,14 +117,16 @@ def download_file(
         f"{dataset_version}/files/{fname}/url"
     )
     r = requests.get(url, headers={"Authorization": api_key}, timeout=timeout)
+    rjson = r.json()
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
     logger.info(f"Download {fname} to {dirname}")
     fname = os.path.join(dirname, fname)
-    data = r.json()
-    if "temporaryDownloadUrl" not in data:
-        raise FileNotFoundError(f"{fname} not found")
-    with requests.get(data["temporaryDownloadUrl"], stream=True, timeout=timeout) as r:
+    if "temporaryDownloadUrl" not in rjson:
+        raise KNMIDataPlatformError(f"{fname} not found")
+    if "error" in rjson:
+        raise KNMIDataPlatformError(f"Error in response: {rjson['error']}")
+    with requests.get(rjson["temporaryDownloadUrl"], stream=True, timeout=timeout) as r:
         r.raise_for_status()
         with open(fname, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -139,7 +160,7 @@ def read_nc(fo: Union[str, FileIO], **kwargs: dict) -> xr.Dataset:
 
 
 def get_timestamp_from_fname(fname: str) -> Union[Timestamp, None]:
-    """Get the Timestamp from a filename (with some assumptions about the formatting)"""
+    """Get the Timestamp from a filename (with assumptions about the formatting)."""
     datestr = re.search("(_[0-9]{12})", fname)  # assumes YYYYMMDDHHMM
     if datestr is not None:
         match = datestr.group(0).replace("_", "")
@@ -180,10 +201,6 @@ def add_h5_meta(meta: Dict[str, Any], h5obj: Any, orig_ky: str = "") -> Dict[str
         meta.update(submeta)
 
     return meta
-
-
-class MultipleDatasetsFound(Exception):
-    pass
 
 
 def read_h5_contents(h5fo: FileIO) -> Tuple[ndarray, Dict[str, Any]]:

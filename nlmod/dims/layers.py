@@ -5,6 +5,7 @@ import flopy
 import numpy as np
 import xarray as xr
 from geopandas import GeoDataFrame, GeoSeries, points_from_xy
+from shapely import union_all
 
 from ..util import LayerError, _get_value_from_ds_datavar
 from . import grid
@@ -2078,8 +2079,11 @@ def _get_modellayers_dsobs(ds_obs, dimname="n_obs"):
     ValueError
         If any screen top is lower or equal to screen bottom.
     """
-    if (ds_obs["screen_top"] <= ds_obs["screen_bot"]).any():
-        raise ValueError("screen top is equal to or below screen bottom")
+    if (ds_obs["screen_top"] < ds_obs["screen_bot"]).any():
+        errors = ds_obs.where(ds_obs["screen_top"] < ds_obs["screen_bot"], drop=True)
+        raise ValueError(
+            f"screen top is equal to or below screen bottom: {errors[dimname].values}"
+        )
 
     # get model layers for screen top and bottom
     ds_obs["modellayer_top"] = (
@@ -2226,6 +2230,24 @@ def get_modellayers_indexer(
     >>> heads.sel(**idx)
 
     """
+    # gridintersect: only use to construct list of geoms and cellids
+    gi = flopy.utils.GridIntersect(
+        grid.modelgrid_from_ds(ds), method="vertex", local=False
+    )
+    # create geodataframe of points
+    pts = GeoSeries(points_from_xy(df["x"], df["y"]))
+
+    # subset pts within model domain
+    maskpts = pts.within(union_all(gi.geoms))
+    npts_outside_domain = (~maskpts).sum()
+    if npts_outside_domain > 0:
+        pts = pts[maskpts]
+        df = df.loc[maskpts.values].copy()
+        logger.warning(
+            "Warning! Dropped %d points outside the model domain.", npts_outside_domain
+        )
+
+    # build obs dataset
     rename_dict = {
         x: "x",
         y: "y",
@@ -2238,13 +2260,6 @@ def get_modellayers_indexer(
         .rename_vars(rename_dict)
     )
     dim = obs_ds["x"].dims[0]  # get dimension name
-
-    # gridintersect: only use to construct list of geoms and cellids
-    gi = flopy.utils.GridIntersect(
-        grid.modelgrid_from_ds(ds), method="vertex", local=False
-    )
-    # create geodataframe of points
-    pts = GeoSeries(points_from_xy(df["x"], df["y"]))
 
     # spatial join points with grid and add resulting cellid to obs_ds
     spatial_join = GeoDataFrame(geometry=pts).sjoin(

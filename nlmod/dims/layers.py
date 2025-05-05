@@ -2238,7 +2238,7 @@ def get_modellayers_indexer(
     pts = GeoSeries(points_from_xy(df["x"], df["y"]))
 
     # subset pts within model domain
-    maskpts = pts.within(union_all(gi.geoms))
+    maskpts = pts.intersects(union_all(gi.geoms))
     npts_outside_domain = (~maskpts).sum()
     if npts_outside_domain > 0:
         pts = pts[maskpts]
@@ -2306,7 +2306,7 @@ def get_modellayers_indexer(
     else:
         logger.warning(
             "There are observation wells that lie above/below the model. "
-            " The model layer indexer will contain NaN values for these wells."
+            "The model layer indexer will contain NaN values for these wells."
         )
 
     # rename variables to match original input

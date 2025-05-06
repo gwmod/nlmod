@@ -9,11 +9,7 @@ dynamic = ["version"]
 description = "Python package to build, run and visualize MODFLOW 6 groundwater models in the Netherlands."
 license = { file = "LICENSE" }
 readme = "README.md"
-authors = [
-    { name = "O. Ebbens" },
-    { name = "R. Caljé" },
-    { name = "D.A. Brakenhoff" },
-]
+authors = [{ name = "O. Ebbens" }, { name = "R. Caljé" }, { name = "D.A. Brakenhoff" }]
 maintainers = [
     { name = "O. Ebbens", email = "o.ebbens@artesia-water.nl" },
     { name = "R. Calje", email = "r.calje@artesia-water.nl" },
@@ -64,7 +60,7 @@ full = [
     "rasterstats",
     "contextily",
     "scikit-image",
-    "py7zr"
+    "py7zr",
 ]
 knmi = ["h5netcdf", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
@@ -81,7 +77,7 @@ rtd = [
     "sphinx_rtd_theme==1.0.0",
     "nbconvert==7.13.0",
     "netCDF4<1.7.0",
-	"numpy==1.26.4"
+    "numpy==1.26.4",
 ]
 
 [tool.setuptools.dynamic]
@@ -139,3 +135,6 @@ convention = "numpy"
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"
 markers = ["notebooks: run notebooks", "slow: slow tests", "skip: skip tests"]
+
+[tool.coverage.run]
+dynamic_context = "test_function"

@@ -85,7 +85,6 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
                               most_common_station=most_common_station)
     if method in ["linear"]:
         ds_out["recharge"] = dims, np.zeros(shape)
-        
 
         # find unique combination of precipitation and evaporation station
         unique_combinations = locations.drop_duplicates(["stn_rd", "stn_ev24"])[

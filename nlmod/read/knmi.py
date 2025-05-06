@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_3d=True, coords_time=True)
-def get_recharge(ds, method="linear", most_common_station=False):
+def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     """Add recharge to model dataset from KNMI data.
 
     Add recharge to the model dataset with knmi data by following these steps:

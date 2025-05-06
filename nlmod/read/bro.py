@@ -35,7 +35,7 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
     ObsCollection
     """
     # convert extent to epsg 4326
-    if not epsg == 4326:
+    if epsg != 4326:
         transformer = Transformer.from_crs(epsg, 4326)
         lat1, lon1 = transformer.transform(extent[0], extent[2])
         lat2, lon2 = transformer.transform(extent[1], extent[3])
@@ -59,7 +59,7 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
         st = ("requested bro dataset width or height bigger than maxsize "
               f"splitting extent into {x_segments} * {y_segments} tiles")
         logger.info(st)
-        l = []
+        oc_list = []
         for tx in range(x_segments):
             for ty in range(y_segments):
                 xmin = extent[0] + tx * max_dx
@@ -80,7 +80,7 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
                                                     cachedir=cachedir,
                                                     cachename=name,
                                                     **kwargs)
-                        l.append(oc)
+                        oc_list.append(oc)
                     except Exception as e:
                         logger.error(
                         f"could not download BRO data in extent {xmin}, {xmax}, {ymin}, {ymax}"
@@ -94,7 +94,7 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
                                                     cachedir=cachedir,
                                                     cachename=name,
                                                     **kwargs)
-                    l.append(oc)
+                    oc_list.append(oc)
         oc = pd.concat(l)
     else:
         name = 'BRO_' + '_'.join(map(str,extent))

@@ -79,7 +79,7 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     if oc_knmi is None:
         oc_knmi = get_knmi(ds,
                            most_common_station=most_common_station)
-        
+
     locations = get_locations(ds,
                               oc_knmi=oc_knmi,
                               most_common_station=most_common_station)

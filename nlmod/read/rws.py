@@ -35,7 +35,7 @@ def get_gdf_surface_water(ds=None, extent=None):
     """
     if ds is None and extent is None:
         raise ValueError("At least one of 'ds' or 'extent' must be provided.")
-    
+
     # laad bestanden in
     fname = os.path.join(NLMOD_DATADIR, "shapes", "opp_water.shp")
     gdf_swater = gpd.read_file(fname)

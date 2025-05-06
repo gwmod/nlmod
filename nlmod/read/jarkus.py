@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf()
-def get_bathymetry(ds=None, extent=None, da_name="bathymetry", 
+def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
                    datavar_sea='northsea',
                    kind="jarkus", method="average"):
     """Get bathymetry of the Northsea from the jarkus dataset.

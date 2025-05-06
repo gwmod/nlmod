@@ -1,8 +1,25 @@
 from . import waterboard, webservices
+from .. import cache
 
 
+@cache.cache_pickle
 def get_municipalities(source="cbs", drop_water=True, **kwargs):
-    """Get the location of the Dutch municipalities as a Polygon GeoDataFrame."""
+    """Get the location of the Dutch municipalities as a Polygon GeoDataFrame.
+
+    Parameters
+    ----------
+    source : str, optional
+        'cbs' or 'kadaster'
+    drop_water : bool, optional
+        drop water
+    **kwargs
+        passed to webservices.wfs
+    
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of municipalities
+    """
     if source == "kadaster":
         url = (
             "https://service.pdok.nl/kadaster/bestuurlijkegebieden/wfs/v1_0?service=WFS"
@@ -27,8 +44,22 @@ def get_municipalities(source="cbs", drop_water=True, **kwargs):
     return gdf
 
 
+@cache.cache_pickle
 def get_provinces(source="cbs", **kwargs):
-    """Get the location of the Dutch provinces as a Polygon GeoDataFrame."""
+    """Get the location of the Dutch provinces as a Polygon GeoDataFrame.
+    
+    Parameters
+    ----------
+    source : str, optional
+        'cbs' or 'kadaster'
+    **kwargs
+        passed to webservices.wfs
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of provinces
+    """
     if source == "kadaster":
         url = (
             "https://service.pdok.nl/kadaster/bestuurlijkegebieden/wfs/v1_0?service=WFS"
@@ -46,8 +77,22 @@ def get_provinces(source="cbs", **kwargs):
     return gdf
 
 
+@cache.cache_pickle
 def get_netherlands(source="cbs", **kwargs):
-    """Get the location of the Dutch border as a Polygon GeoDataFrame."""
+    """Get the location of the Dutch border as a Polygon GeoDataFrame.
+    
+    Parameters
+    ----------
+    source : str, optional
+        'cbs' or 'kadaster'
+    **kwargs
+        passed to webservices.wfs
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of the Netherlands
+    """
     if source == "kadaster":
         url = (
             "https://service.pdok.nl/kadaster/bestuurlijkegebieden/wfs/v1_0?service=WFS"
@@ -63,6 +108,18 @@ def get_netherlands(source="cbs", **kwargs):
     return gdf
 
 
+@cache.cache_pickle
 def get_waterboards(**kwargs):
-    """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame."""
+    """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame.
+     
+    Parameters
+    ----------
+    **kwargs
+        passed to waterboard.get_polygons
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of the Netherlands
+    """
     return waterboard.get_polygons(**kwargs)

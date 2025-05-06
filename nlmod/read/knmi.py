@@ -7,14 +7,14 @@ import pandas as pd
 from hydropandas.io import knmi as hpd_knmi
 
 from .. import cache, util
-from ..dims.grid import get_affine_mod_to_world
+from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex
 from ..dims.layers import get_first_active_layer
 
 logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_3d=True, coords_time=True)
-def get_recharge(ds, method="linear", most_common_station=False):
+def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     """Add recharge to model dataset from KNMI data.
 
     Add recharge to the model dataset with knmi data by following these steps:
@@ -38,6 +38,8 @@ def get_recharge(ds, method="linear", most_common_station=False):
     ----------
     ds : xr.DataSet
         dataset containing relevant model grid information
+    oc_knmi : hpd.ObsCollection
+        ObsCollection with precipitation (RD) and evaporation (EV24) data from the knmi.
     method : str, optional
         If 'linear', calculate recharge by subtracting evaporation from precipitation.
         If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
@@ -61,27 +63,26 @@ def get_recharge(ds, method="linear", most_common_station=False):
     if ds.time.dtype.kind != "M":
         raise TypeError("get recharge requires a datetime64[ns] time index")
 
-    start = pd.Timestamp(ds.time.attrs["start"])
-    end = pd.Timestamp(ds.time.data[-1])
-
     ds_out = util.get_ds_empty(ds, keep_coords=("time", "y", "x"))
     ds_out.attrs["gridtype"] = ds.gridtype
 
     # get recharge data array
-    if ds.gridtype == "structured":
+    if is_structured(ds):
         dims = ("y", "x")
-    elif ds.gridtype == "vertex":
+    elif is_vertex(ds):
         dims = ("icell2d",)
     else:
         raise ValueError("gridtype should be structured or vertex")
     dims = ("time",) + dims
-
     shape = [len(ds_out[dim]) for dim in dims]
 
-    locations, oc_knmi_prec, oc_knmi_evap = get_knmi_at_locations(
-        ds, start=start, end=end, most_common_station=most_common_station
-    )
+    if oc_knmi is None:
+        oc_knmi = get_knmi(ds,
+                           most_common_station=most_common_station)
 
+    locations = get_locations(ds,
+                              oc_knmi=oc_knmi,
+                              most_common_station=most_common_station)
     if method in ["linear"]:
         ds_out["recharge"] = dims, np.zeros(shape)
 
@@ -98,10 +99,8 @@ def get_recharge(ds, method="linear", most_common_station=False):
             loc_sel = locations.loc[mask]
 
             # calculate recharge time series
-            index = oc_knmi_prec.index[oc_knmi_prec.station == stn_rd][0]
-            prec = oc_knmi_prec.loc[index, "obs"]["RD"].resample("D").nearest()
-            index = oc_knmi_evap.index[oc_knmi_evap.station == stn_ev24][0]
-            evap = oc_knmi_evap.loc[index, "obs"]["EV24"].resample("D").nearest()
+            prec = oc_knmi.loc[stn_rd, "obs"]["RD"].resample("D").nearest()
+            evap = oc_knmi.loc[stn_ev24, "obs"]["EV24"].resample("D").nearest()
             ts = (prec - evap).dropna()
             ts.name = f"{prec.name}-{evap.name}"
 
@@ -110,15 +109,13 @@ def get_recharge(ds, method="linear", most_common_station=False):
     elif method == "separate":
         ds_out["recharge"] = dims, np.zeros(shape)
         for stn in locations["stn_rd"].unique():
-            index = oc_knmi_prec.index[oc_knmi_prec.station == stn][0]
-            ts = oc_knmi_prec.loc[index, "obs"]["RD"].resample("D").nearest()
+            ts = oc_knmi.loc[stn, "obs"]["RD"].resample("D").nearest()
             loc_sel = locations.loc[(locations["stn_rd"] == stn)]
             _add_ts_to_ds(ts, loc_sel, "recharge", ds_out)
 
         ds_out["evaporation"] = dims, np.zeros(shape)
         for stn in locations["stn_ev24"].unique():
-            index = oc_knmi_evap.index[oc_knmi_evap.station == stn][0]
-            ts = oc_knmi_evap.loc[index, "obs"]["EV24"].resample("D").nearest()
+            ts = oc_knmi.loc[stn, "obs"]["EV24"].resample("D").nearest()
             loc_sel = locations.loc[(locations["stn_ev24"] == stn)]
             _add_ts_to_ds(ts, loc_sel, "evaporation", ds_out)
     else:
@@ -157,9 +154,9 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
 
     # add data to ds
     values = np.repeat(model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)
-    if ds.gridtype == "structured":
+    if is_structured(ds):
         ds[variable].data[:, loc_sel.row, loc_sel.col] = values
-    elif ds.gridtype == "vertex":
+    elif is_vertex(ds):
         ds[variable].data[:, loc_sel.index] = values
 
 
@@ -231,17 +228,48 @@ def get_locations_structured(ds):
     return locations
 
 
-def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False):
-    """Get knmi data at the locations of the active grid cells in ds.
+def get_knmi(ds, most_common_station=False, start=None, end=None):
+    """get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
+    cells.
 
     Parameters
     ----------
     ds : xr.DataSet
         dataset containing relevant model grid information
+    most_common_station : bool, optional
+        When True, only download data from the station that is most common in the model
+        area. The default is False
     start : str or datetime, optional
         start date of measurements that you want, The default is '2010'.
     end :  str or datetime, optional
         end date of measurements that you want, The default is None.
+
+    Returns
+    -------
+    oc_knmi
+        hpd.ObsCollection
+    """
+
+    locations = get_locations(ds, most_common_station=most_common_station)
+    oc_knmi = get_knmi_at_locations(locations, ds=ds, start=start, end=end)
+
+    return oc_knmi
+
+
+def get_locations(ds, oc_knmi=None, most_common_station=False):
+    """Get the locations of the active grid cells in ds and the nearest (or most common)
+    precipitation and evaporation station.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        dataset containing relevant model grid information
+    oc_knmi : hpd.ObsCollection or None, optional
+        ObsCollection with knmi station data. If None the nearest of all knmi stations
+        is used.
+    most_common_station : bool, optional
+        When True, only download data from the station that is most common in the model
+        area. The default is False
 
     Raises
     ------
@@ -250,24 +278,27 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
 
     Returns
     -------
-    locations : pandas DataFrame
-        DataFrame with the locations of all active grid cells.
-    oc_knmi_prec : hydropandas.ObsCollection
-        ObsCollection with knmi data of the precipitation stations.
-    oc_knmi_evap : hydropandas.ObsCollection
-        ObsCollection with knmi data of the evaporation stations.
+    locations : pd.DataFrame
+        each row contains a location (x and y) and the relevant precipitation (stn_rd)
+        and evaporation (stn_ev24) stations.
     """
     # get locations
-    if ds.gridtype == "structured":
+    if is_structured(ds):
         locations = get_locations_structured(ds)
-    elif ds.gridtype == "vertex":
+    elif is_vertex(ds):
         locations = get_locations_vertex(ds)
     else:
         raise ValueError("gridtype should be structured or vertex")
-    locations["stn_rd"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="RD")
-    locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="EV24")
+
+    if oc_knmi is not None:
+        locations["stn_rd"] = hpd_knmi.get_nearest_station_df(locations, stations=oc_knmi.loc[oc_knmi['meteo_var']=='RD'])
+        locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(locations, stations=oc_knmi.loc[oc_knmi['meteo_var']=='EV24'])
+    else:
+        locations["stn_rd"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="RD")
+        locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="EV24")
+
     if most_common_station:
-        if ds.gridtype == "structured":
+        if is_structured(ds):
             # set the most common station to all locations
             locations["stn_rd"] = locations["stn_rd"].value_counts().idxmax()
             locations["stn_ev24"] = locations["stn_ev24"].value_counts().idxmax()
@@ -277,42 +308,53 @@ def get_knmi_at_locations(ds, start="2010", end=None, most_common_station=False)
             locations["stn_rd"] = locations.groupby("stn_rd").sum()["area"].idxmax()
             locations["stn_ev24"] = locations.groupby("stn_ev24").sum()["area"].idxmax()
 
+    return locations
+    
+def get_knmi_at_locations(locations, ds=None, start=None, end=None):
+    """get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
+
+    Parameters
+    ----------
+    locations : pd.DataFrame
+        each row contains a location (x and y) and the relevant precipitation (stn_rd)
+        and evaporation (stn_ev24) stations.
+    ds : xr.DataSet or None, optional
+        dataset containing relevant time information. If None provide start and end.
+    start : str or datetime, optional
+        start date of measurements that you want, The default is '2010'.
+    end :  str or datetime, optional
+        end date of measurements that you want, The default is None.
+
+    Returns
+    -------
+    oc_knmi
+        hpd.ObsCollection
+    """
     stns_rd = locations["stn_rd"].unique()
     stns_ev24 = locations["stn_ev24"].unique()
 
+    # get start and end
+    if start is None:
+        start = pd.Timestamp(ds.time.attrs["start"])
+    if end is None:
+        end = pd.Timestamp(ds.time.data[-1])
+
     # get knmi data stations closest to any grid cell
-    olist_rd, new_stns_rd = [], []
+    olist = []
     for stnrd in stns_rd:
         o = hpd.PrecipitationObs.from_knmi(
             meteo_var="RD", stn=stnrd, start=start, end=end, fill_missing_obs=True
         )
 
-        # if a station has no data in the given period another station is selected
-        if o.station != stnrd:
-            locations["stn_rd"] = locations["stn_rd"].replace(stnrd, o.station)
+        olist.append(o)
 
-        # only add the station if it does not exist yet
-        if o.station not in new_stns_rd:
-            olist_rd.append(o)
-            new_stns_rd.append(o.station)
-
-    oc_knmi_prec = hpd.ObsCollection(olist_rd)
-
-    olist_ev24, new_stns_ev24 = [], []
     for stnev24 in stns_ev24:
         o = hpd.EvaporationObs.from_knmi(
             meteo_var="EV24", stn=stnev24, start=start, end=end, fill_missing_obs=True
         )
 
-        # if a station has no data in the given period another station is selected
-        if o.station != stnev24:
-            locations["stn_ev24"] = locations["stn_ev24"].replace(stnev24, o.station)
+        olist.append(o)
 
-        # only add the station if it does not exist yet
-        if o.station not in new_stns_ev24:
-            olist_ev24.append(o)
-            new_stns_ev24.append(o.station)
+    oc_knmi = hpd.ObsCollection(olist)
 
-    oc_knmi_evap = hpd.ObsCollection(olist_ev24)
-
-    return locations, oc_knmi_prec, oc_knmi_evap
+    return oc_knmi

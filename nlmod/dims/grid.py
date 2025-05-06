@@ -2066,6 +2066,11 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
     vertices_arr : numpy array
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use 'modelgrid_from_ds' and 'modelgrid.map_polygons' in the future.",
+        DeprecationWarning,
+    )
     if modelgrid is None:
         modelgrid = modelgrid_from_ds(ds, rotated=rotated)
     xvert = modelgrid.xvertices
@@ -2130,7 +2135,11 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
     vertices_da : xr.DataArray
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
-    # obtain
+    warnings.warn(
+        "get_vertices is deprecated and will eventually be removed, "
+        "please use 'modelgrid_from_ds' and 'modelgrid.map_polygons'.",
+        DeprecationWarning,
+    )
 
     vertices_arr = get_vertices_arr(
         ds,
@@ -2193,9 +2202,7 @@ def mask_model_edge(ds, idomain=None):
             )
 
     elif ds.gridtype == "vertex":
-        if "vertices" not in ds:
-            ds["vertices"] = get_vertices(ds)
-        polygons_grid = polygons_from_model_ds(ds)
+        polygons_grid = polygons_from_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = get_extent_polygon(ds).exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
@@ -2209,12 +2216,12 @@ def mask_model_edge(ds, idomain=None):
     return ds_out
 
 
-def polygons_from_model_ds(model_ds):
+def polygons_from_ds(ds):
     """Create polygons of each cell in a model dataset.
 
     Parameters
     ----------
-    model_ds : xr.Dataset
+    ds : xr.Dataset
         Dataset with model data.
 
     Raises
@@ -2227,14 +2234,14 @@ def polygons_from_model_ds(model_ds):
     polygons : list of shapely Polygons
         list with polygon of each raster cell.
     """
-    if model_ds.gridtype == "structured":
-        delr = get_delr(model_ds)
-        delc = get_delc(model_ds)
+    if ds.gridtype == "structured":
+        delr = get_delr(ds)
+        delc = get_delc(ds)
 
-        xmins = model_ds.x - (delr * 0.5)
-        xmaxs = model_ds.x + (delr * 0.5)
-        ymins = model_ds.y - (delc * 0.5)
-        ymaxs = model_ds.y + (delc * 0.5)
+        xmins = ds.x - (delr * 0.5)
+        xmaxs = ds.x + (delr * 0.5)
+        ymins = ds.y - (delc * 0.5)
+        ymaxs = ds.y + (delc * 0.5)
         polygons = [
             Polygon(
                 [
@@ -2248,19 +2255,16 @@ def polygons_from_model_ds(model_ds):
             for j in range(len(ymins))
         ]
 
-    elif model_ds.gridtype == "vertex":
-        if "vertices" in model_ds:
-            vertices = model_ds["vertices"].values
-        else:
-            vertices = get_vertices(model_ds)
-        polygons = [Polygon(v) for v in vertices]
+    elif ds.gridtype == "vertex":
+        modelgrid = modelgrid_from_ds(ds)
+        polygons = [Polygon(v.vertices) for v in modelgrid.map_polygons]
     else:
         raise ValueError(
-            f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
+            f"gridtype must be 'structured' or 'vertex', not {ds.gridtype}"
         )
-    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         # rotate the model coordinates to real coordinates
-        affine = get_affine_mod_to_world(model_ds).to_shapely()
+        affine = get_affine_mod_to_world(ds).to_shapely()
         polygons = [affine_transform(polygon, affine) for polygon in polygons]
 
     return polygons

@@ -6,7 +6,7 @@ import nlmod
 
 
 def test_uzf_structured():
-    # %% create model Dataset
+    # create model Dataset
     extent = [200_000, 202_000, 400_000, 403_000]
     ds = util.get_ds_structured(extent, top=0, botm=np.linspace(-1, -10, 10))
 
@@ -15,7 +15,7 @@ def test_uzf_structured():
 
     ds.update(nlmod.read.knmi.get_recharge(ds, method="separate"))
 
-    # %% generate sim and gwf
+    # generate sim and gwf
     # create simulation
     sim = nlmod.sim.sim(ds)
 
@@ -47,5 +47,5 @@ def test_uzf_structured():
     # create recharge package
     _ = nlmod.gwf.uzf(ds, gwf)
 
-    # %% run
+    # run
     # _ = nlmod.sim.write_and_run(sim, ds)

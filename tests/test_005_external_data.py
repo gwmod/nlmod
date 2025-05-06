@@ -43,7 +43,7 @@ def test_get_recharge_not_available():
     ds = nlmod.get_ds([100000, 110000, 420000, 430000])
     time = [pd.Timestamp.now().normalize()]
     ds = nlmod.time.set_ds_time(ds, start=time[0] - pd.Timedelta(days=21), time=time)
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         ds.update(nlmod.read.knmi.get_recharge(ds))
 
 
@@ -125,7 +125,7 @@ def test_get_surface_water_ghb():
     nlmod.gwf.dis(ds, gwf)
 
     # add surface water levels to the model dataset
-    ds.update(nlmod.read.rws.get_surface_water(ds, "surface_water"))
+    ds.update(nlmod.read.rws.get_surface_water(ds, da_basename="surface_water"))
 
 
 def test_get_brp():

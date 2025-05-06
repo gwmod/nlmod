@@ -14,7 +14,6 @@ from .shared import GridTypeDims
 
 logger = logging.getLogger(__name__)
 
-
 def calculate_thickness(ds, top="top", bot="botm"):
     """Calculate thickness from dataset.
 
@@ -2031,6 +2030,95 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         dask="forbidden",
         **kwargs,
     )
+
+def add_bathymetry_to_layer_model(ds,
+                                  datavar_sea="northsea",
+                                  datavar_bathymetry="bathymetry",
+                                  kh_sea=10,
+                                  kv_sea=10):
+    """Add bathymetry to a layer model.
+
+    Performs the following steps:
+
+    a) fill top, bot, kh and kv add northsea cell by extrapolation
+    b) add bathymetry to the layer model.
+    c) remove inactive layers
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset
+    datavar_northsea: str, optional
+        checks if this datavar is available in ds, if not it will create the datavar
+        by calling 'get_northsea'.
+    
+    """
+    logger.info(
+        "Filling NaN values in top/botm and kh/kv in "
+        "North Sea using bathymetry data from jarkus"
+    )
+
+    # fill top, bot, kh, kv at sea cells
+    fal = get_first_active_layer(ds)
+    fill_mask = (fal == fal.attrs["nodata"]) * ds[datavar_sea]
+    ds = fill_top_bot_kh_kv_at_mask(ds, fill_mask)
+
+    # add bathymetry
+    ds = _add_bathymetry_to_top_bot_kh_kv(ds,
+                                          ds[datavar_bathymetry],
+                                          fill_mask,
+                                          kh_sea=kh_sea,
+                                          kv_sea=kv_sea)
+
+    # remove inactive layers
+    ds = remove_inactive_layers(ds)
+
+    return ds
+
+
+def _add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea, kv_sea):
+    """Add bathymetry to the top and bot of each layer for all cells with fill_mask.
+
+    This method sets the top of the model at fill_mask to 0 m, and changes the first
+    layer to sea, by setting the botm of this layer to bathymetry, kh to kh_sea and kv
+    to kv_sea. If deeper layers are above bathymetry. the layer depth is set to
+    bathymetry.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data, should
+    bathymetry : xarray DataArray
+        bathymetry data
+    fill_mask : xr.DataArray
+        cell value is 1 if you want to add bathymetry
+    kh_sea : int or float, optional
+        the horizontal conductance of the sea cells
+    kv_sea : int or float, optional
+        the vertical conductance of the sea cells
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset with model data where the top, bot, kh and kv are changed
+    """
+    ds["top"].values = np.where(fill_mask, 0.0, ds["top"])
+
+    lay = 0
+    ds["botm"][lay] = xr.where(fill_mask, bathymetry, ds["botm"][lay])
+
+    ds["kh"][lay] = xr.where(fill_mask, kh_sea, ds["kh"][lay])
+
+    ds["kv"][lay] = xr.where(fill_mask, kv_sea, ds["kv"][lay])
+
+    # reset bot for all layers based on bathymetry
+    for lay in range(1, ds.sizes["layer"]):
+        ds["botm"][lay] = np.where(
+            ds["botm"][lay] > ds["botm"][lay - 1],
+            ds["botm"][lay - 1],
+            ds["botm"][lay],
+        )
+    return ds
 
 
 def get_modellayers_screens(ds, screen_top, screen_bottom, xy=None, icell2d=None):

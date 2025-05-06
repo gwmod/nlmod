@@ -79,12 +79,13 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     if oc_knmi is None:
         oc_knmi = get_knmi(ds,
                            most_common_station=most_common_station)
-    
+        
+    locations = get_locations(ds,
+                              oc_knmi=oc_knmi,
+                              most_common_station=most_common_station)
     if method in ["linear"]:
         ds_out["recharge"] = dims, np.zeros(shape)
-        locations = get_locations(ds,
-                                  oc_knmi=oc_knmi,
-                                  most_common_station=most_common_station)
+        
 
         # find unique combination of precipitation and evaporation station
         unique_combinations = locations.drop_duplicates(["stn_rd", "stn_ev24"])[
@@ -109,15 +110,13 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     elif method == "separate":
         ds_out["recharge"] = dims, np.zeros(shape)
         for stn in locations["stn_rd"].unique():
-            index = oc_knmi.index[(oc_knmi['meteo_var']=='RD') & (oc_knmi['station'] == stn)][0]
-            ts = oc_knmi.loc[index, "obs"]["RD"].resample("D").nearest()
+            ts = oc_knmi.loc[stn, "obs"]["RD"].resample("D").nearest()
             loc_sel = locations.loc[(locations["stn_rd"] == stn)]
             _add_ts_to_ds(ts, loc_sel, "recharge", ds_out)
 
         ds_out["evaporation"] = dims, np.zeros(shape)
         for stn in locations["stn_ev24"].unique():
-            index = oc_knmi.index[(oc_knmi['meteo_var']=='EV24') & (oc_knmi['station'] == stn)][0]
-            ts = oc_knmi.loc[index, "obs"]["EV24"].resample("D").nearest()
+            ts = oc_knmi.loc[stn, "obs"]["EV24"].resample("D").nearest()
             loc_sel = locations.loc[(locations["stn_ev24"] == stn)]
             _add_ts_to_ds(ts, loc_sel, "evaporation", ds_out)
     else:

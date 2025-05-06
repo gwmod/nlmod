@@ -42,7 +42,7 @@ def test_gwt_model():
     ds["sea"] = nlmod.read.rws.calculate_sea_coverage(ahn, ds=ds, method="average")
 
     # download knmi recharge data
-    knmi_ds = nlmod.read.knmi.get_recharge(ds)
+    knmi_ds = nlmod.read.knmi.get_recharge(ds, method="separate")
 
     # update model dataset
     ds.update(knmi_ds)
@@ -89,6 +89,9 @@ def test_gwt_model():
 
     # create recharge package
     nlmod.gwf.rch(ds, gwf, mask=ds["sea"] == 0)
+
+    # create evapotranspiration package
+    nlmod.gwf.evt(ds, gwf, mask=ds["sea"] == 0)
 
     # BUY: buoyancy package for GWF model
     nlmod.gwf.buy(ds, gwf)

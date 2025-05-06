@@ -1,7 +1,7 @@
 import datetime as dt
 import logging
 import os
-from typing import Optional, Union
+from typing import Callable, Literal, Optional, Union
 
 import geopandas as gpd
 import numpy as np
@@ -269,7 +269,7 @@ def get_gdr_configuration() -> dict:
 
 
 def get_bathymetry_gdf(
-    resolution: str = "20m",
+    resolution: Literal["20m", "1m"] = "20m",
     extent: Optional[list[float]] = None,
     config: Optional[dict] = None,
 ) -> gpd.GeoDataFrame:
@@ -299,9 +299,9 @@ def get_bathymetry_gdf(
 @cache.cache_netcdf()
 def get_bathymetry(
     extent: list[float],
-    resolution: str = "20m",
+    resolution: Literal["20m", "1m"] = "20m",
     res: Optional[float] = None,
-    method: Optional[str] = None,
+    method: Union[str, Callable, None] = None,
     chunks: Optional[Union[str, dict[str, int]]] = "auto",
     config: Optional[dict] = None,
 ) -> xr.DataArray:
@@ -322,8 +322,9 @@ def get_bathymetry(
         resolution of the input datasets. Resampling method is provided by the method
         kwarg.
     method : str, optional
-        resampling method. The default is None. See rasterio.enums.Resampling for
-        supported methods. Examples are ["min", "max", "mean", "nearest"].
+        Rasterio resampling method. The default is None. Pre-defined method are
+        "first", "last", "min", "nearest", "sum" or "count". But custom callables
+        are also supported. See the rasterio documentation for more information.
     chunks : dict, optional
         chunks for the output data array. The default is "auto", which lets xarray/dask
         pick the chunksize. Set to None to avoid chunking.

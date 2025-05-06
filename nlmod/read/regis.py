@@ -386,7 +386,7 @@ def get_layer_names(ds=None, rename_layers_to_version_2_2_2=True):
         The regis dataset. If None, a connection is made to the REGIS server.
         The default is None.
     rename_layers_to_version_2_2_2 : bool, optional
-        If True, the layer names are renamed to their pre-v2.2.3 names. The default is 
+        If True, the layer names are renamed to their pre-v2.2.3 names. The default is
         True.
 
     Returns

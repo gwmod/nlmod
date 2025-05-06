@@ -6,6 +6,7 @@
 -   fill, interpolate and resample grid data
 """
 
+# ruff: noqa: F401
 import logging
 import os
 import warnings
@@ -41,10 +42,11 @@ from .shared import (
     get_area,
     get_delc,
     get_delr,
+    is_layered,
+    is_rotated,
     is_structured,
     is_vertex,
-    is_layered,
-)  # noqa: F401
+)
 
 logger = logging.getLogger(__name__)
 
@@ -271,6 +273,79 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
     return cid
 
 
+def get_node_structured(lay, row, col, shape):
+    """Get the node number of a structured grid.
+
+    Parameters
+    ----------
+    lay : int
+        layer number.
+    row : int
+        row number.
+    col : int
+        column number.
+    shape : tuple
+        shape of the model grid.
+
+    Returns
+    -------
+    node : int
+        node number.
+    """
+    return lay * shape[1] * shape[2] + row * shape[2] + col
+
+
+def get_node_vertex(lay, icell2d, shape):
+    """Get the node number of a vertex grid.
+
+    Parameters
+    ----------
+    lay : int
+        layer number.
+    icell2d : int
+        icell2d number
+
+    Returns
+    -------
+    node : int
+        node number
+    """
+    return lay * shape[1] + icell2d
+
+
+def node_to_lrc(node, shape):
+    """Convert a node number to (layer,) row and column.
+
+    Layer is only returned if shape is 3D.
+
+    Parameters
+    ----------
+    node : int
+        node number.
+    shape : tuple
+        shape of the model grid.
+
+    Returns
+    -------
+    lrc : tuple
+        layer, row and column.
+    """
+    if len(shape) == 3:
+        _, nrow, ncol = shape
+        lay = node // (nrow * ncol)
+        row = (node - lay * (nrow * ncol)) // ncol
+        col = node - lay * (nrow * ncol) - (row * ncol)
+        lrc = (lay, row, col)
+    elif len(shape) == 2:
+        nrow, ncol = shape
+        row = node // ncol
+        col = node - row * ncol
+        lrc = (row, col)
+    else:
+        raise ValueError("shape should be 2D or 3D")
+    return lrc
+
+
 def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs):
     """Get flopy modelgrid from ds.
 
@@ -289,7 +364,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
         yoff = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
     else:
-        if ds.gridtype == "structured":
+        if is_structured(ds):
             xoff = ds.extent[0]
             yoff = ds.extent[2]
         else:
@@ -312,7 +387,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
     kwargs = dict(
         xoff=xoff, yoff=yoff, angrot=angrot, nlay=nlay, top=top, botm=botm, **kwargs
     )
-    if ds.gridtype == "structured":
+    if is_structured(ds):
         if not isinstance(ds.extent, (tuple, list, np.ndarray)):
             raise TypeError(
                 f"extent should be a list, tuple or numpy array, not {type(ds.extent)}"
@@ -322,7 +397,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
             delr=get_delr(ds),
             **kwargs,
         )
-    elif ds.gridtype == "vertex":
+    elif is_vertex(ds):
         vertices = get_vertices_from_ds(ds)
         cell2d = get_cell2d_from_ds(ds)
         modelgrid = VertexGrid(
@@ -1316,7 +1391,7 @@ def gdf_to_da(
     agg_method : str, optional
         aggregation method to handle multiple geometries in one cell, options
         are:
-        - max, min, mean,
+        - max, min, mean, sum
         - length_weighted (lines), max_length (lines),
         - area_weighted (polygon), max_area (polygon).
         The default is 'max'.
@@ -1353,13 +1428,12 @@ def gdf_to_da(
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
+        modelgrid = None
         if agg_method in ["nearest"]:
             modelgrid = modelgrid_from_ds(ds)
-            gdf_agg = aggregate_vector_per_cell(
-                gdf_cellid, {column: agg_method}, modelgrid
-            )
-        else:
-            gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
+        gdf_agg = aggregate_vector_per_cell(
+            gdf_cellid, {column: agg_method}, modelgrid=modelgrid
+        )
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]
@@ -1512,18 +1586,18 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     # check geometry types
     geom_types = gdf.geometry.type.unique()
     if len(geom_types) > 1:
-        if (
-            len(geom_types) == 2
-            and ("Polygon" in geom_types)
-            and ("MultiPolygon" in geom_types)
+        if len(geom_types) == 2 and (
+            set(geom_types) == set(["LineString", "MultiLineString"])
+            or set(geom_types) == set(["Polygon", "MultiPolygon"])
         ):
             pass
         else:
             raise TypeError("cannot aggregate geometries of different types")
     if bool({"length_weighted", "max_length"} & set(fields_methods.values())):
-        assert (
-            geom_types[0] == "LineString"
-        ), "can only use length methods with line geometries"
+        if ("LineString" in geom_types) or ("MultiLineString" in geom_types):
+            pass
+        else:
+            raise TypeError("can only use length methods with line geometries")
     if bool({"area_weighted", "max_area"} & set(fields_methods.values())):
         if ("Polygon" in geom_types) or ("MultiPolygon" in geom_types):
             pass

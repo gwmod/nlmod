@@ -14,14 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_3d=True, coords_time=True)
-def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
-    """Add multiple recharge packages to the groundwater flow model with knmi
-    data by following these steps:
+def get_recharge(ds, method="linear", most_common_station=False):
+    """Add recharge to model dataset from KNMI data.
+
+    Add recharge to the model dataset with knmi data by following these steps:
        1. check for each cell (structured or vertex) which knmi measurement
           stations (prec and evap) are the closest.
        2. download precipitation and evaporation data for all knmi stations that
           were found at 1
-       3. create a recharge package in which each cell has a reference to a
+       3. create a recharge array in which each cell has a reference to a
           timeseries. Timeseries are created for each unique combination of
           precipitation and evaporation. The following packages are created:
             a. the rch package itself in which cells with the same
@@ -42,7 +43,7 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     method : str, optional
         If 'linear', calculate recharge by subtracting evaporation from precipitation.
         If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
-        The defaults is 'linear'.
+        The default is 'linear'.
     most_common_station : bool, optional
         When True, only download data from the station that is most common in the model
         area. The default is False
@@ -70,6 +71,8 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
         dims = ("y", "x")
     elif is_vertex(ds):
         dims = ("icell2d",)
+    else:
+        raise ValueError("gridtype should be structured or vertex")
     dims = ("time",) + dims
     shape = [len(ds_out[dim]) for dim in dims]
 

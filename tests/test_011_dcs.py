@@ -63,4 +63,4 @@ def test_cross_section_utils():
         bottom=False,
     )
     mapax = nlmod.plot.inset_map(ax, ds.extent, provider=None, axes_bounds=axes_bounds)
-    nlmod.plot.add_xsec_line_and_labels(line, ax, mapax)
+    nlmod.plot.add_xsec_line_and_labels(line, ax, mapax, buffer=1.0)

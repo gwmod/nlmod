@@ -321,7 +321,7 @@ def _get_tiles_ellipsis(
     timeout: float = 120.0,
     base_url: str = "https://api.ellipsis-drive.com/v3",
     path_id: str = "a9d410ad-a2f6-404c-948a-fdf6b43e77a6",
-    timestamp_id: str = "87a21a71-c39f-4e92-a43b-207bc7dfe714",
+    timestamp_id: str = "05931403-2510-43af-9cc3-f60a066d4482",
 ) -> gpd.GeoDataFrame:
     url = f"{base_url}/path/{path_id}/vector/timestamp/{timestamp_id}/listFeatures"
 
@@ -439,7 +439,9 @@ def get_ahn1_legacy(
 @cache.cache_netcdf()
 def get_ahn2(
     extent: list[float],
-    identifier: Literal["AHN_05M_I", "AHN_05M_N", "AHN_05M_R", "AHN_5M_M"] = "AHN_5M_M",
+    identifier: Literal[
+        "AHN2_05M_I", "AHN2_05M_N", "AHN2_05M_R", "AHN2_5M_M"
+    ] = "AHN2_5M_M",
     as_data_array: bool | None = None,
     **kwargs,
 ) -> xr.DataArray:
@@ -640,6 +642,7 @@ def get_ahn5(
     xr.DataArray
         DataArray of the AHN
     """
+    identifier = _rename_identifier(identifier)
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
@@ -744,19 +747,36 @@ def _download_and_combine_tiles(
 
 def _rename_identifier(identifier: str) -> str:
     rename = {
-        "ahn1_5m": "AHN1_5M",
-        "ahn2_05m_i": "AHN2_05M_I",
-        "ahn2_05m_n": "AHN2_05M_N",
-        "ahn2_05m_r": "AHN2_05M_R",
-        "ahn2_5m": "AHN2_5M_M",
-        "AHN3_05m_DTM": "AHN3_05M_M",
-        "AHN3_05m_DSM": "AHN3_05M_R",
-        "AHN3_5m_DTM": "AHN3_5M_M",
-        "AHN3_5m_DSM": "AHN3_5M_R",
-        "AHN4_DTM_05m": "AHN4_05M_M",
-        "AHN4_DSM_05m": "AHN4_05M_R",
-        "AHN4_DTM_5m": "AHN4_5M_M",
-        "AHN4_DSM_5m": "AHN4_5M_R",
+        "ahn1_5m": "AHN1 maaiveldmodel (DTM) 5m",
+        "AHN1_5M": "AHN1 maaiveldmodel (DTM) 5m",
+        "ahn2_05m_i": "AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd",
+        "AHN2_05M_I": "AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd",
+        "ahn2_05m_n": "AHN2 maaiveldmodel (DTM) ½m",
+        "AHN2_05M_N": "AHN2 maaiveldmodel (DTM) ½m",
+        "ahn2_05m_r": "AHN2 DSM ½m",
+        "AHN2_05M_R": "AHN2 DSM ½m",
+        "ahn2_5m": "AHN2 maaiveldmodel (DTM) 5m",
+        "AHN2_5M_M": "AHN2 maaiveldmodel (DTM) 5m",
+        "AHN3_05m_DTM": "AHN3 maaiveldmodel (DTM) ½m",
+        "AHN3_05M_M": "AHN3 maaiveldmodel (DTM) ½m",
+        "AHN3_05m_DSM": "AHN3 DSM ½m",
+        "AHN3_05M_R": "AHN3 DSM ½m",
+        "AHN3_5m_DTM": "AHN3 maaiveldmodel (DTM) 5m",
+        "AHN3_5M_M": "AHN3 maaiveldmodel (DTM) 5m",
+        "AHN3_5m_DSM": "AHN3 DSM 5m",
+        "AHN3_5M_R": "AHN3 DSM 5m",
+        "AHN4_DTM_05m": "AHN4 maaiveldmodel (DTM) ½m",
+        "AHN4_05M_M": "AHN4 maaiveldmodel (DTM) ½m",
+        "AHN4_DSM_05m": "AHN4 DSM ½m",
+        "AHN4_05M_R": "AHN4 DSM ½m",
+        "AHN4_DTM_5m": "AHN4 maaiveldmodel (DTM) 5m",
+        "AHN4_5M_M": "AHN4 maaiveldmodel (DTM) 5m",
+        "AHN4_DSM_5m": "AHN4 DSM 5m",
+        "AHN4_5M_R": "AHN4 DSM 5m",
+        "AHN5_5M_M": "AHN5 maaiveldmodel (DTM) 5m",
+        "AHN5_5M_R": "AHN5 DSM 5m",
+        "AHN5_05M_M": "AHN5 maaiveldmodel (DTM) ½m",
+        "AHN5_05M_R": "AHN5 DSM ½m",
     }
     if identifier in rename:
         id_new = rename[identifier]

@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+import warnings
 from io import BytesIO
 from xml.etree import ElementTree
 from zipfile import ZipFile
@@ -21,9 +22,62 @@ NS = {
     "brt": "http://register.geostandaarden.nl/gmlapplicatieschema/brt-algemeen/1.2.0",
     "gml": "http://www.opengis.net/gml/3.2",
 }
+def get_brt(*args, **kwargs):
+    """Get geometries within an extent/polygon from the Basis Registratie Topografie.
+
+    .. deprecated:: 0.10.0
+          `get_brt` will be removed in nlmod 1.0.0, it is replaced by
+          `download_brt_gdf` because of new naming convention 
+          https://github.com/gwmod/nlmod/issues/47
+
+    Useful links:
+    https://api.pdok.nl/brt/top10nl/download/v1_0/ui
+
+    Parameters
+    ----------
+    extent : list or tuple of length 4 or shapely Polygon
+        The extent (xmin, xmax, ymin, ymax) or polygon for which shapes are
+        requested.
+    layer : string or list of strings, optional
+        The layer(s) for which shapes are requested. When layer is "all", all layers are
+        requested. The default is "waterdeel".
+    cut_by_extent : bool, optional
+        Only return the intersection with the extent if True. The default is
+        True
+    make_valid : bool, optional
+        Make geometries valid by appying a buffer of 0 m when True. The default is
+        False.
+    fname : string, optional
+        Save the zipfile that is received by the request to file. The default
+        is None, which does not save anything to file.
+    geometry: string, optional
+        When geometry is specified, this attribute is used as the geometry of the
+        resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
+        example is the layer 'wegdeel', where each feature (point) has a hartGeometry
+        and a hoofdGeometry. When geometry is None, the last tag in the xml ending
+        with the word "geometrie" of "Geometrie" is used as the geometry. The default
+        is None.
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
+
+    Returns
+    -------
+    gdf : GeoPandas GeoDataFrame or dict of GeoPandas GeoDataFrame
+        A GeoDataFrame (when only one layer is requested) or a dict of GeoDataFrames
+        containing all geometries and properties.
+    """
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.administrative.download_waterboards_gdf() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_brt_gdf(*args, **kwargs)
 
 
-def get_brt(
+
+def download_brt_gdf(
     extent,
     layer="waterdeel",
     cut_by_extent=True,

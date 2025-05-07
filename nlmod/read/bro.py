@@ -1,18 +1,56 @@
 import logging
-import flopy
+import warnings
+
 import hydropandas as hpd
 import numpy as np
 import pandas as pd
-from pyproj import Transformer
-from shapely.geometry import Point
 
-from .. import cache, dims, gwf
+from pyproj import Transformer
+
+from .. import cache
 
 logger = logging.getLogger(__name__)
 
 
-def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_errors=True,
-            **kwargs):
+def get_bro(*args, **kwargs):
+    """Wrapper around hpd.read_bro that deals with large extents.
+
+    .. deprecated:: 0.10.0
+          `get_bro` will be removed in nlmod 1.0.0, it is replaced by
+          `download_bro_groundwater` because of new naming convention 
+          https://github.com/gwmod/nlmod/issues/47
+    
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    max_dx : int, optional
+        If the extent is bigger in x (longitude) direction than this the extent is split
+        in multiple tiles. By default 0.1 degrees (~10 km)
+    max_dy : int, optional
+        If the extent is bigger in y (latitude) direction than this the extent is split
+        in multiple tiles. By default 0.1 degrees (~10 km)
+    epsg : int, optional
+        crs
+    cachedir : str or None, optional
+        If not None every (sub)extent is cached.
+
+    Returns
+    -------
+    ObsCollection
+    """
+
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.bro.download_bro_groundwater() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_bro_groundwater(*args, **kwargs)
+
+
+def download_bro_groundwater(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_errors=True,
+                             **kwargs):
     """Wrapper around hpd.read_bro that deals with large extents.
 
     Parameters

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @cache.cache_netcdf(coords_2d=True)
 def get_ahn(
     ds: xr.Dataset | None = None,
-    identifier: str = "AHN4_5M_M",
+    identifier: str = "AHN4 maaiveldmodel (DTM) 5m",
     method: str = "average",
     extent: list[float] | None = None,
     **kwargs,
@@ -43,14 +43,26 @@ def get_ahn(
         dataset with the model information. If None the extent is used.
     identifier : str, optional
         Possible values for the different AHN-versions are (casing is important):
-            AHN1: 'AHN1_5M'
-            AHN2: 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' or 'AHN2_5M_M'
-            AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
-            AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
-            AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
-        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+            AHN1: 'AHN1 maaiveldmodel (DTM) 5m'
+            AHN2: 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
+                  'AHN2 maaiveldmodel (DTM) ½m',
+                  'AHN2 DSM ½m',
+                  'AHN2 maaiveldmodel (DTM) 5m'
+            AHN3: 'AHN3 maaiveldmodel (DTM) ½m',
+                  'AHN3 DSM ½m',
+                  'AHN3 maaiveldmodel (DTM) 5m',
+                  'AHN3 DSM 5m'
+            AHN4: 'AHN4 maaiveldmodel (DTM) ½m',
+                  'AHN4 DSM ½m',
+                  'AHN4 maaiveldmodel (DTM) 5m',
+                  'AHN4 DSM 5m'
+            AHN5: 'AHN5 maaiveldmodel (DTM) 5m',
+                  'AHN5 DSM 5m',
+                  'AHN5 maaiveldmodel (DTM) ½m',
+                  'AHN5 DSM ½m'
+        The identifier determines the resolution (½m for 0.5 m and 5m for 5 m) and the
         type of height data (M = DTM = surface level, R = DSM = also other features).
-        The default is 'AHN4_5M_M'.
+        The default is 'AHN4 maaiveldmodel (DTM) 5m'.
     method : str, optional
         Method used to resample ahn to grid of ds. See documentation of
         nlmod.resample.structured_da_to_ds for possible values. The default is
@@ -376,7 +388,7 @@ def _round_coordinates(geom: shapely.Geometry, ndigits: int = 2) -> shapely.Geom
 @cache.cache_netcdf()
 def get_ahn1(
     extent: list[float],
-    identifier: Literal["AHN1_5M"] = "AHN1_5M",
+    identifier: Literal["AHN1 maaiveldmodel (DTM) 5m"] = "AHN1 maaiveldmodel (DTM) 5m",
     as_data_array: bool | None = None,
     **kwargs,
 ) -> xr.DataArray:
@@ -387,8 +399,8 @@ def get_ahn1(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Only allowed value is 'AHN1_5M' (or the equivalent ahn1_5m). The default is
-        "AHN1_5M".
+        Only allowed value is 'AHN1 maaiveldmodel (DTM) 5m'. The default is
+        "AHN1 maaiveldmodel (DTM) 5m".
 
     Returns
     -------
@@ -440,8 +452,11 @@ def get_ahn1_legacy(
 def get_ahn2(
     extent: list[float],
     identifier: Literal[
-        "AHN2_05M_I", "AHN2_05M_N", "AHN2_05M_R", "AHN2_5M_M"
-    ] = "AHN2_5M_M",
+        "AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd",
+        "AHN2 maaiveldmodel (DTM) ½m",
+        "AHN2 DSM ½m",
+        "AHN2 maaiveldmodel (DTM) 5m",
+    ] = "AHN2 maaiveldmodel (DTM) 5m",
     as_data_array: bool | None = None,
     **kwargs,
 ) -> xr.DataArray:
@@ -452,10 +467,10 @@ def get_ahn2(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
-        type of height data (M = DTM = surface level, R = DSM = also other features).
-        Possible values are 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' and 'AHN2_5M_M'.
-        The default is "AHN2_5M_M".
+        Possible values are 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
+        'AHN2 maaiveldmodel (DTM) ½m', 'AHN2 DSM ½m', and
+        'AHN2 maaiveldmodel (DTM) 5m'. The default is
+        "AHN2 maaiveldmodel (DTM) 5m".
 
     Returns
     -------
@@ -501,8 +516,11 @@ def get_ahn2_legacy(
 def get_ahn3(
     extent: list[float],
     identifier: Literal[
-        "AHN3_05M_M", "AHN3_05M_R", "AHN3_5M_M", "AHN3_5M_R"
-    ] = "AHN3_5M_M",
+        "AHN3 maaiveldmodel (DTM) ½m",
+        "AHN3 DSM ½m",
+        "AHN3 maaiveldmodel (DTM) 5m",
+        "AHN3 DSM 5m",
+    ] = "AHN3 maaiveldmodel (DTM) 5m",
     as_data_array: bool | None = None,
     **kwargs,
 ) -> xr.DataArray:
@@ -513,10 +531,9 @@ def get_ahn3(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
-        type of height data (M = DTM = surface level, R = DSM = also other features).
-        Possible values are 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' and 'AHN3_5M_R'.
-        The default is "AHN3_5M_M".
+        Possible values are 'AHN3 maaiveldmodel (DTM) ½m', 'AHN3 DSM ½m',
+        'AHN3 maaiveldmodel (DTM) 5m', and 'AHN3 DSM 5m'. The default is
+        "AHN3 maaiveldmodel (DTM) 5m".
 
     Returns
     -------
@@ -561,11 +578,14 @@ def get_ahn3_legacy(
 def get_ahn4(
     extent: list[float],
     identifier: Literal[
-        "AHN4_05M_M", "AHN4_05M_R", "AHN4_5M_M", "AHN4_5M_R"
-    ] = "AHN4_5M_M",
+        "AHN4 maaiveldmodel (DTM) ½m",
+        "AHN4 DSM ½m",
+        "AHN4 maaiveldmodel (DTM) 5m",
+        "AHN4 DSM 5m",
+    ] = "AHN4 maaiveldmodel (DTM) 5m",
     as_data_array: bool | None = None,
     **kwargs,
-):
+) -> xr.DataArray:
     """Download AHN4.
 
     Parameters
@@ -573,10 +593,9 @@ def get_ahn4(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
-        type of height data (M = DTM = surface level, R = DSM = also other features).
-        Possible values are 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' and 'AHN4_5M_R'.
-        The default is "AHN4_5M_M".
+        Possible values are 'AHN4 maaiveldmodel (DTM) ½m', 'AHN4 DSM ½m',
+        'AHN4 maaiveldmodel (DTM) 5m', and 'AHN4 DSM 5m'. The default is
+        "AHN4 maaiveldmodel (DTM) 5m".
 
     Returns
     -------
@@ -621,8 +640,11 @@ def get_ahn4_legacy(
 def get_ahn5(
     extent: list[float],
     identifier: Literal[
-        "AHN5_5M_M", "AHN5_5M_R", "AHN5_05M_M", "AHN5_05M_R"
-    ] = "AHN5_5M_M",
+        "AHN5 maaiveldmodel (DTM) 5m",
+        "AHN5 DSM 5m",
+        "AHN5 maaiveldmodel (DTM) ½m",
+        "AHN5 DSM ½m",
+    ] = "AHN5 maaiveldmodel (DTM) 5m",
     **kwargs,
 ) -> xr.DataArray:
     """Download AHN5.
@@ -632,10 +654,9 @@ def get_ahn5(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
-        type of height data (M = DTM = surface level, R = DSM = also other features).
-        Possible values are 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' and'AHN5_05M_R'.
-        The default is "AHN5_5M_M".
+        Possible values are 'AHN5 maaiveldmodel (DTM) 5m', 'AHN5 DSM 5m',
+        'AHN5 maaiveldmodel (DTM) ½m', and 'AHN5 DSM ½m'. The default is
+        "AHN5 maaiveldmodel (DTM) 5m".
 
     Returns
     -------

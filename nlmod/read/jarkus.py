@@ -10,6 +10,7 @@ Note: if you like jazz please check this out: https://www.northseajazz.com
 
 import datetime as dt
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,49 @@ from ..util import get_da_from_da_ds, get_ds_empty
 logger = logging.getLogger(__name__)
 
 
+@cache.cache_netcdf()
+def download_bathymetry(extent, kind="jarkus"):
+    """Download bathymetry data from the jarkus dataset.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent xmin, xmax, ymin, ymax.
+    kind : str, optional
+        The kind of data. Can be "jarkus", "kusthoogte" or "vaklodingen". The default is
+        "jarkus".
+    
+    Returns
+    -------
+    da_bathymetry : xarray.DataArray
+        bathymetry data
+    """
+
+    # try to get bathymetry via opendap
+    jarkus_ds = get_dataset_jarkus(extent=extent, kind=kind)
+
+    # disable try/except because because it only works for specific areas
+    # try:
+    #     jarkus_ds = get_dataset_jarkus(extent=extent, kind=kind)
+    # except OSError:
+    #     import gdown
+
+    #     logger.warning(
+    #         "cannot access Jarkus netCDF link, copy file from google drive instead"
+    #     )
+    #     fname_jarkus = os.path.join(ds.model_ws, "jarkus_nhflopy.nc")
+    #     url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
+    #     gdown.download(url, fname_jarkus, quiet=False)
+    #     jarkus_ds = xr.open_dataset(fname_jarkus)
+
+    da_bathymetry = jarkus_ds["z"]
+
+    da_bathymetry.attrs["source"] = kind
+    da_bathymetry.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+    da_bathymetry.attrs["units"] = "mNAP"
+
+    return da_bathymetry
+
 
 @cache.cache_netcdf()
 def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
@@ -33,9 +77,8 @@ def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
 
     Parameters
     ----------
-    ds : xarray.Dataset or None, optional
-        dataset with model data where bathymetry is added to. If None the extent is
-        used. The default is None.
+    ds : xarray.Dataset
+        dataset with model data where bathymetry is added to.
     extent : list, tuple or np.array, optional
         extent xmin, xmax, ymin, ymax. Only used if ds is None. The default is None.
     da_name : str, optional
@@ -60,6 +103,13 @@ def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
+    if ds is None:
+        warnings.warn(
+        "calling 'get_bathymetry' with ds=None is deprecated and will raise an error "
+        "in the future. Use 'download_bathymetry' to get the bathymetry data within an "
+        "extent",
+        DeprecationWarning,
+    )
 
     if extent is None and ds is not None:
         extent = get_extent(ds)
@@ -74,43 +124,73 @@ def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
             return ds_out
 
     # try to get bathymetry via opendap
-    jarkus_ds = get_dataset_jarkus(extent=extent, kind=kind)
+    bathymetry_da = download_bathymetry(extent=extent, kind=kind)
+    
+    # bathymetry projected on model grid
+    if ds is None:
+        # fill nan values in bathymetry
+        da_bathymetry_filled = fillnan_da(bathymetry_da)
 
-    # disable try/except because because it only works for specific areas
-    # try:
-    #     jarkus_ds = get_dataset_jarkus(extent=extent, kind=kind)
-    # except OSError:
-    #     import gdown
+        # bathymetry can never be larger than NAP 0.0
+        da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
+        return xr.Dataset({da_name:da_bathymetry_filled})
+    else:
+        discretize_bathymetry(ds, bathymetry_da=bathymetry_da)
 
-    #     logger.warning(
-    #         "cannot access Jarkus netCDF link, copy file from google drive instead"
-    #     )
-    #     fname_jarkus = os.path.join(ds.model_ws, "jarkus_nhflopy.nc")
-    #     url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
-    #     gdown.download(url, fname_jarkus, quiet=False)
-    #     jarkus_ds = xr.open_dataset(fname_jarkus)
+    return ds_out
 
-    da_bathymetry_raw = jarkus_ds["z"]
+
+@cache.cache_netcdf()
+def discretize_bathymetry(ds,
+                          bathymetry_da,
+                          da_name="bathymetry",
+                          datavar_sea='northsea',
+                          method="average"):
+    """Discretize bathymetry data to model the model grid.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data where bathymetry is added to.
+    bathymetry_da : xarray.DataArray
+        bathymetry data
+    da_name : str, optional
+        name of the datavar that is used to store the bathymetry data. The default is
+        'bathymetry'.
+    datavar_sea : str, optional
+        datavariable in the dataset that is used to identify cells with sea in them.
+        The default is 'northsea'.
+    method : str, optional
+        Method used to resample bathymetry data to the modelgrid. See the documentation
+        of nlmod.resample.structured_da_to_ds for possible values. The default is
+        'average'.
+
+    Returns
+    -------
+    ds_out : xarray.Dataset
+        dataset with bathymetry
+
+    Notes
+    -----
+    The nan values in the original bathymetry are filled and then the
+    data is resampled to the modelgrid. Maybe we can speed up things by
+    changing the order in which operations are executed.
+    """
 
     # fill nan values in bathymetry
-    da_bathymetry_filled = fillnan_da(da_bathymetry_raw)
+    da_bathymetry_filled = fillnan_da(bathymetry_da)
 
     # bathymetry can never be larger than NAP 0.0
     da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
 
     # bathymetry projected on model grid
-    if ds is None:
-        ds_out = xr.Dataset({da_name:da_bathymetry_filled})
-    else:
-        da_bathymetry = structured_da_to_ds(da_bathymetry_filled, ds, method=method)
+    da_bathymetry = structured_da_to_ds(da_bathymetry_filled, ds, method=method)
+    raise ValueError('check if the attributes are kept after calling structured da to ds!')
 
-        ds_out[da_name] = xr.where(sea, da_bathymetry, np.nan)
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+    sea = ds[datavar_sea]
 
-    for datavar in ds_out:
-        ds_out[datavar].attrs["source"] = kind
-        ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
-        if datavar == da_name:
-            ds_out[datavar].attrs["units"] = "mNAP"
+    ds_out[da_name] = xr.where(sea, da_bathymetry, np.nan)
 
     return ds_out
 

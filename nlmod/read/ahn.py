@@ -70,7 +70,7 @@ def download_ahn(extent: list[float],
 def discretize_ahn(ds: xr.Dataset,
                    ahn_da: xr.DataArray,
                    method: str = "average") -> xr.Dataset:
-    """Discretize ahn to model the model grid.
+    """Discretize ahn data to model the model grid.
 
     Parameters
     ----------

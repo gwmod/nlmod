@@ -324,7 +324,7 @@ def geotop_lithok_in_cross_section(
         x = [coord[0] for coord in line.coords]
         y = [coord[1] for coord in line.coords]
         extent = [min(x), max(x), min(y), max(y)]
-        gt = geotop.get_geotop(extent)
+        gt = geotop.download_geotop(extent)
 
     if "top" not in gt or "botm" not in gt:
         gt = geotop.add_top_and_botm(gt)

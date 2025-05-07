@@ -130,7 +130,7 @@ def test_get_surface_water_ghb():
 
 def test_get_brp():
     extent = [116500, 120000, 439000, 442000]
-    nlmod.read.brp.get_percelen(extent)
+    nlmod.read.brp.download_percelen_gdf(extent)
 
 
 # disable because slow (~35 seconds depending on internet connection)

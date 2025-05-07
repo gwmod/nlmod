@@ -32,7 +32,7 @@ def test_get_regis_only_c_and_kd(extent=[98700.0, 99000.0, 489500.0, 489700.0]):
 
 
 def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
-    geotop_ds = nlmod.read.geotop.get_geotop(extent)
+    geotop_ds = nlmod.read.geotop.download_geotop(extent)
     line = [(extent[0], extent[2]), (extent[1], extent[3])]
 
     # also test the plot-methods
@@ -61,7 +61,7 @@ def test_get_regis_geotop_keep_all_layers(
 
 
 def test_add_kh_and_kv():
-    gt = nlmod.read.geotop.get_geotop(
+    gt = nlmod.read.geotop.download_geotop(
         [118200, 118300, 439800, 439900], probabilities=True
     )
 

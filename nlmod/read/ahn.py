@@ -42,7 +42,8 @@ def get_ahn(
     ds : xr.Dataset, optional
         dataset with the model information. If None the extent is used.
     identifier : str, optional
-        Possible values for the different AHN-versions are (casing is important):
+        The identifier determines the AHN-version, the resolution and the type of height
+        data. Possible values are (casing is important):
             AHN1: 'AHN1 maaiveldmodel (DTM) 5m'
             AHN2: 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
                   'AHN2 maaiveldmodel (DTM) ½m',
@@ -399,7 +400,8 @@ def get_ahn1(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Only allowed value is 'AHN1 maaiveldmodel (DTM) 5m'. The default is
+        The identifier determines the resolution and the type of height data. The only
+        allowed value is 'AHN1 maaiveldmodel (DTM) 5m'. The default is
         "AHN1 maaiveldmodel (DTM) 5m".
 
     Returns
@@ -408,7 +410,6 @@ def get_ahn1(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    identifier = _rename_identifier(identifier)
     da = _get_ahn_ellipsis(extent, identifier, **kwargs)
     if "return_tiles" in kwargs and kwargs["return_tiles"]:
         return da
@@ -430,7 +431,8 @@ def get_ahn1_legacy(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Only allowed value is 'ahn1_5m'. The default is "ahn1_5m".
+        The identifier determines the resolution and the type of height data. The only
+        allowed value is 'ahn1_5m'. The default is "ahn1_5m".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
 
@@ -467,7 +469,8 @@ def get_ahn2(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
         'AHN2 maaiveldmodel (DTM) ½m', 'AHN2 DSM ½m', and
         'AHN2 maaiveldmodel (DTM) 5m'. The default is
         "AHN2 maaiveldmodel (DTM) 5m".
@@ -478,7 +481,6 @@ def get_ahn2(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    identifier = _rename_identifier(identifier)
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
@@ -497,8 +499,9 @@ def get_ahn2_legacy(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The
-        default is "ahn2_5m".
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The default
+        is "ahn2_5m".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
 
@@ -531,7 +534,8 @@ def get_ahn3(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN3 maaiveldmodel (DTM) ½m', 'AHN3 DSM ½m',
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN3 maaiveldmodel (DTM) ½m', 'AHN3 DSM ½m',
         'AHN3 maaiveldmodel (DTM) 5m', and 'AHN3 DSM 5m'. The default is
         "AHN3 maaiveldmodel (DTM) 5m".
 
@@ -541,7 +545,6 @@ def get_ahn3(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    identifier = _rename_identifier(identifier)
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
@@ -560,8 +563,9 @@ def get_ahn3_legacy(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and
-        'AHN3_5m_DTM'. The default is "AHN3_5m_DTM".
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and 'AHN3_5m_DTM'. The
+        default is "AHN3_5m_DTM".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
 
@@ -593,7 +597,8 @@ def get_ahn4(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN4 maaiveldmodel (DTM) ½m', 'AHN4 DSM ½m',
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN4 maaiveldmodel (DTM) ½m', 'AHN4 DSM ½m',
         'AHN4 maaiveldmodel (DTM) 5m', and 'AHN4 DSM 5m'. The default is
         "AHN4 maaiveldmodel (DTM) 5m".
 
@@ -603,7 +608,6 @@ def get_ahn4(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    identifier = _rename_identifier(identifier)
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
@@ -622,8 +626,9 @@ def get_ahn4_legacy(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' and
-        'AHN4_DSM_5m'. The default is "AHN4_DTM_5m".
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' and 'AHN4_DSM_5m'. The
+        default is "AHN4_DTM_5m".
     as_data_array : bool, optional
         return the data as as xarray DataArray if true. The default is True.
 
@@ -654,7 +659,8 @@ def get_ahn5(
     extent : list, tuple or np.array
         extent
     identifier : str, optional
-        Possible values are 'AHN5 maaiveldmodel (DTM) 5m', 'AHN5 DSM 5m',
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN5 maaiveldmodel (DTM) 5m', 'AHN5 DSM 5m',
         'AHN5 maaiveldmodel (DTM) ½m', and 'AHN5 DSM ½m'. The default is
         "AHN5 maaiveldmodel (DTM) 5m".
 
@@ -663,7 +669,6 @@ def get_ahn5(
     xr.DataArray
         DataArray of the AHN
     """
-    identifier = _rename_identifier(identifier)
     return _get_ahn_ellipsis(extent, identifier, **kwargs)
 
 
@@ -687,15 +692,8 @@ def _get_ahn_ellipsis(
     extent : list, tuple or np.array
         extent
     identifier : str
-        Possible values for the different AHN-versions are (casing is important):
-            AHN1: 'AHN1_5M'
-            AHN2: 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' or 'AHN2_5M_M'
-            AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
-            AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
-            AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
-        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
-        type of height data (M = DTM = surface level, R = DSM = also other features).
-        The default is 'AHN4_5M_M'.
+        The identifier determines the AHN-version, the resolution and the type of height
+        data.
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
@@ -709,6 +707,7 @@ def _get_ahn_ellipsis(
     fname = os.path.join(NLMOD_DATADIR, "ahn", "ellipsis_tiles.geojson")
     tiles = _get_tiles_from_file(fname, extent=extent, **kwargs)
 
+    identifier = _rename_identifier(identifier)
     if identifier not in tiles.columns:
         raise (ValueError(f"Unknown ahn-identifier: {identifier}"))
     tiles = tiles[~tiles[identifier].isna()]

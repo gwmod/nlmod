@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+import warnings
 from typing import Literal
 
 import geopandas as gpd
@@ -25,6 +26,74 @@ from ..util import extent_to_polygon, get_ds_empty
 from .webservices import arcrest, wcs
 
 logger = logging.getLogger(__name__)
+
+
+@cache.cache_netcdf(coords_2d=True)
+def download_ahn(extent: list[float],
+                 identifier: str = "AHN4_5M_M",
+                 **kwargs) -> xr.DataArray:
+    """Download ahn data within an extent.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent xmin, xmax, ymin, ymax.
+    identifier : str, optional
+        Possible values for the different AHN-versions are (casing is important):
+            AHN1: 'AHN1_5M'
+            AHN2: 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' or 'AHN2_5M_M'
+            AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
+            AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
+            AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        The default is 'AHN4_5M_M'.
+
+    Returns
+    -------
+    ahn_da : xr.DataArray
+        DataArray with the ahn variable.
+    """
+
+    ahn_da = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
+    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+        return ahn_da
+
+    ahn_da.attrs["source"] = identifier
+    ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+    ahn_da.attrs["units"] = "mNAP"
+
+    return ahn_da
+
+
+@cache.cache_netcdf(coords_2d=True)
+def discretize_ahn(ds: xr.Dataset,
+                   ahn_da: xr.DataArray,
+                   method: str = "average") -> xr.Dataset:
+    """Discretize ahn to model the model grid.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        dataset with the model information.
+    method : str, optional
+        Method used to resample ahn to grid of ds. See documentation of
+        nlmod.resample.structured_da_to_ds for possible values. The default is
+        'average'.
+
+    Returns
+    -------
+    ds_out : xr.Dataset
+        Dataset with the ahn variable.
+    """
+    if ds is not None:
+        ahn_da = structured_da_to_ds(ahn_da, ds, method=method)
+        raise ValueError('check if the attributes are kept after calling structured da to ds!')
+
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+    ds_out["ahn"] = ahn_da
+
+    return ds_out
 
 
 @cache.cache_netcdf(coords_2d=True)
@@ -63,27 +132,25 @@ def get_ahn(
     ds_out : xr.Dataset
         Dataset with the ahn variable.
     """
+    if ds is None:
+        warnings.warn(
+        "calling 'get_ahn' with ds=None is deprecated and will raise an error in the "
+        "future. Use 'download_ahn' to get the ahn within an extent",
+        DeprecationWarning,
+    )
+
     if extent is None and ds is not None:
         extent = get_extent(ds)
-    ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
-    if "return_tiles" in kwargs and kwargs["return_tiles"]:
-        return ahn_ds_raw
 
-    if ds is None:
-        ahn_da = ahn_ds_raw
-    else:
-        ahn_da = structured_da_to_ds(ahn_ds_raw, ds, method=method)
-    ahn_da.attrs["source"] = identifier
-    ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
-    ahn_da.attrs["units"] = "mNAP"
+    ahn_da = download_ahn(extent=extent, identifier=identifier)
+    # this is probably redundant when we have the 'download_ahn' function
+    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+        return ahn_da
 
     if ds is None:
         return ahn_da
-
-    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
-    ds_out["ahn"] = ahn_da
-
-    return ds_out
+    else:
+        return discretize_ahn(ds, ahn_da, method=method)
 
 
 def get_ahn_at_point(

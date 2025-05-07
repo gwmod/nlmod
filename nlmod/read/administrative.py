@@ -1,9 +1,42 @@
+import warnings
+
 from . import waterboard, webservices
 from .. import cache
 
 
 @cache.cache_pickle
-def get_municipalities(source="cbs", drop_water=True, **kwargs):
+def get_municipalities(*args, **kwargs):
+    """Get the location of the Dutch municipalities as a Polygon GeoDataFrame.
+
+    .. deprecated:: 0.10.0
+          `get_municipalities` will be removed in nlmod 1.0.0, it is replaced by
+          `download_municipalities_gdf` because of new naming convention 
+          https://github.com/gwmod/nlmod/issues/47
+    
+    Parameters
+    ----------
+    source : str, optional
+        'cbs' or 'kadaster'
+    drop_water : bool, optional
+        drop water
+    **kwargs
+        passed to webservices.wfs
+    
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of municipalities
+    """
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.administrative.download_municipalities_gdf() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_municipalities_gdf(*args, **kwargs)
+
+@cache.cache_pickle
+def download_municipalities_gdf(source="cbs", drop_water=True, **kwargs):
     """Get the location of the Dutch municipalities as a Polygon GeoDataFrame.
 
     Parameters
@@ -43,9 +76,38 @@ def get_municipalities(source="cbs", drop_water=True, **kwargs):
         raise ValueError(f"Unknown source: {source}")
     return gdf
 
+@cache.cache_pickle
+def get_provinces(*args, **kwargs):
+    """Get the location of the Dutch provinces as a Polygon GeoDataFrame.
+
+    .. deprecated:: 0.10.0
+          `get_provinces` will be removed in nlmod 1.0.0, it is replaced by
+          `download_provinces_gdf` because of new naming convention 
+          https://github.com/gwmod/nlmod/issues/47
+    
+    Parameters
+    ----------
+    source : str, optional
+        'cbs' or 'kadaster'
+    **kwargs
+        passed to webservices.wfs
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of provinces
+    """
+
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.administrative.download_provinces_gdf() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_provinces_gdf(*args, **kwargs)
 
 @cache.cache_pickle
-def get_provinces(source="cbs", **kwargs):
+def download_provinces_gdf(source="cbs", **kwargs):
     """Get the location of the Dutch provinces as a Polygon GeoDataFrame.
     
     Parameters
@@ -78,7 +140,37 @@ def get_provinces(source="cbs", **kwargs):
 
 
 @cache.cache_pickle
-def get_netherlands(source="cbs", **kwargs):
+def get_netherlands(*args, **kwargs):
+    """Get the location of the Dutch border as a Polygon GeoDataFrame.
+    
+    .. deprecated:: 0.10.0
+          `get_netherlands` will be removed in nlmod 1.0.0, it is replaced by
+          `download_nlborder_gdf` because of new naming convention 
+          https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    source : str, optional
+        'cbs' or 'kadaster'
+    **kwargs
+        passed to webservices.wfs
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of the Netherlands
+    """
+
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.administrative.download_nlborder_gdf() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_nlborder_gdf(*args, **kwargs)
+
+@cache.cache_pickle
+def download_nlborder_gdf(source="cbs", **kwargs):
     """Get the location of the Dutch border as a Polygon GeoDataFrame.
     
     Parameters
@@ -110,6 +202,34 @@ def get_netherlands(source="cbs", **kwargs):
 
 @cache.cache_pickle
 def get_waterboards(**kwargs):
+    """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame.
+
+    .. deprecated:: 0.10.0
+          `get_waterboards` will be removed in nlmod 1.0.0, it is replaced by
+          `download_waterboards_gdf` because of new naming convention 
+          https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    **kwargs
+        passed to waterboard.get_polygons
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        polygons of the Netherlands
+    """
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.administrative.download_waterboards_gdf() in the future.",
+        DeprecationWarning,
+    )
+
+    return waterboard.get_polygons(**kwargs)
+
+
+@cache.cache_pickle
+def download_waterboards_gdf(**kwargs):
     """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame.
      
     Parameters

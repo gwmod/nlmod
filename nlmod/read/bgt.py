@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import warnings
 from io import BytesIO
 from typing import Dict
 from xml.etree import ElementTree
@@ -18,7 +19,66 @@ from ..util import extent_to_polygon
 from .. import cache
 
 @cache.cache_pickle
-def get_bgt(
+def get_bgt(*args, **kwargs):
+    """Get geometries within an extent or polygon from the Basis Registratie
+    Grootschalige Topografie (BGT)
+
+    .. deprecated:: 0.10.0
+          `get_bgt` will be removed in nlmod 1.0.0, it is replaced by
+          `download_bgt` because of new naming convention 
+          https://github.com/gwmod/nlmod/issues/47
+    
+
+    Parameters
+    ----------
+    extent : list or tuple of length 4 or shapely Polygon
+        The extent (xmin, xmax, ymin, ymax) or polygon for which shapes are
+        requested.
+    layer : string or list of strings, optional
+        The layer(s) for which shapes are requested. When layer is "all", all layers are
+        requested. The default is "waterdeel".
+    cut_by_extent : bool, optional
+        Only return the intersection with the extent if True. The default is
+        True
+    make_valid : bool, optional
+        Make geometries valid by appying a buffer of 0 m when True. The default is
+        False.
+    fname : string, optional
+        Save the zipfile that is received by the request to file. The default
+        is None, which does not save anything to file.
+    geometry: string, optional
+        When geometry is specified, this attribute is used as the geometry of the
+        resulting GeoDataFrame. Some layers have multiple geometry-attributes. An
+        example is the layer 'pand', where each buidling (polygon) also contains a
+        Point-geometry for the label. When geometry is None, the last attribute starting
+        with the word "geometrie" is used as the geometry. The default is None.
+    remove_expired: bool, optional
+        Remove expired items (that contain a value for 'eindRegistratie') when True. The
+        default is True.
+    add_bronhouder_names: bool, optional
+        Add bronhouder in a column called 'bronhouder_name. names when True. The default
+        is True.
+    timeout: int optional
+        The amount of time in seconds to wait for the server to send data before giving
+        up. The default is 1200 (20 minutes).
+
+    Returns
+    -------
+    gdf : GeoPandas GeoDataFrame or dict of GeoPandas GeoDataFrame
+        A GeoDataFrame (when only one layer is requested) or a dict of GeoDataFrames
+        containing all geometries and properties.
+    """
+
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.bgt.download_bgt() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_bgt(*args, **kwargs)
+
+@cache.cache_pickle
+def download_bgt(
     extent,
     layer="waterdeel",
     cut_by_extent=True,

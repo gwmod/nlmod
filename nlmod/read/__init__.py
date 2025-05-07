@@ -21,5 +21,5 @@ from . import (
 from .geotop import get_geotop
 from .regis import get_regis
 from .ahn import get_ahn
-from .bgt import get_bgt
+from .bgt import download_bgt
 

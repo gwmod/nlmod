@@ -15,7 +15,7 @@ def get_bgt():
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
             os.makedirs(model_ws)
-        bgt = nlmod.read.bgt.get_bgt(extent)
+        bgt = nlmod.read.bgt.download_bgt(extent)
         bgt.to_file(fname)
     return gpd.read_file(fname).set_index("identificatie")
 

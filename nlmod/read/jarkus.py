@@ -185,7 +185,6 @@ def discretize_bathymetry(ds,
 
     # bathymetry projected on model grid
     da_bathymetry = structured_da_to_ds(da_bathymetry_filled, ds, method=method)
-    raise ValueError('check if the attributes are kept after calling structured da to ds!')
 
     ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
     sea = ds[datavar_sea]

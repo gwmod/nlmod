@@ -88,7 +88,6 @@ def discretize_ahn(ds: xr.Dataset,
     """
     if ds is not None:
         ahn_da = structured_da_to_ds(ahn_da, ds, method=method)
-        raise ValueError('check if the attributes are kept after calling structured da to ds!')
 
     ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
     ds_out["ahn"] = ahn_da

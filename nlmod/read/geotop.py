@@ -248,7 +248,6 @@ def to_model_layers(
     return ds
 
 
-@cache.cache_netcdf()
 def get_geotop(*args, **kwargs):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok data

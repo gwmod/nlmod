@@ -14,7 +14,6 @@ from nlmod import cache, util
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_pickle
 def get_gdf_bofek(*args, **kwargs):
     """Get geodataframe of bofek 2020 wihtin the extent of the model.
 

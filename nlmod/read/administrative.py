@@ -4,7 +4,6 @@ from . import waterboard, webservices
 from .. import cache
 
 
-@cache.cache_pickle
 def get_municipalities(*args, **kwargs):
     """Get the location of the Dutch municipalities as a Polygon GeoDataFrame.
 
@@ -76,7 +75,7 @@ def download_municipalities_gdf(source="cbs", drop_water=True, **kwargs):
         raise ValueError(f"Unknown source: {source}")
     return gdf
 
-@cache.cache_pickle
+
 def get_provinces(*args, **kwargs):
     """Get the location of the Dutch provinces as a Polygon GeoDataFrame.
 
@@ -139,7 +138,6 @@ def download_provinces_gdf(source="cbs", **kwargs):
     return gdf
 
 
-@cache.cache_pickle
 def get_netherlands(*args, **kwargs):
     """Get the location of the Dutch border as a Polygon GeoDataFrame.
     
@@ -200,7 +198,6 @@ def download_nlborder_gdf(source="cbs", **kwargs):
     return gdf
 
 
-@cache.cache_pickle
 def get_waterboards(**kwargs):
     """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame.
 

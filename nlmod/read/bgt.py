@@ -18,7 +18,7 @@ from nlmod import NLMOD_DATADIR
 from ..util import extent_to_polygon
 from .. import cache
 
-@cache.cache_pickle
+
 def get_bgt(*args, **kwargs):
     """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)

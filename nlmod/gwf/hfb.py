@@ -13,7 +13,6 @@ from ..dims.grid import (
     get_node_structured,
     modelgrid_from_ds,
     node_to_lrc,
-
 )
 
 
@@ -35,7 +34,7 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
         geodataframe with line elements.
     hydchr : float
         Conductance of the horizontal flow barrier, e.g. 1 / 100 means
-        a resistance of 100 days for a unit gradient. 
+        a resistance of 100 days for a unit gradient.
     depth : float
         Depth with respect to groundlevel. For example for cases where the depth of the
         barrier is only limited by the construction method. Use depth or elevation
@@ -123,7 +122,8 @@ def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         plot=plot,
     )
 
-def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False)
+
+def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
     """Snap line to grid and return a list of cellids that share faces.
 
     Used for determining where to place horizontal flow barriers.
@@ -296,9 +296,7 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False)
     return cellids
 
 
-def polygon_to_hfb(
-    gdf, ds, hydchr, column=None, gwf=None, lay=0,  add_data=False
-):
+def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False):
     """Snap polygon exterior to grid to form a horizontal flow barrier.
 
     Parameters
@@ -313,7 +311,7 @@ def polygon_to_hfb(
     column : str, optional
         Column name to use for the data. The default is None.
     gwf : flopy.mf6.ModflowGwf, optional
-        Groundwater flow model. The default is None. If passed, 
+        Groundwater flow model. The default is None. If passed,
         function returns a HFB package.
     lay : int, optional
         Layer number. The default is 0.

@@ -100,9 +100,21 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
     return spd
 
 
-def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
-    """Obtain the cells with a horizontal flow barrier between them from a geodataframe
-    with line elements.
+def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
+    warnings.warn(
+        "The function 'line2hfb' is deprecated and will be removed in a future version. "
+        "Please use 'line_to_hfb' instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return line_to_hfb(
+        gdf=gdf,
+        ds=ds,
+        gwf=gwf,
+        prevent_rings=prevent_rings,
+        plot=plot,
+    )
+
 
     Parameters
     ----------

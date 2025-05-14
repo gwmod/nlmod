@@ -1,5 +1,5 @@
-from . import waterboard, webservices
 from .. import cache
+from . import waterboard, webservices
 
 
 @cache.cache_pickle
@@ -14,7 +14,7 @@ def get_municipalities(source="cbs", drop_water=True, **kwargs):
         drop water
     **kwargs
         passed to webservices.wfs
-    
+
     Returns
     -------
     gpd.GeoDataFrame
@@ -47,7 +47,7 @@ def get_municipalities(source="cbs", drop_water=True, **kwargs):
 @cache.cache_pickle
 def get_provinces(source="cbs", **kwargs):
     """Get the location of the Dutch provinces as a Polygon GeoDataFrame.
-    
+
     Parameters
     ----------
     source : str, optional
@@ -80,7 +80,7 @@ def get_provinces(source="cbs", **kwargs):
 @cache.cache_pickle
 def get_netherlands(source="cbs", **kwargs):
     """Get the location of the Dutch border as a Polygon GeoDataFrame.
-    
+
     Parameters
     ----------
     source : str, optional
@@ -111,7 +111,7 @@ def get_netherlands(source="cbs", **kwargs):
 @cache.cache_pickle
 def get_waterboards(**kwargs):
     """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame.
-     
+
     Parameters
     ----------
     **kwargs

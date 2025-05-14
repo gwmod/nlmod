@@ -2,8 +2,8 @@ import logging
 
 import numpy as np
 
-from . import webservices
 from .. import cache
+from . import webservices
 
 logger = logging.getLogger(__name__)
 

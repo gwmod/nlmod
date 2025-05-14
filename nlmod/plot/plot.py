@@ -15,11 +15,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ..dims.grid import (
     get_affine_mod_to_world,
+    get_delc,
+    get_delr,
     get_extent,
     get_extent_gdf,
     modelgrid_from_ds,
-    get_delr,
-    get_delc,
 )
 from ..read import geotop, rws
 from .dcs import DatasetCrossSection

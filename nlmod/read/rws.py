@@ -10,7 +10,6 @@ from rioxarray.merge import merge_arrays
 from tqdm import tqdm
 
 from nlmod import NLMOD_DATADIR, cache, dims, util
-from nlmod.read import jarkus
 from nlmod.read.webservices import arcrest
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ def get_gdf_surface_water(ds=None, extent=None):
 
 
 @cache.cache_netcdf(coords_3d=True)
-def get_surface_water(ds, gdf=None, da_basename='rws_oppwater'):
+def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     """Create 3 data-arrays from the shapefile with surface water:
 
     - area: area of the shape in the cell

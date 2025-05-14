@@ -24,11 +24,15 @@ from ..util import get_da_from_da_ds, get_ds_empty
 logger = logging.getLogger(__name__)
 
 
-
 @cache.cache_netcdf()
-def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
-                   datavar_sea='northsea',
-                   kind="jarkus", method="average"):
+def get_bathymetry(
+    ds=None,
+    extent=None,
+    da_name="bathymetry",
+    datavar_sea="northsea",
+    kind="jarkus",
+    method="average",
+):
     """Get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
@@ -60,7 +64,6 @@ def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
-
     if extent is None and ds is not None:
         extent = get_extent(ds)
 
@@ -100,7 +103,7 @@ def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
 
     # bathymetry projected on model grid
     if ds is None:
-        ds_out = xr.Dataset({da_name:da_bathymetry_filled})
+        ds_out = xr.Dataset({da_name: da_bathymetry_filled})
     else:
         da_bathymetry = structured_da_to_ds(da_bathymetry_filled, ds, method=method)
 

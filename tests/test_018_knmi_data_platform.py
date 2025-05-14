@@ -1,6 +1,8 @@
 # ruff: noqa: D103
 from pathlib import Path
+
 from xarray import Dataset
+
 from nlmod.read import knmi_data_platform
 
 data_path = Path(__file__).parent / "data"
@@ -26,7 +28,7 @@ def test_download_multiple_nc_files() -> None:
         knmi_data_platform.download_files(
             dataset_name, dataset_version, fnames, dirname=dirname
         )
-        file =  (Path(dirname) / fnames[0])
+        file = Path(dirname) / fnames[0]
         assert file.exists(), f"File {file} was not downloaded properly"
 
         ds = knmi_data_platform.read_nc(file)
@@ -39,7 +41,6 @@ def test_download_read_zip_file() -> None:
     dataset_name = "rad_nl25_rac_mfbs_24h_netcdf4"
     dataset_version = "2.0"
     try:
-
         # list the files
         files = knmi_data_platform.get_list_of_files(dataset_name, dataset_version)
         assert len(files) > 0, "No files found"
@@ -50,7 +51,7 @@ def test_download_read_zip_file() -> None:
         knmi_data_platform.download_file(
             dataset_name, dataset_version, fname=fname, dirname=dirname
         )
-        file = (Path(dirname) / fname)
+        file = Path(dirname) / fname
         assert file.exists(), f"File {file} was not downloaded properly"
     except knmi_data_platform.KNMIDataPlatformError as e:
         print(f"Error in knmi_data_platform test: {e}")

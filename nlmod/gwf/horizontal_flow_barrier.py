@@ -115,13 +115,21 @@ def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         plot=plot,
     )
 
+def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False)
+    """Snap line to grid and return a list of cellids that share faces.
+
+    Used for determining where to place horizontal flow barriers.
 
     Parameters
     ----------
     gdf : gpd.GeoDataframe
         geodataframe with line elements.
+    ds : xarray.Dataset, optional
+        Dataset with the grid information. The default is None.
+        Must pass one of ds or gwf.
     gwf : flopy.mf6.modflow.mfgwf.ModflowGwf
-        grondwater flow model.
+        grondwater flow model or modelgrid object. The default is None.
+        Must pass one of ds or gwf.
     prevent_rings : bool, optional
         Prevent cells with segments on each side when True. Remove the segments whose
         centroid is farthest from the line. The default is True.
@@ -137,15 +145,60 @@ def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
     # for the idea, see:
     # https://gis.stackexchange.com/questions/188755/how-to-snap-a-road-network-to-a-hexagonal-grid-in-qgis
 
-    gdfg = gdf_to_grid(gdf, gwf)
+    if gwf is not None:
+        if isinstance(gwf, flopy.discretization.grid.Grid):
+            mgrid = gwf
+        elif isinstance(gwf, flopy.mf6.ModflowGwf):
+            mgrid = gwf.modelgrid
+    elif ds is not None:
+        mgrid = modelgrid_from_ds(ds)
+    else:
+        raise ValueError(
+            "Please pass either a dataset or a flopy.mf6.ModflowGwf object."
+        )
 
-    cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index("icell2d")
-    vertices = pd.DataFrame(gwf.disv.vertices.array).set_index("iv")
+    gdfg = gdf_to_grid(gdf, gwf if gwf is not None else ds)
+
+    # add support for structured grid
+    if mgrid.grid_type == "structured":
+        vertices = pd.DataFrame(
+            index=np.arange(mgrid.nvert),
+            data=mgrid.verts,
+            columns=["xv", "yv"],
+        )
+        vertices.index.name = "iv"
+        cell2d = pd.DataFrame(index=np.arange(mgrid.ncpl))
+        cell2d["ncvert"] = 5
+        cell2d["xc"] = mgrid.xcellcenters.flatten()
+        cell2d["yc"] = mgrid.ycellcenters.flatten()
+        cell2d.index.name = "icell2d"
+        icvert = np.array(
+            [
+                mgrid._build_structured_iverts(*mgrid.get_lrc(icpl)[0][1:])
+                for icpl in range(mgrid.ncpl)
+            ]
+        )
+        # add first vertex to the end of the list
+        icvert = np.hstack([icvert, icvert[:, :1]])
+        gdfg["cellid_structured"] = gdfg["cellid"]
+        gdfg["cellid"] = gdfg["cellid"].map(
+            lambda cid: get_node_structured(0, *cid, shape=mgrid.shape)
+        )
+
+    elif mgrid.grid_type == "vertex":
+        # TODO: attempt using modelgrid to construct this data instead of
+        # using the disv object
+        cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index("icell2d")
+        vertices = pd.DataFrame(gwf.disv.vertices.array).set_index("iv")
+        icvert = cell2d.loc[:, cell2d.columns.str.startswith("icvert")].values
+    else:
+        raise ValueError(
+            f"gridtype {mgrid.grid_type} not supported. Only 'structured' "
+            "and 'vertex' are supported."
+        )
 
     # for every cell determine which cell-edge could form the line
     # by testing for an intersection with a triangle to the cell-center
-    icvert = cell2d.loc[:, cell2d.columns.str.startswith("icvert")].values
-
     hfb_seg = []
     for index in gdfg.index.unique():
         # Get the nearest hexagon sides where routes cross
@@ -206,7 +259,7 @@ def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         for i, seg in enumerate(hfb_seg):
             x = [vertices.at[seg[0], "xv"], vertices.at[seg[1], "xv"]]
             y = [vertices.at[seg[0], "yv"], vertices.at[seg[1], "yv"]]
-            ax.plot(x, y)
+            ax.plot(x, y, color="k")
 
     # find out between which cellid's these segments are
     segments = []
@@ -223,7 +276,15 @@ def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
 
     cellids = []
     for seg in hfb_seg:
-        cellids.append(list(segments.loc[[tuple(seg)]].values[:, 0]))
+        if mgrid.grid_type == "structured":
+            iseg = [
+                node_to_lrc(cid, mgrid.shape)[1:]
+                for cid in segments.loc[[tuple(seg)]].values[:, 0]
+            ]
+            cellids.append(iseg)
+        else:
+            cellids.append(list(segments.loc[[tuple(seg)]].values[:, 0]))
+
     return cellids
 
 

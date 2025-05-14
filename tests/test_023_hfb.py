@@ -16,7 +16,7 @@ def test_get_hfb_spd():
     coords = [(0, 1000), (1000, 0)]
     gdf = gpd.GeoDataFrame({"geometry": [LineString(coords)]})
 
-    spd = nlmod.gwf.hfb.get_hfb_spd(ds, gdf, depth=5.0)
+    spd = nlmod.gwf.hfb.get_hfb_spd(ds, gdf, hydchr=1 / 100.0, depth=5.0)
     hfb = flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
 
     # also test the plot method
@@ -32,7 +32,7 @@ def test_polygon_to_hfb():
     coords = [(135, 230), (568, 170), (778, 670), (260, 786)]
     gdf = gpd.GeoDataFrame({"geometry": [Polygon(coords)]}).reset_index()
 
-    hfb = nlmod.gwf.hfb.polygon_to_hfb(gdf, ds, gwf=gwf)
+    hfb = nlmod.gwf.hfb.polygon_to_hfb(gdf, ds, hydchr=1 / 100.0, gwf=gwf)
 
     # also test the plot method
     ax = gdf.plot()

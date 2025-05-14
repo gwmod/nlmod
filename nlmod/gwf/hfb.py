@@ -297,8 +297,36 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False)
 
 
 def polygon_to_hfb(
-    gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100, add_data=False
+    gdf, ds, hydchr, column=None, gwf=None, lay=0,  add_data=False
 ):
+    """Snap polygon exterior to grid to form a horizontal flow barrier.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        geodataframe with polygon elements.
+    ds : xarray.Dataset
+        model dataset
+    hydchr : float
+        Conductance of the horizontal flow barrier, e.g. 1 / 100 means
+        a resistance of 100 days for a unit gradient.
+    column : str, optional
+        Column name to use for the data. The default is None.
+    gwf : flopy.mf6.ModflowGwf, optional
+        Groundwater flow model. The default is None. If passed, 
+        function returns a HFB package.
+    lay : int, optional
+        Layer number. The default is 0.
+    add_data : bool, optional
+        If True, add the data to the stress period data. The default is False.
+
+    Returns
+    -------
+    spd : list of lists
+        List of lists with the cell ids and the conductance, if gwf is None.
+    hfb : flopy.mf6.ModflowGwfhfb, optional
+        If gwf is passed, returns a HFB package.
+    """
     if isinstance(gdf, xr.DataArray):
         da = gdf
     elif isinstance(gdf, str):

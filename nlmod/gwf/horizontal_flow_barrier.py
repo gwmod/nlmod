@@ -4,11 +4,20 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import Point, Polygon
+import warnings
 
-from ..dims.grid import gdf_to_da, gdf_to_grid
+from ..dims.layers import get_idomain, get_thickness
+from ..dims.grid import (
+    gdf_to_da,
+    gdf_to_grid,
+    get_node_structured,
+    modelgrid_from_ds,
+    node_to_lrc,
+
+)
 
 
-def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
+def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     """Generate a stress period data for horizontal flow barrier between two cell nodes,
     with several limitations. The stress period data can be used directly in the HFB
     package of flopy. The hfb is placed at the cell interface; it follows the sides of
@@ -20,12 +29,13 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
 
     Parameters
     ----------
-    gwf : Groundwater flow
-        Groundwaterflow model from flopy.
+    ds : xr.Dataset
+        model dataset
     linestrings : geopandas.geodataframe
-        DESCRIPTION
+        geodataframe with line elements.
     hydchr : float
-        Conductance of the horizontal flow barrier
+        Conductance of the horizontal flow barrier, e.g. 1 / 100 means
+        a resistance of 100 days for a unit gradient. 
     depth : float
         Depth with respect to groundlevel. For example for cases where the depth of the
         barrier is only limited by the construction method. Use depth or elevation
@@ -42,55 +52,53 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
         sum([depth is None, elevation is None]) == 1
     ), "Use either depth or elevation argument"
 
-    tops = np.concatenate((gwf.disv.top.array[None], gwf.disv.botm.array))
-    thick = tops[:-1] - tops[1:]
+    if not isinstance(ds, xr.Dataset):
+        raise TypeError("Please pass a model dataset!")
 
-    cells = line2hfb(linestrings, gwf)
+    thick = get_thickness(ds)
+    idomain = get_idomain(ds)
+    tops = np.concatenate((ds["top"].values[np.newaxis], ds["botm"].values))
+    cells = line_to_hfb(linestrings, ds)
 
     # drop cells on the edge of the model
     cells = [x for x in cells if len(x) > 1]
 
     spd = []
-
-    # hydchr = 1 / 100  # resistance of 100 days
     for icell2d1, icell2d2 in cells:
         # TODO: Improve assumption of the thickness between the cells.
         thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
         topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
 
-        for ilay in range(gwf.disv.nlay.array):
+        for ilay in range(ds.sizes["layer"]):
             cellid1 = (ilay, icell2d1)
             cellid2 = (ilay, icell2d2)
 
-            if gwf.disv.idomain.array[cellid1] <= 0:
+            if idomain.values[cellid1] <= 0:
                 continue
 
-            if gwf.disv.idomain.array[cellid2] <= 0:
+            if idomain.values[cellid2] <= 0:
                 continue
 
             if depth is not None:
                 if sum(thicki[: ilay + 1]) <= depth:
-                    # hfb pierces the entire cell
+                    # hfb spans the entire cell
                     spd.append([cellid1, cellid2, hydchr])
 
                 elif sum(thicki[:ilay]) <= depth:
-                    # hfb pierces the cell partially
+                    # hfb spans the cell partially
                     hydchr_frac = (depth - sum(thicki[:ilay])) / thicki[ilay]
                     assert 0 <= hydchr_frac <= 1, "Something is wrong"
 
                     spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                     break  # go to next cell
 
-                else:
-                    pass
-
             else:
                 if topi[ilay + 1] >= elevation:
-                    # hfb pierces the entire cell
+                    # hfb spans the entire cell
                     spd.append([cellid1, cellid2, hydchr])
 
                 else:
-                    # hfb pierces the cell partially
+                    # hfb spans the cell partially
                     hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
                     assert 0 <= hydchr_frac <= 1, "Something is wrong"
 

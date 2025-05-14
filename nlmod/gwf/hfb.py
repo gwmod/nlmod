@@ -6,7 +6,7 @@ import xarray as xr
 from shapely.geometry import Point, Polygon
 import warnings
 
-from ..dims.layers import get_idomain, get_thickness
+from ..dims.layers import get_idomain, calculate_thickness
 from ..dims.grid import (
     gdf_to_da,
     gdf_to_grid,
@@ -54,7 +54,7 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     if not isinstance(ds, xr.Dataset):
         raise TypeError("Please pass a model dataset!")
 
-    thick = get_thickness(ds)
+    thick = calculate_thickness(ds)
     idomain = get_idomain(ds)
     tops = np.concatenate((ds["top"].values[np.newaxis], ds["botm"].values))
     cells = line_to_hfb(linestrings, ds)

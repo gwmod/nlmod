@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 import flopy
@@ -5,16 +6,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from geopandas import GeoSeries
 from shapely.geometry import Point, Polygon
 
 from ..dims.grid import (
     gdf_to_da,
     gdf_to_grid,
     get_node_structured,
+    is_structured,
+    is_vertex,
     modelgrid_from_ds,
     node_to_lrc,
 )
 from ..dims.layers import calculate_thickness, get_idomain
+
+logger = logging.getLogger(__name__)
 
 
 def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
@@ -133,7 +139,7 @@ def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
 
 
 def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
-    """Snap line to grid and return a list of cellids that share faces.
+    """Snap line to grid and return list of cellids that share faces.
 
     Used for determining where to place horizontal flow barriers.
 
@@ -179,7 +185,7 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
             "Please pass either a dataset or a flopy.mf6.ModflowGwf object."
         )
 
-    gdfg = gdf_to_grid(gdf, gwf if gwf is not None else ds)
+    gdfg = gdf_to_grid(gdf, gwf if gwf is not None else ds, desc="Intersecting HFB(s)")
 
     # add support for structured grid
     if mgrid.grid_type == "structured":
@@ -206,7 +212,6 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         gdfg["cellid"] = gdfg["cellid"].map(
             lambda cid: get_node_structured(0, *cid, shape=mgrid.shape)
         )
-
     elif mgrid.grid_type == "vertex":
         cell2d = pd.DataFrame(mgrid.cell2d)
         cell2d.columns = ["icell2d", "xc", "yc", "ncvert"] + [
@@ -267,25 +272,46 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
                 hfb_seg = hfb_seg[~mask]
 
     # get unique segments
-    hfb_seg = np.unique(hfb_seg[:, 1:], axis=0)
+    hfb_seg_unique = np.unique(hfb_seg[:, 1:], axis=0)
+    # NOTE: see next note describing the idea behind this code. Leaving here for future
+    # review.
+    # hfb_seg_unique, uidx = np.unique(hfb_seg[:, 1:], return_index=True, axis=0)
+    # ucids = hfb_seg[uidx, 0]
+    # try:
+    #     endpoint_cellid = mgrid.intersect(get_coordinates(gdf.geometry.union_all()[-1]))
+    # except Exception:  # e.g. point is on our outside model boundary
+    #     endpoint_cellid = ucids[-1]  # pick last cellid (this might not be the endpoint)
+    # n_segments_endpoint_cell = 0
 
     # Get rid of disconnected (or 'open') segments
     # Let's remove disconnected/open segments
-    iv = np.unique(hfb_seg)
-    segments_per_iv = pd.Series([np.sum(hfb_seg == x) for x in iv], index=iv)
-    mask = np.full(hfb_seg.shape[0], True)
-    for i, segment in enumerate(hfb_seg):
+    iv = np.unique(hfb_seg_unique)
+    segments_per_iv = pd.Series([np.sum(hfb_seg_unique == x) for x in iv], index=iv)
+    mask = np.full(hfb_seg_unique.shape[0], True)
+    for i, segment in enumerate(hfb_seg_unique):
         # one vertex is not connected and the other one at least to two other segments
         if (segments_per_iv[segment[0]] == 1 and segments_per_iv[segment[1]] >= 3) or (
             segments_per_iv[segment[1]] == 1 and segments_per_iv[segment[0]] >= 3
         ):
             mask[i] = False
-    hfb_seg = hfb_seg[mask]
+        # NOTE: the code below can be used to avoid dropping all segments in the
+        # final cell, leaving it here for review in the future.
+        #     if ensure_endpoint_segment:
+        #         # keep at least one segment in final cell
+        #         if ucids[i] == endpoint_cellid and n_segments_endpoint_cell == 0:
+        #             continue
+        #         else:
+        #             mask[i] = False
+        #     else:
+        #         mask[i] = False
+        # elif ensure_endpoint_segment and ucids[i] == endpoint_cellid:
+        #     n_segments_endpoint_cell += 1
+    hfb_seg_unique = hfb_seg_unique[mask]
 
     if plot:
         # test by plotting
         ax = gdfg.plot()
-        for i, seg in enumerate(hfb_seg):
+        for _, seg in enumerate(hfb_seg_unique):
             x = [vertices.at[seg[0], "xv"], vertices.at[seg[1], "xv"]]
             y = [vertices.at[seg[0], "yv"], vertices.at[seg[1], "yv"]]
             ax.plot(x, y, color="k")
@@ -304,7 +330,7 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
     segments = segments.set_index(["verts"])
 
     cellids = []
-    for seg in hfb_seg:
+    for seg in hfb_seg_unique:
         if mgrid.grid_type == "structured":
             iseg = [
                 node_to_lrc(cid, mgrid.shape)[1:]
@@ -315,6 +341,77 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
             cellids.append(list(segments.loc[[tuple(seg)]].values[:, 0]))
 
     return cellids
+
+
+def line_to_hfb_buffer(gdf, ds, buffer_distance=None, gi=None):
+    """Snap line to grid and return list of cellids that share faces.
+
+    Uses a two single-sided buffers to compute where the interface to compute the
+    locations of the horizontal flow barriers. This method is more robust than the
+    other methods, and is also faster.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataframe
+        geodataframe with line elements.
+    ds : xarray.Dataset
+        model dataset
+    buffer_distance : float, optional
+        Buffer distance. The default is None, which will be set to 1.5 times the
+        maximum cell dimension in the model.
+    gi : int, optional
+        GridIntersect instance, if not passed, the function will create one.
+        The default is None.
+
+    Returns
+    -------
+    hfb_seg : list of tuples
+        List of tuples with cellids that share a face.
+    """
+    if buffer_distance is None:
+        # buffer distance ~ 1.5 * max cell size
+        buffer_distance = 1.5 * np.max(
+            [np.max(np.abs(np.diff(ds["x"]))), np.max(np.abs(np.diff(ds["y"])))]
+        )
+
+    zone_left = gdf.buffer(-buffer_distance, single_sided=True)
+    if isinstance(zone_left, GeoSeries):
+        zone_left = zone_left.to_frame()
+    zone_left["zone_id"] = -1
+    zone_right = gdf.buffer(buffer_distance, single_sided=True)
+    if isinstance(zone_right, GeoSeries):
+        zone_right = zone_right.to_frame()
+    zone_right["zone_id"] = 1
+    if (zone_left.intersection(zone_right).area > 0).any():
+        logger.warning(
+            "The left and right buffer zones intersect. Please check your input."
+            "Perhaps there are multiple linestrings, or the linestring geometry is "
+            "causing potential issues. You can also try modifying the buffer_distance."
+        )
+    zone_gdf = pd.concat([zone_left, zone_right], axis=0).reset_index(drop=True)
+
+    da = gdf_to_da(zone_gdf, ds, column="zone_id", agg_method="max_area", ix=gi)
+    cellids = np.nonzero(da.values == 1)
+    mgrid = modelgrid_from_ds(ds)
+    hfb_seg = []
+    if is_structured(ds):
+        for cid in zip(*cellids):
+            neighbors = mgrid.neighbors(0, *cid)
+            for n in neighbors:
+                if da.values[n[1:]] == -1:
+                    hfb_seg.append((cid, n[1:]))
+    elif is_vertex(ds):
+        for cid in cellids[0]:
+            neighbors = mgrid.neighbors(cid)
+            for n in neighbors:
+                if da.values[n] == -1:
+                    hfb_seg.append((cid, n))
+    else:
+        raise ValueError(
+            f"gridtype {mgrid.grid_type} not supported. Only 'structured' "
+            "and 'vertex' are supported."
+        )
+    return hfb_seg
 
 
 def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False):

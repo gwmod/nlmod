@@ -12,13 +12,10 @@ def test_get_hfb_spd_vertex():
     ds = util.get_ds_vertex()
     ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
     gwf = util.get_gwf(ds)
-
     coords = [(0, 1000), (1000, 0)]
     gdf = gpd.GeoDataFrame({"geometry": [LineString(coords)]})
-
     spd = nlmod.gwf.hfb.get_hfb_spd(ds, gdf, hydchr=1 / 100.0, depth=5.0)
     hfb = flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
-
     # also test the plot method
     ax = gdf.plot()
     nlmod.gwf.hfb.plot_hfb(hfb, gwf, ax=ax)
@@ -29,13 +26,10 @@ def test_get_hfb_spd_structured():
     ds = util.get_ds_structured()
     ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
     gwf = util.get_gwf(ds)
-
     coords = [(0, 1000), (1000, 0)]
     gdf = gpd.GeoDataFrame({"geometry": [LineString(coords)]})
-
     spd = nlmod.gwf.hfb.get_hfb_spd(ds, gdf, hydchr=1 / 100.0, depth=5.0)
     hfb = flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
-
     # also test the plot method
     ax = gdf.plot()
     nlmod.gwf.hfb.plot_hfb(hfb, gwf, ax=ax)
@@ -45,12 +39,9 @@ def test_polygon_to_hfb_vertex():
     ds = util.get_ds_vertex()
     ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
     gwf = util.get_gwf(ds)
-
     coords = [(135, 230), (568, 170), (778, 670), (260, 786)]
     gdf = gpd.GeoDataFrame({"geometry": [Polygon(coords)]}).reset_index()
-
     hfb = nlmod.gwf.hfb.polygon_to_hfb(gdf, ds, hydchr=1 / 100.0, gwf=gwf)
-
     # also test the plot method
     ax = gdf.plot()
     nlmod.gwf.hfb.plot_hfb(hfb, gwf, ax=ax)
@@ -60,12 +51,51 @@ def test_polygon_to_hfb_structured():
     ds = util.get_ds_structured()
     ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
     gwf = util.get_gwf(ds)
-
     coords = [(135, 230), (568, 170), (778, 670), (260, 786)]
     gdf = gpd.GeoDataFrame({"geometry": [Polygon(coords)]}).reset_index()
-
     hfb = nlmod.gwf.hfb.polygon_to_hfb(gdf, ds, hydchr=1 / 100.0, gwf=gwf)
-
     # also test the plot method
     ax = gdf.plot()
     nlmod.gwf.hfb.plot_hfb(hfb, gwf, ax=ax)
+
+
+def test_line_to_hfb_buffer_structured():
+    # this test also tests line_to_hfb
+    ds = util.get_ds_structured()
+    ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
+    gwf = util.get_gwf(ds)
+    gdf = gpd.GeoDataFrame(
+        {
+            "name": ["hfb1", "hfb2"],
+            "geometry": [
+                LineString([(100, 1000), (225.0, 425.1)]),
+                LineString([(225.0, 425.1), (225.0, 0)]),
+            ],
+        }
+    )
+    cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
+    # also test the plot method
+    ax = gdf.plot(column="name")
+    gwf.modelgrid.plot(ax=ax)
+    nlmod.gwf.hfb.plot_hfb(cellids, gwf, ax=ax)
+
+
+def test_line_to_hfb_buffer_vertex():
+    # this test also tests line_to_hfb
+    ds = util.get_ds_vertex()
+    ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
+    gwf = util.get_gwf(ds)
+    gdf = gpd.GeoDataFrame(
+        {
+            "name": ["hfb1", "hfb2"],
+            "geometry": [
+                LineString([(100, 1000), (225.0, 425.1)]),
+                LineString([(225.0, 425.1), (225.0, 0)]),
+            ],
+        }
+    )
+    cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
+    # also test the plot method
+    ax = gdf.plot(column="name")
+    gwf.modelgrid.plot(ax=ax)
+    nlmod.gwf.hfb.plot_hfb(cellids, gwf, ax=ax)

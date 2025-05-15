@@ -66,12 +66,20 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     spd = []
     for icell2d1, icell2d2 in cells:
         # TODO: Improve assumption of the thickness between the cells.
-        thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
-        topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
+        if isinstance(icell2d1, (int, np.integer)):
+            thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
+            topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
+        else:
+            thicki = (thick[:, *icell2d1] + thick[:, *icell2d2]) / 2
+            topi = (tops[*icell2d1] + tops[*icell2d2]) / 2
 
         for ilay in range(ds.sizes["layer"]):
-            cellid1 = (ilay, icell2d1)
-            cellid2 = (ilay, icell2d2)
+            cellid1 = (ilay,) + (
+                icell2d1 if isinstance(icell2d1, tuple) else (icell2d1,)
+            )
+            cellid2 = (ilay,) + (
+                icell2d2 if isinstance(icell2d2, tuple) else (icell2d2,)
+            )
 
             if idomain.values[cellid1] <= 0:
                 continue

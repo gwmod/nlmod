@@ -8,7 +8,7 @@ import nlmod
 
 
 def test_get_hfb_spd():
-    # this test also tests line2hfb
+    # this test also tests line_to_hfb
     ds = util.get_ds_vertex()
     ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
     gwf = util.get_gwf(ds)

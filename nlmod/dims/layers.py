@@ -5,7 +5,6 @@ import flopy
 import numpy as np
 import xarray as xr
 from geopandas import GeoDataFrame, GeoSeries, points_from_xy
-from shapely import union_all
 
 from ..util import LayerError, _get_value_from_ds_datavar
 from . import grid
@@ -13,6 +12,7 @@ from .resample import fillnan_da
 from .shared import GridTypeDims
 
 logger = logging.getLogger(__name__)
+
 
 def calculate_thickness(ds, top="top", bot="botm"):
     """Calculate thickness from dataset.
@@ -273,9 +273,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(
-                np.sum(split_dict[lay0]), 1
-            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            assert np.isclose(np.sum(split_dict[lay0]), 1), (
+                f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            )
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -2031,11 +2031,10 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         **kwargs,
     )
 
-def add_bathymetry_to_layer_model(ds,
-                                  datavar_sea="northsea",
-                                  datavar_bathymetry="bathymetry",
-                                  kh_sea=10,
-                                  kv_sea=10):
+
+def add_bathymetry_to_layer_model(
+    ds, datavar_sea="northsea", datavar_bathymetry="bathymetry", kh_sea=10, kv_sea=10
+):
     """Add bathymetry to a layer model.
 
     Performs the following steps:
@@ -2051,7 +2050,7 @@ def add_bathymetry_to_layer_model(ds,
     datavar_northsea: str, optional
         checks if this datavar is available in ds, if not it will create the datavar
         by calling 'get_northsea'.
-    
+
     """
     logger.info(
         "Filling NaN values in top/botm and kh/kv in "
@@ -2064,11 +2063,9 @@ def add_bathymetry_to_layer_model(ds,
     ds = fill_top_bot_kh_kv_at_mask(ds, fill_mask)
 
     # add bathymetry
-    ds = _add_bathymetry_to_top_bot_kh_kv(ds,
-                                          ds[datavar_bathymetry],
-                                          fill_mask,
-                                          kh_sea=kh_sea,
-                                          kv_sea=kv_sea)
+    ds = _add_bathymetry_to_top_bot_kh_kv(
+        ds, ds[datavar_bathymetry], fill_mask, kh_sea=kh_sea, kv_sea=kv_sea
+    )
 
     # remove inactive layers
     ds = remove_inactive_layers(ds)
@@ -2342,19 +2339,14 @@ def get_modellayers_indexer(
     >>> heads.sel(**idx)
 
     """
-    # gridintersect: only use to construct list of geoms and cellids
-    gi = flopy.utils.GridIntersect(
-        grid.modelgrid_from_ds(ds), method="vertex", local=False
-    )
     # create geodataframe of points
     pts = GeoSeries(points_from_xy(df["x"], df["y"]))
-
-    # subset pts within model domain
-    maskpts = pts.intersects(union_all(gi.geoms))
-    npts_outside_domain = (~maskpts).sum()
+    pts_to_cellid = grid.get_cellids_from_xy(df["x"].values, df["y"].values, ds=ds)
+    npts_outside_domain = pts_to_cellid.isna().sum()
     if npts_outside_domain > 0:
+        maskpts = ~pts_to_cellid.isna()
         pts = pts[maskpts]
-        df = df.loc[maskpts.values].copy()
+        df = df.loc[maskpts].copy()
         logger.warning(
             "Warning! Dropped %d points outside the model domain.", npts_outside_domain
         )
@@ -2373,23 +2365,12 @@ def get_modellayers_indexer(
     )
     dim = obs_ds["x"].dims[0]  # get dimension name
 
-    # spatial join points with grid and add resulting cellid to obs_ds
-    spatial_join = GeoDataFrame(geometry=pts).sjoin(
-        GeoDataFrame({"cellid": gi.cellids}, geometry=gi.geoms),
-        how="left",
-    )
-    # deal with edge cases, sort by index and cellid, then pick lowest cellid
-    obs_ds["icell2d"] = (
-        (dim,),
-        spatial_join.reset_index()
-        .sort_values(["index", "cellid"])
-        .groupby("index")
-        .first()["cellid"],
-    )
+    obs_ds["icell2d"] = ((dim,), pts_to_cellid.values)
     # get tops and bottoms from modelgrid
     rename_vars = {"modellayer": "layer"}  # rename to use result directly as indexer
     if grid.is_structured(ds):
-        _, irow, icol = grid.node_to_lrc(obs_ds["icell2d"], gi.mfgrid.shape)
+        shape = ds["botm"].shape
+        _, irow, icol = grid.node_to_lrc(obs_ds["icell2d"], shape)
         obs_ds["top"] = (dim,), ds["top"].isel(y=irow, x=icol).values
         obs_ds["botm"] = ("layer", dim), ds["botm"].isel(y=irow, x=icol).values
 

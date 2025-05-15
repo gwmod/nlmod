@@ -1,12 +1,12 @@
+import warnings
+
 import flopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import Point, Polygon
-import warnings
 
-from ..dims.layers import get_idomain, calculate_thickness
 from ..dims.grid import (
     gdf_to_da,
     gdf_to_grid,
@@ -14,6 +14,7 @@ from ..dims.grid import (
     modelgrid_from_ds,
     node_to_lrc,
 )
+from ..dims.layers import calculate_thickness, get_idomain
 
 
 def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
@@ -47,9 +48,9 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
     """
-    assert (
-        sum([depth is None, elevation is None]) == 1
-    ), "Use either depth or elevation argument"
+    assert sum([depth is None, elevation is None]) == 1, (
+        "Use either depth or elevation argument"
+    )
 
     if not isinstance(ds, xr.Dataset):
         raise TypeError("Please pass a model dataset!")
@@ -158,6 +159,11 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
             mgrid = gwf
         elif isinstance(gwf, flopy.mf6.ModflowGwf):
             mgrid = gwf.modelgrid
+        else:
+            raise TypeError(
+                "Please pass either a flopy.discretization.grid.Grid or "
+                "flopy.mf6.ModflowGwf object as gwf."
+            )
     elif ds is not None:
         mgrid = modelgrid_from_ds(ds)
     else:
@@ -194,10 +200,17 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         )
 
     elif mgrid.grid_type == "vertex":
-        # TODO: attempt using modelgrid to construct this data instead of
-        # using the disv object
-        cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index("icell2d")
-        vertices = pd.DataFrame(gwf.disv.vertices.array).set_index("iv")
+        cell2d = pd.DataFrame(mgrid.cell2d)
+        cell2d.columns = ["icell2d", "xc", "yc", "ncvert"] + [
+            f"icvert_{i}" for i in range(cell2d.columns.size - 4)
+        ]
+        cell2d.set_index("icell2d", inplace=True)
+        vertices = pd.DataFrame(
+            index=np.arange(mgrid.nvert),
+            data=mgrid.verts,
+            columns=["xv", "yv"],
+        )
+        vertices.index.name = "iv"
         icvert = cell2d.loc[:, cell2d.columns.str.startswith("icvert")].values
     else:
         raise ValueError(

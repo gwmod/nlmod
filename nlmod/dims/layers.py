@@ -273,9 +273,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(
-                np.sum(split_dict[lay0]), 1
-            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            assert np.isclose(np.sum(split_dict[lay0]), 1), (
+                f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            )
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -2266,50 +2266,6 @@ def _get_modellayers_dsobs(ds_obs, dimname="n_obs"):
     return modellayer
 
 
-def map_points_to_grid(x, y, ds=None, modelgrid=None):
-    """Map points to grid cells.
-
-    Parameters
-    ----------
-    x : np.ndarray
-        x-coordinates of points.
-    y : np.ndarray
-        y-coordinates of points.
-    ds : xr.Dataset, optional
-        Model dataset containing grid information. Must provide one of ds or modelgrid.
-    modelgrid : StructuredGrid or VertexGrid, optional
-        Model grid object. Must provide one of ds or modelgrid.
-
-    Returns
-    -------
-    cellids : pd.Series
-        series with mapping between points and cellid of grid cell in
-        which points are located.
-    """
-    if ds is None and modelgrid is None:
-        raise ValueError("Either ds or modelgrid must be provided.")
-    elif ds is not None:
-        modelgrid = grid.modelgrid_from_ds(ds)
-
-    # build geometries and cellids for grid
-    gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
-
-    # spatial join points with grid and add resulting cellid to obs_ds
-    spatial_join = GeoDataFrame(geometry=points_from_xy(x, y)).sjoin(
-        GeoDataFrame({"cellid": gi.cellids}, geometry=gi.geoms),
-        how="left",
-    )
-    # deal with edge cases, sort by index and cellid, then pick lowest cellid
-    cellids = (
-        spatial_join.reset_index()
-        .sort_values(["index", "cellid"])
-        .groupby("index")
-        .first()["cellid"]
-    )
-    cellids.index.name = "point_id"
-    return cellids
-
-
 def get_modellayers_indexer(
     ds,
     df,
@@ -2385,7 +2341,7 @@ def get_modellayers_indexer(
     """
     # create geodataframe of points
     pts = GeoSeries(points_from_xy(df["x"], df["y"]))
-    pts_to_cellid = map_points_to_grid(df["x"].values, df["y"].values, ds=ds)
+    pts_to_cellid = grid.get_cellids_from_xy(df["x"].values, df["y"].values, ds=ds)
     npts_outside_domain = pts_to_cellid.isna().sum()
     if npts_outside_domain > 0:
         maskpts = ~pts_to_cellid.isna()

@@ -1,3 +1,5 @@
+import warnings
+
 import flopy
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,10 +7,17 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Point, Polygon
 
-from ..dims.grid import gdf_to_da, gdf_to_grid
+from ..dims.grid import (
+    gdf_to_da,
+    gdf_to_grid,
+    get_node_structured,
+    modelgrid_from_ds,
+    node_to_lrc,
+)
+from ..dims.layers import calculate_thickness, get_idomain
 
 
-def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
+def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     """Generate a stress period data for horizontal flow barrier between two cell nodes,
     with several limitations. The stress period data can be used directly in the HFB
     package of flopy. The hfb is placed at the cell interface; it follows the sides of
@@ -20,12 +29,13 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
 
     Parameters
     ----------
-    gwf : Groundwater flow
-        Groundwaterflow model from flopy.
+    ds : xr.Dataset
+        model dataset
     linestrings : geopandas.geodataframe
-        DESCRIPTION
+        geodataframe with line elements.
     hydchr : float
-        Conductance of the horizontal flow barrier
+        Conductance of the horizontal flow barrier, e.g. 1 / 100 means
+        a resistance of 100 days for a unit gradient.
     depth : float
         Depth with respect to groundlevel. For example for cases where the depth of the
         barrier is only limited by the construction method. Use depth or elevation
@@ -38,59 +48,65 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
     """
-    assert (
-        sum([depth is None, elevation is None]) == 1
-    ), "Use either depth or elevation argument"
+    assert sum([depth is None, elevation is None]) == 1, (
+        "Use either depth or elevation argument"
+    )
 
-    tops = np.concatenate((gwf.disv.top.array[None], gwf.disv.botm.array))
-    thick = tops[:-1] - tops[1:]
+    if not isinstance(ds, xr.Dataset):
+        raise TypeError("Please pass a model dataset!")
 
-    cells = line2hfb(linestrings, gwf)
+    thick = calculate_thickness(ds)
+    idomain = get_idomain(ds)
+    tops = np.concatenate((ds["top"].values[np.newaxis], ds["botm"].values))
+    cells = line_to_hfb(linestrings, ds)
 
     # drop cells on the edge of the model
     cells = [x for x in cells if len(x) > 1]
 
     spd = []
-
-    # hydchr = 1 / 100  # resistance of 100 days
     for icell2d1, icell2d2 in cells:
         # TODO: Improve assumption of the thickness between the cells.
-        thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
-        topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
+        if isinstance(icell2d1, (int, np.integer)):
+            thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
+            topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
+        else:
+            thicki = (thick[:, *icell2d1] + thick[:, *icell2d2]) / 2
+            topi = (tops[*icell2d1] + tops[*icell2d2]) / 2
 
-        for ilay in range(gwf.disv.nlay.array):
-            cellid1 = (ilay, icell2d1)
-            cellid2 = (ilay, icell2d2)
+        for ilay in range(ds.sizes["layer"]):
+            cellid1 = (ilay,) + (
+                icell2d1 if isinstance(icell2d1, tuple) else (icell2d1,)
+            )
+            cellid2 = (ilay,) + (
+                icell2d2 if isinstance(icell2d2, tuple) else (icell2d2,)
+            )
 
-            if gwf.disv.idomain.array[cellid1] <= 0:
+            if idomain.values[cellid1] <= 0:
                 continue
 
-            if gwf.disv.idomain.array[cellid2] <= 0:
+            if idomain.values[cellid2] <= 0:
                 continue
 
             if depth is not None:
                 if sum(thicki[: ilay + 1]) <= depth:
-                    # hfb pierces the entire cell
+                    # hfb spans the entire cell
                     spd.append([cellid1, cellid2, hydchr])
 
                 elif sum(thicki[:ilay]) <= depth:
-                    # hfb pierces the cell partially
+                    # hfb spans the cell partially
                     hydchr_frac = (depth - sum(thicki[:ilay])) / thicki[ilay]
                     assert 0 <= hydchr_frac <= 1, "Something is wrong"
 
                     spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                     break  # go to next cell
 
-                else:
-                    pass
-
             else:
                 if topi[ilay + 1] >= elevation:
-                    # hfb pierces the entire cell
+                    # hfb spans the entire cell
                     spd.append([cellid1, cellid2, hydchr])
 
                 else:
-                    # hfb pierces the cell partially
+                    # hfb spans the cell partially
                     hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
                     assert 0 <= hydchr_frac <= 1, "Something is wrong"
 
@@ -100,16 +116,37 @@ def get_hfb_spd(gwf, linestrings, hydchr=1 / 100, depth=None, elevation=None):
     return spd
 
 
-def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
-    """Obtain the cells with a horizontal flow barrier between them from a geodataframe
-    with line elements.
+def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
+    warnings.warn(
+        "The function 'line2hfb' is deprecated and will be removed in a future version. "
+        "Please use 'line_to_hfb' instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return line_to_hfb(
+        gdf=gdf,
+        ds=ds,
+        gwf=gwf,
+        prevent_rings=prevent_rings,
+        plot=plot,
+    )
+
+
+def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
+    """Snap line to grid and return a list of cellids that share faces.
+
+    Used for determining where to place horizontal flow barriers.
 
     Parameters
     ----------
     gdf : gpd.GeoDataframe
         geodataframe with line elements.
+    ds : xarray.Dataset, optional
+        Dataset with the grid information. The default is None.
+        Must pass one of ds or gwf.
     gwf : flopy.mf6.modflow.mfgwf.ModflowGwf
-        grondwater flow model.
+        grondwater flow model or modelgrid object. The default is None.
+        Must pass one of ds or gwf.
     prevent_rings : bool, optional
         Prevent cells with segments on each side when True. Remove the segments whose
         centroid is farthest from the line. The default is True.
@@ -125,15 +162,72 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
     # for the idea, see:
     # https://gis.stackexchange.com/questions/188755/how-to-snap-a-road-network-to-a-hexagonal-grid-in-qgis
 
-    gdfg = gdf_to_grid(gdf, gwf)
+    if gwf is not None:
+        if isinstance(gwf, flopy.discretization.grid.Grid):
+            mgrid = gwf
+        elif isinstance(gwf, flopy.mf6.ModflowGwf):
+            mgrid = gwf.modelgrid
+        else:
+            raise TypeError(
+                "Please pass either a flopy.discretization.grid.Grid or "
+                "flopy.mf6.ModflowGwf object as gwf."
+            )
+    elif ds is not None:
+        mgrid = modelgrid_from_ds(ds)
+    else:
+        raise ValueError(
+            "Please pass either a dataset or a flopy.mf6.ModflowGwf object."
+        )
 
-    cell2d = pd.DataFrame(gwf.disv.cell2d.array).set_index("icell2d")
-    vertices = pd.DataFrame(gwf.disv.vertices.array).set_index("iv")
+    gdfg = gdf_to_grid(gdf, gwf if gwf is not None else ds)
+
+    # add support for structured grid
+    if mgrid.grid_type == "structured":
+        vertices = pd.DataFrame(
+            index=np.arange(mgrid.nvert),
+            data=mgrid.verts,
+            columns=["xv", "yv"],
+        )
+        vertices.index.name = "iv"
+        cell2d = pd.DataFrame(index=np.arange(mgrid.ncpl))
+        cell2d["ncvert"] = 5
+        cell2d["xc"] = mgrid.xcellcenters.flatten()
+        cell2d["yc"] = mgrid.ycellcenters.flatten()
+        cell2d.index.name = "icell2d"
+        icvert = np.array(
+            [
+                mgrid._build_structured_iverts(*mgrid.get_lrc(icpl)[0][1:])
+                for icpl in range(mgrid.ncpl)
+            ]
+        )
+        # add first vertex to the end of the list
+        icvert = np.hstack([icvert, icvert[:, :1]])
+        gdfg["cellid_structured"] = gdfg["cellid"]
+        gdfg["cellid"] = gdfg["cellid"].map(
+            lambda cid: get_node_structured(0, *cid, shape=mgrid.shape)
+        )
+
+    elif mgrid.grid_type == "vertex":
+        cell2d = pd.DataFrame(mgrid.cell2d)
+        cell2d.columns = ["icell2d", "xc", "yc", "ncvert"] + [
+            f"icvert_{i}" for i in range(cell2d.columns.size - 4)
+        ]
+        cell2d.set_index("icell2d", inplace=True)
+        vertices = pd.DataFrame(
+            index=np.arange(mgrid.nvert),
+            data=mgrid.verts,
+            columns=["xv", "yv"],
+        )
+        vertices.index.name = "iv"
+        icvert = cell2d.loc[:, cell2d.columns.str.startswith("icvert")].values
+    else:
+        raise ValueError(
+            f"gridtype {mgrid.grid_type} not supported. Only 'structured' "
+            "and 'vertex' are supported."
+        )
 
     # for every cell determine which cell-edge could form the line
     # by testing for an intersection with a triangle to the cell-center
-    icvert = cell2d.loc[:, cell2d.columns.str.startswith("icvert")].values
-
     hfb_seg = []
     for index in gdfg.index.unique():
         # Get the nearest hexagon sides where routes cross
@@ -194,7 +288,7 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
         for i, seg in enumerate(hfb_seg):
             x = [vertices.at[seg[0], "xv"], vertices.at[seg[1], "xv"]]
             y = [vertices.at[seg[0], "yv"], vertices.at[seg[1], "yv"]]
-            ax.plot(x, y)
+            ax.plot(x, y, color="k")
 
     # find out between which cellid's these segments are
     segments = []
@@ -211,13 +305,47 @@ def line2hfb(gdf, gwf, prevent_rings=True, plot=False):
 
     cellids = []
     for seg in hfb_seg:
-        cellids.append(list(segments.loc[[tuple(seg)]].values[:, 0]))
+        if mgrid.grid_type == "structured":
+            iseg = [
+                node_to_lrc(cid, mgrid.shape)[1:]
+                for cid in segments.loc[[tuple(seg)]].values[:, 0]
+            ]
+            cellids.append(iseg)
+        else:
+            cellids.append(list(segments.loc[[tuple(seg)]].values[:, 0]))
+
     return cellids
 
 
-def polygon_to_hfb(
-    gdf, ds, column=None, gwf=None, lay=0, hydchr=1 / 100, add_data=False
-):
+def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False):
+    """Snap polygon exterior to grid to form a horizontal flow barrier.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        geodataframe with polygon elements.
+    ds : xarray.Dataset
+        model dataset
+    hydchr : float
+        Conductance of the horizontal flow barrier, e.g. 1 / 100 means
+        a resistance of 100 days for a unit gradient.
+    column : str, optional
+        Column name to use for the data. The default is None.
+    gwf : flopy.mf6.ModflowGwf, optional
+        Groundwater flow model. The default is None. If passed,
+        function returns a HFB package.
+    lay : int, optional
+        Layer number. The default is 0.
+    add_data : bool, optional
+        If True, add the data to the stress period data. The default is False.
+
+    Returns
+    -------
+    spd : list of lists
+        List of lists with the cell ids and the conductance, if gwf is None.
+    hfb : flopy.mf6.ModflowGwfhfb, optional
+        If gwf is passed, returns a HFB package.
+    """
     if isinstance(gdf, xr.DataArray):
         da = gdf
     elif isinstance(gdf, str):

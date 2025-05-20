@@ -487,12 +487,14 @@ def _get_vertex_grid_ds(
     else:
         layers = nlay
 
-    coords = {"layer": layers, "y": y, "x": x}
+    coords = {"layer": layers}
     dims = ("layer", "icell2d")
     ds = xr.Dataset(
         data_vars={
             "top": (dims[1:], top),
             "botm": (dims, botm),
+            "y": (("icell2d",), y),
+            "x": (("icell2d",), x),
         },
         coords=coords,
         attrs=attrs,

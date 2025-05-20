@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 
+from .. import cache
 from . import webservices
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,8 @@ def get_configuration():
     config["Aa en Maas"] = {
         "bgt_code": "W0654",
         "watercourses": {
-            "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Oppervlaktewater_L/MapServer",
-            "layer": 8,
+            "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Legger/MapServer",
+            "layer": 10,
             "bottom_width": "BODEMBREEDTE",
             "bottom_height": [["BODEMHOOGTE_BOS", "BODEMHOOGTE_BES"]],
         },
@@ -113,14 +114,16 @@ def get_configuration():
     config["De Dommel"] = {
         "bgt_code": "W0539",
         "watercourses": {
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LW_2021_20211110/FeatureServer",
-            "layer": 9,  # LOW_2021_A_Water
-            "index": "LOKAALID",
+            # "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/Hoofdwaterlopen/FeatureServer",
+            # "layer": 10,  # Hoofdwaterlopen
             # "layer": 10,  # LOW_2021_A_Water_Afw_Afv
             # "layer": 11,  # LOW_2021_B_Water
             # "layer": 2,  # LOW_2021_Profielpunt
             # "layer": 13,  # LOW_2021_Profiellijn
             # "index": "WS_PROFIELID",
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/A_watergang_Beheerregister/FeatureServer",
+            "layer": 0,  # A_watergang_Beheerregister (0)
+            "index": "LOKAALID",
         },
     }
 
@@ -259,6 +262,22 @@ def get_configuration():
 
     config["Hunze en Aa's"] = {
         "bgt_code": "W0646",
+        "level_areas": {
+            "server_kind": "wfs",
+            "url": "https://opendata.hunzeenaas.nl/geoserver/ows?service=wfs",
+            "layer": "OpenData:Peilgebied",
+            "summer_stage": "gpgzmrpl",
+            "winter_stage": "gpgwntpl",
+            "index": "gpgident",
+        },
+        "watercourses": {
+            "server_kind": "wfs",
+            "url": "https://opendata.hunzeenaas.nl/geoserver/ows?service=wfs",
+            "layer": "OpenData:Hoofdwatergang",
+            "bottom_width": "avvboddr",
+            "bottom_height": [["avvhobos", "avvhobes"]],
+            "index": "ovkident",
+        },
     }
 
     config["Limburg"] = {
@@ -286,8 +305,8 @@ def get_configuration():
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/VenH/Peilgebieden/MapServer",
-            "layer": 2,
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebieden/MapServer",
+            "layer": 6,
             "index": "GPGIDENT",
             "summer_stage": "OPVAFWZP",
             "winter_stage": "OPVAFWWP",
@@ -355,7 +374,7 @@ def get_configuration():
             "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/WatersysteemLeggerVastgesteld/MapServer",
             # "layer": 13,  # profiellijn
             "layer": 14,  # waterloop
-            "index": "code",
+            # "index": "code",
         },
         "level_areas": {
             "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
@@ -400,10 +419,10 @@ def get_configuration():
     config["Schieland en de Krimpenerwaard"] = {
         "bgt_code": "W0656",
         "watercourses": {
-            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/arcgis/rest/services/HHSK_Legger_Watersysteem/FeatureServer",
-            "layer": 11,  # Hoofdwatergang
-            # "layer": 12,  # Overig Water
+            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vastgestelde_legger_Watersystemen_2023/FeatureServer",
+            "layer": 15,  # Oppervlaktewaterlichaam (15)
             "water_depth": "DIEPTE",
+            "bottom_width": "BODEMBREEDTE",
         },
         "level_areas": {
             # "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Peilbesluiten/FeatureServer",
@@ -490,6 +509,7 @@ def get_configuration():
     return config
 
 
+@cache.cache_pickle
 def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
     """Get the data for a Waterboard and a specific data_kind.
 

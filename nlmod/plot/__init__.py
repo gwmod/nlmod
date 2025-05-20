@@ -14,9 +14,12 @@ from .plot import (
 )
 from .plotutil import (
     add_background_map,
+    add_xsec_line_and_labels,
     colorbar_inside,
     get_figsize,
+    get_inset_map_bounds,
     get_map,
+    inset_map,
     rd_ticks,
     rotate_yticklabels,
     title_inside,

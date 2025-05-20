@@ -15,6 +15,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ..dims.grid import (
     get_affine_mod_to_world,
+    get_delc,
+    get_delr,
     get_extent,
     get_extent_gdf,
     modelgrid_from_ds,
@@ -197,7 +199,7 @@ def facet_plot(
 
     cb = fig.colorbar(qm, ax=axes, shrink=1.0)
     cb.set_label(f"{plot_var}", rotation=270)
-    fig.suptitle(f"{plot_var} Time = {(ds.nper*ds.perlen)/365} year")
+    fig.suptitle(f"{plot_var} Time = {(ds.nper * ds.perlen) / 365} year")
     fig.tight_layout()
 
     return fig, axes
@@ -250,15 +252,26 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
             ax.axis(extent)
         return pc
     else:
-        x = da.x
-        y = da.y
+        if ds is None:
+            x = da.x
+            y = da.y
+            shading = "nearest"
+        else:
+            x = ds["x"].values
+            dx = get_delr(ds)
+            x = np.hstack((x - dx / 2, x[-1] + dx[-1] / 2))
+
+            y = ds["y"].values
+            dy = get_delc(ds)
+            y = np.hstack((y + dy / 2, y[-1] - dy[-1] / 2))
+            shading = "flat"
         if rotated:
             if ds is None:
                 raise (ValueError("Supply model dataset (ds) for grid information"))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine_mod_to_world(ds)
                 x, y = affine * np.meshgrid(x, y)
-        return ax.pcolormesh(x, y, da, shading="nearest", edgecolor=edgecolor, **kwargs)
+        return ax.pcolormesh(x, y, da, shading=shading, edgecolor=edgecolor, **kwargs)
 
 
 def geotop_lithok_in_cross_section(
@@ -477,7 +490,8 @@ def map_array(
 
     # select layer
     try:
-        nlay = da["layer"].shape[0]
+        # check if layer is a dimension
+        nlay = da["layer"].shape[0] if "layer" in da.dims else -1
     except IndexError:
         nlay = 0  # only one layer
     except KeyError:
@@ -513,6 +527,7 @@ def map_array(
     else:
         t = None
 
+    fig_tight_layout = ax is None
     f, ax = _get_figure(
         ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated, extent=extent
     )
@@ -552,7 +567,8 @@ def map_array(
     if ilay is not None:
         title += f" (layer={layer})"
     if t is not None:
-        title += f" (t={t.strftime(date_fmt)})"
+        timestr = t.strftime(date_fmt) if isinstance(t, pd.Timestamp) else f"{t:.2f}"
+        title += f" (t={timestr})"
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
 
@@ -565,7 +581,7 @@ def map_array(
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
 
-    f.tight_layout()
+    _ = f.tight_layout() if fig_tight_layout else None
 
     if animate:
         return f, ax, pc

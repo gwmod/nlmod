@@ -11,7 +11,12 @@ import pandas as pd
 from packaging.version import parse as parse_version
 
 from .. import util
-from ..dims.grid import get_icell2d_from_xy, get_row_col_from_xy
+from ..dims.grid import (
+    get_icell2d_from_xy,
+    get_node_structured,
+    get_node_vertex,
+    get_row_col_from_xy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +44,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
 
     if script_path is not None:
         new_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(script_path)[-1]
+            f"{dt.datetime.now().strftime('%Y%m%d')}_" + os.path.split(script_path)[-1]
         )
         dst = os.path.join(mpf.model_ws, new_fname)
         logger.info(f"write script {new_fname} to modpath workspace")
@@ -98,15 +103,7 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
     return nodes
 
 
-def get_node_structured(lay, row, col, shape):
-    return lay * shape[1] * shape[2] + row * shape[2] + col
-
-
-def get_node_vertex(lay, icell2d, shape):
-    return lay * shape[1] + icell2d
-
-
-def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
+def package_to_nodes(gwf, package_name, mpf):
     """Return a list of nodes from the cells with certain boundary conditions.
 
     Parameters
@@ -397,7 +394,7 @@ def pg_from_fdt(nodes, divisions=3):
         Particle group.
     """
     logger.info(
-        f"particle group with {divisions**2} particle per cell face, {6*divisions**2} particles per cell"
+        f"particle group with {divisions**2} particle per cell face, {6 * divisions**2} particles per cell"
     )
     sd = flopy.modpath.FaceDataType(
         drape=0,

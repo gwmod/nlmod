@@ -679,8 +679,7 @@ def gdf_from_extent(extent, crs="EPSG:28992"):
         geodataframe with extent.
     """
     logger.warning(
-        "nlmod.util.gdf_from_extent is deprecated. "
-        "Use nlmod.util.extent_to_gdf instead"
+        "nlmod.util.gdf_from_extent is deprecated. Use nlmod.util.extent_to_gdf instead"
     )
     geom_extent = polygon_from_extent(extent)
     gdf_extent = gpd.GeoDataFrame(geometry=[geom_extent], crs=crs)
@@ -726,7 +725,7 @@ def gdf_within_extent(gdf, extent):
     elif geom_types[0] == "Point":
         gdf = gdf.loc[gdf.within(gdf_extent.geometry.values[0])]
     else:
-        raise TypeError("Function is not tested for geometry type: " f"{geom_types[0]}")
+        raise TypeError(f"Function is not tested for geometry type: {geom_types[0]}")
 
     return gdf
 
@@ -1077,9 +1076,9 @@ def gdf_intersection_join(
     Parameters
     ----------
     gdf_from : gpd.GeoDataFrame
-        The GeoDataFrame to add information to.
-    gdf_to : gpd.GeoDataFrame
         The GeoDataFrame containing the information to be added.
+    gdf_to : gpd.GeoDataFrame
+        The GeoDataFrame to add information to.
     columns : list, optional
         A list of the columns to add from gdf_from to gdf_to. When columns is None,
         columns is set to all columns that are present in gdf_from but not in gdf_to.
@@ -1112,6 +1111,8 @@ def gdf_intersection_join(
         gdf_to with extra columns from gdf_from.
 
     """
+    assert gdf_from.index.is_unique, "The index of gdf_from is not unique"
+    assert gdf_to.index.is_unique, "The index of gdf_to is not unique"
     gdf_to = gdf_to.copy()
     if columns is None:
         columns = gdf_from.columns[~gdf_from.columns.isin(gdf_to.columns)]
@@ -1137,13 +1138,7 @@ def gdf_intersection_join(
         if np.any(measure.sum() > min_total_overlap * measure_org):
             # take the largest
             ind = measure.idxmax()
-            idf_from = gdf_from.loc[ind, columns]
-            if idf_from.index.size > 1:
-                logger.warning(
-                    f"Warning, multiple entries found for '{ind}'. Using the first one."
-                )
-                idf_from = idf_from.iloc[0]
-            gdf_to.loc[index, columns] = idf_from
+            gdf_to.loc[index, columns] = gdf_from.loc[ind, columns]
             if add_index_from_column:
                 gdf_to.loc[index, add_index_from_column] = ind
     return gdf_to
@@ -1274,7 +1269,7 @@ def zonal_statistics(
             stats = zonal_stats(
                 geometry,
                 da,
-                stats=stat,
+                stats=statistics,
                 all_touched=all_touched,
                 progress=progressbar,
             )

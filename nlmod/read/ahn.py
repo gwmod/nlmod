@@ -714,7 +714,7 @@ def _get_ahn_ellipsis(
     das = []
     for tile in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[tile, identifier]
-        if url == "nan":
+        if url == "None":
             continue
         if url.endswith(".zip"):
             path = url.split("/")[-1].replace(".zip", ".TIF")

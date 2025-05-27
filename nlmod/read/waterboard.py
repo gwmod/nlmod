@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 
+from .. import cache
 from . import webservices
 
 logger = logging.getLogger(__name__)
@@ -508,6 +509,7 @@ def get_configuration():
     return config
 
 
+@cache.cache_pickle
 def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
     """Get the data for a Waterboard and a specific data_kind.
 

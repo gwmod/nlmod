@@ -1,46 +1,52 @@
 import datetime as dt
 import logging
 import os
-from typing import Optional, Union
+from typing import Callable, Literal, Optional, Union
 
 import geopandas as gpd
 import numpy as np
 import xarray as xr
 from rioxarray.merge import merge_arrays
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from nlmod import NLMOD_DATADIR, cache, dims, util
-from nlmod.read import jarkus
 from nlmod.read.webservices import arcrest
 
 logger = logging.getLogger(__name__)
 
 
-def get_gdf_surface_water(ds):
+@cache.cache_pickle
+def get_gdf_surface_water(ds=None, extent=None):
     """Read a shapefile with surface water as a geodataframe, cut by the extent of the
     model.
 
     Parameters
     ----------
-    ds : xr.DataSet
+    ds : xr.DataSet, None, optional
         dataset containing relevant model information
+    extent : list, tuple or np.array, optional
+        desired model extent (xmin, xmax, ymin, ymax)
 
     Returns
     -------
     gdf_opp_water : GeoDataframe
         surface water geodataframe.
     """
+    if ds is None and extent is None:
+        raise ValueError("At least one of 'ds' or 'extent' must be provided.")
+
     # laad bestanden in
     fname = os.path.join(NLMOD_DATADIR, "shapes", "opp_water.shp")
     gdf_swater = gpd.read_file(fname)
-    extent = dims.get_extent(ds)
+    if ds is not None:
+        extent = dims.get_extent(ds)
     gdf_swater = util.gdf_within_extent(gdf_swater, extent)
 
     return gdf_swater
 
 
 @cache.cache_netcdf(coords_3d=True)
-def get_surface_water(ds, da_basename):
+def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     """Create 3 data-arrays from the shapefile with surface water:
 
     - area: area of the shape in the cell
@@ -51,6 +57,9 @@ def get_surface_water(ds, da_basename):
     ----------
     ds : xr.DataSet
         xarray with model data
+    gdf : gpd.GeoDataFrame or None, optional
+        geometries of the surface water, if None the geometries are obtained using
+        get_gdf_surface_water. The default is None.
     da_basename : str
         name of the polygon shapes, name is used as a prefix
         to store data arrays in ds
@@ -61,7 +70,9 @@ def get_surface_water(ds, da_basename):
         dataset with modelgrid data.
     """
     modelgrid = dims.modelgrid_from_ds(ds)
-    gdf = get_gdf_surface_water(ds)
+
+    if gdf is None:
+        gdf = get_gdf_surface_water(ds)
 
     area = xr.zeros_like(ds["top"])
     cond = xr.zeros_like(ds["top"])
@@ -93,14 +104,19 @@ def get_surface_water(ds, da_basename):
 
 
 @cache.cache_netcdf(coords_2d=True)
-def get_northsea(ds, da_name="northsea"):
+def get_northsea(ds, gdf=None, da_name="northsea"):
     """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is defined by
     rws surface water shapefile.
 
     Parameters
     ----------
-    ds : xr.DataSet
-        xarray with model data
+    ds : xr.DataSet, None, optional
+        dataset containing relevant model information
+    extent : list, tuple or np.array, optional
+        desired model extent (xmin, xmax, ymin, ymax)
+    gdf : gpd.GeoDataFrame or None, optional
+        geometries of the surface water, if None the geometries are obtained using
+        get_gdf_surface_water. The default is None.
     da_name : str, optional
         name of the datavar that identifies sea cells
 
@@ -110,11 +126,12 @@ def get_northsea(ds, da_name="northsea"):
         Dataset with a single DataArray, this DataArray is 1 at sea and 0
         everywhere else. Grid dimensions according to ds.
     """
-    gdf_surf_water = get_gdf_surface_water(ds)
+    if gdf is None:
+        gdf = get_gdf_surface_water(ds=ds)
 
     # find grid cells with sea
-    swater_zee = gdf_surf_water[
-        gdf_surf_water["OWMNAAM"].isin(
+    swater_zee = gdf[
+        gdf["OWMNAAM"].isin(
             [
                 "Rijn territoriaal water",
                 "Waddenzee",
@@ -128,46 +145,6 @@ def get_northsea(ds, da_name="northsea"):
     ds_out = dims.gdf_to_bool_ds(swater_zee, ds, da_name, keep_coords=("y", "x"))
 
     return ds_out
-
-
-def add_northsea(ds, cachedir=None):
-    """Add datavariable bathymetry to model dataset.
-
-    Performs the following steps:
-
-    a) get cells from modelgrid that are within the northsea, add data
-       variable 'northsea' to ds
-    b) fill top, bot, kh and kv add northsea cell by extrapolation
-    c) get bathymetry (northsea depth) from jarkus.
-    """
-    logger.info(
-        "Filling NaN values in top/botm and kh/kv in "
-        "North Sea using bathymetry data from jarkus"
-    )
-
-    # find grid cells with northsea
-    ds.update(get_northsea(ds, cachedir=cachedir, cachename="sea_ds.nc"))
-
-    # fill top, bot, kh, kv at sea cells
-    fal = dims.get_first_active_layer(ds)
-    fill_mask = (fal == fal.attrs["nodata"]) * ds["northsea"]
-    ds = dims.fill_top_bot_kh_kv_at_mask(ds, fill_mask)
-
-    # add bathymetry noordzee
-    ds.update(
-        jarkus.get_bathymetry(
-            ds,
-            ds["northsea"],
-            cachedir=cachedir,
-            cachename="bathymetry_ds.nc",
-        )
-    )
-
-    ds = jarkus.add_bathymetry_to_top_bot_kh_kv(ds, ds["bathymetry"], fill_mask)
-
-    # remove inactive layers
-    ds = dims.remove_inactive_layers(ds)
-    return ds
 
 
 def calculate_sea_coverage(
@@ -291,7 +268,7 @@ def get_gdr_configuration() -> dict:
 
 
 def get_bathymetry_gdf(
-    resolution: str = "20m",
+    resolution: Literal["20m", "1m"] = "20m",
     extent: Optional[list[float]] = None,
     config: Optional[dict] = None,
 ) -> gpd.GeoDataFrame:
@@ -321,9 +298,9 @@ def get_bathymetry_gdf(
 @cache.cache_netcdf()
 def get_bathymetry(
     extent: list[float],
-    resolution: str = "20m",
+    resolution: Literal["20m", "1m"] = "20m",
     res: Optional[float] = None,
-    method: Optional[str] = None,
+    method: Union[str, Callable, None] = None,
     chunks: Optional[Union[str, dict[str, int]]] = "auto",
     config: Optional[dict] = None,
 ) -> xr.DataArray:
@@ -344,8 +321,9 @@ def get_bathymetry(
         resolution of the input datasets. Resampling method is provided by the method
         kwarg.
     method : str, optional
-        resampling method. The default is None. See rasterio.enums.Resampling for
-        supported methods. Examples are ["min", "max", "mean", "nearest"].
+        Rasterio resampling method. The default is None. Pre-defined method are
+        "first", "last", "min", "nearest", "sum" or "count". But custom callables
+        are also supported. See the rasterio documentation for more information.
     chunks : dict, optional
         chunks for the output data array. The default is "auto", which lets xarray/dask
         pick the chunksize. Set to None to avoid chunking.

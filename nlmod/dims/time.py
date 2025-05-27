@@ -707,9 +707,9 @@ def dataframe_to_flopy_timeseries(
     append=False,
 ):
     assert not df.isna().any(axis=None)
-    assert ds.time.dtype.kind == "M", (
-        "get recharge requires a datetime64[ns] time index"
-    )
+    assert (
+        ds.time.dtype.kind == "M"
+    ), "get recharge requires a datetime64[ns] time index"
     if ds is not None:
         # set index to days after the start of the simulation
         df = df.copy()

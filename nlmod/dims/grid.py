@@ -6,6 +6,7 @@
 -   fill, interpolate and resample grid data
 """
 
+# ruff: noqa: F401
 import logging
 import os
 import warnings
@@ -36,7 +37,16 @@ from .layers import (
     remove_inactive_layers,
 )
 from .rdp import rdp
-from .shared import get_area, get_delc, get_delr  # noqa: F401
+from .shared import (
+    GridTypeDims,
+    get_area,
+    get_delc,
+    get_delr,
+    is_layered,
+    is_rotated,
+    is_structured,
+    is_vertex,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +273,79 @@ def xyz_to_cid(xyz, ds=None, modelgrid=None):
     return cid
 
 
+def get_node_structured(lay, row, col, shape):
+    """Get the node number of a structured grid.
+
+    Parameters
+    ----------
+    lay : int
+        layer number.
+    row : int
+        row number.
+    col : int
+        column number.
+    shape : tuple
+        shape of the model grid.
+
+    Returns
+    -------
+    node : int
+        node number.
+    """
+    return lay * shape[1] * shape[2] + row * shape[2] + col
+
+
+def get_node_vertex(lay, icell2d, shape):
+    """Get the node number of a vertex grid.
+
+    Parameters
+    ----------
+    lay : int
+        layer number.
+    icell2d : int
+        icell2d number
+
+    Returns
+    -------
+    node : int
+        node number
+    """
+    return lay * shape[1] + icell2d
+
+
+def node_to_lrc(node, shape):
+    """Convert a node number to (layer,) row and column.
+
+    Layer is only returned if shape is 3D.
+
+    Parameters
+    ----------
+    node : int
+        node number.
+    shape : tuple
+        shape of the model grid.
+
+    Returns
+    -------
+    lrc : tuple
+        layer, row and column.
+    """
+    if len(shape) == 3:
+        _, nrow, ncol = shape
+        lay = node // (nrow * ncol)
+        row = (node - lay * (nrow * ncol)) // ncol
+        col = node - lay * (nrow * ncol) - (row * ncol)
+        lrc = (lay, row, col)
+    elif len(shape) == 2:
+        nrow, ncol = shape
+        row = node // ncol
+        col = node - row * ncol
+        lrc = (row, col)
+    else:
+        raise ValueError("shape should be 2D or 3D")
+    return lrc
+
+
 def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs):
     """Get flopy modelgrid from ds.
 
@@ -281,7 +364,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
         yoff = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
     else:
-        if ds.gridtype == "structured":
+        if is_structured(ds):
             xoff = ds.extent[0]
             yoff = ds.extent[2]
         else:
@@ -304,7 +387,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
     kwargs = dict(
         xoff=xoff, yoff=yoff, angrot=angrot, nlay=nlay, top=top, botm=botm, **kwargs
     )
-    if ds.gridtype == "structured":
+    if is_structured(ds):
         if not isinstance(ds.extent, (tuple, list, np.ndarray)):
             raise TypeError(
                 f"extent should be a list, tuple or numpy array, not {type(ds.extent)}"
@@ -314,7 +397,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
             delr=get_delr(ds),
             **kwargs,
         )
-    elif ds.gridtype == "vertex":
+    elif is_vertex(ds):
         vertices = get_vertices_from_ds(ds)
         cell2d = get_cell2d_from_ds(ds)
         modelgrid = VertexGrid(
@@ -496,6 +579,57 @@ def get_cell2d_from_ds(ds):
         mask = icvert[i] != nodata
         cell2d.append((cid, x[i], y[i], mask.sum(), *icvert[i, mask]))
     return cell2d
+
+
+def get_cellids_from_xy(x, y, ds=None, modelgrid=None, gi=None):
+    """Map points to grid cells.
+
+    Note this is faster and more convenient than GridIntersect, because it
+    provides the corresponding cellid for each point (instead of aggregating
+    points per cell).
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-coordinates of points.
+    y : np.ndarray
+        y-coordinates of points.
+    ds : xr.Dataset, optional
+        Model dataset containing grid information. Must provide one of ds or modelgrid.
+    modelgrid : StructuredGrid or VertexGrid, optional
+        Model grid object. Must provide one of ds or modelgrid.
+    gi : GridIntersect, optional
+        GridIntersect instance, when passed saves some time building grid polygons.
+
+    Returns
+    -------
+    cellids : pd.Series
+        series with mapping between points and cellid of grid cell in
+        which points are located.
+    """
+    if ds is None and modelgrid is None:
+        raise ValueError("Either ds or modelgrid must be provided.")
+    elif ds is not None:
+        modelgrid = modelgrid_from_ds(ds)
+
+    # build geometries and cellids for grid
+    if gi is None:
+        gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
+
+    # spatial join points with grid and add resulting cellid to obs_ds
+    spatial_join = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x, y)).sjoin(
+        gpd.GeoDataFrame({"cellid": gi.cellids}, geometry=gi.geoms),
+        how="left",
+    )
+    # deal with edge cases, sort by index and cellid, then pick lowest cellid
+    cellids = (
+        spatial_join.reset_index()
+        .sort_values(["index", "cellid"])
+        .groupby("index")
+        .first()["cellid"]
+    )
+    cellids.index.name = "point_id"
+    return cellids
 
 
 def refine(
@@ -1308,7 +1442,7 @@ def gdf_to_da(
     agg_method : str, optional
         aggregation method to handle multiple geometries in one cell, options
         are:
-        - max, min, mean,
+        - max, min, mean, sum
         - length_weighted (lines), max_length (lines),
         - area_weighted (polygon), max_area (polygon).
         The default is 'max'.
@@ -1345,13 +1479,12 @@ def gdf_to_da(
             raise ValueError(
                 "multiple geometries in one cell please define aggregation method"
             )
+        modelgrid = None
         if agg_method in ["nearest"]:
             modelgrid = modelgrid_from_ds(ds)
-            gdf_agg = aggregate_vector_per_cell(
-                gdf_cellid, {column: agg_method}, modelgrid
-            )
-        else:
-            gdf_agg = aggregate_vector_per_cell(gdf_cellid, {column: agg_method})
+        gdf_agg = aggregate_vector_per_cell(
+            gdf_cellid, {column: agg_method}, modelgrid=modelgrid
+        )
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]
@@ -1504,18 +1637,18 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     # check geometry types
     geom_types = gdf.geometry.type.unique()
     if len(geom_types) > 1:
-        if (
-            len(geom_types) == 2
-            and ("Polygon" in geom_types)
-            and ("MultiPolygon" in geom_types)
+        if len(geom_types) == 2 and (
+            set(geom_types) == set(["LineString", "MultiLineString"])
+            or set(geom_types) == set(["Polygon", "MultiPolygon"])
         ):
             pass
         else:
             raise TypeError("cannot aggregate geometries of different types")
     if bool({"length_weighted", "max_length"} & set(fields_methods.values())):
-        assert geom_types[0] == "LineString", (
-            "can only use length methods with line geometries"
-        )
+        if ("LineString" in geom_types) or ("MultiLineString" in geom_types):
+            pass
+        else:
+            raise TypeError("can only use length methods with line geometries")
     if bool({"area_weighted", "max_area"} & set(fields_methods.values())):
         if ("Polygon" in geom_types) or ("MultiPolygon" in geom_types):
             pass
@@ -1984,6 +2117,11 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
     vertices_arr : numpy array
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use 'modelgrid_from_ds' and 'modelgrid.map_polygons' in the future.",
+        DeprecationWarning,
+    )
     if modelgrid is None:
         modelgrid = modelgrid_from_ds(ds, rotated=rotated)
     xvert = modelgrid.xvertices
@@ -2048,7 +2186,11 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
     vertices_da : xr.DataArray
          Vertex coördinates per cell with dimensions(cid, no_vert, 2).
     """
-    # obtain
+    warnings.warn(
+        "get_vertices is deprecated and will eventually be removed, "
+        "please use 'modelgrid_from_ds' and 'modelgrid.map_polygons'.",
+        DeprecationWarning,
+    )
 
     vertices_arr = get_vertices_arr(
         ds,
@@ -2111,9 +2253,7 @@ def mask_model_edge(ds, idomain=None):
             )
 
     elif ds.gridtype == "vertex":
-        if "vertices" not in ds:
-            ds["vertices"] = get_vertices(ds)
-        polygons_grid = polygons_from_model_ds(ds)
+        polygons_grid = polygons_from_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = get_extent_polygon(ds).exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
@@ -2127,12 +2267,12 @@ def mask_model_edge(ds, idomain=None):
     return ds_out
 
 
-def polygons_from_model_ds(model_ds):
+def polygons_from_ds(ds):
     """Create polygons of each cell in a model dataset.
 
     Parameters
     ----------
-    model_ds : xr.Dataset
+    ds : xr.Dataset
         Dataset with model data.
 
     Raises
@@ -2145,14 +2285,14 @@ def polygons_from_model_ds(model_ds):
     polygons : list of shapely Polygons
         list with polygon of each raster cell.
     """
-    if model_ds.gridtype == "structured":
-        delr = get_delr(model_ds)
-        delc = get_delc(model_ds)
+    if ds.gridtype == "structured":
+        delr = get_delr(ds)
+        delc = get_delc(ds)
 
-        xmins = model_ds.x - (delr * 0.5)
-        xmaxs = model_ds.x + (delr * 0.5)
-        ymins = model_ds.y - (delc * 0.5)
-        ymaxs = model_ds.y + (delc * 0.5)
+        xmins = ds.x - (delr * 0.5)
+        xmaxs = ds.x + (delr * 0.5)
+        ymins = ds.y - (delc * 0.5)
+        ymaxs = ds.y + (delc * 0.5)
         polygons = [
             Polygon(
                 [
@@ -2166,19 +2306,16 @@ def polygons_from_model_ds(model_ds):
             for j in range(len(ymins))
         ]
 
-    elif model_ds.gridtype == "vertex":
-        if "vertices" in model_ds:
-            vertices = model_ds["vertices"].values
-        else:
-            vertices = get_vertices(model_ds)
-        polygons = [Polygon(v) for v in vertices]
+    elif ds.gridtype == "vertex":
+        modelgrid = modelgrid_from_ds(ds)
+        polygons = [Polygon(v.vertices) for v in modelgrid.map_polygons]
     else:
         raise ValueError(
-            f"gridtype must be 'structured' or 'vertex', not {model_ds.gridtype}"
+            f"gridtype must be 'structured' or 'vertex', not {ds.gridtype}"
         )
-    if "angrot" in model_ds.attrs and model_ds.attrs["angrot"] != 0.0:
+    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
         # rotate the model coordinates to real coordinates
-        affine = get_affine_mod_to_world(model_ds).to_shapely()
+        affine = get_affine_mod_to_world(ds).to_shapely()
         polygons = [affine_transform(polygon, affine) for polygon in polygons]
 
     return polygons

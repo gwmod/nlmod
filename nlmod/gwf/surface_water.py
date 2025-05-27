@@ -85,6 +85,8 @@ def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=Non
         rbot = group["botm"].min()
 
     elif method == "de_lange":
+        if ds is None:
+            raise ValueError("Please supply model dataset (ds) when method=='de_lange'")
         # get additional requisite parameters
         if delange_params is None:
             delange_params = {}
@@ -120,11 +122,12 @@ def agg_area_weighted(gdf, col):
 
 
 def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
-    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(ds, cid)
+    (A, laytop, laybot, kh, kv) = get_subsurface_params_by_cellid(ds, cid)
 
     rbot = group["botm"].min()
 
     # select active layers
+    thickness = -np.diff(np.hstack((laytop, laybot)))
     active = thickness > 0
     laybot = laybot[active]
     kh = kh[active]
@@ -132,6 +135,8 @@ def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
     thickness = thickness[active]
 
     # layer thickn.
+    if np.isnan(rbot):
+        raise ValueError(f"rbot is NaN in cell {cid}")
     H0 = laytop - laybot[laybot < rbot][0]
     ilay = 0
     rlay = np.where(laybot < rbot)[0][0]
@@ -171,13 +176,12 @@ def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
 
 def get_subsurface_params_by_cellid(ds, cid):
     r, c = cid
-    A = ds.delr * ds.delc  # cell area
+    A = ds.area.isel(x=c, y=r).data
     laytop = ds["top"].isel(x=c, y=r).data
-    laybot = ds["bot"].isel(x=c, y=r).data
+    laybot = ds["botm"].isel(x=c, y=r).data
     kv = ds["kv"].isel(x=c, y=r).data
     kh = ds["kh"].isel(x=c, y=r).data
-    thickness = ds["thickness"].isel(x=c, y=r).data
-    return A, laytop, laybot, kh, kv, thickness
+    return A, laytop, laybot, kh, kv
 
 
 def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):

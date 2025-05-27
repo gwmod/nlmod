@@ -1,5 +1,8 @@
 """
 rdp
+
+This module is only used in the deprecated get_vertices_arr function in the grid module.
+As soon as that function is removed this module can be removed as well.
 ~~~
 Python implementation of the Ramer-Douglas-Peucker algorithm.
 :copyright: 2014-2016 Fabian Hirschmann <fabian@hirschmann.email>

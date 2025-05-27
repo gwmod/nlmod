@@ -21,7 +21,7 @@ from .config import NLMOD_CACHE_OPTIONS
 logger = logging.getLogger(__name__)
 
 
-def clear_cache(cachedir):
+def clear_cache(cachedir, prompt=True):
     """Clears the cache in a given cache directory by removing all .pklz and
     corresponding .nc files.
 
@@ -29,14 +29,19 @@ def clear_cache(cachedir):
     ----------
     cachedir : str
         path to cache directory.
+    prompt : bool, optional
+        Ask for confirmation before removing the cache. The default is True.
 
     Returns
     -------
     None.
     """
-    ans = input(f"this will remove all cached files in {cachedir} are you sure [Y/N]")
-    if ans.lower() != "y":
-        return
+    if prompt:
+        ans = input(
+            f"this will remove all cached files in {cachedir} are you sure [Y/N]"
+        )
+        if ans.lower() != "y":
+            return
 
     for fname in os.listdir(cachedir):
         # assuming all pklz files belong to a cached netcdf file
@@ -52,7 +57,7 @@ def clear_cache(cachedir):
             fpath_nc = os.path.join(cachedir, fname_nc)
             if os.path.exists(fname_nc):
                 # make sure cached netcdf is closed
-                cached_ds = xr.open_dataset(fpath_nc)
+                cached_ds = xr.open_dataset(fpath_nc, decode_coords="all")
                 cached_ds.close()
                 os.remove(fpath_nc)
                 msg = f"removed {fname_nc}"
@@ -215,7 +220,7 @@ def cache_netcdf(
                         "not using cache"
                     )
 
-                with xr.open_dataset(fname_cache) as cached_ds:
+                with xr.open_dataset(fname_cache, decode_coords="all") as cached_ds:
                     cached_ds.load()
 
                 if pickle_check:
@@ -294,7 +299,7 @@ def cache_netcdf(
             if isinstance(result, xr.Dataset):
                 # close cached netcdf (otherwise it is impossible to overwrite)
                 if os.path.exists(fname_cache):
-                    with xr.open_dataset(fname_cache) as cached_ds:
+                    with xr.open_dataset(fname_cache, decode_coords="all") as cached_ds:
                         cached_ds.load()
 
                 # write netcdf cache
@@ -307,7 +312,9 @@ def cache_netcdf(
                     # close and reopen dataset to ensure data is read from
                     # disk, and not from opendap
                     result.close()
-                    result = xr.open_dataset(fname_cache, chunks="auto")
+                    result = xr.open_dataset(
+                        fname_cache, decode_coords="all", chunks="auto"
+                    )
                 else:
                     result.to_netcdf(fname_cache)
 
@@ -430,6 +437,7 @@ def cache_pickle(func):
             except (pickle.UnpicklingError, ModuleNotFoundError):
                 logger.info("could not read pickle, not using cache")
                 pickle_check = False
+                argument_check = False
 
             if pickle_check:
                 # add dataframe hash to function arguments dic

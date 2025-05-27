@@ -405,6 +405,7 @@ def add_xsec_line_and_labels(
     x_offset: float = 0.0,
     y_offset: float = 0.0,
     label: str = "A",
+    buffer: float = 0.0,
     **kwargs,
 ):
     """Add a cross-section line to an overview map and label the start and end points.
@@ -421,21 +422,24 @@ def add_xsec_line_and_labels(
         The x offset of the labels, default is 0.0.
     y_offset : float, optional
         The y offset of the labels, default is 0.0.
+    buffer : float, optional
+        The buffer distance for the line, default is 0.0.
     kwargs : dict
         Keyword arguments to pass to the line plot function.
-
-    Raises
-    ------
-    ValueError
-        If the line is not a list or a shapely LineString.
     """
-    if isinstance(line, list):
-        x, y = np.array(line).T
-    elif isinstance(line, LineString):
-        x, y = line.xy
-    else:
-        raise ValueError("line should be a list or a shapely LineString")
-    mapax.plot(x, y, **kwargs)
+    line = LineString(line) if isinstance(line, list) else line
+
+    if "color" not in kwargs:
+        kwargs["color"] = "k"
+    linestyle = kwargs.pop("linestyle") if "linestyle" in kwargs else "-"
+
+    x, y = line.xy
+    mapax.plot(x, y, linestyle=linestyle, **kwargs)
+    if buffer > 0.0:
+        buff = line.buffer(buffer)
+        bx, by = buff.exterior.xy
+        mapax.plot(bx, by, linestyle="--", **kwargs)
+
     stroke = [patheffects.withStroke(linewidth=2, foreground="w")]
     mapax.text(
         x[0] - x_offset,

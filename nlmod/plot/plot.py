@@ -15,6 +15,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ..dims.grid import (
     get_affine_mod_to_world,
+    get_delc,
+    get_delr,
     get_extent,
     get_extent_gdf,
     modelgrid_from_ds,
@@ -250,15 +252,26 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
             ax.axis(extent)
         return pc
     else:
-        x = da.x
-        y = da.y
+        if ds is None:
+            x = da.x
+            y = da.y
+            shading = "nearest"
+        else:
+            x = ds["x"].values
+            dx = get_delr(ds)
+            x = np.hstack((x - dx / 2, x[-1] + dx[-1] / 2))
+
+            y = ds["y"].values
+            dy = get_delc(ds)
+            y = np.hstack((y + dy / 2, y[-1] - dy[-1] / 2))
+            shading = "flat"
         if rotated:
             if ds is None:
                 raise (ValueError("Supply model dataset (ds) for grid information"))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine_mod_to_world(ds)
                 x, y = affine * np.meshgrid(x, y)
-        return ax.pcolormesh(x, y, da, shading="nearest", edgecolor=edgecolor, **kwargs)
+        return ax.pcolormesh(x, y, da, shading=shading, edgecolor=edgecolor, **kwargs)
 
 
 def geotop_lithok_in_cross_section(
@@ -477,7 +490,8 @@ def map_array(
 
     # select layer
     try:
-        nlay = da["layer"].shape[0]
+        # check if layer is a dimension
+        nlay = da["layer"].shape[0] if "layer" in da.dims else -1
     except IndexError:
         nlay = 0  # only one layer
     except KeyError:

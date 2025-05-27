@@ -107,6 +107,12 @@ def lake_from_gdf(
         default is 0.05.
     pname : str, optional
         name of the lake package. The default is 'lak'.
+    obs_type : str or list of str, optional
+        observation or list of observations to add to the lake package. The default
+        is 'STAGE'.
+    obs_type_gwt : str or list of str, optional
+        observation or list of observations to add to the lake transport package.
+        The default is 'CONCENTRATION'.
     **kwargs :
         passed to flopy.mf6.ModflowGwflak.
 
@@ -294,8 +300,12 @@ def lake_from_gdf(
         noutlets = len(outlets)
 
     if boundname_column is not None:
-        obs_list = [(x, obs_type, x) for x in np.unique(gdf[boundname_column])]
-        observations = {f"{pname}_{obs_type}.csv": obs_list}
+        observations = {}
+        if isinstance(obs_type, str):
+            obs_type = [obs_type]
+        for otype in obs_type:
+            obs_list = [(x, otype, x) for x in np.unique(gdf[boundname_column])]
+            observations[f"{pname}_{otype}.csv"] = obs_list
     else:
         observations = None
 
@@ -321,8 +331,12 @@ def lake_from_gdf(
 
     if gwt is not None:
         if boundname_column is not None:
-            obs_list = [(x, obs_type_gwt, x) for x in np.unique(gdf[boundname_column])]
-            observations_gwt = {f"{pname}_{obs_type_gwt}.csv": obs_list}
+            observations_gwt = {}
+            if isinstance(obs_type_gwt, str):
+                obs_type_gwt = [obs_type_gwt]
+            for otype in obs_type_gwt:
+                obs_list_gwt = [(x, otype, x) for x in np.unique(gdf[boundname_column])]
+                observations_gwt[f"{pname}_{otype}.gwt.csv"] = obs_list_gwt
         else:
             observations_gwt = None
 

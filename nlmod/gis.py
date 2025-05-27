@@ -4,7 +4,7 @@ import os
 import geopandas as gpd
 import numpy as np
 
-from nlmod.dims.grid import get_affine_mod_to_world, polygons_from_model_ds
+from nlmod.dims.grid import get_affine_mod_to_world, polygons_from_ds
 from nlmod.dims.layers import calculate_thickness
 from nlmod.epsg28992 import EPSG_28992
 
@@ -47,9 +47,9 @@ def vertex_da_to_gdf(
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
     """
-    assert model_ds.gridtype == "vertex", (
-        f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
-    )
+    assert (
+        model_ds.gridtype == "vertex"
+    ), f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
 
     if isinstance(data_variables, str):
         data_variables = [data_variables]
@@ -87,7 +87,7 @@ def vertex_da_to_gdf(
 
     # create geometries
     if polygons is None:
-        polygons = polygons_from_model_ds(model_ds)
+        polygons = polygons_from_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
@@ -126,9 +126,9 @@ def struc_da_to_gdf(
     gdf : geopandas.GeoDataframe
         geodataframe of one or more DataArrays.
     """
-    assert model_ds.gridtype == "structured", (
-        f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
-    )
+    assert (
+        model_ds.gridtype == "structured"
+    ), f"expected model dataset with gridtype vertex, got {model_ds.gridtype}"
 
     if isinstance(data_variables, str):
         data_variables = [data_variables]
@@ -163,7 +163,7 @@ def struc_da_to_gdf(
 
     # create geometries
     if polygons is None:
-        polygons = polygons_from_model_ds(model_ds)
+        polygons = polygons_from_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
@@ -275,7 +275,7 @@ def ds_to_vector_file(
     da_names -= set(exclude)
 
     # create list of polygons
-    polygons = polygons_from_model_ds(model_ds)
+    polygons = polygons_from_ds(model_ds)
 
     # combine some data variables in one shapefile
     for key, item in combine_dic.items():

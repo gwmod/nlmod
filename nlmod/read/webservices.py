@@ -345,7 +345,7 @@ def wcs(
     crs="EPSG:28992",
     maxsize=2000,
 ):
-    """Download data from a web coverage service (WCS), return a MemoryFile.
+    """Download data from a web coverage service (WCS)
 
     Parameters
     ----------
@@ -375,8 +375,7 @@ def wcs(
 
     Returns
     -------
-    memfile : rasterio.io.MemoryFile
-        MemoryFile.
+    xr.DataArray
     """
     # check if wcs is within limits
     dx = extent[1] - extent[0]

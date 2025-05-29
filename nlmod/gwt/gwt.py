@@ -2,6 +2,7 @@ import logging
 import numbers
 
 import flopy
+import xarray as xr
 
 from ..dims import grid
 from ..gwf.gwf import _dis, _disv, _set_record
@@ -128,12 +129,17 @@ def dsp(ds, gwt, **kwargs):
         dsp package
     """
     logger.info("creating mf6 DSP")
+    diffc = _get_value_from_ds_attr(
+        ds, "diffc", "dsp_diffc", value=kwargs.pop("diffc", None)
+    )
     alh = _get_value_from_ds_attr(ds, "alh", "dsp_alh", value=kwargs.pop("alh", None))
     ath1 = _get_value_from_ds_attr(
         ds, "ath1", "dsp_ath1", value=kwargs.pop("ath1", None)
     )
     atv = _get_value_from_ds_attr(ds, "atv", "dsp_atv", value=kwargs.pop("atv", None))
-    dsp = flopy.mf6.ModflowGwtdsp(gwt, alh=alh, ath1=ath1, atv=atv, **kwargs)
+    dsp = flopy.mf6.ModflowGwtdsp(
+        gwt, diffc=diffc, alh=alh, ath1=ath1, atv=atv, **kwargs
+    )
     return dsp
 
 
@@ -310,8 +316,13 @@ def ic(ds, gwt, strt, pname="ic", **kwargs):
         ic package
     """
     logger.info("creating mf6 IC")
-    if not isinstance(strt, numbers.Number):
-        strt = ds[strt].data
+    if isinstance(strt, numbers.Number):
+        logger.info("adding 'starting_conc' data array to ds")
+        ds["starting_conc"] = strt * xr.ones_like(ds["botm"])
+        ds["starting_conc"].attrs["units"] = "mNAP"
+        strt = "starting_conc"
+
+    strt = _get_value_from_ds_datavar(ds, "starting_conc", strt)
     ic = flopy.mf6.ModflowGwtic(gwt, strt=strt, pname=pname, **kwargs)
 
     return ic

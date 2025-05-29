@@ -579,6 +579,39 @@ def estimate_nstp(
     else:
         return nstp_ceiled
 
+def get_perlen(ds):
+    """Get perlen from ds.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with time variant model data
+
+    Returns
+    -------
+    perlen : list of floats
+        length of a stress period.
+    """
+    deltat = pd.to_timedelta(1, ds.time.time_units)
+    if ds.time.dtype.kind == "M":
+        # dtype is pandas timestamps
+        perlen = [
+            (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
+            / deltat
+        ]
+        if len(ds["time"]) > 1:
+            perlen.extend(np.diff(ds["time"]) / deltat)
+    elif ds.time.dtype.kind == "O":
+        perlen = [
+            (ds["time"].data[0] - _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start)))
+            / deltat
+        ]
+        if len(ds["time"]) > 1:
+            perlen.extend(np.diff(ds["time"]) / deltat)
+    elif ds.time.dtype.kind in ["i", "f"]:
+        perlen = [ds["time"][0]]
+        perlen.extend(np.diff(ds["time"].values))
+    return perlen
 
 def get_time_step_length(perlen, nstp, tsmult):
     """Get the length of the timesteps within a singe stress-period.

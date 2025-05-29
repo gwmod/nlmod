@@ -103,14 +103,6 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
     return nodes
 
 
-def get_node_structured(lay, row, col, shape):
-    return lay * shape[1] * shape[2] + row * shape[2] + col
-
-
-def get_node_vertex(lay, icell2d, shape):
-    return lay * shape[1] + icell2d
-
-
 def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
     """Return a list of nodes from the cells with certain boundary conditions.
 

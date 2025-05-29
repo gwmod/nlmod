@@ -263,8 +263,8 @@ def maw_from_df(
                 cellid,
                 scrn_top,
                 scrn_bot,
-                0.0,
-                0.0,
+                10.0,
+                irow["rw"] + 1e-5,
             ]
             connectiondata.append(condata)
         iw += 1
@@ -278,7 +278,7 @@ def maw_from_df(
         boundnames=boundnames is not None,
         packagedata=packagedata,
         connectiondata=connectiondata,
-        perioddata=perioddata,
+        perioddata={0: perioddata},
         **kwargs,
     )
 

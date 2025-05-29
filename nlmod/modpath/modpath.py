@@ -103,7 +103,7 @@ def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
     return nodes
 
 
-def package_to_nodes(gwf, package_name, mpf):
+def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
     """Return a list of nodes from the cells with certain boundary conditions.
 
     Parameters

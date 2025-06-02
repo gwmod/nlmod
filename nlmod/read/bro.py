@@ -1,18 +1,24 @@
 import logging
-import flopy
+
 import hydropandas as hpd
 import numpy as np
 import pandas as pd
 from pyproj import Transformer
-from shapely.geometry import Point
 
-from .. import cache, dims, gwf
+from .. import cache
 
 logger = logging.getLogger(__name__)
 
 
-def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_errors=True,
-            **kwargs):
+def get_bro(
+    extent,
+    max_dx=0.1,
+    max_dy=0.1,
+    epsg=28992,
+    cachedir=None,
+    ignore_errors=True,
+    **kwargs,
+):
     """Wrapper around hpd.read_bro that deals with large extents.
 
     Parameters
@@ -56,8 +62,10 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
 
     # split in tiles and download per tile
     if (x_segments * y_segments) > 1:
-        st = ("requested bro dataset width or height bigger than maxsize "
-              f"splitting extent into {x_segments} * {y_segments} tiles")
+        st = (
+            "requested bro dataset width or height bigger than maxsize "
+            f"splitting extent into {x_segments} * {y_segments} tiles"
+        )
         logger.info(st)
         oc_list = []
         for tx in range(x_segments):
@@ -70,41 +78,47 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
                 logger.debug(
                     f"reading bro within extent {xmin}, {xmax}, {ymin}, {ymax}"
                 )
-                name = f'BRO_{xmin}_{xmax}_{ymin}_{ymax}'
+                name = f"BRO_{xmin}_{xmax}_{ymin}_{ymax}"
                 if ignore_errors:
                     try:
-                        oc = _get_bro_within_extent((xmin, xmax, ymin, ymax),
-                                                    name=name,
-                                                    ignore_max_obs=True,
-                                                    epsg=4326,
-                                                    cachedir=cachedir,
-                                                    cachename=name,
-                                                    **kwargs)
+                        oc = _get_bro_within_extent(
+                            (xmin, xmax, ymin, ymax),
+                            name=name,
+                            ignore_max_obs=True,
+                            epsg=4326,
+                            cachedir=cachedir,
+                            cachename=name,
+                            **kwargs,
+                        )
                         oc_list.append(oc)
                     except Exception as e:
                         logger.error(
-                        f"could not download BRO data in extent {xmin}, {xmax}, {ymin}, {ymax}"
+                            f"could not download BRO data in extent {xmin}, {xmax}, {ymin}, {ymax}"
                         )
                         logger.error(e)
                 else:
-                    oc = _get_bro_within_extent((xmin, xmax, ymin, ymax),
-                                                    name=name,
-                                                    ignore_max_obs=True,
-                                                    epsg=4326,
-                                                    cachedir=cachedir,
-                                                    cachename=name,
-                                                    **kwargs)
+                    oc = _get_bro_within_extent(
+                        (xmin, xmax, ymin, ymax),
+                        name=name,
+                        ignore_max_obs=True,
+                        epsg=4326,
+                        cachedir=cachedir,
+                        cachename=name,
+                        **kwargs,
+                    )
                     oc_list.append(oc)
         oc = pd.concat(oc_list)
     else:
-        name = 'BRO_' + '_'.join(map(str,extent))
-        oc = _get_bro_within_extent(extent,
-                                    name=name,
-                                    ignore_max_obs=True,
-                                    epsg=4326,
-                                    cachedir=cachedir,
-                                    cachename=name,
-                                    **kwargs)
+        name = "BRO_" + "_".join(map(str, extent))
+        oc = _get_bro_within_extent(
+            extent,
+            name=name,
+            ignore_max_obs=True,
+            epsg=4326,
+            cachedir=cachedir,
+            cachename=name,
+            **kwargs,
+        )
     if oc.empty:
         logger.warning("no observation wells within extent")
 
@@ -113,7 +127,7 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
 
 @cache.cache_pickle
 def _get_bro_within_extent(extent, name, ignore_max_obs, epsg, **kwargs):
-    """get bro groundwater measurements within extent
+    """Get bro groundwater measurements within extent
 
     Parameters
     ----------
@@ -133,8 +147,6 @@ def _get_bro_within_extent(extent, name, ignore_max_obs, epsg, **kwargs):
     hpd.ObsCollection
         _description_
     """
-
-    return hpd.read_bro(extent,
-                        name=name,
-                        ignore_max_obs=ignore_max_obs,
-                        epsg=epsg, **kwargs)
+    return hpd.read_bro(
+        extent, name=name, ignore_max_obs=ignore_max_obs, epsg=epsg, **kwargs
+    )

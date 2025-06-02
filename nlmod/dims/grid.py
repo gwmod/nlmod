@@ -581,6 +581,57 @@ def get_cell2d_from_ds(ds):
     return cell2d
 
 
+def get_cellids_from_xy(x, y, ds=None, modelgrid=None, gi=None):
+    """Map points to grid cells.
+
+    Note this is faster and more convenient than GridIntersect, because it
+    provides the corresponding cellid for each point (instead of aggregating
+    points per cell).
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-coordinates of points.
+    y : np.ndarray
+        y-coordinates of points.
+    ds : xr.Dataset, optional
+        Model dataset containing grid information. Must provide one of ds or modelgrid.
+    modelgrid : StructuredGrid or VertexGrid, optional
+        Model grid object. Must provide one of ds or modelgrid.
+    gi : GridIntersect, optional
+        GridIntersect instance, when passed saves some time building grid polygons.
+
+    Returns
+    -------
+    cellids : pd.Series
+        series with mapping between points and cellid of grid cell in
+        which points are located.
+    """
+    if ds is None and modelgrid is None:
+        raise ValueError("Either ds or modelgrid must be provided.")
+    elif ds is not None:
+        modelgrid = modelgrid_from_ds(ds)
+
+    # build geometries and cellids for grid
+    if gi is None:
+        gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
+
+    # spatial join points with grid and add resulting cellid to obs_ds
+    spatial_join = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x, y)).sjoin(
+        gpd.GeoDataFrame({"cellid": gi.cellids}, geometry=gi.geoms),
+        how="left",
+    )
+    # deal with edge cases, sort by index and cellid, then pick lowest cellid
+    cellids = (
+        spatial_join.reset_index()
+        .sort_values(["index", "cellid"])
+        .groupby("index")
+        .first()["cellid"]
+    )
+    cellids.index.name = "point_id"
+    return cellids
+
+
 def refine(
     ds,
     model_ws=None,

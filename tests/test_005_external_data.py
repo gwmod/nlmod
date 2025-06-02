@@ -79,6 +79,13 @@ def test_get_ahn4():
     assert isinstance(ahn_line, xr.DataArray)
 
 
+def test_get_ahn5():
+    extent = [99500.0, 100000.0, 494500.0, 495000.0]
+    da = nlmod.read.ahn.get_ahn5(extent)
+
+    assert not da.isnull().all(), "AHN only has nan values"
+
+
 def test_get_ahn():
     # model with sea
     ds = test_001_model.get_ds_from_cache("basic_sea_model")

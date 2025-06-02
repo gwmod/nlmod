@@ -95,7 +95,7 @@ def get_bro(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_er
                                                     cachename=name,
                                                     **kwargs)
                     oc_list.append(oc)
-        oc = pd.concat(l)
+        oc = pd.concat(oc_list)
     else:
         name = 'BRO_' + '_'.join(map(str,extent))
         oc = _get_bro_within_extent(extent,

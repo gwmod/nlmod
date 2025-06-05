@@ -234,7 +234,7 @@ def cache_netcdf(
 
                     if dataset is not None:
                         # fix layer dtype if necessary
-                        if "layer" in dataset.coords:
+                        if "layer" in cached_ds.coords:
                             if dataset["layer"].dtype != cached_ds["layer"].dtype:
                                 # cached layer dtype might be read as fixed width dtype
                                 # modify dataset dtype to make hashes match

@@ -18,8 +18,8 @@ from . import (
     waterboard,
     webservices,
 )
-from .geotop import download_geotop
+from .geotop import download_geotop, get_geotop
 from .regis import get_regis
 from .ahn import get_ahn
-from .bgt import download_bgt
+from .bgt import download_bgt, get_bgt
 

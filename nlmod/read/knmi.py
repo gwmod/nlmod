@@ -77,12 +77,11 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     shape = [len(ds_out[dim]) for dim in dims]
 
     if oc_knmi is None:
-        oc_knmi = get_knmi(ds,
-                           most_common_station=most_common_station)
+        oc_knmi = get_knmi(ds, most_common_station=most_common_station)
 
-    locations = get_locations(ds,
-                              oc_knmi=oc_knmi,
-                              most_common_station=most_common_station)
+    locations = get_locations(
+        ds, oc_knmi=oc_knmi, most_common_station=most_common_station
+    )
     if method in ["linear"]:
         ds_out["recharge"] = dims, np.zeros(shape)
 
@@ -229,7 +228,7 @@ def get_locations_structured(ds):
 
 
 def get_knmi(ds, most_common_station=False, start=None, end=None):
-    """get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
+    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
     cells.
 
     Parameters
@@ -249,7 +248,6 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
     oc_knmi
         hpd.ObsCollection
     """
-
     locations = get_locations(ds, most_common_station=most_common_station)
     oc_knmi = get_knmi_at_locations(locations, ds=ds, start=start, end=end)
 
@@ -291,11 +289,17 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
         raise ValueError("gridtype should be structured or vertex")
 
     if oc_knmi is not None:
-        locations["stn_rd"] = hpd_knmi.get_nearest_station_df(locations, stations=oc_knmi.loc[oc_knmi['meteo_var']=='RD'])
-        locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(locations, stations=oc_knmi.loc[oc_knmi['meteo_var']=='EV24'])
+        locations["stn_rd"] = hpd_knmi.get_nearest_station_df(
+            locations, stations=oc_knmi.loc[oc_knmi["meteo_var"] == "RD"]
+        )
+        locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(
+            locations, stations=oc_knmi.loc[oc_knmi["meteo_var"] == "EV24"]
+        )
     else:
         locations["stn_rd"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="RD")
-        locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="EV24")
+        locations["stn_ev24"] = hpd_knmi.get_nearest_station_df(
+            locations, meteo_var="EV24"
+        )
 
     if most_common_station:
         if is_structured(ds):
@@ -309,9 +313,10 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
             locations["stn_ev24"] = locations.groupby("stn_ev24").sum()["area"].idxmax()
 
     return locations
-    
+
+
 def get_knmi_at_locations(locations, ds=None, start=None, end=None):
-    """get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
+    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
 
     Parameters
     ----------

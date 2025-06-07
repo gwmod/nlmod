@@ -70,9 +70,14 @@ def download_bathymetry(extent, kind="jarkus"):
 
 
 @cache.cache_netcdf()
-def get_bathymetry(ds=None, extent=None, da_name="bathymetry",
-                   datavar_sea='northsea',
-                   kind="jarkus", method="average"):
+def get_bathymetry(
+    ds=None,
+    extent=None,
+    da_name="bathymetry",
+    datavar_sea="northsea",
+    kind="jarkus",
+    method="average",
+):
     """Get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters

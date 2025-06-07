@@ -2,6 +2,7 @@ import warnings
 
 from . import waterboard, webservices
 from .. import cache
+from . import waterboard, webservices
 
 
 def get_municipalities(*args, **kwargs):
@@ -46,7 +47,7 @@ def download_municipalities_gdf(source="cbs", drop_water=True, **kwargs):
         drop water
     **kwargs
         passed to webservices.wfs
-    
+
     Returns
     -------
     gpd.GeoDataFrame
@@ -108,7 +109,7 @@ def get_provinces(*args, **kwargs):
 @cache.cache_pickle
 def download_provinces_gdf(source="cbs", **kwargs):
     """Get the location of the Dutch provinces as a Polygon GeoDataFrame.
-    
+
     Parameters
     ----------
     source : str, optional
@@ -170,7 +171,7 @@ def get_netherlands(*args, **kwargs):
 @cache.cache_pickle
 def download_nlborder_gdf(source="cbs", **kwargs):
     """Get the location of the Dutch border as a Polygon GeoDataFrame.
-    
+
     Parameters
     ----------
     source : str, optional

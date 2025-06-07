@@ -140,7 +140,7 @@ def get_bathymetry(
         da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
         return xr.Dataset({da_name:da_bathymetry_filled})
     else:
-        discretize_bathymetry(ds, bathymetry_da=bathymetry_da)
+        ds_out = discretize_bathymetry(ds, bathymetry_da=bathymetry_da)
 
     return ds_out
 

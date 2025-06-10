@@ -107,7 +107,7 @@ def get_bro(
                         **kwargs,
                     )
                     oc_list.append(oc)
-        oc = pd.concat(l)
+        oc = pd.concat(oc_list)
     else:
         name = "BRO_" + "_".join(map(str, extent))
         oc = _get_bro_within_extent(

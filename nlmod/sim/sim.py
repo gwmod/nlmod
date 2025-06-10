@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .. import util
-from ..dims.time import _pd_timestamp_to_cftime
+from ..dims.time import _pd_timestamp_to_cftime, get_perlen
 
 logger = logging.getLogger(__name__)
 
@@ -89,25 +89,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
           TSMULT by the relation :math:`\\Delta t_1= perlen \frac{tsmult -
           1}{tsmult^{nstp}-1}`.
     """
-    deltat = pd.to_timedelta(1, ds.time.time_units)
-    if ds.time.dtype.kind == "M":
-        # dtype is pandas timestamps
-        perlen = [
-            (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
-            / deltat
-        ]
-        if len(ds["time"]) > 1:
-            perlen.extend(np.diff(ds["time"]) / deltat)
-    elif ds.time.dtype.kind == "O":
-        perlen = [
-            (ds["time"].data[0] - _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start)))
-            / deltat
-        ]
-        if len(ds["time"]) > 1:
-            perlen.extend(np.diff(ds["time"]) / deltat)
-    elif ds.time.dtype.kind in ["i", "f"]:
-        perlen = [ds["time"][0]]
-        perlen.extend(np.diff(ds["time"].values))
+    perlen = get_perlen(ds)
 
     nstp = util._get_value_from_ds_datavar(ds, "nstp", nstp, return_da=False)
 

@@ -114,7 +114,11 @@ def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30, name=None):
     """
     # create data array
     dims, coords = get_dims_coords_from_modelgrid(modelgrid)
-    da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords, name=name)
+    # TODO: check if this is the correct method to read unstructured outputs?
+    # also how do we do this for vertex grids?
+    if modelgrid.grid_type == "unstructured":
+        arr = arr[:, 0, 0, :]
+    da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords)
 
     if hdry is not None or hnoflo is not None:
         # set dry/no-flow to nan
@@ -254,8 +258,7 @@ def _get_budget_da(
 def _get_flopy_data_object(
     var, ds=None, gwml=None, fname=None, grb_file=None, **kwargs
 ):
-    """Get modflow HeadFile or CellBudgetFile object, containg heads, budgets or
-    concentrations.
+    """Get flopy data object, containing heads, budgets or concentrations.
 
     Provide one of ds, gwf or fname.
 
@@ -325,4 +328,10 @@ def _get_grb_file(ds):
         grb_file = os.path.join(ds.model_ws, ds.model_name + ".disv.grb")
     elif ds.gridtype == "structured":
         grb_file = os.path.join(ds.model_ws, ds.model_name + ".dis.grb")
+    elif ds.gridtype == "unstructured":
+        grb_file = os.path.join(ds.model_ws, ds.model_name + ".disu.grb")
+    else:
+        raise ValueError(
+            f"Unknown grid type {ds.gridtype}. Cannot determine grb file path."
+        )
     return grb_file

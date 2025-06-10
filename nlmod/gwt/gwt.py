@@ -128,12 +128,17 @@ def dsp(ds, gwt, **kwargs):
         dsp package
     """
     logger.info("creating mf6 DSP")
+    diffc = _get_value_from_ds_attr(
+        ds, "diffc", "dsp_diffc", value=kwargs.pop("diffc", None)
+    )
     alh = _get_value_from_ds_attr(ds, "alh", "dsp_alh", value=kwargs.pop("alh", None))
     ath1 = _get_value_from_ds_attr(
         ds, "ath1", "dsp_ath1", value=kwargs.pop("ath1", None)
     )
     atv = _get_value_from_ds_attr(ds, "atv", "dsp_atv", value=kwargs.pop("atv", None))
-    dsp = flopy.mf6.ModflowGwtdsp(gwt, alh=alh, ath1=ath1, atv=atv, **kwargs)
+    dsp = flopy.mf6.ModflowGwtdsp(
+        gwt, diffc=diffc, alh=alh, ath1=ath1, atv=atv, **kwargs
+    )
     return dsp
 
 

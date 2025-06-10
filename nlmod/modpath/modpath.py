@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import numbers
 import os
+import warnings
 from shutil import copyfile
 
 import flopy
@@ -60,8 +61,9 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
 
 
 def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
-    """Convert a list of points, defined by x and y coordinates, to a list of nodes. A
-    node is a unique cell in a model. The icell2d is a unique cell in a layer.
+    """Convert a list of points, defined by x and y coordinates, to a list of nodes.
+    
+    A node is a unique cell in a model. The icell2d is a unique cell in a layer.
 
     Parameters
     ----------
@@ -111,8 +113,8 @@ def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
         Groundwater flow model.
     package_name : str
         name of the package.
-    mpf : flopy.modpath.mp7.Modpath7
-        modpath object.
+    ibound : array
+        array indicating active cells
 
     Raises
     ------
@@ -126,8 +128,8 @@ def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
     """
     if mpf is not None:
         warnings.warn(
-            "The 'mpf' parameter is deprecated and will be removed in a future version. "
-            "Please pass 'ibound' directly.",
+            "The 'mpf' parameter is deprecated and will be removed in a future version."
+            " Please pass 'ibound' directly.",
             DeprecationWarning,
         )
         ibound = mpf.ib
@@ -163,7 +165,7 @@ def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
 
 
 def layer_to_nodes(mpf, modellayer):
-    """Get the nodes of all cells in one ore more model layer(s).
+    """Get the nodes of all cells in one or more model layer(s).
 
     Parameters
     ----------

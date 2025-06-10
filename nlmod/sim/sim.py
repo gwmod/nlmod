@@ -42,7 +42,7 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
 
     if script_path is not None:
         new_script_fname = (
-            f'{dt.datetime.now().strftime("%Y%m%d")}' + os.path.split(script_path)[-1]
+            f"{dt.datetime.now().strftime('%Y%m%d')}_" + os.path.split(script_path)[-1]
         )
         dst = os.path.join(ds.model_ws, new_script_fname)
         logger.info(f"write script {new_script_fname} to model workspace")
@@ -107,7 +107,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
             perlen.extend(np.diff(ds["time"]) / deltat)
     elif ds.time.dtype.kind in ["i", "f"]:
         perlen = [ds["time"][0]]
-        perlen.extent(np.diff(ds["time"].values))
+        perlen.extend(np.diff(ds["time"].values))
 
     nstp = util._get_value_from_ds_datavar(ds, "nstp", nstp, return_da=False)
 

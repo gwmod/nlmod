@@ -191,7 +191,10 @@ def test_create_sea_model(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = "surface_water"
-    ds.update(nlmod.read.rws.get_surface_water(ds, da_name))
+    gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(ds=ds)
+    ds.update(
+        nlmod.read.rws.get_surface_water(ds, gdf=gdf_surface_water, da_basename=da_name)
+    )
     _ = nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
 
     # surface level drain
@@ -261,8 +264,11 @@ def test_create_sea_model_perlen_list(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = "surface_water"
-    ds.update(nlmod.read.rws.get_surface_water(ds, da_name))
-    nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
+    gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(ds=ds)
+    ds.update(
+        nlmod.read.rws.get_surface_water(ds, gdf=gdf_surface_water, da_basename=da_name)
+    )
+    _ = nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
 
     # surface level drain
     ds.update(nlmod.read.ahn.get_ahn(ds))
@@ -335,8 +341,11 @@ def test_create_sea_model_perlen_14(tmpdir):
 
     # voeg grote oppervlaktewaterlichamen toe
     da_name = "surface_water"
-    ds.update(nlmod.read.rws.get_surface_water(ds, da_name))
-    nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
+    gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(ds=ds)
+    ds.update(
+        nlmod.read.rws.get_surface_water(ds, gdf=gdf_surface_water, da_basename=da_name)
+    )
+    _ = nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
 
     # surface level drain
     ds.update(nlmod.read.ahn.get_ahn(ds))

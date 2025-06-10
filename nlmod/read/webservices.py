@@ -47,7 +47,7 @@ def arcrest(
     max_record_count : int, optional
         maximum number of records for request.
     timeout : int, optional
-        timeout time of request. Default is 120.
+        timeout time of request in seconds. Default is 120.
     table : int, optional
         can be used to link a layer to a table, not yet implemented.
 
@@ -345,7 +345,7 @@ def wcs(
     crs="EPSG:28992",
     maxsize=2000,
 ):
-    """Download data from a web coverage service (WCS), return a MemoryFile.
+    """Download data from a web coverage service (WCS)
 
     Parameters
     ----------
@@ -375,8 +375,7 @@ def wcs(
 
     Returns
     -------
-    memfile : rasterio.io.MemoryFile
-        MemoryFile.
+    xr.DataArray
     """
     # check if wcs is within limits
     dx = extent[1] - extent[0]
@@ -394,7 +393,7 @@ def wcs(
         y_segments = 1
 
     if (x_segments * y_segments) > 1:
-        st = f"""requested wcs raster width or height bigger than {maxsize*res}
+        st = f"""requested wcs raster width or height bigger than {maxsize * res}
             -> splitting extent into {x_segments} * {y_segments} tiles"""
         logger.info(st)
         memfile = _split_wcs_extent(
@@ -484,7 +483,7 @@ def _split_wcs_extent(
                 end_y = start_y + maxsize * res
             subextent = [start_x, end_x, start_y, end_y]
             logger.debug(
-                f"segment x {tx+1} of {x_segments}, segment y {ty+1} of {y_segments}"
+                f"segment x {tx + 1} of {x_segments}, segment y {ty + 1} of {y_segments}"
             )
 
             memfile = _download_wcs(subextent, res, url, identifier, version, fmt, crs)

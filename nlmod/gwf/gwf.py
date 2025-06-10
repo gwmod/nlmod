@@ -8,6 +8,7 @@ import xarray as xr
 from ..dims import grid
 from ..dims.grid import get_delc, get_delr
 from ..dims.layers import get_idomain
+from ..dims.shared import get_area
 from ..sim import ims, sim, tdis
 from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
 from . import recharge
@@ -738,11 +739,13 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
     maskarr = _get_value_from_ds_datavar(ds, "elev", elev, return_da=True)
     mask = maskarr.notnull()
 
+    area = ds["area"] if "area" in ds else get_area(ds)
+
     drn_rec = grid.da_to_reclist(
         ds,
         mask,
         col1=elev,
-        col2=ds["area"] / ds.surface_drn_resistance,
+        col2=area / ds.surface_drn_resistance,
         first_active_layer=True,
         only_active_cells=False,
     )

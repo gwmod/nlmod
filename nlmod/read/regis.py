@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import xarray as xr
+from packaging.version import parse as parse_version
 
 from .. import cache
 from ..dims.layers import calculate_thickness, remove_layer_dim_from_top
@@ -24,6 +25,7 @@ def get_combined_layer_models(
     remove_nan_layers=True,
     geotop_layers="HLc",
     geotop_k=None,
+    gt_layered=None,
 ):
     """Combine layer models into a single layer model.
 
@@ -53,6 +55,10 @@ def get_combined_layer_models(
     geotop_k : pd.DataFrame, optional
         The DataFrame with information about kh and kv of the GeoTOP-data. This
         DataFrame must at least contain columns 'lithok' and 'kh'.
+    gt_layered : xarray.Dataset
+        A layered representation of the geotop-dataset. By supplying this parameter, the
+        user can change the GeoTOP-layering, which is usually defined by
+        nlmod.read.geotop.to_model_layers(gt).
 
     Returns
     -------
@@ -81,6 +87,7 @@ def get_combined_layer_models(
             layers=geotop_layers,
             geotop_k=geotop_k,
             remove_nan_layers=remove_nan_layers,
+            gt_layered=gt_layered,
         )
 
     elif use_regis:
@@ -100,6 +107,7 @@ def get_regis(
     drop_layer_dim_from_top=True,
     probabilities=False,
     nodata=-9999,
+    rename_layers_to_version_2_2_2=True,
 ):
     """Get a regis dataset projected on the modelgrid.
 
@@ -112,10 +120,10 @@ def get_regis(
         included in the model. the Default is "AKc" which is the bottom
         layer of regis. call nlmod.read.regis.get_layer_names() to get a list
         of regis names.
-    variables : tuple, optional
-        a tuple of the variables to keep from the regis Dataset. Possible
-        entries in the list are 'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and
-        'sdv'. The default is ("top", "botm", "kh", "kv").
+    variables : tuple or list, optional
+        The variables to keep from the regis Dataset. Possible entries in the list are
+        'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and 'sdv'. The default is
+        ("top", "botm", "kh", "kv").
     remove_nan_layers : bool, optional
         When True, layers that do not occur in the requested extent (layers that contain
         only NaN values for the botm array) are removed. The default is True.
@@ -129,13 +137,17 @@ def get_regis(
     nodata : int or float, optional
         When nodata is not None, set values equal to nodata to nan. The default is
         -9999.
+    rename_layers_to_version_2_2_2 : bool, toptional
+        From version 2.2.3 of regis, the names of stratigraphic layers change, compared
+        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names are
+        renamed back to their original names. The default is True.
 
     Returns
     -------
     regis_ds : xarray dataset
         dataset with regis data projected on the modelgrid.
     """
-    ds = xr.open_dataset(REGIS_URL, decode_coords="all")
+    ds = xr.open_dataset(REGIS_URL, decode_times=False, decode_coords="all")
     if "crs" in ds.coords:
         # remove the crs coordinate, as rioxarray does not recognise the crs
         # and we set the crs at the end of this method by hand
@@ -152,22 +164,27 @@ def get_regis(
         msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
         raise (ValueError(msg))
 
-    # make sure layer names are regular strings
-    ds["layer"] = ds["layer"].astype(str)
+    ds["layer"] = get_layer_names(
+        ds=ds, rename_layers_to_version_2_2_2=rename_layers_to_version_2_2_2
+    )
 
     # make sure y is descending
     if (ds["y"].diff("y") > 0).all():
         ds = ds.isel(y=slice(None, None, -1))
 
     # slice layers
-    if botm_layer is not None:
+    if botm_layer is not None and botm_layer in ds.layer:
         ds = ds.sel(layer=slice(botm_layer))
 
     # rename bottom to botm, as it is called in FloPy
     ds = ds.rename_vars({"bottom": "botm"})
 
     # slice data vars
-    if variables is not None:
+    if variables is None:
+        variables = list(ds.data_vars)
+    else:
+        if isinstance(variables, str):
+            variables = [variables]
         if probabilities:
             variables = variables + ("sdh", "sdv")
         ds = ds[list(variables)]
@@ -180,12 +197,20 @@ def get_regis(
 
     if remove_nan_layers:
         # only keep layers with at least one active cell
-        ds = ds.sel(layer=~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:]))
+        if "botm" in ds:
+            mask_layer = ~(np.isnan(ds["botm"])).all(ds["botm"].dims[1:])
+        else:
+            var = variables[0]
+            mask_layer = ~(np.isnan(ds[var])).all(ds[var].dims[1:])
+            for var in variables[1:]:
+                mask_layer = mask_layer | ~(np.isnan(ds[var])).all(ds[var].dims[1:])
+        ds = ds.sel(layer=mask_layer)
+
         if len(ds.layer) == 0:
             msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
             raise (Exception(msg))
 
-    if drop_layer_dim_from_top:
+    if drop_layer_dim_from_top and "botm" in ds and "top" in ds:
         ds = remove_layer_dim_from_top(ds)
 
     ds.attrs["gridtype"] = "structured"
@@ -198,6 +223,10 @@ def get_regis(
             ds[datavar].attrs["units"] = "mNAP"
         elif datavar in ["kh", "kv"]:
             ds[datavar].attrs["units"] = "m/day"
+        elif datavar in ["c"]:
+            ds[datavar].attrs["units"] = "day"
+        elif datavar in ["kD"]:
+            ds[datavar].attrs["units"] = "m2/day"
 
     # set the crs to dutch rd-coordinates
     ds.rio.write_crs(28992, inplace=True)
@@ -313,17 +342,72 @@ def add_geotop_to_regis_layers(
     return rg
 
 
-def get_layer_names():
+def extract_version_from_title(version_string):
+    """
+    Extract version number in format X.Y.Z from a string like "REGIS vXXrYsZ".
+
+    Parameters
+    ----------
+    version_string : str
+        The input string containing version information in format "REGIS vXXrYsZ".
+
+    Returns
+    -------
+    packaging.version.Version
+        Extracted version in format "X.Y.Z".
+
+    Examples
+    --------
+    >>> extract_version("REGIS v02r2s3")
+    <Version('2.2.3')>
+    """
+    # Extract digits from the string after 'v', 'r', and 's'
+    parts = version_string.split()
+    code = parts[1]  # Get 'vXXrYsZ' part
+
+    # Extract the numbers after v, r, and s
+    major = (
+        code[1:3].lstrip("0") or "0"
+    )  # Remove leading zeros, but keep at least one digit
+    minor = code[code.find("r") + 1 : code.find("s")].lstrip("0") or "0"
+    patch = code[code.find("s") + 1 :].lstrip("0") or "0"
+
+    # Combine into version format
+    version = f"{major}.{minor}.{patch}"
+    return parse_version(version)
+
+
+def get_layer_names(ds=None, rename_layers_to_version_2_2_2=True):
     """Get all the available regis layer names.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset, optional
+        The regis dataset. If None, a connection is made to the REGIS server.
+        The default is None.
+    rename_layers_to_version_2_2_2 : bool, optional
+        If True, the layer names are renamed to their pre-v2.2.3 names. The default is
+        True.
 
     Returns
     -------
     layer_names : np.array
         array with names of all the regis layers.
     """
-    layer_names = xr.open_dataset(REGIS_URL).layer.astype(str).values
+    if ds is None:
+        ds = xr.open_dataset(REGIS_URL, decode_times=False, decode_coords=False)
 
-    return layer_names
+    regis_version = extract_version_from_title(ds.attrs["title"])
+
+    layer_names = ds.layer.values.astype(str)
+
+    if rename_layers_to_version_2_2_2 and regis_version >= parse_version("2.2.3"):
+        df = get_table_name_changes()
+        return (
+            df.set_index("Nieuwe code").loc[layer_names]["Oude code"].values.astype(str)
+        )
+    else:
+        return layer_names
 
 
 def get_legend(kind="REGIS"):
@@ -336,7 +420,7 @@ def get_legend(kind="REGIS"):
         raise (ValueError(f"Only allowed values for kind are {allowed_kinds}"))
     if kind in ["REGIS", "combined"]:
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        fname = os.path.join(dir_path, "..", "data", "regis_2_2.gleg")
+        fname = os.path.join(dir_path, "..", "data", "regis", "regis_2_2.gleg")
         leg_regis = read_gleg(fname)
         if kind == "REGIS":
             return leg_regis
@@ -396,3 +480,27 @@ def read_voleg(fname):
     leg["color"] = clrs
     leg = leg.drop(["r", "g", "b", "a"], axis=1)
     return leg
+
+
+def get_table_name_changes():
+    """
+    Get the table with name changes of REGIS.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        A DataFrame containsing old and new names.
+
+    """
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    fname = "Tabellen.bij.naamgevingsreleases.REGIS.II.csv"
+    fname = os.path.join(dir_path, "..", "data", "regis", fname)
+    df = pd.read_csv(fname)
+
+    # remove (REGIS II) for the header of the first column, after "Naam"
+    df.columns = df.columns.str.replace(" (REGIS II)", "")
+
+    # drop the lines after the first empty row
+    first_empty_row = np.where(df.iloc[:, 0].isna())[0][0]
+    df = df.iloc[:first_empty_row]
+    return df

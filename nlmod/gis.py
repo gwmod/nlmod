@@ -4,7 +4,7 @@ import os
 import geopandas as gpd
 import numpy as np
 
-from nlmod.dims.grid import get_affine_mod_to_world, polygons_from_model_ds
+from nlmod.dims.grid import get_affine_mod_to_world, polygons_from_ds
 from nlmod.dims.layers import calculate_thickness
 from nlmod.epsg28992 import EPSG_28992
 
@@ -75,18 +75,19 @@ def vertex_da_to_gdf(
                         "use dealing_with_time='mean'"
                     )
             else:
-                raise ValueError(
-                    f"expected dimensions ('layer', 'icell2d'), got {da.dims}"
+                logger.warning(
+                    "expected dimensions ('layer', 'icell2d') for data variable "
+                    f"{da_name}, got {da.dims}"
                 )
         else:
-            raise NotImplementedError(
-                f"expected one or two dimensions got {no_dims} for "
-                f"data variable {da_name}"
+            logger.warning(
+                f"expected one or two dimensions for data variable "
+                f"{da_name}, got {no_dims} dimensions"
             )
 
     # create geometries
     if polygons is None:
-        polygons = polygons_from_model_ds(model_ds)
+        polygons = polygons_from_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
@@ -162,7 +163,7 @@ def struc_da_to_gdf(
 
     # create geometries
     if polygons is None:
-        polygons = polygons_from_model_ds(model_ds)
+        polygons = polygons_from_ds(model_ds)
 
     # construct geodataframe
     gdf = gpd.GeoDataFrame(dv_dic, geometry=polygons, crs=crs)
@@ -274,7 +275,7 @@ def ds_to_vector_file(
     da_names -= set(exclude)
 
     # create list of polygons
-    polygons = polygons_from_model_ds(model_ds)
+    polygons = polygons_from_ds(model_ds)
 
     # combine some data variables in one shapefile
     for key, item in combine_dic.items():
@@ -473,7 +474,7 @@ def _break_down_dimension(
                 if add_dim_name:
                     name = f"{name}_{dim}"
                 if add_one_based_index:
-                    name = f"{name}_{i+1}"
+                    name = f"{name}_{i + 1}"
                 else:
                     name = f"{name}_{value}"
 

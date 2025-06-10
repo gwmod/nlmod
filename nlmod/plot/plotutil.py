@@ -1,7 +1,11 @@
+from typing import Callable, Optional, Union
+
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import patheffects
 from matplotlib.patches import Polygon
 from matplotlib.ticker import FuncFormatter, MultipleLocator
+from shapely import LineString
 
 from ..dims.grid import get_affine_mod_to_world
 from ..epsg28992 import EPSG_28992
@@ -133,7 +137,16 @@ def get_map(
     alpha: float, optional
         The alpha value of the background. The default is 0.5.
     tight_layout : bool, optional
-        set tight_layout, default is True. Set to False for e.g. saving animations.
+        Set tight_layout of the figure. The default value used to be True, but it has
+        been replaced by layout="constrained". Set to False for e.g. saving animations.
+        The default is False.
+    layout : str, optional
+        Used to set the layout of the figure to constrained. For more information see
+        https://matplotlib.org/stable/users/explain/axes/constrainedlayout_guide.html .
+        The default is "constrained".
+    xh : float
+        The extra height of the x-axis in inches, compared to the y-axis. The default is
+        0.0.
 
     Returns
     -------
@@ -259,4 +272,210 @@ def title_inside(
         transform=ax.transAxes,
         bbox=bbox,
         **kwargs,
+    )
+
+
+def _get_axes_aspect_ratio(ax):
+    pos = ax.get_position()
+    width = pos.width * ax.figure.get_figwidth()
+    height = pos.height * ax.figure.get_figheight()
+    return width / height
+
+
+def get_inset_map_bounds(
+    ax: plt.Axes,
+    extent: Union[tuple[float], list[float]],
+    height: Optional[float] = None,
+    width: Optional[float] = None,
+    margin: Optional[float] = 0.025,
+    right: Optional[bool] = True,
+    bottom: Optional[bool] = True,
+):
+    """Get the bounds of the inset_map from a width or height, and a margin.
+
+    These bounds can be used for the parameter `axes_bounds` in the `inset_map` method.
+    The horizontal and vertical margin (in pixels) around this map are equal (unless the
+    figure is reshaped).
+
+    Parameters
+    ----------
+    ax : matplotlib.Axes
+        The axes to add the inset map to.
+    extent : list of 4 floats
+        The extent of the inset map.
+    height : float, optional
+        The height of the inset axes, in axes coordinates. Either height or width needs
+        to be specified. The default is None.
+    width : float, optional
+        The width of the inset axes, in axes coordinates. Either height or width needs
+        to be specified. The default is None.
+    margin : float, optional
+        The margin around, in axes coordinates. When height is specified, margin is
+        relative to the height of ax. When width is specified, margin is relative to the
+        width of ax. The default is 0.025.
+    right : bool, optional
+        If True, the inset axes is placed at the right corner. The default is True.
+    bottom : bool, optional
+        If True, the inset axes is placed at the bottom corner. The default is True.
+
+    Returns
+    -------
+    bounds: list of 4 floats
+        The bounds (left, right, width, height) of the inset axes.
+
+    """
+    msg = "Please specify either height or width"
+    assert (height is None) + (width is None) == 1, msg
+    ar = _get_axes_aspect_ratio(ax)
+    dxdy = (extent[1] - extent[0]) / (extent[3] - extent[2])
+    if height is None:
+        # the bounds are determined by width
+        height = width * ar / dxdy
+        bounds = [margin, margin * ar, width, height]
+    else:
+        # the bounds are determined by height
+        width = height * dxdy / ar
+        bounds = [margin / ar, margin, width, height]
+    if right:
+        # put the axes on the right side
+        bounds[0] = 1 - bounds[0] - width
+    if not bottom:
+        # put the axes on the top side
+        bounds[1] = 1 - bounds[1] - height
+    return bounds
+
+
+def inset_map(
+    ax: plt.Axes,
+    extent: Union[tuple[float], list[float]],
+    axes_bounds: Union[tuple[float], list[float]] = (0.63, 0.025, 0.35, 0.35),
+    anchor: str = "SE",
+    provider: Optional[str] = "nlmaps.water",
+    add_to_plot: Optional[list[Callable]] = None,
+):
+    """Add an inset map to an axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.Axes
+        The axes to add the inset map to.
+    extent : list of 4 floats
+        The extent of the inset map.
+    axes_bounds : list or tuple of 4 floats, optional
+        The bounds (left, right, width, height) of the inset axes, default
+        is (0.63, 0.025, 0.35, 0.35). This is rescaled according to the extent of
+        the inset map.
+    anchor : str, optional
+        The anchor point of the inset map, default is 'SE'.
+    provider : str, optional
+        Add a backgroundmap if map provider is passed, default is 'nlmaps.water'. To
+        turn off the backgroundmap set provider to None.
+    add_to_plot : list of functions, optional
+        List of functions to plot on the inset map, default is None. The functions
+        must accept an ax argument. Hint: use `functools.partial` to set plot style,
+        and pass the partial function to add_to_plot.
+
+    Returns
+    -------
+    mapax : matplotlib.Axes
+        The inset map axes.
+    """
+    mapax = ax.inset_axes(axes_bounds)
+    mapax.axis(extent)
+    mapax.set_aspect("equal", adjustable="box", anchor=anchor)
+    mapax.set_xticks([])
+    mapax.set_yticks([])
+    mapax.set_xlabel("")
+    mapax.set_ylabel("")
+
+    if provider:
+        add_background_map(mapax, map_provider=provider, attribution=False)
+
+    if add_to_plot:
+        for fplot in add_to_plot:
+            fplot(ax=mapax)
+
+    return mapax
+
+
+def add_xsec_line_and_labels(
+    line: Union[list, LineString],
+    ax: plt.Axes,
+    mapax: plt.Axes,
+    x_offset: float = 0.0,
+    y_offset: float = 0.0,
+    label: str = "A",
+    buffer: float = 0.0,
+    **kwargs,
+):
+    """Add a cross-section line to an overview map and label the start and end points.
+
+    Parameters
+    ----------
+    line : list or shapely LineString
+        The line to plot.
+    ax : matplotlib.Axes
+        The axes to plot the labels on.
+    mapax : matplotlib.Axes
+        The axes of the overview map to plot the line on.
+    x_offset : float, optional
+        The x offset of the labels, default is 0.0.
+    y_offset : float, optional
+        The y offset of the labels, default is 0.0.
+    buffer : float, optional
+        The buffer distance for the line, default is 0.0.
+    kwargs : dict
+        Keyword arguments to pass to the line plot function.
+    """
+    line = LineString(line) if isinstance(line, list) else line
+
+    if "color" not in kwargs:
+        kwargs["color"] = "k"
+    linestyle = kwargs.pop("linestyle") if "linestyle" in kwargs else "-"
+
+    x, y = line.xy
+    mapax.plot(x, y, linestyle=linestyle, **kwargs)
+    if buffer > 0.0:
+        buff = line.buffer(buffer)
+        bx, by = buff.exterior.xy
+        mapax.plot(bx, by, linestyle="--", **kwargs)
+
+    stroke = [patheffects.withStroke(linewidth=2, foreground="w")]
+    mapax.text(
+        x[0] - x_offset,
+        y[0] - y_offset,
+        f"{label}",
+        fontweight="bold",
+        path_effects=stroke,
+        fontsize=7,
+    )
+    mapax.text(
+        x[-1] + x_offset,
+        y[-1] + y_offset,
+        f"{label}'",
+        fontweight="bold",
+        path_effects=stroke,
+        fontsize=7,
+    )
+    ax.text(
+        0.01,
+        0.99,
+        f"{label}",
+        transform=ax.transAxes,
+        path_effects=stroke,
+        fontsize=14,
+        ha="left",
+        va="top",
+        fontweight="bold",
+    )
+    ax.text(
+        0.99,
+        0.99,
+        f"{label}'",
+        transform=ax.transAxes,
+        path_effects=stroke,
+        fontsize=14,
+        ha="right",
+        va="top",
+        fontweight="bold",
     )

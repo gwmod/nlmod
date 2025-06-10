@@ -8,6 +8,11 @@ def test_plot_modelgrid():
     nlmod.plot.modelgrid(ds)
 
 
+def test_plot_modelextent():
+    ds = util.get_ds_structured()
+    nlmod.plot.modelextent(ds)
+
+
 def test_plot_surface_water_empty():
     ds = util.get_ds_structured()
     nlmod.plot.surface_water(ds)

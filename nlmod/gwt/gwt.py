@@ -315,8 +315,13 @@ def ic(ds, gwt, strt, pname="ic", **kwargs):
         ic package
     """
     logger.info("creating mf6 IC")
-    if not isinstance(strt, numbers.Number):
-        strt = ds[strt].data
+    if isinstance(strt, numbers.Number):
+        logger.info("adding 'starting_conc' data array to ds")
+        ds["starting_conc"] = strt * xr.ones_like(ds["botm"])
+        ds["starting_conc"].attrs["units"] = "mNAP"
+        strt = "starting_conc"
+
+    strt = _get_value_from_ds_datavar(ds, "starting_conc", strt)
     ic = flopy.mf6.ModflowGwtic(gwt, strt=strt, pname=pname, **kwargs)
 
     return ic

@@ -4,7 +4,7 @@ import warnings
 import flopy
 import numpy as np
 import xarray as xr
-from geopandas import GeoDataFrame, GeoSeries, points_from_xy
+from geopandas import GeoSeries, points_from_xy
 
 from ..util import LayerError, _get_value_from_ds_datavar
 from . import grid

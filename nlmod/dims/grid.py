@@ -526,6 +526,12 @@ def get_dims_coords_from_modelgrid(mg):
         x = mg.xcellcenters
         coords = {"layer": layers, "y": ("icell2d", y), "x": ("icell2d", x)}
         dims = ("layer", "icell2d")
+    elif mg.grid_type == "unstructured":
+        coords = {
+            "x": ("node", mg.xcellcenters),
+            "y": ("node", mg.ycellcenters),
+        }
+        dims = ("node",)
     else:
         raise ValueError(f"grid type '{mg.grid_type}' not supported.")
     return dims, coords

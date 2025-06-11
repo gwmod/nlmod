@@ -13,7 +13,7 @@ from .shared import get_area
 logger = logging.getLogger(__name__)
 
 
-def get_xy_mid_structured(extent, delr, delc, descending_y=True):
+def get_xy_mid_structured(extent, delr, delc, descending_y=True, tiny=1e-10):
     """Calculates the x and y coordinates of the cell centers of a structured grid.
 
     Parameters
@@ -27,6 +27,9 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
     descending_y : bool, optional
         if True the resulting ymid array is in descending order. This is the
         default for MODFLOW models. default is True.
+    tiny : float, optional
+        A small value (for floating point reasons) to check if the extent is valid.
+        The default is 1e-10.
 
     Returns
     -------
@@ -40,12 +43,12 @@ def get_xy_mid_structured(extent, delr, delc, descending_y=True):
             raise TypeError("if delr is a number delc should be a number as well")
 
         # check if extent is valid
-        if (extent[1] - extent[0]) % delr != 0.0:
+        if (extent[1] - extent[0]) % delr > tiny:
             raise ValueError(
                 "invalid extent, the extent should contain an integer"
                 " number of cells in the x-direction"
             )
-        if (extent[3] - extent[2]) % delc != 0.0:
+        if (extent[3] - extent[2]) % delc > tiny:
             raise ValueError(
                 "invalid extent, the extent should contain an integer"
                 " number of cells in the y-direction"

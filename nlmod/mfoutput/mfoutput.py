@@ -112,10 +112,7 @@ def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
     """
     # create data array
     dims, coords = get_dims_coords_from_modelgrid(modelgrid)
-    # TODO: check if this is the correct method to read unstructured outputs?
-    # also how do we do this for vertex grids?
-    if modelgrid.grid_type == "unstructured":
-        arr = arr[:, 0, 0, :]
+
     da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords)
 
     if hdry is not None or hnoflo is not None:
@@ -186,11 +183,13 @@ def _get_heads_da(
         _get_binary_head_data, kstpkper=kstpkper, shape=shape, fobj=hobj
     )
 
-    # check for vertex grids
+    # check for vertex or unstructured grids
     if modelgrid.grid_type == "vertex":
         if stacked_arr.ndim == 4:
             stacked_arr = stacked_arr[:, :, 0, :]
-
+    elif modelgrid.grid_type == "unstructured":
+        if stacked_arr.ndim == 4:
+            stacked_arr = stacked_arr[:, 0, 0, :]
     # create data array
     da = _create_da(stacked_arr, modelgrid, hobj.get_times(), **kwargs)
 

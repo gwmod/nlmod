@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+import warnings
 
 import geopandas as gpd
 import numpy as np
@@ -13,7 +14,7 @@ from ..dims.resample import structured_da_to_ds
 logger = logging.getLogger(__name__)
 
 
-def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
+def _download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
     """Download a file from the NHI website.
 
     Parameters
@@ -68,16 +69,79 @@ def download_buisdrainage(pathname, overwrite=False):
 
     # download resistance
     url = f"{url_bas}/buisdrain_c_ras25/buisdrain_c_ras25.nc"
-    fname_c = download_file(url, pathname, overwrite=overwrite)
+    fname_c = _download_file(url, pathname, overwrite=overwrite)
 
     # download drain depth
     url = f"{url_bas}/buisdrain_d_ras25/buisdrain_d_ras25.nc"
-    fname_d = download_file(url, pathname, overwrite=overwrite)
+    fname_d = _download_file(url, pathname, overwrite=overwrite)
 
     return fname_c, fname_d
 
 
 def add_buisdrainage(
+    ds,
+    pathname=None,
+    cond_var="buisdrain_cond",
+    depth_var="buisdrain_depth",
+    cond_method="average",
+    depth_method="mode",
+):
+    """Add data about the buisdrainage to the model Dataset.
+
+    This data consists of the conductance of buisdrainage (m2/d) and the depth of
+    buisdrainage (m to surface level). With the default settings for `cond_method` and
+    `depth_method`, the conductance is calculated from the area weighted average of the
+    resistance in a cell, while the depth is set to the value which appears most often
+    in a cell. Cells without data (or 0 in the case of the resistance) are ignored in
+    these calculations.
+
+    The original data of the resistance and the depth of buisdrainage at a 25x25 m scale
+    is downloaded to `pathname` when not found.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The model Dataset.
+    pathname : str, optional
+        The pathname containing the downloaded files or the pathname to which the files
+        are downloaded. When pathname is None, it is set the the cachedir. The default
+        is None.
+    cond_var : str, optional
+        The name of the variable in ds to contain the data about the conductance of
+        buisdrainage. The default is "buisdrain_cond".
+    depth_var : str, optional
+        The name of the variable in ds to contain the data about the depth of
+        buisdrainage. The default is "buisdrain_depth".
+    cond_method : str, optional
+        The method to transform the conductance of buisdrainage to the model Dataset.
+        The default is "average".
+    depth_method : str, optional
+        The method to transform the depth of buisdrainage to the model Dataset. The
+        default is "mode".
+
+    Returns
+    -------
+    ds : xr.Dataset
+        The model dataset with added variables with the names `cond_var` and
+        `depth_var`.
+    """
+    
+    warnings.warn(
+    "'add_buisdrainage' is deprecated and will be removed in a future version. "
+    "Use 'discretize_buisdrainage' to project the buisdrainage on the model grid",
+    DeprecationWarning)
+
+
+    return discretize_buisdrainage(ds,
+                                    pathname,
+                                    cond_var,
+                                    depth_var,
+                                    cond_method,
+                                    depth_method,
+                                )
+
+
+def discretize_buisdrainage(
     ds,
     pathname=None,
     cond_var="buisdrain_cond",
@@ -172,7 +236,38 @@ def add_buisdrainage(
     return ds
 
 
+
 def get_gwo_wells(
+    username,
+    password,
+    n_well_filters=1_000,
+    well_site=None,
+    organisation=None,
+    status=None,
+    well_index="Name",
+    timeout=120,
+    **kwargs,
+):
+    """Deprecated, use 'download_gwo_wells' instead
+    """
+    warnings.warn(
+    "'get_gwo_wells' is deprecated and will be removed in a future version. "
+    "Use 'download_gwo_wells' instead",
+    DeprecationWarning)
+
+    return download_gwo_wells(username,
+                                password,
+                                n_well_filters=n_well_filters,
+                                well_site=well_site,
+                                organisation=organisation,
+                                status=status,
+                                well_index=well_index,
+                                timeout=timeout,
+                                **kwargs,
+                            )
+
+
+def download_gwo_wells(
     username,
     password,
     n_well_filters=1_000,
@@ -268,6 +363,34 @@ def get_gwo_wells(
 
 
 def get_gwo_measurements(
+    username,
+    password,
+    n_measurements=10_000,
+    well_site=None,
+    well_index="Name",
+    measurement_index=("Name", "DateTime"),
+    timeout=120,
+    **kwargs,
+):
+    """Deprecated, use 'download_gwo_measurements' instead
+    """
+    warnings.warn(
+    "'get_gwo_measurements' is deprecated and will be removed in a future version. "
+    "Use 'download_gwo_measurements' instead",
+    DeprecationWarning)
+
+    return download_gwo_measurements(username,
+                                password,
+                                n_measurements=n_measurements,
+                                well_site=well_site,
+                                well_index=well_index,
+                                measurement_index=measurement_index,
+                                timeout=timeout,
+                                **kwargs,
+                            )
+
+
+def download_gwo_measurements(
     username,
     password,
     n_measurements=10_000,

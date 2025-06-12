@@ -55,7 +55,7 @@ def download_ahn(extent: list[float],
         DataArray with the ahn variable.
     """
 
-    ahn_da = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
+    ahn_da = _download_ahn_ellipsis(extent, identifier=identifier, **kwargs)
     if "return_tiles" in kwargs and kwargs["return_tiles"]:
         return ahn_da
 
@@ -475,8 +475,38 @@ def get_ahn1(
     xr.DataArray
         DataArray of the AHN
     """
+    warnings.warn(
+    "'get_ahn1' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn1' instead",
+    DeprecationWarning)
+    return download_ahn1(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn1(
+    extent: list[float],
+    identifier: Literal["AHN1 maaiveldmodel (DTM) 5m"] = "AHN1 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN1.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. The only
+        allowed value is 'AHN1 maaiveldmodel (DTM) 5m'. The default is
+        "AHN1 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
     _assert_as_data_array_is_none(as_data_array)
-    da = _get_ahn_ellipsis(extent, identifier, **kwargs)
+    da = _download_ahn_ellipsis(extent, identifier, **kwargs)
     if "return_tiles" in kwargs and kwargs["return_tiles"]:
         return da
     # original data is in cm. Convert the data to m, which is the unit of other ahns
@@ -486,6 +516,36 @@ def get_ahn1(
 
 @cache.cache_netcdf()
 def get_ahn1_legacy(
+    extent: list[float],
+    identifier: Literal["ahn1_5m"] = "ahn1_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray:
+    """Download AHN1.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. The only
+        allowed value is 'ahn1_5m'. The default is "ahn1_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    warnings.warn(
+    "'get_ahn1_legacy' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn1_legacy' instead",
+    DeprecationWarning)
+    return download_ahn1_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn1_legacy(
     extent: list[float],
     identifier: Literal["ahn1_5m"] = "ahn1_5m",
     as_data_array: bool = True,
@@ -546,8 +606,45 @@ def get_ahn2(
     xr.DataArray
         DataArray of the AHN
     """
+    warnings.warn(
+    "'get_ahn2' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn2' instead",
+    DeprecationWarning)
+    return download_ahn2(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn2(
+    extent: list[float],
+    identifier: Literal[
+        "AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd",
+        "AHN2 maaiveldmodel (DTM) ½m",
+        "AHN2 DSM ½m",
+        "AHN2 maaiveldmodel (DTM) 5m",
+    ] = "AHN2 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN2.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
+        'AHN2 maaiveldmodel (DTM) ½m', 'AHN2 DSM ½m', and
+        'AHN2 maaiveldmodel (DTM) 5m'. The default is
+        "AHN2 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
     _assert_as_data_array_is_none(as_data_array)
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
@@ -576,10 +673,42 @@ def get_ahn2_legacy(
     xr.DataArray or MemoryFile
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
+    warnings.warn(
+    "'get_ahn2_legacy' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn2_legacy' instead",
+    DeprecationWarning)
+    return download_ahn2_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn2_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "ahn2_05m_i", "ahn2_05m_n", "ahn2_05m_r", "ahn2_5m"
+    ] = "ahn2_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
+    """Download AHN2.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The default
+        is "ahn2_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
     # tiles are equal to that of ahn3
     tiles = get_ahn3_tiles(extent)
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
-
 
 @cache.cache_netcdf()
 def get_ahn3(
@@ -610,12 +739,82 @@ def get_ahn3(
     xr.DataArray
         DataArray of the AHN
     """
+    warnings.warn(
+    "'get_ahn3' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn3' instead",
+    DeprecationWarning)
+    return download_ahn3(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn3(
+    extent: list[float],
+    identifier: Literal[
+        "AHN3 maaiveldmodel (DTM) ½m",
+        "AHN3 DSM ½m",
+        "AHN3 maaiveldmodel (DTM) 5m",
+        "AHN3 DSM 5m",
+    ] = "AHN3 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN3.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN3 maaiveldmodel (DTM) ½m', 'AHN3 DSM ½m',
+        'AHN3 maaiveldmodel (DTM) 5m', and 'AHN3 DSM 5m'. The default is
+        "AHN3 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
     _assert_as_data_array_is_none(as_data_array)
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
+
 
 
 @cache.cache_netcdf()
 def get_ahn3_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "AHN3_05m_DSM", "AHN3_05m_DTM", "AHN3_5m_DSM", "AHN3_5m_DTM"
+    ] = "AHN3_5m_DTM",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
+    """Download AHN3.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and 'AHN3_5m_DTM'. The
+        default is "AHN3_5m_DTM".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    warnings.warn(
+    "'get_ahn3_legacy' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn3_legacy' instead",
+    DeprecationWarning)
+    return download_ahn3_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn3_legacy(
     extent: list[float],
     identifier: Literal[
         "AHN3_05m_DSM", "AHN3_05m_DTM", "AHN3_5m_DSM", "AHN3_5m_DTM"
@@ -673,12 +872,81 @@ def get_ahn4(
     xr.DataArray
         DataArray of the AHN
     """
+    warnings.warn(
+    "'get_ahn4' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn4' instead",
+    DeprecationWarning)
+    return download_ahn4(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn4(
+    extent: list[float],
+    identifier: Literal[
+        "AHN4 maaiveldmodel (DTM) ½m",
+        "AHN4 DSM ½m",
+        "AHN4 maaiveldmodel (DTM) 5m",
+        "AHN4 DSM 5m",
+    ] = "AHN4 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN4.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN4 maaiveldmodel (DTM) ½m', 'AHN4 DSM ½m',
+        'AHN4 maaiveldmodel (DTM) 5m', and 'AHN4 DSM 5m'. The default is
+        "AHN4 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
     _assert_as_data_array_is_none(as_data_array)
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
 def get_ahn4_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "AHN4_DTM_05m", "AHN4_DSM_05m", "AHN4_DTM_5m", "AHN4_DSM_5m"
+    ] = "AHN4_DTM_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
+    """Download AHN4.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' and 'AHN4_DSM_5m'. The
+        default is "AHN4_DTM_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    warnings.warn(
+    "'get_ahn4_legacy' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn4_legacy' instead",
+    DeprecationWarning)
+    return download_ahn4_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn4_legacy(
     extent: list[float],
     identifier: Literal[
         "AHN4_DTM_05m", "AHN4_DSM_05m", "AHN4_DTM_5m", "AHN4_DSM_5m"
@@ -735,7 +1003,42 @@ def get_ahn5(
     xr.DataArray
         DataArray of the AHN
     """
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    warnings.warn(
+    "'get_ahn5' is deprecated and will be removed in a future version. "
+    "Use 'download_ahn5' instead",
+    DeprecationWarning)
+    return download_ahn5(extent, identifier, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn5(
+    extent: list[float],
+    identifier: Literal[
+        "AHN5 maaiveldmodel (DTM) 5m",
+        "AHN5 DSM 5m",
+        "AHN5 maaiveldmodel (DTM) ½m",
+        "AHN5 DSM ½m",
+    ] = "AHN5 maaiveldmodel (DTM) 5m",
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN5.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN5 maaiveldmodel (DTM) 5m', 'AHN5 DSM 5m',
+        'AHN5 maaiveldmodel (DTM) ½m', and 'AHN5 DSM ½m'. The default is
+        "AHN5 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 def _update_ellipsis_tiles_in_data() -> None:
@@ -748,7 +1051,7 @@ def _update_ellipsis_tiles_in_data() -> None:
 
 
 @cache.cache_netcdf()
-def _get_ahn_ellipsis(
+def _download_ahn_ellipsis(
     extent: list[float], identifier: str, merge_tiles: bool = True, **kwargs
 ) -> xr.DataArray | list[xr.DataArray]:
     """Download and merge AHN tiles from the ellipsis.

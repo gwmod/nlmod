@@ -24,12 +24,12 @@ def test_get_provinces_kadaster():
 
 
 def test_get_netherlands_cbs():
-    gdf = nlmod.read.administrative.download_nlborder_gdf()
+    gdf = nlmod.read.administrative.download_netherlands_gdf()
     assert len(gdf) > 0
 
 
 def test_get_netherlands_kadaster():
-    gdf = nlmod.read.administrative.download_nlborder_gdf(source="kadaster")
+    gdf = nlmod.read.administrative.download_netherlands_gdf(source="kadaster")
     assert len(gdf) > 0
 
 

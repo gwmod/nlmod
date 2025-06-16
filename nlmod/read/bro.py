@@ -16,9 +16,9 @@ def get_bro(*args, **kwargs):
     """Wrapper around hpd.read_bro that deals with large extents.
 
     .. deprecated:: 0.10.0
-          `get_bro` will be removed in nlmod 1.0.0, it is replaced by
-          `download_bro_groundwater` because of new naming convention 
-          https://github.com/gwmod/nlmod/issues/47
+        `get_bro` will be removed in nlmod 1.0.0, it is replaced by
+        `download_bro_groundwater` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
     
     Parameters
     ----------

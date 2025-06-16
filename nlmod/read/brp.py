@@ -6,9 +6,9 @@ def get_percelen(*args, **kwargs):
     """Get a gdf from the Basisregistratie Percelen.
     
     .. deprecated:: 0.10.0
-          `get_percelen` will be removed in nlmod 1.0.0, it is replaced by
-          `download_percelen_gdf` because of new naming convention 
-          https://github.com/gwmod/nlmod/issues/47
+        `get_percelen` will be removed in nlmod 1.0.0, it is replaced by
+        `download_percelen_gdf` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
 
     """
 

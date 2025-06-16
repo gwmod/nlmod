@@ -83,7 +83,8 @@ def get_bathymetry(
     Parameters
     ----------
     ds : xarray.Dataset
-        dataset with model data where bathymetry is added to.
+        dataset with model data where bathymetry is added to. Using ds=None is
+        deprecated, instead use nlmod.read.jarkus.download_bathymetry().
     extent : list, tuple or np.array, optional
         extent xmin, xmax, ymin, ymax. Only used if ds is None. The default is None.
     da_name : str, optional
@@ -111,7 +112,7 @@ def get_bathymetry(
     if ds is None:
         warnings.warn(
         "calling 'get_bathymetry' with ds=None is deprecated and will raise an error "
-        "in the future. Use 'download_bathymetry' to get the bathymetry data within an "
+        "in the future. Use 'nlmod.read.jarkus.download_bathymetry' to get the bathymetry data within an "
         "extent",
         DeprecationWarning,
     )

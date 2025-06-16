@@ -25,10 +25,10 @@ def get_bgt(*args, **kwargs):
     Grootschalige Topografie (BGT)
 
     .. deprecated:: 0.10.0
-          `get_bgt` will be removed in nlmod 1.0.0, it is replaced by
-          `download_bgt` because of new naming convention 
-          https://github.com/gwmod/nlmod/issues/47
-    
+        `get_bgt` will be removed in nlmod 1.0.0, it is replaced by
+        `download_bgt` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
+
 
     Parameters
     ----------

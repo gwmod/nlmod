@@ -25,7 +25,7 @@ def get_ahn():
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
             os.makedirs(model_ws)
-        ahn = nlmod.read.ahn.get_ahn4(extent)
+        ahn = nlmod.read.ahn.download_ahn4(extent)
         ahn.rio.to_raster(fname)
     ahn = rioxarray.open_rasterio(fname, mask_and_scale=True)[0]
     return ahn

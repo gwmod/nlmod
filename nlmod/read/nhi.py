@@ -88,15 +88,10 @@ def add_buisdrainage(
 ):
     """Add data about the buisdrainage to the model Dataset.
 
-    This data consists of the conductance of buisdrainage (m2/d) and the depth of
-    buisdrainage (m to surface level). With the default settings for `cond_method` and
-    `depth_method`, the conductance is calculated from the area weighted average of the
-    resistance in a cell, while the depth is set to the value which appears most often
-    in a cell. Cells without data (or 0 in the case of the resistance) are ignored in
-    these calculations.
-
-    The original data of the resistance and the depth of buisdrainage at a 25x25 m scale
-    is downloaded to `pathname` when not found.
+    .. deprecated:: 0.10.0
+        `add_buisdrainage` will be removed in nlmod 1.0.0, it is replaced by
+        `discretize_buisdrainage` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
 
     Parameters
     ----------
@@ -128,7 +123,7 @@ def add_buisdrainage(
     
     warnings.warn(
     "'add_buisdrainage' is deprecated and will be removed in a future version. "
-    "Use 'discretize_buisdrainage' to project the buisdrainage on the model grid",
+    "Use 'nlmod.read.hni.discretize_buisdrainage' to project the buisdrainage on the model grid",
     DeprecationWarning)
 
 
@@ -248,11 +243,52 @@ def get_gwo_wells(
     timeout=120,
     **kwargs,
 ):
-    """Deprecated, use 'download_gwo_wells' instead
+    """Get metadata of extraction wells from the NHI GWO database.
+
+    .. deprecated:: 0.10.0
+        `get_gwo_wells` will be removed in nlmod 1.0.0, it is replaced by
+        `download_gwo_wells` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_well_filters : int, optional
+        The number of wells that are requested per page. This number determines in how
+        many pieces the request is split. The default is 1000.
+    organisation : str, optional
+        The organisation that manages the wells. If not None, the organisation will be
+        used to filter the wells. The default is None.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    status : str, optional
+        The status of the wells. If not None, the status will be used to filter the
+        wells. Possible values are "Active", "Inactive" or "Abandoned". The default is
+        None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    timeout : int, optional
+        The timeout time (in seconds) for requests to the database. The default is
+        120 seconds.
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame containing the properties of the wells and their filters.
     """
     warnings.warn(
     "'get_gwo_wells' is deprecated and will be removed in a future version. "
-    "Use 'download_gwo_wells' instead",
+    "Use 'nlmod.read.nhi.download_gwo_wells' instead",
     DeprecationWarning)
 
     return download_gwo_wells(username,
@@ -372,11 +408,51 @@ def get_gwo_measurements(
     timeout=120,
     **kwargs,
 ):
-    """Deprecated, use 'download_gwo_measurements' instead
+    """Get extraction rates and metadata of wells from the NHI GWO database.
+
+    .. deprecated:: 0.10.0
+        `get_gwo_measurements` will be removed in nlmod 1.0.0, it is replaced by
+        `download_gwo_measurements` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_measurements : int, optional
+        The number of measurements that are requested per page, with a maximum of
+        200,000. This number determines in how many pieces the request is split. The
+        default is 10,000.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    measurement_index :  str, tuple or list, optional, optional
+        The column(s) in the resulting measurement-DataFrame that is/are used as the
+        index of this DataFrame. The default is ("Name", "DateTime").
+    timeout : int, optional
+        The timeout time (in seconds) of requests to the database. The default is
+        120 seconds.
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    measurements : pandas.DataFrame
+        A DataFrame containing the extraction rates of the wells in the database.
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame containing the properties of the wells and their filters.
     """
     warnings.warn(
     "'get_gwo_measurements' is deprecated and will be removed in a future version. "
-    "Use 'download_gwo_measurements' instead",
+    "Use 'nlmod.read.nhi.download_gwo_measurements' instead",
     DeprecationWarning)
 
     return download_gwo_measurements(username,

@@ -26,9 +26,9 @@ def get_brt(*args, **kwargs):
     """Get geometries within an extent/polygon from the Basis Registratie Topografie.
 
     .. deprecated:: 0.10.0
-          `get_brt` will be removed in nlmod 1.0.0, it is replaced by
-          `download_brt_gdf` because of new naming convention 
-          https://github.com/gwmod/nlmod/issues/47
+        `get_brt` will be removed in nlmod 1.0.0, it is replaced by
+        `download_brt_gdf` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
 
     Useful links:
     https://api.pdok.nl/brt/top10nl/download/v1_0/ui
@@ -69,7 +69,7 @@ def get_brt(*args, **kwargs):
     """
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_waterboards_gdf() in the future.",
+        "please use nlmod.read.brt.download_brt_gdf() in the future.",
         DeprecationWarning,
     )
 

@@ -5,7 +5,7 @@ import nlmod
 
 
 def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
-    regis_ds = nlmod.read.regis.get_regis(extent)
+    regis_ds = nlmod.read.regis.download_regis(extent)
 
     assert regis_ds.sizes["layer"] == 20
 
@@ -14,19 +14,19 @@ def test_get_regis_botm_layer_BEk1(
     extent=[98700.0, 99000.0, 489500.0, 489700.0],
     botm_layer="MSc",
 ):
-    regis_ds = nlmod.read.regis.get_regis(extent, botm_layer)
+    regis_ds = nlmod.read.regis.download_regis(extent, botm_layer)
     assert regis_ds.sizes["layer"] == 15
     assert regis_ds.layer.values[-1] == botm_layer
 
 
 def test_get_regis_only_c(extent=[98700.0, 99000.0, 489500.0, 489700.0]):
-    regis_ds = nlmod.read.regis.get_regis(extent, variables="c")
+    regis_ds = nlmod.read.regis.download_regis(extent, variables="c")
     assert np.all([x == "c" for x in regis_ds.data_vars])
     assert regis_ds.sizes["layer"] == 8
 
 
 def test_get_regis_only_c_and_kd(extent=[98700.0, 99000.0, 489500.0, 489700.0]):
-    regis_ds = nlmod.read.regis.get_regis(extent, variables=["c", "kD"])
+    regis_ds = nlmod.read.regis.download_regis(extent, variables=["c", "kD"])
     assert np.all([x in ["c", "kD"] for x in regis_ds.data_vars])
     assert regis_ds.sizes["layer"] == 18
 

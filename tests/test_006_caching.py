@@ -13,12 +13,12 @@ def test_cache_ahn_data_array():
         assert not os.path.exists(
             os.path.join(tmpdir, cache_name)
         ), "Cache should not exist yet1"
-        ahn_no_cache = nlmod.read.ahn.get_ahn4(extent)
+        ahn_no_cache = nlmod.read.ahn.download_ahn4(extent)
         assert not os.path.exists(
             os.path.join(tmpdir, cache_name)
         ), "Cache should not exist yet2"
 
-        ahn_cached = nlmod.read.ahn.get_ahn4(
+        ahn_cached = nlmod.read.ahn.download_ahn4(
             extent, cachedir=tmpdir, cachename=cache_name
         )
         assert os.path.exists(
@@ -28,7 +28,7 @@ def test_cache_ahn_data_array():
         modification_time1 = os.path.getmtime(os.path.join(tmpdir, cache_name))
 
         # Check if the cache is used. If not, cache is rewritten and modification time changes
-        ahn_cache = nlmod.read.ahn.get_ahn4(
+        ahn_cache = nlmod.read.ahn.download_ahn4(
             extent, cachedir=tmpdir, cachename=cache_name
         )
         assert ahn_cache.equals(ahn_no_cache)
@@ -37,7 +37,7 @@ def test_cache_ahn_data_array():
 
         # Different extent should not lead to using the cache
         extent = [119_800, 120_000, 441_900, 442_000]
-        ahn_cache = nlmod.read.ahn.get_ahn4(
+        ahn_cache = nlmod.read.ahn.download_ahn4(
             extent, cachedir=tmpdir, cachename=cache_name
         )
         modification_time3 = os.path.getmtime(os.path.join(tmpdir, cache_name))

@@ -19,7 +19,7 @@ from . import (
     webservices,
 )
 from .geotop import download_geotop, get_geotop
-from .regis import get_regis
+from .regis import download_regis, get_regis
 from .ahn import download_ahn, get_ahn
 from .bgt import download_bgt, get_bgt
 

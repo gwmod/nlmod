@@ -81,9 +81,9 @@ def get_provinces(*args, **kwargs):
     """Get the location of the Dutch provinces as a Polygon GeoDataFrame.
 
     .. deprecated:: 0.10.0
-          `get_provinces` will be removed in nlmod 1.0.0, it is replaced by
-          `download_provinces_gdf` because of new naming convention 
-          https://github.com/gwmod/nlmod/issues/47
+        `get_provinces` will be removed in nlmod 1.0.0, it is replaced by
+        `download_provinces_gdf` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
     
     Parameters
     ----------
@@ -143,9 +143,9 @@ def get_netherlands(*args, **kwargs):
     """Get the location of the Dutch border as a Polygon GeoDataFrame.
     
     .. deprecated:: 0.10.0
-          `get_netherlands` will be removed in nlmod 1.0.0, it is replaced by
-          `download_nlborder_gdf` because of new naming convention 
-          https://github.com/gwmod/nlmod/issues/47
+        `get_netherlands` will be removed in nlmod 1.0.0, it is replaced by
+        `download_netherlands_gdf` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
 
     Parameters
     ----------
@@ -162,14 +162,14 @@ def get_netherlands(*args, **kwargs):
 
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_nlborder_gdf() in the future.",
+        "please use nlmod.read.administrative.download_netherlands_gdf() in the future.",
         DeprecationWarning,
     )
 
-    return download_nlborder_gdf(*args, **kwargs)
+    return download_netherlands_gdf(*args, **kwargs)
 
 @cache.cache_pickle
-def download_nlborder_gdf(source="cbs", **kwargs):
+def download_netherlands_gdf(source="cbs", **kwargs):
     """Get the location of the Dutch border as a Polygon GeoDataFrame.
 
     Parameters

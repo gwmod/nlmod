@@ -65,7 +65,7 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
 
 @cache.cache_netcdf(coords_3d=True, coords_time=True)
 def discretize_knmi(ds, oc_knmi, method="linear", most_common_station=True):
-    """dicretize knmi data to model grid
+    """discretize knmi data to model grid
 
     Create a dataset with recharge (and evaporation) data by following these steps:
        1. Check for each cell (structured or vertex) which knmi measurement
@@ -287,6 +287,7 @@ def _get_locations_structured(ds):
     return locations
 
 
+@cache.cache_pickle
 def download_knmi(ds, most_common_station=False, start=None, end=None):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
     cells.
@@ -318,6 +319,11 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
     cells.
 
+    .. deprecated:: 0.10.0
+        `get_knmi` will be removed in nlmod 1.0.0, it is replaced by
+        `download_knmi` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
+
     Parameters
     ----------
     ds : xr.DataSet
@@ -337,7 +343,7 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
     """
     warnings.warn(
         "'get_knmi' is deprecated and will raise an error in the "
-        "future. Use 'download_knmi' to get knmi data for your model",
+        "future. Use 'nlmod.read.knmi.download_knmi' to get knmi data for your model",
         DeprecationWarning,
     )
 
@@ -458,6 +464,11 @@ def _download_knmi_at_locations(locations, ds=None, start=None, end=None):
 def get_knmi_at_locations(locations, ds=None, start=None, end=None):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
 
+    .. deprecated:: 0.10.0
+        `get_knmi_at_locations` will be removed in nlmod 1.0.0, it is replaced by
+        `_download_knmi_at_locations` because of new naming convention 
+        https://github.com/gwmod/nlmod/issues/47
+
     Parameters
     ----------
     locations : pd.DataFrame
@@ -477,9 +488,9 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
     """
     warnings.warn(
         "'get_knmi_at_locations' is deprecated and will raise an error in the "
-        "future. Use 'download_knmi' to get knmi data for your model",
+        "future. Use 'nlmod.read.knmi._download_knmi_at_locations' to get knmi data",
         DeprecationWarning,
     )
 
-    return _download_knmi_at_locations(ds, most_common_station=most_common_station, start=start, end=end)
+    return _download_knmi_at_locations(locations, ds, start, end)
 

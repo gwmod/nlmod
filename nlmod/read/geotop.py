@@ -275,7 +275,7 @@ def get_geotop(*args, **kwargs):
     """
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.geotop.get_geotop() in the future.",
+        "please use nlmod.read.geotop.download_geotop() in the future.",
         DeprecationWarning,
     )
     return download_geotop(*args, **kwargs)

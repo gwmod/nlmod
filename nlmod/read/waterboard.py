@@ -14,11 +14,11 @@ def get_polygons(**kwargs):
 
     .. deprecated:: 0.10.0
         `get_polygons` will be removed in nlmod 1.0.0, it is replaced by
-        `download_polygons` because of new naming convention 
+        `download_polygons` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     """
-    
+
     warnings.warn(
         "get_polygons is deprecated and will eventually be removed, "
         "please use nlmod.read.waterboard.download_polygons() in the future.",
@@ -535,7 +535,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
     .. deprecated:: 0.10.0
         `get_data` will be removed in nlmod 1.0.0, it is replaced by
-        `download_data` because of new naming convention 
+        `download_data` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -580,7 +580,9 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
 
 
 @cache.cache_pickle
-def download_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
+def download_data(
+    wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs
+):
     """Get the data for a Waterboard and a specific data_kind.
 
     Parameters

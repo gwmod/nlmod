@@ -255,7 +255,7 @@ def get_geotop(*args, **kwargs):
 
     .. deprecated:: 0.10.0
         `get_geotop` will be removed in nlmod 1.0.0, it is replaced by
-        `download_geotop` because of new naming convention 
+        `download_geotop` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters

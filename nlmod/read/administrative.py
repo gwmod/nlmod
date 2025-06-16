@@ -10,9 +10,9 @@ def get_municipalities(*args, **kwargs):
 
     .. deprecated:: 0.10.0
           `get_municipalities` will be removed in nlmod 1.0.0, it is replaced by
-          `download_municipalities_gdf` because of new naming convention 
+          `download_municipalities_gdf` because of new naming convention
           https://github.com/gwmod/nlmod/issues/47
-    
+
     Parameters
     ----------
     source : str, optional
@@ -21,7 +21,7 @@ def get_municipalities(*args, **kwargs):
         drop water
     **kwargs
         passed to webservices.wfs
-    
+
     Returns
     -------
     gpd.GeoDataFrame
@@ -34,6 +34,7 @@ def get_municipalities(*args, **kwargs):
     )
 
     return download_municipalities_gdf(*args, **kwargs)
+
 
 @cache.cache_pickle
 def download_municipalities_gdf(source="cbs", drop_water=True, **kwargs):
@@ -82,9 +83,9 @@ def get_provinces(*args, **kwargs):
 
     .. deprecated:: 0.10.0
         `get_provinces` will be removed in nlmod 1.0.0, it is replaced by
-        `download_provinces_gdf` because of new naming convention 
+        `download_provinces_gdf` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
-    
+
     Parameters
     ----------
     source : str, optional
@@ -105,6 +106,7 @@ def get_provinces(*args, **kwargs):
     )
 
     return download_provinces_gdf(*args, **kwargs)
+
 
 @cache.cache_pickle
 def download_provinces_gdf(source="cbs", **kwargs):
@@ -141,10 +143,10 @@ def download_provinces_gdf(source="cbs", **kwargs):
 
 def get_netherlands(*args, **kwargs):
     """Get the location of the Dutch border as a Polygon GeoDataFrame.
-    
+
     .. deprecated:: 0.10.0
         `get_netherlands` will be removed in nlmod 1.0.0, it is replaced by
-        `download_netherlands_gdf` because of new naming convention 
+        `download_netherlands_gdf` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -167,6 +169,7 @@ def get_netherlands(*args, **kwargs):
     )
 
     return download_netherlands_gdf(*args, **kwargs)
+
 
 @cache.cache_pickle
 def download_netherlands_gdf(source="cbs", **kwargs):
@@ -204,7 +207,7 @@ def get_waterboards(**kwargs):
 
     .. deprecated:: 0.10.0
           `get_waterboards` will be removed in nlmod 1.0.0, it is replaced by
-          `download_waterboards_gdf` because of new naming convention 
+          `download_waterboards_gdf` because of new naming convention
           https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -229,7 +232,7 @@ def get_waterboards(**kwargs):
 @cache.cache_pickle
 def download_waterboards_gdf(**kwargs):
     """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame.
-     
+
     Parameters
     ----------
     **kwargs

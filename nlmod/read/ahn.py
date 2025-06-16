@@ -29,9 +29,9 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_2d=True)
-def download_ahn(extent: list[float],
-                 identifier: str = "AHN4_5M_M",
-                 **kwargs) -> xr.DataArray:
+def download_ahn(
+    extent: list[float], identifier: str = "AHN4_5M_M", **kwargs
+) -> xr.DataArray:
     """Download ahn data within an extent.
 
     Parameters
@@ -67,9 +67,9 @@ def download_ahn(extent: list[float],
 
 
 @cache.cache_netcdf(coords_2d=True)
-def discretize_ahn(ds: xr.Dataset,
-                   ahn_da: xr.DataArray,
-                   method: str = "average") -> xr.Dataset:
+def discretize_ahn(
+    ds: xr.Dataset, ahn_da: xr.DataArray, method: str = "average"
+) -> xr.Dataset:
     """Discretize ahn data to model the model grid.
 
     Parameters
@@ -147,10 +147,10 @@ def get_ahn(
     """
     if ds is None:
         warnings.warn(
-        "calling 'get_ahn' with ds=None is deprecated and will raise an error in the "
-        "future. Use 'nlmod.read.ahn.download_ahn' to get the ahn within an extent",
-        DeprecationWarning,
-    )
+            "calling 'get_ahn' with ds=None is deprecated and will raise an error in the "
+            "future. Use 'nlmod.read.ahn.download_ahn' to get the ahn within an extent",
+            DeprecationWarning,
+        )
 
     if extent is None and ds is not None:
         extent = get_extent(ds)
@@ -180,7 +180,7 @@ def get_ahn_at_point(
 
     .. deprecated:: 0.10.0
         `get_ahn_at_point` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn_at_point` because of new naming convention 
+        `download_ahn_at_point` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -215,8 +215,9 @@ def get_ahn_at_point(
         DeprecationWarning,
     )
 
-    return download_ahn_at_point(x, y, buffer, return_da, return_mean, identifier, res,
-                                 **kwargs)
+    return download_ahn_at_point(
+        x, y, buffer, return_da, return_mean, identifier, res, **kwargs
+    )
 
 
 def download_ahn_at_point(
@@ -281,7 +282,7 @@ def get_ahn_along_line(
 
     .. deprecated:: 0.10.0
         `get_ahn_along_line` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn_along_line` because of new naming convention 
+        `download_ahn_along_line` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -399,7 +400,7 @@ def get_latest_ahn_from_wcs(
 
     .. deprecated:: 0.10.0
         `get_latest_ahn_from_wcs` will be removed in nlmod 1.0.0, it is replaced by
-        `download_latest_ahn_from_wcs` because of new naming convention 
+        `download_latest_ahn_from_wcs` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -439,8 +440,9 @@ def get_latest_ahn_from_wcs(
         DeprecationWarning,
     )
 
-    return download_latest_ahn_from_wcs(extent, identifier, res, version, fmt,
-                                        crs, maxsize)
+    return download_latest_ahn_from_wcs(
+        extent, identifier, res, version, fmt, crs, maxsize
+    )
 
 
 @cache.cache_netcdf()
@@ -625,7 +627,7 @@ def get_ahn1(
 
     .. deprecated:: 0.10.0
           `get_ahn1` will be removed in nlmod 1.0.0, it is replaced by
-          `download_ahn1` because of new naming convention 
+          `download_ahn1` because of new naming convention
           https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -643,9 +645,10 @@ def get_ahn1(
         DataArray of the AHN
     """
     warnings.warn(
-    "'get_ahn1' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn1' instead",
-    DeprecationWarning)
+        "'get_ahn1' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn1' instead",
+        DeprecationWarning,
+    )
     return download_ahn1(extent, identifier, as_data_array, **kwargs)
 
 
@@ -691,7 +694,7 @@ def get_ahn1_legacy(
 
     .. deprecated:: 0.10.0
         `get_ahn1_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn1_legacy` because of new naming convention 
+        `download_ahn1_legacy` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -710,9 +713,10 @@ def get_ahn1_legacy(
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
     warnings.warn(
-    "'get_ahn1_legacy' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn1_legacy' instead",
-    DeprecationWarning)
+        "'get_ahn1_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn1_legacy' instead",
+        DeprecationWarning,
+    )
     return download_ahn1_legacy(extent, identifier, as_data_array)
 
 
@@ -764,7 +768,7 @@ def get_ahn2(
 
     .. deprecated:: 0.10.0
         `get_ahn2` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn2` because of new naming convention 
+        `download_ahn2` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -784,9 +788,10 @@ def get_ahn2(
         DataArray of the AHN
     """
     warnings.warn(
-    "'get_ahn2' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn2' instead",
-    DeprecationWarning)
+        "'get_ahn2' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn2' instead",
+        DeprecationWarning,
+    )
     return download_ahn2(extent, identifier, as_data_array, **kwargs)
 
 
@@ -836,7 +841,7 @@ def get_ahn2_legacy(
 
     .. deprecated:: 0.10.0
         `get_ahn2_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn2_legacy` because of new naming convention 
+        `download_ahn2_legacy` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -856,9 +861,10 @@ def get_ahn2_legacy(
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
     warnings.warn(
-    "'get_ahn2_legacy' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn2_legacy' instead",
-    DeprecationWarning)
+        "'get_ahn2_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn2_legacy' instead",
+        DeprecationWarning,
+    )
     return download_ahn2_legacy(extent, identifier, as_data_array)
 
 
@@ -892,6 +898,7 @@ def download_ahn2_legacy(
     tiles = get_ahn3_tiles(extent)
     return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
+
 @cache.cache_netcdf()
 def get_ahn3(
     extent: list[float],
@@ -908,7 +915,7 @@ def get_ahn3(
 
     .. deprecated:: 0.10.0
         `get_ahn3` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn3` because of new naming convention 
+        `download_ahn3` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -927,9 +934,10 @@ def get_ahn3(
         DataArray of the AHN
     """
     warnings.warn(
-    "'get_ahn3' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn3' instead",
-    DeprecationWarning)
+        "'get_ahn3' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn3' instead",
+        DeprecationWarning,
+    )
     return download_ahn3(extent, identifier, as_data_array, **kwargs)
 
 
@@ -966,7 +974,6 @@ def download_ahn3(
     return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
-
 @cache.cache_netcdf()
 def get_ahn3_legacy(
     extent: list[float],
@@ -979,7 +986,7 @@ def get_ahn3_legacy(
 
     .. deprecated:: 0.10.0
         `get_ahn3_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn3_legacy` because of new naming convention 
+        `download_ahn3_legacy` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -999,9 +1006,10 @@ def get_ahn3_legacy(
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
     warnings.warn(
-    "'get_ahn3_legacy' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn3_legacy' instead",
-    DeprecationWarning)
+        "'get_ahn3_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn3_legacy' instead",
+        DeprecationWarning,
+    )
     return download_ahn3_legacy(extent, identifier, as_data_array)
 
 
@@ -1051,7 +1059,7 @@ def get_ahn4(
 
     .. deprecated:: 0.10.0
         `get_ahn4` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn4` because of new naming convention 
+        `download_ahn4` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -1070,9 +1078,10 @@ def get_ahn4(
         DataArray of the AHN
     """
     warnings.warn(
-    "'get_ahn4' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn4' instead",
-    DeprecationWarning)
+        "'get_ahn4' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn4' instead",
+        DeprecationWarning,
+    )
     return download_ahn4(extent, identifier, as_data_array, **kwargs)
 
 
@@ -1121,7 +1130,7 @@ def get_ahn4_legacy(
 
     .. deprecated:: 0.10.0
         `get_ahn4_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn4_legacy` because of new naming convention 
+        `download_ahn4_legacy` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -1141,9 +1150,10 @@ def get_ahn4_legacy(
         DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
     """
     warnings.warn(
-    "'get_ahn4_legacy' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn4_legacy' instead",
-    DeprecationWarning)
+        "'get_ahn4_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn4_legacy' instead",
+        DeprecationWarning,
+    )
     return download_ahn4_legacy(extent, identifier, as_data_array)
 
 
@@ -1192,7 +1202,7 @@ def get_ahn5(
 
     .. deprecated:: 0.10.0
         `get_ahn5` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn5` because of new naming convention 
+        `download_ahn5` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -1211,9 +1221,10 @@ def get_ahn5(
         DataArray of the AHN
     """
     warnings.warn(
-    "'get_ahn5' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.ahn.download_ahn5' instead",
-    DeprecationWarning)
+        "'get_ahn5' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn5' instead",
+        DeprecationWarning,
+    )
     return download_ahn5(extent, identifier, **kwargs)
 
 

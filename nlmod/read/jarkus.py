@@ -36,7 +36,7 @@ def download_bathymetry(extent, kind="jarkus"):
     kind : str, optional
         The kind of data. Can be "jarkus", "kusthoogte" or "vaklodingen". The default is
         "jarkus".
-    
+
     Returns
     -------
     da_bathymetry : xarray.DataArray
@@ -111,11 +111,11 @@ def get_bathymetry(
     """
     if ds is None:
         warnings.warn(
-        "calling 'get_bathymetry' with ds=None is deprecated and will raise an error "
-        "in the future. Use 'nlmod.read.jarkus.download_bathymetry' to get the bathymetry data within an "
-        "extent",
-        DeprecationWarning,
-    )
+            "calling 'get_bathymetry' with ds=None is deprecated and will raise an error "
+            "in the future. Use 'nlmod.read.jarkus.download_bathymetry' to get the bathymetry data within an "
+            "extent",
+            DeprecationWarning,
+        )
 
     if extent is None and ds is not None:
         extent = get_extent(ds)
@@ -131,15 +131,17 @@ def get_bathymetry(
 
     # try to get bathymetry via opendap
     bathymetry_da = download_bathymetry(extent=extent, kind=kind)
-    
+
     # bathymetry projected on model grid
     if ds is None:
         # fill nan values in bathymetry
         da_bathymetry_filled = fillnan_da(bathymetry_da)
 
         # bathymetry can never be larger than NAP 0.0
-        da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
-        return xr.Dataset({da_name:da_bathymetry_filled})
+        da_bathymetry_filled = xr.where(
+            da_bathymetry_filled > 0, 0, da_bathymetry_filled
+        )
+        return xr.Dataset({da_name: da_bathymetry_filled})
     else:
         ds_out = discretize_bathymetry(ds, bathymetry_da=bathymetry_da)
 
@@ -147,11 +149,9 @@ def get_bathymetry(
 
 
 @cache.cache_netcdf()
-def discretize_bathymetry(ds,
-                          bathymetry_da,
-                          da_name="bathymetry",
-                          datavar_sea='northsea',
-                          method="average"):
+def discretize_bathymetry(
+    ds, bathymetry_da, da_name="bathymetry", datavar_sea="northsea", method="average"
+):
     """Discretize bathymetry data to model the model grid.
 
     Parameters

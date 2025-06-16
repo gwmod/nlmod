@@ -23,7 +23,7 @@ def get_gdf_bofek(*args, **kwargs):
 
     .. deprecated:: 0.10.0
         `get_gdf_bofek` will be removed in nlmod 1.0.0, it is replaced by
-        `download_bofek_gdf` because of new naming convention 
+        `download_bofek_gdf` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters

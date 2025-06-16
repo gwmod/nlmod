@@ -22,12 +22,14 @@ NS = {
     "brt": "http://register.geostandaarden.nl/gmlapplicatieschema/brt-algemeen/1.2.0",
     "gml": "http://www.opengis.net/gml/3.2",
 }
+
+
 def get_brt(*args, **kwargs):
     """Get geometries within an extent/polygon from the Basis Registratie Topografie.
 
     .. deprecated:: 0.10.0
         `get_brt` will be removed in nlmod 1.0.0, it is replaced by
-        `download_brt_gdf` because of new naming convention 
+        `download_brt_gdf` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Useful links:
@@ -74,7 +76,6 @@ def get_brt(*args, **kwargs):
     )
 
     return download_brt_gdf(*args, **kwargs)
-
 
 
 def download_brt_gdf(

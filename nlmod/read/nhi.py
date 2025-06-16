@@ -90,7 +90,7 @@ def add_buisdrainage(
 
     .. deprecated:: 0.10.0
         `add_buisdrainage` will be removed in nlmod 1.0.0, it is replaced by
-        `discretize_buisdrainage` because of new naming convention 
+        `discretize_buisdrainage` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -120,20 +120,21 @@ def add_buisdrainage(
         The model dataset with added variables with the names `cond_var` and
         `depth_var`.
     """
-    
+
     warnings.warn(
-    "'add_buisdrainage' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.hni.discretize_buisdrainage' to project the buisdrainage on the model grid",
-    DeprecationWarning)
+        "'add_buisdrainage' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.hni.discretize_buisdrainage' to project the buisdrainage on the model grid",
+        DeprecationWarning,
+    )
 
-
-    return discretize_buisdrainage(ds,
-                                    pathname,
-                                    cond_var,
-                                    depth_var,
-                                    cond_method,
-                                    depth_method,
-                                )
+    return discretize_buisdrainage(
+        ds,
+        pathname,
+        cond_var,
+        depth_var,
+        cond_method,
+        depth_method,
+    )
 
 
 def discretize_buisdrainage(
@@ -231,7 +232,6 @@ def discretize_buisdrainage(
     return ds
 
 
-
 def get_gwo_wells(
     username,
     password,
@@ -247,7 +247,7 @@ def get_gwo_wells(
 
     .. deprecated:: 0.10.0
         `get_gwo_wells` will be removed in nlmod 1.0.0, it is replaced by
-        `download_gwo_wells` because of new naming convention 
+        `download_gwo_wells` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -287,20 +287,22 @@ def get_gwo_wells(
         A GeoDataFrame containing the properties of the wells and their filters.
     """
     warnings.warn(
-    "'get_gwo_wells' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.nhi.download_gwo_wells' instead",
-    DeprecationWarning)
+        "'get_gwo_wells' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.nhi.download_gwo_wells' instead",
+        DeprecationWarning,
+    )
 
-    return download_gwo_wells(username,
-                                password,
-                                n_well_filters=n_well_filters,
-                                well_site=well_site,
-                                organisation=organisation,
-                                status=status,
-                                well_index=well_index,
-                                timeout=timeout,
-                                **kwargs,
-                            )
+    return download_gwo_wells(
+        username,
+        password,
+        n_well_filters=n_well_filters,
+        well_site=well_site,
+        organisation=organisation,
+        status=status,
+        well_index=well_index,
+        timeout=timeout,
+        **kwargs,
+    )
 
 
 def download_gwo_wells(
@@ -412,7 +414,7 @@ def get_gwo_measurements(
 
     .. deprecated:: 0.10.0
         `get_gwo_measurements` will be removed in nlmod 1.0.0, it is replaced by
-        `download_gwo_measurements` because of new naming convention 
+        `download_gwo_measurements` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -451,19 +453,21 @@ def get_gwo_measurements(
         A GeoDataFrame containing the properties of the wells and their filters.
     """
     warnings.warn(
-    "'get_gwo_measurements' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.nhi.download_gwo_measurements' instead",
-    DeprecationWarning)
+        "'get_gwo_measurements' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.nhi.download_gwo_measurements' instead",
+        DeprecationWarning,
+    )
 
-    return download_gwo_measurements(username,
-                                password,
-                                n_measurements=n_measurements,
-                                well_site=well_site,
-                                well_index=well_index,
-                                measurement_index=measurement_index,
-                                timeout=timeout,
-                                **kwargs,
-                            )
+    return download_gwo_measurements(
+        username,
+        password,
+        n_measurements=n_measurements,
+        well_site=well_site,
+        well_index=well_index,
+        measurement_index=measurement_index,
+        timeout=timeout,
+        **kwargs,
+    )
 
 
 def download_gwo_measurements(

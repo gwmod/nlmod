@@ -42,9 +42,11 @@ def get_gdf_surface_water(ds=None, extent=None):
     if ds is not None:
         extent = dims.get_extent(ds)
 
-    if (extent[0]< 93000) & (extent[2] < 480000):
-        logger.warning('This function does not yield good results for the North Sea, see https://github.com/gwmod/nlmod/issues/225')
-    
+    if (extent[0] < 93000) & (extent[2] < 480000):
+        logger.warning(
+            "This function does not yield good results for the North Sea, see https://github.com/gwmod/nlmod/issues/225"
+        )
+
     gdf_swater = util.gdf_within_extent(gdf_swater, extent)
 
     return gdf_swater
@@ -56,7 +58,7 @@ def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
 
     .. deprecated:: 0.10.0
         `get_surface_water` will be removed in nlmod 1.0.0, it is replaced by
-        `discretize_surface_water` because of new naming convention 
+        `discretize_surface_water` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     - area: area of the shape in the cell
@@ -81,9 +83,10 @@ def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     """
 
     warnings.warn(
-    "'get_surface_water' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.rws.discretize_surface_water' to project the surface water on the model grid",
-    DeprecationWarning)
+        "'get_surface_water' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.rws.discretize_surface_water' to project the surface water on the model grid",
+        DeprecationWarning,
+    )
 
     if gdf is None:
         gdf = get_gdf_surface_water(ds)
@@ -152,7 +155,7 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
 
     .. deprecated:: 0.10.0
         `get_northsea` will be removed in nlmod 1.0.0, it is replaced by
-        `discretize_northsea` because of new naming convention 
+        `discretize_northsea` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -175,9 +178,10 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
         gdf = get_gdf_surface_water(ds=ds)
 
     warnings.warn(
-    "'get_northsea' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.rws.discretize_northsea' to project the northsea on the model grid",
-    DeprecationWarning)
+        "'get_northsea' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.rws.discretize_northsea' to project the northsea on the model grid",
+        DeprecationWarning,
+    )
 
     return discretize_northsea(ds, gdf, da_name)
 
@@ -353,7 +357,7 @@ def get_bathymetry_gdf(
 
     .. deprecated:: 0.10.0
         `get_bathymetry_gdf` will be removed in nlmod 1.0.0, it is replaced by
-        `download_bathymetry_gdf` because of new naming convention 
+        `download_bathymetry_gdf` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Note that the 20m resolution does not contain bathymetry data for the major rivers.
@@ -371,9 +375,10 @@ def get_bathymetry_gdf(
         the function `get_gdr_configuration()`.
     """
     warnings.warn(
-    "'get_bathymetry_gdf' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.rws.download_bathymetry_gdf' to project the buisdrainage on the model grid",
-    DeprecationWarning)
+        "'get_bathymetry_gdf' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.rws.download_bathymetry_gdf' to project the buisdrainage on the model grid",
+        DeprecationWarning,
+    )
 
     return download_bathymetry_gdf(resolution, extent, config)
 
@@ -419,7 +424,7 @@ def get_bathymetry(
 
     .. deprecated:: 0.10.0
         `get_bathymetry` will be removed in nlmod 1.0.0, it is replaced by
-        `download_bathymetry` because of new naming convention 
+        `download_bathymetry` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Bathymetry is available at 20m resolution and at 1m resolution. The 20m
@@ -454,9 +459,10 @@ def get_bathymetry(
         bathymetry data
     """
     warnings.warn(
-    "'get_bathymetry' is deprecated and will be removed in a future version. "
-    "Use 'nlmod.read.rws.download_bathymetry' to download bathymetry data",
-    DeprecationWarning)
+        "'get_bathymetry' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.rws.download_bathymetry' to download bathymetry data",
+        DeprecationWarning,
+    )
 
     return download_bathymetry(extent, resolution, res, method, chunks, config)
 

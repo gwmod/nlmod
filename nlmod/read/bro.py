@@ -17,9 +17,9 @@ def get_bro(*args, **kwargs):
 
     .. deprecated:: 0.10.0
         `get_bro` will be removed in nlmod 1.0.0, it is replaced by
-        `download_bro_groundwater` because of new naming convention 
+        `download_bro_groundwater` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
-    
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -49,8 +49,15 @@ def get_bro(*args, **kwargs):
     return download_bro_groundwater(*args, **kwargs)
 
 
-def download_bro_groundwater(extent, max_dx=0.1, max_dy=0.1, epsg=28992, cachedir=None, ignore_errors=True,
-                             **kwargs):
+def download_bro_groundwater(
+    extent,
+    max_dx=0.1,
+    max_dy=0.1,
+    epsg=28992,
+    cachedir=None,
+    ignore_errors=True,
+    **kwargs,
+):
     """Wrapper around hpd.read_bro that deals with large extents.
 
     Parameters

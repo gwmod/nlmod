@@ -57,10 +57,9 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     if oc_knmi is None:
         oc_knmi = download_knmi(ds, most_common_station=most_common_station)
 
-    return discretize_knmi(ds,
-                           oc_knmi,
-                           method=method,
-                           most_common_station=most_common_station)
+    return discretize_knmi(
+        ds, oc_knmi, method=method, most_common_station=most_common_station
+    )
 
 
 @cache.cache_netcdf(coords_3d=True, coords_time=True)
@@ -128,7 +127,7 @@ def discretize_knmi(ds, oc_knmi, method="linear", most_common_station=True):
         ds, oc_knmi=oc_knmi, most_common_station=most_common_station
     )
 
-    # get recharge data array   
+    # get recharge data array
     ds_out = util.get_ds_empty(ds, keep_coords=("time", "y", "x"))
     ds_out.attrs["gridtype"] = ds.gridtype
 
@@ -321,7 +320,7 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
 
     .. deprecated:: 0.10.0
         `get_knmi` will be removed in nlmod 1.0.0, it is replaced by
-        `download_knmi` because of new naming convention 
+        `download_knmi` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -347,7 +346,9 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
         DeprecationWarning,
     )
 
-    return download_knmi(ds, most_common_station=most_common_station, start=start, end=end)
+    return download_knmi(
+        ds, most_common_station=most_common_station, start=start, end=end
+    )
 
 
 def get_locations(ds, oc_knmi=None, most_common_station=False):
@@ -466,7 +467,7 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
 
     .. deprecated:: 0.10.0
         `get_knmi_at_locations` will be removed in nlmod 1.0.0, it is replaced by
-        `_download_knmi_at_locations` because of new naming convention 
+        `_download_knmi_at_locations` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -493,4 +494,3 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
     )
 
     return _download_knmi_at_locations(locations, ds, start, end)
-

@@ -19,14 +19,13 @@ from .. import cache
 from ..util import extent_to_polygon
 
 
-
 def get_bgt(*args, **kwargs):
     """Get geometries within an extent or polygon from the Basis Registratie
     Grootschalige Topografie (BGT)
 
     .. deprecated:: 0.10.0
         `get_bgt` will be removed in nlmod 1.0.0, it is replaced by
-        `download_bgt` because of new naming convention 
+        `download_bgt` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
 
@@ -77,6 +76,7 @@ def get_bgt(*args, **kwargs):
     )
 
     return download_bgt(*args, **kwargs)
+
 
 @cache.cache_pickle
 def download_bgt(

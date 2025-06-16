@@ -114,7 +114,7 @@ def get_regis(
 
     .. deprecated:: 0.10.0
         `get_regis` will be removed in nlmod 1.0.0, it is replaced by
-        `download_regis` because of new naming convention 
+        `download_regis` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
 
     Parameters
@@ -160,9 +160,17 @@ def get_regis(
         DeprecationWarning,
     )
 
-    return download_regis(extent,botm_layer, variables, remove_nan_layers, 
-                          drop_layer_dim_from_top, probabilities, nodata,
-                          rename_layers_to_version_2_2_2)
+    return download_regis(
+        extent,
+        botm_layer,
+        variables,
+        remove_nan_layers,
+        drop_layer_dim_from_top,
+        probabilities,
+        nodata,
+        rename_layers_to_version_2_2_2,
+    )
+
 
 @cache.cache_netcdf()
 def download_regis(

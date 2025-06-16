@@ -86,7 +86,7 @@ def _get_time_index(fobj, ds=None, gwf_or_gwt=None):
     return tindex
 
 
-def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
+def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30, name=None):
     """Create data array based on array, modelgrid, and time array.
 
     Parameters
@@ -103,6 +103,8 @@ def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
     hnoflo : float, optional
         The value of no-flow cells, which will be replaced by NaNs. If hnoflo is None,
         the values of no-flow cells will not be replaced by NaNs. The default is 1e30.
+    name : str, optional
+        name of the data variable
 
     Returns
     -------
@@ -113,7 +115,7 @@ def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
     # create data array
     dims, coords = get_dims_coords_from_modelgrid(modelgrid)
 
-    da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords)
+    da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords, name=name)
 
     if hdry is not None or hnoflo is not None:
         # set dry/no-flow to nan
@@ -247,7 +249,7 @@ def _get_budget_da(
     )
 
     # create data array
-    da = _create_da(stacked_arr, modelgrid, cbcobj.get_times())
+    da = _create_da(stacked_arr, modelgrid, cbcobj.get_times(), name=text)
 
     return da
 

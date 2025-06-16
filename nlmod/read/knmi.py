@@ -58,16 +58,13 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
         dataset with spatial model data including the rch raster
     """
     if oc_knmi is None:
-        extent = get_extent(ds)
-        delr = get_delr(ds)
-        delc = get_delc(ds)
-
         start = pd.Timestamp(ds.time.attrs["start"])
         end = pd.Timestamp(ds.time.data[-1])
 
-        oc_knmi = download_knmi(
-        extent, delr, delc, start=start, end=end, most_common_station=most_common_station
-    )
+        oc_knmi = download_knmi(ds,
+                                start=start,
+                                end=end,
+                                most_common_station=most_common_station)
 
     return discretize_knmi(
         ds, oc_knmi, method=method, most_common_station=most_common_station
@@ -328,12 +325,7 @@ def download_knmi(ds=None,
     """
     if ds is None:
         ds = get_ds(extent,delr=delr,delc=delc)
-    else:
-        warnings.warn(
-            "calling 'download_knmi' with a dataset is deprecated and will raise an error in the "
-            "future. Specify extent, delr, delc, start and end instead",
-            DeprecationWarning,
-        )
+
     locations = get_locations(ds, most_common_station=most_common_station)
     oc_knmi = _download_knmi_at_locations(locations, start=start, end=end)
 
@@ -372,17 +364,13 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
         DeprecationWarning,
     )
 
-    extent = get_extent(ds)
-    delr = get_delr(ds)
-    delc = get_delc(ds)
-
     if start is None:
         start = pd.Timestamp(ds.time.attrs["start"])
     if end is None:
         end = pd.Timestamp(ds.time.data[-1])
 
-    return download_knmi(
-        extent, delr, delc, start=start, end=end, most_common_station=most_common_station
+    return download_knmi(ds=ds,
+        start=start, end=end, most_common_station=most_common_station
     )
 
 

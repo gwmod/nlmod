@@ -11,6 +11,8 @@ from .. import cache, util
 from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex, get_extent, get_delr, get_delc
 from ..dims.layers import get_first_active_layer
 from ..dims.base import get_ds
+from ..dims.shared import get_area
+
 
 logger = logging.getLogger(__name__)
 
@@ -425,6 +427,8 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
             locations["stn_ev24"] = locations["stn_ev24"].value_counts().idxmax()
         else:
             # set the station with the largest area to all locations
+            if 'area' not in ds:
+                ds['area'] = get_area(ds)
             locations["area"] = ds["area"].loc[locations.index]
             locations["stn_rd"] = locations.groupby("stn_rd").sum()["area"].idxmax()
             locations["stn_ev24"] = locations.groupby("stn_ev24").sum()["area"].idxmax()

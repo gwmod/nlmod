@@ -8,8 +8,9 @@ import pandas as pd
 from hydropandas.io import knmi as hpd_knmi
 
 from .. import cache, util
-from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex
+from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex, get_extent, get_delr, get_delc
 from ..dims.layers import get_first_active_layer
+from ..dims.base import get_ds
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,16 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
         dataset with spatial model data including the rch raster
     """
     if oc_knmi is None:
-        oc_knmi = download_knmi(ds, most_common_station=most_common_station)
+        extent = get_extent(ds)
+        delr = get_delr(ds)
+        delc = get_delc(ds)
+
+        start = pd.Timestamp(ds.time.attrs["start"])
+        end = pd.Timestamp(ds.time.data[-1])
+
+        oc_knmi = download_knmi(
+        extent, delr, delc, start=start, end=end, most_common_station=most_common_station
+    )
 
     return discretize_knmi(
         ds, oc_knmi, method=method, most_common_station=most_common_station
@@ -287,7 +297,7 @@ def _get_locations_structured(ds):
 
 
 @cache.cache_pickle
-def download_knmi(ds, most_common_station=False, start=None, end=None):
+def download_knmi(extent, delr, delc, start, end, most_common_station=False):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
     cells.
 
@@ -308,8 +318,9 @@ def download_knmi(ds, most_common_station=False, start=None, end=None):
     oc_knmi
         hpd.ObsCollection
     """
+    ds = get_ds(extent,delr=delr,delc=delc)
     locations = get_locations(ds, most_common_station=most_common_station)
-    oc_knmi = _download_knmi_at_locations(locations, ds=ds, start=start, end=end)
+    oc_knmi = _download_knmi_at_locations(locations, start=start, end=end)
 
     return oc_knmi
 
@@ -346,8 +357,17 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
         DeprecationWarning,
     )
 
+    extent = get_extent(ds)
+    delr = get_delr(ds)
+    delc = get_delc(ds)
+
+    if start is None:
+        start = pd.Timestamp(ds.time.attrs["start"])
+    if end is None:
+        end = pd.Timestamp(ds.time.data[-1])
+
     return download_knmi(
-        ds, most_common_station=most_common_station, start=start, end=end
+        extent, delr, delc, start=start, end=end, most_common_station=most_common_station
     )
 
 
@@ -412,7 +432,7 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
     return locations
 
 
-def _download_knmi_at_locations(locations, ds=None, start=None, end=None):
+def _download_knmi_at_locations(locations, start=None, end=None):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
 
     Parameters
@@ -420,8 +440,6 @@ def _download_knmi_at_locations(locations, ds=None, start=None, end=None):
     locations : pd.DataFrame
         each row contains a location (x and y) and the relevant precipitation (stn_rd)
         and evaporation (stn_ev24) stations.
-    ds : xr.DataSet or None, optional
-        dataset containing relevant time information. If None provide start and end.
     start : str or datetime, optional
         start date of measurements that you want, The default is '2010'.
     end :  str or datetime, optional
@@ -434,12 +452,6 @@ def _download_knmi_at_locations(locations, ds=None, start=None, end=None):
     """
     stns_rd = locations["stn_rd"].unique()
     stns_ev24 = locations["stn_ev24"].unique()
-
-    # get start and end
-    if start is None:
-        start = pd.Timestamp(ds.time.attrs["start"])
-    if end is None:
-        end = pd.Timestamp(ds.time.data[-1])
 
     # get knmi data stations closest to any grid cell
     olist = []
@@ -493,4 +505,9 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
         DeprecationWarning,
     )
 
-    return _download_knmi_at_locations(locations, ds, start, end)
+    if start is None:
+        start = pd.Timestamp(ds.time.attrs["start"])
+    if end is None:
+        end = pd.Timestamp(ds.time.data[-1])
+
+    return _download_knmi_at_locations(locations, start, end)

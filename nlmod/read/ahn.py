@@ -76,6 +76,8 @@ def discretize_ahn(
     ----------
     ds : xr.Dataset
         dataset with the model information.
+    ahn_da : xr.DataArray
+        ahn data within model extent.
     method : str, optional
         Method used to resample ahn to grid of ds. See documentation of
         nlmod.resample.structured_da_to_ds for possible values. The default is

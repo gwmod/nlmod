@@ -834,7 +834,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
         if ds is None:
             raise (ValueError("Please supply either ds or extent to get_gdf"))
         extent = get_extent_polygon(ds)
-    gdf = bgt.get_bgt(extent)
+    gdf = bgt.download_bgt(extent)
     if fname_ahn is not None:
         from rasterstats import zonal_stats
 

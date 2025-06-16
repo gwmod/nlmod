@@ -10,4 +10,4 @@ def test_bathymetry(resolution):
     xmax = xmin + 2 * resolution
     ymax = ymin + 2 * resolution
     extent = [xmin, xmax, ymin, ymax]
-    nlmod.read.rws.get_bathymetry(extent, resolution=f"{resolution}m")
+    nlmod.read.rws.download_bathymetry(extent, resolution=f"{resolution}m")

@@ -49,39 +49,39 @@ def test_get_recharge_not_available():
 
 def test_ahn_within_extent():
     extent = [104000.0, 105000.0, 494000.0, 494600.0]
-    da = nlmod.read.ahn.get_latest_ahn_from_wcs(extent)
+    da = nlmod.read.ahn.download_latest_ahn_from_wcs(extent)
 
     assert not da.isnull().all(), "AHN only has nan values"
 
 
 def test_ahn_split_extent():
     extent = [104000.0, 105000.0, 494000.0, 494600.0]
-    da = nlmod.read.ahn.get_latest_ahn_from_wcs(extent, maxsize=1000)
+    da = nlmod.read.ahn.download_latest_ahn_from_wcs(extent, maxsize=1000)
 
     assert not da.isnull().all(), "AHN only has nan values"
 
 
 def test_get_ahn3():
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
-    da = nlmod.read.ahn.get_ahn3(extent)
+    da = nlmod.read.ahn.download_ahn3(extent)
 
     assert not da.isnull().all(), "AHN only has nan values"
 
 
 def test_get_ahn4():
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
-    ahn = nlmod.read.ahn.get_ahn4(extent)
+    ahn = nlmod.read.ahn.download_ahn4(extent)
     assert isinstance(ahn, xr.DataArray)
     assert not ahn.isnull().all(), "AHN only has nan values"
 
     line = LineString([(99000, 495000), (100000, 496000)])
-    ahn_line = nlmod.read.ahn.get_ahn_along_line(line, ahn=ahn)
+    ahn_line = nlmod.read.ahn.download_ahn_along_line(line, ahn=ahn)
     assert isinstance(ahn_line, xr.DataArray)
 
 
 def test_get_ahn5():
     extent = [99500.0, 100000.0, 494500.0, 495000.0]
-    da = nlmod.read.ahn.get_ahn5(extent)
+    da = nlmod.read.ahn.download_ahn5(extent)
 
     assert not da.isnull().all(), "AHN only has nan values"
 
@@ -97,12 +97,12 @@ def test_get_ahn():
 
 
 def test_get_ahn_at_point():
-    nlmod.read.ahn.get_ahn_at_point(100010, 400010)
+    nlmod.read.ahn.download_ahn_at_point(100010, 400010)
 
 
 def test_check_ahn_files_up_to_date():
     try:
-        tiles_new = nlmod.read.ahn._get_tiles_ellipsis()
+        tiles_new = nlmod.read.ahn._download_tiles_ellipsis()
     except:
         msg = "Cannot download ahn tiles. Will skip test to see if tiles are up to date"
         logging.warning(msg)
@@ -137,7 +137,7 @@ def test_get_surface_water_ghb():
 
 def test_get_brp():
     extent = [116500, 120000, 439000, 442000]
-    nlmod.read.brp.get_percelen(extent)
+    nlmod.read.brp.download_percelen_gdf(extent)
 
 
 # disable because slow (~35 seconds depending on internet connection)
@@ -147,6 +147,6 @@ def test_get_bofek():
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
 
     # add knmi recharge to the model dataset
-    gdf_bofek = nlmod.read.bofek.get_gdf_bofek(ds)
+    gdf_bofek = nlmod.read.bofek.download_bofek_gdf(ds)
 
     assert not gdf_bofek.empty, "Bofek geodataframe is empty"

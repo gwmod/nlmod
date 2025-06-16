@@ -16,7 +16,7 @@ def test_get_config():
 
 def test_bgt_waterboards():
     extent = [116500, 120000, 439000, 442000]
-    bgt = nlmod.read.bgt.get_bgt(extent)
+    bgt = nlmod.read.bgt.download_bgt(extent)
 
     la = nlmod.gwf.surface_water.download_level_areas(
         bgt, extent=extent, raise_exceptions=False

@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import warnings
 
 import hydropandas as hpd
 import numpy as np
@@ -7,8 +8,11 @@ import pandas as pd
 from hydropandas.io import knmi as hpd_knmi
 
 from .. import cache, util
-from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex
+from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex, get_extent, get_delr, get_delc
 from ..dims.layers import get_first_active_layer
+from ..dims.base import get_ds
+from ..dims.shared import get_area
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +57,69 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     ds : xr.DataSet
         dataset with spatial model data including the rch raster
     """
+    if oc_knmi is None:
+        start = pd.Timestamp(ds.time.attrs["start"])
+        end = pd.Timestamp(ds.time.data[-1])
+
+        oc_knmi = download_knmi(ds,
+                                start=start,
+                                end=end,
+                                most_common_station=most_common_station)
+
+    return discretize_knmi(
+        ds, oc_knmi, method=method, most_common_station=most_common_station
+    )
+
+
+@cache.cache_netcdf(coords_3d=True, coords_time=True)
+def discretize_knmi(ds, oc_knmi, method="linear", most_common_station=True):
+    """discretize knmi data to model grid
+
+    Create a dataset with recharge (and evaporation) data by following these steps:
+       1. Check for each cell (structured or vertex) which knmi measurement
+          stations (prec and evap) are the closest.
+       2. Download precipitation and evaporation data for all knmi stations that
+          were found at 1
+       3. Create a recharge array in which each cell has a reference to a
+          timeseries. Timeseries are created for each unique combination of
+          precipitation and evaporation. The following packages are created:
+            a. the rch package itself in which cells with the same
+               precipitation and evaporation stations are defined. This
+               package also refers to all the time series package (see b).
+            b. the time series packages in which the recharge flux is defined
+               for the time steps of the model. Each package contains the
+               time series for one or more cels (defined in a).
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        dataset containing relevant model grid information
+    oc_knmi : hpd.ObsCollection
+        ObsCollection with precipitation (RD) and evaporation (EV24) data from the knmi.
+    method : str, optional
+        If 'linear', calculate recharge by subtracting evaporation from precipitation.
+        If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
+        The default is 'linear'.
+    most_common_station : bool, optional
+        When True, only use data from the station that is most common in the model
+        area. The default is True
+
+    Returns
+    -------
+    ds : xr.DataSet
+        dataset with 'recharge' (and 'evaporation') variables.
+
+    Raises
+    ------
+    AttributeError
+        if the dataset has no time dimension
+    TypeError
+        if time dimension does not have a datetime64[ns] type
+    ValueError
+        if grid is not vertex
+    """
+
+    # check time settings
     if "time" not in ds:
         raise (
             AttributeError(
@@ -60,13 +127,19 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
                 "Please run nlmod.time.set_ds_time()"
             )
         )
+
     if ds.time.dtype.kind != "M":
         raise TypeError("get recharge requires a datetime64[ns] time index")
 
+    # get locations
+    locations = get_locations(
+        ds, oc_knmi=oc_knmi, most_common_station=most_common_station
+    )
+
+    # get recharge data array
     ds_out = util.get_ds_empty(ds, keep_coords=("time", "y", "x"))
     ds_out.attrs["gridtype"] = ds.gridtype
 
-    # get recharge data array
     if is_structured(ds):
         dims = ("y", "x")
     elif is_vertex(ds):
@@ -76,12 +149,6 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
     dims = ("time",) + dims
     shape = [len(ds_out[dim]) for dim in dims]
 
-    if oc_knmi is None:
-        oc_knmi = get_knmi(ds, most_common_station=most_common_station)
-
-    locations = get_locations(
-        ds, oc_knmi=oc_knmi, most_common_station=most_common_station
-    )
     if method in ["linear"]:
         ds_out["recharge"] = dims, np.zeros(shape)
 
@@ -119,6 +186,7 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
             _add_ts_to_ds(ts, loc_sel, "evaporation", ds_out)
     else:
         raise (ValueError(f"Unknown method: {method}"))
+
     for datavar in ds_out:
         ds_out[datavar].attrs["source"] = "KNMI"
         ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
@@ -159,7 +227,7 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
         ds[variable].data[:, loc_sel.index] = values
 
 
-def get_locations_vertex(ds):
+def _get_locations_vertex(ds):
     """Get dataframe with the locations of the grid cells of a vertex grid.
 
     Parameters
@@ -193,7 +261,7 @@ def get_locations_vertex(ds):
     return locations
 
 
-def get_locations_structured(ds):
+def _get_locations_structured(ds):
     """Get dataframe with the locations of the grid cells of a structured grid.
 
     Parameters
@@ -227,7 +295,14 @@ def get_locations_structured(ds):
     return locations
 
 
-def get_knmi(ds, most_common_station=False, start=None, end=None):
+@cache.cache_pickle
+def download_knmi(ds=None,
+                  extent=None,
+                  delr=None,
+                  delc=None,
+                  start=None,
+                  end=None,
+                  most_common_station=False):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
     cells.
 
@@ -248,10 +323,55 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
     oc_knmi
         hpd.ObsCollection
     """
+    if ds is None:
+        ds = get_ds(extent,delr=delr,delc=delc)
+
     locations = get_locations(ds, most_common_station=most_common_station)
-    oc_knmi = get_knmi_at_locations(locations, ds=ds, start=start, end=end)
+    oc_knmi = _download_knmi_at_locations(locations, start=start, end=end)
 
     return oc_knmi
+
+
+def get_knmi(ds, most_common_station=False, start=None, end=None):
+    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
+    cells.
+
+    .. deprecated:: 0.10.0
+        `get_knmi` will be removed in nlmod 1.0.0, it is replaced by
+        `download_knmi` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        dataset containing relevant model grid information
+    most_common_station : bool, optional
+        When True, only download data from the station that is most common in the model
+        area. The default is False
+    start : str or datetime, optional
+        start date of measurements that you want, The default is '2010'.
+    end :  str or datetime, optional
+        end date of measurements that you want, The default is None.
+
+    Returns
+    -------
+    oc_knmi
+        hpd.ObsCollection
+    """
+    warnings.warn(
+        "'get_knmi' is deprecated and will raise an error in the "
+        "future. Use 'nlmod.read.knmi.download_knmi' to get knmi data for your model",
+        DeprecationWarning,
+    )
+
+    if start is None:
+        start = pd.Timestamp(ds.time.attrs["start"])
+    if end is None:
+        end = pd.Timestamp(ds.time.data[-1])
+
+    return download_knmi(ds=ds,
+        start=start, end=end, most_common_station=most_common_station
+    )
 
 
 def get_locations(ds, oc_knmi=None, most_common_station=False):
@@ -282,9 +402,9 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
     """
     # get locations
     if is_structured(ds):
-        locations = get_locations_structured(ds)
+        locations = _get_locations_structured(ds)
     elif is_vertex(ds):
-        locations = get_locations_vertex(ds)
+        locations = _get_locations_vertex(ds)
     else:
         raise ValueError("gridtype should be structured or vertex")
 
@@ -308,6 +428,8 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
             locations["stn_ev24"] = locations["stn_ev24"].value_counts().idxmax()
         else:
             # set the station with the largest area to all locations
+            if 'area' not in ds:
+                ds['area'] = get_area(ds)
             locations["area"] = ds["area"].loc[locations.index]
             locations["stn_rd"] = locations.groupby("stn_rd").sum()["area"].idxmax()
             locations["stn_ev24"] = locations.groupby("stn_ev24").sum()["area"].idxmax()
@@ -315,7 +437,7 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
     return locations
 
 
-def get_knmi_at_locations(locations, ds=None, start=None, end=None):
+def _download_knmi_at_locations(locations, start=None, end=None):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
 
     Parameters
@@ -323,8 +445,6 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
     locations : pd.DataFrame
         each row contains a location (x and y) and the relevant precipitation (stn_rd)
         and evaporation (stn_ev24) stations.
-    ds : xr.DataSet or None, optional
-        dataset containing relevant time information. If None provide start and end.
     start : str or datetime, optional
         start date of measurements that you want, The default is '2010'.
     end :  str or datetime, optional
@@ -337,12 +457,6 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
     """
     stns_rd = locations["stn_rd"].unique()
     stns_ev24 = locations["stn_ev24"].unique()
-
-    # get start and end
-    if start is None:
-        start = pd.Timestamp(ds.time.attrs["start"])
-    if end is None:
-        end = pd.Timestamp(ds.time.data[-1])
 
     # get knmi data stations closest to any grid cell
     olist = []
@@ -363,3 +477,42 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
     oc_knmi = hpd.ObsCollection(olist)
 
     return oc_knmi
+
+
+def get_knmi_at_locations(locations, ds=None, start=None, end=None):
+    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
+
+    .. deprecated:: 0.10.0
+        `get_knmi_at_locations` will be removed in nlmod 1.0.0, it is replaced by
+        `_download_knmi_at_locations` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    locations : pd.DataFrame
+        each row contains a location (x and y) and the relevant precipitation (stn_rd)
+        and evaporation (stn_ev24) stations.
+    ds : xr.DataSet or None, optional
+        dataset containing relevant time information. If None provide start and end.
+    start : str or datetime, optional
+        start date of measurements that you want, The default is '2010'.
+    end :  str or datetime, optional
+        end date of measurements that you want, The default is None.
+
+    Returns
+    -------
+    oc_knmi
+        hpd.ObsCollection
+    """
+    warnings.warn(
+        "'get_knmi_at_locations' is deprecated and will raise an error in the "
+        "future. Use 'nlmod.read.knmi._download_knmi_at_locations' to get knmi data",
+        DeprecationWarning,
+    )
+
+    if start is None:
+        start = pd.Timestamp(ds.time.attrs["start"])
+    if end is None:
+        end = pd.Timestamp(ds.time.data[-1])
+
+    return _download_knmi_at_locations(locations, start, end)

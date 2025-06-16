@@ -14,7 +14,7 @@ def test_gwt_model():
     model_name = "trnsprt_tst"
     model_ws = os.path.join(tmpdir, model_name)
 
-    layer_model = nlmod.read.get_regis(extent, botm_layer="MSz1")
+    layer_model = nlmod.read.download_regis(extent, botm_layer="MSz1")
     # create a model ds
     ds = nlmod.to_model_ds(
         layer_model,
@@ -34,7 +34,7 @@ def test_gwt_model():
     )
 
     # We download the digital terrain model (AHN4)
-    ahn = nlmod.read.ahn.get_ahn4(ds.extent)
+    ahn = nlmod.read.ahn.download_ahn4(ds.extent)
     # calculate the average surface level in each cell
     ds["ahn"] = nlmod.resample.structured_da_to_ds(ahn, ds, method="average")
 

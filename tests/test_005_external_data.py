@@ -91,7 +91,7 @@ def test_get_ahn():
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
 
     # add ahn data to the model dataset
-    ahn_ds = nlmod.read.ahn.download_ahn(ds)
+    ahn_ds = nlmod.read.ahn.get_ahn(ds)
 
     assert not ahn_ds["ahn"].isnull().all(), "AHN only has nan values"
 

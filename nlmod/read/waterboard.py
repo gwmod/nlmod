@@ -231,6 +231,10 @@ def get_configuration():
         "level_deviations": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilafwijking_gebied/MapServer"
         },
+        # NOTE: this intermediate certificate is needed to access HHNK MapServer
+        # on 2025-06-16. This intermediate certificate is automatically downloaded
+        # and combined with the certifi bundle.
+        "verify": "https://sectigo.tbs-certificats.com/SectigoPublicServerAuthenticationCAOVR36.crt",
     }
 
     config["Hollandse Delta"] = {
@@ -570,6 +574,8 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         server_kind = conf["server_kind"]
     if "f" in conf:
         f = conf["f"]
+    if "verify" in config[wb]:
+        kwargs["verify"] = webservices.get_temporary_certificate(config[wb]["verify"])
 
     # % download and plot data
     if server_kind == "arcrest":

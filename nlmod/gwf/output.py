@@ -85,7 +85,7 @@ def get_heads_da(
     # gwf.output.head() defaults to a structured grid
     if gwf is not None and ds is None and fname is None:
         kwargs["modelgrid"] = gwf.modelgrid
-    da = _get_heads_da(hobj, **kwargs)
+    da = _get_heads_da(hobj, name="head", **kwargs)
     da.attrs["units"] = "m NAP"
 
     # set time index if ds/gwf are provided

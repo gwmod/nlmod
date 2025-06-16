@@ -299,7 +299,13 @@ def _get_locations_structured(ds):
 
 
 @cache.cache_pickle
-def download_knmi(extent, delr, delc, start, end, most_common_station=False):
+def download_knmi(ds=None,
+                  extent=None,
+                  delr=None,
+                  delc=None,
+                  start=None,
+                  end=None,
+                  most_common_station=False):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
     cells.
 
@@ -320,7 +326,14 @@ def download_knmi(extent, delr, delc, start, end, most_common_station=False):
     oc_knmi
         hpd.ObsCollection
     """
-    ds = get_ds(extent,delr=delr,delc=delc)
+    if ds is None:
+        ds = get_ds(extent,delr=delr,delc=delc)
+    else:
+        warnings.warn(
+            "calling 'download_knmi' with a dataset is deprecated and will raise an error in the "
+            "future. Specify extent, delr, delc, start and end instead",
+            DeprecationWarning,
+        )
     locations = get_locations(ds, most_common_station=most_common_station)
     oc_knmi = _download_knmi_at_locations(locations, start=start, end=end)
 

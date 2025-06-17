@@ -70,6 +70,13 @@ def get_configuration():
             "summer_stage": "ZOMERPEIL",
             "winter_stage": "WINTERPEIL",
         },
+        "weirs": {
+            "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Legger/MapServer",
+            "layer": 7,
+            "index": "CODE",
+            "summer_stage": "HOOGSTEDOORSTROOMHOOGTE",
+            "winter_stage": "LAAGSTEDOORSTROOMHOOGTE",
+        },
     }
 
     config["Amstel, Gooi en Vecht"] = {

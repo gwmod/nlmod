@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf(coords_2d=True)
 def download_ahn(
-    extent: list[float], identifier: str = "AHN4_5M_M", **kwargs
+    extent: list[float], identifier: str = "AHN4_5M_M", merge_tiles=True, **kwargs
 ) -> xr.DataArray:
     """Download ahn data within an extent.
 
@@ -48,6 +48,9 @@ def download_ahn(
         The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
         type of height data (M = DTM = surface level, R = DSM = also other features).
         The default is 'AHN4_5M_M'.
+    merge_tiles : bool, optional
+        If True, the function returns a merged DataArray. If False, the function
+        returns a list of DataArrays with the original tiles. The default is True.
 
     Returns
     -------
@@ -55,8 +58,8 @@ def download_ahn(
         DataArray with the ahn variable.
     """
 
-    ahn_da = _download_ahn_ellipsis(extent, identifier=identifier, **kwargs)
-    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+    ahn_da = _download_ahn_ellipsis(extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs)
+    if not merge_tiles:
         return ahn_da
 
     ahn_da.attrs["source"] = identifier
@@ -103,6 +106,7 @@ def get_ahn(
     identifier: str = "AHN4 maaiveldmodel (DTM) 5m",
     method: str = "average",
     extent: list[float] | None = None,
+    merge_tiles: bool = True,
     **kwargs,
 ) -> xr.Dataset:
     """Get a model dataset with ahn variable.
@@ -157,9 +161,10 @@ def get_ahn(
     if extent is None and ds is not None:
         extent = get_extent(ds)
 
-    ahn_da = download_ahn(extent=extent, identifier=identifier)
+    ahn_da = download_ahn(extent=extent, identifier=identifier, merge_tiles=merge_tiles, 
+                          **kwargs)
     # this is probably redundant when we have the 'download_ahn' function
-    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+    if not merge_tiles:
         return ahn_da
 
     if ds is None:
@@ -679,7 +684,7 @@ def download_ahn1(
     """
     _assert_as_data_array_is_none(as_data_array)
     da = _download_ahn_ellipsis(extent, identifier, **kwargs)
-    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+    if "merge_tiles" in kwargs and kwargs["merge_tiles"]:
         return da
     # original data is in cm. Convert the data to m, which is the unit of other ahns
     da = da / 100

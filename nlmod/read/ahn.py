@@ -58,7 +58,9 @@ def download_ahn(
         DataArray with the ahn variable.
     """
 
-    ahn_da = _download_ahn_ellipsis(extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs)
+    ahn_da = _download_ahn_ellipsis(
+        extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
+    )
     if not merge_tiles:
         return ahn_da
 
@@ -161,8 +163,9 @@ def get_ahn(
     if extent is None and ds is not None:
         extent = get_extent(ds)
 
-    ahn_da = download_ahn(extent=extent, identifier=identifier, merge_tiles=merge_tiles, 
-                          **kwargs)
+    ahn_da = download_ahn(
+        extent=extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
+    )
     # this is probably redundant when we have the 'download_ahn' function
     if not merge_tiles:
         return ahn_da
@@ -1317,13 +1320,14 @@ def _download_ahn_ellipsis(
             da = rioxarray.open_rasterio(f"zip+{url}!/{path}", mask_and_scale=True)
         else:
             da = rioxarray.open_rasterio(url, mask_and_scale=True)
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)
 
     if len(das) == 0:
         raise (ValueError("No data found within extent"))
 
     if merge_tiles:
-        da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
+        da = merge_arrays(das)
         if da.dims[0] == "band":
             da = da[0].drop_vars("band")
         if "_FillValue" in da.attrs:

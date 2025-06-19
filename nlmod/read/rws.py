@@ -335,15 +335,20 @@ def get_gdr_configuration() -> dict:
         configuration dictionary containing urls and layer numbers for GDR data.
     """
     config = {}
-    config["bodemhoogte"] = {
-        "index": {
-            "url": (
-                "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/"
-                "bodemhoogte_index/FeatureServer"
-            )
-        },
-        "20m": {"layer": 0},
-        "1m": {"layer": 2},
+    config["bodemhoogte_1m"] = {
+        "url": (
+            "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/"
+            "bodemhoogte_index/FeatureServer"
+        ),
+        "layer": 1,
+    }
+    # NOTE: the 20m resolution is no longer available from the GDR service via a
+    # geodataframe containing the url.
+    config["bodemhoogte_20m"] = {
+        "url": (
+            "https://downloads.rijkswaterstaatdata.nl/bodemhoogte_20mtr/"
+            "bodemhoogte_20mtr.tif"
+        )
     }
     return config
 
@@ -406,9 +411,14 @@ def download_bathymetry_gdf(
     """
     if config is None:
         config = get_gdr_configuration()
-    url = config["bodemhoogte"]["index"]["url"]
-    layer = config["bodemhoogte"][resolution]["layer"]
-    return arcrest(url, layer, extent=extent)
+    if resolution == "1m":
+        url = config[f"bodemhoogte_{resolution}"]["url"]
+        layer = config[f"bodemhoogte_{resolution}"]["layer"]
+        return arcrest(url, layer, extent=extent)
+    else:
+        gdf = gpd.GeoDataFrame(index=[0], columns=["geotiff"])
+        gdf.loc[0, "geotiff"] = config[f"bodemhoogte_{resolution}"]["url"]
+        return gdf
 
 
 @cache.cache_netcdf()
@@ -518,9 +528,6 @@ def download_bathymetry(
         gdf.iterrows(), desc="Downloading bathymetry", total=gdf.index.size
     ):
         url = row["geotiff"]
-        # NOTE: link to 20m dataset is incorrect in the index
-        if resolution == "20m":
-            url = url.replace("Noordzee_20_LAT", "bodemhoogte_20mtr")
         ds = xr.open_dataset(url, engine="rasterio")
         ds = ds.assign_coords({"y": ds["y"].round(0), "x": ds["x"].round(0)})
         da = (

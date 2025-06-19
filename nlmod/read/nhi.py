@@ -10,6 +10,7 @@ import requests
 import rioxarray
 
 from ..dims.resample import structured_da_to_ds
+from ..util import get_ds_empty
 
 logger = logging.getLogger(__name__)
 
@@ -123,11 +124,11 @@ def add_buisdrainage(
 
     warnings.warn(
         "'add_buisdrainage' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.hni.discretize_buisdrainage' to project the buisdrainage on the model grid",
+        "Use 'ds.update(nlmod.read.hni.discretize_buisdrainage(ds))' to project the "
+        "buisdrainage on the model grid",
         DeprecationWarning,
     )
-
-    return discretize_buisdrainage(
+    ds_out = discretize_buisdrainage(
         ds,
         pathname,
         cond_var,
@@ -135,6 +136,7 @@ def add_buisdrainage(
         cond_method,
         depth_method,
     )
+    return ds.update(ds_out)
 
 
 def discretize_buisdrainage(
@@ -193,6 +195,8 @@ def discretize_buisdrainage(
     if ds.rio.crs is None:
         ds = ds.rio.write_crs(28992)
 
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+
     # use cond_methd for conductance
     # (default is "average" to account for locations without pipe drainage, where the
     # conductance is 0)
@@ -203,9 +207,9 @@ def discretize_buisdrainage(
     cond = cond.where(~(np.isinf(cond) | np.isnan(cond)), 0.0)
     cond = cond.rio.write_crs(buisdrain_c.rio.crs)
     # resample to model grid
-    ds[cond_var] = structured_da_to_ds(cond, ds, method=cond_method)
+    ds_out[cond_var] = structured_da_to_ds(cond, ds, method=cond_method)
     # multiply by area to get a conductance
-    ds[cond_var] = ds[cond_var] * ds["area"]
+    ds_out[cond_var] = ds_out[cond_var] * ds["area"]
 
     # use depth_method to retrieve the depth
     # (default is "mode" for depth that occurs most in each cell)
@@ -214,22 +218,22 @@ def discretize_buisdrainage(
     if mask_and_scale:
         nodata = np.nan
     else:
-        nodata = buisdrain_d.attrs["_FillValue"]
+        nodata = int(buisdrain_d.attrs["_FillValue"])
     # set buisdrain_d to nodata where it is 0
     mask = buisdrain_d != 0
     buisdrain_d = buisdrain_d.where(mask, nodata).rio.write_crs(buisdrain_d.rio.crs)
     # resample to model grid
-    ds[depth_var] = structured_da_to_ds(
+    ds_out[depth_var] = structured_da_to_ds(
         buisdrain_d, ds, method=depth_method, nodata=nodata
     )
     if not mask_and_scale:
         # set nodata values to NaN
-        ds[depth_var] = ds[depth_var].where(ds[depth_var] != nodata)
+        ds_out[depth_var] = ds_out[depth_var].where(ds_out[depth_var] != nodata)
 
     # from cm to m
-    ds[depth_var] = ds[depth_var] / 100.0
+    ds_out[depth_var] = ds_out[depth_var] / 100.0
 
-    return ds
+    return ds_out
 
 
 def get_gwo_wells(

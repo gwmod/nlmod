@@ -209,7 +209,7 @@ def _disv(ds, model, length_units="METERS", pname="disv", **kwargs):
         filename = f"{ds.model_name}.disv"
     elif model.model_type == "prt6":
         klass = flopy.mf6.ModflowPrtdisv
-        filename = (f"{ds.model_name}_prt.disv",)
+        filename = f"{ds.model_name}.disv"
     else:
         raise ValueError("Unknown model type.")
     disv = klass(

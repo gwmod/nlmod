@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+import warnings
 
 import geopandas as gpd
 import numpy as np
@@ -9,11 +10,12 @@ import requests
 import rioxarray
 
 from ..dims.resample import structured_da_to_ds
+from ..util import get_ds_empty
 
 logger = logging.getLogger(__name__)
 
 
-def download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
+def _download_file(url, pathname, filename=None, overwrite=False, timeout=120.0):
     """Download a file from the NHI website.
 
     Parameters
@@ -68,16 +70,76 @@ def download_buisdrainage(pathname, overwrite=False):
 
     # download resistance
     url = f"{url_bas}/buisdrain_c_ras25/buisdrain_c_ras25.nc"
-    fname_c = download_file(url, pathname, overwrite=overwrite)
+    fname_c = _download_file(url, pathname, overwrite=overwrite)
 
     # download drain depth
     url = f"{url_bas}/buisdrain_d_ras25/buisdrain_d_ras25.nc"
-    fname_d = download_file(url, pathname, overwrite=overwrite)
+    fname_d = _download_file(url, pathname, overwrite=overwrite)
 
     return fname_c, fname_d
 
 
 def add_buisdrainage(
+    ds,
+    pathname=None,
+    cond_var="buisdrain_cond",
+    depth_var="buisdrain_depth",
+    cond_method="average",
+    depth_method="mode",
+):
+    """Add data about the buisdrainage to the model Dataset.
+
+    .. deprecated:: 0.10.0
+        `add_buisdrainage` will be removed in nlmod 1.0.0, it is replaced by
+        `discretize_buisdrainage` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The model Dataset.
+    pathname : str, optional
+        The pathname containing the downloaded files or the pathname to which the files
+        are downloaded. When pathname is None, it is set the the cachedir. The default
+        is None.
+    cond_var : str, optional
+        The name of the variable in ds to contain the data about the conductance of
+        buisdrainage. The default is "buisdrain_cond".
+    depth_var : str, optional
+        The name of the variable in ds to contain the data about the depth of
+        buisdrainage. The default is "buisdrain_depth".
+    cond_method : str, optional
+        The method to transform the conductance of buisdrainage to the model Dataset.
+        The default is "average".
+    depth_method : str, optional
+        The method to transform the depth of buisdrainage to the model Dataset. The
+        default is "mode".
+
+    Returns
+    -------
+    ds : xr.Dataset
+        The model dataset with added variables with the names `cond_var` and
+        `depth_var`.
+    """
+
+    warnings.warn(
+        "'add_buisdrainage' is deprecated and will be removed in a future version. "
+        "Use 'ds.update(nlmod.read.hni.discretize_buisdrainage(ds))' to project the "
+        "buisdrainage on the model grid",
+        DeprecationWarning,
+    )
+    ds_out = discretize_buisdrainage(
+        ds,
+        pathname,
+        cond_var,
+        depth_var,
+        cond_method,
+        depth_method,
+    )
+    return ds.update(ds_out)
+
+
+def discretize_buisdrainage(
     ds,
     pathname=None,
     cond_var="buisdrain_cond",
@@ -133,6 +195,8 @@ def add_buisdrainage(
     if ds.rio.crs is None:
         ds = ds.rio.write_crs(28992)
 
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+
     # use cond_methd for conductance
     # (default is "average" to account for locations without pipe drainage, where the
     # conductance is 0)
@@ -143,9 +207,9 @@ def add_buisdrainage(
     cond = cond.where(~(np.isinf(cond) | np.isnan(cond)), 0.0)
     cond = cond.rio.write_crs(buisdrain_c.rio.crs)
     # resample to model grid
-    ds[cond_var] = structured_da_to_ds(cond, ds, method=cond_method)
+    ds_out[cond_var] = structured_da_to_ds(cond, ds, method=cond_method)
     # multiply by area to get a conductance
-    ds[cond_var] = ds[cond_var] * ds["area"]
+    ds_out[cond_var] = ds_out[cond_var] * ds["area"]
 
     # use depth_method to retrieve the depth
     # (default is "mode" for depth that occurs most in each cell)
@@ -154,25 +218,98 @@ def add_buisdrainage(
     if mask_and_scale:
         nodata = np.nan
     else:
-        nodata = buisdrain_d.attrs["_FillValue"]
+        nodata = int(buisdrain_d.attrs["_FillValue"])
     # set buisdrain_d to nodata where it is 0
     mask = buisdrain_d != 0
     buisdrain_d = buisdrain_d.where(mask, nodata).rio.write_crs(buisdrain_d.rio.crs)
     # resample to model grid
-    ds[depth_var] = structured_da_to_ds(
+    ds_out[depth_var] = structured_da_to_ds(
         buisdrain_d, ds, method=depth_method, nodata=nodata
     )
     if not mask_and_scale:
         # set nodata values to NaN
-        ds[depth_var] = ds[depth_var].where(ds[depth_var] != nodata)
+        ds_out[depth_var] = ds_out[depth_var].where(ds_out[depth_var] != nodata)
 
     # from cm to m
-    ds[depth_var] = ds[depth_var] / 100.0
+    ds_out[depth_var] = ds_out[depth_var] / 100.0
 
-    return ds
+    return ds_out
 
 
 def get_gwo_wells(
+    username,
+    password,
+    n_well_filters=1_000,
+    well_site=None,
+    organisation=None,
+    status=None,
+    well_index="Name",
+    timeout=120,
+    **kwargs,
+):
+    """Get metadata of extraction wells from the NHI GWO database.
+
+    .. deprecated:: 0.10.0
+        `get_gwo_wells` will be removed in nlmod 1.0.0, it is replaced by
+        `download_gwo_wells` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_well_filters : int, optional
+        The number of wells that are requested per page. This number determines in how
+        many pieces the request is split. The default is 1000.
+    organisation : str, optional
+        The organisation that manages the wells. If not None, the organisation will be
+        used to filter the wells. The default is None.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    status : str, optional
+        The status of the wells. If not None, the status will be used to filter the
+        wells. Possible values are "Active", "Inactive" or "Abandoned". The default is
+        None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    timeout : int, optional
+        The timeout time (in seconds) for requests to the database. The default is
+        120 seconds.
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame containing the properties of the wells and their filters.
+    """
+    warnings.warn(
+        "'get_gwo_wells' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.nhi.download_gwo_wells' instead",
+        DeprecationWarning,
+    )
+
+    return download_gwo_wells(
+        username,
+        password,
+        n_well_filters=n_well_filters,
+        well_site=well_site,
+        organisation=organisation,
+        status=status,
+        well_index=well_index,
+        timeout=timeout,
+        **kwargs,
+    )
+
+
+def download_gwo_wells(
     username,
     password,
     n_well_filters=1_000,
@@ -268,6 +405,76 @@ def get_gwo_wells(
 
 
 def get_gwo_measurements(
+    username,
+    password,
+    n_measurements=10_000,
+    well_site=None,
+    well_index="Name",
+    measurement_index=("Name", "DateTime"),
+    timeout=120,
+    **kwargs,
+):
+    """Get extraction rates and metadata of wells from the NHI GWO database.
+
+    .. deprecated:: 0.10.0
+        `get_gwo_measurements` will be removed in nlmod 1.0.0, it is replaced by
+        `download_gwo_measurements` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    username : str
+        The username of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    password : str
+        The password of the NHI GWO database. To retrieve a username and password visit
+        https://gwo.nhi.nu/register/.
+    n_measurements : int, optional
+        The number of measurements that are requested per page, with a maximum of
+        200,000. This number determines in how many pieces the request is split. The
+        default is 10,000.
+    well_site : str, optional
+        The name of well site the wells belong to. If not None, the well site will be
+        used to filter the wells. The default is None.
+    well_index : str, tuple or list, optional
+        The column(s) in the resulting GeoDataFrame that is/are used as the index of
+        this GeoDataFrame. The default is "Name".
+    measurement_index :  str, tuple or list, optional, optional
+        The column(s) in the resulting measurement-DataFrame that is/are used as the
+        index of this DataFrame. The default is ("Name", "DateTime").
+    timeout : int, optional
+        The timeout time (in seconds) of requests to the database. The default is
+        120 seconds.
+    **kwargs : dict
+        Kwargs are passed as additional parameters in the request to the database. For
+        available parameters see https://gwo.nhi.nu/api/v1/download/.
+
+    Returns
+    -------
+    measurements : pandas.DataFrame
+        A DataFrame containing the extraction rates of the wells in the database.
+    gdf : geopandas.GeoDataFrame
+        A GeoDataFrame containing the properties of the wells and their filters.
+    """
+    warnings.warn(
+        "'get_gwo_measurements' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.nhi.download_gwo_measurements' instead",
+        DeprecationWarning,
+    )
+
+    return download_gwo_measurements(
+        username,
+        password,
+        n_measurements=n_measurements,
+        well_site=well_site,
+        well_index=well_index,
+        measurement_index=measurement_index,
+        timeout=timeout,
+        **kwargs,
+    )
+
+
+def download_gwo_measurements(
     username,
     password,
     n_measurements=10_000,

@@ -834,7 +834,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
         if ds is None:
             raise (ValueError("Please supply either ds or extent to get_gdf"))
         extent = get_extent_polygon(ds)
-    gdf = bgt.get_bgt(extent)
+    gdf = bgt.download_bgt(extent)
     if fname_ahn is not None:
         from rasterstats import zonal_stats
 
@@ -1213,13 +1213,19 @@ def get_seaonal_timeseries(
     return s
 
 
-def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):
+def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot, aux=None):
     gi = flopy.utils.GridIntersect(gwf.modelgrid, method="vertex")
     cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
     riv_data = []
     for cid in cellids:
         if len(cid) == 2:
-            riv_data.append([(layer, cid[0], cid[1]), stage, cond, rbot])
+            idata = [(layer, cid[0], cid[1]), stage, cond, rbot]
+            if aux is not None:
+                idata.append(aux)
+            riv_data.append(idata)
         else:
-            riv_data.append([(layer, cid), stage, cond, rbot])
+            idata = [(layer, cid), stage, cond, rbot]
+            if aux is not None:
+                idata.append(aux)
+            riv_data.append(idata)
     return riv_data

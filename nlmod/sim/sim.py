@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .. import util
-from ..dims.time import _pd_timestamp_to_cftime, get_perlen
+from ..dims.time import get_perlen
 
 logger = logging.getLogger(__name__)
 

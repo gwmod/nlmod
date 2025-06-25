@@ -1,4 +1,5 @@
 import logging
+import warnings
 
 import numpy as np
 
@@ -9,6 +10,25 @@ logger = logging.getLogger(__name__)
 
 
 def get_polygons(**kwargs):
+    """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame.
+
+    .. deprecated:: 0.10.0
+        `get_polygons` will be removed in nlmod 1.0.0, it is replaced by
+        `download_polygons` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    """
+
+    warnings.warn(
+        "get_polygons is deprecated and will eventually be removed, "
+        "please use nlmod.read.waterboard.download_polygons() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_polygons(**kwargs)
+
+
+def download_polygons(**kwargs):
     """Get the location of the Dutch Waterboards as a Polygon GeoDataFrame."""
     url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/ArcGIS/rest/services/Waterschapsgrenzen/FeatureServer"
     layer = 0
@@ -49,6 +69,13 @@ def get_configuration():
             "layer": 5,
             "summer_stage": "ZOMERPEIL",
             "winter_stage": "WINTERPEIL",
+        },
+        "weirs": {
+            "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Legger/MapServer",
+            "layer": 7,
+            "index": "CODE",
+            "summer_stage": "HOOGSTEDOORSTROOMHOOGTE",
+            "winter_stage": "LAAGSTEDOORSTROOMHOOGTE",
         },
     }
 
@@ -209,7 +236,8 @@ def get_configuration():
             "bottom_height": "WS_BODEMHOOGTE",
         },
         "level_areas": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/ws_peilgebieden_vigerend/MapServer",
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/WS_Peilgebieden/MapServer/",
+            "layer": 3,
             "summer_stage": [
                 "ZOMER",
                 "STREEFPEIL_ZOMER",
@@ -230,6 +258,10 @@ def get_configuration():
         "level_deviations": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilafwijking_gebied/MapServer"
         },
+        # NOTE: this intermediate certificate is needed to access HHNK MapServer
+        # on 2025-06-16. This intermediate certificate is automatically downloaded
+        # and combined with the certifi bundle.
+        "verify": "https://sectigo.tbs-certificats.com/SectigoPublicServerAuthenticationCAOVR36.crt",
     }
 
     config["Hollandse Delta"] = {
@@ -513,6 +545,58 @@ def get_configuration():
 def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs):
     """Get the data for a Waterboard and a specific data_kind.
 
+    .. deprecated:: 0.10.0
+        `get_data` will be removed in nlmod 1.0.0, it is replaced by
+        `download_data` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    ws : str
+        The name of the waterboard.
+    data_kind : str
+        The kind of data you like to download. Possible values are
+        'watercourses', 'level_areas' and 'level_deviations'
+    extent : tuple or list of length 4, optional
+        THe extent of the data you like to donload: (xmin, xmax, ymin, ymax).
+        Download everything when extent is None. The default is None.
+    max_record_count : int, optional
+        THe maximum number of records that are downloaded in each call to the
+        webservice. When max_record_count is None, the maximum is set equal to
+        the maximum of the server. The default is None.
+    config : dict, optional
+        A dictionary with properties of the data sources of the Waterboards.
+        When None, the configuration is retreived from the method
+        get_configuration(). The default is None.
+    **kwargs : dict
+        Optional arguments which are passed onto arcrest() or wfs().
+
+    Raises
+    ------
+        DESCRIPTION.
+
+    Returns
+    -------
+    gdf : GeoDataFrame
+        A GeoDataFrame containing data from the waterboard (polygons for
+        level_areas/level_deviations and lines for watercourses).
+    """
+
+    warnings.warn(
+        "'get_data' is deprecated and will eventually be removed, "
+        "please use 'nlmod.read.waterboard.download_data()' in the future.",
+        DeprecationWarning,
+    )
+
+    return download_data(wb, data_kind, extent, max_record_count, config, **kwargs)
+
+
+@cache.cache_pickle
+def download_data(
+    wb, data_kind, extent=None, max_record_count=None, config=None, **kwargs
+):
+    """Get the data for a Waterboard and a specific data_kind.
+
     Parameters
     ----------
     ws : str
@@ -569,6 +653,8 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         server_kind = conf["server_kind"]
     if "f" in conf:
         f = conf["f"]
+    if "verify" in config[wb]:
+        kwargs["verify"] = webservices.get_temporary_certificate(config[wb]["verify"])
 
     # % download and plot data
     if server_kind == "arcrest":

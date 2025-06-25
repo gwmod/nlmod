@@ -153,6 +153,7 @@ def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
         stop_at_weak_sink=kwargs.pop("stop_at_weak_sink", False),
         boundnames=kwargs.pop("boundnames", False),
         exit_solve_tolerance=kwargs.pop("exit_solve_tolerance", 1e-5),
+        extend_tracking=kwargs.pop("extend_tracking", True),
         **kwargs,
     )
     return prp
@@ -201,7 +202,8 @@ def oc(ds, prt, save_budget=True, print_budget=False, **kwargs):
     track_filerecord = kwargs.pop("track_filerecord", [f"{ds.model_name}_prt.trk"])
 
     saverecord = _set_record(False, save_budget, output="budget")
-    printrecord = _set_record(False, print_budget, output="concentration")
+    printrecord = _set_record(False, print_budget, output="budget")
+
     oc = fp.mf6.ModflowPrtoc(
         prt,
         pname="oc",

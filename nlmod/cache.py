@@ -2,12 +2,12 @@ import functools
 import hashlib
 import importlib
 import inspect
+import json
 import logging
 import numbers
 import os
 import pickle
 
-import dask
 import flopy
 import joblib
 import numpy as np
@@ -233,10 +233,24 @@ def cache_netcdf(
                         ).hexdigest()
 
                     if dataset is not None:
+                        # fix layer dtype if necessary
+                        if "layer" in cached_ds.coords:
+                            if dataset["layer"].dtype != cached_ds["layer"].dtype:
+                                # cached layer dtype might be read as fixed width dtype
+                                # modify dataset dtype to make hashes match
+                                dataset = dataset.assign_coords(
+                                    {
+                                        "layer": dataset["layer"].values.astype(
+                                            cached_ds["layer"].dtype
+                                        )
+                                    }
+                                )
                         if NLMOD_CACHE_OPTIONS["dataset_coords_hash"]:
-                            # Check the coords of the dataset argument
-                            func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
-                                dict(dataset.coords)
+                            # Check the coords of the dataset argument,
+                            # 20250228: metadata is currently excluded as this was
+                            # causing differences that are not relevant to the cache...
+                            func_args_dic["_dataset_coords_hash"] = hash_xarray_coords(
+                                dataset, include_metadata=False
                             )
                         else:
                             func_args_dic_cache.pop("_dataset_coords_hash", None)
@@ -256,8 +270,10 @@ def cache_netcdf(
 
                         if NLMOD_CACHE_OPTIONS["dataset_data_vars_hash"]:
                             # Check the data_vars of the dataset argument
+                            # 20250228: metadata is currently excluded as this was
+                            # causing differences that are not relevant to the cache...
                             func_args_dic["_dataset_data_vars_hash"] = (
-                                dask.base.tokenize(dict(dataset.data_vars))
+                                hash_xarray_data_vars(dataset, include_metadata=False)
                             )
                         else:
                             func_args_dic_cache.pop("_dataset_data_vars_hash", None)
@@ -327,8 +343,10 @@ def cache_netcdf(
                 # Add dataset argument hash to function arguments dic
                 if dataset is not None:
                     if NLMOD_CACHE_OPTIONS["dataset_coords_hash"]:
-                        func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
-                            dict(dataset.coords)
+                        # 20250228: metadata is currently excluded as this was
+                        # causing differences that are not relevant to the cache...
+                        func_args_dic["_dataset_coords_hash"] = hash_xarray_coords(
+                            dataset, include_metadata=False
                         )
                     else:
                         logger.warning(
@@ -337,8 +355,10 @@ def cache_netcdf(
                             "`nlmod.config.NLMOD_CACHE_OPTIONS`."
                         )
                     if NLMOD_CACHE_OPTIONS["dataset_data_vars_hash"]:
-                        func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(
-                            dict(dataset.data_vars)
+                        # 20250228: metadata is currently excluded as this was
+                        # causing differences that are not relevant to the cache...
+                        func_args_dic["_dataset_data_vars_hash"] = (
+                            hash_xarray_data_vars(dataset, include_metadata=False)
                         )
                     else:
                         logger.warning(
@@ -923,3 +943,116 @@ def _explicit_dataset_coordinate_comparison(ds_in, ds_cache):
             return False
     logger.debug("cache -> all coordinates equal")
     return True
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """Special json encoder for numpy types."""
+
+    def default(self, o):
+        if isinstance(o, np.integer):
+            return int(o)
+        elif isinstance(o, np.floating):
+            return float(o)
+        return json.JSONEncoder.default(self, o)
+
+
+def hash_xarray_coords(ds, include_metadata: bool = False):
+    """
+    Create a hash of xarray coordinate(s) using array bytes and optionally metadata.
+
+    Parameters
+    ----------
+    coord : xarray.core.coordinates.Coordinate
+        The xarray coordinate object to hash
+    include_metadata : bool, optional
+        Whether to include metadata in the hash. Default is False.
+
+    Returns
+    -------
+    str
+        The hexadecimal hash string
+    """
+    combined_bytes = b""
+    for coord in ds.coords:
+        # get the raw bytes from the numpy array values
+        values_bytes = ds[coord].values.tobytes()
+        combined_bytes += values_bytes
+
+        if include_metadata:
+            # get metadata as JSON
+            metadata = {
+                "name": coord,
+                "dims": ds[coord].dims,
+                "attrs": ds[coord].attrs,
+                "dtype": str(ds[coord].dtype),
+                "shape": ds[coord].shape,
+            }
+            metadata_bytes = json.dumps(
+                metadata, sort_keys=True, cls=NumpyEncoder
+            ).encode("utf-8")
+
+            # combine both sets of bytes for hashing
+            if include_metadata:
+                combined_bytes += metadata_bytes
+
+    # create a hash of the combined bytes
+    return hashlib.sha256(combined_bytes).hexdigest()
+
+
+def hash_xarray_data_vars(
+    ds,
+    include_metadata: bool = False,
+):
+    """
+    Create a hash of xarray data variables using array bytes and optionally metadata.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset or xarray.DataArray
+        The xarray coordinate object to hash
+    include_metadata : bool, optional
+        Whether to include metadata in the hash. Default is False.
+
+    Returns
+    -------
+    str
+        The hexadecimal hash string
+    """
+    # get the raw bytes from the numpy array values
+    combined_bytes = b""
+    if isinstance(ds, xr.Dataset):
+        # sort data vars en ensure hashes remain the same
+        data_arrays = [ds[da] for da in sorted(ds.data_vars)]
+    elif isinstance(ds, xr.DataArray):
+        data_arrays = [ds]
+    else:
+        raise TypeError("Input must be an xarray Dataset or DataArray")
+    for da in data_arrays:
+        combined_bytes += da.values.tobytes()
+
+        if include_metadata:
+            # hash each coordinate separately
+            coord_hashes = {}
+            for coord_name, coord in sorted(da.coords.items()):
+                coord_hashes[coord_name] = hash_xarray_coords(
+                    coord, include_metadata=False
+                )
+
+            # get metadata as JSON
+            metadata = {
+                "name": da.name,
+                "dims": da.dims,
+                "attrs": da.attrs,
+                "dtype": str(da.dtype),
+                "shape": da.shape,
+                "coord_hashes": coord_hashes,
+            }
+            metadata_bytes = json.dumps(
+                metadata, sort_keys=True, cls=NumpyEncoder
+            ).encode("utf-8")
+
+            # combine both sets of bytes for hashing
+            combined_bytes += metadata_bytes
+
+    # create a hash of the combined bytes
+    return hashlib.sha256(combined_bytes).hexdigest()

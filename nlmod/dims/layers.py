@@ -4,7 +4,7 @@ import warnings
 import flopy
 import numpy as np
 import xarray as xr
-from geopandas import GeoDataFrame, GeoSeries, points_from_xy
+from geopandas import GeoSeries, points_from_xy
 
 from ..util import LayerError, _get_value_from_ds_datavar
 from . import grid
@@ -1561,8 +1561,12 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
         layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
 
     # set layer to nodata where z is above top
-    assert "layer" not in ds["top"].dims
-    layer = xr.where(ds["top"] > z, layer, above_model)
+    if "layer" not in ds["top"].dims:
+        layer = xr.where((layer == below_model) & (ds["top"] > z), above_model, layer)
+    else:
+        layer = xr.where(
+            (layer == below_model) & (ds["top"].isel(layer=0) > z), above_model, layer
+        )
 
     # set nodata attribute
     layer.attrs["above_model"] = above_model
@@ -2346,10 +2350,14 @@ def get_modellayers_indexer(
     if npts_outside_domain > 0:
         maskpts = ~pts_to_cellid.isna()
         pts = pts[maskpts]
-        df = df.loc[maskpts].copy()
+        pts_to_cellid  = pts_to_cellid[maskpts]
+        df = df.loc[maskpts.values].copy()
         logger.warning(
             "Warning! Dropped %d points outside the model domain.", npts_outside_domain
         )
+
+    # ensure result is integer, should not contain nans after masking pts outside domain
+    pts_to_cellid = pts_to_cellid.astype(int)
 
     # build obs dataset
     rename_dict = {

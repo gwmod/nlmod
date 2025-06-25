@@ -37,7 +37,7 @@ def test_bgt_zipfile():
 
     # download data from 2 layers within extent, and also save data to zipfile
     extent = [119900, 120000, 440000, 440100]
-    bgt = nlmod.read.bgt.get_bgt(extent, layer=["waterdeel", "wegdeel"], fname=fname)
+    bgt = nlmod.read.bgt.download_bgt(extent, layer=["waterdeel", "wegdeel"], fname=fname)
     assert isinstance(bgt, dict)
     assert "waterdeel" in bgt
     assert "bronhouder_name" in bgt["waterdeel"].columns

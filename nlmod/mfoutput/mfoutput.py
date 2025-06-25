@@ -86,7 +86,7 @@ def _get_time_index(fobj, ds=None, gwf_or_gwt=None):
     return tindex
 
 
-def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
+def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30, name=None):
     """Create data array based on array, modelgrid, and time array.
 
     Parameters
@@ -103,6 +103,8 @@ def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
     hnoflo : float, optional
         The value of no-flow cells, which will be replaced by NaNs. If hnoflo is None,
         the values of no-flow cells will not be replaced by NaNs. The default is 1e30.
+    name : str, optional
+        name of the data variable
 
     Returns
     -------
@@ -112,9 +114,8 @@ def _create_da(arr, modelgrid, times, hdry=-1e30, hnoflo=1e30):
     """
     # create data array
     dims, coords = get_dims_coords_from_modelgrid(modelgrid)
-    if modelgrid.grid_type == "unstructured":
-        arr = arr[:, 0, 0, :]
-    da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords)
+
+    da = xr.DataArray(data=arr, dims=("time",) + dims, coords=coords, name=name)
 
     if hdry is not None or hnoflo is not None:
         # set dry/no-flow to nan
@@ -184,11 +185,13 @@ def _get_heads_da(
         _get_binary_head_data, kstpkper=kstpkper, shape=shape, fobj=hobj
     )
 
-    # check for vertex grids
+    # check for vertex or unstructured grids
     if modelgrid.grid_type == "vertex":
         if stacked_arr.ndim == 4:
             stacked_arr = stacked_arr[:, :, 0, :]
-
+    elif modelgrid.grid_type == "unstructured":
+        if stacked_arr.ndim == 4:
+            stacked_arr = stacked_arr[:, 0, 0, :]
     # create data array
     da = _create_da(stacked_arr, modelgrid, hobj.get_times(), **kwargs)
 
@@ -246,7 +249,7 @@ def _get_budget_da(
     )
 
     # create data array
-    da = _create_da(stacked_arr, modelgrid, cbcobj.get_times())
+    da = _create_da(stacked_arr, modelgrid, cbcobj.get_times(), name=text)
 
     return da
 

@@ -61,8 +61,9 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
 
 
 def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
-    """Convert a list of points, defined by x and y coordinates, to a list of nodes. A
-    node is a unique cell in a model. The icell2d is a unique cell in a layer.
+    """Convert a list of points, defined by x and y coordinates, to a list of nodes.
+    
+    A node is a unique cell in a model. The icell2d is a unique cell in a layer.
 
     Parameters
     ----------
@@ -127,8 +128,8 @@ def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
     """
     if mpf is not None:
         warnings.warn(
-            "The 'mpf' parameter is deprecated and will be removed in a future version. "
-            "Please pass 'ibound' directly.",
+            "The 'mpf' parameter is deprecated and will be removed in a future version."
+            " Please pass 'ibound' directly.",
             DeprecationWarning,
         )
         ibound = mpf.ib

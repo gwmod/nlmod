@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+import warnings
 from typing import Literal
 
 import geopandas as gpd
@@ -28,11 +29,86 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf(coords_2d=True)
+def download_ahn(
+    extent: list[float], identifier: str = "AHN4_5M_M", merge_tiles=True, **kwargs
+) -> xr.DataArray:
+    """Download ahn data within an extent.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent xmin, xmax, ymin, ymax.
+    identifier : str, optional
+        Possible values for the different AHN-versions are (casing is important):
+            AHN1: 'AHN1_5M'
+            AHN2: 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' or 'AHN2_5M_M'
+            AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
+            AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
+            AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
+        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
+        type of height data (M = DTM = surface level, R = DSM = also other features).
+        The default is 'AHN4_5M_M'.
+    merge_tiles : bool, optional
+        If True, the function returns a merged DataArray. If False, the function
+        returns a list of DataArrays with the original tiles. The default is True.
+
+    Returns
+    -------
+    ahn_da : xr.DataArray
+        DataArray with the ahn variable.
+    """
+
+    ahn_da = _download_ahn_ellipsis(
+        extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
+    )
+    if not merge_tiles:
+        return ahn_da
+
+    ahn_da.attrs["source"] = identifier
+    ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+    ahn_da.attrs["units"] = "mNAP"
+
+    return ahn_da
+
+
+@cache.cache_netcdf(coords_2d=True)
+def discretize_ahn(
+    ds: xr.Dataset, ahn_da: xr.DataArray, method: str = "average"
+) -> xr.Dataset:
+    """Discretize ahn data to model the model grid.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        dataset with the model information.
+    ahn_da : xr.DataArray
+        ahn data within model extent.
+    method : str, optional
+        Method used to resample ahn to grid of ds. See documentation of
+        nlmod.resample.structured_da_to_ds for possible values. The default is
+        'average'.
+
+    Returns
+    -------
+    ds_out : xr.Dataset
+        Dataset with the ahn variable.
+    """
+    if ds is not None:
+        ahn_da = structured_da_to_ds(ahn_da, ds, method=method)
+
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+    ds_out["ahn"] = ahn_da
+
+    return ds_out
+
+
+@cache.cache_netcdf(coords_2d=True)
 def get_ahn(
     ds: xr.Dataset | None = None,
     identifier: str = "AHN4 maaiveldmodel (DTM) 5m",
     method: str = "average",
     extent: list[float] | None = None,
+    merge_tiles: bool = True,
     **kwargs,
 ) -> xr.Dataset:
     """Get a model dataset with ahn variable.
@@ -40,7 +116,8 @@ def get_ahn(
     Parameters
     ----------
     ds : xr.Dataset, optional
-        dataset with the model information. If None the extent is used.
+        dataset with the model information. Using ds=None is deprecated, instead use
+        nlmod.read.ahn.download_ahn().
     identifier : str, optional
         The identifier determines the AHN-version, the resolution and the type of height
         data. Possible values are (casing is important):
@@ -76,30 +153,84 @@ def get_ahn(
     ds_out : xr.Dataset
         Dataset with the ahn variable.
     """
+    if ds is None:
+        warnings.warn(
+            "calling 'get_ahn' with ds=None is deprecated and will raise an error in the "
+            "future. Use 'nlmod.read.ahn.download_ahn' to get the ahn within an extent",
+            DeprecationWarning,
+        )
+
     if extent is None and ds is not None:
         extent = get_extent(ds)
-    ahn_ds_raw = _get_ahn_ellipsis(extent, identifier=identifier, **kwargs)
-    if "return_tiles" in kwargs and kwargs["return_tiles"]:
-        return ahn_ds_raw
 
-    if ds is None:
-        ahn_da = ahn_ds_raw
-    else:
-        ahn_da = structured_da_to_ds(ahn_ds_raw, ds, method=method)
-    ahn_da.attrs["source"] = identifier
-    ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
-    ahn_da.attrs["units"] = "mNAP"
+    ahn_da = download_ahn(
+        extent=extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
+    )
+    # this is probably redundant when we have the 'download_ahn' function
+    if not merge_tiles:
+        return ahn_da
 
     if ds is None:
         return ahn_da
-
-    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
-    ds_out["ahn"] = ahn_da
-
-    return ds_out
+    else:
+        return discretize_ahn(ds, ahn_da, method=method)
 
 
 def get_ahn_at_point(
+    x: float,
+    y: float,
+    buffer: float = 0.75,
+    return_da: bool = False,
+    return_mean: bool = False,
+    identifier: str = "dsm_05m",
+    res: float = 0.5,
+    **kwargs,
+) -> float:
+    """Get the height of the surface level at a certain point, defined by x and y.
+
+    .. deprecated:: 0.10.0
+        `get_ahn_at_point` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn_at_point` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    x : float
+        The x-coordinate fo the point.
+    y : float
+        The y-coordinate fo the point..
+    buffer : float, optional
+        The buffer around x and y that is downloaded. The default is 0.75.
+    return_da : bool, optional
+        Return the downloaded DataArray when True. The default is False.
+    return_mean : bool, optional
+        Resturn the mean of all non-nan pixels within buffer. Return the center pixel
+        when False. The default is False.
+    identifier : str, optional
+        The identifier passed onto download_latest_ahn_from_wcs. The default is "dsm_05m".
+    res : float, optional
+        The resolution that is passed onto download_latest_ahn_from_wcs. The default is 0.5.
+    **kwargs : dict
+        kwargs are passed onto the method download_latest_ahn_from_wcs.
+
+    Returns
+    -------
+    float
+        The surface level value at the requested point.
+    """
+
+    warnings.warn(
+        "'get_ahn_at_point' is deprecated and will eventually be removed, "
+        "please use nlmod.read.ahn.download_ahn_at_point() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_ahn_at_point(
+        x, y, buffer, return_da, return_mean, identifier, res, **kwargs
+    )
+
+
+def download_ahn_at_point(
     x: float,
     y: float,
     buffer: float = 0.75,
@@ -125,11 +256,11 @@ def get_ahn_at_point(
         Resturn the mean of all non-nan pixels within buffer. Return the center pixel
         when False. The default is False.
     identifier : str, optional
-        The identifier passed onto get_latest_ahn_from_wcs. The default is "dsm_05m".
+        The identifier passed onto download_latest_ahn_from_wcs. The default is "dsm_05m".
     res : float, optional
-        The resolution that is passed onto get_latest_ahn_from_wcs. The default is 0.5.
+        The resolution that is passed onto download_latest_ahn_from_wcs. The default is 0.5.
     **kwargs : dict
-        kwargs are passed onto the method get_latest_ahn_from_wcs.
+        kwargs are passed onto the method download_latest_ahn_from_wcs.
 
     Returns
     -------
@@ -137,7 +268,7 @@ def get_ahn_at_point(
         The surface level value at the requested point.
     """
     extent = [x - buffer, x + buffer, y - buffer, y + buffer]
-    ahn = get_latest_ahn_from_wcs(extent, identifier=identifier, res=res, **kwargs)
+    ahn = download_latest_ahn_from_wcs(extent, identifier=identifier, res=res, **kwargs)
     if return_da:
         # return a DataArray
         return ahn
@@ -150,6 +281,56 @@ def get_ahn_at_point(
 
 
 def get_ahn_along_line(
+    line: shapely.LineString,
+    ahn: xr.DataArray | None = None,
+    dx: float | None = None,
+    num: int | None = None,
+    method: str = "linear",
+    plot: bool = False,
+) -> xr.DataArray:
+    """Get the height of the surface level along a line.
+
+    .. deprecated:: 0.10.0
+        `get_ahn_along_line` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn_along_line` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    line : shapely.LineString
+        The line along which the surface level is calculated.
+    ahn : xr.DataArray, optional
+        The 2d DataArray containing surface level values. If None, ahn4-values are
+        downloaded from the web. The default is None.
+    dx : float, optional
+        The distance between the points along the line at which the surface level is
+        calculated. Only used when num is None. When dx is None, it is set to the
+        resolution of ahn. The default is None.
+    num : int, optional
+        If not None, the surface level is calculated at num equally spaced points along
+        the line. The default is None.
+    method : string, optional
+        The method to interpolate the 2d surface level values to the points along the
+        line. The default is "linear".
+    plot : bool, optional
+        if True, plot the 2d surface level, the line and the calculated heights. The
+        default is False.
+
+    Returns
+    -------
+    z : xr.DataArray
+        A DataArray with dimension s, containing surface level values along the line.
+    """
+    warnings.warn(
+        "'get_ahn_along_line' is deprecated and will eventually be removed, "
+        "please use nlmod.read.ahn.download_ahn_along_line() in the future.",
+        DeprecationWarning,
+    )
+
+    return download_ahn_along_line(line, ahn, dx, num, method, plot)
+
+
+def download_ahn_along_line(
     line: shapely.LineString,
     ahn: xr.DataArray | None = None,
     dx: float | None = None,
@@ -217,6 +398,65 @@ def get_ahn_along_line(
 
 @cache.cache_netcdf()
 def get_latest_ahn_from_wcs(
+    extent: list[float] = None,
+    identifier: Literal["dsm_05m", "dtm_05m"] = "dsm_05m",
+    res: float | None = None,
+    version: str = "1.0.0",
+    fmt: str = "image/tiff",
+    crs: str = "EPSG:28992",
+    maxsize: int = 2000,
+) -> xr.DataArray:
+    """Get the latest AHN from the wcs service.
+
+    .. deprecated:: 0.10.0
+        `get_latest_ahn_from_wcs` will be removed in nlmod 1.0.0, it is replaced by
+        `download_latest_ahn_from_wcs` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array, optional
+        extent. The default is None.
+    identifier : str, optional
+        Possible values for identifier are:
+            'dsm_05m'
+            'dtm_05m'
+        The default is 'dsm_05m'.
+        the identifier contains resolution and type info:
+        - 'dtm' is only surface level (maaiveld), 'dsm' has other surfaces
+        such as buildings.
+        - 5m or 05m is a resolution of 5x5 or 0.5x0.5 meter.
+    res : float, optional
+        resolution of ahn raster. If None the resolution is inferred from the
+        identifier. The default is None.
+    version : str, optional
+        version of wcs service, options are '1.0.0' and '2.0.1'.
+        The default is '1.0.0'.
+    fmt : str, optional
+        geotif format . The default is 'GEOTIFF_FLOAT32'.
+    crs : str, optional
+        coördinate reference system. The default is 'EPSG:28992'.
+    maxsize : float, optional
+        maximum number of cells in x or y direction. The default is
+        2000.
+
+    Returns
+    -------
+    xr.DataArray
+    """
+    warnings.warn(
+        "'get_latest_ahn_from_wcs' is deprecated and will eventually be removed, "
+        "please use 'nlmod.read.ahn.download_latest_ahn_from_wcs()' in the future.",
+        DeprecationWarning,
+    )
+
+    return download_latest_ahn_from_wcs(
+        extent, identifier, res, version, fmt, crs, maxsize
+    )
+
+
+@cache.cache_netcdf()
+def download_latest_ahn_from_wcs(
     extent: list[float] = None,
     identifier: Literal["dsm_05m", "dtm_05m"] = "dsm_05m",
     res: float | None = None,
@@ -328,7 +568,7 @@ def get_ahn4_tiles(extent: list[float] | None = None) -> gpd.GeoDataFrame:
     return gdf
 
 
-def _get_tiles_ellipsis(
+def _download_tiles_ellipsis(
     extent: list[float] | None = None,
     crs: int = 28992,
     timeout: float = 120.0,
@@ -395,6 +635,42 @@ def get_ahn1(
 ) -> xr.DataArray:
     """Download AHN1.
 
+    .. deprecated:: 0.10.0
+          `get_ahn1` will be removed in nlmod 1.0.0, it is replaced by
+          `download_ahn1` because of new naming convention
+          https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. The only
+        allowed value is 'AHN1 maaiveldmodel (DTM) 5m'. The default is
+        "AHN1 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    warnings.warn(
+        "'get_ahn1' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn1' instead",
+        DeprecationWarning,
+    )
+    return download_ahn1(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn1(
+    extent: list[float],
+    identifier: Literal["AHN1 maaiveldmodel (DTM) 5m"] = "AHN1 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN1.
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -410,8 +686,8 @@ def get_ahn1(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    da = _get_ahn_ellipsis(extent, identifier, **kwargs)
-    if "return_tiles" in kwargs and kwargs["return_tiles"]:
+    da = _download_ahn_ellipsis(extent, identifier, **kwargs)
+    if "merge_tiles" in kwargs and kwargs["merge_tiles"]:
         return da
     # original data is in cm. Convert the data to m, which is the unit of other ahns
     da = da / 100
@@ -420,6 +696,42 @@ def get_ahn1(
 
 @cache.cache_netcdf()
 def get_ahn1_legacy(
+    extent: list[float],
+    identifier: Literal["ahn1_5m"] = "ahn1_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray:
+    """Download AHN1.
+
+    .. deprecated:: 0.10.0
+        `get_ahn1_legacy` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn1_legacy` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. The only
+        allowed value is 'ahn1_5m'. The default is "ahn1_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    warnings.warn(
+        "'get_ahn1_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn1_legacy' instead",
+        DeprecationWarning,
+    )
+    return download_ahn1_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn1_legacy(
     extent: list[float],
     identifier: Literal["ahn1_5m"] = "ahn1_5m",
     as_data_array: bool = True,
@@ -464,6 +776,49 @@ def get_ahn2(
 ) -> xr.DataArray:
     """Download AHN2.
 
+    .. deprecated:: 0.10.0
+        `get_ahn2` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn2` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
+        'AHN2 maaiveldmodel (DTM) ½m', 'AHN2 DSM ½m', and
+        'AHN2 maaiveldmodel (DTM) 5m'. The default is
+        "AHN2 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    warnings.warn(
+        "'get_ahn2' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn2' instead",
+        DeprecationWarning,
+    )
+    return download_ahn2(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn2(
+    extent: list[float],
+    identifier: Literal[
+        "AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd",
+        "AHN2 maaiveldmodel (DTM) ½m",
+        "AHN2 DSM ½m",
+        "AHN2 maaiveldmodel (DTM) 5m",
+    ] = "AHN2 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN2.
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -481,11 +836,50 @@ def get_ahn2(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
 def get_ahn2_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "ahn2_05m_i", "ahn2_05m_n", "ahn2_05m_r", "ahn2_5m"
+    ] = "ahn2_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
+    """Download AHN2.
+
+    .. deprecated:: 0.10.0
+        `get_ahn2_legacy` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn2_legacy` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The default
+        is "ahn2_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    warnings.warn(
+        "'get_ahn2_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn2_legacy' instead",
+        DeprecationWarning,
+    )
+    return download_ahn2_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn2_legacy(
     extent: list[float],
     identifier: Literal[
         "ahn2_05m_i", "ahn2_05m_n", "ahn2_05m_r", "ahn2_5m"
@@ -529,6 +923,48 @@ def get_ahn3(
 ) -> xr.DataArray:
     """Download AHN3.
 
+    .. deprecated:: 0.10.0
+        `get_ahn3` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn3` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN3 maaiveldmodel (DTM) ½m', 'AHN3 DSM ½m',
+        'AHN3 maaiveldmodel (DTM) 5m', and 'AHN3 DSM 5m'. The default is
+        "AHN3 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    warnings.warn(
+        "'get_ahn3' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn3' instead",
+        DeprecationWarning,
+    )
+    return download_ahn3(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn3(
+    extent: list[float],
+    identifier: Literal[
+        "AHN3 maaiveldmodel (DTM) ½m",
+        "AHN3 DSM ½m",
+        "AHN3 maaiveldmodel (DTM) 5m",
+        "AHN3 DSM 5m",
+    ] = "AHN3 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN3.
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -545,11 +981,50 @@ def get_ahn3(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
 def get_ahn3_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "AHN3_05m_DSM", "AHN3_05m_DTM", "AHN3_5m_DSM", "AHN3_5m_DTM"
+    ] = "AHN3_5m_DTM",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
+    """Download AHN3.
+
+    .. deprecated:: 0.10.0
+        `get_ahn3_legacy` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn3_legacy` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and 'AHN3_5m_DTM'. The
+        default is "AHN3_5m_DTM".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    warnings.warn(
+        "'get_ahn3_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn3_legacy' instead",
+        DeprecationWarning,
+    )
+    return download_ahn3_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn3_legacy(
     extent: list[float],
     identifier: Literal[
         "AHN3_05m_DSM", "AHN3_05m_DTM", "AHN3_5m_DSM", "AHN3_5m_DTM"
@@ -592,6 +1067,48 @@ def get_ahn4(
 ) -> xr.DataArray:
     """Download AHN4.
 
+    .. deprecated:: 0.10.0
+        `get_ahn4` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn4` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN4 maaiveldmodel (DTM) ½m', 'AHN4 DSM ½m',
+        'AHN4 maaiveldmodel (DTM) 5m', and 'AHN4 DSM 5m'. The default is
+        "AHN4 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    warnings.warn(
+        "'get_ahn4' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn4' instead",
+        DeprecationWarning,
+    )
+    return download_ahn4(extent, identifier, as_data_array, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn4(
+    extent: list[float],
+    identifier: Literal[
+        "AHN4 maaiveldmodel (DTM) ½m",
+        "AHN4 DSM ½m",
+        "AHN4 maaiveldmodel (DTM) 5m",
+        "AHN4 DSM 5m",
+    ] = "AHN4 maaiveldmodel (DTM) 5m",
+    as_data_array: bool | None = None,
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN4.
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -608,11 +1125,50 @@ def get_ahn4(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 @cache.cache_netcdf()
 def get_ahn4_legacy(
+    extent: list[float],
+    identifier: Literal[
+        "AHN4_DTM_05m", "AHN4_DSM_05m", "AHN4_DTM_5m", "AHN4_DSM_5m"
+    ] = "AHN4_DTM_5m",
+    as_data_array: bool = True,
+) -> xr.DataArray | MemoryFile:
+    """Download AHN4.
+
+    .. deprecated:: 0.10.0
+        `get_ahn4_legacy` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn4_legacy` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' and 'AHN4_DSM_5m'. The
+        default is "AHN4_DTM_5m".
+    as_data_array : bool, optional
+        return the data as as xarray DataArray if true. The default is True.
+
+    Returns
+    -------
+    xr.DataArray or MemoryFile
+        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
+    """
+    warnings.warn(
+        "'get_ahn4_legacy' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn4_legacy' instead",
+        DeprecationWarning,
+    )
+    return download_ahn4_legacy(extent, identifier, as_data_array)
+
+
+@cache.cache_netcdf()
+def download_ahn4_legacy(
     extent: list[float],
     identifier: Literal[
         "AHN4_DTM_05m", "AHN4_DSM_05m", "AHN4_DTM_5m", "AHN4_DSM_5m"
@@ -654,6 +1210,11 @@ def get_ahn5(
 ) -> xr.DataArray:
     """Download AHN5.
 
+    .. deprecated:: 0.10.0
+        `get_ahn5` will be removed in nlmod 1.0.0, it is replaced by
+        `download_ahn5` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -669,11 +1230,47 @@ def get_ahn5(
     xr.DataArray
         DataArray of the AHN
     """
-    return _get_ahn_ellipsis(extent, identifier, **kwargs)
+    warnings.warn(
+        "'get_ahn5' is deprecated and will be removed in a future version. "
+        "Use 'nlmod.read.ahn.download_ahn5' instead",
+        DeprecationWarning,
+    )
+    return download_ahn5(extent, identifier, **kwargs)
+
+
+@cache.cache_netcdf()
+def download_ahn5(
+    extent: list[float],
+    identifier: Literal[
+        "AHN5 maaiveldmodel (DTM) 5m",
+        "AHN5 DSM 5m",
+        "AHN5 maaiveldmodel (DTM) ½m",
+        "AHN5 DSM ½m",
+    ] = "AHN5 maaiveldmodel (DTM) 5m",
+    **kwargs,
+) -> xr.DataArray:
+    """Download AHN5.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    identifier : str, optional
+        The identifier determines the resolution and the type of height data. Possible
+        values are 'AHN5 maaiveldmodel (DTM) 5m', 'AHN5 DSM 5m',
+        'AHN5 maaiveldmodel (DTM) ½m', and 'AHN5 DSM ½m'. The default is
+        "AHN5 maaiveldmodel (DTM) 5m".
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+    """
+    return _download_ahn_ellipsis(extent, identifier, **kwargs)
 
 
 def _update_ellipsis_tiles_in_data() -> None:
-    tiles = _get_tiles_ellipsis()
+    tiles = _download_tiles_ellipsis()
     pathname = os.path.join(NLMOD_DATADIR, "ahn")
     if not os.path.isdir(pathname):
         os.makedirs(pathname)
@@ -682,7 +1279,7 @@ def _update_ellipsis_tiles_in_data() -> None:
 
 
 @cache.cache_netcdf()
-def _get_ahn_ellipsis(
+def _download_ahn_ellipsis(
     extent: list[float], identifier: str, merge_tiles: bool = True, **kwargs
 ) -> xr.DataArray | list[xr.DataArray]:
     """Download and merge AHN tiles from the ellipsis.
@@ -714,7 +1311,7 @@ def _get_ahn_ellipsis(
     das = []
     for tile in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
         url = tiles.at[tile, identifier]
-        if url == "nan":
+        if url == "None":
             continue
         if url.endswith(".zip"):
             path = url.split("/")[-1].replace(".zip", ".TIF")
@@ -723,13 +1320,14 @@ def _get_ahn_ellipsis(
             da = rioxarray.open_rasterio(f"zip+{url}!/{path}", mask_and_scale=True)
         else:
             da = rioxarray.open_rasterio(url, mask_and_scale=True)
+        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)
 
     if len(das) == 0:
         raise (ValueError("No data found within extent"))
 
     if merge_tiles:
-        da = merge_arrays(das, bounds=(extent[0], extent[2], extent[1], extent[3]))
+        da = merge_arrays(das)
         if da.dims[0] == "band":
             da = da[0].drop_vars("band")
         if "_FillValue" in da.attrs:

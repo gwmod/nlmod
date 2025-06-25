@@ -17,7 +17,7 @@ def get_bgt():
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
             os.makedirs(model_ws)
-        bgt = nlmod.read.bgt.get_bgt(extent)
+        bgt = nlmod.read.bgt.download_bgt(extent)
         bgt.to_file(fname)
     return gpd.read_file(fname)
 
@@ -27,7 +27,7 @@ def get_regis():
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
             os.makedirs(model_ws)
-        regis = nlmod.read.regis.get_regis(extent)
+        regis = nlmod.read.regis.download_regis(extent)
         regis.to_netcdf(fname)
     return xr.open_dataset(fname, decode_coords="all")
 

@@ -248,8 +248,41 @@ def to_model_layers(
     return ds
 
 
+def get_geotop(*args, **kwargs):
+    """Get a slice of the geotop netcdf url within the extent, set the x and y
+    coordinates to match the cell centers and keep only the strat and lithok data
+    variables.
+
+    .. deprecated:: 0.10.0
+        `get_geotop` will be removed in nlmod 1.0.0, it is replaced by
+        `download_geotop` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    url : str, optional
+        url of geotop netcdf file. The default is
+        http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
+    probabilities : bool, optional
+        if True, also download probability data. The default is False.
+
+    Returns
+    -------
+    gt : xarray Dataset
+        slices geotop netcdf.
+    """
+    warnings.warn(
+        "this function is deprecated and will eventually be removed, "
+        "please use nlmod.read.geotop.download_geotop() in the future.",
+        DeprecationWarning,
+    )
+    return download_geotop(*args, **kwargs)
+
+
 @cache.cache_netcdf()
-def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
+def download_geotop(extent, url=GEOTOP_URL, probabilities=False):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok data
     variables.
@@ -306,14 +339,6 @@ def get_geotop(extent, url=GEOTOP_URL, probabilities=False):
     # gt.strat.attrs["missing_value"] = -127
 
     return gt
-
-
-def get_geotop_raw_within_extent(extent, url=GEOTOP_URL, drop_probabilities=True):
-    warnings.warn(
-        "This function is deprecated, use the equivalent `get_geotop()`!",
-        DeprecationWarning,
-    )
-    return get_geotop(extent=extent, url=url, probabilities=not drop_probabilities)
 
 
 def add_top_and_botm(ds):

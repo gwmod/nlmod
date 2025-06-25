@@ -9,7 +9,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import PatchCollection
-from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.colors import ListedColormap, Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -776,3 +776,21 @@ def animate_map(
         anim.save(fname, writer=writer)
 
     return f, anim
+
+
+def get_ahn_colormap(name="ahn", N=256):
+    colors = np.array(
+        [
+            [0, 98, 177],  # dark blue
+            [0, 156, 224],  # medium blue
+            [115, 216, 255],  # light blue
+            [128, 137, 0],  # dark green
+            [164, 221, 0],  # light green: center
+            [252, 220, 0],  # yellow
+            [251, 158, 0],  # orange
+            [211, 49, 21],  # light red
+            [159, 5, 0],  # dark red
+        ]
+    )
+    cmap = LinearSegmentedColormap.from_list(name, colors / 255, N=N)
+    return cmap

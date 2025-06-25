@@ -112,14 +112,15 @@ def mip(ds, prt, porosity=None, **kwargs):
     # If both are defined, the attribute value will be used. The log message in this
     # case is not entirely correct. This is something we may need to sort out, and
     # also think about the order we do this search.
-    if isinstance(porosity, str):
-        value = None
-    else:
-        value = porosity
-    porosity = _get_value_from_ds_attr(
-        ds, "porosity", porosity, value=value, warn=False
-    )
-    porosity = _get_value_from_ds_datavar(ds, "porosity", porosity)
+    # if isinstance(porosity, str):
+        # value = None
+    # else:
+        # value = porosity
+    # porosity = _get_value_from_ds_attr(
+    #     ds, "porosity", porosity, value=value, warn=False
+    # )
+    if not isinstance(porosity, float):
+        porosity = _get_value_from_ds_datavar(ds, "porosity", porosity)
     return fp.mf6.ModflowPrtmip(prt, pname="mip", porosity=porosity, **kwargs)
 
 

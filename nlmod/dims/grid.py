@@ -2129,17 +2129,7 @@ def gdf_area_per_index_to_da(
     shape = [len(coords[dim]) for dim in dims]
 
     geometry = gdf.geometry.name
-    if False:
-        if sparse:
-            try:
-                import sparse
-
-                data = sparse.COO(shape=shape, fill_value=0.0)
-            except:
-                logger.warning("sparse not installed. Using a normal numpy array.")
-                data = np.zeros(shape)
-    else:
-        data = np.zeros(shape)
+    data = np.zeros(shape)
     for irow, index in tqdm(
         enumerate(gdf.index), total=gdf.shape[0], desc=desc, disable=silent
     ):
@@ -2155,7 +2145,7 @@ def gdf_area_per_index_to_da(
             from sparse import COO
 
             data = COO.from_numpy(data)
-        except:
+        except ImportError:
             logger.warning("sparse not installed. Using a normal numpy array.")
     area = xr.DataArray(data, dims=dims, coords=coords)
     return area

@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 
 from .. import util
-from ..dims.time import _pd_timestamp_to_cftime, get_perlen
+from ..dims.time import get_perlen
+
 
 logger = logging.getLogger(__name__)
 
@@ -198,8 +199,8 @@ def tdis(ds, sim, pname="tdis", nstp="nstp", tsmult="tsmult", **kwargs):
     return tdis
 
 
-def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
-    """Create IMS package.
+def ims(sim, complexity="MODERATE", pname="ims", model=None, **kwargs):
+    """Create implicit model solution (IMS) package.
 
     Parameters
     ----------
@@ -227,9 +228,31 @@ def ims(sim, complexity="MODERATE", pname="ims", **kwargs):
         complexity=complexity,
         **kwargs,
     )
-
+    if model is not None:
+        register_solution_package(sim, model, ims)
     return ims
+
+
+def ems(sim, pname="ems", model=None, **kwargs):
+    """Create explicit model solution (EMS) package.
+
+    Parameters
+    ----------
+    sim : flopy MFSimulation
+        simulation object.
+    pname : str, optional
+        package name
+
+    """
+    ems = flopy.mf6.ModflowEms(sim, pname=pname, **kwargs)
+    if model is not None:
+        register_solution_package(sim, model, ems)
+    return ems
 
 
 def register_ims_package(sim, model, ims):
     sim.register_ims_package(ims, [model.name])
+
+
+def register_solution_package(sim, model, solver):
+    sim.register_solution_package(solver, [model.name])

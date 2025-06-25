@@ -420,7 +420,7 @@ def pg_from_fdt(nodes, divisions=3):
     return pg
 
 
-def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
+def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5, structured=False):
     """Create a particle group using the ParticleData.
 
     Parameters
@@ -446,6 +446,8 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
         be provided for each partloc. If localz is None, a value of
         0.5 (center of the cell) will be used (default is None). A localz
         value of 1.0 indicates the top of a cell.
+    structured : bool, optional
+        if True, assumes structured model grid.
 
     Returns
     -------
@@ -454,7 +456,7 @@ def pg_from_pd(nodes, localx=0.5, localy=0.5, localz=0.5):
     """
     p = flopy.modpath.ParticleData(
         partlocs=nodes,
-        structured=False,
+        structured=structured,
         localx=localx,
         localy=localy,
         localz=localz,

@@ -190,6 +190,30 @@ def test_get_budget_da_from_file_vertex_with_grb():
     nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc, grb_file=grb_file)
 
 
+def test_get_heads_da_from_file_unstructured_no_grb():
+    fname_hds = "./tests/data/mf6output/unstructured/test.hds"
+    with pytest.warns(UserWarning):
+        nlmod.gwf.output.get_heads_da(fname=fname_hds)
+
+
+def test_get_heads_da_from_file_unstructured_with_grb():
+    fname_hds = "./tests/data/mf6output/unstructured/test.hds"
+    grb_file = "./tests/data/mf6output/unstructured/test.disu.grb"
+    nlmod.gwf.output.get_heads_da(fname=fname_hds, grb_file=grb_file)
+
+
+def test_get_budget_da_from_file_unstructured_no_grb():
+    fname_cbc = "./tests/data/mf6output/unstructured/test.cbc"
+    with pytest.raises(ValueError, match=grberror):
+        nlmod.gwf.output.get_budget_da("CHD", fname=fname_cbc)
+
+
+def test_get_budget_da_from_file_unstructured_with_grb():
+    fname_cbc = "./tests/data/mf6output/unstructured/test.cbc"
+    grb_file = "./tests/data/mf6output/unstructured/test.disu.grb"
+    nlmod.gwf.output.get_budget_da("GHB", fname=fname_cbc, grb_file=grb_file)
+
+
 def test_postprocess_head():
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
     head = nlmod.gwf.get_heads_da(ds)

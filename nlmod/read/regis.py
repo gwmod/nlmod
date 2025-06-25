@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -71,14 +72,14 @@ def get_combined_layer_models(
         if an invalid combination of layers is used.
     """
     if use_regis:
-        regis_ds = get_regis(
+        regis_ds = download_regis(
             extent, regis_botm_layer, remove_nan_layers=remove_nan_layers
         )
     else:
         raise ValueError("layer models without REGIS not supported")
 
     if use_geotop:
-        geotop_ds = geotop.get_geotop(extent)
+        geotop_ds = geotop.download_geotop(extent)
 
     if use_regis and use_geotop:
         combined_ds = add_geotop_to_regis_layers(
@@ -110,6 +111,79 @@ def get_regis(
     rename_layers_to_version_2_2_2=True,
 ):
     """Get a regis dataset projected on the modelgrid.
+
+    .. deprecated:: 0.10.0
+        `get_regis` will be removed in nlmod 1.0.0, it is replaced by
+        `download_regis` because of new naming convention
+        https://github.com/gwmod/nlmod/issues/47
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        desired model extent (xmin, xmax, ymin, ymax)
+    botm_layer : str, optional
+        regis layer that is used as the bottom of the model. This layer is
+        included in the model. the Default is "AKc" which is the bottom
+        layer of regis. call nlmod.read.regis.get_layer_names() to get a list
+        of regis names.
+    variables : tuple or list, optional
+        The variables to keep from the regis Dataset. Possible entries in the list are
+        'top', 'botm', 'kD', 'c', 'kh', 'kv', 'sdh' and 'sdv'. The default is
+        ("top", "botm", "kh", "kv").
+    remove_nan_layers : bool, optional
+        When True, layers that do not occur in the requested extent (layers that contain
+        only NaN values for the botm array) are removed. The default is True.
+    drop_layer_dim_from_top : bool, optional
+        When True, fill NaN values in top and botm and drop the layer dimension from
+        top. This will transform top and botm to the data model in MODFLOW. An advantage
+        of this data model is that the layer model is consistent by definition, with no
+        possibilities of gaps between layers. The default is True.
+    probabilities : bool, optional
+        if True, also download probability data. The default is False.
+    nodata : int or float, optional
+        When nodata is not None, set values equal to nodata to nan. The default is
+        -9999.
+    rename_layers_to_version_2_2_2 : bool, toptional
+        From version 2.2.3 of regis, the names of stratigraphic layers change, compared
+        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names are
+        renamed back to their original names. The default is True.
+
+    Returns
+    -------
+    regis_ds : xarray dataset
+        dataset with regis data projected on the modelgrid.
+    """
+
+    warnings.warn(
+        "'get_regis' is deprecated and will eventually be removed, "
+        "please use 'nlmod.read.regis.download_regis()' in the future.",
+        DeprecationWarning,
+    )
+
+    return download_regis(
+        extent,
+        botm_layer,
+        variables,
+        remove_nan_layers,
+        drop_layer_dim_from_top,
+        probabilities,
+        nodata,
+        rename_layers_to_version_2_2_2,
+    )
+
+
+@cache.cache_netcdf()
+def download_regis(
+    extent,
+    botm_layer="AKc",
+    variables=("top", "botm", "kh", "kv"),
+    remove_nan_layers=True,
+    drop_layer_dim_from_top=True,
+    probabilities=False,
+    nodata=-9999,
+    rename_layers_to_version_2_2_2=True,
+):
+    """Download a regis dataset within an extent.
 
     Parameters
     ----------

@@ -565,3 +565,24 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
         raise (HTTPError(f"Download failed: {root[0].text}"))
     memfile = MemoryFile(output.read())
     return memfile
+
+
+def get_temporary_certificate(cert_url):
+    import tempfile
+
+    import certifi
+
+    # Download intermediate certificate
+    logger.debug(f"Downloading intermediate certificate from {cert_url}")
+    intermediate_pem = requests.get(cert_url, timeout=120).content
+
+    # Combine certifi + intermediate into a temp file
+    logger.debug("Combining certifi bundle with intermediate certificate")
+    with tempfile.NamedTemporaryFile(mode="wb", delete=False) as temp_bundle:
+        with open(certifi.where(), "rb") as certifi_bundle:
+            temp_bundle.write(certifi_bundle.read())
+        temp_bundle.write(b"\n")
+        temp_bundle.write(intermediate_pem)
+        temp_path = temp_bundle.name
+    logger.debug(f"Temporary certificate bundle created at: {temp_path}")
+    return temp_path

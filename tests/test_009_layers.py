@@ -17,7 +17,7 @@ def get_regis_horstermeer(cachedir=None, cachename="regis_horstermeer"):
         cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
-    regis = nlmod.read.get_regis(extent, cachedir=cachedir, cachename=cachename)
+    regis = nlmod.read.download_regis(extent, cachedir=cachedir, cachename=cachename)
     return regis
 
 

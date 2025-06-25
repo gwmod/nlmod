@@ -130,7 +130,7 @@ def dsp(ds, gwt, **kwargs):
     """
     logger.info("creating mf6 DSP")
     diffc = _get_value_from_ds_attr(
-        ds, "diffc", "dsp_diffc", value=kwargs.pop("diffc", None)
+        ds, "diffc", "dsp_diffc", value=kwargs.pop("diffc", None), warn=False
     )
     alh = _get_value_from_ds_attr(ds, "alh", "dsp_alh", value=kwargs.pop("alh", None))
     ath1 = _get_value_from_ds_attr(

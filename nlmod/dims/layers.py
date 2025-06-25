@@ -1561,8 +1561,12 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
         layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
 
     # set layer to nodata where z is above top
-    assert "layer" not in ds["top"].dims
-    layer = xr.where(ds["top"] > z, layer, above_model)
+    if "layer" not in ds["top"].dims:
+        layer = xr.where((layer == below_model) & (ds["top"] > z), above_model, layer)
+    else:
+        layer = xr.where(
+            (layer == below_model) & (ds["top"].isel(layer=0) > z), above_model, layer
+        )
 
     # set nodata attribute
     layer.attrs["above_model"] = above_model

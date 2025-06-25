@@ -2261,7 +2261,7 @@ def mask_model_edge(ds, idomain=None):
     elif ds.gridtype == "vertex":
         polygons_grid = polygons_from_ds(ds)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
-        extent_edge = get_extent_polygon(ds).exterior
+        extent_edge = gdf_grid.union_all().exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
         ds_out["edge_mask"] = util.get_da_from_da_ds(
             ds, dims=("layer", "icell2d"), data=0

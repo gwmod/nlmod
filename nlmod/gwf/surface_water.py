@@ -1218,7 +1218,7 @@ def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot, aux=None):
     cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
     riv_data = []
     for cid in cellids:
-        if len(cid) == 2:
+        if isinstance(cid, (list, tuple)) and len(cid) == 2:
             idata = [(layer, cid[0], cid[1]), stage, cond, rbot]
             if aux is not None:
                 idata.append(aux)

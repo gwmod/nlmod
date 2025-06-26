@@ -62,7 +62,7 @@ def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
 
 def xy_to_nodes(xy_list, mpf, ds, layer=0, rotated=True):
     """Convert a list of points, defined by x and y coordinates, to a list of nodes.
-    
+
     A node is a unique cell in a model. The icell2d is a unique cell in a layer.
 
     Parameters
@@ -508,7 +508,7 @@ def sim(
         if direction == "backward":
             ref_time = (
                 gwf.simulation.tdis.nper.array - 1,  # stress period
-                gwf.simulation.tdis.data_list[-1].array[-1][1] - 1,  # timestep
+                int(gwf.simulation.tdis.data_list[-1].array[-1][1] - 1),  # timestep
                 1.0,
             )
         elif direction == "forward":

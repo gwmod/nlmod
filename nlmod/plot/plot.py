@@ -779,6 +779,31 @@ def animate_map(
 
 
 def get_ahn_colormap(name="ahn", N=256):
+    """
+    Create a custom AHN colormap for elevation or similar data visualization.
+
+    This colormap is designed to represent elevation or topographic data,
+    transitioning from dark blue (lowest values) through greens and yellows
+    to dark red (highest values). The color values are copied from
+    https://viewer.ahn.nl/AHN5/DTM/1/6.5465/52.26738/3
+
+    Parameters
+    ----------
+    name : str, default "ahn"
+        Name of the colormap.
+    N : int, default 256
+        Number of discrete color levels in the colormap.
+
+    Returns
+    -------
+    matplotlib.colors.LinearSegmentedColormap
+        A custom colormap interpolated over the defined AHN color scheme.
+
+    Notes
+    -----
+    The color progression is as follows:
+    dark blue → medium blue → light blue → dark green → light green → yellow → orange → light red → dark red
+    """
     colors = np.array(
         [
             [0, 98, 177],  # dark blue

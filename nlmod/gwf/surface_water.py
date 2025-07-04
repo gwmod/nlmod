@@ -591,7 +591,7 @@ def download_level_areas(
     for wb in wbs:
         logger.info(f"Downloading {data_kind} for {wb}")
         try:
-            lawb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            lawb = waterboard.download_data(wb, data_kind, extent, **kwargs)
             if len(lawb) == 0:
                 logger.info(f"No {data_kind} for {wb} found within model area")
                 continue
@@ -658,7 +658,7 @@ def download_watercourses(
     for wb in wbs:
         logger.info(f"Downloading {data_kind} for {wb}")
         try:
-            wcwb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            wcwb = waterboard.download_data(wb, data_kind, extent, **kwargs)
             if len(wcwb) == 0:
                 logger.info(f"No {data_kind} for {wb} found within model area")
                 continue

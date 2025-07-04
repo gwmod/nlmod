@@ -78,6 +78,7 @@ rtd = [
     "nbconvert==7.13.0",
     "netCDF4<1.7.0",
     "numpy==1.26.4",
+    "openpyxl",
 ]
 
 [tool.setuptools.dynamic]

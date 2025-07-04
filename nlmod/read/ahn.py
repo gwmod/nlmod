@@ -30,7 +30,10 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_netcdf(coords_2d=True)
 def download_ahn(
-    extent: list[float], identifier: str = "AHN4_5M_M", merge_tiles=True, **kwargs
+    extent: list[float],
+    identifier: str = "AHN4 maaiveldmodel (DTM) 5m",
+    merge_tiles=True,
+    **kwargs,
 ) -> xr.DataArray:
     """Download ahn data within an extent.
 
@@ -39,15 +42,25 @@ def download_ahn(
     extent : list, tuple or np.array
         extent xmin, xmax, ymin, ymax.
     identifier : str, optional
-        Possible values for the different AHN-versions are (casing is important):
-            AHN1: 'AHN1_5M'
-            AHN2: 'AHN2_05M_I', 'AHN2_05M_N', 'AHN2_05M_R' or 'AHN2_5M_M'
-            AHN3: 'AHN3_05M_M', 'AHN3_05M_R', 'AHN3_5M_M' or 'AHN3_5M_R'
-            AHN4: 'AHN4_05M_M', 'AHN4_05M_R', 'AHN4_5M_M' or 'AHN4_5M_R'
-            AHN5: 'AHN5_5M_M', 'AHN5_5M_R', 'AHN5_05M_M' or 'AHN5_05M_R'
-        The identifier determines the resolution (05M for 0.5 m and 5M for 5 m) and the
-        type of height data (M = DTM = surface level, R = DSM = also other features).
-        The default is 'AHN4_5M_M'.
+        The identifier determines the AHN-version, the resolution and the type of height
+        data. Possible values are (casing is important):
+            AHN1: 'AHN1 maaiveldmodel (DTM) 5m'
+            AHN2: 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
+                  'AHN2 maaiveldmodel (DTM) ½m',
+                  'AHN2 DSM ½m',
+                  'AHN2 maaiveldmodel (DTM) 5m'
+            AHN3: 'AHN3 maaiveldmodel (DTM) ½m',
+                  'AHN3 DSM ½m',
+                  'AHN3 maaiveldmodel (DTM) 5m',
+                  'AHN3 DSM 5m'
+            AHN4: 'AHN4 maaiveldmodel (DTM) ½m',
+                  'AHN4 DSM ½m',
+                  'AHN4 maaiveldmodel (DTM) 5m',
+                  'AHN4 DSM 5m'
+            AHN5: 'AHN5 maaiveldmodel (DTM) 5m',
+                  'AHN5 DSM 5m',
+                  'AHN5 maaiveldmodel (DTM) ½m',
+                  'AHN5 DSM ½m'
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
@@ -138,8 +151,6 @@ def get_ahn(
                   'AHN5 DSM 5m',
                   'AHN5 maaiveldmodel (DTM) ½m',
                   'AHN5 DSM ½m'
-        The identifier determines the resolution (½m for 0.5 m and 5m for 5 m) and the
-        type of height data (M = DTM = surface level, R = DSM = also other features).
         The default is 'AHN4 maaiveldmodel (DTM) 5m'.
     method : str, optional
         Method used to resample ahn to grid of ds. See documentation of

@@ -2044,7 +2044,7 @@ def gdf_to_grid(
     return gdfg
 
 
-def gdf_area_per_index_to_da(
+def gdf_area_to_da(
     gdf,
     ds,
     ix=None,

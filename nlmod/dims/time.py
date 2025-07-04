@@ -740,7 +740,7 @@ def dataframe_to_flopy_timeseries(
     time_series_namerecord=None,
     interpolation_methodrecord="stepwise",
     append=False,
-    move_index_from_end_to_start=False,
+    shift_label_from_right_to_left=False,
 ):
     """
     Convert a pandas DataFrame to a FloPy time series.
@@ -770,7 +770,7 @@ def dataframe_to_flopy_timeseries(
     append : bool, default False
         If True, the time series will be appended to an existing time series package.
         Otherwise, a new package will be initialized.
-    move_index_from_end_to_start : bool, default False
+    shift_label_from_right_to_left : bool, default False
         If True, sets the index of df from the end of the timestep to the start of the
         timestep (which is required if interpolation_methodrecord="stepwise"). The
         default is False.
@@ -792,7 +792,7 @@ def dataframe_to_flopy_timeseries(
         ds.time.dtype.kind == "M"
     ), "get recharge requires a datetime64[ns] time index"
 
-    if move_index_from_end_to_start and ds is not None:
+    if shift_label_from_right_to_left and ds is not None:
         df.loc[pd.to_datetime(ds.time.start)] = None
         df = df.sort_index().shift(-1).ffill()
 

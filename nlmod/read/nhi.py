@@ -124,7 +124,7 @@ def add_buisdrainage(
 
     warnings.warn(
         "'add_buisdrainage' is deprecated and will be removed in a future version. "
-        "Use 'ds.update(nlmod.read.hni.discretize_buisdrainage(ds))' to project the "
+        "Use 'ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))' to project the "
         "buisdrainage on the model grid",
         DeprecationWarning,
     )

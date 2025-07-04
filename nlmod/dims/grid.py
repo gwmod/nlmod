@@ -713,9 +713,8 @@ def refine(
         modelgrid = modelgrid_from_ds(ds, rotated=False, nlay=1)
         g = Gridgen(modelgrid, model_ws=model_ws, exe_name=exe_name)
 
-    ds_has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if model_coordinates:
-        if not ds_has_rotation:
+        if not is_rotated(ds):
             msg = "The supplied shapes need to be in realworld coordinates"
             raise ValueError(msg)
 
@@ -724,14 +723,14 @@ def refine(
             if len(refinement_feature) == 3:
                 # the feature is a file or a list of geometries
                 fname, geom_type, level = refinement_feature
-                if not model_coordinates and ds_has_rotation:
+                if not model_coordinates and is_rotated(ds):
                     msg = "Converting files to model coordinates not supported"
                     raise NotImplementedError(msg)
                 g.add_refinement_features(fname, geom_type, level, layers=[0])
             elif len(refinement_feature) == 2:
                 # the feature is a geodataframe
                 gdf, level = refinement_feature
-                if not model_coordinates and ds_has_rotation:
+                if not model_coordinates and is_rotated(ds):
                     affine = get_affine_world_to_mod(ds)
                     gdf = affine_transform_gdf(gdf, affine)
                 geom_types = gdf.geom_type.str.replace("Multi", "")
@@ -820,8 +819,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
             ds_out[not_interp_var] = structured_da_to_ds(
                 da=ds_in[not_interp_var], ds=ds_out, method=method, nodata=np.nan
             )
-    has_rotation = "angrot" in ds_out.attrs and ds_out.attrs["angrot"] != 0.0
-    if has_rotation:
+    if is_rotated(ds_out):
         affine = get_affine_mod_to_world(ds_out)
         ds_out["xc"], ds_out["yc"] = affine * (ds_out.x, ds_out.y)
 
@@ -909,9 +907,8 @@ def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
         if len(drop_vars) > 0:
             ds = ds.drop_vars(drop_vars)
         ds = ds.assign_coords({"layer": layer_ds.layer})
-    has_rotation = "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
     if method in ["nearest", "linear"]:
-        if has_rotation:
+        if is_rotated(ds):
             x = ds.xc
             y = ds.yc
         else:
@@ -1886,7 +1883,7 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     da : xr.DataArray
         1 if polygon is in cell, 0 otherwise. Grid dimensions according to ds.
     """
-    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+    if is_rotated(ds):
         # transform gdf into model coordinates
         affine = get_affine_world_to_mod(ds)
         gdf = affine_transform_gdf(gdf, affine)
@@ -2008,7 +2005,7 @@ def gdf_to_grid(
         if isinstance(ml, xr.Dataset):
             ds = ml
             modelgrid = modelgrid_from_ds(ds, rotated=False)
-            if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+            if is_rotated(ds):
                 # transform gdf into model coordinates
                 affine = get_affine_world_to_mod(ds)
                 gdf = affine_transform_gdf(gdf, affine)
@@ -2045,6 +2042,113 @@ def gdf_to_grid(
     gdfg = gpd.GeoDataFrame(shps, columns=columns, geometry=geometry, crs=gdf.crs)
     gdfg.index.name = gdf.index.name
     return gdfg
+
+
+def gdf_area_to_da(
+    gdf,
+    ds,
+    ix=None,
+    index_name=None,
+    desc="Intersecting with grid",
+    silent=False,
+    sparse=True,
+    **kwargs,
+):
+    """
+    Calculate the area of overlap between polygons in a GeoDataFrame and a model grid.
+
+    This function computes the area of each geometry in `gdf` that falls within
+    each model grid cell defined in the xarray `ds` Dataset. The result is returned
+    as an xarray DataArray, with dimensions based on the model grid and the index
+    of the input GeoDataFrame.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        GeoDataFrame containing polygon geometries to be intersected with the model
+        grid.
+    ds : xr.Dataset
+        The xarray dataset that defines the grid. When the grid is rotated, the
+        geodataframe is transformed in model coordinates.
+    ix : flopy.utils.GridIntersect, optional
+        GridIntersect, if not provided the modelgrid is determined from ds. The default
+        is None.
+    index_name : str, optional
+        Name to use for the index dimension of the resulting DataArray. If None,
+        uses the name of `gdf.index`, or defaults to 'index'.
+    desc : string, optional
+        The description of the progressbar. The default is 'Intersecting with grid'.
+    silent : bool, optional
+        Do not show a progressbar when silent is True. The default is False.
+    sparse : bool, default True
+        If True, attempts to return a sparse array. Falls back to dense if `sparse`
+        is not available.
+    **kwargs : dict
+        Additional keyword arguments passed to `ix.intersect`.
+
+    Returns
+    -------
+    xarray.DataArray
+        A DataArray with shape (y, x, index) for structured grids or (icell2d, index)
+        for unstructured grids. Each value represents the area of a given geometry
+        within a specific grid cell.
+
+    Notes
+    -----
+    - Uses `flopy.utils.GridIntersect` under the hood for spatial intersection.
+    - For rotated grids, geometries are transformed into model space using an affine transformation.
+    - If the `sparse` package is installed and `sparse=True`, a `sparse.COO` array is returned.
+    - Suitable for use in spatial weighting or disaggregation tasks.
+
+    Raises
+    ------
+    ImportWarning
+        If `sparse=True` but the `sparse` library is not installed, a warning is issued
+        and a dense array is used instead.
+
+    """
+    modelgrid = modelgrid_from_ds(ds, rotated=False)
+    if is_rotated(ds):
+        # transform gdf into model coordinates
+        affine = get_affine_world_to_mod(ds)
+        gdf = affine_transform_gdf(gdf, affine)
+    if ix is None:
+        ix = flopy.utils.GridIntersect(modelgrid, method="vertex")
+
+    if index_name is None:
+        index_name = gdf.index.name
+        if index_name is None:
+            index_name = "index"
+    structured = is_structured(ds)
+    if structured:
+        dims = ["y", "x", index_name]
+    else:
+        dims = ["icell2d", index_name]
+    coords = {key: ds.coords[key] for key in dims[:-1]}
+    coords[index_name] = gdf.index
+    shape = [len(coords[dim]) for dim in dims]
+
+    geometry = gdf.geometry.name
+    data = np.zeros(shape)
+    for irow, index in tqdm(
+        enumerate(gdf.index), total=gdf.shape[0], desc=desc, disable=silent
+    ):
+        r = ix.intersect(gdf.at[index, geometry], **kwargs)
+        if structured:
+            for i in range(r.shape[0]):
+                data[r["cellids"][i] + (irow,)] += r["areas"][i]
+        else:
+            data[list(r["cellids"]), irow] = r["areas"]
+
+    if sparse:
+        try:
+            from sparse import COO
+
+            data = COO.from_numpy(data)
+        except ImportError:
+            logger.warning("sparse not installed. Using a normal numpy array.")
+    area = xr.DataArray(data, dims=dims, coords=coords)
+    return area
 
 
 def get_thickness_from_topbot(top, bot):
@@ -2235,7 +2339,7 @@ def mask_model_edge(ds, idomain=None):
     ds = ds.copy()  # avoid side effects
 
     # add constant head cells at model boundaries
-    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+    if is_rotated(ds):
         raise NotImplementedError("model edge not yet calculated for rotated grids")
 
     # get mask with grid edges
@@ -2319,7 +2423,7 @@ def polygons_from_ds(ds):
         raise ValueError(
             f"gridtype must be 'structured' or 'vertex', not {ds.gridtype}"
         )
-    if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
+    if is_rotated(ds):
         # rotate the model coordinates to real coordinates
         affine = get_affine_mod_to_world(ds).to_shapely()
         polygons = [affine_transform(polygon, affine) for polygon in polygons]

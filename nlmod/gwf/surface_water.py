@@ -901,6 +901,7 @@ def gdf_to_seasonal_pkg(
     silent=False,
     start_summer=None,
     start_winter=None,
+    season_filename="season.ts",
     **kwargs,
 ):
     """Add a surface water package to a groundwater-model, based on input from a
@@ -950,6 +951,9 @@ def gdf_to_seasonal_pkg(
         A string with the month and day of the start of winter (one-based), seperated by
         '-'. For example '10-1' for october 1st. When start_winter is None it is
         calculated from the parameter 'summer_months'. The default is None.
+    season_filename : str, optional
+        A string with the name of the file containing the timeseries of the seasons. The
+        default is 'season.ts'.
     **kwargs : dict
         Kwargs are passed onto ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb.
 
@@ -1057,6 +1061,7 @@ def gdf_to_seasonal_pkg(
         summer_name="summer",
         start_summer=start_summer,
         start_winter=start_winter,
+        filename=season_filename,
     )
     return package
 

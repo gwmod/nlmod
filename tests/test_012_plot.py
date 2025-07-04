@@ -1,3 +1,4 @@
+import matplotlib
 import util
 
 import nlmod
@@ -59,3 +60,8 @@ def test_flopy_facet_plot():
     ds = util.get_ds_structured()
     gwf = util.get_gwf(ds)
     nlmod.plot.flopy.facet_plot(gwf, ds["kh"])
+
+
+def test_get_ahn_colormap():
+    cmap = nlmod.plot.get_ahn_colormap()
+    assert isinstance(cmap, matplotlib.colors.Colormap)

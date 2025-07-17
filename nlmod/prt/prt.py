@@ -4,7 +4,7 @@ from pathlib import Path
 import flopy as fp
 
 from ..gwf.gwf import _dis, _disv, _set_record
-from ..util import _get_value_from_ds_attr, _get_value_from_ds_datavar
+from ..util import _get_value_from_ds_datavar
 
 logger = logging.getLogger(__name__)
 
@@ -113,9 +113,9 @@ def mip(ds, prt, porosity=None, **kwargs):
     # case is not entirely correct. This is something we may need to sort out, and
     # also think about the order we do this search.
     # if isinstance(porosity, str):
-        # value = None
+    # value = None
     # else:
-        # value = porosity
+    # value = porosity
     # porosity = _get_value_from_ds_attr(
     #     ds, "porosity", porosity, value=value, warn=False
     # )

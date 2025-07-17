@@ -8,7 +8,7 @@ import pandas as pd
 from hydropandas.io import knmi as hpd_knmi
 
 from .. import cache, util
-from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex, get_extent, get_delr, get_delc
+from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex
 from ..dims.layers import get_first_active_layer
 from ..dims.base import get_ds
 from ..dims.shared import get_area
@@ -61,10 +61,9 @@ def get_recharge(ds, oc_knmi=None, method="linear", most_common_station=False):
         start = pd.Timestamp(ds.time.attrs["start"])
         end = pd.Timestamp(ds.time.data[-1])
 
-        oc_knmi = download_knmi(ds,
-                                start=start,
-                                end=end,
-                                most_common_station=most_common_station)
+        oc_knmi = download_knmi(
+            ds, start=start, end=end, most_common_station=most_common_station
+        )
 
     return discretize_knmi(
         ds, oc_knmi, method=method, most_common_station=most_common_station
@@ -296,13 +295,15 @@ def _get_locations_structured(ds):
 
 
 @cache.cache_pickle
-def download_knmi(ds=None,
-                  extent=None,
-                  delr=None,
-                  delc=None,
-                  start=None,
-                  end=None,
-                  most_common_station=False):
+def download_knmi(
+    ds=None,
+    extent=None,
+    delr=None,
+    delc=None,
+    start=None,
+    end=None,
+    most_common_station=False,
+):
     """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
     cells.
 
@@ -324,7 +325,7 @@ def download_knmi(ds=None,
         hpd.ObsCollection
     """
     if ds is None:
-        ds = get_ds(extent,delr=delr,delc=delc)
+        ds = get_ds(extent, delr=delr, delc=delc)
 
     locations = get_locations(ds, most_common_station=most_common_station)
     oc_knmi = _download_knmi_at_locations(locations, start=start, end=end)
@@ -369,8 +370,8 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
     if end is None:
         end = pd.Timestamp(ds.time.data[-1])
 
-    return download_knmi(ds=ds,
-        start=start, end=end, most_common_station=most_common_station
+    return download_knmi(
+        ds=ds, start=start, end=end, most_common_station=most_common_station
     )
 
 
@@ -428,8 +429,8 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
             locations["stn_ev24"] = locations["stn_ev24"].value_counts().idxmax()
         else:
             # set the station with the largest area to all locations
-            if 'area' not in ds:
-                ds['area'] = get_area(ds)
+            if "area" not in ds:
+                ds["area"] = get_area(ds)
             locations["area"] = ds["area"].loc[locations.index]
             locations["stn_rd"] = locations.groupby("stn_rd").sum()["area"].idxmax()
             locations["stn_ev24"] = locations.groupby("stn_ev24").sum()["area"].idxmax()

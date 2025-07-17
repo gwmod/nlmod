@@ -46,7 +46,7 @@ from .shared import (
     is_rotated,
     is_structured,
     is_vertex,
-)
+)  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

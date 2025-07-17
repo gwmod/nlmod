@@ -111,9 +111,9 @@ def get_bathymetry(
     """
     if ds is None:
         warnings.warn(
-            "calling 'get_bathymetry' with ds=None is deprecated and will raise an error "
-            "in the future. Use 'nlmod.read.jarkus.download_bathymetry' to get the bathymetry data within an "
-            "extent",
+            "calling 'get_bathymetry' with ds=None is deprecated and will raise an  "
+            "error in the future. Use 'nlmod.read.jarkus.download_bathymetry' to get "
+            "the bathymetry data within an extent",
             DeprecationWarning,
         )
 
@@ -143,7 +143,13 @@ def get_bathymetry(
         )
         return xr.Dataset({da_name: da_bathymetry_filled})
     else:
-        ds_out = discretize_bathymetry(ds, bathymetry_da=bathymetry_da)
+        ds_out = discretize_bathymetry(
+            ds,
+            bathymetry_da=bathymetry_da,
+            da_name=da_name,
+            datavar_sea=datavar_sea,
+            method=method,
+        )
 
     return ds_out
 

@@ -22,13 +22,9 @@ base_url = "https://api.dataplatform.knmi.nl/open-data/v1"
 class KNMIDataPlatformError(Exception):
     """Custom exception for KNMI Data Platform errors."""
 
-    pass
-
 
 class MultipleDatasetsFound(Exception):
     """Custom exception for multiple datasets found in a file."""
-
-    pass
 
 
 def get_anonymous_api_key() -> Union[str, None]:

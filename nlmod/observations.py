@@ -170,6 +170,12 @@ def interpolate_to_points(
         get an xarray dataset with model layers from a dataframe containing location
         information for observation wells, useful as input for this function.
     """
+    if grid.is_structured(da):
+        input_dims = [y, x]
+    elif grid.is_vertex(da):
+        input_dims = ["icell2d"]
+    else:
+        raise ValueError("da must be structured or vertex grid")
     if np.isin(["vertices", "weights"], pts.data_vars).all():
         # no need to recompute vertices and weights
         interp_da = pts.copy()
@@ -184,12 +190,9 @@ def interpolate_to_points(
             xy = np.vstack(
                 [arr.ravel() for arr in np.meshgrid(da[x].values, da[y].values)]
             ).T
-            input_dims = [y, x]
-        elif grid.is_vertex(da):
-            xy = np.vstack([da[x].values, da[y].values]).T
-            input_dims = ["icell2d"]
         else:
-            raise ValueError("da must be structured or vertex grid")
+            # only other allowed gridtype at the start of this method is vertex
+            xy = np.vstack([da[x].values, da[y].values]).T
         vertices, weights = _compute_interpolation_weights(xy, xyi, d=2)
         dim = xi.dims[0]
         interp_da["vertices"] = (dim, "iv"), vertices

@@ -285,7 +285,7 @@ def get_node_structured(lay, row, col, shape):
     col : int
         column number.
     shape : tuple
-        shape of the model grid.
+        shape of the model grid (nlay, nrow, ncol).
 
     Returns
     -------
@@ -304,6 +304,8 @@ def get_node_vertex(lay, icell2d, shape):
         layer number.
     icell2d : int
         icell2d number
+    shape : tuple
+        shape of the model grid (nlay, ncpl).
 
     Returns
     -------

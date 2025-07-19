@@ -616,7 +616,7 @@ def get_perlen(ds):
 
 
 def get_time_step_length(perlen, nstp, tsmult):
-    """Get the length of the timesteps within a singe stress-period.
+    """Get the length of the timesteps within a single stress-period.
 
     Parameters
     ----------

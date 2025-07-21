@@ -10,7 +10,7 @@ Note: if you like jazz please check this out: https://www.northseajazz.com
 
 import datetime as dt
 import logging
-import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -26,18 +26,76 @@ logger = logging.getLogger(__name__)
 
 
 @cache.cache_netcdf()
-def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
+def download_bathymetry(extent, kind="jarkus"):
+    """Download bathymetry data from the jarkus dataset.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent xmin, xmax, ymin, ymax.
+    kind : str, optional
+        The kind of data. Can be "jarkus", "kusthoogte" or "vaklodingen". The default is
+        "jarkus".
+
+    Returns
+    -------
+    da_bathymetry : xarray.DataArray
+        bathymetry data
+    """
+
+    # try to get bathymetry via opendap
+    jarkus_ds = get_dataset_jarkus(extent=extent, kind=kind)
+
+    # disable try/except because because it only works for specific areas
+    # try:
+    #     jarkus_ds = get_dataset_jarkus(extent=extent, kind=kind)
+    # except OSError:
+    #     import gdown
+
+    #     logger.warning(
+    #         "cannot access Jarkus netCDF link, copy file from google drive instead"
+    #     )
+    #     fname_jarkus = os.path.join(ds.model_ws, "jarkus_nhflopy.nc")
+    #     url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
+    #     gdown.download(url, fname_jarkus, quiet=False)
+    #     jarkus_ds = xr.open_dataset(fname_jarkus)
+
+    da_bathymetry = jarkus_ds["z"]
+
+    da_bathymetry.attrs["source"] = kind
+    da_bathymetry.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
+    da_bathymetry.attrs["units"] = "mNAP"
+
+    return da_bathymetry
+
+
+@cache.cache_netcdf()
+def get_bathymetry(
+    ds=None,
+    extent=None,
+    da_name="bathymetry",
+    datavar_sea="northsea",
+    kind="jarkus",
+    method="average",
+):
     """Get bathymetry of the Northsea from the jarkus dataset.
 
     Parameters
     ----------
     ds : xarray.Dataset
-        dataset with model data where bathymetry is added to
-    northsea : ??
-        ??
+        dataset with model data where bathymetry is added to. Using ds=None is
+        deprecated, instead use nlmod.read.jarkus.download_bathymetry().
+    extent : list, tuple or np.array, optional
+        extent xmin, xmax, ymin, ymax. Only used if ds is None. The default is None.
+    da_name : str, optional
+        name of the datavar that is used to store the bathymetry data. The default is
+        'bathymetry'.
+    datavar_sea : str, optional
+        datavariable in the dataset that is used to identify cells with sea in them.
+        The default is 'northsea'.
     method : str, optional
-        Method used to resample ahn to grid of ds. See the documentation of
-        nlmod.resample.structured_da_to_ds for possible values. The default is
+        Method used to resample bathymetry data to the modelgrid. See the documentation
+        of nlmod.resample.structured_da_to_ds for possible values. The default is
         'average'.
 
     Returns
@@ -51,31 +109,88 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
-    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+    if ds is None:
+        warnings.warn(
+            "calling 'get_bathymetry' with ds=None is deprecated and will raise an  "
+            "error in the future. Use 'nlmod.read.jarkus.download_bathymetry' to get "
+            "the bathymetry data within an extent",
+            DeprecationWarning,
+        )
 
-    # no bathymetry if we don't have northsea
-    if (northsea == 0).all():
-        ds_out["bathymetry"] = get_da_from_da_ds(northsea, northsea.dims, data=np.nan)
-        return ds_out
+    if extent is None and ds is not None:
+        extent = get_extent(ds)
+
+    if ds is not None:
+        ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+
+        # no bathymetry if we don't have sea
+        sea = ds[datavar_sea]
+        if (sea == 0).all():
+            ds_out[da_name] = get_da_from_da_ds(sea, sea.dims, data=np.nan)
+            return ds_out
 
     # try to get bathymetry via opendap
-    try:
-        jarkus_ds = get_dataset_jarkus(get_extent(ds), kind=kind)
-    except OSError:
-        import gdown
+    bathymetry_da = download_bathymetry(extent=extent, kind=kind)
 
-        logger.warning(
-            "cannot access Jarkus netCDF link, copy file from google drive instead"
+    # bathymetry projected on model grid
+    if ds is None:
+        # fill nan values in bathymetry
+        da_bathymetry_filled = fillnan_da(bathymetry_da)
+
+        # bathymetry can never be larger than NAP 0.0
+        da_bathymetry_filled = xr.where(
+            da_bathymetry_filled > 0, 0, da_bathymetry_filled
         )
-        fname_jarkus = os.path.join(ds.model_ws, "jarkus_nhflopy.nc")
-        url = "https://drive.google.com/uc?id=1uNy4THL3FmNFrTDTfizDAl0lxOH-yCEo"
-        gdown.download(url, fname_jarkus, quiet=False)
-        jarkus_ds = xr.open_dataset(fname_jarkus)
+        return xr.Dataset({da_name: da_bathymetry_filled})
+    else:
+        ds_out = discretize_bathymetry(
+            ds,
+            bathymetry_da=bathymetry_da,
+            da_name=da_name,
+            datavar_sea=datavar_sea,
+            method=method,
+        )
 
-    da_bathymetry_raw = jarkus_ds["z"]
+    return ds_out
+
+
+@cache.cache_netcdf()
+def discretize_bathymetry(
+    ds, bathymetry_da, da_name="bathymetry", datavar_sea="northsea", method="average"
+):
+    """Discretize bathymetry data to model the model grid.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data where bathymetry is added to.
+    bathymetry_da : xarray.DataArray
+        bathymetry data
+    da_name : str, optional
+        name of the datavar that is used to store the bathymetry data. The default is
+        'bathymetry'.
+    datavar_sea : str, optional
+        datavariable in the dataset that is used to identify cells with sea in them.
+        The default is 'northsea'.
+    method : str, optional
+        Method used to resample bathymetry data to the modelgrid. See the documentation
+        of nlmod.resample.structured_da_to_ds for possible values. The default is
+        'average'.
+
+    Returns
+    -------
+    ds_out : xarray.Dataset
+        dataset with bathymetry
+
+    Notes
+    -----
+    The nan values in the original bathymetry are filled and then the
+    data is resampled to the modelgrid. Maybe we can speed up things by
+    changing the order in which operations are executed.
+    """
 
     # fill nan values in bathymetry
-    da_bathymetry_filled = fillnan_da(da_bathymetry_raw)
+    da_bathymetry_filled = fillnan_da(bathymetry_da)
 
     # bathymetry can never be larger than NAP 0.0
     da_bathymetry_filled = xr.where(da_bathymetry_filled > 0, 0, da_bathymetry_filled)
@@ -83,13 +198,10 @@ def get_bathymetry(ds, northsea, kind="jarkus", method="average"):
     # bathymetry projected on model grid
     da_bathymetry = structured_da_to_ds(da_bathymetry_filled, ds, method=method)
 
-    ds_out["bathymetry"] = xr.where(northsea, da_bathymetry, np.nan)
+    ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
+    sea = ds[datavar_sea]
 
-    for datavar in ds_out:
-        ds_out[datavar].attrs["source"] = kind
-        ds_out[datavar].attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
-        if datavar == "bathymetry":
-            ds_out[datavar].attrs["units"] = "mNAP"
+    ds_out[da_name] = xr.where(sea, da_bathymetry, np.nan)
 
     return ds_out
 
@@ -238,46 +350,3 @@ def get_netcdf_tiles(kind="jarkus"):
     end = s.find("projectionCoverage_x", s.find("projectionCoverage_x") + 1)
     netcdf_urls = list(eval(s[start + 12 : end - 2]))
     return netcdf_urls
-
-
-def add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea=10, kv_sea=10):
-    """Add bathymetry to the top and bot of each layer for all cells with fill_mask.
-
-    This method sets the top of the model at fill_mask to 0 m, and changes the first
-    layer to sea, by setting the botm of this layer to bathymetry, kh to kh_sea and kv
-    to kv_sea. If deeper layers are above bathymetry. the layer depth is set to
-    bathymetry.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        dataset with model data, should
-    bathymetry : xarray DataArray
-        bathymetry data
-    kh_sea : int or float, optional
-        the horizontal conductance in sea s
-    fill_mask : xr.DataArray
-        cell value is 1 if you want to add bathymetry
-
-    Returns
-    -------
-    ds : xarray.Dataset
-        dataset with model data where the top, bot, kh and kv are changed
-    """
-    ds["top"].values = np.where(fill_mask, 0.0, ds["top"])
-
-    lay = 0
-    ds["botm"][lay] = xr.where(fill_mask, bathymetry, ds["botm"][lay])
-
-    ds["kh"][lay] = xr.where(fill_mask, kh_sea, ds["kh"][lay])
-
-    ds["kv"][lay] = xr.where(fill_mask, kv_sea, ds["kv"][lay])
-
-    # reset bot for all layers based on bathymetry
-    for lay in range(1, ds.sizes["layer"]):
-        ds["botm"][lay] = np.where(
-            ds["botm"][lay] > ds["botm"][lay - 1],
-            ds["botm"][lay - 1],
-            ds["botm"][lay],
-        )
-    return ds

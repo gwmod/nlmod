@@ -85,6 +85,8 @@ def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=Non
         rbot = group["botm"].min()
 
     elif method == "de_lange":
+        if ds is None:
+            raise ValueError("Please supply model dataset (ds) when method=='de_lange'")
         # get additional requisite parameters
         if delange_params is None:
             delange_params = {}
@@ -120,11 +122,12 @@ def agg_area_weighted(gdf, col):
 
 
 def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
-    (A, laytop, laybot, kh, kv, thickness) = get_subsurface_params_by_cellid(ds, cid)
+    (A, laytop, laybot, kh, kv) = get_subsurface_params_by_cellid(ds, cid)
 
     rbot = group["botm"].min()
 
     # select active layers
+    thickness = -np.diff(np.hstack((laytop, laybot)))
     active = thickness > 0
     laybot = laybot[active]
     kh = kh[active]
@@ -132,6 +135,8 @@ def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
     thickness = thickness[active]
 
     # layer thickn.
+    if np.isnan(rbot):
+        raise ValueError(f"rbot is NaN in cell {cid}")
     H0 = laytop - laybot[laybot < rbot][0]
     ilay = 0
     rlay = np.where(laybot < rbot)[0][0]
@@ -171,13 +176,12 @@ def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
 
 def get_subsurface_params_by_cellid(ds, cid):
     r, c = cid
-    A = ds.delr * ds.delc  # cell area
+    A = ds.area.isel(x=c, y=r).data
     laytop = ds["top"].isel(x=c, y=r).data
-    laybot = ds["bot"].isel(x=c, y=r).data
+    laybot = ds["botm"].isel(x=c, y=r).data
     kv = ds["kv"].isel(x=c, y=r).data
     kh = ds["kh"].isel(x=c, y=r).data
-    thickness = ds["thickness"].isel(x=c, y=r).data
-    return A, laytop, laybot, kh, kv, thickness
+    return A, laytop, laybot, kh, kv
 
 
 def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):
@@ -587,7 +591,7 @@ def download_level_areas(
     for wb in wbs:
         logger.info(f"Downloading {data_kind} for {wb}")
         try:
-            lawb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            lawb = waterboard.download_data(wb, data_kind, extent, **kwargs)
             if len(lawb) == 0:
                 logger.info(f"No {data_kind} for {wb} found within model area")
                 continue
@@ -654,7 +658,7 @@ def download_watercourses(
     for wb in wbs:
         logger.info(f"Downloading {data_kind} for {wb}")
         try:
-            wcwb = waterboard.get_data(wb, data_kind, extent, **kwargs)
+            wcwb = waterboard.download_data(wb, data_kind, extent, **kwargs)
             if len(wcwb) == 0:
                 logger.info(f"No {data_kind} for {wb} found within model area")
                 continue
@@ -830,7 +834,7 @@ def get_gdf(ds=None, extent=None, fname_ahn=None, ahn=None, buffer=0.0):
         if ds is None:
             raise (ValueError("Please supply either ds or extent to get_gdf"))
         extent = get_extent_polygon(ds)
-    gdf = bgt.get_bgt(extent)
+    gdf = bgt.download_bgt(extent)
     if fname_ahn is not None:
         from rasterstats import zonal_stats
 
@@ -897,6 +901,7 @@ def gdf_to_seasonal_pkg(
     silent=False,
     start_summer=None,
     start_winter=None,
+    season_filename="season.ts",
     **kwargs,
 ):
     """Add a surface water package to a groundwater-model, based on input from a
@@ -946,6 +951,9 @@ def gdf_to_seasonal_pkg(
         A string with the month and day of the start of winter (one-based), seperated by
         '-'. For example '10-1' for october 1st. When start_winter is None it is
         calculated from the parameter 'summer_months'. The default is None.
+    season_filename : str, optional
+        A string with the name of the file containing the timeseries of the seasons. The
+        default is 'season.ts'.
     **kwargs : dict
         Kwargs are passed onto ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb.
 
@@ -1053,6 +1061,7 @@ def gdf_to_seasonal_pkg(
         summer_name="summer",
         start_summer=start_summer,
         start_winter=start_winter,
+        filename=season_filename,
     )
     return package
 
@@ -1209,13 +1218,19 @@ def get_seaonal_timeseries(
     return s
 
 
-def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot):
+def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot, aux=None):
     gi = flopy.utils.GridIntersect(gwf.modelgrid, method="vertex")
     cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
     riv_data = []
     for cid in cellids:
-        if len(cid) == 2:
-            riv_data.append([(layer, cid[0], cid[1]), stage, cond, rbot])
+        if isinstance(cid, (list, tuple)) and len(cid) == 2:
+            idata = [(layer, cid[0], cid[1]), stage, cond, rbot]
+            if aux is not None:
+                idata.append(aux)
+            riv_data.append(idata)
         else:
-            riv_data.append([(layer, cid), stage, cond, rbot])
+            idata = [(layer, cid), stage, cond, rbot]
+            if aux is not None:
+                idata.append(aux)
+            riv_data.append(idata)
     return riv_data

@@ -580,8 +580,43 @@ def estimate_nstp(
         return nstp_ceiled
 
 
+def get_perlen(ds):
+    """Get perlen from ds.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with time variant model data
+
+    Returns
+    -------
+    perlen : list of floats
+        length of a stress period.
+    """
+    deltat = pd.to_timedelta(1, ds.time.time_units)
+    if ds.time.dtype.kind == "M":
+        # dtype is pandas timestamps
+        perlen = [
+            (pd.to_datetime(ds["time"].data[0]) - pd.to_datetime(ds.time.start))
+            / deltat
+        ]
+        if len(ds["time"]) > 1:
+            perlen.extend(np.diff(ds["time"]) / deltat)
+    elif ds.time.dtype.kind == "O":
+        perlen = [
+            (ds["time"].data[0] - _pd_timestamp_to_cftime(pd.Timestamp(ds.time.start)))
+            / deltat
+        ]
+        if len(ds["time"]) > 1:
+            perlen.extend(np.diff(ds["time"]) / deltat)
+    elif ds.time.dtype.kind in ["i", "f"]:
+        perlen = [ds["time"][0]]
+        perlen.extend(np.diff(ds["time"].values))
+    return perlen
+
+
 def get_time_step_length(perlen, nstp, tsmult):
-    """Get the length of the timesteps within a singe stress-period.
+    """Get the length of the timesteps within a single stress-period.
 
     Parameters
     ----------
@@ -705,11 +740,62 @@ def dataframe_to_flopy_timeseries(
     time_series_namerecord=None,
     interpolation_methodrecord="stepwise",
     append=False,
+    shift_label_from_right_to_left=False,
 ):
+    """
+    Convert a pandas DataFrame to a FloPy time series.
+
+    This function converts a time-indexed DataFrame into a list of tuples
+    formatted for use with FloPy's time series input. If a FloPy package is
+    provided, it will either initialize or append a time series package.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing the time series data. The index must be datetime-like
+        if `ds` is provided.
+    ds : xarray.Dataset, optional
+        Model Dataset.
+    package : flopy.mf6.ModflowGwfwel, flopy.mf6.ModflowGwfdrn or similar, optional
+        The FloPy package to which the time series should be attached.
+    filename : str, optional
+        Filename for the time series package. If not provided, defaults to
+        `{package.filename}_ts`.
+    time_series_namerecord : list of str, optional
+        List of time series names corresponding to DataFrame columns.
+        If not provided, defaults to the DataFrame column names.
+    interpolation_methodrecord : str or list of str, default "stepwise"
+        Interpolation method(s) to use for the time series. Can be a single string
+        or a list of methods (one for each column).
+    append : bool, default False
+        If True, the time series will be appended to an existing time series package.
+        Otherwise, a new package will be initialized.
+    shift_label_from_right_to_left : bool, default False
+        If True, sets the index of df from the end of the timestep to the start of the
+        timestep (which is required if interpolation_methodrecord="stepwise"). The
+        default is False.
+
+    Returns
+    -------
+    list of tuple or flopy.mf6.ModflowUtlts
+        If `package` is None, returns a list of (time, value1, value2, ...) tuples.
+        If `package` is provided, returns the created or updated time series package.
+
+    Raises
+    ------
+    AssertionError
+        If DataFrame contains NaNs or if `ds.time` is not datetime64.
+    """
+
     assert not df.isna().any(axis=None)
     assert (
         ds.time.dtype.kind == "M"
     ), "get recharge requires a datetime64[ns] time index"
+
+    if shift_label_from_right_to_left and ds is not None:
+        df.loc[pd.to_datetime(ds.time.start)] = None
+        df = df.sort_index().shift(-1).ffill()
+
     if ds is not None:
         # set index to days after the start of the simulation
         df = df.copy()

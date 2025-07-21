@@ -1,5 +1,4 @@
 import logging
-from functools import partial
 
 import flopy
 import geopandas as gpd
@@ -14,7 +13,7 @@ from matplotlib.patches import Rectangle
 from shapely.affinity import affine_transform
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
-from ..dims.grid import get_affine_world_to_mod, modelgrid_from_ds
+from ..dims.grid import get_affine_world_to_mod, get_delc, get_delr, modelgrid_from_ds
 from .plotutil import get_map
 
 logger = logging.getLogger(__name__)
@@ -117,10 +116,20 @@ class DatasetCrossSection:
             self.ax.axis(extent)
 
     def get_grid_edges(self):
+        """Get the x and y values of all gridcell edges
+
+        Returns
+        -------
+        tuple
+            x and y edges of the dataset.
+        """
         x = self.ds[self.x].values
-        x = np.hstack((x[:-1] - np.diff(x) / 2, x[-2:] + np.diff(x[-3:]) / 2))
+        dx = get_delr(self.ds)
+        x = np.hstack((x - dx / 2, x[-1] + dx[-1] / 2))
+
         y = self.ds[self.y].values
-        y = np.hstack((y[:-1] - np.diff(y) / 2, y[-2:] + np.diff(y[-3:]) / 2))
+        dy = get_delc(self.ds)
+        y = np.hstack((y + dy / 2, y[-1] - dy[-1] / 2))
         return x, y
 
     def coordinates_in_dataset(self, xy):
@@ -372,18 +381,70 @@ class DatasetCrossSection:
 
         return ax
 
-    def get_patches_array(self, z):
-        """Similar to plot_array function, only computes the array to update an existing plot_array.
+    def iterate_active_cells(self, zcs):
+        """Iterate over the cell indices of the cells in an array that are visible in the cross section and active in the model.
 
         Parameters
         ----------
-        z : DataArray
-            data to plot on the patches.
+        zcs : np.ndarray
+            2d array with dimensions (layer, distance along cross section).
+
+        Yields
+        ------
+        tuple
+            i, j indices of the cells that are active and visible in cross section.
+
+        """
+        for i in range(zcs.shape[0]):
+            for j in range(zcs.shape[1]):
+                if not (
+                    np.isnan(self.top[i, j])
+                    or np.isnan(self.bot[i, j])
+                    or np.isnan(zcs[i, j])
+                    or (self.bot[i, j] >= self.zmax)
+                    or (self.top[i, j] <= self.zmin)
+                ):
+                    yield i, j
+
+    def _get_rect(self, i, j, hcs=None):
+        """Get a rectangle patch for a cell in the cross section.
+
+        Parameters
+        ----------
+        i : int
+            layer index.
+        j : int
+            cell index along cross section.
+        hcs : np.ndarray, optional
+            head array with dimensions (layer, distance along cross section), by
+            default None.
 
         Returns
         -------
-        list
-            plot data.
+        Rectangle
+            rectangle patch.
+        """
+        width = self.s[j, 1] - self.s[j, 0]
+        top = self.top[i, j]
+        if hcs is not None:
+            top = max(min(top, hcs[i, j]), self.bot[i, j])
+        height = top - self.bot[i, j]
+        xy = (self.s[j, 0], self.bot[i, j])
+        rect = Rectangle(xy, width, height)
+        return rect
+
+    def array_on_cs(self, z):
+        """Select cells in an array that are in the cross section.
+
+        Parameters
+        ----------
+        z : np.ndarray or xr.DataArray
+            array with dimensions (layer, y, x) or (layer, cellid).
+
+        Returns
+        -------
+        np.ndarray
+            array with dimensions (layer, distance along cross section).
         """
         if isinstance(z, xr.DataArray):
             z = z.data
@@ -393,74 +454,29 @@ class DatasetCrossSection:
             assert z.shape[0] == len(self.layer)
             assert z.shape[1] == len(self.ds[self.icell2d])
 
-            zcs = z[:, self.icell2ds]
+            return z[:, self.icell2ds]
         else:
             assert len(z.shape) == 3
             assert z.shape[0] == len(self.layer)
             assert z.shape[1] == len(self.ds[self.y])
             assert z.shape[2] == len(self.ds[self.x])
 
-            zcs = z[:, self.rows, self.cols]
-
-        array = []
-        for i in range(zcs.shape[0]):
-            for j in range(zcs.shape[1]):
-                if not (
-                    np.isnan(self.top[i, j])
-                    or np.isnan(self.bot[i, j])
-                    or np.isnan(zcs[i, j])
-                ):
-                    if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
-                        continue
-
-                    array.append(zcs[i, j])
-
-        return array
+            return z[:, self.rows, self.cols]
 
     def plot_array(self, z, head=None, **kwargs):
-        if isinstance(z, xr.DataArray):
-            z = z.data
+        zcs = self.array_on_cs(z)
+
         if head is not None:
-            if isinstance(head, xr.DataArray):
-                head = head.data
             assert head.shape == z.shape
-        if self.icell2d in self.ds.dims:
-            assert len(z.shape) == 2
-            assert z.shape[0] == len(self.layer)
-            assert z.shape[1] == len(self.ds[self.icell2d])
-
-            zcs = z[:, self.icell2ds]
-            if head is not None:
-                head = head[:, self.icell2ds]
+            hcs = self.array_on_cs(head)
         else:
-            assert len(z.shape) == 3
-            assert z.shape[0] == len(self.layer)
-            assert z.shape[1] == len(self.ds[self.y])
-            assert z.shape[2] == len(self.ds[self.x])
+            hcs = None
 
-            zcs = z[:, self.rows, self.cols]
-            if head is not None:
-                head = head[:, self.rows, self.cols]
-        patches = []
-        array = []
-        for i in range(zcs.shape[0]):
-            for j in range(zcs.shape[1]):
-                if not (
-                    np.isnan(self.top[i, j])
-                    or np.isnan(self.bot[i, j])
-                    or np.isnan(zcs[i, j])
-                ):
-                    if self.bot[i, j] == self.zmax or self.top[i, j] == self.zmin:
-                        continue
-                    width = self.s[j, 1] - self.s[j, 0]
-                    top = self.top[i, j]
-                    if head is not None:
-                        top = max(min(top, head[i, j]), self.bot[i, j])
-                    height = top - self.bot[i, j]
-                    xy = (self.s[j, 0], self.bot[i, j])
-                    rect = Rectangle(xy, width, height)
-                    patches.append(rect)
-                    array.append(zcs[i, j])
+        patches = [
+            self._get_rect(i, j, hcs=hcs) for i, j in self.iterate_active_cells(zcs)
+        ]
+        array = [zcs[i, j] for i, j in self.iterate_active_cells(zcs)]
+
         patch_collection = PatchCollection(patches, **kwargs)
         patch_collection.set_array(np.array(array))
         self.ax.add_collection(patch_collection)
@@ -552,14 +568,26 @@ class DatasetCrossSection:
         """
         f = self.ax.get_figure()
 
+        if norm is None:
+            vmin = np.nanmin(da)
+            vmax = np.nanmax(da)
+            norm = matplotlib.colors.Normalize(vmin, vmax)
+
         # plot first timeframe
         iper = 0
         if head is not None:
-            plot_head = head[iper].values
-            logger.info("varying head not supported for animation yet")
+            plot_head = head
+            self.pc = self.plot_array(
+                da[iper].squeeze(),
+                cmap=cmap,
+                norm=norm,
+                head=head.values[iper].squeeze(),
+            )
+        else:
+            self.pc = self.plot_array(da[iper].squeeze(), cmap=cmap, norm=norm)
+            plot_head = None
 
-        pc = self.plot_array(da[iper].squeeze(), cmap=cmap, norm=norm, head=plot_head)
-        cbar = f.colorbar(pc, ax=self.ax, shrink=1.0)
+        cbar = f.colorbar(self.pc, ax=self.ax, shrink=1.0)
 
         if cbar_label is not None:
             cbar.set_label(cbar_label)
@@ -574,14 +602,29 @@ class DatasetCrossSection:
             t = f"{da.time.values[iper]} {da.time.time_units}"
 
         if plot_title is None:
-            title = None
+            self.title = None
         else:
-            title = self.ax.set_title(f"{plot_title}, t = {t}")
+            self.title = self.ax.set_title(f"{plot_title}, t = {t}")
 
         # update func
-        def update(iper, pc, title):
-            array = self.get_patches_array(da[iper].squeeze())
-            pc.set_array(array)
+        def update(iper):
+            zcs = self.array_on_cs(da[iper].squeeze())
+            if plot_head is not None:
+                # create new patches
+                hcs = self.array_on_cs(plot_head[iper].squeeze())
+                patches = [
+                    self._get_rect(i, j, hcs=hcs)
+                    for i, j in self.iterate_active_cells(zcs)
+                ]
+                array = [zcs[i, j] for i, j in self.iterate_active_cells(zcs)]
+                self.pc.remove()  # remove previous patches
+                self.pc = PatchCollection(patches, cmap=cmap, norm=norm)
+                self.pc.set_array(np.array(array))
+                self.ax.add_collection(self.pc)
+            else:
+                # only set new values of existing patches
+                array = [zcs[i, j] for i, j in self.iterate_active_cells(zcs)]
+                self.pc.set_array(np.array(array))
 
             # update title
             if da.time.dtype.kind == "M":
@@ -591,15 +634,13 @@ class DatasetCrossSection:
             else:
                 t = f"{da.time.values[iper]} {da.time.time_units}"
 
-            if title is not None:
-                title.set_text(f"{plot_title}, t = {t}")
-
-            return pc, title
+            if self.title is not None:
+                self.title.set_text(f"{plot_title}, t = {t}")
 
         # create animation
         anim = FuncAnimation(
             f,
-            partial(update, pc=pc, title=title),
+            update,
             frames=da["time"].shape[0],
             blit=False,
             interval=100,

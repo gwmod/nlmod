@@ -2,12 +2,13 @@ import functools
 import hashlib
 import importlib
 import inspect
+import json
 import logging
 import numbers
 import os
 import pickle
+from pathlib import Path
 
-import dask
 import flopy
 import joblib
 import numpy as np
@@ -37,7 +38,9 @@ def clear_cache(cachedir, prompt=True):
     None.
     """
     if prompt:
-        ans = input(f"this will remove all cached files in {cachedir} are you sure [Y/N]")
+        ans = input(
+            f"this will remove all cached files in {cachedir} are you sure [Y/N]"
+        )
         if ans.lower() != "y":
             return
 
@@ -55,7 +58,7 @@ def clear_cache(cachedir, prompt=True):
             fpath_nc = os.path.join(cachedir, fname_nc)
             if os.path.exists(fname_nc):
                 # make sure cached netcdf is closed
-                cached_ds = xr.open_dataset(fpath_nc, decode_coords='all')
+                cached_ds = xr.open_dataset(fpath_nc, decode_coords="all")
                 cached_ds.close()
                 os.remove(fpath_nc)
                 msg = f"removed {fname_nc}"
@@ -218,7 +221,7 @@ def cache_netcdf(
                         "not using cache"
                     )
 
-                with xr.open_dataset(fname_cache, decode_coords='all') as cached_ds:
+                with xr.open_dataset(fname_cache, decode_coords="all") as cached_ds:
                     cached_ds.load()
 
                 if pickle_check:
@@ -231,10 +234,24 @@ def cache_netcdf(
                         ).hexdigest()
 
                     if dataset is not None:
+                        # fix layer dtype if necessary
+                        if "layer" in cached_ds.coords:
+                            if dataset["layer"].dtype != cached_ds["layer"].dtype:
+                                # cached layer dtype might be read as fixed width dtype
+                                # modify dataset dtype to make hashes match
+                                dataset = dataset.assign_coords(
+                                    {
+                                        "layer": dataset["layer"].values.astype(
+                                            cached_ds["layer"].dtype
+                                        )
+                                    }
+                                )
                         if NLMOD_CACHE_OPTIONS["dataset_coords_hash"]:
-                            # Check the coords of the dataset argument
-                            func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
-                                dict(dataset.coords)
+                            # Check the coords of the dataset argument,
+                            # 20250228: metadata is currently excluded as this was
+                            # causing differences that are not relevant to the cache...
+                            func_args_dic["_dataset_coords_hash"] = hash_xarray_coords(
+                                dataset, include_metadata=False
                             )
                         else:
                             func_args_dic_cache.pop("_dataset_coords_hash", None)
@@ -254,8 +271,10 @@ def cache_netcdf(
 
                         if NLMOD_CACHE_OPTIONS["dataset_data_vars_hash"]:
                             # Check the data_vars of the dataset argument
+                            # 20250228: metadata is currently excluded as this was
+                            # causing differences that are not relevant to the cache...
                             func_args_dic["_dataset_data_vars_hash"] = (
-                                dask.base.tokenize(dict(dataset.data_vars))
+                                hash_xarray_data_vars(dataset, include_metadata=False)
                             )
                         else:
                             func_args_dic_cache.pop("_dataset_data_vars_hash", None)
@@ -297,7 +316,7 @@ def cache_netcdf(
             if isinstance(result, xr.Dataset):
                 # close cached netcdf (otherwise it is impossible to overwrite)
                 if os.path.exists(fname_cache):
-                    with xr.open_dataset(fname_cache, decode_coords='all') as cached_ds:
+                    with xr.open_dataset(fname_cache, decode_coords="all") as cached_ds:
                         cached_ds.load()
 
                 # write netcdf cache
@@ -310,7 +329,9 @@ def cache_netcdf(
                     # close and reopen dataset to ensure data is read from
                     # disk, and not from opendap
                     result.close()
-                    result = xr.open_dataset(fname_cache, decode_coords='all', chunks="auto")
+                    result = xr.open_dataset(
+                        fname_cache, decode_coords="all", chunks="auto"
+                    )
                 else:
                     result.to_netcdf(fname_cache)
 
@@ -323,8 +344,10 @@ def cache_netcdf(
                 # Add dataset argument hash to function arguments dic
                 if dataset is not None:
                     if NLMOD_CACHE_OPTIONS["dataset_coords_hash"]:
-                        func_args_dic["_dataset_coords_hash"] = dask.base.tokenize(
-                            dict(dataset.coords)
+                        # 20250228: metadata is currently excluded as this was
+                        # causing differences that are not relevant to the cache...
+                        func_args_dic["_dataset_coords_hash"] = hash_xarray_coords(
+                            dataset, include_metadata=False
                         )
                     else:
                         logger.warning(
@@ -333,8 +356,10 @@ def cache_netcdf(
                             "`nlmod.config.NLMOD_CACHE_OPTIONS`."
                         )
                     if NLMOD_CACHE_OPTIONS["dataset_data_vars_hash"]:
-                        func_args_dic["_dataset_data_vars_hash"] = dask.base.tokenize(
-                            dict(dataset.data_vars)
+                        # 20250228: metadata is currently excluded as this was
+                        # causing differences that are not relevant to the cache...
+                        func_args_dic["_dataset_data_vars_hash"] = (
+                            hash_xarray_data_vars(dataset, include_metadata=False)
                         )
                     else:
                         logger.warning(
@@ -433,6 +458,7 @@ def cache_pickle(func):
             except (pickle.UnpicklingError, ModuleNotFoundError):
                 logger.info("could not read pickle, not using cache")
                 pickle_check = False
+                argument_check = False
 
             if pickle_check:
                 # add dataframe hash to function arguments dic
@@ -529,7 +555,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
         if item is None:
             # Value of None type is always None so the check happens in previous if statement
             pass
-        elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple)):
+        elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple, Path)):
             if item != func_args_dic_cache[key]:
                 if key.endswith("_hash") and isinstance(item, str):
                     logger.info(
@@ -918,3 +944,116 @@ def _explicit_dataset_coordinate_comparison(ds_in, ds_cache):
             return False
     logger.debug("cache -> all coordinates equal")
     return True
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """Special json encoder for numpy types."""
+
+    def default(self, o):
+        if isinstance(o, np.integer):
+            return int(o)
+        elif isinstance(o, np.floating):
+            return float(o)
+        return json.JSONEncoder.default(self, o)
+
+
+def hash_xarray_coords(ds, include_metadata: bool = False):
+    """
+    Create a hash of xarray coordinate(s) using array bytes and optionally metadata.
+
+    Parameters
+    ----------
+    coord : xarray.core.coordinates.Coordinate
+        The xarray coordinate object to hash
+    include_metadata : bool, optional
+        Whether to include metadata in the hash. Default is False.
+
+    Returns
+    -------
+    str
+        The hexadecimal hash string
+    """
+    combined_bytes = b""
+    for coord in ds.coords:
+        # get the raw bytes from the numpy array values
+        values_bytes = ds[coord].values.tobytes()
+        combined_bytes += values_bytes
+
+        if include_metadata:
+            # get metadata as JSON
+            metadata = {
+                "name": coord,
+                "dims": ds[coord].dims,
+                "attrs": ds[coord].attrs,
+                "dtype": str(ds[coord].dtype),
+                "shape": ds[coord].shape,
+            }
+            metadata_bytes = json.dumps(
+                metadata, sort_keys=True, cls=NumpyEncoder
+            ).encode("utf-8")
+
+            # combine both sets of bytes for hashing
+            if include_metadata:
+                combined_bytes += metadata_bytes
+
+    # create a hash of the combined bytes
+    return hashlib.sha256(combined_bytes).hexdigest()
+
+
+def hash_xarray_data_vars(
+    ds,
+    include_metadata: bool = False,
+):
+    """
+    Create a hash of xarray data variables using array bytes and optionally metadata.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset or xarray.DataArray
+        The xarray coordinate object to hash
+    include_metadata : bool, optional
+        Whether to include metadata in the hash. Default is False.
+
+    Returns
+    -------
+    str
+        The hexadecimal hash string
+    """
+    # get the raw bytes from the numpy array values
+    combined_bytes = b""
+    if isinstance(ds, xr.Dataset):
+        # sort data vars en ensure hashes remain the same
+        data_arrays = [ds[da] for da in sorted(ds.data_vars)]
+    elif isinstance(ds, xr.DataArray):
+        data_arrays = [ds]
+    else:
+        raise TypeError("Input must be an xarray Dataset or DataArray")
+    for da in data_arrays:
+        combined_bytes += da.values.tobytes()
+
+        if include_metadata:
+            # hash each coordinate separately
+            coord_hashes = {}
+            for coord_name, coord in sorted(da.coords.items()):
+                coord_hashes[coord_name] = hash_xarray_coords(
+                    coord, include_metadata=False
+                )
+
+            # get metadata as JSON
+            metadata = {
+                "name": da.name,
+                "dims": da.dims,
+                "attrs": da.attrs,
+                "dtype": str(da.dtype),
+                "shape": da.shape,
+                "coord_hashes": coord_hashes,
+            }
+            metadata_bytes = json.dumps(
+                metadata, sort_keys=True, cls=NumpyEncoder
+            ).encode("utf-8")
+
+            # combine both sets of bytes for hashing
+            combined_bytes += metadata_bytes
+
+    # create a hash of the combined bytes
+    return hashlib.sha256(combined_bytes).hexdigest()

@@ -70,7 +70,7 @@ def get_concentration_da(
     # gwt.output.concentration() defaults to a structured grid
     if gwt is not None and ds is None and fname is None:
         kwargs["modelgrid"] = gwt.modelgrid
-    da = _get_heads_da(cobj, **kwargs)
+    da = _get_heads_da(cobj, name="concentration", **kwargs)
     da.attrs["units"] = "concentration"
 
     # set time index if ds/gwt are provided

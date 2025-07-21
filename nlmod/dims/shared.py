@@ -38,6 +38,76 @@ class GridTypeDims(Enum):
         return cls(ds.dims)
 
 
+def is_structured(ds):
+    """Check if a dataset is structured.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is structured.
+    """
+    return GridTypeDims.parse_dims(ds) in (
+        GridTypeDims.STRUCTURED,
+        GridTypeDims.STRUCTURED_LAYERED,
+    )
+
+
+def is_vertex(ds):
+    """Check if a dataset is vertex.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is structured.
+    """
+    return GridTypeDims.parse_dims(ds) in (
+        GridTypeDims.VERTEX,
+        GridTypeDims.VERTEX_LAYERED,
+    )
+
+
+def is_layered(ds):
+    """Check if a dataset is layered.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is layered.
+    """
+    return "layer" in ds.dims
+
+
+def is_rotated(ds):
+    """Check if a dataset is rotated.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.Dataarray
+        dataset or dataarray
+
+    Returns
+    -------
+    bool
+        True if the dataset is rotated.
+    """
+    return "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0
+
+
 def get_delr(ds):
     """
     Get the distance along rows (delr) from the x-coordinate of a structured model ds.
@@ -53,8 +123,12 @@ def get_delr(ds):
         The cell-size along rows (of length ncol).
 
     """
-    assert ds.gridtype == "structured"
-    x = (ds.x - ds.extent[0]).values
+    assert is_structured(ds)
+    if "extent" in ds.attrs:
+        west_model = ds.extent[0]
+    else:
+        west_model = float(ds.x[0] - (ds.x[1] - ds.x[0]) / 2)
+    x = (ds.x - west_model).values
     delr = _get_delta_along_axis(x)
     return delr
 
@@ -75,8 +149,12 @@ def get_delc(ds):
         The cell-size along columns (of length nrow).
 
     """
-    assert ds.gridtype == "structured"
-    y = (ds.extent[3] - ds.y).values
+    assert is_structured(ds)
+    if "extent" in ds.attrs:
+        north_model = ds.extent[3]
+    else:
+        north_model = float(ds.y[0] + (ds.y[0] - ds.y[1]) / 2)
+    y = (north_model - ds.y).values
     delc = _get_delta_along_axis(y)
     return delc
 

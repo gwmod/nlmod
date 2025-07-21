@@ -14,7 +14,7 @@ def test_gwt_model():
     model_name = "trnsprt_tst"
     model_ws = os.path.join(tmpdir, model_name)
 
-    layer_model = nlmod.read.get_regis(extent, botm_layer="MSz1")
+    layer_model = nlmod.read.download_regis(extent, botm_layer="MSz1")
     # create a model ds
     ds = nlmod.to_model_ds(
         layer_model,
@@ -34,7 +34,7 @@ def test_gwt_model():
     )
 
     # We download the digital terrain model (AHN4)
-    ahn = nlmod.read.ahn.get_ahn4(ds.extent)
+    ahn = nlmod.read.ahn.download_ahn4(ds.extent)
     # calculate the average surface level in each cell
     ds["ahn"] = nlmod.resample.structured_da_to_ds(ahn, ds, method="average")
 
@@ -42,7 +42,7 @@ def test_gwt_model():
     ds["sea"] = nlmod.read.rws.calculate_sea_coverage(ahn, ds=ds, method="average")
 
     # download knmi recharge data
-    knmi_ds = nlmod.read.knmi.get_recharge(ds)
+    knmi_ds = nlmod.read.knmi.get_recharge(ds, method="separate")
 
     # update model dataset
     ds.update(knmi_ds)
@@ -89,6 +89,9 @@ def test_gwt_model():
 
     # create recharge package
     nlmod.gwf.rch(ds, gwf, mask=ds["sea"] == 0)
+
+    # create evapotranspiration package
+    nlmod.gwf.evt(ds, gwf, mask=ds["sea"] == 0)
 
     # BUY: buoyancy package for GWF model
     nlmod.gwf.buy(ds, gwf)

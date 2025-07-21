@@ -9,12 +9,14 @@ import pandas as pd
 import xarray as xr
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import PatchCollection
-from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.colors import ListedColormap, Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ..dims.grid import (
     get_affine_mod_to_world,
+    get_delc,
+    get_delr,
     get_extent,
     get_extent_gdf,
     modelgrid_from_ds,
@@ -250,15 +252,26 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
             ax.axis(extent)
         return pc
     else:
-        x = da.x
-        y = da.y
+        if ds is None:
+            x = da.x
+            y = da.y
+            shading = "nearest"
+        else:
+            x = ds["x"].values
+            dx = get_delr(ds)
+            x = np.hstack((x - dx / 2, x[-1] + dx[-1] / 2))
+
+            y = ds["y"].values
+            dy = get_delc(ds)
+            y = np.hstack((y + dy / 2, y[-1] - dy[-1] / 2))
+            shading = "flat"
         if rotated:
             if ds is None:
                 raise (ValueError("Supply model dataset (ds) for grid information"))
             if "angrot" in ds.attrs and ds.attrs["angrot"] != 0.0:
                 affine = get_affine_mod_to_world(ds)
                 x, y = affine * np.meshgrid(x, y)
-        return ax.pcolormesh(x, y, da, shading="nearest", edgecolor=edgecolor, **kwargs)
+        return ax.pcolormesh(x, y, da, shading=shading, edgecolor=edgecolor, **kwargs)
 
 
 def geotop_lithok_in_cross_section(
@@ -311,7 +324,7 @@ def geotop_lithok_in_cross_section(
         x = [coord[0] for coord in line.coords]
         y = [coord[1] for coord in line.coords]
         extent = [min(x), max(x), min(y), max(y)]
-        gt = geotop.get_geotop(extent)
+        gt = geotop.download_geotop(extent)
 
     if "top" not in gt or "botm" not in gt:
         gt = geotop.add_top_and_botm(gt)
@@ -477,7 +490,8 @@ def map_array(
 
     # select layer
     try:
-        nlay = da["layer"].shape[0]
+        # check if layer is a dimension
+        nlay = da["layer"].shape[0] if "layer" in da.dims else -1
     except IndexError:
         nlay = 0  # only one layer
     except KeyError:
@@ -762,3 +776,46 @@ def animate_map(
         anim.save(fname, writer=writer)
 
     return f, anim
+
+
+def get_ahn_colormap(name="ahn", N=256):
+    """
+    Create a custom AHN colormap for elevation or similar data visualization.
+
+    This colormap is designed to represent elevation or topographic data,
+    transitioning from dark blue (lowest values) through greens and yellows
+    to dark red (highest values). The color values are copied from
+    https://viewer.ahn.nl/AHN5/DTM/1/6.5465/52.26738/3
+
+    Parameters
+    ----------
+    name : str, default "ahn"
+        Name of the colormap.
+    N : int, default 256
+        Number of discrete color levels in the colormap.
+
+    Returns
+    -------
+    matplotlib.colors.LinearSegmentedColormap
+        A custom colormap interpolated over the defined AHN color scheme.
+
+    Notes
+    -----
+    The color progression is as follows:
+    dark blue → medium blue → light blue → dark green → light green → yellow → orange → light red → dark red
+    """
+    colors = np.array(
+        [
+            [0, 98, 177],  # dark blue
+            [0, 156, 224],  # medium blue
+            [115, 216, 255],  # light blue
+            [128, 137, 0],  # dark green
+            [164, 221, 0],  # light green: center
+            [252, 220, 0],  # yellow
+            [251, 158, 0],  # orange
+            [211, 49, 21],  # light red
+            [159, 5, 0],  # dark red
+        ]
+    )
+    cmap = LinearSegmentedColormap.from_list(name, colors / 255, N=N)
+    return cmap

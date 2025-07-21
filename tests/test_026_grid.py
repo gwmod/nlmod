@@ -17,7 +17,7 @@ def get_bgt():
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
             os.makedirs(model_ws)
-        bgt = nlmod.read.bgt.get_bgt(extent)
+        bgt = nlmod.read.bgt.download_bgt(extent)
         bgt.to_file(fname)
     return gpd.read_file(fname)
 
@@ -27,7 +27,7 @@ def get_regis():
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
             os.makedirs(model_ws)
-        regis = nlmod.read.regis.get_regis(extent)
+        regis = nlmod.read.regis.download_regis(extent)
         regis.to_netcdf(fname)
     return xr.open_dataset(fname, decode_coords="all")
 
@@ -134,6 +134,48 @@ def test_fillnan_da():
     assert not top[mask].isnull().any()
 
 
+def test_interpolate_gdf_to_array():
+    bgt = get_bgt()
+    bgt.geometry = bgt.centroid
+    bgt["values"] = range(len(bgt))
+
+    regis = get_regis()
+    ds = nlmod.to_model_ds(regis, model_ws=model_ws)
+    sim = nlmod.sim.sim(ds)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    nlmod.gwf.dis(ds, gwf)
+
+    nlmod.grid.interpolate_gdf_to_array(bgt, gwf, field="values", method="linear")
+
+
+def test_gdf_to_da_methods():
+    bgt = get_bgt()
+    regis = get_regis()
+    ds = nlmod.to_model_ds(regis)
+    bgt["values"] = range(len(bgt))
+
+    bgt_line = bgt.copy()
+    bgt_line.geometry = bgt.boundary
+
+    for agg_method in [
+        "nearest",
+        "area_weighted",
+        "max_area",
+        "length_weighted",
+        "max_length",
+        # "center_grid",
+        "max",
+        "min",
+        "mean",
+        "sum",
+    ]:
+        if agg_method in ["length_weighted", "max_length"]:
+            gdf = bgt_line
+        else:
+            gdf = bgt
+        nlmod.grid.gdf_to_da(gdf, ds, column="values", agg_method=agg_method)
+
+
 def test_gdf_to_bool_da():
     bgt = get_bgt()
 
@@ -155,6 +197,30 @@ def test_gdf_to_bool_da():
     # test for a rotated vertex grid
     ds = get_vertex_model_ds_rotated()
     da = nlmod.grid.gdf_to_bool_da(bgt, ds)
+    assert da.any()
+
+
+def test_gdf_to_count_da():
+    bgt = get_bgt()
+
+    # test for a structured grid
+    ds = get_structured_model_ds()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
+    assert da.any()
+
+    # test for a vertex grid
+    ds = get_vertex_model_ds()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
+    assert da.any()
+
+    # tets for a slightly rotated structured grid
+    ds = get_structured_model_ds_rotated()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
+    assert da.any()
+
+    # test for a rotated vertex grid
+    ds = get_vertex_model_ds_rotated()
+    da = nlmod.grid.gdf_to_count_da(bgt, ds)
     assert da.any()
 
 
@@ -215,3 +281,14 @@ def test_update_ds_from_layer_ds():
     assert len(np.unique(ds["top"])) > 1
     ds = nlmod.grid.update_ds_from_layer_ds(ds, regis, method="average")
     assert len(np.unique(ds["top"])) > 1
+
+
+def test_gdf_area_per_index_to_da():
+    bgt = get_bgt()
+    ds = get_structured_model_ds()
+    ds["bgt"] = nlmod.grid.gdf_area_to_da(bgt, ds)
+    assert (ds["bgt"].sum("index") > 0).any()
+
+    ds = get_vertex_model_ds()
+    ds["bgt"] = nlmod.grid.gdf_area_to_da(bgt, ds)
+    assert (ds["bgt"].sum("index") > 0).any()

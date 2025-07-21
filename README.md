@@ -1,7 +1,5 @@
 # nlmod
 
-<img src="docs/_static/logo_10000_2.png" width="256"/>
-
 [![nlmod](https://github.com/gwmod/nlmod/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gwmod/nlmod/actions/workflows/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/f1797b66e98b42b294bc1c5fc233dbf3)](https://app.codacy.com/gh/gwmod/nlmod/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/f1797b66e98b42b294bc1c5fc233dbf3)](https://app.codacy.com/gh/gwmod/nlmod/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
@@ -29,6 +27,10 @@ The functions in `nlmod` have four main objectives:
 
 More information can be found on the documentation-website:
 https://nlmod.readthedocs.io/.
+
+<p align="center">
+  <img src="docs/_static/logo_10000_2.png" width="256"/>
+</p>
 
 ## Installation
 

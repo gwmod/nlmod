@@ -11,6 +11,7 @@ from .plot import (
     modelextent,
     modelgrid,
     surface_water,
+    get_ahn_colormap,
 )
 from .plotutil import (
     add_background_map,

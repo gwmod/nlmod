@@ -31,7 +31,7 @@ nlmod contains many methods for loading data from online data sources, .e.g.
 from the hydrogeological subsurface model REGIS::
 
     extent = [116_500, 120_000, 439_000, 442_000]  # define extent
-    regis_ds = nlmod.read.regis.get_regis(extent)  # download REGIS data
+    regis_ds = nlmod.read.regis.download_regis(extent)  # download REGIS data
 
 These methods are accessible through ``nlmod.read``. Supported data sources include:
 

@@ -1,10 +1,13 @@
 import logging
 import warnings
 
+import flopy
 import numpy as np
 import xarray as xr
+from geopandas import GeoSeries, points_from_xy
 
 from ..util import LayerError, _get_value_from_ds_datavar
+from . import grid
 from .resample import fillnan_da
 from .shared import GridTypeDims
 
@@ -270,9 +273,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(
-                np.sum(split_dict[lay0]), 1
-            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            assert np.isclose(np.sum(split_dict[lay0]), 1), (
+                f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            )
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -740,7 +743,7 @@ def combine_layers_ds(
     ds_combine = xr.Dataset(da_dict, attrs=ds.attrs)
 
     # remove layer dimension from top
-    ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=1e-5)
+    ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=0.001)
 
     if return_reindexer:
         return ds_combine, reindexer
@@ -1470,6 +1473,8 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
 
     first_active_layer = xr.where(idomain[0] == 1, 0, nodata)
     for i in range(1, idomain.shape[0]):
+        if not (first_active_layer == nodata).any():
+            break
         first_active_layer = xr.where(
             (first_active_layer == nodata) & (idomain[i] == 1),
             i,
@@ -1477,6 +1482,26 @@ def get_first_active_layer_from_idomain(idomain, nodata=-999):
         )
     first_active_layer.attrs["nodata"] = nodata
     return first_active_layer
+
+
+def get_last_active_layer(ds, **kwargs):
+    """Get the last active layer in each cell from a model ds.
+
+    Parameters
+    ----------
+    ds : xr.DataSet
+        Model Dataset
+    **kwargs : dict
+        Kwargs are passed on to get_last_active_layer_from_idomain.
+
+    Returns
+    -------
+    last_active_layer : xr.DataArray
+        raster in which each cell has the zero based number of the last
+        active layer. Shape can be (y, x) or (icell2d)
+    """
+    idomain = get_idomain(ds)
+    return get_last_active_layer_from_idomain(idomain, **kwargs)
 
 
 def get_last_active_layer_from_idomain(idomain, nodata=-999):
@@ -1498,8 +1523,10 @@ def get_last_active_layer_from_idomain(idomain, nodata=-999):
     """
     logger.debug("get last active modellayer for each cell in idomain")
 
-    last_active_layer = xr.where(idomain[-1] == 1, 0, nodata)
+    last_active_layer = xr.where(idomain[-1] == 1, idomain.shape[0] - 1, nodata)
     for i in range(idomain.shape[0] - 2, -1, -1):
+        if not (last_active_layer == nodata).any():
+            break
         last_active_layer = xr.where(
             (last_active_layer == nodata) & (idomain[i] == 1),
             i,
@@ -1534,8 +1561,12 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
         layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
 
     # set layer to nodata where z is above top
-    assert "layer" not in ds["top"].dims
-    layer = xr.where(ds["top"] > z, layer, above_model)
+    if "layer" not in ds["top"].dims:
+        layer = xr.where((layer == below_model) & (ds["top"] > z), above_model, layer)
+    else:
+        layer = xr.where(
+            (layer == below_model) & (ds["top"].isel(layer=0) > z), above_model, layer
+        )
 
     # set nodata attribute
     layer.attrs["above_model"] = above_model
@@ -1690,7 +1721,7 @@ def check_elevations_consistency(ds):
     thickness = calculate_thickness(ds)
     mask = thickness < 0.0
     if mask.any():
-        logger.warning(f"Thickness of layers is negative in {mask.sum()} cells.")
+        logger.warning(f"Thickness of layers is negative in {int(mask.sum())} cells.")
 
 
 def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
@@ -2003,3 +2034,414 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         dask="forbidden",
         **kwargs,
     )
+
+
+def add_bathymetry_to_layer_model(
+    ds, datavar_sea="northsea", datavar_bathymetry="bathymetry", kh_sea=10, kv_sea=10
+):
+    """Add bathymetry to a layer model.
+
+    Performs the following steps:
+
+    a) fill top, bot, kh and kv add northsea cell by extrapolation
+    b) add bathymetry to the layer model.
+    c) remove inactive layers
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset
+    datavar_northsea: str, optional
+        checks if this datavar is available in ds, if not it will create the datavar
+        by calling 'get_northsea'.
+
+    """
+    logger.info(
+        "Filling NaN values in top/botm and kh/kv in "
+        "North Sea using bathymetry data from jarkus"
+    )
+
+    # fill top, bot, kh, kv at sea cells
+    fal = get_first_active_layer(ds)
+    fill_mask = (fal == fal.attrs["nodata"]) * ds[datavar_sea]
+    ds = fill_top_bot_kh_kv_at_mask(ds, fill_mask)
+
+    # add bathymetry
+    ds = _add_bathymetry_to_top_bot_kh_kv(
+        ds, ds[datavar_bathymetry], fill_mask, kh_sea=kh_sea, kv_sea=kv_sea
+    )
+
+    # remove inactive layers
+    ds = remove_inactive_layers(ds)
+
+    return ds
+
+
+def _add_bathymetry_to_top_bot_kh_kv(ds, bathymetry, fill_mask, kh_sea, kv_sea):
+    """Add bathymetry to the top and bot of each layer for all cells with fill_mask.
+
+    This method sets the top of the model at fill_mask to 0 m, and changes the first
+    layer to sea, by setting the botm of this layer to bathymetry, kh to kh_sea and kv
+    to kv_sea. If deeper layers are above bathymetry. the layer depth is set to
+    bathymetry.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data, should
+    bathymetry : xarray DataArray
+        bathymetry data
+    fill_mask : xr.DataArray
+        cell value is 1 if you want to add bathymetry
+    kh_sea : int or float, optional
+        the horizontal conductance of the sea cells
+    kv_sea : int or float, optional
+        the vertical conductance of the sea cells
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        dataset with model data where the top, bot, kh and kv are changed
+    """
+    ds["top"].values = np.where(fill_mask, 0.0, ds["top"])
+
+    lay = 0
+    ds["botm"][lay] = xr.where(fill_mask, bathymetry, ds["botm"][lay])
+
+    ds["kh"][lay] = xr.where(fill_mask, kh_sea, ds["kh"][lay])
+
+    ds["kv"][lay] = xr.where(fill_mask, kv_sea, ds["kv"][lay])
+
+    # reset bot for all layers based on bathymetry
+    for lay in range(1, ds.sizes["layer"]):
+        ds["botm"][lay] = np.where(
+            ds["botm"][lay] > ds["botm"][lay - 1],
+            ds["botm"][lay - 1],
+            ds["botm"][lay],
+        )
+    return ds
+
+
+def get_modellayers_screens(ds, screen_top, screen_bottom, xy=None, icell2d=None):
+    """Get the model layer of a well.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        xarray Dataset with with top and bottoms, can be structured or vertex.
+    screen_top : np.ndarray of shape(nobs)
+        collection of screen top values).
+    screen_bottom : np.ndarray of shape(nobs)
+        collection of screen bottom values. Should have the same length as screen_top
+        and xy.
+    xy : np.ndarray of shape(nobs, 2), optional
+        list of x,y coordinates
+    icell2d : np.ndarray of shape(nobs), optional
+        To speed up the process for vertex grids a list of icell2d indices can be
+        given instead of a list of xy coordinates.
+
+    Returns
+    -------
+    list of floats
+        zero-based indices of modellayers
+        nan if screen above or below model boundaries
+        if screen spans multiple layers, choose layer with most screen length.
+    """
+    if grid.is_vertex(ds):
+        if icell2d is None:
+            gi = flopy.utils.GridIntersect(grid.modelgrid_from_ds(ds), method="vertex")
+            icell2d = [grid.get_icell2d_from_xy(x, y, ds, gi=gi) for x, y in xy]
+        # make dataset of observations
+        ds_obs = ds.sel(icell2d=icell2d)
+        ds_obs["screen_top"] = (("icell2d"), screen_top)
+        ds_obs["screen_bot"] = (("icell2d"), screen_bottom)
+        dimname = "icell2d"
+    elif grid.is_structured(ds):
+        # make dataset of observations
+        dimname = "n_obs"
+        x = xr.DataArray(np.asarray(xy)[:, 0], dims=dimname)
+        y = xr.DataArray(np.asarray(xy)[:, 1], dims=dimname)
+        ds_obs = ds.sel(x=x, y=y, method="nearest")
+        ds_obs["screen_top"] = ((dimname), screen_top)
+        ds_obs["screen_bot"] = ((dimname), screen_bottom)
+
+    modellayers = _get_modellayers_dsobs(ds_obs, dimname=dimname)
+    return modellayers
+
+
+def _get_modellayers_dsobs(ds_obs, dimname="n_obs"):
+    """Get modellayers from a dataset of observation point data.
+
+    Parameters
+    ----------
+    ds_obs : xr.Dataset
+        typically a subset of a model dataset with only data for observations.
+    dimname : str, optional
+        name of the observation dimension. 'icell2d' is used for vertex grids
+        and 'n_obs' for structured grid, by default 'n_obs'.
+
+    Returns
+    -------
+    list of floats
+        zero-based indices of modellayers
+        nan if screen above or below model boundaries
+        if screen spans multiple layers, choose layer with most screen length.
+
+    Raises
+    ------
+    ValueError
+        If any screen top is lower or equal to screen bottom.
+    """
+    if (ds_obs["screen_top"] < ds_obs["screen_bot"]).any():
+        errors = ds_obs.where(ds_obs["screen_top"] < ds_obs["screen_bot"], drop=True)
+        raise ValueError(
+            f"screen top is equal to or below screen bottom: {errors[dimname].values}"
+        )
+
+    # get model layers for screen top and bottom
+    ds_obs["modellayer_top"] = (
+        (dimname,),
+        [
+            np.argmax(ds_obs["screen_top"].values[i] > ds_obs["botm"].values[:, i])
+            for i in range(ds_obs.sizes[dimname])
+        ],
+    )
+    ds_obs["modellayer_top"] = xr.where(
+        ds_obs["screen_top"] >= ds_obs["top"], np.inf, ds_obs["modellayer_top"]
+    )
+    ds_obs["modellayer_top"] = xr.where(
+        ds_obs["screen_top"] <= ds_obs["botm"].isel(layer=-1),
+        -np.inf,
+        ds_obs["modellayer_top"],
+    )
+    ds_obs["modellayer_bot"] = (
+        (dimname,),
+        [
+            np.argmax(ds_obs["screen_bot"].values[i] > ds_obs["botm"].values[:, i])
+            for i in range(ds_obs.sizes[dimname])
+        ],
+    )
+    ds_obs["modellayer_bot"] = xr.where(
+        ds_obs["screen_bot"] >= ds_obs["top"], np.inf, ds_obs["modellayer_bot"]
+    )
+    ds_obs["modellayer_bot"] = xr.where(
+        ds_obs["screen_bot"] <= ds_obs["botm"].isel(layer=-1),
+        -np.inf,
+        ds_obs["modellayer_bot"],
+    )
+
+    # screen top is above model top but screen bottom is below model top
+    mask = (ds_obs["modellayer_top"] == np.inf) & ~(ds_obs["modellayer_bot"] == np.inf)
+    ds_obs["modellayer_top"] = xr.where(mask, 0, ds_obs["modellayer_top"])
+    ds_obs["screen_top"] = xr.where(mask, ds_obs["top"], ds_obs["screen_top"])
+
+    # screen bot is below model botm but screen top is above model botm
+    mask = (ds_obs["modellayer_bot"] == -np.inf) & ~(
+        ds_obs["modellayer_top"] == -np.inf
+    )
+    ds_obs["modellayer_bot"] = xr.where(
+        mask, ds_obs.sizes["layer"] - 1, ds_obs["modellayer_bot"]
+    )
+    ds_obs["screen_bot"] = xr.where(mask, ds_obs["botm"][-1], ds_obs["screen_bot"])
+
+    # combine modellayer_top and modellayer_bot to get modellayer
+    def get_max_overlap_model_layer(i):
+        mtop = ds_obs["modellayer_top"].values[i]
+        mbot = ds_obs["modellayer_bot"].values[i]
+
+        if ~np.isfinite(mtop) & ~np.isfinite(mbot):
+            return np.nan  # observation below or above model boundaries
+        if mtop == mbot:
+            return mtop  # screen top and bot in same layer
+        # find modellayer with the longest screen length
+        ftop = ds_obs["screen_top"].values[i]
+        fbot = ds_obs["screen_bot"].values[i]
+        botm_single_obs = (
+            ds_obs["botm"]
+            .isel(**{dimname: i}, layer=range(int(mtop - 1), int(mbot + 1)))
+            .values
+        )
+        botm_single_obs[0] = ftop
+        botm_single_obs[-1] = fbot
+        return np.argmin(np.diff(botm_single_obs)) + mtop
+
+    modellayer = [get_max_overlap_model_layer(i) for i in range(ds_obs.sizes[dimname])]
+
+    return modellayer
+
+
+def get_modellayers_indexer(
+    ds,
+    df,
+    x="x",
+    y="y",
+    screen_top="screen_top",
+    screen_bottom="screen_bottom",
+    full_output=False,
+    drop_nan_layers=False,
+):
+    """Get a model layer indexer (dataset) for a dataframe with observation wells.
+
+    The dataframe must contain the spatial data of the observation wells, i.e.
+    the x, y coordinates and the screen top and bottom values. The column names
+    corresponding to these values can be specified with keyword arguments.
+
+    Note that the returned x and y data (if grid is structured) are the cell
+    coordinates and not the original coordinates of the observation points!
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Model Dataset containing layer elevations (top, botm).
+    df : pd.DataFrame
+        DataFrame with x, y coordinates and screen_top and screen_bottom values.
+    x : str, optional
+        name of the x-coordinate column in df. The default is "x".
+    y : str, optional
+        name of the y-coordinate column in df. The default is "y".
+    screen_top : str, optional
+        name of the screen top column in df. The default is "screen_top".
+    screen_bottom : str, optional
+        name of the screen bottom column in df. The default is "screen_bottom".
+    full_output : bool, optional
+        If True, return all variables needed to construct the model layer indexer.
+        If False, return only the variables needed to index a data array.
+    drop_nan_layers : bool, optional
+        If True, drop the observation wells for which the model layer cannot be
+        determined. These probably lie above or below the model. The default is False.
+        If False, the model layer indexer will contain NaN values for these wells.
+
+    Returns
+    -------
+    obs_ds : xr.Dataset
+        Dataset with the following variables:
+
+        - x: x-coordinate of the cell in which the observation point is located
+        - y: y-coordinate of the cell in which the observation point is located
+        - layer : model layer of each observation point
+
+        Optionally returns the following variables if full_output is True:
+
+        - icell2d: cell id of the observation point
+        - screen_top: top of the screen
+        - screen_bottom: bottom of the screen
+        - top: top elevation of the model at the observation point
+        - botm: bottom elevations of the model layers at the observation point
+        - x_obs_local: local x-coordinate of the observation point (if grid is rotated)
+        - y_obs_local: local y-coordinate of the observation point (if grid is rotated)
+
+    Examples
+    --------
+    Given some model dataset `ds`  and a dataframe `df` containing the metadata for
+    multiple observation wells:
+
+    >>> idx = nlmod.layers.get_modellayer_indexer(ds, df)
+
+    This indexer dataset can be used to obtain the simulated heads for each observation
+    well:
+
+    >>> heads.sel(**idx)
+
+    """
+    # create geodataframe of points
+    pts = GeoSeries(points_from_xy(df["x"], df["y"]))
+    pts_to_cellid = grid.get_cellids_from_xy(df["x"].values, df["y"].values, ds=ds)
+    npts_outside_domain = pts_to_cellid.isna().sum()
+    if npts_outside_domain > 0:
+        maskpts = ~pts_to_cellid.isna()
+        pts = pts[maskpts]
+        pts_to_cellid  = pts_to_cellid[maskpts]
+        df = df.loc[maskpts.values].copy()
+        logger.warning(
+            "Warning! Dropped %d points outside the model domain.", npts_outside_domain
+        )
+
+    # ensure result is integer, should not contain nans after masking pts outside domain
+    pts_to_cellid = pts_to_cellid.astype(int)
+
+    # build obs dataset
+    rename_dict = {
+        x: "x",
+        y: "y",
+        screen_top: "screen_top",
+        screen_bottom: "screen_bot",
+    }
+    obs_ds = (
+        df.loc[:, [x, y, screen_top, screen_bottom]]
+        .to_xarray()
+        .rename_vars(rename_dict)
+    )
+    dim = obs_ds["x"].dims[0]  # get dimension name
+
+    obs_ds["icell2d"] = ((dim,), pts_to_cellid.values)
+    # get tops and bottoms from modelgrid
+    rename_vars = {"modellayer": "layer"}  # rename to use result directly as indexer
+    if grid.is_structured(ds):
+        shape = ds["botm"].shape
+        _, irow, icol = grid.node_to_lrc(obs_ds["icell2d"], shape)
+        obs_ds["top"] = (dim,), ds["top"].isel(y=irow, x=icol).values
+        obs_ds["botm"] = ("layer", dim), ds["botm"].isel(y=irow, x=icol).values
+
+        obs_ds["xlocal"] = (dim,), ds.x.isel(x=icol).values
+        obs_ds["ylocal"] = (dim,), ds.y.isel(y=irow).values
+
+        rename_vars.update({"x": "x_obs", "y": "y_obs", "xlocal": "x", "ylocal": "y"})
+
+    elif grid.is_vertex(ds):
+        obs_ds["top"] = (dim,), ds["top"].isel(icell2d=obs_ds["icell2d"]).values
+        obs_ds["botm"] = (
+            ("layer", dim),
+            ds["botm"].isel(icell2d=obs_ds["icell2d"]).values,
+        )
+
+    # compute modellayer
+    obs_ds["modellayer"] = ((dim,), _get_modellayers_dsobs(obs_ds, dimname=dim))
+
+    # use dataset layer index as result if there are no NaNs in result
+    if not obs_ds["modellayer"].isnull().any():
+        obs_ds["modellayer"].values = ds["layer"][
+            obs_ds["modellayer"].astype(int)
+        ].values
+    elif drop_nan_layers:
+        obs_ds = obs_ds.dropna(dim, subset=["modellayer"])
+    else:
+        logger.warning(
+            "There are observation wells that lie above/below the model. "
+            "The model layer indexer will contain NaN values for these wells."
+        )
+
+    # rename variables to match original input
+    obs_ds = obs_ds.rename_vars({v: k for k, v in rename_dict.items()})
+
+    # if full_output is False drop vars to keep only what we need for indexing
+    if not full_output:
+        drop = [
+            "top",
+            "botm",
+            "screen_top",
+            "screen_bottom",
+            "modellayer_top",
+            "modellayer_bot",
+        ]
+        rename_dims = None
+    else:
+        drop = []
+        # avoid conflicts between layer dimension from model dataset and computed
+        # modellayer
+        rename_dims = {"layer": "ilayer"}
+
+    if not full_output and grid.is_vertex(ds):
+        drop += ["x", "y"]
+    elif not full_output and grid.is_structured(ds):
+        drop += ["icell2d", "x_obs", "y_obs"]
+
+    # add local x, y coords of observation points if structured grid is rotated
+    if full_output and grid.is_rotated(ds) and grid.is_structured(ds):
+        affine = grid.get_affine_world_to_mod(ds)
+        pts_local = pts.loc[obs_ds["name"].values.tolist()].affine_transform(
+            affine.to_shapely()
+        )
+        obs_ds["x_obs_local"] = (dim,), pts_local.x.values
+        obs_ds["y_obs_local"] = (dim,), pts_local.y.values
+
+    return obs_ds.rename_vars(rename_vars).drop_vars(drop).rename_dims(rename_dims)

@@ -2399,10 +2399,14 @@ def get_modellayers_indexer(
 
     # use dataset layer index as result if there are no NaNs in result
     if not obs_ds["modellayer"].isnull().any():
-        obs_ds["modellayer"] = obs_ds["modellayer"].astype(int)
+        obs_ds["modellayer"].values = ds["layer"][
+            obs_ds["modellayer"].astype(int)
+        ].values
     elif drop_nan_layers:
         obs_ds = obs_ds.dropna(dim, subset=["modellayer"])
-        obs_ds["modellayer"] = obs_ds["modellayer"].astype(int)
+        obs_ds["modellayer"].values = ds["layer"][
+            obs_ds["modellayer"].astype(int)
+        ].values
     else:
         logger.warning(
             "There are observation wells above/below the model top/bottom. "

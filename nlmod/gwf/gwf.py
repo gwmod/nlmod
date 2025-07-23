@@ -100,7 +100,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
     """
     if ds.gridtype == "vertex":
         return disv(ds, model, length_units=length_units, **kwargs)
-    
+
     logger.info("creating mf6 DIS")
 
     # check attributes

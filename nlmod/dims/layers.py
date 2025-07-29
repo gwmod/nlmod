@@ -2350,7 +2350,7 @@ def get_modellayers_indexer(
     if npts_outside_domain > 0:
         maskpts = ~pts_to_cellid.isna()
         pts = pts[maskpts]
-        pts_to_cellid  = pts_to_cellid[maskpts]
+        pts_to_cellid = pts_to_cellid[maskpts]
         df = df.loc[maskpts.values].copy()
         logger.warning(
             "Warning! Dropped %d points outside the model domain.", npts_outside_domain

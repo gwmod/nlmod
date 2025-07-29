@@ -2278,7 +2278,7 @@ def get_modellayers_indexer(
     screen_top="screen_top",
     screen_bottom="screen_bottom",
     full_output=False,
-    drop_nan_layers=False,
+    drop_nan_layers=True,
 ):
     """Get a model layer indexer (dataset) for a dataframe with observation wells.
 
@@ -2308,7 +2308,7 @@ def get_modellayers_indexer(
         If False, return only the variables needed to index a data array.
     drop_nan_layers : bool, optional
         If True, drop the observation wells for which the model layer cannot be
-        determined. These probably lie above or below the model. The default is False.
+        determined. These probably lie above or below the model. The default is True.
         If False, the model layer indexer will contain NaN values for these wells.
 
     Returns
@@ -2404,9 +2404,12 @@ def get_modellayers_indexer(
         ].values
     elif drop_nan_layers:
         obs_ds = obs_ds.dropna(dim, subset=["modellayer"])
+        obs_ds["modellayer"].values = ds["layer"][
+            obs_ds["modellayer"].astype(int)
+        ].values
     else:
         logger.warning(
-            "There are observation wells that lie above/below the model. "
+            "There are observation wells above/below the model top/bottom. "
             "The model layer indexer will contain NaN values for these wells."
         )
 

@@ -6,8 +6,8 @@ import json
 import logging
 import numbers
 import os
+import pathlib
 import pickle
-from pathlib import Path
 
 import flopy
 import joblib
@@ -555,7 +555,7 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
         if item is None:
             # Value of None type is always None so the check happens in previous if statement
             pass
-        elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple, Path)):
+        elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple, pathlib.PurePath)):
             if item != func_args_dic_cache[key]:
                 if key.endswith("_hash") and isinstance(item, str):
                     logger.info(

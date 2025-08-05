@@ -149,15 +149,8 @@ def lake_from_gdf(
 
     lake_settings = [setting for setting in LAKE_KWDS if setting in gdf.columns]
 
-    if "lakeout" in gdf.columns:
-        outlets = []
-        outlet_no = 0
-        use_outlets = True
-        logger.debug("using lake outlets")
-    else:
-        use_outlets = False
-        noutlets = None
-        outlets = None
+    outlets = []
+    outlet_no = 0
 
     fal = get_first_active_layer(ds).data
 
@@ -208,7 +201,7 @@ def lake_from_gdf(
             iconn += 1
 
         # add outlets to lake
-        if use_outlets and (not lake_gdf["lakeout"].isna().all()):
+        if not lake_gdf["lakeout"].isna().all():
             lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
             if isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname
@@ -296,9 +289,6 @@ def lake_from_gdf(
                     [lakeno, "evaporation", evaporation_concentration]
                 )
 
-    if use_outlets:
-        noutlets = len(outlets)
-
     if boundname_column is not None:
         observations = {}
         if isinstance(obs_type, str):
@@ -323,8 +313,8 @@ def lake_from_gdf(
         observations=observations,
         budget_filerecord=f"{pname}.bgt",
         stage_filerecord=f"{pname}.hds",
-        noutlets=noutlets,
-        outlets=outlets,
+        noutlets=len(outlets) if outlets else None,
+        outlets=outlets if outlets else None,
         pname=pname,
         **kwargs,
     )

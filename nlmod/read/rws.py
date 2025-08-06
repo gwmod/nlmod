@@ -16,7 +16,7 @@ from nlmod.read.webservices import arcrest
 logger = logging.getLogger(__name__)
 
 
-@cache.cache_pickle
+@cache.cache_netcdf(coords_2d=True)
 def get_gdf_surface_water(ds=None, extent=None):
     """Read a shapefile with surface water as a geodataframe, cut by the extent of the
     model.
@@ -52,7 +52,7 @@ def get_gdf_surface_water(ds=None, extent=None):
     return gdf_swater
 
 
-@cache.cache_netcdf(coords_3d=True)
+@cache.cache_netcdf(coords_2d=True)
 def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     """Create 3 data-arrays from the shapefile with surface water:
 
@@ -94,7 +94,7 @@ def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     return discretize_surface_water(ds, gdf, da_basename)
 
 
-@cache.cache_netcdf(coords_3d=True)
+@cache.cache_netcdf(coords_2d=True)
 def discretize_surface_water(ds, gdf, da_basename="rws_oppwater"):
     """Create 3 data-arrays from the shapefile with surface water:
 

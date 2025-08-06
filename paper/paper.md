@@ -4,11 +4,8 @@ tags:
   - hydrology
   - groundwater
   - Python
-authors:
+authors: # ORDER?
   - name: Ruben Caljé
-    orcid:
-    affiliation: "1"
-  - name: Onno Ebbens
     orcid:
     affiliation: "1"
   - name: Davíd A. Brakenhoff
@@ -20,6 +17,9 @@ authors:
   - name: Martin A. Vonk
     orcid: 0009-0007-3528-2991
     affiliation: "1, 3"
+  - name: Onno Ebbens
+    orcid:
+    affiliation: "1"
 affiliations:
  - name: Artesia B.V., Schoonhoven, South Holland, The Netherlands
    index: 1

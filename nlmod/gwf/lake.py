@@ -201,7 +201,7 @@ def lake_from_gdf(
             iconn += 1
 
         # add outlets to lake
-        if not lake_gdf["lakeout"].isna().all():
+        if "lakeout" in lake_gdf.columns and not lake_gdf["lakeout"].isna().all():
             lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
             if isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname

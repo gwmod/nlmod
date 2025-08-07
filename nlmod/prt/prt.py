@@ -91,7 +91,7 @@ def disv(ds, prt, length_units="METERS", pname="disv", **kwargs):
 
 
 def mip(ds, prt, porosity=None, **kwargs):
-    """Create matrix input package for groundwater transport model.
+    """Create model input package for particle tracking model.
 
     Parameters
     ----------
@@ -105,7 +105,7 @@ def mip(ds, prt, porosity=None, **kwargs):
     Returns
     -------
     mip : flopy ModflowGwtmip
-        matrix input package
+        model input package
     """
     logger.info("creating mf6 MIP")
 
@@ -126,7 +126,7 @@ def mip(ds, prt, porosity=None, **kwargs):
 
 
 def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
-    """Create particle release package for groundwater transport model.
+    """Create particle release point package for particle tracking model.
 
     Parameters
     ----------
@@ -140,7 +140,7 @@ def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
     Returns
     -------
     prp : flopy ModflowGwtprp
-        particle release package
+        particle release point package
     """
     logger.info("creating mf6 PRP")
     prp_track_file = kwargs.pop("prp_track_file", f"{ds.model_name}.prp.trk")
@@ -162,7 +162,7 @@ def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
 
 
 def fmi(ds, prt, packagedata=None, **kwargs):
-    """Create flow model interface package for groundwater transport model.
+    """Create flow model interface package for particle tracking model.
 
     Parameters
     ----------

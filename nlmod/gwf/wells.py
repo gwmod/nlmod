@@ -203,70 +203,91 @@ def maw_from_df(
     connectiondata = []
     perioddata = []
 
-    iw = 0
-    for index, irow in tqdm(
-        df.iterrows(), total=len(df), desc="Adding MAW wells", disable=silent
+    # Q is shared over all wells in a group
+    iw = 0  # grouped well index
+    for group_name, group in tqdm(
+        df.groupby("sec_flow_tag"), total=len(df), desc="Adding MAW wells", disable=silent
     ):
-        wlayers = np.where(multipliers[index] > 0)[0]
-
         # [wellno, radius, bottom, strt, condeqn, ngwfnodes]
+
         if strt is None:
-            if isinstance(irow["cellid"], (np.integer, int)):
+            if pd.api.types.is_integer_dtype(df.cellid):
                 if ds is None:
-                    wstrt = gwf.dis.top[irow["cellid"]]
+                    wstrt = gwf.dis.top[group["cellid"]].mean()
                 else:
-                    wstrt = ds.top.values[irow["cellid"]]
+                    wstrt = ds.top.values[group["cellid"]].mean()
             else:
+                idx, idy = np.stack(group).T
                 if ds is None:
-                    wstrt = gwf.dis.top[irow["cellid"][0], irow["cellid"][1]]
+                    wstrt = gwf.dis.top[idx, idy].mean()
                 else:
-                    wstrt = ds.top.values[irow["cellid"][0], irow["cellid"][1]]
+                    wstrt = ds.top.values[idx, idy].mean()
         else:
             wstrt = strt
-        pakdata = [iw, irow[rw], irow[botm], wstrt, condeqn, len(wlayers)]
+
+        number_of_well_sections = (multipliers[group.index] > 0.0).values.sum()
+        group_rw = group[rw].mean()
+        # The bottom elevation defines the lowest well head that will be simulated when the NEWTON UNDER_RELAXATION option is specified in the GWF model name file.
+        group_botm = group[botm].min()
+        pakdata = [iw, group_rw, group_botm, wstrt, condeqn, number_of_well_sections]
         for iaux in aux:
-            pakdata.append(irow[iaux])
+            if group.cellid.nunique() == 1:
+                pakdata.append(group[iaux].iloc[0])
+            else:
+                raise ValueError(
+                    f"Auxiliary variable {iaux} cannot be used for grouped wells, "
+                    f"because the wells are different among {group_name}."
+                )
         if boundnames is not None:
-            pakdata.append(irow[boundnames])
+            if group.cellid.nunique() == 1:
+                pakdata.append(group[boundnames].iloc[0])
+            else:
+                raise ValueError(
+                    f"Boundname {boundnames} cannot be used for grouped wells, "
+                    f"because the wells are different among {group_name}."
+                )
         packagedata.append(pakdata)
 
-        # [wellno mawsetting]
-        perioddata.append([iw, "RATE", irow[Q]])
+        for index, irow in group.iterrows():
+            wlayers = np.where(multipliers[index] > 0)[0]  # <<<<<<<<<<<<<<< Do I need to correct the multipliers by the group length?
 
-        for iwellpart, k in enumerate(wlayers):
-            if k == 0:
-                laytop = gwf.modelgrid.top if ds is None else ds.top.values
-            else:
-                laytop = (
-                    gwf.modelgrid.botm[k - 1] if ds is None else ds.botm.values[k - 1]
-                )
-            laybot = gwf.modelgrid.botm[k] if ds is None else ds.botm.values[k]
+            # [wellno mawsetting]
+            perioddata.append([iw, "RATE", irow[Q]])
 
-            if isinstance(irow["cellid"], int):
-                # vertex grid
-                cellid = (k, irow["cellid"])
-                laytop = laytop[irow["cellid"]]
-                laybot = laybot[irow["cellid"]]
-            else:
-                # structured grid
-                cellid = (k, irow["cellid"][0], irow["cellid"][1])
-                laytop = laytop[irow["cellid"][0], irow["cellid"][1]]
-                laybot = laybot[irow["cellid"][0], irow["cellid"][1]]
+            for iwellpart, k in enumerate(wlayers):
+                if k == 0:
+                    laytop = gwf.modelgrid.top if ds is None else ds.top.values
+                else:
+                    laytop = (
+                        gwf.modelgrid.botm[k - 1] if ds is None else ds.botm.values[k - 1]
+                    )
+                laybot = gwf.modelgrid.botm[k] if ds is None else ds.botm.values[k]
 
-            scrn_top = np.min([irow[top], laytop])
-            scrn_bot = np.max([irow[botm], laybot])
+                if isinstance(irow["cellid"], int):
+                    # vertex grid
+                    cellid = (k, irow["cellid"])
+                    laytop = laytop[irow["cellid"]]
+                    laybot = laybot[irow["cellid"]]
+                else:
+                    # structured grid
+                    cellid = (k, irow["cellid"][0], irow["cellid"][1])
+                    laytop = laytop[irow["cellid"][0], irow["cellid"][1]]
+                    laybot = laybot[irow["cellid"][0], irow["cellid"][1]]
 
-            # [wellno, icon, cellid, scrn_top, scrn_bot, hk_skin, radius_skin]
-            condata = [
-                iw,
-                iwellpart,
-                cellid,
-                scrn_top,
-                scrn_bot,
-                0.0,
-                0.0,
-            ]
-            connectiondata.append(condata)
+                scrn_top = np.min([irow[top], laytop])
+                scrn_bot = np.max([irow[botm], laybot])
+
+                # [wellno, icon, cellid, scrn_top, scrn_bot, hk_skin, radius_skin]
+                condata = [
+                    iw,
+                    iwellpart,
+                    cellid,
+                    scrn_top,
+                    scrn_bot,
+                    0.0,
+                    0.0,
+                ]
+                connectiondata.append(condata)
         iw += 1
 
     if len(aux) == 0:

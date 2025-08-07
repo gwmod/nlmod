@@ -9,7 +9,7 @@ description = "Python package to build, run and visualize MODFLOW 6 groundwater 
 license = { file = "LICENSE" }
 readme = "README.md"
 authors = [
-    { name = "O. Ebbens" },
+    { name = "O.N. Ebbens" },
     { name = "R. Caljé" },
     { name = "D.A. Brakenhoff" },
 ]

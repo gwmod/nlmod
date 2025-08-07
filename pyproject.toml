@@ -112,9 +112,22 @@ show-fixes = true
 fix = true
 
 [tool.ruff.lint]
-select = ["C4", "E", "F", "I", "PT", "D", "B", "NPY"]
+select = [
+    "C4",  # flake8-comprehensions
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "PT",  # pytest-style
+    "D",   # pydocstyle
+    "B",   # flake8-bugbear
+    "NPY", # numpy
+]
+ignore = [
+    "D401", # Imperative mood for docstring. Be glad we have docstrings at all :P!
+    "D100", # Missing docstring in module.
+    "D104", # Missing docstring in public package.
+]
 extend-select = ["I"]
-ignore = ["D401", "D100", "D104"]
 pydocstyle.convention = "numpy"
 
 [tool.pytest.ini_options]

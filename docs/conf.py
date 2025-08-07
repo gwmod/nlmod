@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath("."))
 # -- Project information -----------------------------------------------------
 
 project = "nlmod"
-copyright = "2024, O.N. Ebbens, D.A. Brakenhoff, R. Caljé"
+copyright = "2025, O.N. Ebbens, D.A. Brakenhoff, R. Caljé"
 author = "O.N. Ebbens, D.A. Brakenhoff, R. Caljé"
 
 # The short X.Y version

@@ -132,6 +132,8 @@ def maw_from_df(
     botm="botm",
     Q="Q",
     rw="rw",
+    radius_skin=None,
+    hk_skin=None,
     condeqn="THIEM",
     strt=None,
     group=None,
@@ -171,6 +173,15 @@ def maw_from_df(
     rw : str, optional
         The column in df that contains the radius for the multi-aquifer well. The
         default is "rw".
+    radius_skin : str, optional
+        The column in df that contains the radius of the skin around the well; the
+        distance between the center of the well and the outside of the filter pack. Is
+        larger than `rw`. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The 
+        default is None, which means that the skin is not used.
+    hk_skin : str, optional
+        The column in df that contains the horizontal hydraulic conductivity of the skin
+        around the well. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The default
+        is None, which means that the skin is not used.
     condeqn : str, optional
         String that defines the conductance equation that is used to calculate the
         saturated conductance for the multi-aquifer well. The default is "THIEM".
@@ -217,7 +228,8 @@ def maw_from_df(
         )
 
     if group is not None:
-        group_by = df[group].where(df[group].ne(""), other=df.index.astype(str))
+        mask = df[group].notna() & df[group].ne("")
+        group_by = df[group].where(mask, other=df.index.astype(str))
     else:
         group_by = df.index.astype(str)
 
@@ -313,17 +325,20 @@ def maw_from_df(
                 scrn_top = np.min([irow[top], laytop])
                 scrn_bot = np.max([irow[botm], laybot])
 
+                hk_skin_part = 0.0 if hk_skin is None else irow[hk_skin]
+                radius_skin_part = 0.0 if radius_skin is None else irow[radius_skin]
+
                 condata = [
                     iw,
                     iwellpart,
                     cellid,
                     scrn_top,
                     scrn_bot,
-                    0.0,
-                    0.0,
+                    hk_skin_part,
+                    radius_skin_part,
                 ]
                 connectiondata.append(condata)
-            iwellpart += 1
+                iwellpart += 1
         iw += 1
 
     if len(aux) == 0:

@@ -176,12 +176,12 @@ def maw_from_df(
     radius_skin : str, optional
         The column in df that contains the radius of the skin around the well; the
         distance between the center of the well and the outside of the filter pack. Is
-        larger than `rw`. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The 
+        larger than `rw`. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The
         default is None, which means that the skin is not used.
     hk_skin : str, optional
         The column in df that contains the horizontal hydraulic conductivity of the skin
-        around the well. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The default
-        is None, which means that the skin is not used.
+        around the well. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The
+        defaultis None, which means that the skin is not used.
     condeqn : str, optional
         String that defines the conductance equation that is used to calculate the
         saturated conductance for the multi-aquifer well. The default is "THIEM".
@@ -223,8 +223,8 @@ def maw_from_df(
     # configure groups
     if df.index.has_duplicates:
         raise ValueError(
-            "The index of the DataFrame must be unique. Indexing `multipliers` would go"
-            "wrong"
+            "The index of the DataFrame must be unique. Indexing `multipliers` would "
+            "go wrong"
         )
 
     if group is not None:
@@ -239,11 +239,14 @@ def maw_from_df(
 
     iw = 0  # grouped well index
     for well_group_name, well_group in tqdm(
-        df.groupby(group_by), total=len(df), desc="Adding MAW wells", disable=silent
+        df.groupby(group_by),
+        total=group_by.nunique(),
+        desc="Adding MAW wells",
+        disable=silent,
     ):
         # [wellno, radius, bottom, strt, condeqn, ngwfnodes]
         if strt is None:
-            if pd.api.types.is_integer_dtype(df.cellid):
+            if pd.api.types.is_integer_dtype(well_group["cellid"]):
                 # vertex grid
                 if ds is None:
                     wstrt = gwf.dis.top[well_group["cellid"]].mean()

@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 import nlmod
 
@@ -96,3 +97,63 @@ def test_maw_from_df_transient():
     maw = nlmod.gwf.wells.maw_from_df(wells, gwf)
 
     nlmod.time.dataframe_to_flopy_timeseries(Q, ds, package=maw)
+
+
+def test_maw_from_df_with_skin():
+    wells = pd.DataFrame(
+        columns=["x", "y", "top", "botm", "rw", "Q", "hk_skin", "radius_skin"],
+        index=range(2),
+    )
+    wells.loc[0] = 100, -50, -5, -10, 0.1, -100.0, 1.0, 0.15
+    wells.loc[1] = 200, 150, -20, -30, 0.1, -300.0, 2.0, 0.2
+
+    sim, gwf = get_sim_and_gwf()
+    maw = nlmod.gwf.wells.maw_from_df(
+        wells, gwf, hk_skin="hk_skin", radius_skin="radius_skin", condeqn="SKIN"
+    )
+    # 2 wells × 1 layer each (based on actual well depths)
+    assert len(maw.connectiondata.array) == 2
+
+
+def test_maw_from_df_grouped_wells():
+    wells = pd.DataFrame(
+        columns=["x", "y", "top", "botm", "rw", "Q", "group"], index=range(4)
+    )
+    wells.loc[0] = 100, -50, -5, -10, 0.1, -200.0, "group1"
+    wells.loc[1] = 150, -50, -5, -10, 0.1, -200.0, "group1"
+    wells.loc[2] = 200, 150, -20, -30, 0.1, -300.0, "group2"
+    wells.loc[3] = 250, 150, -20, -30, 0.1, -300.0, "group2"
+
+    sim, gwf = get_sim_and_gwf()
+    maw = nlmod.gwf.wells.maw_from_df(wells, gwf, group="group")
+
+    assert maw.nmawwells.array == 2  # 2 groups
+    assert len(maw.perioddata.array[0]) == 2  # 2 rate settings
+
+
+def test_maw_from_df_grouped_wells_mixed():
+    wells = pd.DataFrame(
+        columns=["x", "y", "top", "botm", "rw", "Q", "group"], index=range(4)
+    )
+    wells.loc[0] = 100, -50, -5, -10, 0.1, -200.0, "shared_group"
+    wells.loc[1] = 150, -50, -5, -10, 0.1, -200.0, "shared_group"
+    wells.loc[2] = 200, 150, -20, -30, 0.1, -300.0, ""  # empty group -> individual
+    wells.loc[3] = 250, 150, -20, -30, 0.1, -400.0, ""  # empty group -> individual
+
+    sim, gwf = get_sim_and_gwf()
+    maw = nlmod.gwf.wells.maw_from_df(wells, gwf, group="group")
+
+    assert maw.nmawwells.array == 3  # 1 shared group + 2 individual wells
+
+
+def test_maw_from_df_grouped_wells_different_q_error():
+    wells = pd.DataFrame(
+        columns=["x", "y", "top", "botm", "rw", "Q", "group"], index=range(2)
+    )
+    wells.loc[0] = 100, -50, -5, -10, 0.1, -200.0, "group1"
+    wells.loc[1] = 150, -50, -5, -10, 0.1, -300.0, "group1"  # Different Q
+
+    sim, gwf = get_sim_and_gwf()
+
+    with pytest.raises(ValueError, match="Group flow rate"):
+        nlmod.gwf.wells.maw_from_df(wells, gwf, group="group")

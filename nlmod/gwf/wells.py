@@ -251,7 +251,7 @@ def maw_from_df(
                     wstrt = ds.top.values[well_group["cellid"]].mean()
             else:
                 # structured grid
-                idx, idy = np.stack(well_group).T
+                idx, idy = np.stack(well_group["cellid"]).T
                 if ds is None:
                     wstrt = gwf.dis.top[idx, idy].mean()
                 else:

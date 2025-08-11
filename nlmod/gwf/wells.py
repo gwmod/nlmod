@@ -134,6 +134,7 @@ def maw_from_df(
     rw="rw",
     condeqn="THIEM",
     strt=None,
+    group=None,
     aux=None,
     boundnames=None,
     ds=None,
@@ -164,7 +165,9 @@ def maw_from_df(
         The column in df that contains the volumetric well rate. This column can contain
         floats, or strings belonging to timeseries added later. A positive value
         indicates recharge (injection) and a negative value indicates discharge
-        (extraction)  The default is "Q".
+        (extraction). If wells are grouped, the values refer to the rates of all the
+        wells in the group combined and thus must be the same for all wells in the
+        group. The default is "Q".
     rw : str, optional
         The column in df that contains the radius for the multi-aquifer well. The
         default is "rw".
@@ -174,10 +177,17 @@ def maw_from_df(
     strt : float, optional
         The starting head for the multi-aquifer well. The default is None, which uses
         model surface level as the strt value.
+    group : str, optional
+        The column in df that contains the group name for the wells. If this is not
+        None, wells with the same group name are grouped together such that the rate is
+        divided over the wells in the group. Note that empty strings are treated as
+        unique group names, so wells with an empty string in the group column are
+        treated as a separate group. The default is None, which means that each well is
+        treated as a separate well.
     aux : str of list of str, optional
         The column(s) in df that contain auxiliary variables. The default is None.
     boundnames : str, optional
-        THe column in df thet . The default is None.
+        The column in df that contains the boundary names. The default is None.
     ds : xarray.Dataset
         Dataset with model data. Needed to determine cellid when grid-rotation is used.
         The default is None.
@@ -199,25 +209,37 @@ def maw_from_df(
     df = _add_cellid(df, ds=ds, gwf=gwf, x=x, y=y, silent=silent)
     multipliers = _get_layer_multiplier_for_wells(df, top, botm, ds=ds, gwf=gwf)
 
+    # configure groups
+    if df.index.has_duplicates:
+        raise ValueError(
+            "The index of the DataFrame must be unique. Indexing `multipliers` would go"
+            "wrong"
+        )
+
+    if group is not None:
+        group_by = df[group].where(df[group].ne(""), other=df.index.astype(str))
+    else:
+        group_by = df.index.astype(str)
+
     packagedata = []
     connectiondata = []
     perioddata = []
 
-    # Q is shared over all wells in a group
     iw = 0  # grouped well index
-    for group_name, group in tqdm(
-        df.groupby("sec_flow_tag"), total=len(df), desc="Adding MAW wells", disable=silent
+    for well_group_name, well_group in tqdm(
+        df.groupby(group_by), total=len(df), desc="Adding MAW wells", disable=silent
     ):
         # [wellno, radius, bottom, strt, condeqn, ngwfnodes]
-
         if strt is None:
             if pd.api.types.is_integer_dtype(df.cellid):
+                # vertex grid
                 if ds is None:
-                    wstrt = gwf.dis.top[group["cellid"]].mean()
+                    wstrt = gwf.dis.top[well_group["cellid"]].mean()
                 else:
-                    wstrt = ds.top.values[group["cellid"]].mean()
+                    wstrt = ds.top.values[well_group["cellid"]].mean()
             else:
-                idx, idy = np.stack(group).T
+                # structured grid
+                idx, idy = np.stack(well_group).T
                 if ds is None:
                     wstrt = gwf.dis.top[idx, idy].mean()
                 else:
@@ -225,41 +247,55 @@ def maw_from_df(
         else:
             wstrt = strt
 
-        number_of_well_sections = (multipliers[group.index] > 0.0).values.sum()
-        group_rw = group[rw].mean()
-        # The bottom elevation defines the lowest well head that will be simulated when the NEWTON UNDER_RELAXATION option is specified in the GWF model name file.
-        group_botm = group[botm].min()
+        number_of_well_sections = (multipliers[well_group.index] > 0.0).values.sum()
+        group_rw = well_group[rw].mean()
+        # The bottom elevation defines the lowest well head that will be simulated when
+        # the NEWTON UNDER_RELAXATION option is specified in the GWF model name file.
+        # Should actually be ~10m below the elevation of the pump.
+        group_botm = well_group[botm].min()
         pakdata = [iw, group_rw, group_botm, wstrt, condeqn, number_of_well_sections]
         for iaux in aux:
-            if group.cellid.nunique() == 1:
-                pakdata.append(group[iaux].iloc[0])
+            if well_group[iaux].nunique() == 1:
+                pakdata.append(well_group[iaux].iloc[0])
             else:
                 raise ValueError(
                     f"Auxiliary variable {iaux} cannot be used for grouped wells, "
-                    f"because the wells are different among {group_name}."
+                    "because the values of wells are different among group "
+                    f"{well_group_name}: {well_group[iaux].unique()}."
                 )
         if boundnames is not None:
-            if group.cellid.nunique() == 1:
-                pakdata.append(group[boundnames].iloc[0])
+            if well_group[boundnames].nunique() == 1:
+                pakdata.append(well_group[boundnames].iloc[0])
             else:
                 raise ValueError(
-                    f"Boundname {boundnames} cannot be used for grouped wells, "
-                    f"because the wells are different among {group_name}."
+                    f"Boundary name {boundnames} cannot be used for grouped wells, "
+                    "because the values of wells are different among group "
+                    f"{well_group_name}: {well_group[boundnames].unique()}."
                 )
         packagedata.append(pakdata)
 
-        for index, irow in group.iterrows():
-            wlayers = np.where(multipliers[index] > 0)[0]  # <<<<<<<<<<<<<<< Do I need to correct the multipliers by the group length?
+        # [wellno, mawsetting]
+        # Flow rate for the well_group
+        if well_group[Q].nunique() > 1:
+            raise ValueError(
+                f"Group flow rate {Q} cannot be different among wells in "
+                f"{well_group_name}."
+            )
+        perioddata.append([iw, "RATE", well_group[Q].iloc[0]])
 
-            # [wellno mawsetting]
-            perioddata.append([iw, "RATE", irow[Q]])
+        # [wellno, icon, cellid, scrn_top, scrn_bot, hk_skin, radius_skin]
+        iwellpart = 0  # index of well part in the well_group
+        for index, irow in well_group.iterrows():
+            wlayers = np.where(multipliers[index] > 0)[0]
 
-            for iwellpart, k in enumerate(wlayers):
+            for k in wlayers:
                 if k == 0:
                     laytop = gwf.modelgrid.top if ds is None else ds.top.values
                 else:
                     laytop = (
-                        gwf.modelgrid.botm[k - 1] if ds is None else ds.botm.values[k - 1]
+                        gwf.modelgrid.botm[k - 1]
+                        if ds is None
+                        else ds.botm.values[k - 1]
                     )
                 laybot = gwf.modelgrid.botm[k] if ds is None else ds.botm.values[k]
 
@@ -277,7 +313,6 @@ def maw_from_df(
                 scrn_top = np.min([irow[top], laytop])
                 scrn_bot = np.max([irow[botm], laybot])
 
-                # [wellno, icon, cellid, scrn_top, scrn_bot, hk_skin, radius_skin]
                 condata = [
                     iw,
                     iwellpart,
@@ -288,6 +323,7 @@ def maw_from_df(
                     0.0,
                 ]
                 connectiondata.append(condata)
+            iwellpart += 1
         iw += 1
 
     if len(aux) == 0:

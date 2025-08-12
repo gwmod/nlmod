@@ -132,8 +132,11 @@ def maw_from_df(
     botm="botm",
     Q="Q",
     rw="rw",
+    radius_skin=None,
+    hk_skin=None,
     condeqn="THIEM",
     strt=None,
+    group=None,
     aux=None,
     boundnames=None,
     ds=None,
@@ -164,20 +167,38 @@ def maw_from_df(
         The column in df that contains the volumetric well rate. This column can contain
         floats, or strings belonging to timeseries added later. A positive value
         indicates recharge (injection) and a negative value indicates discharge
-        (extraction)  The default is "Q".
+        (extraction). If wells are grouped, the values refer to the rates of all the
+        wells in the group combined and thus must be the same for all wells in the
+        group. The default is "Q".
     rw : str, optional
         The column in df that contains the radius for the multi-aquifer well. The
         default is "rw".
+    radius_skin : str, optional
+        The column in df that contains the radius of the skin around the well; the
+        distance between the center of the well and the outside of the filter pack. Is
+        larger than `rw`. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The
+        default is None, which means that the skin is not used.
+    hk_skin : str, optional
+        The column in df that contains the horizontal hydraulic conductivity of the skin
+        around the well. Only used if `condeqn` is SKIN, CUMULATIVE, or MEAN. The
+        defaultis None, which means that the skin is not used.
     condeqn : str, optional
         String that defines the conductance equation that is used to calculate the
         saturated conductance for the multi-aquifer well. The default is "THIEM".
     strt : float, optional
         The starting head for the multi-aquifer well. The default is None, which uses
         model surface level as the strt value.
+    group : str, optional
+        The column in df that contains the group name for the wells. If this is not
+        None, wells with the same group name are grouped together such that the rate is
+        divided over the wells in the group. Note that empty strings are treated as
+        unique group names, so wells with an empty string in the group column are
+        treated as a separate group. The default is None, which means that each well is
+        treated as a separate well.
     aux : str of list of str, optional
         The column(s) in df that contain auxiliary variables. The default is None.
     boundnames : str, optional
-        THe column in df thet . The default is None.
+        The column in df that contains the boundary names. The default is None.
     ds : xarray.Dataset
         Dataset with model data. Needed to determine cellid when grid-rotation is used.
         The default is None.
@@ -199,74 +220,128 @@ def maw_from_df(
     df = _add_cellid(df, ds=ds, gwf=gwf, x=x, y=y, silent=silent)
     multipliers = _get_layer_multiplier_for_wells(df, top, botm, ds=ds, gwf=gwf)
 
+    # configure groups
+    if df.index.has_duplicates:
+        raise ValueError(
+            "The index of the DataFrame must be unique. Indexing `multipliers` would "
+            "go wrong"
+        )
+
+    if group is not None:
+        mask = df[group].notna() & df[group].ne("")
+        group_by = df[group].where(mask, other=df.index.astype(str))
+    else:
+        group_by = df.index.astype(str)
+
     packagedata = []
     connectiondata = []
     perioddata = []
 
-    iw = 0
-    for index, irow in tqdm(
-        df.iterrows(), total=len(df), desc="Adding MAW wells", disable=silent
+    iw = 0  # grouped well index
+    for well_group_name, well_group in tqdm(
+        df.groupby(group_by),
+        total=group_by.nunique(),
+        desc="Adding MAW wells",
+        disable=silent,
     ):
-        wlayers = np.where(multipliers[index] > 0)[0]
-
         # [wellno, radius, bottom, strt, condeqn, ngwfnodes]
         if strt is None:
-            if isinstance(irow["cellid"], (np.integer, int)):
-                if ds is None:
-                    wstrt = gwf.dis.top[irow["cellid"]]
-                else:
-                    wstrt = ds.top.values[irow["cellid"]]
-            else:
-                if ds is None:
-                    wstrt = gwf.dis.top[irow["cellid"][0], irow["cellid"][1]]
-                else:
-                    wstrt = ds.top.values[irow["cellid"][0], irow["cellid"][1]]
-        else:
-            wstrt = strt
-        pakdata = [iw, irow[rw], irow[botm], wstrt, condeqn, len(wlayers)]
-        for iaux in aux:
-            pakdata.append(irow[iaux])
-        if boundnames is not None:
-            pakdata.append(irow[boundnames])
-        packagedata.append(pakdata)
-
-        # [wellno mawsetting]
-        perioddata.append([iw, "RATE", irow[Q]])
-
-        for iwellpart, k in enumerate(wlayers):
-            if k == 0:
-                laytop = gwf.modelgrid.top if ds is None else ds.top.values
-            else:
-                laytop = (
-                    gwf.modelgrid.botm[k - 1] if ds is None else ds.botm.values[k - 1]
-                )
-            laybot = gwf.modelgrid.botm[k] if ds is None else ds.botm.values[k]
-
-            if isinstance(irow["cellid"], int):
+            if pd.api.types.is_integer_dtype(well_group["cellid"]):
                 # vertex grid
-                cellid = (k, irow["cellid"])
-                laytop = laytop[irow["cellid"]]
-                laybot = laybot[irow["cellid"]]
+                if ds is None:
+                    wstrt = gwf.dis.top[well_group["cellid"]].mean()
+                else:
+                    wstrt = ds.top.values[well_group["cellid"]].mean()
             else:
                 # structured grid
-                cellid = (k, irow["cellid"][0], irow["cellid"][1])
-                laytop = laytop[irow["cellid"][0], irow["cellid"][1]]
-                laybot = laybot[irow["cellid"][0], irow["cellid"][1]]
+                idx, idy = np.stack(well_group["cellid"]).T
+                if ds is None:
+                    wstrt = gwf.dis.top[idx, idy].mean()
+                else:
+                    wstrt = ds.top.values[idx, idy].mean()
+        else:
+            wstrt = strt
 
-            scrn_top = np.min([irow[top], laytop])
-            scrn_bot = np.max([irow[botm], laybot])
+        number_of_well_sections = (multipliers[well_group.index] > 0.0).values.sum()
+        group_rw = well_group[rw].mean()
+        # The bottom elevation defines the lowest well head that will be simulated when
+        # the NEWTON UNDER_RELAXATION option is specified in the GWF model name file.
+        # Should actually be ~10m below the elevation of the pump.
+        group_botm = well_group[botm].min()
+        pakdata = [iw, group_rw, group_botm, wstrt, condeqn, number_of_well_sections]
+        for iaux in aux:
+            if well_group[iaux].nunique() == 1:
+                pakdata.append(well_group[iaux].iloc[0])
+            else:
+                raise ValueError(
+                    f"Auxiliary variable {iaux} cannot be used for grouped wells, "
+                    "because the values of wells are different among group "
+                    f"{well_group_name}: {well_group[iaux].unique()}."
+                )
+        if boundnames is not None:
+            if well_group[boundnames].nunique() == 1:
+                pakdata.append(well_group[boundnames].iloc[0])
+            else:
+                raise ValueError(
+                    f"Boundary name {boundnames} cannot be used for grouped wells, "
+                    "because the values of wells are different among group "
+                    f"{well_group_name}: {well_group[boundnames].unique()}."
+                )
+        packagedata.append(pakdata)
 
-            # [wellno, icon, cellid, scrn_top, scrn_bot, hk_skin, radius_skin]
-            condata = [
-                iw,
-                iwellpart,
-                cellid,
-                scrn_top,
-                scrn_bot,
-                0.0,
-                0.0,
-            ]
-            connectiondata.append(condata)
+        # [wellno, mawsetting]
+        # Flow rate for the well_group
+        if well_group[Q].nunique() > 1:
+            raise ValueError(
+                f"Group flow rate {Q} cannot be different among wells in "
+                f"{well_group_name}."
+            )
+        perioddata.append([iw, "RATE", well_group[Q].iloc[0]])
+
+        # [wellno, icon, cellid, scrn_top, scrn_bot, hk_skin, radius_skin]
+        iwellpart = 0  # index of well part in the well_group
+        for index, irow in well_group.iterrows():
+            wlayers = np.where(multipliers[index] > 0)[0]
+
+            for k in wlayers:
+                if k == 0:
+                    laytop = gwf.modelgrid.top if ds is None else ds.top.values
+                else:
+                    laytop = (
+                        gwf.modelgrid.botm[k - 1]
+                        if ds is None
+                        else ds.botm.values[k - 1]
+                    )
+                laybot = gwf.modelgrid.botm[k] if ds is None else ds.botm.values[k]
+
+                if isinstance(irow["cellid"], int):
+                    # vertex grid
+                    cellid = (k, irow["cellid"])
+                    laytop = laytop[irow["cellid"]]
+                    laybot = laybot[irow["cellid"]]
+                else:
+                    # structured grid
+                    cellid = (k, irow["cellid"][0], irow["cellid"][1])
+                    laytop = laytop[irow["cellid"][0], irow["cellid"][1]]
+                    laybot = laybot[irow["cellid"][0], irow["cellid"][1]]
+
+                scrn_top = np.min([irow[top], laytop])
+                scrn_bot = np.max([irow[botm], laybot])
+
+                hk_skin_part = 0.0 if hk_skin is None else irow[hk_skin]
+                radius_skin_part = 0.0 if radius_skin is None else irow[radius_skin]
+
+                condata = [
+                    iw,
+                    iwellpart,
+                    cellid,
+                    scrn_top,
+                    scrn_bot,
+                    hk_skin_part,
+                    radius_skin_part,
+                ]
+                connectiondata.append(condata)
+                iwellpart += 1
         iw += 1
 
     if len(aux) == 0:

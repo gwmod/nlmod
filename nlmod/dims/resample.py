@@ -230,22 +230,6 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
         attrs["angrot"] = angrot
 
 
-def _is_uniform_grid(xar_in):
-    """All cells are squares of the same size."""
-    if xar_in.ndim != 2:
-        return False
-
-    x = xar_in.coords[xar_in.dims[0]].values
-    y = xar_in.coords[xar_in.dims[1]].values
-    dxy = np.abs(x[1] - x[0])
-    if not np.allclose(np.abs(x[1:] - x[:-1]), dxy) or not np.allclose(
-        y[1:] - y[:-1], dxy
-    ):
-        return False
-
-    return True
-
-
 def fillnan_da_uniform_grid(xar_in, check_uniform_grid=True):
     """Fill not-a-number values in a 2D uniform grid with nearest value.
 
@@ -717,3 +701,19 @@ def get_affine(ds, sx=None, sy=None):
     from .grid import get_affine
 
     return get_affine(ds, sx=sx, sy=sy)
+
+
+def _is_uniform_grid(xar_in):
+    """All cells are squares of the same size."""
+    if xar_in.ndim != 2:
+        return False
+
+    x = xar_in.coords[xar_in.dims[0]].values
+    y = xar_in.coords[xar_in.dims[1]].values
+    dxy = np.abs(x[1] - x[0])
+    if not np.allclose(np.abs(x[1:] - x[:-1]), dxy) or not np.allclose(
+        y[1:] - y[:-1], dxy
+    ):
+        return False
+
+    return True

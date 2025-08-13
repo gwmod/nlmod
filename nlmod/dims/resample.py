@@ -260,7 +260,7 @@ def fillnan_da_uniform_grid(xar_in, check_uniform_grid=True):
     xar_out = xar_in.copy()
 
     idx = distance_transform_edt(
-        xar_in.isnull().values, return_distances=False, return_indices=True
+        xar_in.isnull(), return_distances=False, return_indices=True
     )
     xar_out.values = xar_in.values[tuple(idx)]
 

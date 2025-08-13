@@ -5,6 +5,7 @@ import numpy as np
 import rasterio
 import xarray as xr
 from scipy.interpolate import griddata
+from scipy.ndimage import distance_transform_edt
 from scipy.spatial import cKDTree
 
 from ..util import get_da_from_da_ds
@@ -102,8 +103,7 @@ def ds_to_structured_grid(
     angrot=0.0,
     method="nearest",
 ):
-    """Resample a dataset (xarray) from a structured grid to a new dataset from a
-    different structured grid.
+    """Resample a dataset from a structured grid to a different structured grid.
 
     Parameters
     ----------
@@ -230,6 +230,59 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
         attrs["angrot"] = angrot
 
 
+def _is_uniform_grid(xar_in):
+    """All cells are squares of the same size."""
+    if xar_in.ndim != 2:
+        return False
+
+    x = xar_in.coords[xar_in.dims[0]].values
+    y = xar_in.coords[xar_in.dims[1]].values
+    dxy = np.abs(x[1] - x[0])
+    if not np.allclose(np.abs(x[1:] - x[:-1]), dxy) or not np.allclose(
+        y[1:] - y[:-1], dxy
+    ):
+        return False
+
+    return True
+
+
+def fillnan_da_uniform_grid(xar_in, check_uniform_grid=True):
+    """Fill not-a-number values in a 2D uniform grid with nearest value.
+
+    The fill values are determined using the 'nearest' method
+
+
+    Parameters
+    ----------
+    xar_in : xarray DataArray
+        DataArray with nan values. DataArray should have 2 dimensions.
+    check_uniform_grid : bool, optional
+        If True, check if the input DataArray is a uniform grid. Default is True.
+
+    Returns
+    -------
+    xar_out : xarray DataArray
+        DataArray without nan values. DataArray has 2 dimensions.
+
+    Notes
+    -----
+    Fast
+    """
+    if check_uniform_grid and not _is_uniform_grid(xar_in):
+        raise ValueError(
+            f"expected uniform grid in dimension {xar_in.coords}, got non-uniform grid"
+        )
+
+    xar_out = xar_in.copy()
+
+    idx = distance_transform_edt(
+        xar_in.isnull().values, return_distances=False, return_indices=True
+    )
+    xar_out.values = xar_in.values[tuple(idx)]
+
+    return xar_out
+
+
 def fillnan_da_structured_grid(xar_in, method="nearest"):
     """Fill not-a-number values in a structured grid, DataArray.
 
@@ -256,11 +309,15 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
     -----
     can be slow if the xar_in is a large raster
     """
+    if _is_uniform_grid(xar_in) and method == "nearest":
+        return fillnan_da_uniform_grid(xar_in, check_uniform_grid=False)
+
     # check dimensions
     # if "x" not in xar_in.dims or "y" not in xar_in.dims:
     if xar_in.dims != ("y", "x"):
         raise ValueError(
-            f"expected dataarray with dimensions ('y' and 'x'), got dimensions -> {xar_in.dims}"
+            "expected dataarray with dimensions ('y' and 'x'), got dimensions -> "
+            f"{xar_in.dims}"
         )
 
     # get list of coordinates from all points in raster
@@ -323,7 +380,8 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     """
     if xar_in.dims != ("icell2d",):
         raise ValueError(
-            f"expected dataarray with dimensions ('icell2d'), got dimensions -> {xar_in.dims}"
+            "expected dataarray with dimensions ('icell2d'), got dimensions -> "
+            f"{xar_in.dims}"
         )
 
     # get list of coordinates from all points in raster
@@ -408,13 +466,14 @@ def vertex_da_to_ds(da, ds, method="nearest"):
 
     if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         if len(da.dims) == 1:
-            xi = list(zip(ds.x.values, ds.y.values))
+            xi = list(zip(ds.x.values, ds.y.values, strict=False))
             z = griddata(points, da.values, xi, method=method)
             coords = {"icell2d": ds.icell2d}
             return xr.DataArray(z, dims="icell2d", coords=coords)
         else:
             raise NotImplementedError(
-                "Resampling from multidmensional vertex da to vertex ds not yet supported"
+                "Resampling from multidimensional vertex da to vertex ds not yet "
+                "supported"
             )
 
     xg, yg = np.meshgrid(ds.x, ds.y)
@@ -574,7 +633,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
     if "grid_mapping" in da_out.encoding:
         del da_out.encoding["grid_mapping"]
 
-    # remove the long_name, standard_name and units attributes of the x and y coordinates
+    # remove the long_name, standard_name and units attributes of x and y coordinates
     for coord in ["x", "y"]:
         if coord not in da_out.coords:
             continue
@@ -586,6 +645,7 @@ def structured_da_to_ds(da, ds, method="average", nodata=np.nan):
 
 
 def extent_to_polygon(extent):
+    """Convert an extent to a shapely Polygon."""
     logger.warning(
         "nlmod.resample.extent_to_polygon is deprecated. "
         "Use nlmod.util.extent_to_polygon instead."

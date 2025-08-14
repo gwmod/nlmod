@@ -77,15 +77,15 @@ from pandas import date_range
 
 nlmod.util.get_color_logger("INFO") # define a logger
 
-extent = [116_500, 120_000, 439_000, 442_000] # model extent (EPSG 28992)
+crs = "EPSG:28992"
+extent = [116_500.0, 120_000.0, 439_000.0, 442_000.0]
 
 # set name and directories
-model_ws = model_name = 'schoonhoven' # model workspace and modelname
+model_ws = model_name = "schoonhoven" # model workspace and modelname
 figdir, cachedir = nlmod.util.get_model_dirs(model_ws) # figure and cache directories
 
 # plot map
-f, ax = nlmod.plot.get_map(extent, background=True, alpha=1.0, figsize=(5,5))
-f.savefig(figdir + f'/{model_name}_map.png')
+f, ax = nlmod.plot.get_map(extent, crs=crs, figsize=(7.0, 5.0), background=True, alpha=1.0, base=1000.0, fmt_base=1.0)
 ```
 
 ![Map of model area \label{fig:schoonhoven_map}](figures/schoonhoven_map.png)
@@ -93,48 +93,48 @@ f.savefig(figdir + f'/{model_name}_map.png')
 ### Download relevant data
 ```python
 # download a geohydrological layer model (regis)
-regis_ds = nlmod.read.regis.download_regis(extent, cachedir=cachedir, cachename='regis')
+regis_ds = nlmod.read.regis.download_regis(extent, cachedir=cachedir, cachename="regis")
 
 # download surface water levels (bgt)
-bgt_gdf = nlmod.read.bgt.download_bgt(extent=extent, cachedir=cachedir, cachename='bgt')
+bgt_gdf = nlmod.read.bgt.download_bgt(extent=extent, cachedir=cachedir, cachename="bgt")
 
 # download DEM (ahn)
-ahn = nlmod.read.ahn.download_ahn(extent=extent, cachedir=cachedir, cachename='ahn')
+ahn = nlmod.read.ahn.download_ahn(extent=extent, cachedir=cachedir, cachename="ahn")
 
 # plot the digital elevation model
-f, ax = plt.subplots()
-ahn.plot(ax=ax, cbar_kwargs={'label':'m NAP'})
-ax.set_title('Digital Elevation Model')
-f.savefig(figdir+f'/{model_name}_dem.png')
+f, ax = plt.subplots(figsize=(7.0, 5.0))
+norm = mpl.colors.TwoSlopeNorm(vmin=-2.0, vmax=5.0, vcenter=0.0)
+cmap = plt.get_cmap("coolwarm")
+ahn.plot(ax=ax, cbar_kwargs={"label":"m"}, norm=norm, cmap=cmap)
 ```
 
 ![Digital elevation model \label{fig:schoonhoven_dem}](figures/schoonhoven_dem.png)
 
-### Discretise
+### Discretize
 ```Python
-# Discretize
-dx, dy = 100., 100. # cellsize
+dx, dy = 100.0, 100.0 # cellsize
 
-# discretise layer model (regis) to model dimensions
+# discretize layer model (regis) to model dimensions
 ds = nlmod.to_model_ds(regis_ds, model_name, model_ws, delr=dx, delc=dy)
 
 # add DEM (ahn) to model dataset
 ds.update(nlmod.read.ahn.discretize_ahn(ds, ahn))
 
 # specify recharge
-ds['recharge'] = xr.ones_like(ds['top']) * 0.0007 # 0.7 mm/day
-
-# add minimum digital elevation to use as surface water stage
-bgt_gdf = nlmod.gwf.add_min_ahn_to_gdf(bgt_gdf, ahn, buffer=5.0, column="stage").dropna(subset='stage')
-bgt_gdf.plot('stage', legend=True)
+ds["recharge"] = xr.ones_like(ds["top"]) * 0.0007 # 0.7 mm/day
 
 # set model time settings
-tmin = "2010-01-01"
-tmax = "2020-01-01"
+tmin = Timestamp("2010-01-01")
+tmax = Timestamp("2020-01-01")
 freq = "14D"
 t = date_range(tmin, tmax, freq=freq)
 ds = nlmod.time.set_ds_time(ds, start=3652, time=t, steady_start=True)
+
+# add minimum digital elevation to use as surface water stage
+bgt_gdf = nlmod.gwf.add_min_ahn_to_gdf(bgt_gdf, ahn, buffer=5.0, column="stage").dropna(subset="stage")
+ax = bgt_gdf.plot("stage", legend=True, figsize=(7.0, 5.0), cmap="cividis_r", vmin=-2.0, vmax=1.5)
 ```
+![Surface water levels \label{fig:schoonhoven_stage}](figures/schoonhoven_stage.png)
 
 ### Build Groundwater flow model
 ```Python
@@ -163,21 +163,22 @@ nlmod.sim.write_and_run(gwf, ds, silent=True)
 
 ### Visualise model results
 ```Python
-
 # load the computed heads
 head = nlmod.gwf.output.get_heads_da(ds)
 
 # plot on map
+layer = 3
 ax = nlmod.plot.map_array(
-    head.sel(layer="PZWAz3").mean(dim="time"),
+    head.isel(layer=layer).mean(dim="time"),
     ds,
-    alpha=0.25,
+    alpha=0.6,
+    cmap=plt.get_cmap("viridis_r"),
     background=True,
-    colorbar_label='m NAP',
-    figsize=(8,8),
-    title='mean groundwater heads'
+    colorbar_label=f"Head in layer {layer} [m]",
+    xlabel="x [km]",
+    ylabel="y [km]",
+    figsize=(7.0,5.0),
 )
-ax.get_figure().savefig(figdir + f'/{model_name}_heads.png')
 ```
 
 ![Mean groundwater heads \label{fig:schoonhoven_heads}](figures/schoonhoven_heads.png)

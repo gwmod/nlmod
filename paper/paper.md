@@ -39,21 +39,21 @@ It handles open-data, mainly from the Netherlands, efficiently via the popular P
 `FloPy` [@bakker_flopy_2016;@hughes_flopy_2024] is used for creating and running the MODFLOW-based groundwater flow, transport and particle tracking models.
 
 # Statement of need
-Building, running and modifying groundwater models is often a time consuming, error prone task. Finding, cleaning and discretizing the data usually takes the majority of the time leaving less resources for analyzing, discussing and evaluating model outcomes. As a result the effect of assumptions and model decisions on the outcomes is often lacking. Illustrative of this is the study of [@Melsen_2022] who found that "Experience from colleagues" is the most popular motivation for modelling decisions.
+As groundwater systems face increasing pressure from climate change and overuse, the ability to rapidly develop fit-for-purpose models with the latest open data is essential for decision making and sustainable water management. Building, running and modifying groundwater models is often a time-consuming, error prone task. Finding, cleaning and discretizing the data usually takes the majority of the time leaving less for analyzing, discussing and evaluating model outcomes. As a result, the effect of assumptions and model decisions on outcomes is often unknown. Not surprisingly, a major motivation for modelling decisions is "Experience from colleagues" [@Melsen_2022] rather than a scientific assessment of the pros and cons in relation to the desired model performance.
 
-The goal of NLMOD is to reduce the development time and errors in the data preparation. Therefore allowing the modeller to invest their time in evaluating model results, estimating parameter values and assessing the effect of their assumptions. Meanwhile scripting these steps, from downloading data to building groundwater models, makes these models more reproducible and transparent. As groundwater systems face increasing pressure from climate change and overuse, the ability to rapidly develop fit-for-purpose models with the latest open data is essential for decision making and sustainable water management.
+One of the goals of NLMOD is to reduce development time and minimize errors during data collection and preparation. This allows modellers to focus on evaluating results, estimating parameter values, and assessing the impact of their assumptions. In addition, NLMOD provides tools for parameter estimation, comparison with measurements, and cross-comparison between models. Meanwhile scripting these steps, from downloading data to building groundwater models, makes these models more reproducible and transparent. 
 
 # Workflow from open data to groundwater model
-An nlmod script to build a groundwater flow model contain these steps:
-1. Download relevant data within a certain extent from available online sources and
-gather data from local sources.
-2. Specify spatial and temporal model dimensions and discritize the data from step 1.
-Store all raster data in a single model dataset and vector data in a `geopandas.GeoDataFrame`.
+In general, a NLMOD script to build a groundwater flow model contains these steps:
+1. Download relevant data within a defined spatial extent from available online sources, and
+gather additional data from local sources.
+2. Specify spatial and temporal model dimensions, discretize the collected data and
+store raster data in a single model dataset and vector data in geodataframes.
 3. Build and run a groundwater flow model from the model dataset and geodataframes using the flopy package.
-4. Post process model results.
+4. Post-process model results.
 
-## Downloading and integrating open data: `nlmod.read`
-The `nlmod.read` module supports downloading relevant geohydrological data from public sources. reprojecting it to fit the model grid, and adding it directly to the `xarray.Dataset`. Raster data is stored in `xarray.Dataset` [@hoyer_xarray_2017], vector data in `geopandas.GeoDataFrame` [@bossche_geopandas_2025]. These public sources can be very broad such as digital terrain models [@AHN], large-scale base maps [@BGT], bathymetry models, geological or geomorphological schematizations [@REGIS;@GEOTOP;@BOFEK;@BRO], meteorological datasets [@KNMI] etc.
+## Downloading open data: `nlmod.read`
+The `nlmod.read` module supports downloading relevant geohydrological data from public sources. Raster data is stored in a `xarray.Dataset` [@hoyer_xarray_2017], vector data in a `geopandas.GeoDataFrame` [@bossche_geopandas_2025]. These public data sources can be very broad such as digital terrain models [@AHN], large-scale base maps [@BGT], bathymetry models, geological or geomorphological schematizations [@REGIS;@GEOTOP;@BOFEK;@BRO], meteorological datasets [@KNMI] etc.
 
 At the moment, predominantly open data sources from the Netherlands are supported. However, users can (download and) add any local dataset manually.
 
@@ -65,13 +65,11 @@ Using the data in the xarray.Dataset, NLMOD provides tools to build MODFLOW 6 [@
 The modules `nlmod.sim`, `nlmod.gwf`, `nlmod.gwt`, and `nlmod.prt` are designed for MODFLOW 6, while `nlmod.modpath` enables particle tracking using MODPATH [@MODPATH7].
 This modular approach supports full scriptability which enables complex model optimization schemes.
 
-## Visualize model data: `nlmod.plot` and `nlmod.gis`
-To interpret and communicate model inputs and outputs, `NLMOD` offers built-in reading methods(`nlmod.mfoutput`), plotting functionality (`nlmod.plot`) and GIS tools (`nlmod.gis`) for exporting data to commonly used geospatial formats. These visualization options support both technical analysis and clear communication with stakeholders.
+## Post-process model results: `nlmod.plot` and `nlmod.gis`
+To interpret and communicate model inputs and outputs, `NLMOD` offers built-in reading methods(`nlmod.mfoutput`), plotting functionality (`nlmod.plot`) and GIS tools (`nlmod.gis`) for exporting data to commonly used geospatial formats. Other tools allow modellers to easily compare model outcomes with measurements such as groundwater head measurements. These visualization options support both technical analysis and clear communication with stakeholders.
 
 ## Example
-As an example a groundwater flow model is build following the nlmod workflow. The model covers a part of 10 km^2 in the Netherlands. The subsurface properties are obtained from a subsurface model, the location of
-surface water bodies is obtained from the bgt and the stage derived from a digital elevation model (ahn). A
-uniform recharge of 0.7 mm/day is assumed.
+In the example below a groundwater flow model is build following the nlmod workflow. The model covers a part of 10 km^2 in the Netherlands. The subsurface properties are obtained from a subsurface model (regis), the location of surface water bodies is obtained from an open database (bgt) and the stage derived from a digital elevation model (ahn). A uniform recharge of 0.7 mm/day is assumed.
 
 ### Define model properties
 ```python

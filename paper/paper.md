@@ -39,16 +39,14 @@ It handles open-data, mainly from the Netherlands, efficiently via the popular P
 `FloPy` [@bakker_flopy_2016;@hughes_flopy_2024] is used for creating and running the MODFLOW-based groundwater flow, transport and particle tracking models.
 
 # Statement of need
-As groundwater systems face increasing pressure from climate change and overuse, the ability to rapidly develop fit-for-purpose models with the latest open data is essential for decision making and sustainable water management. Building, running and modifying groundwater models is often a time-consuming, error prone task. Finding, cleaning and discretizing the data usually takes the majority of the time leaving less for analyzing, discussing and evaluating model outcomes. As a result, the effect of assumptions and model decisions on outcomes is often unknown. Not surprisingly, a major motivation for modelling decisions is "Experience from colleagues" [@Melsen_2022] rather than a scientific assessment of the pros and cons in relation to the desired model performance.
+As groundwater systems face increasing pressure from climate change and overuse, the ability to rapidly develop fit-for-purpose models with the latest open data is essential for decision making and sustainable water management. Building, running and modifying groundwater models is often a time-consuming, error prone task. Finding, cleaning and discretizing the data usually takes the majority of the time leaving less for analyzing, discussing and evaluating model outcomes. As a result, the effects of the modeller's decisions and the model assumptions on outcomes is often unknown. Not surprisingly, a major motivation for modelling decisions is *"experience from colleagues"* [@melsen_village_2022], rather than a thorough assessment of the model performance in relation to the research question.
 
-One of the goals of NLMOD is to reduce development time and minimize errors during data collection and preparation. This allows modellers to focus on evaluating results, estimating parameter values, and assessing the impact of their assumptions. In addition, NLMOD provides tools for parameter estimation, comparison with measurements, and cross-comparison between models. Meanwhile scripting these steps, from downloading data to building groundwater models, makes these models more reproducible and transparent. 
+One of the goals of NLMOD is to reduce development time and minimize errors during data collection and preparation. This allows modellers to focus on evaluating results, estimating parametric uncertainty, and assessing the impact of the model assumptions. In addition, NLMOD provides tools for quick visualization, comparison with measurements, and cross-comparison between models. Meanwhile, scripting these steps, from downloading data to building groundwater models, makes these models more reproducible and transparent.
 
 # Workflow from open data to groundwater model
-In general, a NLMOD script to build a groundwater flow model contains these steps:
-1. Download relevant data within a defined spatial extent from available online sources, and
-gather additional data from local sources.
-2. Specify spatial and temporal model dimensions, discretize the collected data and
-store raster data in a single model dataset and vector data in geodataframes.
+In general, a NLMOD script to build a groundwater flow model contains four steps:
+1. Download relevant data within a defined spatial extent from available online sources, and gather additional data from local sources.
+2. Specify spatial and temporal model dimensions, discretize the collected data and store raster data in a single model dataset and vector data in geodataframes.
 3. Build and run a groundwater flow model from the model dataset and geodataframes using the flopy package.
 4. Post-process model results.
 
@@ -61,14 +59,12 @@ At the moment, predominantly open data sources from the Netherlands are supporte
 The `nlmod.dims` module allows users to create and adapt both the spatial discretization (e.g., extent, layers, grid) and temporal discretization using an `xarray.Dataset`. Functionality includes data manipulation, such as calculating weighted means and filling not-a-number values, and discritisation methods for both structured and vertex grids. Model data is stored in a single xarray.Dataset (for raster) and a number of geodataframes (for vector data).
 
 ## Build and run groundwater models: `nlmod.sim`, `nlmod.gwf`, `nlmod.gwt`, `nlmod.prt`, and `nlmod.modpath`
-Using the data in the xarray.Dataset, NLMOD provides tools to build MODFLOW 6 [@MODFLOW6] models via `FloPy` [@bakker_flopy_2016;@hughes_flopy_2024].
-The modules `nlmod.sim`, `nlmod.gwf`, `nlmod.gwt`, and `nlmod.prt` are designed for MODFLOW 6, while `nlmod.modpath` enables particle tracking using MODPATH [@MODPATH7].
-This modular approach supports full scriptability which enables complex model optimization schemes.
+Using the data in the xarray.Dataset, NLMOD provides tools to build MODFLOW 6 [@MODFLOW6] models via `FloPy` [@bakker_flopy_2016;@hughes_flopy_2024]. The modules `nlmod.sim`, `nlmod.gwf` [@MODFLOW6_GFM], `nlmod.gwt` [MODFLOW6_GTM], and `nlmod.prt` [@MODFLOW6_662] are designed for MODFLOW 6, while `nlmod.modpath` enables particle tracking using MODPATH [@MODPATH7]. This modular approach supports full scriptability which enables complex model optimization schemes.
 
 ## Post-process model results: `nlmod.plot` and `nlmod.gis`
 To interpret and communicate model inputs and outputs, `NLMOD` offers built-in reading methods(`nlmod.mfoutput`), plotting functionality (`nlmod.plot`) and GIS tools (`nlmod.gis`) for exporting data to commonly used geospatial formats. Other tools allow modellers to easily compare model outcomes with measurements such as groundwater head measurements. These visualization options support both technical analysis and clear communication with stakeholders.
 
-## Example
+## Example workflow
 In the example below a groundwater flow model is build following the nlmod workflow. The model covers a part of 10 km^2 in the Netherlands. The subsurface properties are obtained from a subsurface model (regis), the location of surface water bodies is obtained from an open database (bgt) and the stage derived from a digital elevation model (ahn). A uniform recharge of 0.7 mm/day is assumed.
 
 ### Define model properties

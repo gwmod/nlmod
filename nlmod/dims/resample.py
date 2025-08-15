@@ -341,7 +341,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     xar_out = xar_in.copy()
 
     if x is not None:
-        pass   
+        pass
     elif x is None and ds is not None:
         x = ds["x"].values
     elif x is None and "x" in xar_in.coords:

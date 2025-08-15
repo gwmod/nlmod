@@ -281,22 +281,20 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
         )
 
     # get list of coordinates from all points in raster
-    mg = np.meshgrid(xar_in.x.data, xar_in.y.data)
-    points_all = np.vstack((mg[0].ravel(), mg[1].ravel())).T
+    xg, yg = np.meshgrid(xar_in.x.values, xar_in.y.values)
+    points_all = np.column_stack((xg.ravel(), yg.ravel()))
 
     # get all values in DataArray
-    values_all = xar_in.data.flatten()
+    values_all = xar_in.values.flatten()
 
     # get 1d arrays with only values where DataArray is not nan
     mask = np.isnan(values_all)
-    imask = np.where(mask)[0]
-    inotmask = np.where(~mask)[0]
-    points_in = points_all[inotmask]
-    values_in = values_all[inotmask]
-    points_out = points_all[imask]
+    points_in = points_all[~mask]
+    values_in = values_all[~mask]
+    points_out = points_all[mask]
 
     # get value for nan values
-    values_all[points_out] = griddata(points_in, values_in, points_out, method=method)
+    values_all[mask] = griddata(points_in, values_in, points_out, method=method)
     xar_out.values = values_all.reshape(xar_in.shape)
     return xar_out
 
@@ -330,7 +328,9 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
 
     Notes
     -----
-    can be slow if the xar_in is a large raster
+    If x is provided, x will be used over ds and the x coordinate part of xar_in.
+    If x is not provided, ds will be used to get the x coordinates.
+    If x is not provided and "x" is not in xar_in.coords, an error will be raised.
     """
     if xar_in.dims != ("icell2d",):
         raise ValueError(
@@ -340,25 +340,33 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
 
     xar_out = xar_in.copy()
 
-    # get list of coordinates from all points in raster
-    if x is None:
-        x = ds["x"].data
-    if y is None:
-        y = ds["y"].data
+    if x is not None:
+        pass   
+    elif x is None and ds is not None:
+        x = ds["x"].values
+    elif x is None and "x" in xar_in.coords:
+        x = xar_in.coords["x"].values
+    else:
+        raise ValueError("x or ds must be provided to get x coordinates")
+    if y is not None:
+        pass
+    elif y is None and ds is not None:
+        y = ds["y"].values
+    elif y is None and "y" in xar_in.coords:
+        y = xar_in.coords["y"].values
+    else:
+        raise ValueError("y or ds must be provided to get y coordinates")
 
-    xyi = np.column_stack((x, y))
-
-    # fill nan values in DataArray
+    points_all = np.column_stack((x, y))
     values_all = xar_out.values
 
-    # get 1d arrays with only values where DataArray is not nan
-    mask1 = ~np.isnan(values_all)
-    xyi_in = xyi[mask1]
-    xyi_out = xyi[~mask1]
-    values_in = values_all[mask1]
+    mask = np.isnan(values_all)
+    points_in = points_all[~mask]
+    points_out = points_all[mask]
+    values_in = values_all[~mask]
 
     # get value for all nan value
-    xar_out.values[xyi_out] = griddata(xyi_in, values_in, xyi_out, method=method)
+    xar_out.values[mask] = griddata(points_in, values_in, points_out, method=method)
     return xar_out
 
 

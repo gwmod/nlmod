@@ -124,6 +124,8 @@ def test_fillnan_da():
     ds["top"][5, 5] = np.nan
     top = nlmod.resample.fillnan_da(ds["top"], ds=ds)
     assert not np.isnan(top[5, 5])
+    top = nlmod.resample.fillnan_da(ds["top"], ds=ds, method="linear")
+    assert not np.isnan(top[5, 5])
 
     # also for a vertex grid
     ds = get_vertex_model_ds()

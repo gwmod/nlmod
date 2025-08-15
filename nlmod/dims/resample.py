@@ -230,49 +230,12 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
         attrs["angrot"] = angrot
 
 
-def fillnan_da_uniform_grid(xar_in, check_uniform_grid=True):
-    """Fill not-a-number values in a 2D uniform grid with nearest value.
-
-    The fill values are determined using the 'nearest' method
-
-
-    Parameters
-    ----------
-    xar_in : xarray DataArray
-        DataArray with nan values. DataArray should have 2 dimensions.
-    check_uniform_grid : bool, optional
-        If True, check if the input DataArray is a uniform grid. Default is True.
-
-    Returns
-    -------
-    xar_out : xarray DataArray
-        DataArray without nan values. DataArray has 2 dimensions.
-
-    Notes
-    -----
-    Fast
-    """
-    if check_uniform_grid and not _is_uniform_grid(xar_in):
-        raise ValueError(
-            f"expected uniform grid in dimension {xar_in.coords}, got non-uniform grid"
-        )
-
-    xar_out = xar_in.copy()
-
-    idx = distance_transform_edt(
-        xar_in.isnull(), return_distances=False, return_indices=True
-    )
-    xar_out.values = xar_in.values[tuple(idx)]
-
-    return xar_out
-
-
 def fillnan_da_structured_grid(xar_in, method="nearest"):
     """Fill not-a-number values in a structured grid, DataArray.
 
-    The fill values are determined using the 'nearest' method of the
-    scipy.interpolate.griddata function
-
+    The fill values are determined using the scipy.interpolate.griddata function.
+    distance_transform_edt is used if all cells have the same shape and method is
+    nearest.
 
     Parameters
     ----------
@@ -288,16 +251,29 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
     xar_out : xarray DataArray
         DataArray without nan values. DataArray has 2 dimensions
         (y and x)
-
-    Notes
-    -----
-    can be slow if the xar_in is a large raster
     """
-    if _is_uniform_grid(xar_in) and method == "nearest":
-        return fillnan_da_uniform_grid(xar_in, check_uniform_grid=False)
+    xar_out = xar_in.copy()
+
+    if method == "nearest":
+        dim0 = xar_in.coords[xar_in.dims[0]].values
+        dim1 = xar_in.coords[xar_in.dims[1]].values
+        ddim0 = np.abs(dim0[1:] - dim0[:-1])
+        ddim1 = np.abs(dim1[1:] - dim1[:-1])
+
+        if np.allclose(ddim0, ddim0[0]) and np.allclose(ddim1, ddim1[0]):
+            sampling = None if np.isclose(ddim0[0], ddim1[0]) else (ddim0[0], ddim1[0])
+
+            idx = distance_transform_edt(
+                input=xar_in.isnull(),
+                sampling=sampling,
+                return_distances=False,
+                return_indices=True,
+            )
+            xar_out.values = xar_in.values[tuple(idx)]
+
+            return xar_out
 
     # check dimensions
-    # if "x" not in xar_in.dims or "y" not in xar_in.dims:
     if xar_in.dims != ("y", "x"):
         raise ValueError(
             "expected dataarray with dimensions ('y' and 'x'), got dimensions -> "
@@ -312,22 +288,16 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
     values_all = xar_in.data.flatten()
 
     # get 1d arrays with only values where DataArray is not nan
-    mask1 = ~np.isnan(values_all)
-    points_in = points_all[np.where(mask1)[0]]
-    values_in = values_all[np.where(mask1)[0]]
+    mask = np.isnan(values_all)
+    imask = np.where(mask)[0]
+    inotmask = np.where(~mask)[0]
+    points_in = points_all[inotmask]
+    values_in = values_all[inotmask]
+    points_out = points_all[imask]
 
-    # get value for all nan values
-    values_out = griddata(points_in, values_in, points_all, method=method)
-    arr_out = values_out.reshape(xar_in.shape)
-
-    # create DataArray without nan values
-    xar_out = xr.DataArray(
-        arr_out,
-        dims=("y", "x"),
-        coords={"x": xar_in.x.data, "y": xar_in.y.data},
-    )
-    # xar_out = xar_in.rio.interpolate_na(method=method)
-
+    # get value for nan values
+    values_all[points_out] = griddata(points_in, values_in, points_out, method=method)
+    xar_out.values = values_all.reshape(xar_in.shape)
     return xar_out
 
 
@@ -368,6 +338,8 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
             f"{xar_in.dims}"
         )
 
+    xar_out = xar_in.copy()
+
     # get list of coordinates from all points in raster
     if x is None:
         x = ds["x"].data
@@ -377,19 +349,16 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     xyi = np.column_stack((x, y))
 
     # fill nan values in DataArray
-    values_all = xar_in.data
+    values_all = xar_out.values
 
     # get 1d arrays with only values where DataArray is not nan
     mask1 = ~np.isnan(values_all)
     xyi_in = xyi[mask1]
+    xyi_out = xyi[~mask1]
     values_in = values_all[mask1]
 
-    # get value for all nan values
-    values_out = griddata(xyi_in, values_in, xyi, method=method)
-
-    # create DataArray without nan values
-    xar_out = xr.DataArray(values_out, dims=("icell2d"))
-
+    # get value for all nan value
+    xar_out.values[xyi_out] = griddata(xyi_in, values_in, xyi_out, method=method)
     return xar_out
 
 
@@ -701,19 +670,3 @@ def get_affine(ds, sx=None, sy=None):
     from .grid import get_affine
 
     return get_affine(ds, sx=sx, sy=sy)
-
-
-def _is_uniform_grid(xar_in):
-    """All cells are squares of the same size."""
-    if xar_in.ndim != 2:
-        return False
-
-    x = xar_in.coords[xar_in.dims[0]].values
-    y = xar_in.coords[xar_in.dims[1]].values
-    dxy = np.abs(x[1] - x[0])
-    if not np.allclose(np.abs(x[1:] - x[:-1]), dxy) or not np.allclose(
-        y[1:] - y[:-1], dxy
-    ):
-        return False
-
-    return True

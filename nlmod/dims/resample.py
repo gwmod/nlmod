@@ -427,7 +427,7 @@ def vertex_da_to_ds(da, ds, method="nearest"):
 
     if "gridtype" in ds.attrs and ds.gridtype == "vertex":
         if len(da.dims) == 1:
-            xi = list(zip(ds.x.values, ds.y.values, strict=False))
+            xi = list(zip(ds.x.values, ds.y.values, strict=True))
             z = griddata(points, da.values, xi, method=method)
             coords = {"icell2d": ds.icell2d}
             return xr.DataArray(z, dims="icell2d", coords=coords)

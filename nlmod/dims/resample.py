@@ -4,9 +4,12 @@ import numbers
 import numpy as np
 import rasterio
 import xarray as xr
+from flopy.discretization.vertexgrid import VertexGrid
 from scipy.interpolate import griddata
 from scipy.ndimage import binary_dilation, distance_transform_edt
 from scipy.spatial import cKDTree
+
+import nlmod
 
 from ..util import get_da_from_da_ds
 from .shared import get_area, is_structured, is_vertex
@@ -292,12 +295,11 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
         # We can cheaply isolate the neighboring cells and only pass that
         # to griddata. Spline uses thicker outline of nan areas.
         is_valid = binary_dilation(is_invalid) & ~is_invalid
-
-        points_in = np.column_stack((xg[is_valid], yg[is_valid]))
-        values_in = xar_in.values[is_valid]
     else:
-        points_in = np.column_stack((xg.ravel(), yg.ravel()))
-        values_in = xar_in.values.flatten()
+        is_valid = ~is_invalid
+
+    points_in = np.column_stack((xg[is_valid], yg[is_valid]))
+    values_in = xar_in.values[is_valid]
 
     xar_out.values[is_invalid] = griddata(
         points_in, values_in, points_out, method=method
@@ -362,16 +364,33 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     else:
         raise ValueError("y or ds must be provided to get y coordinates")
 
-    points_all = np.column_stack((x, y))
-    values_all = xar_out.values
+    is_invalid = np.isnan(xar_out)
+    points_out =  np.column_stack((x[is_invalid], y[is_invalid]))
 
-    mask = np.isnan(values_all)
-    points_in = points_all[~mask]
-    points_out = points_all[mask]
-    values_in = values_all[~mask]
+    if method in ("nearest", "linear") and ds is not None:
+        # We can cheaply isolate the neighboring cells and only pass those
+        # to griddata. Similar to for structured grids:
+        # is_valid = binary_dilation(is_invalid) & ~is_invalid
+        vertices = nlmod.grid.get_vertices_from_ds(ds)
+        cell2d = nlmod.grid.get_cell2d_from_ds(ds)
+        mg = VertexGrid(
+            vertices=vertices,
+            cell2d=cell2d
+        )
+        _cell_connections = mg.neighbors()
+        cell_connections = {k: _cell_connections[k] for k in np.where(is_invalid)[0]}
+        unicons = set().union(*cell_connections.values()) - set(cell_connections.keys())
+
+        is_valid = np.zeros_like(xar_in, dtype=bool)
+        is_valid[list(unicons)] = True
+    else:
+        is_valid = ~is_invalid
+
+    points_in = np.column_stack((x[is_valid], y[is_valid]))
+    values_in = xar_out.values[is_valid]
 
     # get value for all nan value
-    xar_out.values[mask] = griddata(points_in, values_in, points_out, method=method)
+    xar_out.values[is_invalid] = griddata(points_in, values_in, points_out, method=method)
     return xar_out
 
 

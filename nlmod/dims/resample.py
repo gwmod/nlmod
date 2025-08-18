@@ -9,7 +9,7 @@ from scipy.ndimage import binary_dilation, distance_transform_edt
 from scipy.spatial import cKDTree
 
 from ..util import get_da_from_da_ds
-from .shared import get_area
+from .shared import get_area, is_structured, is_vertex
 
 logger = logging.getLogger(__name__)
 
@@ -337,7 +337,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     If x is not provided, ds will be used to get the x coordinates.
     If x is not provided and "x" is not in xar_in.coords, an error will be raised.
     """
-    if xar_in.dims != ("icell2d",):
+    if not is_vertex(xar_in):
         raise ValueError(
             "expected dataarray with dimensions ('icell2d'), got dimensions -> "
             f"{xar_in.dims}"
@@ -398,11 +398,12 @@ def fillnan_da(da, ds=None, method="nearest"):
     -----
     can be slow if the xar_in is a large raster
     """
-    if len(da.shape) > 1 and len(da.y) == da.shape[-2] and len(da.x) == da.shape[-1]:
-        # the dataraary is structured
+    if is_structured(da):
         return fillnan_da_structured_grid(da, method=method)
-    else:
+    elif is_vertex(da):
         return fillnan_da_vertex_grid(da, ds, method=method)
+    else:
+        raise NotImplementedError("Unsupported grid type")
 
 
 def vertex_da_to_ds(da, ds, method="nearest"):

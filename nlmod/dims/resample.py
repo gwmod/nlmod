@@ -233,9 +233,11 @@ def _set_angrot_attributes(extent, xorigin, yorigin, angrot, attrs):
 def fillnan_da_structured_grid(xar_in, method="nearest"):
     """Fill not-a-number values in a structured grid, DataArray.
 
-    The fill values are determined using the scipy.interpolate.griddata function.
-    distance_transform_edt is used if all cells have the same shape and method is
-    nearest.
+    The nans are replaced with the interpolated values using distance_transform_edt when
+    all cells have the same shape and method is nearest, otherwise the values are
+    interpolated using griddata.
+
+    Note that extrapolation is only applied if method is "nearest".
 
     Parameters
     ----------
@@ -252,16 +254,23 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
         DataArray without nan values. DataArray has 2 dimensions
         (y and x)
     """
+    # check dimensions
+    if xar_in.dims != ("y", "x"):
+        raise ValueError(
+            "expected dataarray with dimensions ('y' and 'x'), got dimensions -> "
+            f"{xar_in.dims}"
+        )
+
     xar_out = xar_in.copy()
 
     if method == "nearest":
-        dim0 = xar_in.coords[xar_in.dims[0]].values
-        dim1 = xar_in.coords[xar_in.dims[1]].values
-        ddim0 = np.abs(dim0[1:] - dim0[:-1])
-        ddim1 = np.abs(dim1[1:] - dim1[:-1])
+        y = xar_in.coords.y.values
+        x = xar_in.coords.x.values
+        dy = np.abs(y[1:] - y[:-1])
+        dx = np.abs(x[1:] - x[:-1])
 
-        if np.allclose(ddim0, ddim0[0]) and np.allclose(ddim1, ddim1[0]):
-            sampling = None if np.isclose(ddim0[0], ddim1[0]) else (ddim0[0], ddim1[0])
+        if np.allclose(dy, dy[0]) and np.allclose(dx, dx[0]):
+            sampling = None if np.isclose(dy[0], dx[0]) else (dy[0], dx[0])
 
             idx = distance_transform_edt(
                 input=xar_in.isnull(),
@@ -272,13 +281,6 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
             xar_out.values = xar_in.values[tuple(idx)]
 
             return xar_out
-
-    # check dimensions
-    if xar_in.dims != ("y", "x"):
-        raise ValueError(
-            "expected dataarray with dimensions ('y' and 'x'), got dimensions -> "
-            f"{xar_in.dims}"
-        )
 
     # get list of coordinates from all points in raster
     xg, yg = np.meshgrid(xar_in.x.values, xar_in.y.values)
@@ -302,8 +304,7 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
 def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     """Fill not-a-number values in a vertex grid, DataArray.
 
-    The fill values are determined using the 'nearest' method of the
-    scipy.interpolate.griddata function
+    Note that extrapolation is only applied if method is "nearest".
 
     Parameters
     ----------
@@ -373,8 +374,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
 def fillnan_da(da, ds=None, method="nearest"):
     """Fill not-a-number values in a DataArray.
 
-    The fill values are determined using the 'nearest' method of the
-    scipy.interpolate.griddata function
+    Note that extrapolation is only applied if method is "nearest".
 
     Parameters
     ----------

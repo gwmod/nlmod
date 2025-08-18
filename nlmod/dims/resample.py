@@ -290,18 +290,15 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
     # Get coordinates and values of values for griddata
     if method in ("nearest", "linear"):
         # We can cheaply isolate the neighboring cells and only pass that
-        # to griddata. Spline uses thicker 
+        # to griddata. Spline uses thicker outline of nan areas.
         is_valid = binary_dilation(is_invalid) & ~is_invalid
 
         points_in = np.column_stack((xg[is_valid], yg[is_valid]))
         values_in = xar_in.values[is_valid]
     else:
-        is_valid = ~is_invalid
-
         points_in = np.column_stack((xg.ravel(), yg.ravel()))
         values_in = xar_in.values.flatten()
 
-    # get value for nan values
     xar_out.values[is_invalid] = griddata(
         points_in, values_in, points_out, method=method
     )

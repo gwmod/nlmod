@@ -264,7 +264,15 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
             f"{xar_in.dims}"
         )
 
-    xar_out = xar_in.copy()
+    # Create a deep copy to avoid modifying the original data
+    # Using manual DataArray construction because copy(deep=True) still shares memory
+    # in some xarray contexts when data is loaded from netCDF files
+    xar_out = xr.DataArray(
+        xar_in.values.copy(),
+        coords=xar_in.coords,
+        dims=xar_in.dims,
+        attrs=xar_in.attrs,
+    )
 
     if method == "nearest":
         y = xar_in.coords["y"].values
@@ -345,7 +353,15 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
             f"{xar_in.dims}"
         )
 
-    xar_out = xar_in.copy()
+    # Create a deep copy to avoid modifying the original data
+    # Using manual DataArray construction because copy(deep=True) still shares memory
+    # in some xarray contexts when data is loaded from netCDF files
+    xar_out = xr.DataArray(
+        xar_in.values.copy(),
+        coords=xar_in.coords,
+        dims=xar_in.dims,
+        attrs=xar_in.attrs,
+    )
 
     if x is not None:
         pass
@@ -365,7 +381,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
         raise ValueError("y or ds must be provided to get y coordinates")
 
     is_invalid = np.isnan(xar_out)
-    points_out =  np.column_stack((x[is_invalid], y[is_invalid]))
+    points_out = np.column_stack((x[is_invalid], y[is_invalid]))
 
     if method in ("nearest", "linear") and ds is not None:
         # We can cheaply isolate the neighboring cells and only pass those
@@ -373,10 +389,7 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
         # is_valid = binary_dilation(is_invalid) & ~is_invalid
         vertices = nlmod.grid.get_vertices_from_ds(ds)
         cell2d = nlmod.grid.get_cell2d_from_ds(ds)
-        mg = VertexGrid(
-            vertices=vertices,
-            cell2d=cell2d
-        )
+        mg = VertexGrid(vertices=vertices, cell2d=cell2d)
         _cell_connections = mg.neighbors()
         cell_connections = {k: _cell_connections[k] for k in np.where(is_invalid)[0]}
         unicons = set().union(*cell_connections.values()) - set(cell_connections.keys())
@@ -390,7 +403,9 @@ def fillnan_da_vertex_grid(xar_in, ds=None, x=None, y=None, method="nearest"):
     values_in = xar_out.values[is_valid]
 
     # get value for all nan value
-    xar_out.values[is_invalid] = griddata(points_in, values_in, points_out, method=method)
+    xar_out.values[is_invalid] = griddata(
+        points_in, values_in, points_out, method=method
+    )
     return xar_out
 
 

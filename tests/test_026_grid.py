@@ -169,26 +169,30 @@ def test_fillnan_da_vertex_grid_coordinates():
 
         # Test with ds parameter
         for ds in (ds_vertex, None):
-            top_ds = nlmod.resample.fillnan_da_vertex_grid(ds_vertex["top"], method=method, ds=ds)
+            top_ds = nlmod.resample.fillnan_da_vertex_grid(
+                ds_vertex["top"], method=method, ds=ds
+            )
             assert not np.isnan(top_ds[100])
 
-    # Test with explicit x,y coordinates
-    x_coords = ds_vertex["x"].values
-    y_coords = ds_vertex["y"].values
-    for ds in (ds_vertex, None):
-        top_xy = nlmod.resample.fillnan_da_vertex_grid(
-            ds_vertex["top"], x=x_coords, y=y_coords, method=method, ds=ds
-        )
-        assert not np.isnan(top_xy[100])
-        assert np.isclose(top_ds[100], top_xy[100])
+        # Test with explicit x,y coordinates
+        x_coords = ds_vertex["x"].values
+        y_coords = ds_vertex["y"].values
+        for ds in (ds_vertex, None):
+            top_xy = nlmod.resample.fillnan_da_vertex_grid(
+                ds_vertex["top"], x=x_coords, y=y_coords, method=method, ds=ds
+            )
+            assert not np.isnan(top_xy[100])
+            assert np.isclose(top_ds[100], top_xy[100])
 
-    # Test with coordinates in DataArray
-    vertex_da_with_coords = ds_vertex["top"].assign_coords(
-        x=("icell2d", x_coords), y=("icell2d", y_coords)
-    )
-    top_coords = nlmod.resample.fillnan_da_vertex_grid(vertex_da_with_coords, method=method)
-    assert not np.isnan(top_coords[100])
-    assert np.isclose(top_ds[100], top_coords[100])
+        # Test with coordinates in DataArray
+        vertex_da_with_coords = ds_vertex["top"].assign_coords(
+            x=("icell2d", x_coords), y=("icell2d", y_coords)
+        )
+        top_coords = nlmod.resample.fillnan_da_vertex_grid(
+            vertex_da_with_coords, method=method
+        )
+        assert not np.isnan(top_coords[100])
+        assert np.isclose(top_ds[100], top_coords[100])
 
 
 def test_fillnan_da_uniform_vs_nonuniform():
@@ -231,9 +235,7 @@ def test_fillnan_da_error_handling():
     ds_vertex = get_vertex_model_ds()
     wrong_vertex_da = ds_vertex["top"].rename({"icell2d": "wrong_dim"})
 
-    with pytest.raises(
-        ValueError, match="is not a valid GridTypeDims"
-    ):
+    with pytest.raises(ValueError, match="is not a valid GridTypeDims"):
         nlmod.resample.fillnan_da_vertex_grid(wrong_vertex_da, ds=ds_vertex)
 
     # Test vertex grid without coordinates (improved error handling from PR)

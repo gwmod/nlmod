@@ -5,7 +5,7 @@ import numpy as np
 import rasterio
 import xarray as xr
 from scipy.interpolate import griddata
-from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import binary_dilation, distance_transform_edt
 from scipy.spatial import cKDTree
 
 from ..util import get_da_from_da_ds
@@ -264,8 +264,8 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
     xar_out = xar_in.copy()
 
     if method == "nearest":
-        y = xar_in.coords.y.values
-        x = xar_in.coords.x.values
+        y = xar_in.coords["y"].values
+        x = xar_in.coords["x"].values
         dy = np.abs(y[1:] - y[:-1])
         dx = np.abs(x[1:] - x[:-1])
 
@@ -282,22 +282,29 @@ def fillnan_da_structured_grid(xar_in, method="nearest"):
 
             return xar_out
 
-    # get list of coordinates from all points in raster
     xg, yg = np.meshgrid(xar_in.x.values, xar_in.y.values)
-    points_all = np.column_stack((xg.ravel(), yg.ravel()))
 
-    # get all values in DataArray
-    values_all = xar_in.values.flatten()
+    is_invalid = np.isnan(xar_in)
+    points_out = np.column_stack((xg[is_invalid], yg[is_invalid]))
 
-    # get 1d arrays with only values where DataArray is not nan
-    mask = np.isnan(values_all)
-    points_in = points_all[~mask]
-    values_in = values_all[~mask]
-    points_out = points_all[mask]
+    # Get coordinates and values of values for griddata
+    if method in ("nearest", "linear"):
+        # We can cheaply isolate the neighboring cells and only pass that
+        # to griddata. Spline uses thicker 
+        is_valid = binary_dilation(is_invalid) & ~is_invalid
+
+        points_in = np.column_stack((xg[is_valid], yg[is_valid]))
+        values_in = xar_in.values[is_valid]
+    else:
+        is_valid = ~is_invalid
+
+        points_in = np.column_stack((xg.ravel(), yg.ravel()))
+        values_in = xar_in.values.flatten()
 
     # get value for nan values
-    values_all[mask] = griddata(points_in, values_in, points_out, method=method)
-    xar_out.values = values_all.reshape(xar_in.shape)
+    xar_out.values[is_invalid] = griddata(
+        points_in, values_in, points_out, method=method
+    )
     return xar_out
 
 

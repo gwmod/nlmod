@@ -547,7 +547,6 @@ def get_gdf_stage(gdf, season="winter"):
     return stage
 
 
-@cache_pickle
 def download_level_areas(
     gdf=None,
     extent=None,

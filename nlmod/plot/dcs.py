@@ -510,7 +510,8 @@ class DatasetCrossSection:
                     tubecolor='k',
                     filtercolor_edge='k',
                     legend=False,
-                    legend_kwds=None):
+                    legend_kwds=None,
+                    sort_by_dist=True):
         """plot filter screens in cross section from a DataFrame
 
         Parameters
@@ -543,6 +544,8 @@ class DatasetCrossSection:
         legend : bool, optional
             if True a legend with the names (index of the df) is plotted, by default
             False.
+        sort_by_dist : bool, optional
+            if True the values are sorted by distance along the cross section line.
 
         Returns
         -------
@@ -589,25 +592,27 @@ class DatasetCrossSection:
                 else:
                     df[parname] = color
 
+        # get distance of point along xsec line
+        df['dist'] = [self.line.project(geom) for geom in df.geometry.values]
+        if sort_by_dist:
+            df.sort_values('dist', inplace=True)
+
         rectangles = []
         legend_handles = {}
         for name, row in df.iterrows():
-            # get distance of point along xsec line
-            dist = self.line.project(row['geometry'])
-
             # plot tube top to start filter
             if 'ground_level' in row:
                 mv = row['ground_level']
             else:
-                mv = self.top[0,np.where(dist<self.s[:,1])[0][0]]
+                mv = self.top[0,np.where(row['dist']<self.s[:,1])[0][0]]
 
-            self.ax.plot([dist]*2,[mv, row['screen_top']],
+            self.ax.plot([row['dist']]*2,[mv, row['screen_top']],
                             linewidth=linewidth, color=row['tubecolor'], label='',
                             solid_capstyle='butt')
 
             # plot filter (as rectangle)
             height = row['screen_top'] - row['screen_bottom']
-            left = dist - filter_width / 2
+            left = row['dist'] - filter_width / 2
             bottom_left_y = row['screen_bottom']
 
             # Create the rectangle

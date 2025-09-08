@@ -12,6 +12,7 @@ from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
 from shapely.affinity import affine_transform
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
+from shapely.ops import nearest_points
 
 from ..dims.grid import get_affine_world_to_mod, get_delc, get_delr, modelgrid_from_ds
 from .plotutil import get_map
@@ -500,6 +501,137 @@ class DatasetCrossSection:
         x = self.s.ravel()
         y = zcs[sorted(list(range(len(zcs))) * 2)]
         return self.ax.plot(x, y, **kwargs)
+    
+    def plot_wells(self,
+                    df,
+                    filtercolor_face='tab20',
+                    filter_width='1%',
+                    linewidth=1,
+                    tubecolor='k',
+                    filtercolor_edge='k',
+                    legend=False,
+                    legend_kwds=None):
+        """plot filter screens in cross section from a DataFrame
+
+        Parameters
+        ----------
+        df : DataFrame, Geodataframe or ObsCollection
+            Should contain the columns 'screen_top' and 'screen_bottom'.
+            The index is used for the legend
+            Optional columns:
+            - 'x' and 'y': coordinates, required if df is DataFrame or ObsCollection for
+              a GeoDataFrame the geometries should be Points.
+            - 'ground_level': is used as the tube top if available, otherwise the tube
+              top is the top of the cross section.
+            - 'filtercolor_face': facecolor of the filter
+            - 'filtercolor_edge': edgecolor of the filter
+            - 'tubecolor': color of the tube
+        filtercolor_face : str or None, optional
+            used if df has no column 'filtercolor_face', can be a colormap, color or 
+            None, by default 'tab20'
+        filter_width : str, float or int, optional
+            width of the filter plot. Can be a percentage '2%' of the graph width or
+            the actual width (dx), by default '1%'
+        linewidth : int, optional
+            linewidth used for the filter_edge and tubeline, by default 1
+        tubecolor : str, optional
+            used if df has no column 'tubecolor', can be a colormap, color or 
+            None, by default 'k'
+        filtercolor_edge : str, optional
+            used if df has no column 'filtercolor_edge', can be a colormap, color or 
+            None, by default 'k'
+        legend : bool, optional
+            if True a legend with the names (index of the df) is plotted, by default
+            False.
+
+        Returns
+        -------
+        matplotlib.collections.PatchCollection
+
+        Raises
+        ------
+        NotImplementedError
+            if no 'ground_level' is given
+        """
+
+        # check screen top and bot
+        if (df['screen_top'] < df['screen_bottom']).any():
+            logger.warning('screen top is lower than screen bottom')
+
+        # convert x,y to geometries
+        if not isinstance(df, gpd.GeoDataFrame):
+            if (df['x'] < self.xedge[0]).any() or (df['x'] > self.xedge[-1]).any():
+                logger.warning('well x-coordinate outside of cross section extent')
+            if (df['y'] < self.yedge[-1]).any() or (df['y'] > self.yedge[0]).any():
+                logger.warning('well y-coordinate outside of cross section extent')
+            df = gpd.GeoDataFrame(df.copy(deep=True), geometry=gpd.points_from_xy(df['x'], df['y']))
+        else:
+            df = df.copy(deep=True)
+
+        # convert filter_width to numeric
+        if isinstance(filter_width, str) and filter_width.endswith('%'):
+            filter_width = float(filter_width[:-1]) * self.s[-1][-1] / 100
+        else:
+            filter_width = float(filter_width)
+
+        # use the keyword arguments 'tubecolor', 'filtercolor_edge' & 'filtercolor_face' 
+        # unless the dataframe has a column with the same name 
+        colordic = {'tubecolor': tubecolor,
+                    'filtercolor_edge':filtercolor_edge,
+                    'filtercolor_face':filtercolor_face}
+        for parname, color in colordic.items():
+            if parname not in df.columns:
+                if color is None:
+                    df[parname] = 'None'
+                elif color in plt.colormaps():
+                    cmap = plt.get_cmap(color)
+                    df[parname] = [cmap(i) for i in np.linspace(0, int((len(df)-1)*cmap.N/len(df)), len(df), dtype=int)]
+                else:
+                    df[parname] = color
+
+        rectangles = []
+        legend_handles = {}
+        for name, row in df.iterrows():
+            # get distance of point along xsec line
+            dist = self.line.project(row['geometry'])
+
+            # plot tube top to start filter
+            if 'ground_level' in row:
+                mv = row['ground_level']
+            else:
+                mv = self.top[0,np.where(dist<self.s[:,1])[0][0]]
+
+            self.ax.plot([dist]*2,[mv, row['screen_top']],
+                            linewidth=linewidth, color=row['tubecolor'], label='',
+                            solid_capstyle='butt')
+
+            # plot filter (as rectangle)
+            height = row['screen_top'] - row['screen_bottom']
+            left = dist - filter_width / 2
+            bottom_left_y = row['screen_bottom']
+
+            # Create the rectangle
+            rect = Rectangle((left, bottom_left_y), filter_width, height, 
+                            linewidth=linewidth,
+                            facecolor=row['filtercolor_face'],
+                            edgecolor=row['filtercolor_edge'],
+                            label=name)
+            rectangles.append(rect)
+            legend_handles[name] = rect
+
+        # Add rectangles to plot
+        patch_collection = PatchCollection(rectangles,
+                                        facecolors=df['filtercolor_face'],
+                                        edgecolors=df['filtercolor_edge']) 
+        self.ax.add_collection(patch_collection)
+
+        # add legend
+        if legend:
+            if legend_kwds is None:
+                legend_kwds={}
+            self.ax.legend(handles=list(legend_handles.values()),**legend_kwds)
+
+        return patch_collection
 
     def get_top_and_bot(self, top, bot):
         # then determine the top and botm of each cell

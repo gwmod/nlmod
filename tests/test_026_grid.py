@@ -119,19 +119,139 @@ def test_vertex_da_to_ds():
 
 
 def test_fillnan_da():
-    # for a structured grid
+    """Test fillnan_da function improvements from PR."""
+    # Test structured grid with uniform spacing (uses distance_transform_edt opt)
     ds = get_structured_model_ds()
-    ds["top"][5, 5] = np.nan
-    top = nlmod.resample.fillnan_da(ds["top"], ds=ds)
-    assert not np.isnan(top[5, 5])
+    original = ds["top"].copy()
 
-    # also for a vertex grid
-    ds = get_vertex_model_ds()
-    ds["top"][100] = np.nan
-    mask = ds["top"].isnull()
-    assert mask.any()
-    top = nlmod.resample.fillnan_da(ds["top"], ds=ds)
-    assert not top[mask].isnull().any()
+    # Test single NaN - should use fast distance_transform_edt path
+    ds["top"][5, 5] = np.nan
+    expected_value = original[5, 4].values  # nearest neighbor value
+
+    top_nearest = nlmod.resample.fillnan_da(ds["top"], ds=ds, method="nearest")
+    assert not np.isnan(top_nearest[5, 5])
+    assert np.isclose(top_nearest[5, 5], expected_value, rtol=1e-10)
+
+    # Test linear method (should use griddata fallback)
+    top_linear = nlmod.resample.fillnan_da(ds["top"], ds=ds, method="linear")
+    assert not np.isnan(top_linear[5, 5])
+
+    # Test that original values are preserved where not NaN
+    mask_valid = ~ds["top"].isnull()
+    np.testing.assert_allclose(
+        top_nearest.where(mask_valid), original.where(mask_valid), equal_nan=True
+    )
+
+    # Test vertex grid with improved coordinate handling
+    ds_vertex = get_vertex_model_ds()
+    ds_vertex["top"][100] = np.nan
+
+    # Test with ds parameter (should extract x,y from ds)
+    top_vertex_ds = nlmod.resample.fillnan_da(ds_vertex["top"], ds=ds_vertex)
+    assert not np.isnan(top_vertex_ds[100])
+
+    # Test vertex grid with coordinates in DataArray
+    x_coords = ds_vertex["x"].values
+    y_coords = ds_vertex["y"].values
+    ds_vertex_coords = ds_vertex.copy()
+    ds_vertex_coords["top"] = ds_vertex_coords["top"].assign_coords(
+        x=("icell2d", x_coords), y=("icell2d", y_coords)
+    )
+    top_vertex_coords = nlmod.resample.fillnan_da(ds_vertex_coords["top"])
+    assert not np.isnan(top_vertex_coords[100])
+
+
+def test_fillnan_da_vertex_grid_coordinates():
+    """Test improved coordinate handling in fillnan_da_vertex_grid."""
+    for method in ("nearest", "linear"):
+        ds_vertex = get_vertex_model_ds()
+        ds_vertex["top"][100] = np.nan
+
+        # Test with ds parameter
+        for ds in (ds_vertex, None):
+            top_ds = nlmod.resample.fillnan_da_vertex_grid(
+                ds_vertex["top"], method=method, ds=ds
+            )
+            assert not np.isnan(top_ds[100])
+
+        # Test with explicit x,y coordinates
+        x_coords = ds_vertex["x"].values
+        y_coords = ds_vertex["y"].values
+        for ds in (ds_vertex, None):
+            top_xy = nlmod.resample.fillnan_da_vertex_grid(
+                ds_vertex["top"], x=x_coords, y=y_coords, method=method, ds=ds
+            )
+            assert not np.isnan(top_xy[100])
+            assert np.isclose(top_ds[100], top_xy[100])
+
+        # Test with coordinates in DataArray
+        vertex_da_with_coords = ds_vertex["top"].assign_coords(
+            x=("icell2d", x_coords), y=("icell2d", y_coords)
+        )
+        top_coords = nlmod.resample.fillnan_da_vertex_grid(
+            vertex_da_with_coords, method=method
+        )
+        assert not np.isnan(top_coords[100])
+        assert np.isclose(top_ds[100], top_coords[100])
+
+
+def test_fillnan_da_uniform_vs_nonuniform():
+    """Test optimization path selection for uniform vs non-uniform grids."""
+    ds = get_structured_model_ds()
+
+    # Create test data with known pattern
+    test_values = np.arange(ds["top"].size).reshape(ds["top"].shape)
+    ds["top"].values = test_values
+
+    # Add NaN in center
+    center_y, center_x = ds["top"].shape[0] // 2, ds["top"].shape[1] // 2
+    ds["top"][center_y, center_x] = np.nan
+
+    # Test uniform grid (should use distance_transform_edt)
+    result_uniform = nlmod.resample.fillnan_da(ds["top"], ds=ds, method="nearest")
+
+    # Create non-uniform grid by adjusting coordinates
+    ds_nonuniform = ds.copy()
+    x_coords = ds.x.values
+    x_coords[5:] += 10  # Make spacing non-uniform
+    ds_nonuniform = ds_nonuniform.assign_coords(x=x_coords)
+
+    # Test non-uniform grid (should use griddata)
+    result_nonuniform = nlmod.resample.fillnan_da(
+        ds_nonuniform["top"], ds=ds_nonuniform, method="nearest"
+    )
+
+    # Both should fill the NaN but may give different results
+    assert not np.isnan(result_uniform[center_y, center_x])
+    assert not np.isnan(result_nonuniform[center_y, center_x])
+
+
+def test_fillnan_da_error_handling():
+    """Test improved error handling."""
+    import pytest
+    import xarray as xr
+
+    # Test vertex grid with wrong dimensions
+    ds_vertex = get_vertex_model_ds()
+    wrong_vertex_da = ds_vertex["top"].rename({"icell2d": "wrong_dim"})
+
+    with pytest.raises(ValueError, match="is not a valid GridTypeDims"):
+        nlmod.resample.fillnan_da_vertex_grid(wrong_vertex_da, ds=ds_vertex)
+
+    # Test vertex grid without coordinates (improved error handling from PR)
+    # Create a clean DataArray without x,y coordinates
+    clean_vertex_da = xr.DataArray(
+        ds_vertex["top"].values,
+        dims=("icell2d",),
+        coords={"icell2d": ds_vertex.icell2d},
+    )
+
+    with pytest.raises(ValueError, match="x or ds must be provided"):
+        nlmod.resample.fillnan_da_vertex_grid(clean_vertex_da)
+
+    # Test y coordinate error
+    with pytest.raises(ValueError, match="y or ds must be provided"):
+        nlmod.resample.fillnan_da_vertex_grid(clean_vertex_da, x=ds_vertex["x"].values)
 
 
 def test_interpolate_gdf_to_array():

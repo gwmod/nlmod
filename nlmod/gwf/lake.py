@@ -264,7 +264,7 @@ def lake_from_gdf(
             # add other time variant settings to lake
             for lake_setting in lake_settings:
                 datavar = _get_and_check_single_value(lake_gdf, lake_setting)
-                if pd.isna(datavar):  # None or nan
+                if pd.isna(datavar) or datavar == "":  # None or nan or ""
                     logger.debug(f"no {lake_setting} given for lake no {lakeno}")
                     continue
                 perioddata[iper].append(

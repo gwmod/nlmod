@@ -201,7 +201,7 @@ def lake_from_gdf(
             iconn += 1
 
         # add outlets to lake
-        if "lakeout" in lake_gdf.columns and not lake_gdf["lakeout"].isna().all():
+        if "lakeout" in lake_gdf.columns and not lake_gdf["lakeout"].isna().all() and not lake_gdf["lakeout"].eq("").all():
             lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
             if isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname
@@ -347,7 +347,7 @@ def lake_from_gdf(
 
 def _get_and_check_single_value(lake_gdf, column):
     value = lake_gdf[column].iloc[0]
-    if lake_gdf[column].isna().all():
+    if lake_gdf[column].isna().all() or lake_gdf[column].eq("").all():
         return value
     if not (lake_gdf[column] == value).all():
         raise (AssertionError(f"A single lake should have a single {column}"))

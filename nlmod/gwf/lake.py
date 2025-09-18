@@ -394,12 +394,10 @@ def _clip_da_from_ds(gdf, ds, variable, boundname_column=None):
         area = ds["area"].loc[cellids]
         if "time" in ds[variable].dims:
             da_cells = ds[variable].loc[:, cellids].copy()
-            ds[variable][:, cellids] = 0.0
             # calculate thea area-weighted mean
             df[column] = (da_cells * area).sum("icell2d") / area.sum()
         else:
             da_cells = ds[variable].loc[cellids].copy()
-            ds[variable][cellids] = 0.0
             # calculate thea area-weighted mean
             df[column] = float((da_cells * area).sum("icell2d") / area.sum())
     return df
@@ -411,7 +409,7 @@ def clip_meteorological_data_from_ds(gdf, ds, boundname_column=None):
     This method retrieves the values of rainfall and evaporation from a model Dataset.
     It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
     returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
-    each of the lakes. THe columns of this DataFrame are either the boundnames (when
+    each of the lakes. The columns of this DataFrame are either the boundnames (when
     boundname_column is specified) or the lake-number (lakeno).
 
     Parameters

@@ -201,7 +201,11 @@ def lake_from_gdf(
             iconn += 1
 
         # add outlets to lake
-        if "lakeout" in lake_gdf.columns and not lake_gdf["lakeout"].isna().all() and not lake_gdf["lakeout"].eq("").all():
+        if (
+            "lakeout" in lake_gdf.columns
+            and not lake_gdf["lakeout"].isna().all()
+            and not lake_gdf["lakeout"].eq("").all()
+        ):
             lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
             if isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname
@@ -379,7 +383,7 @@ def add_lakeno_to_gdf(gdf, boundname_column):
     return gdf
 
 
-def _clip_da_from_ds(gdf, ds, variable, boundname_column=None):
+def _copy_da_from_ds(gdf, ds, variable, boundname_column=None, set_to_0_in_ds=False):
     if boundname_column is None:
         columns = gdf["lakeno"].unique()
     else:
@@ -394,23 +398,100 @@ def _clip_da_from_ds(gdf, ds, variable, boundname_column=None):
         area = ds["area"].loc[cellids]
         if "time" in ds[variable].dims:
             da_cells = ds[variable].loc[:, cellids].copy()
+            if set_to_0_in_ds:
+                ds[variable][:, cellids] = 0.0
             # calculate thea area-weighted mean
             df[column] = (da_cells * area).sum("icell2d") / area.sum()
         else:
             da_cells = ds[variable].loc[cellids].copy()
+            if set_to_0_in_ds:
+                ds[variable][:, cellids] = 0.0
             # calculate thea area-weighted mean
             df[column] = float((da_cells * area).sum("icell2d") / area.sum())
     return df
 
 
-def clip_meteorological_data_from_ds(gdf, ds, boundname_column=None):
+def copy_meteorological_data_from_ds(
+    gdf, ds, boundname_column=None, set_to_0_in_ds=False
+):
     """
-    Clip meteorlogical data from the model dataset, and return rainfall and evaporation
+    Copy meteorlogical data from the model dataset, and return rainfall and evaporation.
     This method retrieves the values of rainfall and evaporation from a model Dataset.
     It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
     returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
     each of the lakes. The columns of this DataFrame are either the boundnames (when
     boundname_column is specified) or the lake-number (lakeno).
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataframe
+        geodataframe with the cellids as the index
+    ds : xr.Dataset
+        dataset containing relevant model grid and time information
+    boundname_column : str, optional
+        The name of the column in gdf to use for the boundnames. When boundname_column
+        is None, the lake-number (lakeno) is used to determine which rows in gdf belong
+        to each lake, and the columns of rainfall and evaporation are set by the
+        lake-number. If boundname_column is not None, the boundnames are used instead of
+        the lake-number. The default is None.
+    set_to_0_in_ds : bool, optional
+        If True, sets the meteorological data to 0 in ds, which is not recommended. The
+        default is False.
+
+    Returns
+    -------
+    rainfall : pd.DataFrame
+        The rainfall of each lake (columns) in time (index).
+    evaporation : pd.DataFrame
+        The evaporation of each lake (columns) in time (index).
+
+    """
+    logger.warning("clip_meteorological_data_from_ds ")
+    if "evaporation" in ds:
+        rainfall = _copy_da_from_ds(
+            gdf,
+            ds,
+            "recharge",
+            boundname_column=boundname_column,
+            set_to_0_in_ds=set_to_0_in_ds,
+        )
+        evaporation = _copy_da_from_ds(
+            gdf,
+            ds,
+            "evaporation",
+            boundname_column=boundname_column,
+            set_to_0_in_ds=set_to_0_in_ds,
+        )
+    else:
+        recharge = _copy_da_from_ds(
+            gdf,
+            ds,
+            "recharge",
+            boundname_column=boundname_column,
+            set_to_0_in_ds=set_to_0_in_ds,
+        )
+        rainfall = recharge.where(recharge > 0.0, 0.0)
+        evaporation = -recharge.where(recharge < 0.0, 0.0)
+    return rainfall, evaporation
+
+
+def clip_meteorological_data_from_ds(
+    gdf,
+    ds,
+    boundname_column=None,
+):
+    """
+    Clip meteorlogical data from the model dataset, and return rainfall and evaporation.
+    This method retrieves the values of rainfall and evaporation from a model Dataset.
+    It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
+    returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
+    each of the lakes. The columns of this DataFrame are either the boundnames (when
+    boundname_column is specified) or the lake-number (lakeno).
+
+    clip_meteorological_data_from_ds sets the meteorological data in the model detaset
+    to 0. It turns out MODFLOW 6 already does this, and so this can create problemsm,
+    see https://github.com/gwmod/nlmod/issues/497. Therefore, this method is deprected,
+    and replaced by copy_meteorological_data_from_ds.
 
     Parameters
     ----------
@@ -433,17 +514,11 @@ def clip_meteorological_data_from_ds(gdf, ds, boundname_column=None):
         The evaporation of each lake (columns) in time (index).
 
     """
-    if "evaporation" in ds:
-        rainfall = _clip_da_from_ds(
-            gdf, ds, "recharge", boundname_column=boundname_column
-        )
-        evaporation = _clip_da_from_ds(
-            gdf, ds, "evaporation", boundname_column=boundname_column
-        )
-    else:
-        recharge = _clip_da_from_ds(
-            gdf, ds, "recharge", boundname_column=boundname_column
-        )
-        rainfall = recharge.where(recharge > 0.0, 0.0)
-        evaporation = -recharge.where(recharge < 0.0, 0.0)
-    return rainfall, evaporation
+    logger.warning(
+        "`clip_meteorological_data_from_ds` is deprecated and replaced by "
+        "`copy_meteorological_data_from_ds`. See "
+        "https://github.com/gwmod/nlmod/issues/497."
+    )
+    return copy_meteorological_data_from_ds(
+        gdf, ds, boundname_column=boundname_column, set_to_0_in_ds=True
+    )

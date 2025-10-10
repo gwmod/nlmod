@@ -614,7 +614,7 @@ class DatasetCrossSection:
         # filter on max_dist
         if max_dist is not None:
             check_dist = df.geometry.distance(self.line) <= max_dist
-            if max_dist.any():
+            if check_dist.any():
                 logger.info(
                     f"only plotting {check_dist.sum()} of {len(df)} wells within "
                     f"{max_dist} of cross section line"

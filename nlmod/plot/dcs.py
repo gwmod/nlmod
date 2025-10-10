@@ -506,11 +506,14 @@ class DatasetCrossSection:
         df,
         filtercolor_face="tab20",
         filter_width="1%",
+        col_screen_top="screen_top",
+        col_screen_bottom="screen_bottom",
         linewidth=1,
         tubecolor="k",
         filtercolor_edge="k",
         legend=False,
         legend_kwds=None,
+        max_dist=None,
         sort_by_dist=True,
     ):
         """plot filter screens in cross section from a DataFrame
@@ -534,6 +537,10 @@ class DatasetCrossSection:
         filter_width : str, float or int, optional
             width of the filter plot. Can be a percentage '2%' of the graph width or
             the actual width (dx), by default '1%'
+        col_screen_top : str, optional
+            name of the column in df with the screen top, by default 'screen_top'
+        col_screen_bottom : str, optional
+            name of the column in df with the screen bottom, by default 'screen_bottom'
         linewidth : int, optional
             linewidth used for the filter_edge and tubeline, by default 1
         tubecolor : str, optional
@@ -545,6 +552,9 @@ class DatasetCrossSection:
         legend : bool, optional
             if True a legend with the names (index of the df) is plotted, by default
             False.
+        max_dist : float, optional
+            maximum distance of the well from the cross section line to be plotted,
+            by default None
         sort_by_dist : bool, optional
             if True the values are sorted by distance along the cross section line.
 
@@ -552,14 +562,10 @@ class DatasetCrossSection:
         -------
         matplotlib.collections.PatchCollection
 
-        Raises
-        ------
-        NotImplementedError
-            if no 'ground_level' is given
         """
 
         # check screen top and bot
-        if (df["screen_top"] < df["screen_bottom"]).any():
+        if (df[col_screen_top] < df[col_screen_bottom]).any():
             logger.warning("screen top is lower than screen bottom")
 
         # convert x,y to geometries
@@ -603,9 +609,21 @@ class DatasetCrossSection:
                     df[parname] = color
 
         # get distance of point along xsec line
-        df["dist"] = [self.line.project(geom) for geom in df.geometry.values]
+        df["s"] = [self.line.project(geom) for geom in df.geometry.values]
+
+        # filter on max_dist
+        if max_dist is not None:
+            check_dist = df.geometry.distance(self.line) <= max_dist
+            if max_dist.any():
+                logger.info(
+                    f"only plotting {check_dist.sum()} of {len(df)} wells within "
+                    f"{max_dist} of cross section line"
+                )
+            df = df[check_dist]
+
+        # sort on distance along line
         if sort_by_dist:
-            df.sort_values("dist", inplace=True)
+            df.sort_values("s", inplace=True)
 
         rectangles = []
         legend_handles = {}
@@ -614,11 +632,11 @@ class DatasetCrossSection:
             if "ground_level" in row:
                 mv = row["ground_level"]
             else:
-                mv = self.top[0, np.where(row["dist"] < self.s[:, 1])[0][0]]
+                mv = self.top[0, np.where(row["s"] < self.s[:, 1])[0][0]]
 
             self.ax.plot(
-                [row["dist"]] * 2,
-                [mv, row["screen_top"]],
+                [row["s"]] * 2,
+                [mv, row[col_screen_top]],
                 linewidth=linewidth,
                 color=row["tubecolor"],
                 label="",
@@ -626,9 +644,9 @@ class DatasetCrossSection:
             )
 
             # plot filter (as rectangle)
-            height = row["screen_top"] - row["screen_bottom"]
-            left = row["dist"] - filter_width / 2
-            bottom_left_y = row["screen_bottom"]
+            height = row[col_screen_top] - row[col_screen_bottom]
+            left = row["s"] - filter_width / 2
+            bottom_left_y = row[col_screen_bottom]
 
             # Create the rectangle
             rect = Rectangle(

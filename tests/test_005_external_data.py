@@ -48,10 +48,55 @@ def test_get_recharge_not_available():
 
 
 def test_get_recharge_add_stn_dimensions():
-    ds = nlmod.get_ds([100000, 110000, 420000, 430000])
+    ds = nlmod.get_ds(
+        [100000, 110000, 420000, 430000],
+        model_ws=os.path.join("models", "test_get_recharge_add_stn_dimensions"),
+        model_name="test",
+    )
     time = pd.date_range("2024", "2025")
     ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
     ds.update(nlmod.read.knmi.get_recharge(ds, add_stn_dimensions=True))
+
+    # create simulation
+    sim = nlmod.sim.sim(ds)
+    _ = nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    _ = nlmod.sim.ims(sim)
+    _ = nlmod.gwf.dis(ds, gwf)
+    _ = nlmod.gwf.npf(ds, gwf)
+    _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
+    _ = nlmod.gwf.rch(ds, gwf)
+
+    # do not run, as this takes a lot of time
+    # _ = nlmod.gwf.drn(ds, gwf, elev='top', cond='area')
+    # nlmod.sim.write_and_run(sim, ds, write_ds=False)
+
+    spd = gwf.rch.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000
+    assert spd[0]["recharge"].dtype == object
+
+
+def test_add_recharge_as_float():
+    ds = nlmod.get_ds(
+        [100000, 110000, 420000, 430000],
+        model_ws=os.path.join("models", "test_add_recharge_as_float"),
+        model_name="test",
+    )
+    time = pd.date_range("2024", "2025")
+    ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
+
+    sim = nlmod.sim.sim(ds)
+    _ = nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    _ = nlmod.sim.ims(sim)
+    _ = nlmod.gwf.dis(ds, gwf)
+    _ = nlmod.gwf.rch(ds, gwf, recharge=0.1)
+
+    spd = gwf.rch.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000
+    assert (spd[0]["recharge"] == 0.1).all()
 
 
 def test_ahn_within_extent():

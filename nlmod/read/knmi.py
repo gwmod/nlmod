@@ -203,6 +203,9 @@ def discretize_knmi(
             else:
                 df.index.name = f"time_{column}"
             ds_out[var] = df
+        if to_model_time:
+            # make sure all attributes of ds.time are in ds_out.time
+            ds_out["time"] = ds.time
         return ds_out
 
     if not to_model_time:

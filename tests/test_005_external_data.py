@@ -47,6 +47,13 @@ def test_get_recharge_not_available():
         ds.update(nlmod.read.knmi.get_recharge(ds))
 
 
+def test_get_recharge_add_stn_dimensions():
+    ds = nlmod.get_ds([100000, 110000, 420000, 430000])
+    time = pd.date_range("2024", "2025")
+    ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
+    ds.update(nlmod.read.knmi.get_recharge(ds, add_stn_dimensions=True))
+
+
 def test_ahn_within_extent():
     extent = [104000.0, 105000.0, 494000.0, 494600.0]
     da = nlmod.read.ahn.download_latest_ahn_from_wcs(extent)

@@ -43,7 +43,7 @@ def test_get_recharge_not_available():
     ds = nlmod.get_ds([100000, 110000, 420000, 430000])
     time = [pd.Timestamp.now().normalize()]
     ds = nlmod.time.set_ds_time(ds, start=time[0] - pd.Timedelta(days=21), time=time)
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError):
         ds.update(nlmod.read.knmi.get_recharge(ds))
 
 
@@ -66,6 +66,7 @@ def test_get_recharge_add_stn_dimensions():
     _ = nlmod.gwf.npf(ds, gwf)
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
     _ = nlmod.gwf.rch(ds, gwf)
+    _ = nlmod.gwf.evt(ds, gwf)
 
     # do not run, as this takes a lot of time
     # _ = nlmod.gwf.drn(ds, gwf, elev='top', cond='area')
@@ -75,6 +76,11 @@ def test_get_recharge_add_stn_dimensions():
     assert len(spd) == 1
     assert len(spd[0]) == 10000
     assert spd[0]["recharge"].dtype == object
+
+    spd = gwf.evt.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000
+    assert spd[0]["rate"].dtype == object
 
 
 def test_add_recharge_as_float():

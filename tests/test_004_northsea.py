@@ -72,7 +72,7 @@ def test_get_bathymetry_nosea():
 def test_add_bathymetry_to_top_bot_kh_kv_seamodel():
     # model with sea
     ds = test_001_model.get_ds_from_cache("basic_sea_model")
-    ds.update(nlmod.read.rws.get_northsea(ds))
-    ds.update(nlmod.read.jarkus.get_bathymetry(ds, datavar_sea="northsea"))
-
+    ds.update(nlmod.read.rws.discretize_northsea(ds))
+    bathymetry = nlmod.read.jarkus.get_bathymetry(ds, datavar_sea="northsea")
+    ds.update(bathymetry.drop_vars("time"))
     ds = nlmod.dims.add_bathymetry_to_layer_model(ds)

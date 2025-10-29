@@ -636,9 +636,13 @@ def _get_meteo_da_from_input(recharge, ds, pname, stn_var):
             rch_unique_df = recharge.to_pandas()
             recharge = ds[stn_var].copy()
             mask_recharge = ~recharge.isnull()
+
             # make sure the name of the time-series are strings
-            rch_unique_df.columns = [f"{pname}_{x}" for x in rch_unique_df.columns]
-            recharge = pname + "_" + recharge.astype(int).astype(str)
+            def get_ts_name(stn):
+                return f"{pname}_{stn}"
+
+            rch_unique_df.columns = [get_ts_name(x) for x in rch_unique_df.columns]
+            recharge = xr.apply_ufunc(get_ts_name, recharge.astype(int), vectorize=True)
         else:
             # recharge is a DataArray with a value for every cell and possibly time
             use_ts = "time" in recharge.dims and len(ds["time"]) > 1

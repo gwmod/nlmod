@@ -273,9 +273,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(np.sum(split_dict[lay0]), 1), (
-                f"Fractions for splitting layer '{lay0}' do not add up to 1."
-            )
+            assert np.isclose(
+                np.sum(split_dict[lay0]), 1
+            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -677,6 +677,10 @@ def combine_layers_ds(
             for x in combine_layers
         ]
         new_layer_names = [ds.layer.data[x[0]] for x in combine_layers_integer]
+
+    if len(combine_layers_integer) == 0:
+        logger.warning("No layers are combined")
+        return ds[[x for x in parsed_dv if x in ds] + keep_dv]
 
     # make sure there are no layers in between
     check = [(np.diff(x) == 1).all() for x in combine_layers_integer]

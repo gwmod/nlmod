@@ -491,8 +491,14 @@ def sim(
         None
     ref_time : TYPE, optional
         DESCRIPTION. The default is None.
+    stoptime : float, optional
+        User-specified value of tracking time at which to stop a particle tracking
+        simulation. The default is None
     stoptime : TYPE, optional
         DESCRIPTION. The default is None.
+    simulationtype : str
+        MODPATH 7 simulation type. Valid simulation types are 'endpoint',
+        'pathline', 'timeseries', or 'combined' (default is 'pathline').
 
     Returns
     -------

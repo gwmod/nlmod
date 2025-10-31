@@ -337,8 +337,8 @@ def get_configuration():
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebieden/MapServer",
-            "layer": 6,
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebied/MapServer",
+            "layer": 3,
             "index": "GPGIDENT",
             "summer_stage": "OPVAFWZP",
             "winter_stage": "OPVAFWWP",

@@ -515,6 +515,8 @@ class DatasetCrossSection:
         legend_kwds=None,
         max_dist=None,
         sort_by_dist=True,
+        filter_kwargs=None,
+        tubeline_kwargs=None,
     ):
         """plot filter screens in cross section from a DataFrame
 
@@ -552,11 +554,20 @@ class DatasetCrossSection:
         legend : bool, optional
             if True a legend with the names (index of the df) is plotted, by default
             False.
+        legend_kwds : dict, optional
+            keyword arguments passed to ax.legend(), by default None
         max_dist : float, optional
             maximum distance of the well from the cross section line to be plotted,
             by default None
         sort_by_dist : bool, optional
             if True the values are sorted by distance along the cross section line.
+        filter_kwargs : None, optional
+            additional keyword arguments passed to the PatchCollection of the
+            filters.
+        tubeline_kwargs : None, optional
+            additional keyword arguments passed to the tube line plot.
+        **kwargs
+
 
         Returns
         -------
@@ -570,10 +581,15 @@ class DatasetCrossSection:
 
         # convert x,y to geometries
         if not isinstance(df, gpd.GeoDataFrame):
-            if (df["x"] < self.xedge[0]).any() or (df["x"] > self.xedge[-1]).any():
-                logger.warning("well x-coordinate outside of cross section extent")
-            if (df["y"] < self.yedge[-1]).any() or (df["y"] > self.yedge[0]).any():
-                logger.warning("well y-coordinate outside of cross section extent")
+            if hasattr(self.ds, "extent"):
+                if (df["x"] < self.ds.extent[0]).any() or (
+                    df["x"] > self.ds.extent[1]
+                ).any():
+                    logger.warning("well x-coordinate outside of cross section extent")
+                if (df["y"] < self.ds.extent[2]).any() or (
+                    df["y"] > self.ds.extent[3]
+                ).any():
+                    logger.warning("well y-coordinate outside of cross section extent")
             df = gpd.GeoDataFrame(
                 df.copy(deep=True), geometry=gpd.points_from_xy(df["x"], df["y"])
             )
@@ -608,6 +624,12 @@ class DatasetCrossSection:
                 else:
                     df[parname] = color
 
+        # parse filter and tube kwargs
+        if filter_kwargs is None:
+            filter_kwargs = {}
+        if tubeline_kwargs is None:
+            tubeline_kwargs = {}
+
         # get distance of point along xsec line
         df["s"] = [self.line.project(geom) for geom in df.geometry.values]
 
@@ -616,8 +638,8 @@ class DatasetCrossSection:
             check_dist = df.geometry.distance(self.line) <= max_dist
             if check_dist.any():
                 logger.info(
-                    f"only plotting {check_dist.sum()} of {len(df)} wells within "
-                    f"{max_dist} of cross section line"
+                    f"plotting {check_dist.sum()} of {len(df)} wells within "
+                    f"{max_dist}m of cross section line"
                 )
             df = df[check_dist]
 
@@ -641,6 +663,7 @@ class DatasetCrossSection:
                 color=row["tubecolor"],
                 label="",
                 solid_capstyle="butt",
+                **tubeline_kwargs,
             )
 
             # plot filter (as rectangle)
@@ -666,6 +689,7 @@ class DatasetCrossSection:
             rectangles,
             facecolors=df["filtercolor_face"],
             edgecolors=df["filtercolor_edge"],
+            **filter_kwargs,
         )
         self.ax.add_collection(patch_collection)
 

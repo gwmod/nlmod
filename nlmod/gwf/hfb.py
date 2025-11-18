@@ -508,7 +508,7 @@ def polygon_to_hfb(
         return flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
 
 
-def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
+def plot_hfb(cellids, modelgrid, ax=None, color="red", **kwargs):
     """Plots a horizontal flow barrier.
 
     Parameters
@@ -516,8 +516,8 @@ def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
     cellids : list of lists of integers or flopy.mf6.ModflowGwfhfb
         list with the ids of adjacent cells that should get a horizontal
         flow barrier, hfb is the output of line_to_hfb.
-    gwf : flopy groundwater flow model, xarray Dataset or flopy modelgrid
-        The object to determine the properties of the model grid. It can be a flopy
+    modelgrid : flopy modelgrid, flopy groundwater flow model, xarray Dataset or
+        The object containing the properties of the model grid. It can be a flopy
         modelgrid-object, a flopy groundwater flow model, or an nlmod xarray dataset.
     ax : matplotlib axes
         The Axes to plot the hfb-data in. When ax is None, a new figure is created.
@@ -534,12 +534,11 @@ def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
     if ax is None:
         _, ax = plt.subplots()
 
-    if isinstance(gwf, xr.Dataset):
-        modelgrid = modelgrid_from_ds(gwf)
-    elif isinstance(gwf, flopy.discretization.grid.Grid):
-        modelgrid = gwf
-    else:
-        modelgrid = gwf.modelgrid
+    if not isinstance(modelgrid, flopy.discretization.grid.Grid):
+        if isinstance(modelgrid, xr.Dataset):
+            modelgrid = modelgrid_from_ds(modelgrid)
+        else:
+            modelgrid = modelgrid.modelgrid
 
     if modelgrid.grid_type == "structured":
         if isinstance(cellids, flopy.mf6.ModflowGwfhfb):

@@ -435,8 +435,8 @@ def copy_meteorological_data_from_ds(
         lake-number. If boundname_column is not None, the boundnames are used instead of
         the lake-number. The default is None.
     set_to_0_in_ds : bool, optional
-        If True, sets the meteorological data to 0 in ds, which is not recommended. The
-        default is False.
+        If True, sets the meteorological data to 0 in ds, which is not recommended (see
+        issue https://github.com/gwmod/nlmod/issues/497). The default is False.
 
     Returns
     -------
@@ -446,7 +446,6 @@ def copy_meteorological_data_from_ds(
         The evaporation of each lake (columns) in time (index).
 
     """
-    logger.warning("clip_meteorological_data_from_ds ")
     if "evaporation" in ds:
         rainfall = _copy_da_from_ds(
             gdf,

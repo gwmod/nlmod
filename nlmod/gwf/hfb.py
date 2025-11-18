@@ -517,23 +517,26 @@ def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
         list with the ids of adjacent cells that should get a horizontal
         flow barrier, hfb is the output of line_to_hfb.
     gwf : flopy groundwater flow model, xarray Dataset or flopy modelgrid
-        DESCRIPTION.
+        The object to determine the properties of the model grid. It can be a flopy
+        modelgrid-object, a flopy groundwater flow model, or an nlmod xarray dataset.
     ax : matplotlib axes
+        The Axes to plot the hfb-data in. When ax is None, a new figure is created.
+        The default is None.
+    color : str
+        The color of the hfb-lines in the plot. The default is 'red'.
 
 
     Returns
     -------
-    fig : TYPE
-        DESCRIPTION.
-    ax : TYPE
-        DESCRIPTION.
+    ax : matplotlib.Axes
+        The ax that conatins the hfb-lines.
     """
     if ax is None:
         _, ax = plt.subplots()
 
     if isinstance(gwf, xr.Dataset):
         modelgrid = modelgrid_from_ds(gwf)
-    elif isinstance(modelgrid, flopy.discretization.grid.Grid):
+    elif isinstance(gwf, flopy.discretization.grid.Grid):
         modelgrid = gwf
     else:
         modelgrid = gwf.modelgrid

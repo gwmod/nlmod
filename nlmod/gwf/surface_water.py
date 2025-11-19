@@ -687,7 +687,7 @@ def _get_waterboard_selection(gdf=None, extent=None, config=None):
             if config[wb]["bgt_code"] in bronhouders:
                 wbs.append(wb)
     elif extent is not None:
-        wb_gdf = waterboard.get_polygons()
+        wb_gdf = waterboard.download_polygons()
         wbs = wb_gdf.index[wb_gdf.intersects(extent_to_polygon(extent))]
     return wbs
 

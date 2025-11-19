@@ -54,9 +54,9 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
     """
-    assert sum([depth is None, elevation is None]) == 1, (
-        "Use either depth or elevation argument"
-    )
+    assert (
+        sum([depth is None, elevation is None]) == 1
+    ), "Use either depth or elevation argument"
 
     if not isinstance(ds, xr.Dataset):
         raise TypeError("Please pass a model dataset!")
@@ -414,7 +414,9 @@ def line_to_hfb_buffer(gdf, ds, buffer_distance=None, gi=None):
     return hfb_seg
 
 
-def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False):
+def polygon_to_hfb(
+    gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False, include_nan=True
+):
     """Snap polygon exterior to grid to form a horizontal flow barrier.
 
     Parameters
@@ -435,6 +437,8 @@ def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False
         Layer number. The default is 0.
     add_data : bool, optional
         If True, add the data to the stress period data. The default is False.
+    include_nan : bool, optional
+        If true, add hfb's to and from nan-values
 
     Returns
     -------
@@ -475,6 +479,8 @@ def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False
 
         edges = []
         for icell2d in range(icvert.shape[0]):
+            if not include_nan and np.isnan(data[icell2d]):
+                continue
             for j in range(icvert.shape[1] - 1):
                 if icvert[icell2d, j + 1] == nodata:
                     break
@@ -493,7 +499,7 @@ def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False
                 icell2ds.append(edges[mask, 0])
         # icell2ds = np.array(icell2ds)
         for icell2d1, icell2d2 in icell2ds:
-            spd.append([(lay, icell2d1), (lay, icell2d2), hydchr])
+            spd.append([(lay, int(icell2d1)), (lay, int(icell2d2)), hydchr])
             if add_data:
                 spd[-1].extend([data[icell2d1], data[icell2d2]])
     if gwf is None:
@@ -502,49 +508,58 @@ def polygon_to_hfb(gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False
         return flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
 
 
-def plot_hfb(cellids, gwf, ax=None, color="red", **kwargs):
+def plot_hfb(cellids, modelgrid, ax=None, color="red", **kwargs):
     """Plots a horizontal flow barrier.
 
     Parameters
     ----------
     cellids : list of lists of integers or flopy.mf6.ModflowGwfhfb
         list with the ids of adjacent cells that should get a horizontal
-        flow barrier, hfb is the output of line2hfb.
-    gwf : flopy groundwater flow model
-        DESCRIPTION.
+        flow barrier, hfb is the output of line_to_hfb.
+    modelgrid : flopy modelgrid, flopy groundwater flow model, xarray Dataset or
+        The object containing the properties of the model grid. It can be a flopy
+        modelgrid-object, a flopy groundwater flow model, or an nlmod xarray dataset.
     ax : matplotlib axes
+        The Axes to plot the hfb-data in. When ax is None, a new figure is created.
+        The default is None.
+    color : str
+        The color of the hfb-lines in the plot. The default is 'red'.
 
 
     Returns
     -------
-    fig : TYPE
-        DESCRIPTION.
-    ax : TYPE
-        DESCRIPTION.
+    ax : matplotlib.Axes
+        The ax that conatins the hfb-lines.
     """
     if ax is None:
         _, ax = plt.subplots()
 
-    if gwf.modelgrid.grid_type == "structured":
+    if not isinstance(modelgrid, flopy.discretization.grid.Grid):
+        if isinstance(modelgrid, xr.Dataset):
+            modelgrid = modelgrid_from_ds(modelgrid)
+        else:
+            modelgrid = modelgrid.modelgrid
+
+    if modelgrid.grid_type == "structured":
         if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
             spd = cellids.stress_period_data.data[0]
             cellids = [[row[0][1:], row[1][1:]] for row in spd]
         for line in cellids:
-            pc1 = Polygon(gwf.modelgrid.get_cell_vertices(*line[0]))
-            pc2 = Polygon(gwf.modelgrid.get_cell_vertices(*line[1]))
+            pc1 = Polygon(modelgrid.get_cell_vertices(*line[0]))
+            pc2 = Polygon(modelgrid.get_cell_vertices(*line[1]))
             x, y = pc1.intersection(pc2).xy
             ax.plot(x, y, color=color, **kwargs)
 
-    elif gwf.modelgrid.grid_type == "vertex":
+    elif modelgrid.grid_type == "vertex":
         if isinstance(cellids, flopy.mf6.ModflowGwfhfb):
             spd = cellids.stress_period_data.data[0]
             cellids = [[line[0][1], line[1][1]] for line in spd]
         for line in cellids:
-            pc1 = Polygon(gwf.modelgrid.get_cell_vertices(line[0]))
-            pc2 = Polygon(gwf.modelgrid.get_cell_vertices(line[1]))
+            pc1 = Polygon(modelgrid.get_cell_vertices(line[0]))
+            pc2 = Polygon(modelgrid.get_cell_vertices(line[1]))
             x, y = pc1.intersection(pc2).xy
             ax.plot(x, y, color=color, **kwargs)
     else:
-        raise ValueError(f"not supported gridtype -> {gwf.modelgrid.grid_type}")
+        raise ValueError(f"not supported gridtype -> {modelgrid.grid_type}")
 
     return ax

@@ -72,7 +72,14 @@ def get_configuration():
         },
         "weirs": {
             "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Legger/MapServer",
-            "layer": 7,
+            "layer": 7,  # Stuw (7)
+            "index": "CODE",
+            "summer_stage": "HOOGSTEDOORSTROOMHOOGTE",
+            "winter_stage": "LAAGSTEDOORSTROOMHOOGTE",
+        },
+        "culverts": {
+            "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Legger/MapServer",
+            "layer": 4,  # Duiker / Sifon (4)
             "index": "CODE",
             "summer_stage": "HOOGSTEDOORSTROOMHOOGTE",
             "winter_stage": "LAAGSTEDOORSTROOMHOOGTE",
@@ -121,6 +128,14 @@ def get_configuration():
             # "layer": 14,  # categorie B
             # "layer": 15,  # categorie C
         },
+        "weirs": {
+            "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Vastgestelde_Legger_Oppervlaktewaterlichamen/FeatureServer",
+            "layer": 4,  # Stuw (4)
+        },
+        "culverts": {
+            "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Vastgestelde_Legger_Oppervlaktewaterlichamen/FeatureServer",
+            "layer": 8,  # Duiker (8)
+        },
         "level_areas": {
             "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Peilbesluiten/MapServer",
             "layer": 0,  # Peilgebied vigerend
@@ -148,9 +163,22 @@ def get_configuration():
             # "layer": 2,  # LOW_2021_Profielpunt
             # "layer": 13,  # LOW_2021_Profiellijn
             # "index": "WS_PROFIELID",
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/A_watergang_Beheerregister/FeatureServer",
-            "layer": 0,  # A_watergang_Beheerregister (0)
-            "index": "LOKAALID",
+            # "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/A_watergang_Beheerregister/FeatureServer",
+            # "layer": 0,  # A_watergang_Beheerregister (0)
+            # "index": "LOKAALID",
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_A_water_V/FeatureServer",
+        },
+        "culverts": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Duiker_V/FeatureServer"
+        },
+        "weirs": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Stuw_V/FeatureServer"
+        },
+        "profile_lines": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profiellijn_V/FeatureServer"
+        },
+        "profile_points": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profielpunt_V/FeatureServer",
         },
     }
 
@@ -403,10 +431,20 @@ def get_configuration():
     config["Rivierenland"] = {
         "bgt_code": "W0621",
         "watercourses": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/WatersysteemLeggerVastgesteld/MapServer",
+            # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/WatersysteemLeggerVastgesteld/MapServer",
             # "layer": 13,  # profiellijn
-            "layer": 14,  # waterloop
+            # "layer": 14,  # waterloop
             # "index": "code",
+            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
+            "layer": 12,  # Waterlopen beheerregister (12)
+        },
+        "weirs": {
+            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
+            "layer": 8,  # Stuw beheer (9)
+        },
+        "culverts": {
+            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
+            "layer": 5,  # Duiker sifon hevel beheer (5)
         },
         "level_areas": {
             "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",

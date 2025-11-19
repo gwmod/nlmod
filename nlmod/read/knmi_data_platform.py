@@ -319,4 +319,4 @@ def read_dataset(
         else:
             raise ValueError(f"Can't read/handle file {file}")
 
-    return xr.concat(data, dim="time")
+    return xr.concat(data, dim="time", data_vars="all")

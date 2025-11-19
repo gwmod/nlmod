@@ -9,6 +9,7 @@ import xarray as xr
 from ..dims.grid import cols_to_reclist, da_to_reclist
 from ..dims.layers import (
     calculate_thickness,
+    get_first_active_layer,
     get_first_active_layer_from_idomain,
     get_idomain,
 )
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 def ds_to_rch(
     gwf, ds, mask=None, pname="rch", recharge="recharge", auxiliary=None, **kwargs
 ):
-    """Convert the recharge data in the model dataset to a rch package with time series.
+    """Convert recharge data in the model dataset to a rch package with time series.
 
     Parameters
     ----------
@@ -33,9 +34,11 @@ def ds_to_rch(
         data array containing mask, recharge is only added where mask is True
     pname : str, optional
         package name. The default is 'rch'.
-    recharge : str, optional
-        The name of the variable in ds that contains the recharge flux rate. The default
-        is "recharge".
+    recharge : str, xr.DataArray or float, optional
+        When recharge is a string, it is the name of the variable in ds that contains
+        the recharge flux rate. When recharge is a float, it is interpreted as the
+        constant recharge rate that is applied in all active cells (within mask if mask
+        is supplied). The default is "recharge".
     auxiliary : str or list of str
         name(s) of data arrays to include as auxiliary data to reclist
 
@@ -44,23 +47,10 @@ def ds_to_rch(
     rch : flopy.mf6.ModflowGwfrch
         recharge package
     """
-    # check for nan values
-    if ds[recharge].isnull().any():
-        raise ValueError("please remove nan values in recharge data array")
-
-    # get stress period data
-    use_ts = "time" in ds[recharge].dims and len(ds["time"]) > 1
-    if not use_ts:
-        recharge = ds[recharge]
-        if "time" in recharge.dims:
-            recharge = recharge.isel(time=0)
-        mask_recharge = recharge != 0
-    else:
-        rch_name_arr, rch_unique_dic = _get_unique_series(ds, recharge, pname)
-        ds["rch_name"] = ds["top"].dims, rch_name_arr
-        recharge = ds["rch_name"]
-        mask_recharge = recharge != ""
-
+    stn_var = f"{recharge}_stn" if isinstance(recharge, str) else "recharge_stn"
+    recharge, mask_recharge, rch_unique_df = _get_meteo_da_from_input(
+        recharge, ds, pname, stn_var=stn_var
+    )
     if mask is not None:
         mask_recharge = mask & mask_recharge
 
@@ -69,7 +59,6 @@ def ds_to_rch(
         mask_recharge,
         col1=recharge,
         first_active_layer=True,
-        only_active_cells=False,
         aux=auxiliary,
     )
 
@@ -91,9 +80,9 @@ def ds_to_rch(
             ssm_sources += [rch.package_name]
             ds.attrs["ssm_sources"] = ssm_sources
 
-    if use_ts:
+    if rch_unique_df is not None:
         # create timeseries packages
-        _add_time_series(rch, rch_unique_dic, ds)
+        _add_time_series(rch, rch_unique_df, ds)
 
     return rch
 
@@ -110,8 +99,7 @@ def ds_to_evt(
     auxiliary=None,
     **kwargs,
 ):
-    """Convert the evaporation data in the model dataset to a evt package with time
-    series.
+    """Convert evaporation data in the model dataset to a evt package with time series.
 
     Parameters
     ----------
@@ -123,9 +111,11 @@ def ds_to_evt(
         data array containing mask, evt is only added where mask is True
     pname : str, optional
         package name. The default is 'evt'.
-    rate : str, optional
-        The name of the variable in ds that contains the maximum ET flux rate. The
-        default is "evaporation".
+    rate : str, xr.DataArray or float, optional
+        When rate is a string, it is the name of the variable in ds that contains the
+        maximum ET flux rate. When rate is a float, it is interpreted as the constant
+        evaporation rate that is applied in all active cells (within mask if mask is
+        supplied). The default is "evaporation".
     nseg : int, optional
         number of ET segments. Only 1 is supported for now. The default is 1.
     surface : str, float or xr.DataArray, optional
@@ -160,22 +150,10 @@ def ds_to_evt(
         logger.info("Setting extinction depth to 1 meter below surface")
         depth = 1.0
 
-    # check for nan values
-    if ds[rate].isnull().any():
-        raise ValueError("please remove nan values in evaporation data array")
-
-    # get stress period data
-    use_ts = "time" in ds[rate].dims and len(ds["time"]) > 1
-    if not use_ts:
-        rate = ds[rate]
-        if "time" in rate.dims:
-            rate = rate.isel(time=0)
-        mask_rate = rate != 0
-    else:
-        evt_name_arr, evt_unique_dic = _get_unique_series(ds, rate, pname)
-        ds["evt_name"] = ds["top"].dims, evt_name_arr
-        rate = ds["evt_name"]
-        mask_rate = rate != ""
+    stn_var = f"{rate}_stn" if isinstance(rate, str) else "evaporation_stn"
+    rate, mask_rate, evt_unique_df = _get_meteo_da_from_input(
+        rate, ds, pname, stn_var=stn_var
+    )
 
     if mask is not None:
         mask_rate = mask & mask_rate
@@ -211,9 +189,9 @@ def ds_to_evt(
             ssm_sources += [evt.package_name]
             ds.attrs["ssm_sources"] = ssm_sources
 
-    if use_ts:
+    if evt_unique_df is not None:
         # create timeseries packages
-        _add_time_series(evt, evt_unique_dic, ds)
+        _add_time_series(evt, evt_unique_df, ds)
 
     return evt
 
@@ -246,8 +224,9 @@ def ds_to_uzf(
     mask_obs=None,
     **kwargs,
 ):
-    """Create a unsaturated zone flow package for modflow 6. This method adds uzf-cells
-    to all active Modflow cells (unless mask is specified).
+    """Create a unsaturated zone flow package for modflow 6.
+
+    This method adds uzf-cells to all active Modflow cells (unless mask is specified).
 
     Parameters
     ----------
@@ -419,20 +398,23 @@ def ds_to_uzf(
     mask_surface = (landflag == 1) & mask
 
     # perioddata : [iuzno, finf, pet, extdp, extwc, ha, hroot, rootact, aux]
-    finf_name_arr, uzf_unique_dic = _get_unique_series(ds, finf, "finf")
-    finf = "rch_name"
-    ds[finf] = ds["top"].dims, finf_name_arr
-    ds[finf] = ds[finf].expand_dims(dim={"layer": ds.layer})
-    mask_surface = (ds[finf] != "") & mask_surface
+    stn_var = f"{finf}_stn" if isinstance(finf, str) else "recharge_stn"
+    finf, mask_finf, uzf_unique_df = _get_meteo_da_from_input(
+        finf, ds, "finf", stn_var=stn_var
+    )
+    finf = finf.expand_dims(dim={"layer": ds.layer})
+    mask_surface = mask_surface & mask_finf
 
-    pet_name_arr, pet_unique_dic = _get_unique_series(ds, pet, "pet")
-    pet = "evt_name"
-    ds[pet] = ds["top"].dims, pet_name_arr
-    ds[pet] = ds[pet].expand_dims(dim={"layer": ds.layer})
-    mask_surface = (ds[pet] != "") & mask_surface
+    stn_var = f"{pet}_stn" if isinstance(pet, str) else "evaporation_stn"
+    pet, mask_pet, pet_unique_df = _get_meteo_da_from_input(
+        pet, ds, "pet", stn_var=stn_var
+    )
+    pet = pet.expand_dims(dim={"layer": ds.layer})
+    mask_surface = mask_surface & mask_pet
 
     # combine the time series of finf and pet
-    uzf_unique_dic.update(pet_unique_dic)
+    if uzf_unique_df is not None and pet_unique_df is not None:
+        uzf_unique_df = pd.concat((uzf_unique_df, pet_unique_df), axis=1)
 
     if extdp is None:
         extdp = 2.0
@@ -538,19 +520,161 @@ def ds_to_uzf(
         **kwargs,
     )
 
-    # create timeseries packages
-    _add_time_series(uzf, uzf_unique_dic, ds)
+    if uzf_unique_df is not None:
+        # create timeseries packages
+        _add_time_series(uzf, uzf_unique_df, ds)
 
 
-def _get_unique_series(ds, var, pname):
+def _get_meteo_da_from_input(recharge, ds, pname, stn_var):
+    """
+    Normalize meteorological input for use in package stress-period data.
+
+    This helper accepts several input forms for a meteorological variable
+    (e.g. recharge, evaporation, finf/pet for UZF) and returns:
+      - a spatial DataArray that describes either a per-cell scalar value or a
+        per-cell reference to a timeseries name,
+      - a boolean mask DataArray indicating which cells should receive the
+        meteorological input,
+      - a pandas DataFrame of unique timeseries values when time series are used
+        (or None otherwise).
+
+    Supported input types and behavior
+    - str:
+        Treated as the name of a variable in `ds` (i.e. `recharge = ds[recharge]`).
+        Further processing follows the xr.DataArray rules below.
+    - xr.DataArray:
+        * 1-D time series (dims == ("time",)):
+            Interpreted as a single time series applied to all active cells.
+            The returned `recharge` DataArray contains the timeseries name for
+            every cell (string values), `mask_recharge` marks active cells, and
+            `rch_unique_df` is a DataFrame with that single series.
+        * 2-D time-by-station (dims == ("time", "stn_*")):
+            Interpreted as a set of timeseries, one per station. `ds[stn_var]`
+            is expected to map each spatial cell to a station index. The
+            returned `recharge` contains per-cell timeseries names constructed
+            from the station index, `mask_recharge` marks cells with a valid
+            station mapping, and `rch_unique_df` is the DataFrame of station
+            timeseries (column names are prefixed with `pname_`).
+        * Per-cell (spatial) array with or without time dimension:
+            If the array contains a time dimension (transient, `time` in dims
+            and more than one period), unique time series are identified using
+            `_get_unique_series`. The returned `recharge` will then be a
+            per-cell DataArray of timeseries names and `rch_unique_df` contains
+            the corresponding series. If no time dimension (or single time
+            index), `recharge` is reduced to a per-cell scalar array and
+            `rch_unique_df` is None. NaN values in the active domain are not
+            allowed (ValueError).
+    - float:
+        Treated as a spatially-constant value applied to all active cells;
+        `mask_recharge` marks active cells and no timeseries DataFrame is
+        returned.
+
+    Parameters
+    ----------
+    recharge : float, str, or xr.DataArray
+        The input meteorological data. See "Supported input types and behavior"
+        above for interpretation rules.
+    ds : xr.Dataset
+        Model dataset. Used to determine active cells and grid dimensions.
+    pname : str
+        Package name used as prefix when constructing timeseries names.
+    stn_var : str
+        Name of the DataArray in `ds` that maps cells to station indices. Used
+        only when `recharge` is a time-by-station DataArray.
+
+    Returns
+    -------
+    recharge : xr.DataArray
+        If timeseries are used, a spatial DataArray of dtype string containing
+        the timeseries name for each cell (e.g. "rch_0", "rch_1", ...).
+        Otherwise a per-cell scalar DataArray (no time dimension) with the
+        meteorological value(s).
+    mask_recharge : xr.DataArray (bool)
+        Boolean mask indicating which cells should receive the input (True
+        means apply input). Typically this is based on the first active layer.
+    rch_unique_df : pd.DataFrame or None
+        When one or more unique timeseries are detected, a DataFrame indexed by
+        model `ds.time` containing each unique series is returned. If no
+        timeseries are used, returns None.
+
+    Raises
+    ------
+    ValueError
+        If per-cell data contains NaN values in the active model domain.
+    NotImplementedError
+        If `recharge` is of an unsupported type.
+
+    Notes
+    -----
+    - Timeseries names are constructed using `pname` as a prefix (e.g.
+      "evt_0", "finf_1").
+    """
+    fal = get_first_active_layer(ds)
+    # get stress period data
+    if isinstance(recharge, str):
+        recharge = ds[recharge]
+    rch_unique_df = None
+    if isinstance(recharge, xr.DataArray):
+        if recharge.dims == ("time",):
+            # recharge only consists of the dimension time, so no spatial variation
+            use_ts = True
+
+            ts_name = f"{pname}_0"
+            rch_unique_df = pd.DataFrame(recharge, columns=[ts_name])
+            dims = ds["top"].dims
+            coords = ds["top"].coords
+            shape = [ds.sizes[dim] for dim in dims]
+            recharge = xr.DataArray(np.full(shape, ts_name), dims=dims, coords=coords)
+            mask_recharge = fal != fal.attrs["nodata"]
+        elif (
+            len(recharge.dims) == 2
+            and recharge.dims[0] == "time"
+            and recharge.dims[1].startswith("stn_")
+        ):
+            # recharge is a DataArray with time series for every station
+            use_ts = True
+            rch_unique_df = recharge.to_pandas()
+            recharge = ds[stn_var].copy()
+            mask_recharge = recharge != recharge.attrs["nodata"]
+
+            # make sure the name of the time-series are strings
+            def get_ts_name(stn):
+                return f"{pname}_{stn}"
+
+            rch_unique_df.columns = [get_ts_name(x) for x in rch_unique_df.columns]
+            recharge = xr.apply_ufunc(get_ts_name, recharge.astype(int), vectorize=True)
+        else:
+            # recharge is a DataArray with a value for every cell and possibly time
+            use_ts = "time" in recharge.dims and len(ds["time"]) > 1
+            # check for nan values in active model domain
+            if recharge.where(fal != fal.attrs["nodata"], 0.0).isnull().any():
+                raise ValueError("please remove nan values in recharge data array")
+
+            if use_ts:
+                recharge, rch_unique_df = _get_unique_series(ds, recharge, pname)
+                mask_recharge = recharge != ""
+            else:
+                if "time" in recharge.dims:
+                    recharge = recharge.isel(time=0)
+                mask_recharge = recharge != 0
+    elif isinstance(recharge, float):
+        mask_recharge = fal != fal.attrs["nodata"]
+        use_ts = False
+    else:
+        raise NotImplementedError("Type {type(recharge)} not supported for recharge")
+
+    return recharge, mask_recharge, rch_unique_df
+
+
+def _get_unique_series(ds, da, pname):
     """Get the location and values of unique time series from a variable var in ds.
 
     Parameters
     ----------
     ds : xr.Dataset
         The model Dataset.
-    var : str
-        The 3d (structured) or 2d (vertext) variable in ds that contains the timeseries.
+    da : xr.DataArray
+        The 3d (structured) or 2d (vertext) DataArray that contains the timeseries.
     pname : str
         Package name, which is used for the name of the time series.
 
@@ -561,32 +685,32 @@ def _get_unique_series(ds, var, pname):
 
     Returns
     -------
-    rch_name : np.ndarray
+    rch_name_da : xr.DataArray
         The name of the recharge series for each of the cells.
-    rch_unique_dic : dict
+    rch_unique_df : pd.DataFrame
         The values of each of the time series.
     """
     rch_name_arr = np.empty_like(ds["top"].values, dtype="U13")
 
     # transient
     if ds.gridtype == "structured":
-        if len(ds[var].dims) != 3:
+        if len(da.dims) != 3:
             raise ValueError(
                 "expected dataarray with 3 dimensions"
-                f"(time, y and x) or (y, x and time), not {ds[var].dims}"
+                f"(time, y and x) or (y, x and time), not {da.dims}"
             )
-        recharge = ds[var].transpose("y", "x", "time").data
+        recharge = da.transpose("y", "x", "time").data
         shape = (ds.sizes["y"] * ds.sizes["x"], ds.sizes["time"])
         rch_2d_arr = recharge.reshape(shape)
 
     elif ds.gridtype == "vertex":
         # dimension check
-        if len(ds[var].dims) != 2:
+        if len(da.dims) != 2:
             raise ValueError(
                 "expected dataarray with 2 dimensions"
-                f"(time, icell2d) or (icell2d, time), not {ds[var].dims}"
+                f"(time, icell2d) or (icell2d, time), not {da.dims}"
             )
-        rch_2d_arr = ds[var].transpose("icell2d", "time").data
+        rch_2d_arr = da.transpose("icell2d", "time").data
 
     rch_unique_arr = np.unique(rch_2d_arr, axis=0)
     rch_unique_dic = {}
@@ -597,18 +721,23 @@ def _get_unique_series(ds, var, pname):
         rch_name_arr[mask] = f"{pname}_{i}"
         rch_unique_dic[f"{pname}_{i}"] = unique_rch
 
-    return rch_name_arr, rch_unique_dic
+    rch_name_da = xr.DataArray(
+        rch_name_arr, dims=ds["top"].dims, coords=ds["top"].coords
+    )
+    rch_unique_df = pd.DataFrame(rch_unique_dic, index=ds.time)
+
+    return rch_name_da, rch_unique_df
 
 
-def _add_time_series(package, rch_unique_dic, ds):
+def _add_time_series(package, df, ds):
     """Add time series to a package.
 
     Parameters
     ----------
     rch : mfpackage.MFPackage
         The Flopy package to which to add the timeseries.
-    rch_unique_dic : dict
-        A dictionary whch contains the time series values.
+    df : pd.DataFrame
+        A pandas DataFrane that contains the time series values.
     ds : xr.Dataset
         The model Dataset. It is used to get the time of the time series.
 
@@ -616,8 +745,6 @@ def _add_time_series(package, rch_unique_dic, ds):
     -------
     None.
     """
-    # generate a DataFrame
-    df = pd.DataFrame(rch_unique_dic, index=ds.time)
     if df.isna().any(axis=None):
         # make sure there are no NaN's, as otherwise they will be filled by zeros later
         raise (ValueError("There cannot be nan's in the DataFrame"))

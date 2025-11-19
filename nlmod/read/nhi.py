@@ -136,7 +136,8 @@ def add_buisdrainage(
         cond_method,
         depth_method,
     )
-    return ds.update(ds_out)
+    ds.update(ds_out)
+    return ds
 
 
 def discretize_buisdrainage(

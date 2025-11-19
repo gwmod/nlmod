@@ -275,7 +275,7 @@ def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
                         f"no time={time} in {kind}-tile with extent {extent_tile}"
                     )
             tiles = tiles_left
-    z_dataset = xr.combine_by_coords(tiles, combine_attrs="drop")
+    z_dataset = xr.combine_by_coords(tiles, combine_attrs="drop", data_vars="all")
     # drop 'lat' and 'lon' as these will create problems when resampling the data
     z_dataset = z_dataset.drop_vars(["lat", "lon"])
     return z_dataset

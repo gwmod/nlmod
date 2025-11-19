@@ -54,7 +54,7 @@ def get_recharge(
     method : str, optional
         If 'linear', calculate recharge by subtracting evaporation from precipitation.
         If 'separate', add precipitation as 'recharge' and evaporation as 'evaporation'.
-        The default is 'linear'.
+        Method is only used when `add_stn_dimensions=False`. The default is 'linear'.
     most_common_station : bool, optional
         When True, only download data from the station that is most common in the model
         area. The default is False
@@ -181,16 +181,18 @@ def discretize_knmi(
         raise ValueError("gridtype should be structured or vertex")
 
     if add_stn_dimensions:
+        nodata = -999
         shape = [len(ds_out[dim]) for dim in dims]
         variables = {"recharge": "stn_RD", "evaporation": "stn_EV24"}
         for var in variables:
             stn_var = variables[var]
-            ds_out[f"{var}_stn"] = dims, np.full(shape, np.nan)
+            ds_out[f"{var}_stn"] = dims, np.full(shape, nodata)
             values = [int(x.split("_")[-1]) for x in locations[stn_var]]
             if is_structured(ds):
                 ds_out[f"{var}_stn"].data[locations.row, locations.col] = values
             elif is_vertex(ds):
                 ds_out[f"{var}_stn"].data[locations.index] = values
+            ds_out[f"{var}_stn"].attrs["nodata"] = nodata
 
             stn_un = locations[stn_var].unique()
             column = stn_var.split("_")[-1]
@@ -211,7 +213,7 @@ def discretize_knmi(
     if not to_model_time:
         raise (
             NotImplementedError(
-                "`to_model_time=False` not implemented for `add_time_dimension=True`"
+                "`to_model_time=False` not implemented for `add_stn_dimensions=False`"
             )
         )
     dims = ("time",) + dims

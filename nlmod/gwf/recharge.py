@@ -635,7 +635,7 @@ def _get_meteo_da_from_input(recharge, ds, pname, stn_var):
             use_ts = True
             rch_unique_df = recharge.to_pandas()
             recharge = ds[stn_var].copy()
-            mask_recharge = ~recharge.isnull()
+            mask_recharge = recharge != recharge.attrs["nodata"]
 
             # make sure the name of the time-series are strings
             def get_ts_name(stn):

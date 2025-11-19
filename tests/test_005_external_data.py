@@ -53,6 +53,9 @@ def test_get_recharge_add_stn_dimensions():
         model_ws=os.path.join("models", "test_get_recharge_add_stn_dimensions"),
         model_name="test",
     )
+    # set the top left cell to incactive, to test this functionality as well
+    ds["active_domain"] = ds["area"] > 0
+    ds["active_domain"].data[0, 0] = False
     time = pd.date_range("2024", "2025")
     ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
     ds.update(nlmod.read.knmi.get_recharge(ds, add_stn_dimensions=True))
@@ -74,12 +77,12 @@ def test_get_recharge_add_stn_dimensions():
 
     spd = gwf.rch.stress_period_data.data
     assert len(spd) == 1
-    assert len(spd[0]) == 10000
+    assert len(spd[0]) == 10000 - 1  # one inactive cell
     assert spd[0]["recharge"].dtype == object
 
     spd = gwf.evt.stress_period_data.data
     assert len(spd) == 1
-    assert len(spd[0]) == 10000
+    assert len(spd[0]) == 10000 - 1  # one inactive cell
     assert spd[0]["rate"].dtype == object
 
 

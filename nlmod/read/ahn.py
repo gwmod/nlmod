@@ -1291,7 +1291,11 @@ def _update_ellipsis_tiles_in_data() -> None:
 
 @cache.cache_netcdf()
 def _download_ahn_ellipsis(
-    extent: list[float], identifier: str, merge_tiles: bool = True, **kwargs
+    extent: list[float],
+    identifier: str,
+    merge_tiles: bool = True,
+    cut_extent: bool = True,
+    **kwargs,
 ) -> xr.DataArray | list[xr.DataArray]:
     """Download and merge AHN tiles from the ellipsis.
 
@@ -1331,7 +1335,8 @@ def _download_ahn_ellipsis(
             da = rioxarray.open_rasterio(f"zip+{url}!/{path}", mask_and_scale=True)
         else:
             da = rioxarray.open_rasterio(url, mask_and_scale=True)
-        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        if cut_extent:
+            da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)
 
     if len(das) == 0:

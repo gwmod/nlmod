@@ -670,7 +670,7 @@ def sto(
     sy : str or float, optional
         specific yield. The default is "sy", or 0.2 if "sy" is not in ds.
     ss : str or float, optional
-        specific storage. The default is "ss", or 0.000001 if "ss" is not in ds.
+        specific storage. The default is "ss", or 0.00001 if "ss" is not in ds.
     iconvert : int, optional
         See description in ModflowGwfsto. The default is 1 (differs from FloPY).
     save_flows : bool, optional

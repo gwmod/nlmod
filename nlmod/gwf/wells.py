@@ -84,7 +84,7 @@ def wel_from_df(
     for index, irow in df.iterrows():
         wlayers = np.where(multipliers[index] > 0)[0]
         for k in wlayers:
-            multiplier = multipliers[index][k]
+            multiplier = multipliers[index].iloc[k]
             q = irow[Q]
             if auxmultname is None:
                 q = q * multiplier

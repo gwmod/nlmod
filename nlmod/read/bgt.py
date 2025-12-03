@@ -263,7 +263,7 @@ def read_bgt_zipfile(
             gdf[key] = gdf[key][gdf[key]["eindRegistratie"].isna()]
 
         if make_valid and isinstance(gdf[key], gpd.GeoDataFrame):
-            gdf[key].geometry = gdf[key].geometry.buffer(0.0)
+            gdf[key].geometry = gdf[key].make_valid()
 
         if cut_by_extent and isinstance(gdf[key], gpd.GeoDataFrame):
             gdf[key].geometry = gdf[key].intersection(polygon)

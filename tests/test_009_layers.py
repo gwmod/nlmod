@@ -184,6 +184,18 @@ def test_get_layer_of_z():
     assert (top.isel(layer=layer) > z).all()
 
 
+def test_get_layer_of_z_above_model():
+    ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -20])
+    layer = nlmod.layers.get_layer_of_z(ds, 10, below_model=-999, above_model=999)
+    assert (layer == layer.attrs["above_model"]).all()
+
+
+def test_get_layer_of_z_below_model():
+    ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -20])
+    layer = nlmod.layers.get_layer_of_z(ds, -30, below_model=-999, above_model=999)
+    assert (layer == layer.attrs["below_model"]).all()
+
+
 def test_aggregate_by_weighted_mean_to_ds():
     regis = get_regis_horstermeer()
     regis2 = regis.copy(deep=True)
@@ -358,8 +370,8 @@ def test_get_modellayers_indexer():
     # structured grid
     idx = nlmod.layers.get_modellayers_indexer(ds, df)
     # check result
-    assert idx["layer"].values[0] == ds['layer'].values[1]
-    assert idx["layer"].values[1] == ds['layer'].values[ds.sizes["layer"] - 1]
+    assert idx["layer"].values[0] == ds["layer"].values[1]
+    assert idx["layer"].values[1] == ds["layer"].values[ds.sizes["layer"] - 1]
     # test getting bottom elevations using indexer
     _ = ds["botm"].sel(**idx)
 

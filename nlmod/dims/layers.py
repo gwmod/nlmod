@@ -1564,13 +1564,11 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
     for i in range(1, len(ds.layer)):
         layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
 
-    # set layer to nodata where z is above top
+    # set layer to above_model where z is above top
     if "layer" not in ds["top"].dims:
-        layer = xr.where((layer == below_model) & (ds["top"] > z), above_model, layer)
+        layer = xr.where(z > ds["top"], above_model, layer)
     else:
-        layer = xr.where(
-            (layer == below_model) & (ds["top"].isel(layer=0) > z), above_model, layer
-        )
+        layer = xr.where(z > ds["top"].isel(layer=0), above_model, layer)
 
     # set nodata attribute
     layer.attrs["above_model"] = above_model

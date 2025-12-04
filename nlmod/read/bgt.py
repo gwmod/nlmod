@@ -451,3 +451,39 @@ def get_bronhouder_names() -> Dict[str, str]:
         bgt_bronhouder_names = json.load(fo)
 
     return bgt_bronhouder_names
+
+
+def _update_bronhouder_json(fname):
+    """
+    "Update the json-file within nlmod with bronhouder-names
+
+    Parameters
+    ----------
+    fname : str
+        The path and name of a file with bronhouder-names, downloaded from
+        https://www.kadaster.nl/-/bgt-bronhoudercodes.
+
+
+    """
+    sheet_names = [
+        "Gemeenten",
+        "Provincies",
+        "Waterschappen",
+        "Landelijke_organisaties",
+    ]
+    data = {}
+    for sheet_name in sheet_names:
+        if sheet_name == "Gemeenten":
+            skiprows = 0
+        else:
+            skiprows = 1
+        df = pd.read_excel(fname, sheet_name=sheet_name, skiprows=skiprows)
+        index_col = "BGT code"
+        if index_col not in df.columns:
+            index_col = "BGT"
+        df["Naam"] = df["Naam"].str.strip()
+        data.update(df.set_index(index_col)["Naam"].to_dict())
+    json_fname = os.path.join(NLMOD_DATADIR, "bgt", "bronhouder_names.json")
+    with open(json_fname, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=0)
+        f.write("\n")

@@ -11,7 +11,7 @@ elsewhere.
   :align: center
   :alt: The logo of nlmod
 
-nlmod relies heavily on the wonderful features of 
+nlmod relies on the wonderful features of 
 `xarray <https://docs.xarray.dev>`_ and `geopandas <https://geopandas.org>`_ for
 storing and manipulating data and `flopy <https://flopy.readthedocs.io>`_ is used for
 building and running groundwater models.
@@ -42,15 +42,17 @@ We thank the following institutions for their contributions to the development o
   :width: 200
   :alt: The logo of Brabant Water
 
-Please note that the documentation for nlmod is still a work in progress, so
-bear with us if certain aspects are incomplete.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    Getting started <getting_started>
+   Data Sources <data_sources>
    Examples <examples>
+   Utilities <utilities>
+   Workflows <workflows>
+   Advanced stress packages <advanced_stress_packages>
    API-docs <modules>
 
 

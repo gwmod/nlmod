@@ -8,8 +8,11 @@ elsewhere.
 
 .. image:: _static/logo_10000_2.png
   :width: 300
-  :align: center
   :alt: The logo of nlmod
+  
+.. image:: _static/logo_artesia.svg
+  :width: 300
+  :alt: The logo of Artesia
 
 nlmod relies on the wonderful features of 
 `xarray <https://docs.xarray.dev>`_ and `geopandas <https://geopandas.org>`_ for

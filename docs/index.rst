@@ -49,10 +49,10 @@ We thank the following institutions for their contributions to the development o
 
    Getting started <getting_started>
    Data Sources <data_sources>
-   Examples <examples>
    Utilities <utilities>
    Workflows <workflows>
-   Advanced stress packages <advanced_stress_packages>
+   Advanced stress packages <advanced_stress_packages
+   Example Models <examples>
    API-docs <modules>
 
 

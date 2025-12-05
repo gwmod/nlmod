@@ -1,7 +1,7 @@
 ========
 Data sources
 ========
-nlmod can be used to download many kinds of data in the Netherlands from online sources:
+`nlmod` can be used to download many kinds of data in the Netherlands from online sources:
 
 - Layer data from REGIS
 - Voxel data from GeoTOP

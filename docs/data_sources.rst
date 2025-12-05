@@ -15,7 +15,7 @@ nlmod can be used to download many kinds of data in the Netherlands from online 
 - Groundwater measurements from BRO
 - Well locations and extraction rates from NHI-GWO
 
-Some of these sources are demonstrated in this section.
+Some of these sources are demonstrated in the following sections:
 
 .. toctree::
   :maxdepth: 1

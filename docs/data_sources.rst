@@ -15,7 +15,7 @@ Data sources
 - Groundwater measurements from BRO
 - Well locations and extraction rates from NHI-GWO
 
-Some of these sources are demonstrated in the following sections:
+These methods are accessible through the modules within ``nlmod.read``. Some of these sources are demonstrated in the following sections:
 
 .. toctree::
   :maxdepth: 1

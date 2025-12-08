@@ -28,7 +28,8 @@ start Python and import the module::
     import nlmod
 
 `nlmod` contains many methods for loading data from online data sources, .e.g.
-from the hydrogeological subsurface model REGIS::
+from the hydrogeological subsurface model REGIS (see :ref:`data_sources` for more
+information on available data sources)::
 
     extent = [116_500, 120_000, 439_000, 442_000]  # define extent
     regis_ds = nlmod.read.regis.download_regis(extent)  # download REGIS data
@@ -59,7 +60,7 @@ MODFLOW 6 model given a model dataset::
     npf = nlmod.gwf.npf(ds)    # node property flow
     oc = nlmod.gwf.oc(ds)      # output control
 
-    # ... add some boundary condition packages (GHB, RIV, DRN, ...)
+    # ... add some boundary condition packages (RCH, GHB, RIV, DRN, ...)
 
 The MODFLOW 6 executable is automatically downloaded and installed to your system
 when building the first model.
@@ -77,8 +78,8 @@ And plotting the mean head in the top model layer::
     nlmod.plot.data_array(head.sel(layer=0).mean("time"))
 
 This was a very brief overview of some of the features in `nlmod`. There is a lot
-more to discover, so we recommend taking a look at :ref:`examples` section for
-more detailed examples.
+more to discover, so we recommend taking a look at the  sections :ref:`Data Sources`,
+:ref:`Utilities`, :ref:`Workflows` and :ref:`Example Models`.
 
 Dependencies
 ------------

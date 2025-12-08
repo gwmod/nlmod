@@ -7,7 +7,7 @@ filled = False
 n = 2
 dx = 10_000
 # dx = 20000
-figwidth = 5
+figwidth = 2
 
 # %%
 nederland = nlmod.read.administrative.download_netherlands_gdf()
@@ -71,7 +71,7 @@ ax.text(
     330_000,
     "nlmod",
     fontname="Consolas",
-    fontsize=50,
+    fontsize=50 * figwidth / 5,
     ha="center",
     va="center",
     color=color,

@@ -1,5 +1,5 @@
 ============
-Data sources
+Data Sources
 ============
 `nlmod` can be used to download many kinds of data in the Netherlands from online sources:
 

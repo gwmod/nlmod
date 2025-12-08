@@ -50,12 +50,12 @@ We thank the following institutions for their contributions to the development o
    :maxdepth: 2
    :caption: Contents:
 
-   Getting started <getting_started>
+   Getting Started <getting_started>
    Data Sources <data_sources>
    Example Models <examples>
    Utilities <utilities>
    Workflows <workflows>
-   Advanced stress packages <advanced_stress_packages
+   Advanced Stress Packages <advanced_stress_packages>
    API-docs <modules>
 
 

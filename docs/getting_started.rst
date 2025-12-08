@@ -28,7 +28,7 @@ start Python and import the module::
     import nlmod
 
 `nlmod` contains many methods for loading data from online data sources, .e.g.
-from the hydrogeological subsurface model REGIS (see :ref:`data_sources` for more
+from the hydrogeological subsurface model REGIS (see :ref:`Data Sources` for more
 information on available data sources)::
 
     extent = [116_500, 120_000, 439_000, 442_000]  # define extent
@@ -79,7 +79,7 @@ And plotting the mean head in the top model layer::
 
 This was a very brief overview of some of the features in `nlmod`. There is a lot
 more to discover, so we recommend taking a look at the  sections :ref:`Data Sources`,
-:ref:`Utilities`, :ref:`Workflows` and :ref:`Example Models`.
+:ref:`Example Models`, :ref:`Utilities`, :ref:`Workflows`, and :ref:`Advanced Stress Packages`.
 
 Dependencies
 ------------

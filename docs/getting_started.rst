@@ -5,7 +5,7 @@ On this page you will find information on how to get started with `nlmod`.
 
 Getting Python
 --------------
-To install `nlmod`, a working version of Python 3.7 or higher has to be
+To install `nlmod`, a working version of Python 3.10 or higher has to be
 installed on your computer. We recommend using the
 `Anaconda Distribution <https://www.continuum.io/downloads>`_
 of Python.

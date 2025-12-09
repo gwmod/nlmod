@@ -10,7 +10,7 @@ Data Sources
 - Landuse data from BGT, BRT or BRP
 - Meteorological data from KNMI or Meteobase
 - Waterboard data from each of the 21 waterboards
-- Soil phisical units map from BOFEK
+- Soil physical units map from BOFEK
 - Administrative boundaries from CBS or kadaster
 - Groundwater measurements from BRO
 - Well locations and extraction rates from NHI-GWO

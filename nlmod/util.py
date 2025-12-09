@@ -936,7 +936,7 @@ def get_color_logger(level="INFO", logger_name=None):
     logger_new.addHandler(handler)
     logger_new.setLevel(getattr(logging, level))
 
-    logger_new.captureWarnings(True)
+    logging.captureWarnings(True)
     return logger_new
 
 

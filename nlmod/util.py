@@ -1306,3 +1306,33 @@ def zonal_statistics(
     else:
         geometry.index = gdf.index
         return geometry
+
+
+def import_hydropandas(method="nlmod.read.knmi.download_knmi()"):
+    """Import hydropandas, raise an error if hydopandas is not installed.
+
+    Parameters
+    ----------
+    method : str, optional
+        The name of the method that is displayed in the error message. The default is
+        "nlmod.read.knmi.download_knmi()".
+
+    Raises
+    ------
+    ImportError
+        When hydropandas is not installed, an ImportError is raised.
+
+    Returns
+    -------
+    hpd : module
+        The hydropandas module.
+
+    """
+    try:
+        import hydropandas as hpd
+    except ImportError as exc:
+        raise ImportError(
+            f"hydropandas is required for {method}, "
+            "please install it using 'pip install hydropandas'"
+        ) from exc
+    return hpd

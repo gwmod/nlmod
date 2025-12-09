@@ -6,7 +6,7 @@ import pandas as pd
 
 from pyproj import Transformer
 
-from .. import cache
+from .. import cache, util
 
 logger = logging.getLogger(__name__)
 
@@ -185,13 +185,7 @@ def _get_bro_within_extent(extent, name, ignore_max_obs, epsg, **kwargs):
     hpd.ObsCollection
         _description_
     """
-    try:
-        import hydropandas as hpd
-    except ImportError as exc:
-        raise ImportError(
-            "hydropandas is required for nlmod.read.bro.download_bro_groundwater(), "
-            "please install it using 'pip install hydropandas'"
-        ) from exc
+    hpd = util.import_hydropandas(method="nlmod.read.bro.download_bro_groundwater()")
     return hpd.read_bro(
         extent, name=name, ignore_max_obs=ignore_max_obs, epsg=epsg, **kwargs
     )

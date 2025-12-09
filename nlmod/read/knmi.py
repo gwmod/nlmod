@@ -322,7 +322,7 @@ def _get_locations_vertex(ds):
     locations = pd.DataFrame(
         index=icell2d_active, data={"x": x, "y": y, "layer": layer}
     )
-    hpd = _import_hydropandas()
+    hpd = util.import_hydropandas()
     locations = hpd.ObsCollection(locations)
 
     return locations
@@ -352,7 +352,7 @@ def _get_locations_structured(ds):
         affine = get_affine_mod_to_world(ds)
         x, y = affine * (x, y)
     layers = [fal.data[row, col] for row, col in zip(rows, columns)]
-    hpd = _import_hydropandas()
+    hpd = util.import_hydropandas()
     locations = hpd.ObsCollection(
         pd.DataFrame(
             data={"x": x, "y": y, "row": rows, "col": columns, "layer": layers}
@@ -360,17 +360,6 @@ def _get_locations_structured(ds):
     )
 
     return locations
-
-
-def _import_hydropandas(method="nlmod.read.knmi.download_knmi()"):
-    try:
-        import hydropandas as hpd
-    except ImportError as exc:
-        raise ImportError(
-            f"hydropandas is required for {method}, "
-            "please install it using 'pip install hydropandas'"
-        ) from exc
-    return hpd
 
 
 @cache.cache_pickle
@@ -487,7 +476,7 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
         locations = _get_locations_vertex(ds)
     else:
         raise ValueError("gridtype should be structured or vertex")
-    _import_hydropandas(method="nlmod.read.knmi.get_locations()")
+    util.import_hydropandas(method="nlmod.read.knmi.get_locations()")
     from hydropandas.io import knmi
 
     if oc_knmi is not None:
@@ -539,7 +528,7 @@ def _download_knmi_at_locations(locations, start=None, end=None):
     stns_ev24 = locations["stn_EV24"].unique()
 
     # get knmi data stations closest to any grid cell
-    hpd = _import_hydropandas()
+    hpd = util.import_hydropandas()
 
     olist = []
     for stnrd in stns_rd:

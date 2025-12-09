@@ -2,7 +2,6 @@ import warnings
 
 from . import waterboard, webservices
 from .. import cache
-from . import waterboard, webservices
 
 
 def get_municipalities(*args, **kwargs):

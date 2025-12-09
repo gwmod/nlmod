@@ -8,10 +8,10 @@ import geopandas as gpd
 import numpy as np
 import xarray as xr
 from rioxarray.merge import merge_arrays
-from tqdm import tqdm
 
-from nlmod import NLMOD_DATADIR, cache, dims, util
-from nlmod.read.webservices import arcrest
+from .. import NLMOD_DATADIR, cache, dims, util
+from ..util import tqdm
+from .webservices import arcrest
 
 logger = logging.getLogger(__name__)
 

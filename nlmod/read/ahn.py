@@ -17,12 +17,10 @@ from rasterio import merge
 from rasterio.io import MemoryFile
 from requests.exceptions import HTTPError
 from rioxarray.merge import merge_arrays
-from tqdm import tqdm
-
 from .. import NLMOD_DATADIR, cache
 from ..dims.grid import get_extent
 from ..dims.resample import structured_da_to_ds
-from ..util import extent_to_polygon, get_ds_empty
+from ..util import extent_to_polygon, get_ds_empty, tqdm
 from .webservices import arcrest, wcs
 
 logger = logging.getLogger(__name__)

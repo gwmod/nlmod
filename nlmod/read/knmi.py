@@ -2,17 +2,14 @@ import datetime as dt
 import logging
 import warnings
 
-import hydropandas as hpd
 import numpy as np
 import pandas as pd
-from hydropandas.io import knmi as hpd_knmi
 
 from .. import cache, util
 from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex
 from ..dims.layers import get_first_active_layer
 from ..dims.base import get_ds
 from ..dims.shared import get_area
-
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +322,7 @@ def _get_locations_vertex(ds):
     locations = pd.DataFrame(
         index=icell2d_active, data={"x": x, "y": y, "layer": layer}
     )
+    hpd = _import_hydropandas()
     locations = hpd.ObsCollection(locations)
 
     return locations
@@ -354,7 +352,7 @@ def _get_locations_structured(ds):
         affine = get_affine_mod_to_world(ds)
         x, y = affine * (x, y)
     layers = [fal.data[row, col] for row, col in zip(rows, columns)]
-
+    hpd = _import_hydropandas()
     locations = hpd.ObsCollection(
         pd.DataFrame(
             data={"x": x, "y": y, "row": rows, "col": columns, "layer": layers}
@@ -362,6 +360,17 @@ def _get_locations_structured(ds):
     )
 
     return locations
+
+
+def _import_hydropandas(method="nlmod.read.knmi.download_knmi()"):
+    try:
+        import hydropandas as hpd
+    except ImportError:
+        raise ImportError(
+            f"hydropandas is required for {method}, "
+            "please install it using 'pip install hydropandas'"
+        )
+    return hpd
 
 
 @cache.cache_pickle
@@ -478,17 +487,20 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
         locations = _get_locations_vertex(ds)
     else:
         raise ValueError("gridtype should be structured or vertex")
+    hpd = _import_hydropandas(method="nlmod.read.knmi.get_locations()")
 
     if oc_knmi is not None:
-        locations["stn_RD"] = hpd_knmi.get_nearest_station_df(
+        locations["stn_RD"] = hpd.io.knmi.get_nearest_station_df(
             locations, stations=oc_knmi.loc[oc_knmi["meteo_var"] == "RD"]
         )
-        locations["stn_EV24"] = hpd_knmi.get_nearest_station_df(
+        locations["stn_EV24"] = hpd.io.knmi.get_nearest_station_df(
             locations, stations=oc_knmi.loc[oc_knmi["meteo_var"] == "EV24"]
         )
     else:
-        locations["stn_RD"] = hpd_knmi.get_nearest_station_df(locations, meteo_var="RD")
-        locations["stn_EV24"] = hpd_knmi.get_nearest_station_df(
+        locations["stn_RD"] = hpd.io.knmi.get_nearest_station_df(
+            locations, meteo_var="RD"
+        )
+        locations["stn_EV24"] = hpd.io.knmi.get_nearest_station_df(
             locations, meteo_var="EV24"
         )
 
@@ -530,6 +542,8 @@ def _download_knmi_at_locations(locations, start=None, end=None):
     stns_ev24 = locations["stn_EV24"].unique()
 
     # get knmi data stations closest to any grid cell
+    hpd = _import_hydropandas()
+
     olist = []
     for stnrd in stns_rd:
         o = hpd.PrecipitationObs.from_knmi(

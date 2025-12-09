@@ -11,7 +11,7 @@ import requests
 import xarray as xr
 from numpy import arange, array, ndarray
 from pandas import Timedelta, Timestamp
-from tqdm import tqdm
+from ..util import tqdm
 
 logger = logging.getLogger(__name__)
 

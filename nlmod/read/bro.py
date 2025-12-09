@@ -1,7 +1,6 @@
 import logging
 import warnings
 
-import hydropandas as hpd
 import numpy as np
 import pandas as pd
 
@@ -186,6 +185,13 @@ def _get_bro_within_extent(extent, name, ignore_max_obs, epsg, **kwargs):
     hpd.ObsCollection
         _description_
     """
+    try:
+        import hydropandas as hpd
+    except ImportError:
+        raise ImportError(
+            "hydropandas is required for nlmod.read.bro.download_bro_groundwater(), "
+            "please install it using 'pip install hydropandas'"
+        )
     return hpd.read_bro(
         extent, name=name, ignore_max_obs=ignore_max_obs, epsg=epsg, **kwargs
     )

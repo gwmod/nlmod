@@ -103,27 +103,28 @@ potential solutions.
 - flopy
 - xarray
 - netcdf4
-- rasterio
 - rioxarray
-- affine
 - geopandas
-- owslib
-- hydropandas
-- shapely
-- pyshp
-- rtree
 - matplotlib
 - dask
-- colorama
-- joblib
+- requests
+- scipy
 - bottleneck
 
 On top of that there are some optional dependecies:
 
 - geocube (used in nlmod.util.zonal_statistics)
-- rasterstats  (used in nlmod.util.zonal_statistics)
-- h5netcdf (used for the hdf5 backend of xarray)
+- rasterstats (used in nlmod.util.zonal_statistics)
+- contextily (nlmod.plot.add_background_map)
 - scikit-image (used in nlmod.read.rws.calculate_sea_coverage)
+- py7zr (used in nlmod.read.bofek.download_bofek_gdf)
+- joblib (used in nlmod.cache)
+- colorama (used in nlmod.util.get_color_logger)
+- tqdm (used for showing progress in long-running methods)
+- hydropandas (used in nlmod.read.knmi and nlmod.read.bro)
+- owslib (used in nlmod.read.ahn.get_latest_ahn_from_wcs)
+- pyshp (used in nlmod.grid.refine)
+- h5netcdf (used in nlmod.read.knmi_data_platform)
 
-These dependencies are only needed (and imported) in a single method or function.
+These dependencies are only needed (and imported) in a single module or method.
 They can be installed using ``pip install nlmod[full]`` or ``pip install -e .[full]``.

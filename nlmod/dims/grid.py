@@ -27,9 +27,9 @@ from scipy.interpolate import griddata
 from shapely.affinity import affine_transform
 from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
-from tqdm import tqdm
 
 from .. import cache, util
+from ..util import tqdm
 from .layers import (
     fill_nan_top_botm_kh_kv,
     get_first_active_layer,

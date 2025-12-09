@@ -1,13 +1,12 @@
 import logging
 import warnings
 
-import hydropandas as hpd
 import numpy as np
 import pandas as pd
 
 from pyproj import Transformer
 
-from .. import cache
+from .. import cache, util
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +185,7 @@ def _get_bro_within_extent(extent, name, ignore_max_obs, epsg, **kwargs):
     hpd.ObsCollection
         _description_
     """
+    hpd = util.import_hydropandas(method="nlmod.read.bro.download_bro_groundwater()")
     return hpd.read_bro(
         extent, name=name, ignore_max_obs=ignore_max_obs, epsg=epsg, **kwargs
     )

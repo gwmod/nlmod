@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import Polygon
-from tqdm import tqdm
 
 from ..cache import cache_pickle
 from ..dims.grid import (
@@ -17,7 +16,7 @@ from ..dims.grid import (
 )
 from ..dims.layers import get_idomain
 from ..read import bgt, waterboard
-from ..util import extent_to_polygon, gdf_intersection_join, zonal_statistics
+from ..util import extent_to_polygon, gdf_intersection_join, zonal_statistics, tqdm
 
 logger = logging.getLogger(__name__)
 

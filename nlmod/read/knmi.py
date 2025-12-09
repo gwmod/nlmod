@@ -365,11 +365,11 @@ def _get_locations_structured(ds):
 def _import_hydropandas(method="nlmod.read.knmi.download_knmi()"):
     try:
         import hydropandas as hpd
-    except ImportError:
+    except ImportError as exc:
         raise ImportError(
             f"hydropandas is required for {method}, "
             "please install it using 'pip install hydropandas'"
-        )
+        ) from exc
     return hpd
 
 
@@ -487,22 +487,19 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
         locations = _get_locations_vertex(ds)
     else:
         raise ValueError("gridtype should be structured or vertex")
-    hpd = _import_hydropandas(method="nlmod.read.knmi.get_locations()")
+    _import_hydropandas(method="nlmod.read.knmi.get_locations()")
+    from hydropandas.io import knmi
 
     if oc_knmi is not None:
-        locations["stn_RD"] = hpd.io.knmi.get_nearest_station_df(
+        locations["stn_RD"] = knmi.get_nearest_station_df(
             locations, stations=oc_knmi.loc[oc_knmi["meteo_var"] == "RD"]
         )
-        locations["stn_EV24"] = hpd.io.knmi.get_nearest_station_df(
+        locations["stn_EV24"] = knmi.get_nearest_station_df(
             locations, stations=oc_knmi.loc[oc_knmi["meteo_var"] == "EV24"]
         )
     else:
-        locations["stn_RD"] = hpd.io.knmi.get_nearest_station_df(
-            locations, meteo_var="RD"
-        )
-        locations["stn_EV24"] = hpd.io.knmi.get_nearest_station_df(
-            locations, meteo_var="EV24"
-        )
+        locations["stn_RD"] = knmi.get_nearest_station_df(locations, meteo_var="RD")
+        locations["stn_EV24"] = knmi.get_nearest_station_df(locations, meteo_var="EV24")
 
     if most_common_station:
         if is_structured(ds):

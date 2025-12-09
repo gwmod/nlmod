@@ -22,7 +22,7 @@ requires-python = ">= 3.10"
 dependencies = [
     "flopy>=3.3.6",
     "xarray>=0.16.1",
-    "netcdf4>=1.6.3",
+    "netcdf4>=1.7.2",
     "rasterio>=1.1.0",
     "rioxarray",
     "affine>=0.3.1",
@@ -74,7 +74,7 @@ grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["ruff"]
-ci = ["nlmod[full,lint,test,nbtest]", "numpy==1.26.4"]
+ci = ["nlmod[full,lint,test,nbtest]"]
 rtd = [
     "nlmod[full]",
     "ipython",
@@ -83,8 +83,6 @@ rtd = [
     "nbsphinx",
     "sphinx_rtd_theme==1.0.0",
     "nbconvert==7.13.0",
-    "netCDF4<1.7.0",
-    "numpy==1.26.4",
     "openpyxl",
 ]
 

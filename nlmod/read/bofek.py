@@ -8,7 +8,7 @@ from pathlib import Path
 import geopandas as gpd
 import requests
 
-from .. import cache, util, read
+from .. import cache, util
 from ..util import tqdm
 
 logger = logging.getLogger(__name__)

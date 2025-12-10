@@ -92,3 +92,4 @@ html_logo = "_static/logo_10000_2_2.png"
 nb_execution_mode = "auto"
 # Allow errors in notebooks, so we can see the error online
 nb_execution_allow_errors = True
+nb_merge_streams = True

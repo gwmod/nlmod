@@ -20,9 +20,6 @@ from nlmod import __version__
 
 sys.path.insert(0, os.path.abspath("."))
 
-# Disable TQDM
-os.environ["TQDM_DISABLE"] = "1"
-
 # -- Project information -----------------------------------------------------
 
 project = "nlmod"
@@ -101,3 +98,4 @@ nb_execution_mode = "auto"
 # Allow errors in notebooks, so we can see the error online
 nb_execution_allow_errors = True
 nb_merge_streams = True
+nb_execution_timeout = -1

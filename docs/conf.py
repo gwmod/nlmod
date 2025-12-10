@@ -12,10 +12,23 @@
 #
 import os
 import sys
+import tqdm
+import tqdm.auto
+import tqdm.notebook
 
 from nlmod import __version__
 
 sys.path.insert(0, os.path.abspath("."))
+
+# Replace tqdm functions with a simple iterator (no progress bar)
+def noop_tqdm(iterable=None, *args, **kwargs):
+    """Return iterable as-is, silently."""
+    return iter(iterable) if iterable is not None else iter([])
+
+# Monkey-patch all common tqdm variants
+tqdm.tqdm = noop_tqdm
+tqdm.auto.tqdm = noop_tqdm
+tqdm.notebook.tqdm = noop_tqdm
 
 
 # -- Project information -----------------------------------------------------

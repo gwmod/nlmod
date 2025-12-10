@@ -12,10 +12,14 @@
 #
 import os
 import sys
+import tqdm
 
 from nlmod import __version__
 
 sys.path.insert(0, os.path.abspath("."))
+
+# Override tqdm to disable all progress bars in documentation
+tqdm.tqdm = lambda *args, **kwargs: iter(args[0] if args else [])
 
 
 # -- Project information -----------------------------------------------------
@@ -85,6 +89,9 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+html_css_files = [
+    'custom.css',
+]
 
 # add a logo
 html_logo = "_static/logo_10000_2_2.png"

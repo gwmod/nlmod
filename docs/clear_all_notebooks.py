@@ -24,7 +24,7 @@ for pathname in pathnames:
 
     # %% clear output and metadata of all notebooks
     clear_output = ClearOutputPreprocessor()
-    clear_metadata = ClearMetadataPreprocessor()
+    clear_metadata = ClearMetadataPreprocessor(clear_cell_metadata=False)
 
     for notebook in notebook_list:
         logger.info(f"Clearing output of notebook {notebook}")

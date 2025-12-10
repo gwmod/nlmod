@@ -47,7 +47,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "IPython.sphinxext.ipython_console_highlighting",  # lowercase didn't work
     "sphinx.ext.autosectionlabel",
-    "nbsphinx",
+    "myst_nb",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -89,5 +89,6 @@ html_static_path = ["_static"]
 # add a logo
 html_logo = "_static/logo_10000_2_2.png"
 
+nb_execution_mode = "auto"
 # Allow errors in notebooks, so we can see the error online
-nbsphinx_allow_errors = True
+nb_execution_allow_errors = True

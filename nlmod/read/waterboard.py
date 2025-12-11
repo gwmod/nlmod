@@ -447,8 +447,9 @@ def get_configuration():
             "layer": 5,  # Duiker sifon hevel beheer (5)
         },
         "level_areas": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
+            # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
             # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_vigerend/FeatureServer",
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Waterkwantiteit/Peilgebieden_vigerend/MapServer",
             "summer_stage": [
                 "ZOMERPEIL",
                 "MIN_PEIL",

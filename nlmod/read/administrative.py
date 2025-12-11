@@ -212,7 +212,7 @@ def get_waterboards(**kwargs):
     Parameters
     ----------
     **kwargs
-        passed to waterboard.get_polygons
+        passed to waterboard.download_polygons
 
     Returns
     -------
@@ -225,7 +225,7 @@ def get_waterboards(**kwargs):
         DeprecationWarning,
     )
 
-    return waterboard.get_polygons(**kwargs)
+    return waterboard.download_polygons(**kwargs)
 
 
 @cache.cache_pickle
@@ -235,11 +235,11 @@ def download_waterboards_gdf(**kwargs):
     Parameters
     ----------
     **kwargs
-        passed to waterboard.get_polygons
+        passed to waterboard.download_polygons
 
     Returns
     -------
     gpd.GeoDataFrame
         polygons of the Netherlands
     """
-    return waterboard.get_polygons(**kwargs)
+    return waterboard.download_polygons(**kwargs)

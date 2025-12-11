@@ -882,9 +882,9 @@ class ColoredFormatter(logging.Formatter):
             from colorama import Style
 
             record.reset = Style.RESET_ALL
-            record.reset = ""
+
         except ImportError:
-            pass
+            record.reset = ""
 
         return super().format(record)
 

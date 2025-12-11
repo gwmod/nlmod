@@ -508,7 +508,7 @@ def get_configuration():
         },
     }
 
-    config["Vallei & Veluwe"] = {
+    config["Vallei en Veluwe"] = {
         "bgt_code": "W0662",
         "watercourses": {
             "url": "https://services1.arcgis.com/ug8NBKcLHVNmdmdt/ArcGIS/rest/services/Legger_Watersysteem/FeatureServer",
@@ -523,6 +523,8 @@ def get_configuration():
             "nan_values": 999,
         },
     }
+    # "Vallei & Veluwe" is renamed to "Vallei en Veluwe". For backwards compatibility:
+    config["Vallei & Veluwe"] = config["Vallei en Veluwe"]
 
     config["Vechtstromen"] = {
         "bgt_code": "W0663",

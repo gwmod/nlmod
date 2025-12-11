@@ -38,8 +38,11 @@ The basic building block for groundwater models in nlmod is the model Dataset.
 A model dataset can either be created from scratch, or derived from a
 hydrogeological subsurface model such as REGIS::
 
-    ds = nlmod.get_ds(extent)  # start from scratch OR
-    ds = nlmod.to_model_ds(regis_ds)  # convert REGIS data to a model dataset
+    # start from scratch
+    ds = nlmod.get_ds(extent, model_ws="./my_model", model_name="my_model")
+	
+    # OR convert REGIS data to a model dataset
+    ds = nlmod.to_model_ds(regis_ds, model_ws="./my_model", model_name="my_model")
 
 This dataset should eventually contain all the (rasterized) information
 required to build the groundwater model. Manipulating the spatial
@@ -52,13 +55,15 @@ replacement of flopy, but does offer convenience methods to build MODFLOW
 models using the model dataset as input. An minimal example of code to build a
 MODFLOW 6 model given a model dataset::
 
-    sim = nlmod.sim.sim(ds, model_ws="./my_model") # MFSimulation
-    tdis = nlmod.sim.tdis(ds)  # time discretization
-    ims = nlmod.sim.ims(ds)    # ims solver
-    gwf = nlmod.gwf.gwf(ds)    # groundwater flow model
-    dis = nlmod.gwf.dis(ds)    # spatial discretization
-    npf = nlmod.gwf.npf(ds)    # node property flow
-    oc = nlmod.gwf.oc(ds)      # output control
+    sim = nlmod.sim.sim(ds)                       # simulation
+    tdis = nlmod.sim.tdis(ds, sim)                # time discretization
+    ims = nlmod.sim.ims(sim)                      # ims solver
+    gwf = nlmod.gwf.gwf(ds, sim)                  # groundwater flow model
+    dis = nlmod.gwf.dis(ds, gwf)                  # spatial discretization
+    npf = nlmod.gwf.npf(ds, gwf)                  # node property flow
+    sto = nlmod.gwf.sto(ds, gwf)                  # storage (if transient)
+    ic = nlmod.gwf.ic(ds, gwf, starting_head=0.0) # initial conditions
+    oc = nlmod.gwf.oc(ds, gwf)                    # output control
 
     # ... add some boundary condition packages (RCH, GHB, RIV, DRN, ...)
 
@@ -67,15 +72,15 @@ when building the first model.
 
 Writing and running the model can then be done using::
 
-    nlmod.sim.write_and_run(ds, sim)
+    nlmod.sim.write_and_run(sim, ds)
 
 The output from a model can be read using::
 
-    head = nlmod.gwf.output(ds)
+    head = nlmod.gwf.get_heads_da(ds)
 
-And plotting the mean head in the top model layer::
+And plotting the mean head in one of the layers::
 
-    nlmod.plot.data_array(head.sel(layer=0).mean("time"))
+    nlmod.plot.map_array(head.sel(layer="BXz2").mean("time"), ds=ds)
 
 This was a very brief overview of some of the features in `nlmod`. There is a lot
 more to discover, so we recommend taking a look at the  sections :ref:`Data Sources`,

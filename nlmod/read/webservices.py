@@ -7,14 +7,12 @@ import numpy as np
 import pandas as pd
 import requests
 import rioxarray
-from owslib.wcs import WebCoverageService
 from rasterio import merge
 from rasterio.io import MemoryFile
 from requests.exceptions import HTTPError
 from shapely.geometry import MultiPolygon, Point, Polygon
-from tqdm import tqdm
 
-# from owslib.wfs import WebFeatureService
+from ..util import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -174,11 +172,6 @@ def arcrest(
 
                 assert "exceededTransferLimit" not in data, "exceededTransferLimit"
                 data["features"] = features
-
-                df = pd.DataFrame(
-                    [feature["attributes"] for feature in data["features"]]
-                )
-
     return gdf
 
 
@@ -536,6 +529,8 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
         f"- download wcs between: x ({str(extent[0])}, {str(extent[1])}); "
         f"y ({str(extent[2])}, {str(extent[3])})"
     )
+    from owslib.wcs import WebCoverageService
+
     wcs = WebCoverageService(url, version=version)
     if identifier is None:
         identifiers = list(wcs.contents)

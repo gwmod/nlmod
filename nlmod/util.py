@@ -12,12 +12,18 @@ import geopandas as gpd
 import numpy as np
 import requests
 import xarray as xr
-from colorama import Back, Fore, Style
 from flopy.utils import get_modflow
 from flopy.utils.get_modflow import flopy_appdata_path, get_release
 from shapely.geometry import Polygon, box
 from shapely.strtree import STRtree
-from tqdm import tqdm
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    # fallback: generate a dummy method with the same interface
+    def tqdm(iterable=None, **_kwargs):
+        return iterable if iterable is not None else []
+
 
 logger = logging.getLogger(__name__)
 
@@ -872,7 +878,13 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record) -> str:
         """Format the specified record as text."""
         record.color = self.colors.get(record.levelname, "")
-        record.reset = Style.RESET_ALL
+        try:
+            from colorama import Style
+
+            record.reset = Style.RESET_ALL
+            record.reset = ""
+        except ImportError:
+            pass
 
         return super().format(record)
 
@@ -894,29 +906,38 @@ def get_color_logger(level="INFO", logger_name=None):
         FORMAT = "{color}{levelname}:{name}.{funcName}:{lineno}:{message}{reset}"
     else:
         FORMAT = "{color}{levelname}:{name}.{funcName}:{message}{reset}"
-    formatter = ColoredFormatter(
-        FORMAT,
-        style="{",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        colors={
+
+    try:
+        from colorama import Back, Fore, Style
+
+        colors = {
             "DEBUG": Fore.CYAN,
             "INFO": Fore.GREEN,
             "WARNING": Fore.YELLOW,
             "ERROR": Fore.RED,
             "CRITICAL": Fore.RED + Back.WHITE + Style.BRIGHT,
-        },
+        }
+    except ImportError:
+        logger.warning("colorama package not found, colored logging is disabled.")
+        colors = {}
+
+    formatter = ColoredFormatter(
+        FORMAT,
+        style="{",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        colors=colors,
     )
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger(logger_name)
-    logger.handlers[:] = []
-    logger.addHandler(handler)
-    logger.setLevel(getattr(logging, level))
+    logger_new = logging.getLogger(logger_name)
+    logger_new.handlers[:] = []
+    logger_new.addHandler(handler)
+    logger_new.setLevel(getattr(logging, level))
 
     logging.captureWarnings(True)
-    return logger
+    return logger_new
 
 
 def _get_value_from_ds_attr(
@@ -1285,3 +1306,33 @@ def zonal_statistics(
     else:
         geometry.index = gdf.index
         return geometry
+
+
+def import_hydropandas(method="nlmod.read.knmi.download_knmi()"):
+    """Import hydropandas, raise an error if hydopandas is not installed.
+
+    Parameters
+    ----------
+    method : str, optional
+        The name of the method that is displayed in the error message. The default is
+        "nlmod.read.knmi.download_knmi()".
+
+    Raises
+    ------
+    ImportError
+        When hydropandas is not installed, an ImportError is raised.
+
+    Returns
+    -------
+    hpd : module
+        The hydropandas module.
+
+    """
+    try:
+        import hydropandas as hpd
+    except ImportError as exc:
+        raise ImportError(
+            f"hydropandas is required for {method}, "
+            "please install it using 'pip install hydropandas'"
+        ) from exc
+    return hpd

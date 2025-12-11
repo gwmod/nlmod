@@ -4,9 +4,9 @@ import flopy as fp
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 from ..dims.grid import gdf_to_grid
+from ..util import tqdm
 
 logger = logging.getLogger(__name__)
 

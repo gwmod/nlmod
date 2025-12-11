@@ -11,9 +11,8 @@ import numpy as np
 import pandas as pd
 import requests
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
-from tqdm import tqdm
 
-from ..util import extent_to_polygon
+from ..util import extent_to_polygon, tqdm
 
 logger = logging.getLogger(__name__)
 

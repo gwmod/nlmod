@@ -10,7 +10,6 @@ import pathlib
 import pickle
 
 import flopy
-import joblib
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -462,7 +461,14 @@ def cache_pickle(func):
 
             if pickle_check:
                 # add dataframe hash to function arguments dic
-                func_args_dic["_pklz_hash"] = joblib.hash(cached_pklz)
+                try:
+                    import joblib
+
+                    func_args_dic["_pklz_hash"] = joblib.hash(cached_pklz)
+                except ImportError:
+                    logger.warning(
+                        "joblib is not installed, cannot add dataframe hash to function arguments"
+                    )
 
                 # check if cache was created with same function arguments as
                 # function call
@@ -487,7 +493,14 @@ def cache_pickle(func):
             # add dataframe hash to function arguments dic
             with open(fname_cache, "rb") as f:
                 temp = pickle.load(f)
-            func_args_dic["_pklz_hash"] = joblib.hash(temp)
+            try:
+                import joblib
+
+                func_args_dic["_pklz_hash"] = joblib.hash(temp)
+            except ImportError:
+                logger.warning(
+                    "joblib is not installed, cannot add dataframe hash to function arguments"
+                )
 
             # pickle function arguments
             with open(fname_pickle_cache, "wb") as fpklz:
@@ -555,7 +568,9 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
         if item is None:
             # Value of None type is always None so the check happens in previous if statement
             pass
-        elif isinstance(item, (numbers.Number, bool, str, bytes, list, tuple, pathlib.PurePath)):
+        elif isinstance(
+            item, (numbers.Number, bool, str, bytes, list, tuple, pathlib.PurePath)
+        ):
             if item != func_args_dic_cache[key]:
                 if key.endswith("_hash") and isinstance(item, str):
                     logger.info(

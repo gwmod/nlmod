@@ -7,9 +7,9 @@ from pathlib import Path
 
 import geopandas as gpd
 import requests
-from tqdm import tqdm
 
-from nlmod import cache, util
+from .. import cache, util
+from ..util import tqdm
 
 logger = logging.getLogger(__name__)
 

@@ -471,10 +471,7 @@ def ds_to_uzf(
 
         # get cell ids of observations
         cellids_obs = list(zip(*np.where(mask_obs)))
-        cellid_str = [
-            str(x).replace("(", "").replace(")", "").replace(", ", "_")
-            for x in cellids_obs
-        ]
+        cellid_str = ["_".join(map(str, x)) for x in cellids_obs]
 
         # account for surfdep, as this decreases the height of the top of the upper cell
         # otherwise modflow may return an error

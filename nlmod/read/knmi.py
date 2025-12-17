@@ -136,9 +136,9 @@ def discretize_knmi(
         `add_stn_dimensions=True`. The default is True.
     hourly_precision : bool, optional
         When True, take into account the hour of the daily knmi-measurements (1:00 for
-        evaporation and 9:00 for precipitation). The defaults is None, which will raise
-        a warning, mentioning that hourly_precision is set to False, but the default
-        will change to True in the future.
+        evaporation and 9:00 for precipitation). The default is None, which will raise a
+        warning, mentioning that hourly_precision is set to False, but the default will
+        change to True in the future.
 
     Returns
     -------

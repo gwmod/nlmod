@@ -10,6 +10,7 @@ from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex
 from ..dims.layers import get_first_active_layer
 from ..dims.base import get_ds
 from ..dims.shared import get_area
+from ..dims.time import ds_time_to_pandas_index
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ def get_recharge(
     most_common_station=False,
     add_stn_dimensions=False,
     to_model_time=True,
+    hourly_precision=None,
 ):
     """Add recharge to model dataset from KNMI data.
 
@@ -76,6 +78,7 @@ def get_recharge(
         most_common_station=most_common_station,
         add_stn_dimensions=add_stn_dimensions,
         to_model_time=to_model_time,
+        hourly_precision=hourly_precision,
     )
 
 
@@ -87,6 +90,7 @@ def discretize_knmi(
     most_common_station=True,
     add_stn_dimensions=False,
     to_model_time=True,
+    hourly_precision=None,
 ):
     """discretize knmi data to model grid
 
@@ -130,6 +134,11 @@ def discretize_knmi(
         When False, save the original times of the KNMI-data in variables `time_RD` and
         `time_EV24`. `to_model_time=False` is only supported for
         `add_stn_dimensions=True`. The default is True.
+    hourly_precision : bool, optional
+        When True, take into account the hour of the daily knmi-measurements (1:00 for
+        evaporation and 9:00 for precipitation). The defaults is None, which will raise
+        a warning, mentioning that hourly_precision is set to False, but the default
+        will change to True in the future.
 
     Returns
     -------
@@ -177,6 +186,16 @@ def discretize_knmi(
     else:
         raise ValueError("gridtype should be structured or vertex")
 
+    if hourly_precision is None:
+        msg = (
+            "The default of hourly_precision=False will be changed to True in a future "
+            "version of nlmod. Pass hourly_precision=False to retain current behavior "
+            "or hourly_precision=True to adopt the future default and silence this "
+            "warning."
+        )
+        logger.warning(msg)
+        hourly_precision = False
+
     if add_stn_dimensions:
         nodata = -999
         shape = [len(ds_out[dim]) for dim in dims]
@@ -197,7 +216,11 @@ def discretize_knmi(
             df.columns = [int(x.split("_")[-1]) for x in stn_un]
             df.columns.name = stn_var
             if to_model_time:
-                df = df.resample("D").nearest()
+                if hourly_precision:
+                    df = df.resample("h").bfill()
+                else:
+                    df = df.resample("D").nearest()
+                df = _resample_df_to_model_time(df, ds)
                 df.index.name = "time"
             else:
                 df.index.name = f"time_{column}"
@@ -231,8 +254,14 @@ def discretize_knmi(
             loc_sel = locations.loc[mask]
 
             # calculate recharge time series
-            prec = oc_knmi.loc[stn_rd, "obs"]["RD"].resample("D").nearest()
-            evap = oc_knmi.loc[stn_ev24, "obs"]["EV24"].resample("D").nearest()
+            prec = oc_knmi.loc[stn_rd, "obs"]["RD"]
+            evap = oc_knmi.loc[stn_ev24, "obs"]["EV24"]
+            if hourly_precision:
+                prec = prec.resample("h").bfill()
+                evap = evap.resample("h").bfill()
+            else:
+                prec = prec.resample("D").nearest()
+                evap = evap.resample("D").nearest()
             ts = (prec - evap).dropna()
             ts.name = f"{prec.name}-{evap.name}"
 
@@ -241,13 +270,21 @@ def discretize_knmi(
     elif method == "separate":
         ds_out["recharge"] = dims, np.zeros(shape)
         for stn in locations["stn_RD"].unique():
-            ts = oc_knmi.loc[stn, "obs"]["RD"].resample("D").nearest()
+            ts = oc_knmi.loc[stn, "obs"]["RD"]
+            if hourly_precision:
+                ts = ts.resample("h").bfill()
+            else:
+                ts = ts.resample("D").nearest()
             loc_sel = locations.loc[(locations["stn_RD"] == stn)]
             _add_ts_to_ds(ts, loc_sel, "recharge", ds_out)
 
         ds_out["evaporation"] = dims, np.zeros(shape)
         for stn in locations["stn_EV24"].unique():
-            ts = oc_knmi.loc[stn, "obs"]["EV24"].resample("D").nearest()
+            ts = oc_knmi.loc[stn, "obs"]["EV24"]
+            if hourly_precision:
+                ts = ts.resample("h").bfill()
+            else:
+                ts = ts.resample("D").nearest()
             loc_sel = locations.loc[(locations["stn_EV24"] == stn)]
             _add_ts_to_ds(ts, loc_sel, "evaporation", ds_out)
     else:
@@ -261,6 +298,19 @@ def discretize_knmi(
     return ds_out
 
 
+def _resample_df_to_model_time(df, ds):
+    tmod = ds_time_to_pandas_index(ds)
+    by = pd.cut(df.index, tmod, right=True)
+    df_res = df.groupby(by, observed=False).mean()
+    df_res.index = tmod[1:]
+
+    # when the model frequency is higher than df.index,
+    # there will be NaN's, which we fill by backfill
+    if df_res.isna().any(axis=None):
+        df_res = df_res.bfill()
+    return df_res
+
+
 def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     """Add a timeseries to a variable at location loc_sel in model DataSet."""
     end = pd.Timestamp(ds.time.data[-1])
@@ -269,21 +319,10 @@ def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
             f"no data available for time series'{timeseries.name}' on date {end}"
         )
 
-    # fill recharge data array
-    model_recharge = pd.Series(index=ds.time, dtype=float)
-    for j, ts in enumerate(model_recharge.index):
-        if j == 0:
-            start = ds.time.start
-        else:
-            start = model_recharge.index[j - 1]
-        mask = (timeseries.index > start) & (timeseries.index <= ts)
-        model_recharge.loc[ts] = timeseries[mask].mean()
+    model_recharge = _resample_df_to_model_time(timeseries, ds)
+
     if model_recharge.isna().any():
-        # when the model frequency is higher than the timeseries-frequency,
-        # there will be NaN's, which we fill by backfill
-        model_recharge = model_recharge.fillna(method="bfill")
-        if model_recharge.isna().any():
-            raise (ValueError(f"There are NaN-values in {variable}."))
+        raise (ValueError(f"There are NaN-values in {variable}."))
 
     # add data to ds
     values = np.repeat(model_recharge.values[:, np.newaxis], loc_sel.shape[0], 1)

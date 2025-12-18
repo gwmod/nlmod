@@ -90,10 +90,7 @@ Dependencies
 ------------
 
 This module has the following dependencies that should be installed
-automatically when installing `nlmod`. If you run into any trouble with any of
-these packages during installation, refer to
-`this page <https://github.com/ArtesiaWater/hydropandas#dependencies>`_ for
-potential solutions.
+automatically when installing `nlmod`.
 
 - flopy
 - xarray

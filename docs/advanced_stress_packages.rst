@@ -1,7 +1,7 @@
 ========================
 Advanced Stress Packages
 ========================
-Modflow 6 contains some advances stress packages, like the LAK- or UZF-package, which can be used using flopy. nlmod contains some methods to generate these advanced stress packages, which are demonstrated in this section.
+MODFLOW 6 includes several advanced stress packages, such as the LAK and UZF packages, for which input can be generated using FloPy. `nlmod` also provides convenient methods to generate these advanced stress packages, as demonstrated in this section.
 
 .. toctree::
   :maxdepth: 1

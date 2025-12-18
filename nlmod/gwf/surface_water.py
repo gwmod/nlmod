@@ -692,7 +692,13 @@ def _get_waterboard_selection(gdf=None, extent=None, config=None):
 
 
 def add_stages_from_waterboards(
-    gdf, la=None, extent=None, columns=None, config=None, min_total_overlap=0.0
+    gdf,
+    la=None,
+    extent=None,
+    columns=None,
+    config=None,
+    min_total_overlap=0.0,
+    silent=False,
 ):
     """Add information from level areas (peilgebieden) to bgt-polygons.
 
@@ -718,6 +724,8 @@ def add_stages_from_waterboards(
         Only add data from waterboards to gdf when the total overlap between a feature
         in gdf with all the features from the waterboard is larger than the fraction
         min_total_overlap. The default is 0.0.
+    silent : bool, optional
+        If true, do not show prgressbars. The default is False.
 
     Returns
     -------
@@ -741,6 +749,7 @@ def add_stages_from_waterboards(
             columns=columns,
             min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
+            silent=silent,
         )[columns]
     return gdf
 

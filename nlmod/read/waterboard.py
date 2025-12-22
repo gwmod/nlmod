@@ -260,8 +260,8 @@ def get_configuration():
     config["Hollands Noorderkwartier"] = {
         "bgt_code": "W0651",
         "watercourses": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2023_oppervlaktewateren_vg/MapServer/",
-            "bottom_height": "WS_BODEMHOOGTE",
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2025_oppervlaktewateren_vg/mapserver",
+            "bottom_height": "BODEMHOOGTE",
         },
         "level_areas": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/WS_Peilgebieden/MapServer/",
@@ -285,6 +285,10 @@ def get_configuration():
         },
         "level_deviations": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilafwijking_gebied/MapServer"
+        },
+        "weirs": {
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2025_kunstwerken_vg/MapServer",
+            "layer": 25,
         },
         # NOTE: this intermediate certificate is needed to access HHNK MapServer
         # on 2025-06-16. This intermediate certificate is automatically downloaded
@@ -356,20 +360,29 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Watergangen/Watergangen/MapServer",
-            "layer": 1,  # primair
-            # "layer": 2,  # secundair
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
+            "layer": 0,  # Primair
+            # "layer": 1,  # Secundair
+            # "layer": 2,  # Tertiair
             "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
             "bottom_width": "AVVBODDR",
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebieden/MapServer",
-            "layer": 6,
-            "index": "GPGIDENT",
-            "summer_stage": "OPVAFWZP",
-            "winter_stage": "OPVAFWWP",
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebied/MapServer/",
+            "layer": 3,
+            "index": "WS_CODE",
+            "summer_stage": [
+                "WS_OPERATIONEELZOMERPEIL",
+                "WS_ZOMERSTREEFPEIL",
+                ["WS_OPERABOVENGRENSZOMERPEIL", "WS_OPERAONDERGRENSZOMERPEIL"],
+                ["WS_BOVENGRENSZOMERPEIL", "WS_ONDERGRENSZOMERPEIL"],
+            ],
+            "winter_stage": [
+                "WS_OPERATIONEELWINTERPEIL",
+                "WS_WINTERSTREEFPEIL",
+                ["WS_OPERABOVENGRENSWINTERPEIL", "WS_OPERAONDERGRENSWINTERPEIL"],
+            ],
         },
     }
 
@@ -431,12 +444,9 @@ def get_configuration():
     config["Rivierenland"] = {
         "bgt_code": "W0621",
         "watercourses": {
-            # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/WatersysteemLeggerVastgesteld/MapServer",
-            # "layer": 13,  # profiellijn
-            # "layer": 14,  # waterloop
-            # "index": "code",
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
-            "layer": 12,  # Waterlopen beheerregister (12)
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Watersysteem/Legger_en_Werkingsgebieden_Wateren_Vastgesteld/MapServer",
+            "layer": 14,  # Waterloop
+            # "layer": 70,  # Profiellijnen
         },
         "weirs": {
             "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
@@ -475,12 +485,12 @@ def get_configuration():
             "bottom_width": "OAFBODBR",
         },
         "level_areas": {
-            "url": "http://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",
+            "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",
             "layer": 14,  # Peilgebieden (praktijk)
             "index": "GPGIDENT",
             # "layer": 15,  # Peilgebieden (juridisch)
             # "index": "GJPIDENT",
-            "f": "json",  # geojson does not return GPGZP and GPGWP
+            # "f": "json",  # geojson does not return GPGZP and GPGWP
             "summer_stage": "GPGZP",
             "winter_stage": "GPGWP",
             "nan_values": [-99, 99],

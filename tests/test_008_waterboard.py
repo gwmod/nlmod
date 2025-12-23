@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 import matplotlib
 import numpy as np
@@ -43,10 +44,14 @@ def get_ahn_colormap(name="ahn", N=256):
 
 
 @pytest.mark.skip("too slow")
-def test_download_peilgebieden(
+def test_download_level_areas(
     data_kind="level_areas", plot=True, save=True, figdir=r"..\docs\_static"
 ):
-    waterboards = nlmod.read.waterboard.get_polygons()
+    cachedir = os.path.join(tempfile.tempdir, "test_download_level_areas")
+    if not os.path.isdir(cachedir):
+        os.makedirs(cachedir)
+
+    waterboards = nlmod.read.waterboard.download_polygons()
 
     gdf = {}
     for wb in waterboards.index:
@@ -54,14 +59,15 @@ def test_download_peilgebieden(
         try:
             # xmin, ymin, xmax, ymax = waterboards.at[wb, "geometry"].bounds
             # extent = [xmin, xmax, ymin, ymax]
-            gdf[wb] = nlmod.read.waterboard.get_data(
-                wb, data_kind, max_record_count=1000
+            gdf[wb] = nlmod.read.waterboard.download_data(
+                wb, data_kind, max_record_count=1000, cachedir=cachedir, cachename=wb
             )
         except Exception as e:
             if str(e) == f"{data_kind} not available for {wb}":
                 print(e)
             else:
-                raise
+                # raise
+                print(e)
 
     if plot:
         if data_kind == "level_areas":
@@ -99,7 +105,7 @@ def test_download_peilgebieden(
 
 
 @pytest.mark.skip("too slow")
-def test_download_waterlopen(plot=True):
+def test_download_watercourses(plot=True):
     def get_extent(waterboards, wb, buffer=1000.0):
         c = waterboards.at[wb, "geometry"].centroid
         extent = [c.x - buffer, c.x + buffer, c.y - buffer, c.y + buffer]
@@ -117,21 +123,27 @@ def test_download_waterlopen(plot=True):
         #    extent = [57000, 58000, 378000, 379000]
         return extent
 
+    cachedir = os.path.join(tempfile.tempdir, "test_download_watercourses")
+    if not os.path.isdir(cachedir):
+        os.makedirs(cachedir)
+
     data_kind = "watercourses"
     # data_kind = "level_areas"
-    waterboards = nlmod.read.waterboard.get_polygons()
+    waterboards = nlmod.read.waterboard.download_polygons()
     gdf = {}
     for wb in waterboards.index:
         print(wb)
         extent = get_extent(waterboards, wb)
         try:
-            gdf[wb] = nlmod.read.waterboard.get_data(wb, data_kind, extent)
+            gdf[wb] = nlmod.read.waterboard.download_data(
+                wb, data_kind, extent, cachedir=cachedir, cachename=wb
+            )
         except Exception as e:
             if str(e) == f"{data_kind} not available for {wb}":
                 print(e)
             else:
+                # raise
                 print(e)
-                raise
 
     if plot:
         for wb in gdf:

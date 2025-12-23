@@ -167,6 +167,7 @@ def get_configuration():
             # "layer": 0,  # A_watergang_Beheerregister (0)
             # "index": "LOKAALID",
             "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_A_water_V/FeatureServer",
+            "index": "Nieuw_Dommel_ID",
         },
         "culverts": {
             "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Duiker_V/FeatureServer"
@@ -360,10 +361,12 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
-            "layer": 0,  # Primair
+            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
+            # "layer": 0,  # Primair
             # "layer": 1,  # Secundair
             # "layer": 2,  # Tertiair
+            "url": "https://services2.arcgis.com/ppcrd5oBNPEvV1T3/ArcGIS/rest/services/Normatieve_afmetingen/FeatureServer",
+            "layer": 1,  # Normatieve afmetingen
             "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
             "bottom_width": "AVVBODDR",
             "index": "OVKIDENT",
@@ -500,10 +503,20 @@ def get_configuration():
     config["Schieland en de Krimpenerwaard"] = {
         "bgt_code": "W0656",
         "watercourses": {
-            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vastgestelde_legger_Watersystemen_2023/FeatureServer",
-            "layer": 15,  # Oppervlaktewaterlichaam (15)
+            # "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vastgestelde_legger_Watersystemen_2023/FeatureServer",
+            # "layer": 15,  # Oppervlaktewaterlichaam (15)
+            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vigerende_Legger_Watersystemen/FeatureServer",
+            "layer": 7,  # Oppervlaktewaterlichaam
             "water_depth": "DIEPTE",
             "bottom_width": "BODEMBREEDTE",
+        },
+        "weirs": {
+            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vigerende_Legger_Watersystemen/FeatureServer",
+            "layer": 2,  # Stuw
+        },
+        "culverts": {
+            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/arcgis/rest/services/Beheerregister_kunstwerken/FeatureServer",
+            "layer": 10,  # Duiker
         },
         "level_areas": {
             # "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Peilbesluiten/FeatureServer",

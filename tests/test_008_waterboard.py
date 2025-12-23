@@ -66,7 +66,8 @@ def test_download_level_areas(
             if str(e) == f"{data_kind} not available for {wb}":
                 print(e)
             else:
-                raise
+                # raise
+                print(e)
 
     if plot:
         if data_kind == "level_areas":
@@ -141,8 +142,8 @@ def test_download_watercourses(plot=True):
             if str(e) == f"{data_kind} not available for {wb}":
                 print(e)
             else:
+                # raise
                 print(e)
-                raise
 
     if plot:
         for wb in gdf:

@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import os
 import warnings
+import tempfile
 from typing import Literal
 
 import geopandas as gpd
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 @cache.cache_netcdf(coords_2d=True)
 def download_ahn(
     extent: list[float],
-    identifier: str = "AHN4 maaiveldmodel (DTM) 5m",
+    identifier: str = None,
     merge_tiles=True,
     **kwargs,
 ) -> xr.DataArray:
@@ -38,7 +39,27 @@ def download_ahn(
     Parameters
     ----------
     extent : list, tuple or np.array
-        extent xmin, xmax, ymin, ymax.
+        The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
+    version : str, optional
+        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
+        default is "AHN4".
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
+    data_kind : str, optional
+        The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
+        elevation). The default is "DTM".
+    km : bool, optional
+        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
+        tile sizez of 5 x 6.25 km. The default is True.
+    merge_tiles : bool, optional
+        If True, the function returns a merged DataArray. If False, the function
+        returns a list of DataArrays with the original tiles. The default is True.
+    cut_extent : bool, optional
+        If True, only keep the requested extent from the data. The defualts is True.
+    config : dict, optional
+        A dictionary with properties of the data sources of the different AHN-versions.
+        When None, the configuration is retreived from the method get_configuration().
+        The default is None.
     identifier : str, optional
         The identifier determines the AHN-version, the resolution and the type of height
         data. Possible values are (casing is important):
@@ -59,21 +80,24 @@ def download_ahn(
                   'AHN5 DSM 5m',
                   'AHN5 maaiveldmodel (DTM) ½m',
                   'AHN5 DSM ½m'
-    merge_tiles : bool, optional
-        If True, the function returns a merged DataArray. If False, the function
-        returns a list of DataArrays with the original tiles. The default is True.
+        When no identifier is used, the url to data download from is taken from
+        `config`. The default is None.
 
     Returns
     -------
     ahn_da : xr.DataArray
         DataArray with the ahn variable.
     """
-
-    ahn_da = _download_ahn_ellipsis(
-        extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
-    )
-    if not merge_tiles:
-        return ahn_da
+    if identifier is not None:
+        ahn_da = _download_ahn_ellipsis(
+            extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
+        )
+        if not merge_tiles:
+            return ahn_da
+    else:
+        ahn_da = _download_ahn_km(extent, merge_tiles=merge_tiles, **kwargs)
+        if not merge_tiles:
+            return ahn_da
 
     ahn_da.attrs["source"] = identifier
     ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
@@ -116,7 +140,7 @@ def discretize_ahn(
 @cache.cache_netcdf(coords_2d=True)
 def get_ahn(
     ds: xr.Dataset | None = None,
-    identifier: str = "AHN4 maaiveldmodel (DTM) 5m",
+    identifier: str = None,
     method: str = "average",
     extent: list[float] | None = None,
     merge_tiles: bool = True,
@@ -129,6 +153,33 @@ def get_ahn(
     ds : xr.Dataset, optional
         dataset with the model information. Using ds=None is deprecated, instead use
         nlmod.read.ahn.download_ahn().
+    method : str, optional
+        Method used to resample ahn to grid of ds. See documentation of
+        nlmod.resample.structured_da_to_ds for possible values. The default is
+        'average'.
+    extent : list, tuple or np.array
+        The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
+        Only used if ds is None. The default is None.
+    version : str, optional
+        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
+        default is "AHN4".
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
+    data_kind : str, optional
+        The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
+        elevation). The default is "DTM".
+    km : bool, optional
+        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
+        tile sizez of 5 x 6.25 km. The default is True.
+    merge_tiles : bool, optional
+        If True, the function returns a merged DataArray. If False, the function
+        returns a list of DataArrays with the original tiles. The default is True.
+    cut_extent : bool, optional
+        If True, only keep the requested extent from the data. The defualts is True.
+    config : dict, optional
+        A dictionary with properties of the data sources of the different AHN-versions.
+        When None, the configuration is retreived from the method get_configuration().
+        The default is None.
     identifier : str, optional
         The identifier determines the AHN-version, the resolution and the type of height
         data. Possible values are (casing is important):
@@ -149,13 +200,9 @@ def get_ahn(
                   'AHN5 DSM 5m',
                   'AHN5 maaiveldmodel (DTM) ½m',
                   'AHN5 DSM ½m'
-        The default is 'AHN4 maaiveldmodel (DTM) 5m'.
-    method : str, optional
-        Method used to resample ahn to grid of ds. See documentation of
-        nlmod.resample.structured_da_to_ds for possible values. The default is
-        'average'.
-    extent : list, tuple or np.array, optional
-        extent xmin, xmax, ymin, ymax. Only used if ds is None. The default is None.
+        When no identifier is used, the url to data download from is taken from
+        `config`. The default is None.
+
 
     Returns
     -------
@@ -822,7 +869,7 @@ def download_ahn2(
         "AHN2 maaiveldmodel (DTM) ½m",
         "AHN2 DSM ½m",
         "AHN2 maaiveldmodel (DTM) 5m",
-    ] = "AHN2 maaiveldmodel (DTM) 5m",
+    ] = None,
     as_data_array: bool | None = None,
     **kwargs,
 ) -> xr.DataArray:
@@ -845,7 +892,9 @@ def download_ahn2(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    if identifier is not None:
+        return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_km(extent=extent, version="AHN2", **kwargs)
 
 
 @cache.cache_netcdf()
@@ -968,7 +1017,7 @@ def download_ahn3(
         "AHN3 DSM ½m",
         "AHN3 maaiveldmodel (DTM) 5m",
         "AHN3 DSM 5m",
-    ] = "AHN3 maaiveldmodel (DTM) 5m",
+    ] = None,
     as_data_array: bool | None = None,
     **kwargs,
 ) -> xr.DataArray:
@@ -990,7 +1039,9 @@ def download_ahn3(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    if identifier is not None:
+        return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_km(extent=extent, version="AHN3", **kwargs)
 
 
 @cache.cache_netcdf()
@@ -1112,7 +1163,7 @@ def download_ahn4(
         "AHN4 DSM ½m",
         "AHN4 maaiveldmodel (DTM) 5m",
         "AHN4 DSM 5m",
-    ] = "AHN4 maaiveldmodel (DTM) 5m",
+    ] = None,
     as_data_array: bool | None = None,
     **kwargs,
 ) -> xr.DataArray:
@@ -1134,7 +1185,9 @@ def download_ahn4(
         DataArray of the AHN
     """
     _assert_as_data_array_is_none(as_data_array)
-    return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    if identifier is not None:
+        return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_km(extent=extent, version="AHN4", **kwargs)
 
 
 @cache.cache_netcdf()
@@ -1255,7 +1308,7 @@ def download_ahn5(
         "AHN5 DSM 5m",
         "AHN5 maaiveldmodel (DTM) ½m",
         "AHN5 DSM ½m",
-    ] = "AHN5 maaiveldmodel (DTM) 5m",
+    ] = None,
     **kwargs,
 ) -> xr.DataArray:
     """Download AHN5.
@@ -1275,7 +1328,9 @@ def download_ahn5(
     xr.DataArray
         DataArray of the AHN
     """
-    return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    if identifier is not None:
+        return _download_ahn_ellipsis(extent, identifier, **kwargs)
+    return _download_ahn_km(extent=extent, version="AHN5", **kwargs)
 
 
 def _update_ellipsis_tiles_in_data() -> None:
@@ -1285,6 +1340,316 @@ def _update_ellipsis_tiles_in_data() -> None:
         os.makedirs(pathname)
     fname = os.path.join(pathname, "ellipsis_tiles.geojson")
     tiles.to_file(fname)
+
+
+def download_ahn6(extent: list[float], km: bool = True, **kwargs):
+    if not km:
+        raise (ValueError("AHN6 is only available in map sheets of 1 x 1 km."))
+    _download_ahn_km(extent=extent, version="AHN6", km=km, **kwargs)
+
+
+def get_configuration():
+    config = {}
+    config["AHN2"] = {
+        "DTM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_DTM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DTM05.json",
+            },
+            5.0: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_DTM5.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DTM5.json",
+            },
+        },
+        "DSM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_DSM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DSM05.json",
+            },
+            5.0: {
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DSM5.json",
+            },
+        },
+        "PC": {
+            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_PC.json",
+        },
+        "LAZ_g": {
+            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_LAZ_g.json"
+        },
+        "LAZ_u": {
+            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_LAZ_u.json"
+        },
+    }
+
+    config["AHN3"] = {
+        "DTM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DTM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DTM05.json",
+            },
+            5.0: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DTM5.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DTM5.json",
+            },
+        },
+        "DSM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DSM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DSM05.json",
+            },
+            5.0: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DSM5.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DSM5.json",
+            },
+        },
+        "PC": {
+            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_PC.json",
+            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_PC.json",
+        },
+    }
+
+    config["AHN4"] = {
+        "DTM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DTM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DTM05.json",
+            },
+            5.0: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DTM5.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DTM5.json",
+            },
+        },
+        "DSM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DSM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DSM05.json",
+            },
+            5.0: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DSM5.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DSM5.json",
+            },
+        },
+        "PC": {
+            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_PC.json",
+            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_PC.json",
+        },
+    }
+
+    config["AHN5"] = {
+        "DTM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DTM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DTM05.json",
+            },
+            5.0: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DTM5.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DTM5.json",
+            },
+        },
+        "DSM": {
+            0.5: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DSM05.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DSM05.json",
+            },
+            5.0: {
+                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DSM5.json",
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DSM5.json",
+            },
+        },
+        "PC": {
+            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_PC.json",
+            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_PC.json",
+        },
+    }
+
+    config["AHN6"] = {
+        "DTM": {
+            0.5: {
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DTM05.json"
+            },
+            5.0: {
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DTM5.json"
+            },
+        },
+        "DSM": {
+            0.5: {
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DSM05.json"
+            },
+            5.0: {
+                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DSM5.json"
+            },
+        },
+        "PC": {
+            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_PC.json",
+        },
+        "COPC": {
+            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_PC_COPC.json",
+        },
+    }
+
+    return config
+
+
+@cache.cache_netcdf()
+def _download_tiles_km(
+    extent: list[float],
+    version: str = "AHN4",
+    resolution: float = 5.0,
+    data_kind: str = "DTM",
+    km: bool = True,
+    config: dict = None,
+):
+    """
+    Download AHN-data
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
+    version : str, optional
+        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
+        default is "AHN4".
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
+    data_kind : str, optional
+        The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
+        elevation). The default is "DTM".
+    km : bool, optional
+        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
+        tile sizez of 5 x 6.25 km. The default is True.
+    config : dict, optional
+        A dictionary with properties of the data sources of the different AHN-versions.
+        When None, the configuration is retreived from the method get_configuration().
+        The default is None.
+
+    Raises
+    ------
+    AssertionError
+        If the specified value for `resolution` or `data_kind` is not supported
+    KeyError
+        When there is no data-source that matches the requested parameters.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        A GeoDataFrame containing the location of the map tiles, and url's with the
+        location of the AHN-data.
+
+    """
+    assert resolution in [0.5, 5.0], "`resolution` should be 0.5 or 5.0 m"
+    assert data_kind in ["DTM", "DSM"], "`data_kind` should be 'DTM' or 'DSM'"
+    if config is None:
+        config = get_configuration()
+    if km:
+        tile_size = "1x1km"
+    else:
+        tile_size = "5x6,25km"
+    try:
+        url = config[version][data_kind][resolution][tile_size]
+    except KeyError as e:
+        raise KeyError(f"Data not available for {version}: {e}") from e
+    # write the tiles to a TemporaryDirectory, as direct read from url fails for large files
+    # tiles = gpd.read_file(url)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_file = os.path.join(tmpdir, "data.json")
+
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+
+        with open(tmp_file, "wb") as f:
+            f.write(response.content)
+        tiles = gpd.read_file(tmp_file)
+
+    tiles = tiles.set_crs(28992, allow_override=True)
+    tiles = tiles.loc[tiles.intersection(extent_to_polygon(extent)).area > 0]
+    if len(tiles) == 0:
+        raise (ValueError("No data found within extent"))
+    return tiles
+
+
+@cache.cache_netcdf()
+def _download_ahn_km(
+    extent: list[float],
+    version: str = "AHN4",
+    resolution: float = 5.0,
+    data_kind: str = "DTM",
+    km: bool = True,
+    merge_tiles: bool = True,
+    cut_extent: bool = True,
+    config: dict = None,
+):
+    """
+    Download AHN-data
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
+    version : str, optional
+        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
+        default is "AHN4".
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
+    data_kind : str, optional
+        The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
+        elevation). The default is "DTM".
+    km : bool, optional
+        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
+        tile sizez of 5 x 6.25 km. The default is True.
+    merge_tiles : bool, optional
+        If True, the function returns a merged DataArray. If False, the function
+        returns a list of DataArrays with the original tiles. The default is True.
+    cut_extent : bool, optional
+        If True, only keep the requested extent from the data. The defualts is True.
+    config : dict, optional
+        A dictionary with properties of the data sources of the different AHN-versions.
+        When None, the configuration is retreived from the method get_configuration().
+        The default is None.
+
+    Raises
+    ------
+    AssertionError
+        If the specified value for `resolution` or `data_kind` is not supported
+    KeyError
+        When there is no data-source that matches the requested parameters.
+
+    Returns
+    -------
+    xr.DataArray or list of xr.DataArray
+        A DataArray with the AHN-data, or a list of DataArrays with AHN-data if
+        merge_tiles=False.
+
+    """
+    tiles = _download_tiles_km(
+        extent=extent,
+        version=version,
+        resolution=resolution,
+        data_kind=data_kind,
+        km=km,
+        config=config,
+    )
+
+    das = []
+    for index in tqdm(tiles.index, desc=f"Downloading tiles of {version}"):
+        file = tiles.at[index, "file"]
+        if file.endswith(".zip"):
+            path = file.split("/")[-1].replace(".zip", ".TIF")
+            if path.lower().endswith(".tif.tif"):
+                path = path[:-4]
+            da = rioxarray.open_rasterio(f"zip+{file}!/{path}", mask_and_scale=True)
+        else:
+            da = rioxarray.open_rasterio(file, mask_and_scale=True)
+        if cut_extent:
+            da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
+        das.append(da)
+    if merge_tiles:
+        da = merge_arrays(das)
+        if da.dims[0] == "band":
+            da = da[0].drop_vars("band")
+        if "_FillValue" in da.attrs:
+            del da.attrs["_FillValue"]
+        return da
+    return das
 
 
 @cache.cache_netcdf()
@@ -1307,6 +1672,8 @@ def _download_ahn_ellipsis(
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
+    cut_extent : bool, optional
+        If True, only keep the requested extent from the data. The defualts is True.
 
     Returns
     -------

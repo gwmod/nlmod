@@ -313,12 +313,6 @@ def _resample_df_to_model_time(df, ds):
 
 def _add_ts_to_ds(timeseries, loc_sel, variable, ds):
     """Add a timeseries to a variable at location loc_sel in model DataSet."""
-    end = pd.Timestamp(ds.time.data[-1])
-    if timeseries.index[-1] < end:
-        raise ValueError(
-            f"no data available for time series'{timeseries.name}' on date {end}"
-        )
-
     model_recharge = _resample_df_to_model_time(timeseries, ds)
 
     if model_recharge.isna().any():
@@ -426,6 +420,11 @@ def download_knmi(
     end :  str or datetime, optional
         end date of measurements that you want, The default is None.
 
+    Raises
+    ------
+    ValueError
+        If data is not available for the entire model period
+
     Returns
     -------
     oc_knmi
@@ -437,6 +436,15 @@ def download_knmi(
     locations = get_locations(ds, most_common_station=most_common_station)
     oc_knmi = _download_knmi_at_locations(locations, start=start, end=end)
 
+    # check if downloaded data is correct
+    end = pd.Timestamp(ds.time.data[-1])
+    for obs in oc_knmi["obs"]:
+        msg = f"No data available for time series'{obs.name}'"
+        if obs.empty:
+            raise (ValueError(msg))
+
+        if obs.index[-1] < end:
+            raise ValueError(f"{msg} untill date {end}")
     return oc_knmi
 
 

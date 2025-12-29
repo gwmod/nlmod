@@ -8,15 +8,11 @@ from typing import Literal
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import rasterio
 import requests
 import rioxarray
 import shapely
 import xarray as xr
-from rasterio import merge
 from rasterio.env import Env
-from rasterio.io import MemoryFile
 from requests.exceptions import HTTPError
 from rioxarray.merge import merge_arrays
 from .. import NLMOD_DATADIR, cache

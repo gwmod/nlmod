@@ -40,14 +40,14 @@ def download_ahn(
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
         default is "AHN4", as this is available in the whole of the Netherlands.
-    resolution : float, optional
-        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
         The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
         elevation). The default is "DTM".
-    km : bool, optional
-        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
-        tile sizez of 5 x 6.25 km. The default is True.
+    tile_size : str, optional
+        The size of the map tiles that the data is offered by the webservice. This can
+        be '5x6.25km' or '1x1km'. The default is '5x6.25km'.
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
@@ -93,7 +93,7 @@ def download_ahn(
             return ahn_da
         ahn_da.attrs["source"] = identifier
     else:
-        ahn_da = _download_ahn_km(extent, merge_tiles=merge_tiles, **kwargs)
+        ahn_da = _download_ahn_hwh(extent, merge_tiles=merge_tiles, **kwargs)
         if not merge_tiles:
             return ahn_da
 
@@ -160,14 +160,14 @@ def get_ahn(
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
         default is "AHN4", as this is available in the whole of the Netherlands.
-    resolution : float, optional
-        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
         The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
         elevation). The default is "DTM".
-    km : bool, optional
-        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
-        tile sizez of 5 x 6.25 km. The default is True.
+    tile_size : str, optional
+        The size of the map tiles that the data is offered by the webservice. This can
+        be '5x6.25km' or '1x1km'. The default is '5x6.25km'.
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
@@ -788,7 +788,7 @@ def download_ahn2(
     _assert_as_data_array_is_none(as_data_array)
     if identifier is not None:
         return _download_ahn_ellipsis(extent, identifier, **kwargs)
-    return _download_ahn_km(extent=extent, version="AHN2", **kwargs)
+    return _download_ahn_hwh(extent=extent, version="AHN2", **kwargs)
 
 
 @cache.cache_netcdf()
@@ -865,7 +865,7 @@ def download_ahn3(
     _assert_as_data_array_is_none(as_data_array)
     if identifier is not None:
         return _download_ahn_ellipsis(extent, identifier, **kwargs)
-    return _download_ahn_km(extent=extent, version="AHN3", **kwargs)
+    return _download_ahn_hwh(extent=extent, version="AHN3", **kwargs)
 
 
 @cache.cache_netcdf()
@@ -942,7 +942,7 @@ def download_ahn4(
     _assert_as_data_array_is_none(as_data_array)
     if identifier is not None:
         return _download_ahn_ellipsis(extent, identifier, **kwargs)
-    return _download_ahn_km(extent=extent, version="AHN4", **kwargs)
+    return _download_ahn_hwh(extent=extent, version="AHN4", **kwargs)
 
 
 @cache.cache_netcdf()
@@ -1016,13 +1016,15 @@ def download_ahn5(
     """
     if identifier is not None:
         return _download_ahn_ellipsis(extent, identifier, **kwargs)
-    return _download_ahn_km(extent=extent, version="AHN5", **kwargs)
+    return _download_ahn_hwh(extent=extent, version="AHN5", **kwargs)
 
 
-def download_ahn6(extent: list[float], km: bool = True, **kwargs):
-    if not km:
+def download_ahn6(extent: list[float], tile_size: str = "1x1km", **kwargs):
+    if tile_size != "1x1km":
         raise (ValueError("AHN6 is only available in map sheets of 1 x 1 km."))
-    _download_ahn_km(extent=extent, version="AHN6", km=km, **kwargs)
+    return _download_ahn_hwh(
+        extent=extent, version="AHN6", tile_size=tile_size, **kwargs
+    )
 
 
 def _update_ellipsis_tiles_in_data() -> None:
@@ -1042,13 +1044,12 @@ def _save_tiles_from_config_in_data(config: dict = None):
     for version in config:
         for data_kind in config[version]:
             for tile_size in config[version][data_kind]:
-                if data_kind in ["DTM", "DSM"]:
-                    for resolution in config[version][data_kind][tile_size]:
-                        url = config[version][data_kind][tile_size][resolution]
-                        fname = os.path.join(pathname, url.split("/")[-1])
-                        _download_and_save_json_file(url, fname)
+                url = config[version][data_kind][tile_size]
+                if isinstance(url, dict):
+                    for resolution in url:
+                        fname = os.path.join(pathname, url[resolution].split("/")[-1])
+                        _download_and_save_json_file(url[resolution], fname)
                 else:
-                    url = config[version][data_kind][tile_size]
                     fname = os.path.join(pathname, url.split("/")[-1])
                     _download_and_save_json_file(url, fname)
 
@@ -1075,7 +1076,7 @@ def get_configuration():
 
     config["AHN2"] = {
         "DTM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN2_DTM05.json"),
                 5.0: get_file("AHN2_DTM5.json"),
             },
@@ -1085,7 +1086,7 @@ def get_configuration():
             },
         },
         "DSM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN2_DSM05.json"),
                 5.0: get_file("AHN2_DSM5.json"),
             },
@@ -1098,16 +1099,16 @@ def get_configuration():
             "1x1km": get_file("AHN2_KM_PC.json"),
         },
         "LAZ_g": {
-            "5x6,25km": get_file("AHN2_LAZ_g.json"),
+            "5x6.25km": get_file("AHN2_LAZ_g.json"),
         },
         "LAZ_u": {
-            "5x6,25km": get_file("AHN2_LAZ_u.json"),
+            "5x6.25km": get_file("AHN2_LAZ_u.json"),
         },
     }
 
     config["AHN3"] = {
         "DTM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN3_DTM05.json"),
                 5.0: get_file("AHN3_DTM5.json"),
             },
@@ -1117,7 +1118,7 @@ def get_configuration():
             },
         },
         "DSM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN3_DSM05.json"),
                 5.0: get_file("AHN3_DSM5.json"),
             },
@@ -1127,14 +1128,14 @@ def get_configuration():
             },
         },
         "PC": {
-            "5x6,25km": get_file("AHN3_PC.json"),
+            "5x6.25km": get_file("AHN3_PC.json"),
             "1x1km": get_file("AHN3_KM_PC.json"),
         },
     }
 
     config["AHN4"] = {
         "DTM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN4_DTM05.json"),
                 5.0: get_file("AHN4_DTM5.json"),
             },
@@ -1144,7 +1145,7 @@ def get_configuration():
             },
         },
         "DSM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN4_DSM05.json"),
                 5.0: get_file("AHN4_DSM5.json"),
             },
@@ -1154,14 +1155,14 @@ def get_configuration():
             },
         },
         "PC": {
-            "5x6,25km": get_file("AHN4_PC.json"),
+            "5x6.25km": get_file("AHN4_PC.json"),
             "1x1km": get_file("AHN4_KM_PC.json"),
         },
     }
 
     config["AHN5"] = {
         "DTM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN5_DTM05.json"),
                 5.0: get_file("AHN5_DTM5.json"),
             },
@@ -1171,7 +1172,7 @@ def get_configuration():
             },
         },
         "DSM": {
-            "5x6,25km": {
+            "5x6.25km": {
                 0.5: get_file("AHN5_DSM05.json"),
                 5.0: get_file("AHN5_DSM5.json"),
             },
@@ -1181,7 +1182,7 @@ def get_configuration():
             },
         },
         "PC": {
-            "5x6,25km": get_file("AHN5_PC.json"),
+            "5x6.25km": get_file("AHN5_PC.json"),
             "1x1km": get_file("AHN5_KM_PC.json"),
         },
     }
@@ -1211,12 +1212,12 @@ def get_configuration():
 
 
 @cache.cache_netcdf()
-def _download_tiles_km(
+def _download_tiles_hwh(
     extent: list[float],
     version: str = "AHN4",
-    resolution: float = 5.0,
     data_kind: str = "DTM",
-    km: bool = True,
+    tile_size: str = "5x6.25km",
+    resolution: float = 5.0,
     config: dict = None,
     timeout: float = 120.0,
 ):
@@ -1230,14 +1231,14 @@ def _download_tiles_km(
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
         default is "AHN4", as this is available in the whole of the Netherlands.
-    resolution : float, optional
-        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
         The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
         elevation). The default is "DTM".
-    km : bool, optional
-        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
-        tile sizez of 5 x 6.25 km. The default is True.
+    tile_size : str, optional
+        The size of the map tiles that the data is offered by the webservice. This can
+        be '5x6.25km' or '1x1km'. The default is '5x6.25km'.
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     config : dict, optional
         A dictionary with properties of the data sources of the different AHN-versions.
         When None, the configuration is retreived from the method get_configuration().
@@ -1262,14 +1263,16 @@ def _download_tiles_km(
     """
     assert resolution in [0.5, 5.0], "`resolution` should be 0.5 or 5.0 m"
     assert data_kind in ["DTM", "DSM"], "`data_kind` should be 'DTM' or 'DSM'"
+    assert tile_size in [
+        "5x6.25km",
+        "1x1km",
+    ], "`tile_size` should be '5x6.25km' or '1x1km'"
     if config is None:
         config = get_configuration()
-    if km:
-        tile_size = "1x1km"
-    else:
-        tile_size = "5x6,25km"
     try:
-        url = config[version][data_kind][tile_size][resolution]
+        url = config[version][data_kind][tile_size]
+        if isinstance(url, dict):
+            url = url[resolution]
     except KeyError as e:
         raise KeyError(f"Data not available for {version}: {e}") from e
     if url.startswith("http"):
@@ -1289,12 +1292,12 @@ def _download_tiles_km(
 
 
 @cache.cache_netcdf()
-def _download_ahn_km(
+def _download_ahn_hwh(
     extent: list[float],
     version: str = "AHN4",
-    resolution: float = 5.0,
     data_kind: str = "DTM",
-    km: bool = True,
+    tile_size: str = "5x6.25km",
+    resolution: float = 5.0,
     merge_tiles: bool = True,
     cut_extent: bool = True,
     config: dict = None,
@@ -1309,14 +1312,14 @@ def _download_ahn_km(
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
         default is "AHN4", as this is available in the whole of the Netherlands.
-    resolution : float, optional
-        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
         The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
         elevation). The default is "DTM".
-    km : bool, optional
-        If True, download data with tile sizes of 1x1 km. Otherwise, donwload data in
-        tile sizez of 5 x 6.25 km. The default is True.
+    tile_size : str, optional
+        The size of the map tiles that the data is offered by the webservice. This can
+        be '5x6.25km' or '1x1km'. The default is '5x6.25km'.
+    resolution : float, optional
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
@@ -1341,12 +1344,12 @@ def _download_ahn_km(
         merge_tiles=False.
 
     """
-    tiles = _download_tiles_km(
+    tiles = _download_tiles_hwh(
         extent=extent,
         version=version,
         resolution=resolution,
         data_kind=data_kind,
-        km=km,
+        tile_size=tile_size,
         config=config,
     )
 

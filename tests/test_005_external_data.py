@@ -122,14 +122,28 @@ def test_ahn_split_extent():
     assert not da.isnull().all(), "AHN only has nan values"
 
 
-def test_get_ahn3():
+def test_download_ahn1():
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
-    da = nlmod.read.ahn.download_ahn3(extent)
-
+    da = nlmod.read.ahn.download_ahn1(extent)
+    assert isinstance(da, xr.DataArray)
     assert not da.isnull().all(), "AHN only has nan values"
 
 
-def test_get_ahn4():
+def test_download_ahn2():
+    extent = [98000.0, 100000.0, 494000.0, 496000.0]
+    da = nlmod.read.ahn.download_ahn2(extent)
+    assert isinstance(da, xr.DataArray)
+    assert not da.isnull().all(), "AHN only has nan values"
+
+
+def test_download_ahn3():
+    extent = [98000.0, 100000.0, 494000.0, 496000.0]
+    da = nlmod.read.ahn.download_ahn3(extent)
+    assert isinstance(da, xr.DataArray)
+    assert not da.isnull().all(), "AHN only has nan values"
+
+
+def test_download_ahn4():
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
     ahn = nlmod.read.ahn.download_ahn4(extent)
     assert isinstance(ahn, xr.DataArray)
@@ -140,10 +154,17 @@ def test_get_ahn4():
     assert isinstance(ahn_line, xr.DataArray)
 
 
-def test_get_ahn5():
+def test_download_ahn5():
     extent = [99500.0, 100000.0, 494500.0, 495000.0]
     da = nlmod.read.ahn.download_ahn5(extent)
+    assert isinstance(da, xr.DataArray)
+    assert not da.isnull().all(), "AHN only has nan values"
 
+
+def test_download_ahn6():
+    extent = [246_700, 253_700, 457_800, 464_100]
+    da = nlmod.read.ahn.download_ahn6(extent)
+    assert isinstance(da, xr.DataArray)
     assert not da.isnull().all(), "AHN only has nan values"
 
 

@@ -94,12 +94,12 @@ def download_ahn(
         )
         if not merge_tiles:
             return ahn_da
+        ahn_da.attrs["source"] = identifier
     else:
         ahn_da = _download_ahn_km(extent, merge_tiles=merge_tiles, **kwargs)
         if not merge_tiles:
             return ahn_da
 
-    ahn_da.attrs["source"] = identifier
     ahn_da.attrs["date"] = dt.datetime.now().strftime("%Y%m%d")
     ahn_da.attrs["units"] = "mNAP"
 

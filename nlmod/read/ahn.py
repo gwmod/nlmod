@@ -43,7 +43,7 @@ def download_ahn(
         The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
-        default is "AHN4".
+        default is "AHN4", as this is available in the whole of the Netherlands.
     resolution : float, optional
         The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
@@ -163,7 +163,7 @@ def get_ahn(
         Only used if ds is None. The default is None.
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
-        default is "AHN4".
+        default is "AHN4", as this is available in the whole of the Netherlands.
     resolution : float, optional
         The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
@@ -590,41 +590,6 @@ def download_latest_ahn_from_wcs(
     return da
 
 
-def get_ahn2_tiles(extent: list[float] | None = None) -> gpd.GeoDataFrame:
-    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame.
-
-    The links in the tiles are cuurently incorrect. Thereore get_ahn3_tiles is used in
-    get_ahn2 and get_ahn1, as the tiles from get_ahn3_tiles also contain information
-    about the tiles of ahn1 and ahn2
-    """
-    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN2/FeatureServer"
-    layer = 0
-    gdf = arcrest(url, layer, extent)
-    if not gdf.empty:
-        gdf = gdf.set_index("Kaartblad")
-    return gdf
-
-
-def get_ahn3_tiles(extent: list[float] | None = None) -> gpd.GeoDataFrame:
-    """Get the tiles (kaartbladen) of AHN3 as a GeoDataFrame."""
-    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN3/FeatureServer"
-    layer = 0
-    gdf = arcrest(url, layer, extent)
-    if not gdf.empty:
-        gdf = gdf.set_index("Kaartblad")
-    return gdf
-
-
-def get_ahn4_tiles(extent: list[float] | None = None) -> gpd.GeoDataFrame:
-    """Get the tiles (kaartbladen) of AHN4 as a GeoDataFrame with download links."""
-    url = "https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/Kaartbladen_AHN4/FeatureServer"
-    layer = 0
-    gdf = arcrest(url, layer, extent)
-    if not gdf.empty:
-        gdf = gdf.set_index("Name")
-    return gdf
-
-
 def _download_tiles_ellipsis(
     extent: list[float] | None = None,
     crs: int = 28992,
@@ -752,74 +717,6 @@ def download_ahn1(
 
 
 @cache.cache_netcdf()
-def get_ahn1_legacy(
-    extent: list[float],
-    identifier: Literal["ahn1_5m"] = "ahn1_5m",
-    as_data_array: bool = True,
-) -> xr.DataArray:
-    """Download AHN1.
-
-    .. deprecated:: 0.10.0
-        `get_ahn1_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn1_legacy` because of new naming convention
-        https://github.com/gwmod/nlmod/issues/47
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. The only
-        allowed value is 'ahn1_5m'. The default is "ahn1_5m".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    warnings.warn(
-        "'get_ahn1_legacy' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.ahn.download_ahn1_legacy' instead",
-        DeprecationWarning,
-    )
-    return download_ahn1_legacy(extent, identifier, as_data_array)
-
-
-@cache.cache_netcdf()
-def download_ahn1_legacy(
-    extent: list[float],
-    identifier: Literal["ahn1_5m"] = "ahn1_5m",
-    as_data_array: bool = True,
-) -> xr.DataArray:
-    """Download AHN1.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. The only
-        allowed value is 'ahn1_5m'. The default is "ahn1_5m".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    # tiles are equal to that of ahn3
-    tiles = get_ahn3_tiles(extent)
-    da = _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
-    if as_data_array:
-        # original data is in cm. Convert the data to m, which is the unit of other ahns
-        da = da / 100
-    return da
-
-
-@cache.cache_netcdf()
 def get_ahn2(
     extent: list[float],
     identifier: Literal[
@@ -896,76 +793,6 @@ def download_ahn2(
     if identifier is not None:
         return _download_ahn_ellipsis(extent, identifier, **kwargs)
     return _download_ahn_km(extent=extent, version="AHN2", **kwargs)
-
-
-@cache.cache_netcdf()
-def get_ahn2_legacy(
-    extent: list[float],
-    identifier: Literal[
-        "ahn2_05m_i", "ahn2_05m_n", "ahn2_05m_r", "ahn2_5m"
-    ] = "ahn2_5m",
-    as_data_array: bool = True,
-) -> xr.DataArray | MemoryFile:
-    """Download AHN2.
-
-    .. deprecated:: 0.10.0
-        `get_ahn2_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn2_legacy` because of new naming convention
-        https://github.com/gwmod/nlmod/issues/47
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. Possible
-        values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The default
-        is "ahn2_5m".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    warnings.warn(
-        "'get_ahn2_legacy' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.ahn.download_ahn2_legacy' instead",
-        DeprecationWarning,
-    )
-    return download_ahn2_legacy(extent, identifier, as_data_array)
-
-
-@cache.cache_netcdf()
-def download_ahn2_legacy(
-    extent: list[float],
-    identifier: Literal[
-        "ahn2_05m_i", "ahn2_05m_n", "ahn2_05m_r", "ahn2_5m"
-    ] = "ahn2_5m",
-    as_data_array: bool = True,
-) -> xr.DataArray | MemoryFile:
-    """Download AHN2.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. Possible
-        values are 'ahn2_05m_i', 'ahn2_05m_n', 'ahn2_05m_r' and 'ahn2_5m'. The default
-        is "ahn2_5m".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    # tiles are equal to that of ahn3
-    tiles = get_ahn3_tiles(extent)
-    return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
 
 
 @cache.cache_netcdf()
@@ -1046,75 +873,6 @@ def download_ahn3(
 
 
 @cache.cache_netcdf()
-def get_ahn3_legacy(
-    extent: list[float],
-    identifier: Literal[
-        "AHN3_05m_DSM", "AHN3_05m_DTM", "AHN3_5m_DSM", "AHN3_5m_DTM"
-    ] = "AHN3_5m_DTM",
-    as_data_array: bool = True,
-) -> xr.DataArray | MemoryFile:
-    """Download AHN3.
-
-    .. deprecated:: 0.10.0
-        `get_ahn3_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn3_legacy` because of new naming convention
-        https://github.com/gwmod/nlmod/issues/47
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. Possible
-        values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and 'AHN3_5m_DTM'. The
-        default is "AHN3_5m_DTM".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    warnings.warn(
-        "'get_ahn3_legacy' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.ahn.download_ahn3_legacy' instead",
-        DeprecationWarning,
-    )
-    return download_ahn3_legacy(extent, identifier, as_data_array)
-
-
-@cache.cache_netcdf()
-def download_ahn3_legacy(
-    extent: list[float],
-    identifier: Literal[
-        "AHN3_05m_DSM", "AHN3_05m_DTM", "AHN3_5m_DSM", "AHN3_5m_DTM"
-    ] = "AHN3_5m_DTM",
-    as_data_array: bool = True,
-) -> xr.DataArray | MemoryFile:
-    """Download AHN3.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. Possible
-        values are 'AHN3_05m_DSM', 'AHN3_05m_DTM', 'AHN3_5m_DSM' and 'AHN3_5m_DTM'. The
-        default is "AHN3_5m_DTM".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    tiles = get_ahn3_tiles(extent)
-    return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
-
-
-@cache.cache_netcdf()
 def get_ahn4(
     extent: list[float],
     identifier: Literal[
@@ -1192,75 +950,6 @@ def download_ahn4(
 
 
 @cache.cache_netcdf()
-def get_ahn4_legacy(
-    extent: list[float],
-    identifier: Literal[
-        "AHN4_DTM_05m", "AHN4_DSM_05m", "AHN4_DTM_5m", "AHN4_DSM_5m"
-    ] = "AHN4_DTM_5m",
-    as_data_array: bool = True,
-) -> xr.DataArray | MemoryFile:
-    """Download AHN4.
-
-    .. deprecated:: 0.10.0
-        `get_ahn4_legacy` will be removed in nlmod 1.0.0, it is replaced by
-        `download_ahn4_legacy` because of new naming convention
-        https://github.com/gwmod/nlmod/issues/47
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. Possible
-        values are 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' and 'AHN4_DSM_5m'. The
-        default is "AHN4_DTM_5m".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    warnings.warn(
-        "'get_ahn4_legacy' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.ahn.download_ahn4_legacy' instead",
-        DeprecationWarning,
-    )
-    return download_ahn4_legacy(extent, identifier, as_data_array)
-
-
-@cache.cache_netcdf()
-def download_ahn4_legacy(
-    extent: list[float],
-    identifier: Literal[
-        "AHN4_DTM_05m", "AHN4_DSM_05m", "AHN4_DTM_5m", "AHN4_DSM_5m"
-    ] = "AHN4_DTM_5m",
-    as_data_array: bool = True,
-) -> xr.DataArray | MemoryFile:
-    """Download AHN4.
-
-    Parameters
-    ----------
-    extent : list, tuple or np.array
-        extent
-    identifier : str, optional
-        The identifier determines the resolution and the type of height data. Possible
-        values are 'AHN4_DTM_05m', 'AHN4_DTM_5m', 'AHN4_DSM_05m' and 'AHN4_DSM_5m'. The
-        default is "AHN4_DTM_5m".
-    as_data_array : bool, optional
-        return the data as as xarray DataArray if true. The default is True.
-
-    Returns
-    -------
-    xr.DataArray or MemoryFile
-        DataArray (if as_data_array is True) or Rasterio MemoryFile of the AHN
-    """
-    tiles = get_ahn4_tiles(extent)
-    return _download_and_combine_tiles(tiles, identifier, extent, as_data_array)
-
-
-@cache.cache_netcdf()
 def get_ahn5(
     extent: list[float],
     identifier: Literal[
@@ -1334,6 +1023,12 @@ def download_ahn5(
     return _download_ahn_km(extent=extent, version="AHN5", **kwargs)
 
 
+def download_ahn6(extent: list[float], km: bool = True, **kwargs):
+    if not km:
+        raise (ValueError("AHN6 is only available in map sheets of 1 x 1 km."))
+    _download_ahn_km(extent=extent, version="AHN6", km=km, **kwargs)
+
+
 def _update_ellipsis_tiles_in_data() -> None:
     tiles = _download_tiles_ellipsis()
     pathname = os.path.join(NLMOD_DATADIR, "ahn")
@@ -1343,137 +1038,172 @@ def _update_ellipsis_tiles_in_data() -> None:
     tiles.to_file(fname)
 
 
-def download_ahn6(extent: list[float], km: bool = True, **kwargs):
-    if not km:
-        raise (ValueError("AHN6 is only available in map sheets of 1 x 1 km."))
-    _download_ahn_km(extent=extent, version="AHN6", km=km, **kwargs)
+def _save_tiles_from_config_in_data(config: dict = None):
+    if config is None:
+        config = get_configuration()
+
+    pathname = os.path.join(NLMOD_DATADIR, "ahn")
+    for version in config:
+        for data_kind in config[version]:
+            for tile_size in config[version][data_kind]:
+                if data_kind in ["DTM", "DSM"]:
+                    for resolution in config[version][data_kind][tile_size]:
+                        url = config[version][data_kind][tile_size][resolution]
+                        fname = os.path.join(pathname, url.split("/")[-1])
+                        _download_and_save_json_file(url, fname)
+                else:
+                    url = config[version][data_kind][tile_size]
+                    fname = os.path.join(pathname, url.split("/")[-1])
+                    _download_and_save_json_file(url, fname)
+
+
+def _download_and_save_json_file(url, fname, timeout=120.0):
+    response = requests.get(url, timeout=timeout)
+    response.raise_for_status()
+
+    with open(fname, "wb") as f:
+        f.write(response.content)
 
 
 def get_configuration():
+    pathname = os.path.join(NLMOD_DATADIR, "ahn")
     base_url = "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland"
     config = {}
+
+    def get_file(file):
+        fname = os.path.join(pathname, file)
+        if os.path.isfile(fname):
+            return fname
+        else:
+            return f"{base_url}/{file}"
+
     config["AHN2"] = {
         "DTM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN2_DTM05.json",
-                "1x1km": f"{base_url}/AHN2_KM_DTM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN2_DTM05.json"),
+                5.0: get_file("AHN2_DTM5.json"),
             },
-            5.0: {
-                "5x6,25km": f"{base_url}/AHN2_DTM5.json",
-                "1x1km": f"{base_url}/AHN2_KM_DTM5.json",
+            "1x1km": {
+                0.5: get_file("AHN2_KM_DTM05.json"),
+                5.0: get_file("AHN2_KM_DTM5.json"),
             },
         },
         "DSM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN2_DSM05.json",
-                "1x1km": f"{base_url}/AHN2_KM_DSM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN2_DSM05.json"),
+                5.0: get_file("AHN2_DSM5.json"),
             },
-            5.0: {
-                "1x1km": f"{base_url}/AHN2_KM_DSM5.json",
+            "1x1km": {
+                0.5: get_file("AHN2_KM_DSM05.json"),
+                5.0: get_file("AHN2_KM_DSM5.json"),
             },
         },
         "PC": {
-            "1x1km": f"{base_url}/AHN2_KM_PC.json",
+            "1x1km": get_file("AHN2_KM_PC.json"),
         },
-        "LAZ_g": {"5x6,25km": f"{base_url}/AHN2_LAZ_g.json"},
-        "LAZ_u": {"5x6,25km": f"{base_url}/AHN2_LAZ_u.json"},
+        "LAZ_g": {"5x6,25km": get_file("AHN2_LAZ_g.json")},
+        "LAZ_u": {"5x6,25km": get_file("AHN2_LAZ_u.json")},
     }
 
     config["AHN3"] = {
         "DTM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN3_DTM05.json",
-                "1x1km": f"{base_url}/AHN3_KM_DTM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN3_DTM05.json"),
+                5.0: get_file("AHN3_DTM5.json"),
             },
-            5.0: {
-                "5x6,25km": f"{base_url}/AHN3_DTM5.json",
-                "1x1km": f"{base_url}/AHN3_KM_DTM5.json",
+            "1x1km": {
+                0.5: get_file("AHN3_KM_DTM05.json"),
+                5.0: get_file("AHN3_KM_DTM5.json"),
             },
         },
         "DSM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN3_DSM05.json",
-                "1x1km": f"{base_url}/AHN3_KM_DSM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN3_DSM05.json"),
+                5.0: get_file("AHN3_DSM5.json"),
             },
-            5.0: {
-                "5x6,25km": f"{base_url}/AHN3_DSM5.json",
-                "1x1km": f"{base_url}/AHN3_KM_DSM5.json",
+            "1x1km": {
+                0.5: get_file("AHN3_KM_DSM05.json"),
+                5.0: get_file("AHN3_KM_DSM5.json"),
             },
         },
         "PC": {
-            "5x6,25km": f"{base_url}/AHN3_PC.json",
-            "1x1km": f"{base_url}/AHN3_KM_PC.json",
+            "5x6,25km": get_file("AHN3_PC.json"),
+            "1x1km": get_file("AHN3_KM_PC.json"),
         },
     }
 
     config["AHN4"] = {
         "DTM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN4_DTM05.json",
-                "1x1km": f"{base_url}/AHN4_KM_DTM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN4_DTM05.json"),
+                5.0: get_file("AHN4_DTM5.json"),
             },
-            5.0: {
-                "5x6,25km": f"{base_url}/AHN4_DTM5.json",
-                "1x1km": f"{base_url}/AHN4_KM_DTM5.json",
+            "1x1km": {
+                0.5: get_file("AHN4_KM_DTM05.json"),
+                5.0: get_file("AHN4_KM_DTM5.json"),
             },
         },
         "DSM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN4_DSM05.json",
-                "1x1km": f"{base_url}/AHN4_KM_DSM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN4_DSM05.json"),
+                5.0: get_file("AHN4_DSM5.json"),
             },
-            5.0: {
-                "5x6,25km": f"{base_url}/AHN4_DSM5.json",
-                "1x1km": f"{base_url}/AHN4_KM_DSM5.json",
+            "1x1km": {
+                0.5: get_file("AHN4_KM_DSM05.json"),
+                5.0: get_file("AHN4_KM_DSM5.json"),
             },
         },
         "PC": {
-            "5x6,25km": f"{base_url}/AHN4_PC.json",
-            "1x1km": f"{base_url}/AHN4_KM_PC.json",
+            "5x6,25km": get_file("AHN4_PC.json"),
+            "1x1km": get_file("AHN4_KM_PC.json"),
         },
     }
 
     config["AHN5"] = {
         "DTM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN5_DTM05.json",
-                "1x1km": f"{base_url}/AHN5_KM_DTM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN5_DTM05.json"),
+                5.0: get_file("AHN5_DTM5.json"),
             },
-            5.0: {
-                "5x6,25km": f"{base_url}/AHN5_DTM5.json",
-                "1x1km": f"{base_url}/AHN5_KM_DTM5.json",
+            "1x1km": {
+                0.5: get_file("AHN5_KM_DTM05.json"),
+                5.0: get_file("AHN5_KM_DTM5.json"),
             },
         },
         "DSM": {
-            0.5: {
-                "5x6,25km": f"{base_url}/AHN5_DSM05.json",
-                "1x1km": f"{base_url}/AHN5_KM_DSM05.json",
+            "5x6,25km": {
+                0.5: get_file("AHN5_DSM05.json"),
+                5.0: get_file("AHN5_DSM5.json"),
             },
-            5.0: {
-                "5x6,25km": f"{base_url}/AHN5_DSM5.json",
-                "1x1km": f"{base_url}/AHN5_KM_DSM5.json",
+            "1x1km": {
+                0.5: get_file("AHN5_KM_DSM05.json"),
+                5.0: get_file("AHN5_KM_DSM5.json"),
             },
         },
         "PC": {
-            "5x6,25km": f"{base_url}/AHN5_PC.json",
-            "1x1km": f"{base_url}/AHN5_KM_PC.json",
+            "5x6,25km": get_file("AHN5_PC.json"),
+            "1x1km": get_file("AHN5_KM_PC.json"),
         },
     }
 
     config["AHN6"] = {
         "DTM": {
-            0.5: {"1x1km": f"{base_url}/AHN6_KM_DTM05.json"},
-            5.0: {"1x1km": f"{base_url}/AHN6_KM_DTM5.json"},
+            "1x1km": {
+                0.5: get_file("AHN6_KM_DTM05.json"),
+                5.0: get_file("AHN6_KM_DTM5.json"),
+            }
         },
         "DSM": {
-            0.5: {"1x1km": f"{base_url}/AHN6_KM_DSM05.json"},
-            5.0: {"1x1km": f"{base_url}/AHN6_KM_DSM5.json"},
+            "1x1km": {
+                0.5: get_file("AHN6_KM_DSM05.json"),
+                5.0: get_file("AHN6_KM_DSM5.json"),
+            }
         },
         "PC": {
-            "1x1km": f"{base_url}/AHN6_KM_PC.json",
+            "1x1km": get_file("AHN6_KM_PC.json"),
         },
         "COPC": {
-            "1x1km": f"{base_url}/AHN6_KM_PC_COPC.json",
+            "1x1km": get_file("AHN6_KM_PC_COPC.json"),
         },
     }
 
@@ -1488,9 +1218,10 @@ def _download_tiles_km(
     data_kind: str = "DTM",
     km: bool = True,
     config: dict = None,
+    timeout: float = 120.0,
 ):
     """
-    Download AHN-data
+    Download tiles that contain AHN-data.
 
     Parameters
     ----------
@@ -1498,7 +1229,7 @@ def _download_tiles_km(
         The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
-        default is "AHN4".
+        default is "AHN4", as this is available in the whole of the Netherlands.
     resolution : float, optional
         The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
@@ -1511,6 +1242,9 @@ def _download_tiles_km(
         A dictionary with properties of the data sources of the different AHN-versions.
         When None, the configuration is retreived from the method get_configuration().
         The default is None.
+    timeout : float, optional
+        The amount of seconds to wait for the server to send data before giving up. The
+        default is 120.
 
     Raises
     ------
@@ -1535,20 +1269,17 @@ def _download_tiles_km(
     else:
         tile_size = "5x6,25km"
     try:
-        url = config[version][data_kind][resolution][tile_size]
+        url = config[version][data_kind][tile_size][resolution]
     except KeyError as e:
         raise KeyError(f"Data not available for {version}: {e}") from e
-    # write the tiles to a TemporaryDirectory, as direct read from url fails for large files
-    # tiles = gpd.read_file(url)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_file = os.path.join(tmpdir, "data.json")
-
-        response = requests.get(url, timeout=60)
-        response.raise_for_status()
-
-        with open(tmp_file, "wb") as f:
-            f.write(response.content)
-        tiles = gpd.read_file(tmp_file)
+    if url.startswith("http"):
+        # write the tiles to a TemporaryDirectory, as direct read from url fails for large files
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_file = os.path.join(tmpdir, "data.json")
+            _download_and_save_json_file(url, tmp_file, timeout=timeout)
+            tiles = gpd.read_file(tmp_file)
+    else:
+        tiles = gpd.read_file(url)
 
     tiles = tiles.set_crs(28992, allow_override=True)
     tiles = tiles.loc[tiles.intersection(extent_to_polygon(extent)).area > 0]
@@ -1569,7 +1300,7 @@ def _download_ahn_km(
     config: dict = None,
 ):
     """
-    Download AHN-data
+    Download AHN-data.
 
     Parameters
     ----------
@@ -1577,7 +1308,7 @@ def _download_ahn_km(
         The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
     version : str, optional
         The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
-        default is "AHN4".
+        default is "AHN4", as this is available in the whole of the Netherlands.
     resolution : float, optional
         The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
     data_kind : str, optional
@@ -1621,7 +1352,7 @@ def _download_ahn_km(
 
     rasterio_env = {
         "GDAL_DISABLE_READDIR_ON_OPEN": "YES",
-        # "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
+        "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
         # "GDAL_TIFF_INTERNAL_MASK": "YES",
         "GDAL_IGNORE_MISSING_MASK": "YES",
     }
@@ -1789,7 +1520,6 @@ def _assert_as_data_array_is_none(as_data_array: bool | None) -> None:
             DeprecationWarning(
                 "The as_data_array-argument has been removed from the ahn-"
                 "methods, and these methods now allways return a DataArray. "
-                "Remove the as_data_array-argument or use the legcay ahn-"
-                "methods."
+                "Remove the as_data_array-argument."
             )
         )

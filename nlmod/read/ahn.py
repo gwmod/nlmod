@@ -23,7 +23,7 @@ from .. import NLMOD_DATADIR, cache
 from ..dims.grid import get_extent
 from ..dims.resample import structured_da_to_ds
 from ..util import extent_to_polygon, get_ds_empty, tqdm
-from .webservices import arcrest, wcs
+from .webservices import wcs
 
 logger = logging.getLogger(__name__)
 
@@ -1101,8 +1101,12 @@ def get_configuration():
         "PC": {
             "1x1km": get_file("AHN2_KM_PC.json"),
         },
-        "LAZ_g": {"5x6,25km": get_file("AHN2_LAZ_g.json")},
-        "LAZ_u": {"5x6,25km": get_file("AHN2_LAZ_u.json")},
+        "LAZ_g": {
+            "5x6,25km": get_file("AHN2_LAZ_g.json"),
+        },
+        "LAZ_u": {
+            "5x6,25km": get_file("AHN2_LAZ_u.json"),
+        },
     }
 
     config["AHN3"] = {
@@ -1445,33 +1449,6 @@ def _download_ahn_ellipsis(
             del da.attrs["_FillValue"]
         return da
     return das
-
-
-def _download_and_combine_tiles(
-    tiles: gpd.GeoDataFrame, identifier: str, extent: list[float], as_data_array: bool
-) -> xr.DataArray | MemoryFile:
-    """Internal method to download and combine ahn-data."""
-    if tiles.empty:
-        raise (Exception(f"{identifier} has no data for requested extent"))
-    datasets = []
-    for name in tqdm(tiles.index, desc=f"Downloading tiles of {identifier}"):
-        url = tiles.at[name, identifier]
-        if isinstance(url, pd.Series):
-            logger.warning(
-                f"Multiple tiles with the same name: {name}. Choosing the first one."
-            )
-            url = url.iloc[0]
-        path = url.split("/")[-1].replace(".zip", ".TIF")
-        if path.lower().endswith(".tif.tif"):
-            path = path[:-4]
-        datasets.append(rasterio.open(f"zip+{url}!/{path}"))
-    memfile = MemoryFile()
-    merge.merge(datasets, dst_path=memfile)
-    if as_data_array:
-        da = rioxarray.open_rasterio(memfile.open(), mask_and_scale=True)[0]
-        da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
-        return da
-    return memfile
 
 
 def _rename_identifier(identifier: str) -> str:

@@ -1355,7 +1355,7 @@ def _download_ahn_hwh(
 
     rasterio_env = {
         "GDAL_DISABLE_READDIR_ON_OPEN": "YES",
-        "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
+        # "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
         # "GDAL_TIFF_INTERNAL_MASK": "YES",
         "GDAL_IGNORE_MISSING_MASK": "YES",
     }

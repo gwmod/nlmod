@@ -15,6 +15,7 @@ import rioxarray
 import shapely
 import xarray as xr
 from rasterio import merge
+from rasterio.env import Env
 from rasterio.io import MemoryFile
 from requests.exceptions import HTTPError
 from rioxarray.merge import merge_arrays
@@ -1349,141 +1350,130 @@ def download_ahn6(extent: list[float], km: bool = True, **kwargs):
 
 
 def get_configuration():
+    base_url = "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland"
     config = {}
     config["AHN2"] = {
         "DTM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_DTM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DTM05.json",
+                "5x6,25km": f"{base_url}/AHN2_DTM05.json",
+                "1x1km": f"{base_url}/AHN2_KM_DTM05.json",
             },
             5.0: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_DTM5.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DTM5.json",
+                "5x6,25km": f"{base_url}/AHN2_DTM5.json",
+                "1x1km": f"{base_url}/AHN2_KM_DTM5.json",
             },
         },
         "DSM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_DSM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DSM05.json",
+                "5x6,25km": f"{base_url}/AHN2_DSM05.json",
+                "1x1km": f"{base_url}/AHN2_KM_DSM05.json",
             },
             5.0: {
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_DSM5.json",
+                "1x1km": f"{base_url}/AHN2_KM_DSM5.json",
             },
         },
         "PC": {
-            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_KM_PC.json",
+            "1x1km": f"{base_url}/AHN2_KM_PC.json",
         },
-        "LAZ_g": {
-            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_LAZ_g.json"
-        },
-        "LAZ_u": {
-            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN2_LAZ_u.json"
-        },
+        "LAZ_g": {"5x6,25km": f"{base_url}/AHN2_LAZ_g.json"},
+        "LAZ_u": {"5x6,25km": f"{base_url}/AHN2_LAZ_u.json"},
     }
 
     config["AHN3"] = {
         "DTM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DTM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DTM05.json",
+                "5x6,25km": f"{base_url}/AHN3_DTM05.json",
+                "1x1km": f"{base_url}/AHN3_KM_DTM05.json",
             },
             5.0: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DTM5.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DTM5.json",
+                "5x6,25km": f"{base_url}/AHN3_DTM5.json",
+                "1x1km": f"{base_url}/AHN3_KM_DTM5.json",
             },
         },
         "DSM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DSM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DSM05.json",
+                "5x6,25km": f"{base_url}/AHN3_DSM05.json",
+                "1x1km": f"{base_url}/AHN3_KM_DSM05.json",
             },
             5.0: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_DSM5.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_DSM5.json",
+                "5x6,25km": f"{base_url}/AHN3_DSM5.json",
+                "1x1km": f"{base_url}/AHN3_KM_DSM5.json",
             },
         },
         "PC": {
-            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_PC.json",
-            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN3_KM_PC.json",
+            "5x6,25km": f"{base_url}/AHN3_PC.json",
+            "1x1km": f"{base_url}/AHN3_KM_PC.json",
         },
     }
 
     config["AHN4"] = {
         "DTM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DTM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DTM05.json",
+                "5x6,25km": f"{base_url}/AHN4_DTM05.json",
+                "1x1km": f"{base_url}/AHN4_KM_DTM05.json",
             },
             5.0: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DTM5.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DTM5.json",
+                "5x6,25km": f"{base_url}/AHN4_DTM5.json",
+                "1x1km": f"{base_url}/AHN4_KM_DTM5.json",
             },
         },
         "DSM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DSM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DSM05.json",
+                "5x6,25km": f"{base_url}/AHN4_DSM05.json",
+                "1x1km": f"{base_url}/AHN4_KM_DSM05.json",
             },
             5.0: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_DSM5.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_DSM5.json",
+                "5x6,25km": f"{base_url}/AHN4_DSM5.json",
+                "1x1km": f"{base_url}/AHN4_KM_DSM5.json",
             },
         },
         "PC": {
-            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_PC.json",
-            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN4_KM_PC.json",
+            "5x6,25km": f"{base_url}/AHN4_PC.json",
+            "1x1km": f"{base_url}/AHN4_KM_PC.json",
         },
     }
 
     config["AHN5"] = {
         "DTM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DTM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DTM05.json",
+                "5x6,25km": f"{base_url}/AHN5_DTM05.json",
+                "1x1km": f"{base_url}/AHN5_KM_DTM05.json",
             },
             5.0: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DTM5.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DTM5.json",
+                "5x6,25km": f"{base_url}/AHN5_DTM5.json",
+                "1x1km": f"{base_url}/AHN5_KM_DTM5.json",
             },
         },
         "DSM": {
             0.5: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DSM05.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DSM05.json",
+                "5x6,25km": f"{base_url}/AHN5_DSM05.json",
+                "1x1km": f"{base_url}/AHN5_KM_DSM05.json",
             },
             5.0: {
-                "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_DSM5.json",
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_DSM5.json",
+                "5x6,25km": f"{base_url}/AHN5_DSM5.json",
+                "1x1km": f"{base_url}/AHN5_KM_DSM5.json",
             },
         },
         "PC": {
-            "5x6,25km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_PC.json",
-            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN5_KM_PC.json",
+            "5x6,25km": f"{base_url}/AHN5_PC.json",
+            "1x1km": f"{base_url}/AHN5_KM_PC.json",
         },
     }
 
     config["AHN6"] = {
         "DTM": {
-            0.5: {
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DTM05.json"
-            },
-            5.0: {
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DTM5.json"
-            },
+            0.5: {"1x1km": f"{base_url}/AHN6_KM_DTM05.json"},
+            5.0: {"1x1km": f"{base_url}/AHN6_KM_DTM5.json"},
         },
         "DSM": {
-            0.5: {
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DSM05.json"
-            },
-            5.0: {
-                "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_DSM5.json"
-            },
+            0.5: {"1x1km": f"{base_url}/AHN6_KM_DSM05.json"},
+            5.0: {"1x1km": f"{base_url}/AHN6_KM_DSM5.json"},
         },
         "PC": {
-            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_PC.json",
+            "1x1km": f"{base_url}/AHN6_KM_PC.json",
         },
         "COPC": {
-            "1x1km": "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland/AHN6_KM_PC_COPC.json",
+            "1x1km": f"{base_url}/AHN6_KM_PC_COPC.json",
         },
     }
 
@@ -1629,6 +1619,13 @@ def _download_ahn_km(
         config=config,
     )
 
+    rasterio_env = {
+        "GDAL_DISABLE_READDIR_ON_OPEN": "YES",
+        # "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
+        # "GDAL_TIFF_INTERNAL_MASK": "YES",
+        "GDAL_IGNORE_MISSING_MASK": "YES",
+    }
+
     das = []
     for index in tqdm(tiles.index, desc=f"Downloading tiles of {version}"):
         file = tiles.at[index, "file"]
@@ -1636,9 +1633,11 @@ def _download_ahn_km(
             path = file.split("/")[-1].replace(".zip", ".TIF")
             if path.lower().endswith(".tif.tif"):
                 path = path[:-4]
-            da = rioxarray.open_rasterio(f"zip+{file}!/{path}", mask_and_scale=True)
+            with Env(**rasterio_env):
+                da = rioxarray.open_rasterio(f"zip+{file}!/{path}", mask_and_scale=True)
         else:
-            da = rioxarray.open_rasterio(file, mask_and_scale=True)
+            with Env(**rasterio_env):
+                da = rioxarray.open_rasterio(file, mask_and_scale=True)
         if cut_extent:
             da = da.sel(x=slice(extent[0], extent[1]), y=slice(extent[3], extent[2]))
         das.append(da)

@@ -162,7 +162,7 @@ def test_download_ahn5():
 
 
 def test_download_ahn6():
-    extent = [246_700, 253_700, 457_800, 464_100]
+    extent = [249_700, 250_700, 459_700, 460_400]
     da = nlmod.read.ahn.download_ahn6(extent)
     assert isinstance(da, xr.DataArray)
     assert not da.isnull().all(), "AHN only has nan values"

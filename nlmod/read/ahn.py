@@ -38,16 +38,20 @@ def download_ahn(
     extent : list, tuple or np.array
         The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
     version : str, optional
-        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
-        default is "AHN4", as this is available in the whole of the Netherlands.
+        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'.
+        `version` is ignored if `identifier` is specified. The default is "AHN4", as
+        this is available in the whole of the Netherlands.
     data_kind : str, optional
         The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
-        elevation). The default is "DTM".
+        elevation). `data_kind` is ignored if `identifier` is specified. The default is
+        "DTM".
     tile_size : str, optional
         The size of the map tiles that the data is offered by the webservice. This can
-        be '5x6.25km' or '1x1km'. The default is '5x6.25km'.
+        be '5x6.25km' or '1x1km'. `tile_size` is ignored if `identifier` is specified.
+        The default is '5x6.25km'.
     resolution : float, optional
-        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. `resolution` is
+        ignored if `identifier` is specified. The default is 5.0.
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
@@ -77,8 +81,9 @@ def download_ahn(
                   'AHN5 DSM 5m',
                   'AHN5 maaiveldmodel (DTM) ½m',
                   'AHN5 DSM ½m'
-        When no identifier is used, the url to data download from is taken from
-        `config`. The default is None.
+        When no identifier is specified (the default), the url to download data from is
+        taken from `config`, using the arguments `version`, `data_kind`, `tile_size` and
+        `resolution` of this method. The default is None.
 
     Returns
     -------
@@ -86,6 +91,10 @@ def download_ahn(
         DataArray with the ahn variable.
     """
     if identifier is not None:
+        for key in ["version", "data_kind", "tile_size", "resolution"]:
+            if key in kwargs:
+                logger.warning("`{key}` is ignored then `identifier` is sepcified")
+                kwargs.pop(key)
         ahn_da = _download_ahn_ellipsis(
             extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
         )
@@ -158,16 +167,20 @@ def get_ahn(
         The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
         Only used if ds is None. The default is None.
     version : str, optional
-        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'. The
-        default is "AHN4", as this is available in the whole of the Netherlands.
+        The AHN_version, which can be 'AHN2', 'AHN3', 'AHN4', 'AHN5' and 'AHN6'.
+        `version` is ignored if `identifier` is specified. The default is "AHN4", as
+        this is available in the whole of the Netherlands.
     data_kind : str, optional
         The kind of data. This can be 'DTM' (terrain elevation) or "DSM" (surface
-        elevation). The default is "DTM".
+        elevation). `data_kind` is ignored if `identifier` is specified. The default is
+        "DTM".
     tile_size : str, optional
         The size of the map tiles that the data is offered by the webservice. This can
-        be '5x6.25km' or '1x1km'. The default is '5x6.25km'.
+        be '5x6.25km' or '1x1km'. `tile_size` is ignored if `identifier` is specified.
+        The default is '5x6.25km'.
     resolution : float, optional
-        The resolution of the AHN-data, which can be 0.5 and 5.0 m. The default is 5.0.
+        The resolution of the AHN-data, which can be 0.5 and 5.0 m. `resolution` is
+        ignored if `identifier` is specified. The default is 5.0.
     merge_tiles : bool, optional
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
@@ -197,8 +210,9 @@ def get_ahn(
                   'AHN5 DSM 5m',
                   'AHN5 maaiveldmodel (DTM) ½m',
                   'AHN5 DSM ½m'
-        When no identifier is used, the url to data download from is taken from
-        `config`. The default is None.
+        When no identifier is specified (the default), the url to download data from is
+        taken from `config`, using the arguments `version`, `data_kind`, `tile_size` and
+        `resolution` of this method. The default is None.
 
 
     Returns
@@ -777,8 +791,12 @@ def download_ahn2(
         The identifier determines the resolution and the type of height data. Possible
         values are 'AHN2 maaiveldmodel (DTM) ½m, geïnterpoleerd',
         'AHN2 maaiveldmodel (DTM) ½m', 'AHN2 DSM ½m', and
-        'AHN2 maaiveldmodel (DTM) 5m'. The default is
-        "AHN2 maaiveldmodel (DTM) 5m".
+        'AHN2 maaiveldmodel (DTM) 5m'. The default is None.
+        When no identifier is specified (the default), the url to download data from is
+        taken from `config`, using the keyword-arguments `data_kind`, `tile_size` and
+        `resolution`, which all can be specified as kwargs.
+    **kwargs : dict
+        See docstring of `download_ahn` for a descption of extra arguments.
 
     Returns
     -------
@@ -854,8 +872,12 @@ def download_ahn3(
     identifier : str, optional
         The identifier determines the resolution and the type of height data. Possible
         values are 'AHN3 maaiveldmodel (DTM) ½m', 'AHN3 DSM ½m',
-        'AHN3 maaiveldmodel (DTM) 5m', and 'AHN3 DSM 5m'. The default is
-        "AHN3 maaiveldmodel (DTM) 5m".
+        'AHN3 maaiveldmodel (DTM) 5m', and 'AHN3 DSM 5m'. The default is None.
+        When no identifier is specified (the default), the url to download data from is
+        taken from `config`, using the keyword-arguments `data_kind`, `tile_size` and
+        `resolution`, which all can be specified as kwargs.
+    **kwargs : dict
+        See docstring of `download_ahn` for a descption of extra arguments.
 
     Returns
     -------
@@ -931,8 +953,12 @@ def download_ahn4(
     identifier : str, optional
         The identifier determines the resolution and the type of height data. Possible
         values are 'AHN4 maaiveldmodel (DTM) ½m', 'AHN4 DSM ½m',
-        'AHN4 maaiveldmodel (DTM) 5m', and 'AHN4 DSM 5m'. The default is
-        "AHN4 maaiveldmodel (DTM) 5m".
+        'AHN4 maaiveldmodel (DTM) 5m', and 'AHN4 DSM 5m'. The default is None.
+        When no identifier is specified (the default), the url to download data from is
+        taken from `config`, using the keyword-arguments `data_kind`, `tile_size` and
+        `resolution`, which all can be specified as kwargs.
+    **kwargs : dict
+        See docstring of `download_ahn` for a descption of extra arguments.
 
     Returns
     -------
@@ -1006,8 +1032,12 @@ def download_ahn5(
     identifier : str, optional
         The identifier determines the resolution and the type of height data. Possible
         values are 'AHN5 maaiveldmodel (DTM) 5m', 'AHN5 DSM 5m',
-        'AHN5 maaiveldmodel (DTM) ½m', and 'AHN5 DSM ½m'. The default is
-        "AHN5 maaiveldmodel (DTM) 5m".
+        'AHN5 maaiveldmodel (DTM) ½m', and 'AHN5 DSM ½m'. The default is None.
+        When no identifier is specified (the default), the url to download data from is
+        taken from `config`, using the keyword-arguments `data_kind`, `tile_size` and
+        `resolution`, which all can be specified as kwargs.
+    **kwargs : dict
+        See docstring of `download_ahn` for a descption of extra arguments.
 
     Returns
     -------
@@ -1020,6 +1050,25 @@ def download_ahn5(
 
 
 def download_ahn6(extent: list[float], tile_size: str = "1x1km", **kwargs):
+    """Download AHN6.
+
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        extent
+    tile_size : str, optional
+        The size of the map tiles that the data is offered by the webservice. For AHN6,
+        this can only be '1x1km'. The default is "1x1km".
+    **kwargs : dict
+        See docstring of `download_ahn` for a descption of extra arguments.
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray of the AHN
+
+    """
     if tile_size != "1x1km":
         raise (ValueError("AHN6 is only available in map sheets of 1 x 1 km."))
     return _download_ahn_hwh(
@@ -1037,6 +1086,26 @@ def _update_ellipsis_tiles_in_data() -> None:
 
 
 def _save_tiles_from_config_in_data(config: dict = None):
+    """Saves the location of the map tiles of AHN to the data-directory of nlmod.
+
+    For each available combination of version, data_kind, tile_size and resolution, a
+    json-file is downloaded and saved to the folder `ahn` in the data-directory of
+    nlmod. When requesting ahn-data after running this method, the location of the
+    map-tiles is then not downloaded anymore, but taken from the previously downloaded
+    json-files.
+
+    Parameters
+    ----------
+    config : dict, optional
+        A dictionary with properties of the data sources of the different AHN-versions.
+        When None, the configuration is retreived from the method get_configuration().
+        The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
     if config is None:
         config = get_configuration()
 
@@ -1063,6 +1132,16 @@ def _download_and_save_json_file(url, fname, timeout=120.0):
 
 
 def get_configuration():
+    """Get the location of json-files with positions of map tiles with AHN-data
+
+    Returns
+    -------
+    dict
+        A dictionary with the locations of the json-files that contain the position of
+        the map-tiles of AHN-data, for several combinations of `version`, `data_kind`,
+        `tile_size` and `resolution`.
+
+    """
     pathname = os.path.join(NLMOD_DATADIR, "ahn")
     base_url = "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland"
     config = {}
@@ -1381,6 +1460,10 @@ def _download_ahn_hwh(
             da = da[0].drop_vars("band")
         if "_FillValue" in da.attrs:
             del da.attrs["_FillValue"]
+        da.attrs["version"] = version
+        da.attrs["data_kind"] = data_kind
+        da.attrs["tile_size"] = tile_size
+        da.attrs["resolution"] = resolution
         return da
     return das
 

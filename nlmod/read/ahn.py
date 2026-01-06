@@ -93,7 +93,7 @@ def download_ahn(
     if identifier is not None:
         for key in ["version", "data_kind", "tile_size", "resolution"]:
             if key in kwargs:
-                logger.warning("`{key}` is ignored then `identifier` is sepcified")
+                logger.warning("`{key}` is ignored when `identifier` is sepcified")
                 kwargs.pop(key)
         ahn_da = _download_ahn_ellipsis(
             extent, identifier=identifier, merge_tiles=merge_tiles, **kwargs
@@ -1146,7 +1146,7 @@ def get_configuration():
     base_url = "https://basisdata.nl/hwh-portal/20230609_tmp/links/nationaal/Nederland"
     config = {}
 
-    def get_file(file):
+    def get_fname(file):
         fname = os.path.join(pathname, file)
         if os.path.isfile(fname):
             return fname
@@ -1156,134 +1156,134 @@ def get_configuration():
     config["AHN2"] = {
         "DTM": {
             "5x6.25km": {
-                0.5: get_file("AHN2_DTM05.json"),
-                5.0: get_file("AHN2_DTM5.json"),
+                0.5: get_fname("AHN2_DTM05.json"),
+                5.0: get_fname("AHN2_DTM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN2_KM_DTM05.json"),
-                5.0: get_file("AHN2_KM_DTM5.json"),
+                0.5: get_fname("AHN2_KM_DTM05.json"),
+                5.0: get_fname("AHN2_KM_DTM5.json"),
             },
         },
         "DSM": {
             "5x6.25km": {
-                0.5: get_file("AHN2_DSM05.json"),
-                5.0: get_file("AHN2_DSM5.json"),
+                0.5: get_fname("AHN2_DSM05.json"),
+                5.0: get_fname("AHN2_DSM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN2_KM_DSM05.json"),
-                5.0: get_file("AHN2_KM_DSM5.json"),
+                0.5: get_fname("AHN2_KM_DSM05.json"),
+                5.0: get_fname("AHN2_KM_DSM5.json"),
             },
         },
         "PC": {
-            "1x1km": get_file("AHN2_KM_PC.json"),
+            "1x1km": get_fname("AHN2_KM_PC.json"),
         },
         "LAZ_g": {
-            "5x6.25km": get_file("AHN2_LAZ_g.json"),
+            "5x6.25km": get_fname("AHN2_LAZ_g.json"),
         },
         "LAZ_u": {
-            "5x6.25km": get_file("AHN2_LAZ_u.json"),
+            "5x6.25km": get_fname("AHN2_LAZ_u.json"),
         },
     }
 
     config["AHN3"] = {
         "DTM": {
             "5x6.25km": {
-                0.5: get_file("AHN3_DTM05.json"),
-                5.0: get_file("AHN3_DTM5.json"),
+                0.5: get_fname("AHN3_DTM05.json"),
+                5.0: get_fname("AHN3_DTM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN3_KM_DTM05.json"),
-                5.0: get_file("AHN3_KM_DTM5.json"),
+                0.5: get_fname("AHN3_KM_DTM05.json"),
+                5.0: get_fname("AHN3_KM_DTM5.json"),
             },
         },
         "DSM": {
             "5x6.25km": {
-                0.5: get_file("AHN3_DSM05.json"),
-                5.0: get_file("AHN3_DSM5.json"),
+                0.5: get_fname("AHN3_DSM05.json"),
+                5.0: get_fname("AHN3_DSM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN3_KM_DSM05.json"),
-                5.0: get_file("AHN3_KM_DSM5.json"),
+                0.5: get_fname("AHN3_KM_DSM05.json"),
+                5.0: get_fname("AHN3_KM_DSM5.json"),
             },
         },
         "PC": {
-            "5x6.25km": get_file("AHN3_PC.json"),
-            "1x1km": get_file("AHN3_KM_PC.json"),
+            "5x6.25km": get_fname("AHN3_PC.json"),
+            "1x1km": get_fname("AHN3_KM_PC.json"),
         },
     }
 
     config["AHN4"] = {
         "DTM": {
             "5x6.25km": {
-                0.5: get_file("AHN4_DTM05.json"),
-                5.0: get_file("AHN4_DTM5.json"),
+                0.5: get_fname("AHN4_DTM05.json"),
+                5.0: get_fname("AHN4_DTM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN4_KM_DTM05.json"),
-                5.0: get_file("AHN4_KM_DTM5.json"),
+                0.5: get_fname("AHN4_KM_DTM05.json"),
+                5.0: get_fname("AHN4_KM_DTM5.json"),
             },
         },
         "DSM": {
             "5x6.25km": {
-                0.5: get_file("AHN4_DSM05.json"),
-                5.0: get_file("AHN4_DSM5.json"),
+                0.5: get_fname("AHN4_DSM05.json"),
+                5.0: get_fname("AHN4_DSM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN4_KM_DSM05.json"),
-                5.0: get_file("AHN4_KM_DSM5.json"),
+                0.5: get_fname("AHN4_KM_DSM05.json"),
+                5.0: get_fname("AHN4_KM_DSM5.json"),
             },
         },
         "PC": {
-            "5x6.25km": get_file("AHN4_PC.json"),
-            "1x1km": get_file("AHN4_KM_PC.json"),
+            "5x6.25km": get_fname("AHN4_PC.json"),
+            "1x1km": get_fname("AHN4_KM_PC.json"),
         },
     }
 
     config["AHN5"] = {
         "DTM": {
             "5x6.25km": {
-                0.5: get_file("AHN5_DTM05.json"),
-                5.0: get_file("AHN5_DTM5.json"),
+                0.5: get_fname("AHN5_DTM05.json"),
+                5.0: get_fname("AHN5_DTM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN5_KM_DTM05.json"),
-                5.0: get_file("AHN5_KM_DTM5.json"),
+                0.5: get_fname("AHN5_KM_DTM05.json"),
+                5.0: get_fname("AHN5_KM_DTM5.json"),
             },
         },
         "DSM": {
             "5x6.25km": {
-                0.5: get_file("AHN5_DSM05.json"),
-                5.0: get_file("AHN5_DSM5.json"),
+                0.5: get_fname("AHN5_DSM05.json"),
+                5.0: get_fname("AHN5_DSM5.json"),
             },
             "1x1km": {
-                0.5: get_file("AHN5_KM_DSM05.json"),
-                5.0: get_file("AHN5_KM_DSM5.json"),
+                0.5: get_fname("AHN5_KM_DSM05.json"),
+                5.0: get_fname("AHN5_KM_DSM5.json"),
             },
         },
         "PC": {
-            "5x6.25km": get_file("AHN5_PC.json"),
-            "1x1km": get_file("AHN5_KM_PC.json"),
+            "5x6.25km": get_fname("AHN5_PC.json"),
+            "1x1km": get_fname("AHN5_KM_PC.json"),
         },
     }
 
     config["AHN6"] = {
         "DTM": {
             "1x1km": {
-                0.5: get_file("AHN6_KM_DTM05.json"),
-                5.0: get_file("AHN6_KM_DTM5.json"),
+                0.5: get_fname("AHN6_KM_DTM05.json"),
+                5.0: get_fname("AHN6_KM_DTM5.json"),
             }
         },
         "DSM": {
             "1x1km": {
-                0.5: get_file("AHN6_KM_DSM05.json"),
-                5.0: get_file("AHN6_KM_DSM5.json"),
+                0.5: get_fname("AHN6_KM_DSM05.json"),
+                5.0: get_fname("AHN6_KM_DSM5.json"),
             }
         },
         "PC": {
-            "1x1km": get_file("AHN6_KM_PC.json"),
+            "1x1km": get_fname("AHN6_KM_PC.json"),
         },
         "COPC": {
-            "1x1km": get_file("AHN6_KM_PC_COPC.json"),
+            "1x1km": get_fname("AHN6_KM_PC_COPC.json"),
         },
     }
 

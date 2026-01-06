@@ -437,6 +437,8 @@ def download_knmi(
     oc_knmi = _download_knmi_at_locations(locations, start=start, end=end)
 
     # check if downloaded data is correct
+    if end is None:
+        end = ds.time.data[-1]
     end = pd.Timestamp(end)
     for obs in oc_knmi["obs"]:
         msg = f"No data available for time series'{obs.name}'"

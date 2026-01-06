@@ -1123,6 +1123,43 @@ def _save_tiles_from_config_in_data(config: dict = None):
                     _download_and_save_json_file(url, fname)
 
 
+def _delete_tiles_from_config_in_data(config: dict = None):
+    """Delete the location of the map tiles of AHN from the data-directory of nlmod.
+
+    This method deletes the files downloaded with `_save_tiles_from_config_in_data` from
+    the data directory again.
+
+    Parameters
+    ----------
+    config : dict, optional
+        A dictionary with properties of the data sources of the different AHN-versions.
+        When None, the configuration is retreived from the method get_configuration().
+        The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    if config is None:
+        config = get_configuration()
+
+    pathname = os.path.join(NLMOD_DATADIR, "ahn")
+    for version in config:
+        for data_kind in config[version]:
+            for tile_size in config[version][data_kind]:
+                url = config[version][data_kind][tile_size]
+                if isinstance(url, dict):
+                    for resolution in url:
+                        fname = os.path.join(pathname, url[resolution].split("/")[-1])
+                        if os.path.isfile(fname):
+                            os.remove(fname)
+                else:
+                    fname = os.path.join(pathname, url.split("/")[-1])
+                    if os.path.isfile(fname):
+                        os.remove(fname)
+
+
 def _download_and_save_json_file(url, fname, timeout=120.0):
     response = requests.get(url, timeout=timeout)
     response.raise_for_status()

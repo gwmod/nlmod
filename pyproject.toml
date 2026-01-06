@@ -10,12 +10,12 @@ license = { file = "LICENSE" }
 readme = "README.md"
 authors = [
     { name = "O.N. Ebbens" },
-    { name = "R. Caljé" },
+    { name = "R.J. Caljé" },
     { name = "D.A. Brakenhoff" },
 ]
 maintainers = [
     { name = "O.N. Ebbens", email = "o.ebbens@artesia-water.nl" },
-    { name = "R. Calje", email = "r.calje@artesia-water.nl" },
+    { name = "R.J. Calje", email = "r.calje@artesia-water.nl" },
     { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
 ]
 requires-python = ">= 3.10"

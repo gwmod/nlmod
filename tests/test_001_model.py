@@ -193,7 +193,9 @@ def test_create_sea_model(tmpdir):
     da_name = "surface_water"
     gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(ds=ds)
     ds.update(
-        nlmod.read.rws.get_surface_water(ds, gdf=gdf_surface_water, da_basename=da_name)
+        nlmod.read.rws.discretize_surface_water(
+            ds, gdf=gdf_surface_water, da_basename=da_name
+        )
     )
     _ = nlmod.gwf.ghb(ds, gwf, bhead=f"{da_name}_stage", cond=f"{da_name}_cond")
 

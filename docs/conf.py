@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.abspath("."))
 # -- Project information -----------------------------------------------------
 
 project = "nlmod"
-copyright = "2026, O.N. Ebbens, D.A. Brakenhoff, R. Caljé"
-author = "O.N. Ebbens, D.A. Brakenhoff, R. Caljé"
+copyright = "2026, O.N. Ebbens, D.A. Brakenhoff, R.J. Caljé"
+author = "O.N. Ebbens, D.A. Brakenhoff, R.J. Caljé"
 
 # The short X.Y version
 version = __version__

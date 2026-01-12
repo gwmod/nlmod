@@ -515,7 +515,8 @@ class DatasetCrossSection:
         legend_kwds=None,
         max_dist=None,
         sort_by_dist=True,
-        filter_kwargs=None,
+        filter_patch_kwargs=None,
+        filter_rect_kwargs=None,
         tubeline_kwargs=None,
     ):
         """plot filter screens in cross section from a DataFrame
@@ -561,9 +562,14 @@ class DatasetCrossSection:
             by default None
         sort_by_dist : bool, optional
             if True the values are sorted by distance along the cross section line.
-        filter_kwargs : None, optional
+        filter_patch_kwargs : None, optional
             additional keyword arguments passed to the PatchCollection of the
-            filters.
+            filters. These keyword arguments are typically for how the rectangles
+            appear in the plot.
+        filter_rect_kwargs : None, optional
+            additional keyword arguments passed to the Rectangle shape of the
+            filters. These keyword arguments are typically for how the rectangles
+            appear in the legend.
         tubeline_kwargs : None, optional
             additional keyword arguments passed to the tube line plot.
         **kwargs
@@ -625,8 +631,10 @@ class DatasetCrossSection:
                     df[parname] = color
 
         # parse filter and tube kwargs
-        if filter_kwargs is None:
-            filter_kwargs = {}
+        if filter_patch_kwargs is None:
+            filter_patch_kwargs = {}
+        if filter_rect_kwargs is None:
+            filter_rect_kwargs = {}
         if tubeline_kwargs is None:
             tubeline_kwargs = {}
 
@@ -676,10 +684,10 @@ class DatasetCrossSection:
                 (left, bottom_left_y),
                 filter_width,
                 height,
-                linewidth=linewidth,
                 facecolor=row["filtercolor_face"],
                 edgecolor=row["filtercolor_edge"],
                 label=name,
+                **filter_rect_kwargs,
             )
             rectangles.append(rect)
             legend_handles[name] = rect
@@ -689,7 +697,7 @@ class DatasetCrossSection:
             rectangles,
             facecolors=df["filtercolor_face"],
             edgecolors=df["filtercolor_edge"],
-            **filter_kwargs,
+            **filter_patch_kwargs,
         )
         self.ax.add_collection(patch_collection)
 

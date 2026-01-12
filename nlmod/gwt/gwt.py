@@ -57,7 +57,7 @@ def dis(ds, gwt, length_units="METERS", pname="dis", **kwargs):
     length_units : str, optional
         length unit. The default is 'METERS'.
     pname : str, optional
-        package name
+        package name, ignored if ds has a vertex grid (disv)
 
     Returns
     -------
@@ -74,7 +74,7 @@ def disv(ds, gwt, length_units="METERS", pname="disv", **kwargs):
     ----------
     ds : xarray.Dataset
         dataset with model data.
-    model : flopy ModflowGwt
+    gwt : flopy ModflowGwt
         groundwater transport object.
     length_units : str, optional
         length unit. The default is 'METERS'.

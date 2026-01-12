@@ -8,10 +8,10 @@ import geopandas as gpd
 import numpy as np
 import xarray as xr
 from rioxarray.merge import merge_arrays
-from tqdm import tqdm
 
-from nlmod import NLMOD_DATADIR, cache, dims, util
-from nlmod.read.webservices import arcrest
+from .. import NLMOD_DATADIR, cache, dims, util
+from ..util import tqdm
+from .webservices import arcrest
 
 logger = logging.getLogger(__name__)
 
@@ -174,8 +174,6 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
         Dataset with a single DataArray, this DataArray is 1 at sea and 0
         everywhere else. Grid dimensions according to ds.
     """
-    if gdf is None:
-        gdf = get_gdf_surface_water(ds=ds)
 
     warnings.warn(
         "'get_northsea' is deprecated and will be removed in a future version. "
@@ -187,7 +185,7 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
 
 
 @cache.cache_netcdf(coords_2d=True)
-def discretize_northsea(ds, gdf, da_name="northsea"):
+def discretize_northsea(ds, gdf=None, da_name="northsea"):
     """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is defined by
     rws surface water shapefile.
 

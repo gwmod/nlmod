@@ -12,17 +12,19 @@
 #
 import os
 import sys
+import tqdm
+import tqdm.auto
+import tqdm.notebook
 
 from nlmod import __version__
 
 sys.path.insert(0, os.path.abspath("."))
 
-
 # -- Project information -----------------------------------------------------
 
 project = "nlmod"
-copyright = "2024, O.N. Ebbens, D.A. Brakenhoff, R. Caljé"
-author = "O.N. Ebbens, D.A. Brakenhoff, R. Caljé"
+copyright = "2026, O.N. Ebbens, D.A. Brakenhoff, R.J. Caljé"
+author = "O.N. Ebbens, D.A. Brakenhoff, R.J. Caljé"
 
 # The short X.Y version
 version = __version__
@@ -47,7 +49,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "IPython.sphinxext.ipython_console_highlighting",  # lowercase didn't work
     "sphinx.ext.autosectionlabel",
-    "nbsphinx",
+    "myst_nb",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -85,9 +87,15 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+html_css_files = [
+    'custom.css',
+]
 
 # add a logo
 html_logo = "_static/logo_10000_2_2.png"
 
+nb_execution_mode = "auto"
 # Allow errors in notebooks, so we can see the error online
-nbsphinx_allow_errors = True
+nb_execution_allow_errors = True
+nb_merge_streams = True
+nb_execution_timeout = -1

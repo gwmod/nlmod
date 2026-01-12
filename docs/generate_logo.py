@@ -1,26 +1,22 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Dec 23 20:40:21 2022
-
-@author: ruben
-"""
-
 import os
-
-import art_tools
 import matplotlib.pyplot as plt
-
 import nlmod
 
+# %%
 filled = False
 n = 2
 dx = 10_000
 # dx = 20000
-figwidth = 5
+figwidth = 2
 
-nederland = art_tools.shapes.nederland()
+# %%
+nederland = nlmod.read.administrative.download_netherlands_gdf()
+# add a small buffer to remove holes that are introduced by dissolve later on
+nederland.geometry = nederland.buffer(0.1)
+nederland = nederland.dissolve()
 nederland["geometry"] = nederland.simplify(1000)
 
+# %%
 refine = nederland.copy()
 if not filled:
     refine["geometry"] = refine.boundary
@@ -70,9 +66,19 @@ ax.set_xlabel("")
 ax.set_ylabel("")
 ax.set_title("")
 ax.axis("off")
+ax.text(
+    100_000,
+    330_000,
+    "nlmod",
+    fontname="Consolas",
+    fontsize=50 * figwidth / 5,
+    ha="center",
+    va="center",
+    color=color,
+    # fontweight="bold",
+)
 
-# ax.text(50000, 550000, "nlmod", fontsize=30, ha="center", va="center")
-
+# %%
 fname = f"logo_{dx}_{n}"
 dpi = 150
 if filled:
@@ -80,7 +86,7 @@ if filled:
 if figwidth != 5:
     fname = f"{fname}_{figwidth}"
     dpi = None
-f.savefig(os.path.join("..", "_static", f"{fname}.png"), dpi=dpi)
-f.savefig(os.path.join("..", "_static", f"{fname}.svg"))
+f.savefig(os.path.join("_static", f"{fname}.png"), dpi=dpi)
+f.savefig(os.path.join("_static", f"{fname}.svg"))
 
 # %%

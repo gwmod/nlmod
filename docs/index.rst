@@ -1,17 +1,20 @@
 nlmod
 =====
 
-nlmod is a Python package to build, run and visualize MODFLOW 6 groundwater models in the
+`nlmod` is a Python package to build, run and visualize MODFLOW 6 groundwater models in the
 Netherlands. The main focus is on building models in the Netherlands using publicly
 available datasets, though lots of functionality could be applied to groundwater models
 elsewhere.
 
 .. image:: _static/logo_10000_2.png
   :width: 300
-  :align: center
   :alt: The logo of nlmod
+  
+.. image:: _static/logo_artesia.svg
+  :width: 300
+  :alt: The logo of Artesia
 
-nlmod relies heavily on the wonderful features of 
+`nlmod` relies on the wonderful features of 
 `xarray <https://docs.xarray.dev>`_ and `geopandas <https://geopandas.org>`_ for
 storing and manipulating data and `flopy <https://flopy.readthedocs.io>`_ is used for
 building and running groundwater models.
@@ -42,15 +45,17 @@ We thank the following institutions for their contributions to the development o
   :width: 200
   :alt: The logo of Brabant Water
 
-Please note that the documentation for nlmod is still a work in progress, so
-bear with us if certain aspects are incomplete.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   Getting started <getting_started>
-   Examples <examples>
+   Getting Started <getting_started>
+   Data Sources <data_sources>
+   Example Models <examples>
+   Utilities <utilities>
+   Workflows <workflows>
+   Advanced Stress Packages <advanced_stress_packages>
    API-docs <modules>
 
 

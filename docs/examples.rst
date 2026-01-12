@@ -1,7 +1,7 @@
-========
-Examples
-========
-The following examples are available as Jupyter Notebooks.
+==============
+Example Models
+==============
+The following example models are available as Jupyter Notebooks.
 
 .. toctree::
   :maxdepth: 1

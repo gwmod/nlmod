@@ -82,7 +82,7 @@ def test_gdf_lake():
         index=[14, 15, 16],
     )
 
-    rainfall, evaporation = nlmod.gwf.clip_meteorological_data_from_ds(
+    rainfall, evaporation = nlmod.gwf.copy_meteorological_data_from_ds(
         gdf_lake, ds, boundname_column="name"
     )
     # do not pass evaporation to lake_from_gdf, as we have specified it in gdf_lake

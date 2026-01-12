@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import Polygon
-from tqdm import tqdm
 
 from ..cache import cache_pickle
 from ..dims.grid import (
@@ -17,7 +16,7 @@ from ..dims.grid import (
 )
 from ..dims.layers import get_idomain
 from ..read import bgt, waterboard
-from ..util import extent_to_polygon, gdf_intersection_join, zonal_statistics
+from ..util import extent_to_polygon, gdf_intersection_join, zonal_statistics, tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -687,13 +686,19 @@ def _get_waterboard_selection(gdf=None, extent=None, config=None):
             if config[wb]["bgt_code"] in bronhouders:
                 wbs.append(wb)
     elif extent is not None:
-        wb_gdf = waterboard.get_polygons()
+        wb_gdf = waterboard.download_polygons()
         wbs = wb_gdf.index[wb_gdf.intersects(extent_to_polygon(extent))]
     return wbs
 
 
 def add_stages_from_waterboards(
-    gdf, la=None, extent=None, columns=None, config=None, min_total_overlap=0.0
+    gdf,
+    la=None,
+    extent=None,
+    columns=None,
+    config=None,
+    min_total_overlap=0.0,
+    silent=False,
 ):
     """Add information from level areas (peilgebieden) to bgt-polygons.
 
@@ -719,6 +724,8 @@ def add_stages_from_waterboards(
         Only add data from waterboards to gdf when the total overlap between a feature
         in gdf with all the features from the waterboard is larger than the fraction
         min_total_overlap. The default is 0.0.
+    silent : bool, optional
+        If true, do not show prgressbars. The default is False.
 
     Returns
     -------
@@ -742,6 +749,7 @@ def add_stages_from_waterboards(
             columns=columns,
             min_total_overlap=min_total_overlap,
             desc=f"Adding {columns} from {wb}",
+            silent=silent,
         )[columns]
     return gdf
 

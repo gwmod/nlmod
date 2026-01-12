@@ -273,9 +273,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(np.sum(split_dict[lay0]), 1), (
-                f"Fractions for splitting layer '{lay0}' do not add up to 1."
-            )
+            assert np.isclose(
+                np.sum(split_dict[lay0]), 1
+            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -677,6 +677,10 @@ def combine_layers_ds(
             for x in combine_layers
         ]
         new_layer_names = [ds.layer.data[x[0]] for x in combine_layers_integer]
+
+    if len(combine_layers_integer) == 0:
+        logger.warning("No layers are combined")
+        return ds[[x for x in parsed_dv if x in ds] + keep_dv]
 
     # make sure there are no layers in between
     check = [(np.diff(x) == 1).all() for x in combine_layers_integer]
@@ -1560,13 +1564,11 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
     for i in range(1, len(ds.layer)):
         layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
 
-    # set layer to nodata where z is above top
+    # set layer to above_model where z is above top
     if "layer" not in ds["top"].dims:
-        layer = xr.where((layer == below_model) & (ds["top"] > z), above_model, layer)
+        layer = xr.where(z > ds["top"], above_model, layer)
     else:
-        layer = xr.where(
-            (layer == below_model) & (ds["top"].isel(layer=0) > z), above_model, layer
-        )
+        layer = xr.where(z > ds["top"].isel(layer=0), above_model, layer)
 
     # set nodata attribute
     layer.attrs["above_model"] = above_model
@@ -2278,7 +2280,7 @@ def get_modellayers_indexer(
     screen_top="screen_top",
     screen_bottom="screen_bottom",
     full_output=False,
-    drop_nan_layers=False,
+    drop_nan_layers=True,
 ):
     """Get a model layer indexer (dataset) for a dataframe with observation wells.
 
@@ -2308,7 +2310,7 @@ def get_modellayers_indexer(
         If False, return only the variables needed to index a data array.
     drop_nan_layers : bool, optional
         If True, drop the observation wells for which the model layer cannot be
-        determined. These probably lie above or below the model. The default is False.
+        determined. These probably lie above or below the model. The default is True.
         If False, the model layer indexer will contain NaN values for these wells.
 
     Returns
@@ -2350,7 +2352,7 @@ def get_modellayers_indexer(
     if npts_outside_domain > 0:
         maskpts = ~pts_to_cellid.isna()
         pts = pts[maskpts]
-        pts_to_cellid  = pts_to_cellid[maskpts]
+        pts_to_cellid = pts_to_cellid[maskpts]
         df = df.loc[maskpts.values].copy()
         logger.warning(
             "Warning! Dropped %d points outside the model domain.", npts_outside_domain
@@ -2404,9 +2406,12 @@ def get_modellayers_indexer(
         ].values
     elif drop_nan_layers:
         obs_ds = obs_ds.dropna(dim, subset=["modellayer"])
+        obs_ds["modellayer"].values = ds["layer"][
+            obs_ds["modellayer"].astype(int)
+        ].values
     else:
         logger.warning(
-            "There are observation wells that lie above/below the model. "
+            "There are observation wells above/below the model top/bottom. "
             "The model layer indexer will contain NaN values for these wells."
         )
 

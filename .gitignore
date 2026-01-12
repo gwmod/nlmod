@@ -156,3 +156,5 @@ tests/data/mfoutput/*
 docs/examples/*/
 !docs/examples/data/
 !docs/examples/data/chloride_hbossche.nc
+
+docs/data_sources/*

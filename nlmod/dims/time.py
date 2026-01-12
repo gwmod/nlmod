@@ -787,10 +787,10 @@ def dataframe_to_flopy_timeseries(
         If DataFrame contains NaNs or if `ds.time` is not datetime64.
     """
 
-    assert not df.isna().any(axis=None)
-    assert (
-        ds.time.dtype.kind == "M"
-    ), "get recharge requires a datetime64[ns] time index"
+    msg = "No nan values are allowed in dataframe_to_flopy_timeseries"
+    assert not df.isna().any(axis=None), msg
+    msg = "get recharge requires a datetime64[ns] time index"
+    assert ds.time.dtype.kind == "M", msg
 
     if shift_label_from_right_to_left and ds is not None:
         df.loc[pd.to_datetime(ds.time.start)] = None

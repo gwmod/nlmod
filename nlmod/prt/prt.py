@@ -1,7 +1,8 @@
 import logging
 from pathlib import Path
-
+from pandas import read_csv, DataFrame
 import flopy as fp
+from flopy.plot.plotutil import PRT_PATHLINE_DTYPE
 
 from ..gwf.gwf import _dis, _disv, _set_record
 from ..util import _get_value_from_ds_datavar
@@ -90,7 +91,7 @@ def disv(ds, prt, length_units="METERS", pname="disv", **kwargs):
 
 
 def mip(ds, prt, porosity=None, **kwargs):
-    """Create matrix input package for groundwater transport model.
+    """Create model input package for particle tracking model.
 
     Parameters
     ----------
@@ -104,7 +105,7 @@ def mip(ds, prt, porosity=None, **kwargs):
     Returns
     -------
     mip : flopy ModflowGwtmip
-        matrix input package
+        model input package
     """
     logger.info("creating mf6 MIP")
 
@@ -125,7 +126,7 @@ def mip(ds, prt, porosity=None, **kwargs):
 
 
 def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
-    """Create particle release package for groundwater transport model.
+    """Create particle release point package for particle tracking model.
 
     Parameters
     ----------
@@ -139,7 +140,7 @@ def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
     Returns
     -------
     prp : flopy ModflowGwtprp
-        particle release package
+        particle release point package
     """
     logger.info("creating mf6 PRP")
     prp_track_file = kwargs.pop("prp_track_file", f"{ds.model_name}.prp.trk")
@@ -161,7 +162,7 @@ def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
 
 
 def fmi(ds, prt, packagedata=None, **kwargs):
-    """Create flow model interface package for groundwater transport model.
+    """Create flow model interface package for particle tracking model.
 
     Parameters
     ----------
@@ -215,3 +216,66 @@ def oc(ds, prt, save_budget=True, print_budget=False, **kwargs):
         **kwargs,
     )
     return oc
+
+
+def read_pathlines(path: str | Path, icell2d: int | None = None) -> DataFrame:
+    """Read PRT pathlines from (csv-)file and add particle ID.
+
+    The columns in the pathlines file are:
+    - kper: stress period number
+    - kstp: time step number
+    - imdl: number of the model the particle originated in
+    - iprp: number of the particle release point (PRP) package the particle originated in
+    - irpt: release point number
+    - ilay: layer number
+    - icell: cell number
+    - izone: zone number
+    - istatus: particle status code
+        0: particle was released
+        1: particle is being actively tracked
+        2: particle terminated at a boundary face
+        3: particle terminated in a weak sink cell
+        4: unused
+        5: particle terminated in a cell with no exit face
+        6: particle terminated in a stop zone
+        7: particle terminated in an inactive cell
+        8: particle terminated immediately upon release into a dry cell
+        9: particle terminated in a subcell with no exit face
+    - ireason: reporting reason code (why the particle track record was saved)
+        0: particle was released
+        1: particle exited a cell
+        2: time step ended
+        3: particle terminated
+        4: particle entered a weak sink cell
+        5: user-specified tracking time
+    - trelease: particle release time
+    - t: particle tracking time
+    - x: particle x coordinate
+    - y: particle y coordinate
+    - z: particle z coordinate
+    - name: name of the particle release point
+
+    Parameters
+    ----------
+    path : Path or str
+        Path to the PRT pathlines file.
+    icell2d : int or None
+        Number of cells in the vertex grid. If provided, it will be used to
+        calculate the vertex cell index. E.g. `ds.icell2d.size`
+
+    Returns
+    -------
+    DataFrame
+        DataFrame containing the pathlines data.
+    """
+    df = read_csv(path, dtype=PRT_PATHLINE_DTYPE)
+    df["ilay"] -= 1
+    df["icell"] -= 1
+    if icell2d is not None:
+        df["icell2d"] = df["icell"] - df["ilay"] * icell2d
+
+    # identify particle ID and add as first column to the DataFrame
+    pid_cols = ["imdl", "iprp", "irpt", "trelease"]
+    pid = df.sort_values(pid_cols).groupby(pid_cols).ngroup()
+    df.insert(0, "pid", pid)
+    return df

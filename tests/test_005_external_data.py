@@ -43,8 +43,69 @@ def test_get_recharge_not_available():
     ds = nlmod.get_ds([100000, 110000, 420000, 430000])
     time = [pd.Timestamp.now().normalize()]
     ds = nlmod.time.set_ds_time(ds, start=time[0] - pd.Timedelta(days=21), time=time)
-    with pytest.raises(KeyError):
+    with pytest.raises((ValueError)):
         ds.update(nlmod.read.knmi.get_recharge(ds))
+
+
+def test_get_recharge_add_stn_dimensions():
+    ds = nlmod.get_ds(
+        [100000, 110000, 420000, 430000],
+        model_ws=os.path.join("models", "test_get_recharge_add_stn_dimensions"),
+        model_name="test",
+    )
+    # set the top left cell to incactive, to test this functionality as well
+    ds["active_domain"] = ds["area"] > 0
+    ds["active_domain"].data[0, 0] = False
+    time = pd.date_range("2024", "2025")
+    ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
+    ds.update(nlmod.read.knmi.get_recharge(ds, add_stn_dimensions=True))
+
+    # create simulation
+    sim = nlmod.sim.sim(ds)
+    _ = nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    _ = nlmod.sim.ims(sim)
+    _ = nlmod.gwf.dis(ds, gwf)
+    _ = nlmod.gwf.npf(ds, gwf)
+    _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)
+    _ = nlmod.gwf.rch(ds, gwf)
+    _ = nlmod.gwf.evt(ds, gwf)
+
+    # do not run, as this takes a lot of time
+    # _ = nlmod.gwf.drn(ds, gwf, elev='top', cond='area')
+    # nlmod.sim.write_and_run(sim, ds, write_ds=False)
+
+    spd = gwf.rch.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000 - 1  # one inactive cell
+    assert spd[0]["recharge"].dtype == object
+
+    spd = gwf.evt.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000 - 1  # one inactive cell
+    assert spd[0]["rate"].dtype == object
+
+
+def test_add_recharge_as_float():
+    ds = nlmod.get_ds(
+        [100000, 110000, 420000, 430000],
+        model_ws=os.path.join("models", "test_add_recharge_as_float"),
+        model_name="test",
+    )
+    time = pd.date_range("2024", "2025")
+    ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
+
+    sim = nlmod.sim.sim(ds)
+    _ = nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    _ = nlmod.sim.ims(sim)
+    _ = nlmod.gwf.dis(ds, gwf)
+    _ = nlmod.gwf.rch(ds, gwf, recharge=0.1)
+
+    spd = gwf.rch.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000
+    assert (spd[0]["recharge"] == 0.1).all()
 
 
 def test_ahn_within_extent():
@@ -61,14 +122,28 @@ def test_ahn_split_extent():
     assert not da.isnull().all(), "AHN only has nan values"
 
 
-def test_get_ahn3():
+def test_download_ahn1():
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
-    da = nlmod.read.ahn.download_ahn3(extent)
-
+    da = nlmod.read.ahn.download_ahn1(extent)
+    assert isinstance(da, xr.DataArray)
     assert not da.isnull().all(), "AHN only has nan values"
 
 
-def test_get_ahn4():
+def test_download_ahn2():
+    extent = [98000.0, 100000.0, 494000.0, 496000.0]
+    da = nlmod.read.ahn.download_ahn2(extent)
+    assert isinstance(da, xr.DataArray)
+    assert not da.isnull().all(), "AHN only has nan values"
+
+
+def test_download_ahn3():
+    extent = [98000.0, 100000.0, 494000.0, 496000.0]
+    da = nlmod.read.ahn.download_ahn3(extent)
+    assert isinstance(da, xr.DataArray)
+    assert not da.isnull().all(), "AHN only has nan values"
+
+
+def test_download_ahn4():
     extent = [98000.0, 100000.0, 494000.0, 496000.0]
     ahn = nlmod.read.ahn.download_ahn4(extent)
     assert isinstance(ahn, xr.DataArray)
@@ -79,10 +154,17 @@ def test_get_ahn4():
     assert isinstance(ahn_line, xr.DataArray)
 
 
-def test_get_ahn5():
+def test_download_ahn5():
     extent = [99500.0, 100000.0, 494500.0, 495000.0]
     da = nlmod.read.ahn.download_ahn5(extent)
+    assert isinstance(da, xr.DataArray)
+    assert not da.isnull().all(), "AHN only has nan values"
 
+
+def test_download_ahn6():
+    extent = [249_700, 250_700, 459_700, 460_400]
+    da = nlmod.read.ahn.download_ahn6(extent)
+    assert isinstance(da, xr.DataArray)
     assert not da.isnull().all(), "AHN only has nan values"
 
 

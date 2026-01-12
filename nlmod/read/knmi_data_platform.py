@@ -11,7 +11,7 @@ import requests
 import xarray as xr
 from numpy import arange, array, ndarray
 from pandas import Timedelta, Timestamp
-from tqdm import tqdm
+from ..util import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -319,4 +319,4 @@ def read_dataset(
         else:
             raise ValueError(f"Can't read/handle file {file}")
 
-    return xr.concat(data, dim="time")
+    return xr.concat(data, dim="time", data_vars="all")

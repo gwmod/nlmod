@@ -184,6 +184,18 @@ def test_get_layer_of_z():
     assert (top.isel(layer=layer) > z).all()
 
 
+def test_get_layer_of_z_above_model():
+    ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -20])
+    layer = nlmod.layers.get_layer_of_z(ds, 10, below_model=-999, above_model=999)
+    assert (layer == layer.attrs["above_model"]).all()
+
+
+def test_get_layer_of_z_below_model():
+    ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -20])
+    layer = nlmod.layers.get_layer_of_z(ds, -30, below_model=-999, above_model=999)
+    assert (layer == layer.attrs["below_model"]).all()
+
+
 def test_aggregate_by_weighted_mean_to_ds():
     regis = get_regis_horstermeer()
     regis2 = regis.copy(deep=True)
@@ -287,12 +299,12 @@ def test_insert_layer():
 
 
 def test_remove_thin_layers():
-    # %% download regis and define min_thickness
+    # download regis and define min_thickness
     regis = get_regis_horstermeer()
 
     min_thickness = 1.0
 
-    # %% test update_thickness_every_layer = False
+    # test update_thickness_every_layer = False
     ds_new = nlmod.layers.remove_thin_layers(regis, min_thickness)
 
     th = nlmod.layers.calculate_thickness(regis)
@@ -307,7 +319,7 @@ def test_remove_thin_layers():
     # test if all active cells in the new dataset were active in the original dataset
     assert (th.data[th_new > 0] > 0).all()
 
-    # %% test update_thickness_every_layer = True
+    # test update_thickness_every_layer = True
     ds_new2 = nlmod.layers.remove_thin_layers(
         regis, min_thickness, update_thickness_every_layer=True
     )
@@ -358,27 +370,31 @@ def test_get_modellayers_indexer():
     # structured grid
     idx = nlmod.layers.get_modellayers_indexer(ds, df)
     # check result
-    assert np.isnan(idx["layer"].values[0])
-    assert idx["layer"].values[1] == 1.0
-    assert idx["layer"].values[2] == ds.sizes["layer"] - 1
-
-    # drop nans
-    idx = idx.dropna("index")
-    # get layer names (annoying step that maybe should be performed in the function)
-    idx["layer"].values = ds.layer[idx["layer"].astype(int)].values
+    assert idx["layer"].values[0] == ds["layer"].values[1]
+    assert idx["layer"].values[1] == ds["layer"].values[ds.sizes["layer"] - 1]
     # test getting bottom elevations using indexer
     _ = ds["botm"].sel(**idx)
 
+    # structured grid keep nan
+    idx2 = nlmod.layers.get_modellayers_indexer(ds, df, drop_nan_layers=False)
+    # check result
+    assert np.isnan(idx2["layer"].values[0])
+
+    # drop nans
+    idx2 = idx2.dropna("index")
+    # get layer names (step is unnecesary if you keep drop_nan_layers=True)
+    idx2["layer"].values = ds.layer[idx2["layer"].astype(int)].values
+    # test getting bottom elevations using indexer
+    _ = ds["botm"].sel(**idx2)
+
     # vertex grid
     ds_ref = nlmod.grid.refine(ds, refinement_features=[])
-    idx2 = nlmod.layers.get_modellayers_indexer(ds_ref, df)
-    idx2 = idx2.dropna("index")
-    idx2["layer"].values = ds_ref.layer[idx2["layer"].astype(int)].values
-    _ = ds_ref["botm"].sel(**idx2)
+    idx3 = nlmod.layers.get_modellayers_indexer(ds_ref, df)
+    _ = ds_ref["botm"].sel(**idx3)
 
-    assert (idx2["layer"] == idx["layer"]).all()
+    assert (idx3["layer"] == idx["layer"]).all()
 
     # full output
     idxfull = nlmod.layers.get_modellayers_indexer(ds, df, full_output=True)
-    assert (idxfull["modellayer_top"] == np.array([np.inf, 1, 4, 0])).all()
-    assert (idxfull["modellayer_bot"] == np.array([np.inf, 2, 4, 4])).all()
+    assert (idxfull["modellayer_top"] == np.array([1, 4, 0])).all()
+    assert (idxfull["modellayer_bot"] == np.array([2, 4, 4])).all()

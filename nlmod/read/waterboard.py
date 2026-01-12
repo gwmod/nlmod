@@ -72,7 +72,14 @@ def get_configuration():
         },
         "weirs": {
             "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Legger/MapServer",
-            "layer": 7,
+            "layer": 7,  # Stuw (7)
+            "index": "CODE",
+            "summer_stage": "HOOGSTEDOORSTROOMHOOGTE",
+            "winter_stage": "LAAGSTEDOORSTROOMHOOGTE",
+        },
+        "culverts": {
+            "url": "https://gisservices.aaenmaas.nl/arcgis/rest/services/EXTERN/Legger/MapServer",
+            "layer": 4,  # Duiker / Sifon (4)
             "index": "CODE",
             "summer_stage": "HOOGSTEDOORSTROOMHOOGTE",
             "winter_stage": "LAAGSTEDOORSTROOMHOOGTE",
@@ -121,6 +128,14 @@ def get_configuration():
             # "layer": 14,  # categorie B
             # "layer": 15,  # categorie C
         },
+        "weirs": {
+            "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Vastgestelde_Legger_Oppervlaktewaterlichamen/FeatureServer",
+            "layer": 4,  # Stuw (4)
+        },
+        "culverts": {
+            "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Vastgestelde_Legger_Oppervlaktewaterlichamen/FeatureServer",
+            "layer": 8,  # Duiker (8)
+        },
         "level_areas": {
             "url": "https://geoservices.brabantsedelta.nl/arcgis/rest/services/EXTERN/WEB_Peilbesluiten/MapServer",
             "layer": 0,  # Peilgebied vigerend
@@ -148,9 +163,23 @@ def get_configuration():
             # "layer": 2,  # LOW_2021_Profielpunt
             # "layer": 13,  # LOW_2021_Profiellijn
             # "index": "WS_PROFIELID",
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/A_watergang_Beheerregister/FeatureServer",
-            "layer": 0,  # A_watergang_Beheerregister (0)
-            "index": "LOKAALID",
+            # "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/A_watergang_Beheerregister/FeatureServer",
+            # "layer": 0,  # A_watergang_Beheerregister (0)
+            # "index": "LOKAALID",
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_A_water_V/FeatureServer",
+            "index": "Nieuw_Dommel_ID",
+        },
+        "culverts": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Duiker_V/FeatureServer"
+        },
+        "weirs": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Stuw_V/FeatureServer"
+        },
+        "profile_lines": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profiellijn_V/FeatureServer"
+        },
+        "profile_points": {
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profielpunt_V/FeatureServer",
         },
     }
 
@@ -232,8 +261,8 @@ def get_configuration():
     config["Hollands Noorderkwartier"] = {
         "bgt_code": "W0651",
         "watercourses": {
-            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2023_oppervlaktewateren_vg/MapServer/",
-            "bottom_height": "WS_BODEMHOOGTE",
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2025_oppervlaktewateren_vg/mapserver",
+            "bottom_height": "BODEMHOOGTE",
         },
         "level_areas": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/ws/WS_Peilgebieden/MapServer/",
@@ -257,6 +286,10 @@ def get_configuration():
         },
         "level_deviations": {
             "url": "https://kaarten.hhnk.nl/arcgis/rest/services/NHFLO/Peilafwijking_gebied/MapServer"
+        },
+        "weirs": {
+            "url": "https://kaarten.hhnk.nl/arcgis/rest/services/od_legger/od_legger_wateren_2025_kunstwerken_vg/MapServer",
+            "layer": 25,
         },
         # NOTE: this intermediate certificate is needed to access HHNK MapServer
         # on 2025-06-16. This intermediate certificate is automatically downloaded
@@ -328,20 +361,31 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Legger/Legger_Watergangen_2012/MapServer",
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Watergangen/Watergangen/MapServer",
-            "layer": 1,  # primair
-            # "layer": 2,  # secundair
+            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
+            # "layer": 0,  # Primair
+            # "layer": 1,  # Secundair
+            # "layer": 2,  # Tertiair
+            "url": "https://services2.arcgis.com/ppcrd5oBNPEvV1T3/ArcGIS/rest/services/Normatieve_afmetingen/FeatureServer",
+            "layer": 1,  # Normatieve afmetingen
             "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
             "bottom_width": "AVVBODDR",
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebieden/MapServer",
-            "layer": 6,
-            "index": "GPGIDENT",
-            "summer_stage": "OPVAFWZP",
-            "winter_stage": "OPVAFWWP",
+            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebied/MapServer/",
+            "layer": 3,
+            "index": "WS_CODE",
+            "summer_stage": [
+                "WS_OPERATIONEELZOMERPEIL",
+                "WS_ZOMERSTREEFPEIL",
+                ["WS_OPERABOVENGRENSZOMERPEIL", "WS_OPERAONDERGRENSZOMERPEIL"],
+                ["WS_BOVENGRENSZOMERPEIL", "WS_ONDERGRENSZOMERPEIL"],
+            ],
+            "winter_stage": [
+                "WS_OPERATIONEELWINTERPEIL",
+                "WS_WINTERSTREEFPEIL",
+                ["WS_OPERABOVENGRENSWINTERPEIL", "WS_OPERAONDERGRENSWINTERPEIL"],
+            ],
         },
     }
 
@@ -403,14 +447,22 @@ def get_configuration():
     config["Rivierenland"] = {
         "bgt_code": "W0621",
         "watercourses": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/WatersysteemLeggerVastgesteld/MapServer",
-            # "layer": 13,  # profiellijn
-            "layer": 14,  # waterloop
-            # "index": "code",
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Watersysteem/Legger_en_Werkingsgebieden_Wateren_Vastgesteld/MapServer",
+            "layer": 14,  # Waterloop
+            # "layer": 70,  # Profiellijnen
+        },
+        "weirs": {
+            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
+            "layer": 8,  # Stuw beheer (9)
+        },
+        "culverts": {
+            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
+            "layer": 5,  # Duiker sifon hevel beheer (5)
         },
         "level_areas": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
+            # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
             # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_vigerend/FeatureServer",
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Waterkwantiteit/Peilgebieden_vigerend/MapServer",
             "summer_stage": [
                 "ZOMERPEIL",
                 "MIN_PEIL",
@@ -436,12 +488,12 @@ def get_configuration():
             "bottom_width": "OAFBODBR",
         },
         "level_areas": {
-            "url": "http://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",
+            "url": "https://geo.scheldestromen.nl/arcgis/rest/services/Extern/EXT_WB_Waterbeheer/FeatureServer",
             "layer": 14,  # Peilgebieden (praktijk)
             "index": "GPGIDENT",
             # "layer": 15,  # Peilgebieden (juridisch)
             # "index": "GJPIDENT",
-            "f": "json",  # geojson does not return GPGZP and GPGWP
+            # "f": "json",  # geojson does not return GPGZP and GPGWP
             "summer_stage": "GPGZP",
             "winter_stage": "GPGWP",
             "nan_values": [-99, 99],
@@ -451,10 +503,20 @@ def get_configuration():
     config["Schieland en de Krimpenerwaard"] = {
         "bgt_code": "W0656",
         "watercourses": {
-            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vastgestelde_legger_Watersystemen_2023/FeatureServer",
-            "layer": 15,  # Oppervlaktewaterlichaam (15)
+            # "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vastgestelde_legger_Watersystemen_2023/FeatureServer",
+            # "layer": 15,  # Oppervlaktewaterlichaam (15)
+            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vigerende_Legger_Watersystemen/FeatureServer",
+            "layer": 7,  # Oppervlaktewaterlichaam
             "water_depth": "DIEPTE",
             "bottom_width": "BODEMBREEDTE",
+        },
+        "weirs": {
+            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Vigerende_Legger_Watersystemen/FeatureServer",
+            "layer": 2,  # Stuw
+        },
+        "culverts": {
+            "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/arcgis/rest/services/Beheerregister_kunstwerken/FeatureServer",
+            "layer": 10,  # Duiker
         },
         "level_areas": {
             # "url": "https://services.arcgis.com/OnnVX2wGkBfflKqu/ArcGIS/rest/services/Peilbesluiten/FeatureServer",
@@ -469,7 +531,7 @@ def get_configuration():
         },
     }
 
-    config["Vallei & Veluwe"] = {
+    config["Vallei en Veluwe"] = {
         "bgt_code": "W0662",
         "watercourses": {
             "url": "https://services1.arcgis.com/ug8NBKcLHVNmdmdt/ArcGIS/rest/services/Legger_Watersysteem/FeatureServer",
@@ -484,6 +546,8 @@ def get_configuration():
             "nan_values": 999,
         },
     }
+    # "Vallei & Veluwe" is renamed to "Vallei en Veluwe". For backwards compatibility:
+    config["Vallei & Veluwe"] = config["Vallei en Veluwe"]
 
     config["Vechtstromen"] = {
         "bgt_code": "W0663",

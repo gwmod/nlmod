@@ -93,6 +93,8 @@ MV	Maaiveld	255	255	200	255	x
 NA	Formatie van Naaldwijk	105	200	100	255	x
 NASC	"Formatie van Naaldwijk, Laagpakket van Schoorl"	255	255	160	255	x
 NAWA	"Formatie van Naaldwijk, Laagpakket van Walcheren"	152	220	117	255	x
+NAWAAL	"Formatie van Naaldwijk, Laagpakket van Walcheren, Almere Laag"	96	73	122	255	x
+NAWAZU	"Formatie van Naaldwijk, Laagpakket van Walcheren, Zuiderzee Laag"	177	160	199	255	x
 NAWO	"Formatie van Naaldwijk, Laagpakket van Wormer"	63	165	76	255	x
 NAWOBE	"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Bergen"	0	157	155	255	x
 NAWOVE	"Formatie van Naaldwijk, Laagpakket van Wormer, Laag van Velsen"	189	183	107	255	x
@@ -100,6 +102,7 @@ NAZA	"Formatie van Naaldwijk, Laagpakket van Zandvoort (boven NIHO)"	254	183	56	
 NAZA2	"Formatie van Naaldwijk, Laagpakket van Zandvoort (onder NIHO)"	254	183	56	255	x
 NI	Formatie van Nieuwkoop	208	130	40	255	x
 NIBA	"Formatie van Nieuwkoop, Basisveen Laag"	152	47	10	255	x
+NIFL	"Formatie van Nieuwkoop, Flevomeer Laag"	252	213	180	255	x
 NIGR	"Formatie van Nieuwkoop, Laagpakket van Griendtsveen"	132	88	44	255	x
 NIHO	"Formatie van Nieuwkoop, Hollandveen Laagpakket"	208	130	40	255	x
 NINB	"Formatie van Nieuwkoop, Laagpakket van Nij Beets"	180	90	20	255	x

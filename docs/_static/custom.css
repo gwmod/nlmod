@@ -1,0 +1,13 @@
+/* --- Make pandas DataFrames scrollable --- */
+.dataframe {
+    max-width: 100%;      /* Prevent table from exceeding container width */
+    display: block;       /* Enables scrolling */
+    overflow-x: auto;     /* Horizontal scroll for wide tables */
+}
+
+/* make text smaller so more fits */
+.dataframe td, 
+.dataframe th {
+    font-size: 0.7em;
+    padding: 0.3em 0.5em;
+}

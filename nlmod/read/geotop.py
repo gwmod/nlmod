@@ -282,7 +282,7 @@ def get_geotop(*args, **kwargs):
 
 
 @cache.cache_netcdf()
-def download_geotop(extent, url=GEOTOP_URL, probabilities=False):
+def download_geotop(extent, url=GEOTOP_URL, probabilities=False, chunks="auto"):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok data
     variables.
@@ -296,13 +296,23 @@ def download_geotop(extent, url=GEOTOP_URL, probabilities=False):
         http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
     probabilities : bool, optional
         if True, also download probability data. The default is False.
+    chunks : int, dict, 'auto' or None. The default is 'auto'.
+        If provided, used to load the data into dask arrays.
+        - ``chunks="auto"`` will use dask ``auto`` chunking.
+        - ``chunks=None`` skips using dask. This uses xarray's internally private lazy
+          indexing classes, but data is eagerly loaded into memory as numpy arrays when
+          accessed. This can be more efficient for smaller arrays or when large arrays
+          are sliced before computation.
+
+        See dask chunking for more details.
+
 
     Returns
     -------
     gt : xarray Dataset
         slices geotop netcdf.
     """
-    gt = xr.open_dataset(url, chunks="auto")
+    gt = xr.open_dataset(url, chunks=chunks)
 
     # only download requisite data
     data_vars = ["strat", "lithok"]

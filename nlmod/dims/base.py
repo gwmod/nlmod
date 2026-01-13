@@ -15,7 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 def set_ds_attrs(
-    ds, model_name, model_ws, mfversion="mf6", exe_name=None, version_tag=None
+    ds,
+    model_name,
+    model_ws,
+    mfversion="mf6",
+    exe_name=None,
+    version_tag=None,
+    download_exe=True,
 ):
     """Set the attribute of a model dataset.
 
@@ -38,6 +44,9 @@ def set_ds_attrs(
         the most recent installation location of MODFLOW is found in flopy metadata
         that respects `version_tag`. If not found, the executables are downloaded.
         Not compatible with exe_name.
+    download_exe : bool, optional
+        If True, download the executable if it is not found locally. The default is
+        True.
 
     Returns
     -------
@@ -52,9 +61,17 @@ def set_ds_attrs(
     ds.attrs["created_on"] = dt.datetime.now().strftime(fmt)
 
     if exe_name is None:
-        exe_name = util.get_exe_path(exe_name=mfversion, version_tag=version_tag)
+        exe_name = util.get_exe_path(
+            exe_name=mfversion,
+            version_tag=version_tag,
+            download_if_not_found=download_exe,
+        )
     else:
-        exe_name = util.get_exe_path(exe_name=exe_name, version_tag=version_tag)
+        exe_name = util.get_exe_path(
+            exe_name=exe_name,
+            version_tag=version_tag,
+            download_if_not_found=download_exe,
+        )
 
     ds.attrs["exe_name"] = exe_name
 
@@ -87,6 +104,7 @@ def to_model_ds(
     transport=False,
     remove_nan_layers=True,
     version_tag=None,
+    download_exe=True,
 ):
     """Transform an input dataset to a groundwater model dataset.
 
@@ -150,6 +168,9 @@ def to_model_ds(
         the most recent installation location of MODFLOW is found in flopy metadata
         that respects `version_tag`. If not found, the executables are downloaded.
         Not compatible with exe_name.
+    download_exe : bool, optional
+        If True, download the executable if it is not found locally. The default is
+        True.
 
     Returns
     -------
@@ -189,7 +210,12 @@ def to_model_ds(
 
     # add attributes
     ds = set_ds_attrs(
-        ds, model_name, model_ws, mfversion="mf6", version_tag=version_tag
+        ds,
+        model_name,
+        model_ws,
+        mfversion="mf6",
+        version_tag=version_tag,
+        download_exe=download_exe,
     )
     ds.attrs["transport"] = int(transport)
 
@@ -538,6 +564,8 @@ def get_ds(
     extrapolate=True,
     fill_nan=True,
     transport=False,
+    version_tag=None,
+    download_exe=True,
     **kwargs,
 ):
     """Create a model dataset from scratch.
@@ -607,9 +635,17 @@ def get_ds(
     transport : bool, optional
         flag indicating whether dataset includes data for a groundwater
         transport model (GWT). Default is False, no transport.
+    version_tag : str, default None
+        GitHub release ID: for example "18.0" or "latest". If version_tag is provided,
+        the most recent installation location of MODFLOW is found in flopy metadata
+        that respects `version_tag`. If not found, the executables are downloaded if
+        download_exe is True (see below). Not compatible with exe_name.
+    download_exe : bool, optional
+        If True, download the executable if it is not found locally. The default is
+        True.
     **kwargs : dict
-        Kwargs are passed into mbase.to_ds. These can be the model_name
-        or ds.
+        Kwargs are passed into nlmod.to_model_ds(). See nlmod.to_model_ds() for
+        more information.
 
     Returns
     -------
@@ -707,6 +743,8 @@ def get_ds(
         extrapolate=extrapolate,
         fill_nan=fill_nan,
         transport=transport,
+        version_tag=version_tag,
+        download_exe=download_exe,
         **kwargs,
     )
     ds.rio.write_crs(crs, inplace=True)

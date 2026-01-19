@@ -13,7 +13,7 @@ from ..util import MissingValueError
 
 logger = logging.getLogger(__name__)
 
-GEOTOP_URL = "https://dinodata.nl/opendap/GeoTOP/geotop.nc"
+GEOTOP_URL = "https://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
 
 
 def get_lithok_props(rgb_colors=True):
@@ -263,7 +263,7 @@ def get_geotop(*args, **kwargs):
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
     url : str, optional
-        url of geotop netcdf file. The default is
+        url of geotop netcdf file. The default is nlmod.read.geotop.GEOTOP_URL:
         http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
     probabilities : bool, optional
         if True, also download probability data. The default is False.
@@ -282,7 +282,7 @@ def get_geotop(*args, **kwargs):
 
 
 @cache.cache_netcdf()
-def download_geotop(extent, url=GEOTOP_URL, probabilities=False, chunks="auto"):
+def download_geotop(extent, url=None, probabilities=False, chunks="auto"):
     """Get a slice of the geotop netcdf url within the extent, set the x and y
     coordinates to match the cell centers and keep only the strat and lithok data
     variables.
@@ -292,7 +292,7 @@ def download_geotop(extent, url=GEOTOP_URL, probabilities=False, chunks="auto"):
     extent : list, tuple or np.array
         desired model extent (xmin, xmax, ymin, ymax)
     url : str, optional
-        url of geotop netcdf file. The default is
+        url of geotop netcdf file. The default is nlmod.read.geotop.GEOTOP_URL:
         http://www.dinodata.nl/opendap/GeoTOP/geotop.nc
     probabilities : bool, optional
         if True, also download probability data. The default is False.
@@ -312,6 +312,8 @@ def download_geotop(extent, url=GEOTOP_URL, probabilities=False, chunks="auto"):
     gt : xarray Dataset
         slices geotop netcdf.
     """
+    if url is None:
+        url = GEOTOP_URL
     gt = xr.open_dataset(url, chunks=chunks)
 
     # only download requisite data

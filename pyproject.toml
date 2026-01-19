@@ -69,7 +69,7 @@ full = [
     "owslib>=0.24.1",
     "pyshp>=2.1.3",
 ]
-knmi = ["h5netcdf", "nlmod[grib]"]
+knmi = ["h5netcdf", "h5py", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
 test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]

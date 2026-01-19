@@ -212,7 +212,7 @@ def get_bin_directory(
     exe_name : str, optional
         The name of the executable, by default mf6.
     bindir : Path, optional
-        The directory where the executables are stored, by default "mf6".
+        The directory where the executables are stored, by default "None".
     download_if_not_found : bool, optional
         Download the executables if they are not found, by default True.
     repo : str, default "executables"

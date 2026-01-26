@@ -112,8 +112,14 @@ def test_time_out_of_bounds():
     )
 
     # start cf.datetime and time list of str (no general method to convert str to cftime)
-    with pytest.raises(OutOfBoundsDatetime):
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
         nlmod.dims.set_ds_time(ds, start=start_model, time=["1000-01-02", "1000-01-03"])
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(
+                ds, start=start_model, time=["1000-01-02", "1000-01-03"]
+            )
 
     # start cf.datetime and perlen int
     _ = nlmod.dims.set_ds_time(ds, start=start_model, perlen=365)
@@ -122,12 +128,20 @@ def test_time_out_of_bounds():
     _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", time=cftime_ind)
 
     # start str and time int
-    with pytest.raises(OutOfBoundsDatetime):
-        nlmod.dims.set_ds_time(ds, start="1000-01-01", time=1)
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", time=1)
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(ds, start="1000-01-01", time=1)
 
     # start str and time list of int
-    with pytest.raises(OutOfBoundsDatetime):
-        nlmod.dims.set_ds_time(ds, start="1000-01-01", time=[10, 20, 21, 55])
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", time=[10, 20, 21, 55])
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(ds, start="1000-01-01", time=[10, 20, 21, 55])
 
     # start str and time list of timestamp
     _ = nlmod.dims.set_ds_time(
@@ -135,18 +149,36 @@ def test_time_out_of_bounds():
     )
 
     # start str and time list of str (no general method to convert str to cftime)
-    with pytest.raises(OutOfBoundsDatetime):
-        nlmod.dims.set_ds_time(ds, start="1000-01-01", time=["1000-2-1", "1000-3-1"])
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(
+            ds, start="1000-01-01", time=["1000-2-1", "1000-3-1"]
+        )
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(
+                ds, start="1000-01-01", time=["1000-2-1", "1000-3-1"]
+            )
 
     # start str and perlen int
-    with pytest.raises(OutOfBoundsTimedelta):
-        nlmod.dims.set_ds_time(ds, start="1000-01-01", perlen=365000)
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(ds, start="1000-01-01", perlen=365000)
+    else:
+        with pytest.raises(OutOfBoundsTimedelta):
+            nlmod.dims.set_ds_time(ds, start="1000-01-01", perlen=365000)
 
     # start numpy datetime and perlen list of int
-    with pytest.raises(OutOfBoundsDatetime):
-        nlmod.dims.set_ds_time(
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(
             ds, start=np.datetime64("1000-01-01"), perlen=[10, 100, 24]
         )
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(
+                ds, start=np.datetime64("1000-01-01"), perlen=[10, 100, 24]
+            )
 
     # start numpy datetime and time list of timestamps
     _ = nlmod.dims.set_ds_time(
@@ -156,16 +188,28 @@ def test_time_out_of_bounds():
     )
 
     # start numpy datetime and time list of str
-    with pytest.raises(OutOfBoundsDatetime):
-        nlmod.dims.set_ds_time(
+    # gives error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(
             ds, start=np.datetime64("1000-01-01"), time=["1000-2-1", "1000-3-1"]
         )
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(
+                ds, start=np.datetime64("1000-01-01"), time=["1000-2-1", "1000-3-1"]
+            )
 
     # start timestamp and perlen list of int
-    with pytest.raises(OutOfBoundsDatetime):
-        nlmod.dims.set_ds_time(
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(
             ds, start=pd.Timestamp("1000-01-01"), perlen=[10, 100, 24]
         )
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(
+                ds, start=pd.Timestamp("1000-01-01"), perlen=[10, 100, 24]
+            )
 
     # start timestamp and time CFTimeIndex
     _ = nlmod.dims.set_ds_time(ds, start=pd.Timestamp("1000-01-01"), time=cftime_ind)
@@ -174,8 +218,12 @@ def test_time_out_of_bounds():
     _ = nlmod.dims.set_ds_time(ds, start=96500, time=cftime_ind)
 
     # start int and time timestamp
-    with pytest.raises(OutOfBoundsDatetime):
-        nlmod.dims.set_ds_time(ds, start=96500, time=pd.Timestamp("1000-01-01"))
+    # gives OutOfBoundsDatetime-error below pandas version 3.0
+    if pd.__version__ >= "3.0":
+        _ = nlmod.dims.set_ds_time(ds, start=96500, time=pd.Timestamp("1000-01-01"))
+    else:
+        with pytest.raises(OutOfBoundsDatetime):
+            nlmod.dims.set_ds_time(ds, start=96500, time=pd.Timestamp("1000-01-01"))
 
     # start int and time str
     with pytest.raises(TypeError):
@@ -192,3 +240,14 @@ def test_numerical_time_index():
     _ = nlmod.dims.set_ds_time_numeric(
         ds, start=pd.Timestamp("1000-01-01"), time=[10, 20, 30]
     )
+
+
+def test_groupby_bins():
+    da_time = pd.date_range("2017-01-01", "2017-01-05")
+    da = xr.DataArray(range(len(da_time)), dims=("time",), coords={"time": da_time})
+
+    tmod = nlmod.time.ds_time_to_pandas_index(ds)
+    da_g = da.groupby_bins("time", tmod, labels=ds["time"].values).mean()
+    da_g = da_g.rename({"time_bins": "time"})
+
+    assert (da_g.loc[da_time] == da).all()

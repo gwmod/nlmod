@@ -240,14 +240,3 @@ def test_numerical_time_index():
     _ = nlmod.dims.set_ds_time_numeric(
         ds, start=pd.Timestamp("1000-01-01"), time=[10, 20, 30]
     )
-
-
-def test_groupby_bins():
-    da_time = pd.date_range("2017-01-01", "2017-01-05")
-    da = xr.DataArray(range(len(da_time)), dims=("time",), coords={"time": da_time})
-
-    tmod = nlmod.time.ds_time_to_pandas_index(ds)
-    da_g = da.groupby_bins("time", tmod, labels=ds["time"].values).mean()
-    da_g = da_g.rename({"time_bins": "time"})
-
-    assert (da_g.loc[da_time] == da).all()

@@ -71,7 +71,7 @@ full = [
 ]
 knmi = ["h5netcdf", "h5py", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
-test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
+test = ["pytest>=7", "pytest-cov", "lxml"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["ruff"]
 ci = ["nlmod[full,lint,test,nbtest]"]

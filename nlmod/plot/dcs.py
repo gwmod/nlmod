@@ -66,11 +66,11 @@ class DatasetCrossSection:
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
             modelgrid = modelgrid_from_ds(ds, rotated=False)
-            gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
-            r = gi.intersect(line)
+            gi = flopy.utils.GridIntersect(modelgrid)
+            df = gi.intersect(line, geo_dataframe=True)
             s_cell = []
-            for i, ic2d in enumerate(r["cellids"]):
-                intersection = r["ixshapes"][i]
+            for i, ic2d in enumerate(df["cellid"]):
+                intersection = df["geometry"][i]
                 if intersection.length == 0:
                     continue
                 if isinstance(intersection, MultiLineString):

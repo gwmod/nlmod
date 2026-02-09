@@ -2151,7 +2151,7 @@ def get_modellayers_screens(ds, screen_top, screen_bottom, xy=None, icell2d=None
     """
     if grid.is_vertex(ds):
         if icell2d is None:
-            gi = flopy.utils.GridIntersect(grid.modelgrid_from_ds(ds), method="vertex")
+            gi = flopy.utils.GridIntersect(grid.modelgrid_from_ds(ds))
             icell2d = [grid.get_icell2d_from_xy(x, y, ds, gi=gi) for x, y in xy]
         # make dataset of observations
         ds_obs = ds.sel(icell2d=icell2d)

@@ -1227,8 +1227,8 @@ def get_seaonal_timeseries(
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot, aux=None):
-    gi = flopy.utils.GridIntersect(gwf.modelgrid, method="vertex")
-    cellids = gi.intersect(xylist, shapetype="linestring")["cellids"]
+    gi = flopy.utils.GridIntersect(gwf.modelgrid)
+    cellids = gi.intersect(xylist, shapetype="linestring", geo_dataframe=True)["cellids"]
     riv_data = []
     for cid in cellids:
         if isinstance(cid, (list, tuple)) and len(cid) == 2:

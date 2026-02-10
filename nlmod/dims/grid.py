@@ -159,7 +159,7 @@ def get_icell2d_from_xy(x, y, ds, gi=None, rotated=True):
         gi = flopy.utils.GridIntersect(
             modelgrid_from_ds(ds, rotated=rotated)
         )
-    cellids = gi.intersects(Point(x, y), dataframe=True)["cellid"]
+    cellids = gi.intersects(Point(x, y))["cellids"]
     if len(cellids) < 1:
         raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
     icell2d = cellids[0]
@@ -227,7 +227,7 @@ def get_row_col_from_xy(x, y, ds, rotated=True, gi=None):
     msg = "get_row_col_from_xy can only be applied to a structured grid"
     assert ds.gridtype == "structured", msg
     if gi is not None:
-        cellids = gi.intersects(Point(x, y), dataframe=True)[["row", "col"]].values
+        cellids = gi.intersects(Point(x, y))["cellids"]
         if len(cellids) < 1:
             raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
         row, col = cellids[0]
@@ -1907,17 +1907,18 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
 
     for geom in geoms:
         if buffer > 0.0:
-            df = ix.intersects(geom.buffer(buffer), dataframe=True, **kwargs)
+            cids = ix.intersects(geom.buffer(buffer), **kwargs)["cellids"]
         else:
-            df = ix.intersects(geom, dataframe=True, **kwargs)
+            cids = ix.intersects(geom, **kwargs)["cellids"]
 
-        if len(df) == 0:
+        if len(cids) == 0:
             continue
 
         if ds.gridtype == "structured":
-            da.values[df['row'], df['col']] += 1
+            ixs, iys = zip(*cids)
+            da.values[ixs, iys] += 1
         elif ds.gridtype == "vertex":
-            da[df['cellid']] += 1
+            da[cids.astype(int)] += 1
 
     return da
 
@@ -2132,7 +2133,7 @@ def gdf_area_to_da(
         df = ix.intersect(gdf.at[index, geometry], geo_dataframe=True, **kwargs)
         if structured:
             for i in range(df.shape[0]):
-                data[df.iloc[i]["cellid"] + (irow,)] += df["areas"][i]
+                data[df["cellids"][i] + (irow,)] += df["areas"][i]
         else:
             data[list(df["cellids"]), irow] = df["areas"]
 

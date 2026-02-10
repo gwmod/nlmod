@@ -1230,15 +1230,15 @@ def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot, aux=None):
     gi = flopy.utils.GridIntersect(gwf.modelgrid)
     df = gi.intersect(xylist, shapetype="linestring", geo_dataframe=True)
     riv_data = []
-    
-    if 'row' in df.columns: # structured grid
-        for row, col in zip(df['row'], df['col']):
+
+    if "row" in df.columns:  # structured grid
+        for row, col in zip(df["row"], df["col"]):
             idata = [(layer, row, col), stage, cond, rbot]
             if aux is not None:
                 idata.append(aux)
             riv_data.append(idata)
-    else: # unstructured grid
-        for cid in df['cellid']:
+    else:  # unstructured grid
+        for cid in df["cellid"]:
             idata = [(layer, cid), stage, cond, rbot]
             if aux is not None:
                 idata.append(aux)

@@ -156,10 +156,8 @@ def get_icell2d_from_xy(x, y, ds, gi=None, rotated=True):
     msg = "get_icell2d_from_xy can only be applied to a vertex grid"
     assert ds.gridtype == "vertex", msg
     if gi is None:
-        gi = flopy.utils.GridIntersect(
-            modelgrid_from_ds(ds, rotated=rotated)
-        )
-    cellids = gi.intersects(Point(x, y))["cellids"]
+        gi = flopy.utils.GridIntersect(modelgrid_from_ds(ds, rotated=rotated))
+    cellids = gi.intersects(Point(x, y), dataframe=True)["cellid"].values
     if len(cellids) < 1:
         raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
     icell2d = cellids[0]
@@ -227,7 +225,7 @@ def get_row_col_from_xy(x, y, ds, rotated=True, gi=None):
     msg = "get_row_col_from_xy can only be applied to a structured grid"
     assert ds.gridtype == "structured", msg
     if gi is not None:
-        cellids = gi.intersects(Point(x, y))["cellids"]
+        cellids = gi.intersects(Point(x, y), dataframe=True)[["row", "col"]].values
         if len(cellids) < 1:
             raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
         row, col = cellids[0]
@@ -1354,7 +1352,7 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
             area_array[row, col] = area
     elif gridtype == "vertex":
         area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0)
-        area_array[df['cellid']] = df['areas']
+        area_array[df["cellid"]] = df["areas"]
 
     return area_array
 
@@ -1782,14 +1780,13 @@ def gdf_to_bool_da(
             multipolygon,
             contains_centroid=contains_centroid,
             min_area_fraction=min_area_fraction,
-            geo_dataframe=True
-            **kwargs,
+            geo_dataframe=True**kwargs,
         )
     else:
         df = ix.intersects(multipolygon, dataframe=True)
 
     if df.shape[0] > 0 and ds.gridtype == "structured":
-        da.values[df['row'], df['col']] = True
+        da.values[df["row"], df["col"]] = True
     elif df.shape[0] > 0 and ds.gridtype == "vertex":
         da.values[df["cellid"]] = True
 
@@ -1907,18 +1904,17 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
 
     for geom in geoms:
         if buffer > 0.0:
-            cids = ix.intersects(geom.buffer(buffer), **kwargs)["cellids"]
+            df = ix.intersects(geom.buffer(buffer), dataframe=True, **kwargs)
         else:
-            cids = ix.intersects(geom, **kwargs)["cellids"]
+            df = ix.intersects(geom, dataframe=True, **kwargs)
 
-        if len(cids) == 0:
+        if len(df) == 0:
             continue
 
         if ds.gridtype == "structured":
-            ixs, iys = zip(*cids)
-            da.values[ixs, iys] += 1
+            da.values[df["row"].values, df["col"].values] += 1
         elif ds.gridtype == "vertex":
-            da[cids.astype(int)] += 1
+            da[df["cellid"].values] += 1
 
     return da
 
@@ -2132,10 +2128,10 @@ def gdf_area_to_da(
     ):
         df = ix.intersect(gdf.at[index, geometry], geo_dataframe=True, **kwargs)
         if structured:
-            for i in range(df.shape[0]):
-                data[df["cellids"][i] + (irow,)] += df["areas"][i]
+            for row, col, area in zip(df["row"], df["col"], df["areas"]):
+                data[(row, col, irow)] += area
         else:
-            data[list(df["cellids"]), irow] = df["areas"]
+            data[list(df["cellid"]), irow] = df["areas"]
 
     if sparse:
         try:

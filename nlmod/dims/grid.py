@@ -1787,9 +1787,10 @@ def gdf_to_bool_da(
         df = ix.intersects(multipolygon, dataframe=True)
 
     if df.shape[0] > 0 and ds.gridtype == "structured":
-        da.values[df["row"], df["col"]] = True
+        for _, row in df.iterrows():
+            da[row["row"], row["col"]] = True
     elif df.shape[0] > 0 and ds.gridtype == "vertex":
-        da.values[df["cellid"]] = True
+        da[df["cellid"].values] = True
 
     return da
 
@@ -2016,16 +2017,15 @@ def gdf_to_grid(
     geometry = gdf.geometry.name
     for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc, disable=silent):
         df = ix.intersect(shp[geometry], geo_dataframe=True, **kwargs)
-        for i in range(df.shape[0]):
+        for _, row in df.iterrows():
             shpn = shp.copy()
-            shpn["cellid"] = df["cellids"][i]
-            shpn[geometry] = df["geometry"][i]
+            shpn["cellid"] = row["cellids"]
+            shpn[geometry] = row["geometry"]
             if shp[geometry].geom_type == ["LineString", "MultiLineString"]:
-                shpn["length"] = df["lengths"][i]
+                shpn["length"] = row["lengths"]
             elif shp[geometry].geom_type in ["Polygon", "MultiPolygon"]:
-                shpn["area"] = df["areas"][i]
+                shpn["area"] = row["areas"]
             shps.append(shpn)
-
     if len(shps) == 0:
         # Unable to determine the column names, because no geometries intersect with the grid
         logger.info("No geometries intersect with the grid")

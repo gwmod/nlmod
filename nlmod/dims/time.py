@@ -394,7 +394,7 @@ def set_ds_time_numeric(
 
 
 def set_time_variables(ds, start, time, steady, steady_start, time_units, nstp, tsmult):
-    """Add data variables: steady, nstp and tsmult, set attributes: start, time_units
+    """Add data variables: steady, nstp and tsmult, set attributes: start, time_units.
 
     Parameters
     ----------

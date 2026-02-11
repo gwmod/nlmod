@@ -1347,12 +1347,12 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
     df = ix.intersect(polygon, geo_dataframe=True)
 
     if gridtype == "structured":
-        area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0)
+        area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0.0)
         for row, col, area in zip(df["row"], df["col"], df["areas"]):
             area_array[row, col] = area
     elif gridtype == "vertex":
-        area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0)
-        area_array[df["cellid"]] = df["areas"]
+        area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0.0)
+        area_array[df["cellid"].values] = df["areas"]
 
     return area_array
 
@@ -2443,6 +2443,22 @@ def get_extent_polygon(ds, rotated=True):
 
 
 def get_extent_gdf(ds, rotated=True, crs="EPSG:28992"):
+    """Get the model extent as a GeoDataFrame with a polygon.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset.
+    rotated : bool, optional
+        if True, the extent is corrected for angrot. The default is True.
+    crs : str, optional
+        Coordinate reference system. The default is "EPSG:28992".
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        GeoDataFrame containing the model extent as a polygon geometry.
+    """
     polygon = get_extent_polygon(ds, rotated=rotated)
     return gpd.GeoDataFrame(geometry=[polygon], crs=crs)
 

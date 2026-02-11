@@ -1780,7 +1780,8 @@ def gdf_to_bool_da(
             multipolygon,
             contains_centroid=contains_centroid,
             min_area_fraction=min_area_fraction,
-            geo_dataframe=True**kwargs,
+            geo_dataframe=True,
+            **kwargs,
         )
     else:
         df = ix.intersects(multipolygon, dataframe=True)

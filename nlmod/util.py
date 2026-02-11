@@ -900,7 +900,7 @@ def get_color_logger(level="INFO", logger_name=None):
         FORMAT = "{color}{levelname}:{name}.{funcName}:{lineno}:{message}{reset}"
     else:
         FORMAT = "{color}{levelname}:{name}.{funcName}:{message}{reset}"
-    
+
     colors = {
         "DEBUG": "\x1b[36m",
         "INFO": "\x1b[32m",

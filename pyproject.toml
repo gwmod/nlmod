@@ -63,7 +63,6 @@ full = [
     "scikit-image",
     "py7zr",
     "joblib",
-    "colorama",
     "tqdm",
     "hydropandas>=0.9.2",
     "owslib>=0.24.1",

@@ -878,13 +878,7 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record) -> str:
         """Format the specified record as text."""
         record.color = self.colors.get(record.levelname, "")
-        try:
-            from colorama import Style
-
-            record.reset = Style.RESET_ALL
-
-        except ImportError:
-            record.reset = ""
+        record.reset = "\x1b[0m"
 
         return super().format(record)
 
@@ -907,19 +901,13 @@ def get_color_logger(level="INFO", logger_name=None):
     else:
         FORMAT = "{color}{levelname}:{name}.{funcName}:{message}{reset}"
 
-    try:
-        from colorama import Back, Fore, Style
-
-        colors = {
-            "DEBUG": Fore.CYAN,
-            "INFO": Fore.GREEN,
-            "WARNING": Fore.YELLOW,
-            "ERROR": Fore.RED,
-            "CRITICAL": Fore.RED + Back.WHITE + Style.BRIGHT,
-        }
-    except ImportError:
-        logger.warning("colorama package not found, colored logging is disabled.")
-        colors = {}
+    colors = {
+        "DEBUG": "\x1b[36m",
+        "INFO": "\x1b[32m",
+        "WARNING": "\x1b[33m",
+        "ERROR": "\x1b[31m",
+        "CRITICAL": "\x1b[31m" + "\x1b[47m" + "\x1b[1m",
+    }
 
     formatter = ColoredFormatter(
         FORMAT,

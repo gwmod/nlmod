@@ -162,7 +162,7 @@ def _get_heads_da(
         flopy HeadFile object for binary heads
     modelgrid : flopy.discretization.Grid, optional
         flopy modelgrid object, default is None, in which case the modelgrid
-        is derived from `hobj.mg`
+        is derived from `hobj.modelgrid`
 
     Returns
     -------
@@ -175,7 +175,7 @@ def _get_heads_da(
         kstpkper = hobj.get_kstpkper()
 
     if modelgrid is None:
-        modelgrid = hobj.mg
+        modelgrid = hobj.modelgrid
     # shape is derived from hobj, not modelgrid as array read from
     # binary file always has 3 dimensions
     shape = (hobj.nlay, hobj.nrow, hobj.ncol)

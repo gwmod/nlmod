@@ -156,10 +156,8 @@ def get_icell2d_from_xy(x, y, ds, gi=None, rotated=True):
     msg = "get_icell2d_from_xy can only be applied to a vertex grid"
     assert ds.gridtype == "vertex", msg
     if gi is None:
-        gi = flopy.utils.GridIntersect(
-            modelgrid_from_ds(ds, rotated=rotated), method="vertex"
-        )
-    cellids = gi.intersects(Point(x, y))["cellids"]
+        gi = flopy.utils.GridIntersect(modelgrid_from_ds(ds, rotated=rotated))
+    cellids = gi.intersects(Point(x, y), dataframe=True)["cellid"].values
     if len(cellids) < 1:
         raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
     icell2d = cellids[0]
@@ -227,7 +225,7 @@ def get_row_col_from_xy(x, y, ds, rotated=True, gi=None):
     msg = "get_row_col_from_xy can only be applied to a structured grid"
     assert ds.gridtype == "structured", msg
     if gi is not None:
-        cellids = gi.intersects(Point(x, y))["cellids"]
+        cellids = gi.intersects(Point(x, y), dataframe=True)[["row", "col"]].values
         if len(cellids) < 1:
             raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
         row, col = cellids[0]
@@ -622,7 +620,7 @@ def get_cellids_from_xy(x, y, ds=None, modelgrid=None, gi=None):
 
     # build geometries and cellids for grid
     if gi is None:
-        gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
+        gi = flopy.utils.GridIntersect(modelgrid)
 
     # spatial join points with grid and add resulting cellid to obs_ds
     spatial_join = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x, y)).sjoin(
@@ -1345,18 +1343,16 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
             f'input geometry should by of type "Polygon" not {polygon.geom_type}'
         )
 
-    ix = GridIntersect(modelgrid, method="vertex")
-    opp_cells = ix.intersect(polygon)
+    ix = GridIntersect(modelgrid)
+    df = ix.intersect(polygon, geo_dataframe=True)
 
     if gridtype == "structured":
-        area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0)
-        for cellid, area in zip(opp_cells["cellids"], opp_cells["areas"]):
-            area_array[cellid[0], cellid[1]] = area
+        area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0.0)
+        for row, col, area in zip(df["row"], df["col"], df["areas"]):
+            area_array[row, col] = area
     elif gridtype == "vertex":
-        area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0)
-        cids = opp_cells.cellids
-        area = opp_cells.areas
-        area_array[cids.astype(int)] = area
+        area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0.0)
+        area_array[df["cellid"].values] = df["areas"]
 
     return area_array
 
@@ -1770,7 +1766,7 @@ def gdf_to_bool_da(
     # Rotate the polygon instead of the modelgrid
     if ix is None:
         modelgrid = modelgrid_from_ds(ds, rotated=False)
-        ix = GridIntersect(modelgrid, method="vertex")
+        ix = GridIntersect(modelgrid)
 
     grid_rotation = ds.attrs.get("angrot", 0.0)
     ix_rotation = ix.mfgrid.angrot
@@ -1780,20 +1776,21 @@ def gdf_to_bool_da(
         multipolygon = affine_transform(multipolygon, affine)
 
     if kwargs or contains_centroid or min_area_fraction is not None:
-        r = ix.intersect(
+        df = ix.intersect(
             multipolygon,
             contains_centroid=contains_centroid,
             min_area_fraction=min_area_fraction,
+            geo_dataframe=True,
             **kwargs,
         )
     else:
-        r = ix.intersects(multipolygon)
+        df = ix.intersects(multipolygon, dataframe=True)
 
-    if r.size > 0 and ds.gridtype == "structured":
-        ixs, iys = zip(*r["cellids"], strict=True)
-        da.values[ixs, iys] = True
-    elif r.size > 0 and ds.gridtype == "vertex":
-        da[r["cellids"].astype(int)] = True
+    if df.shape[0] > 0 and ds.gridtype == "structured":
+        for _, row in df.iterrows():
+            da[row["row"], row["col"]] = True
+    elif df.shape[0] > 0 and ds.gridtype == "vertex":
+        da[df["cellid"].values] = True
 
     return da
 
@@ -1893,7 +1890,7 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
     # build list of gridcells
     if ix is None:
         modelgrid = modelgrid_from_ds(ds, rotated=False)
-        ix = GridIntersect(modelgrid, method="vertex")
+        ix = GridIntersect(modelgrid)
 
     if ds.gridtype == "structured":
         da = util.get_da_from_da_ds(ds, dims=("y", "x"), data=0)
@@ -1909,18 +1906,17 @@ def gdf_to_count_da(gdf, ds, ix=None, buffer=0.0, **kwargs):
 
     for geom in geoms:
         if buffer > 0.0:
-            cids = ix.intersects(geom.buffer(buffer), **kwargs)["cellids"]
+            df = ix.intersects(geom.buffer(buffer), dataframe=True, **kwargs)
         else:
-            cids = ix.intersects(geom, **kwargs)["cellids"]
+            df = ix.intersects(geom, dataframe=True, **kwargs)
 
-        if len(cids) == 0:
+        if len(df) == 0:
             continue
 
         if ds.gridtype == "structured":
-            ixs, iys = zip(*cids)
-            da.values[ixs, iys] += 1
+            da.values[df["row"].values, df["col"].values] += 1
         elif ds.gridtype == "vertex":
-            da[cids.astype(int)] += 1
+            da[df["cellid"].values] += 1
 
     return da
 
@@ -1962,7 +1958,6 @@ def gdf_to_count_ds(gdf, ds, da_name, keep_coords=None, ix=None, buffer=0.0, **k
 def gdf_to_grid(
     gdf,
     ml=None,
-    method="vertex",
     ix=None,
     desc="Intersecting with grid",
     silent=False,
@@ -1981,8 +1976,6 @@ def gdf_to_grid(
         The flopy model or xarray dataset that defines the grid. When a Dataset is
         supplied, and the grid is rotated, the geodataframe is transformed in model
         coordinates. The default is None.
-    method : string, optional
-        Method passed to the GridIntersect-class. The default is 'vertex'.
     ix : flopy.utils.GridIntersect, optional
         GridIntersect, if not provided the modelgrid in ml is used.
     desc : string, optional
@@ -2019,21 +2012,20 @@ def gdf_to_grid(
                 )
 
     if ix is None:
-        ix = flopy.utils.GridIntersect(modelgrid, method=method)
+        ix = flopy.utils.GridIntersect(modelgrid)
     shps = []
     geometry = gdf.geometry.name
     for _, shp in tqdm(gdf.iterrows(), total=gdf.shape[0], desc=desc, disable=silent):
-        r = ix.intersect(shp[geometry], **kwargs)
-        for i in range(r.shape[0]):
+        df = ix.intersect(shp[geometry], geo_dataframe=True, **kwargs)
+        for _, row in df.iterrows():
             shpn = shp.copy()
-            shpn["cellid"] = r["cellids"][i]
-            shpn[geometry] = r["ixshapes"][i]
+            shpn["cellid"] = row["cellids"]
+            shpn[geometry] = row["geometry"]
             if shp[geometry].geom_type == ["LineString", "MultiLineString"]:
-                shpn["length"] = r["lengths"][i]
+                shpn["length"] = row["lengths"]
             elif shp[geometry].geom_type in ["Polygon", "MultiPolygon"]:
-                shpn["area"] = r["areas"][i]
+                shpn["area"] = row["areas"]
             shps.append(shpn)
-
     if len(shps) == 0:
         # Unable to determine the column names, because no geometries intersect with the grid
         logger.info("No geometries intersect with the grid")
@@ -2115,7 +2107,7 @@ def gdf_area_to_da(
         affine = get_affine_world_to_mod(ds)
         gdf = affine_transform_gdf(gdf, affine)
     if ix is None:
-        ix = flopy.utils.GridIntersect(modelgrid, method="vertex")
+        ix = flopy.utils.GridIntersect(modelgrid)
 
     if index_name is None:
         index_name = gdf.index.name
@@ -2135,12 +2127,12 @@ def gdf_area_to_da(
     for irow, index in tqdm(
         enumerate(gdf.index), total=gdf.shape[0], desc=desc, disable=silent
     ):
-        r = ix.intersect(gdf.at[index, geometry], **kwargs)
+        df = ix.intersect(gdf.at[index, geometry], geo_dataframe=True, **kwargs)
         if structured:
-            for i in range(r.shape[0]):
-                data[r["cellids"][i] + (irow,)] += r["areas"][i]
+            for row, col, area in zip(df["row"], df["col"], df["areas"]):
+                data[(row, col, irow)] += area
         else:
-            data[list(r["cellids"]), irow] = r["areas"]
+            data[list(df["cellid"]), irow] = df["areas"]
 
     if sparse:
         try:
@@ -2451,6 +2443,22 @@ def get_extent_polygon(ds, rotated=True):
 
 
 def get_extent_gdf(ds, rotated=True, crs="EPSG:28992"):
+    """Get the model extent as a GeoDataFrame with a polygon.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        model dataset.
+    rotated : bool, optional
+        if True, the extent is corrected for angrot. The default is True.
+    crs : str, optional
+        Coordinate reference system. The default is "EPSG:28992".
+
+    Returns
+    -------
+    gdf : geopandas.GeoDataFrame
+        GeoDataFrame containing the model extent as a polygon geometry.
+    """
     polygon = get_extent_polygon(ds, rotated=rotated)
     return gpd.GeoDataFrame(geometry=[polygon], crs=crs)
 

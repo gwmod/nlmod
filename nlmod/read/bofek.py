@@ -103,6 +103,7 @@ def download_bofek_gdf(extent, dirname, timeout=3600):
     # download zip
     logger.info("Downloading BOFEK2020 GIS data (~35 seconds)")
     r = requests.get(bofek_zip_url, timeout=timeout, stream=True)
+    r.raise_for_status()
 
     # show download progress
     total_size = int(r.headers.get("content-length", 0))

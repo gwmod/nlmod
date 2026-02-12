@@ -111,7 +111,6 @@ On top of that there are some optional dependecies:
 - scikit-image (used in nlmod.read.rws.calculate_sea_coverage)
 - py7zr (used in nlmod.read.bofek.download_bofek_gdf)
 - joblib (used in nlmod.cache)
-- colorama (used in nlmod.util.get_color_logger)
 - tqdm (used for showing progress in long-running methods)
 - hydropandas (used in nlmod.read.knmi and nlmod.read.bro)
 - owslib (used in nlmod.read.ahn.get_latest_ahn_from_wcs)

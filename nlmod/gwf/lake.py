@@ -405,7 +405,7 @@ def _copy_da_from_ds(gdf, ds, variable, boundname_column=None, set_to_0_in_ds=Fa
         else:
             da_cells = ds[variable].loc[cellids].copy()
             if set_to_0_in_ds:
-                ds[variable][:, cellids] = 0.0
+                ds[variable][cellids] = 0.0
             # calculate thea area-weighted mean
             df[column] = float((da_cells * area).sum("icell2d") / area.sum())
     return df

@@ -66,21 +66,29 @@ class DatasetCrossSection:
         if self.icell2d in ds.dims:
             # determine the cells that are crossed
             modelgrid = modelgrid_from_ds(ds, rotated=False)
-            gi = flopy.utils.GridIntersect(modelgrid, method="vertex")
-            r = gi.intersect(line)
+            gi = flopy.utils.GridIntersect(modelgrid)
+            df = gi.intersect(line, geo_dataframe=True)
             s_cell = []
-            for i, ic2d in enumerate(r["cellids"]):
-                intersection = r["ixshapes"][i]
+            for _, row in df.iterrows():
+                intersection = row["geometry"]
                 if intersection.length == 0:
                     continue
                 if isinstance(intersection, MultiLineString):
                     for ix in intersection.geoms:
-                        s_cell.append([line.project(Point(ix.coords[0])), 1, ic2d])
-                        s_cell.append([line.project(Point(ix.coords[-1])), 0, ic2d])
+                        s_cell.append(
+                            [line.project(Point(ix.coords[0])), 1, row["cellid"]]
+                        )
+                        s_cell.append(
+                            [line.project(Point(ix.coords[-1])), 0, row["cellid"]]
+                        )
                     continue
                 assert isinstance(intersection, LineString)
-                s_cell.append([line.project(Point(intersection.coords[0])), 1, ic2d])
-                s_cell.append([line.project(Point(intersection.coords[-1])), 0, ic2d])
+                s_cell.append(
+                    [line.project(Point(intersection.coords[0])), 1, row["cellid"]]
+                )
+                s_cell.append(
+                    [line.project(Point(intersection.coords[-1])), 0, row["cellid"]]
+                )
             s_cell = np.array(s_cell)
             ind = np.lexsort((s_cell[:, 1], s_cell[:, 0]))
             s_cell = s_cell[ind, :]

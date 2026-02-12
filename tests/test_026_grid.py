@@ -212,7 +212,7 @@ def test_fillnan_da_uniform_vs_nonuniform():
 
     # Create non-uniform grid by adjusting coordinates
     ds_nonuniform = ds.copy()
-    x_coords = ds.x.values
+    x_coords = ds.x.values.copy()
     x_coords[5:] += 10  # Make spacing non-uniform
     ds_nonuniform = ds_nonuniform.assign_coords(x=x_coords)
 

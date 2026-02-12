@@ -5,6 +5,7 @@ import tempfile
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import requests
 import pytest
 
 import nlmod
@@ -32,16 +33,26 @@ def test_gwo():
     password = os.environ["NHI_GWO_PASSWORD"]
 
     # download all wells from Brabant Water
-    wells = nlmod.read.nhi.get_gwo_wells(
-        username=username, password=password, organisation="Brabant Water"
-    )
-    assert isinstance(wells, gpd.GeoDataFrame)
+    try:
+        wells = nlmod.read.nhi.get_gwo_wells(
+            username=username, password=password, organisation="Brabant Water"
+        )
+        assert isinstance(wells, gpd.GeoDataFrame)
 
-    # download extractions from well "13-PP016" of pomping station Veghel
-    measurements, gdf = nlmod.read.nhi.get_gwo_measurements(
-        username, password, well_site="veghel", filter__well__name="13-PP016"
-    )
-    assert measurements.reset_index()["Name"].isin(gdf.index).all()
+        # download extractions from well "13-PP016" of pomping station Veghel
+        measurements, gdf = nlmod.read.nhi.get_gwo_measurements(
+            username, password, well_site="veghel", filter__well__name="13-PP016"
+        )
+        assert measurements.reset_index()["Name"].isin(gdf.index).all()
+    except Exception as e:
+        allow_network_fail(e)
+
+
+def allow_network_fail(e):
+    allowed = (requests.exceptions.HTTPError,)
+    if isinstance(e, allowed):
+        pytest.skip(f"Network unavailable: {e}")
+    raise
 
 
 @pytest.mark.skip("too slow")

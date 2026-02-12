@@ -20,7 +20,7 @@ maintainers = [
 ]
 requires-python = ">= 3.10"
 dependencies = [
-    "flopy>=3.3.6",
+    "flopy>=3.10.0",
     "xarray>=0.16.1",
     "netcdf4>=1.7.2",
     "rasterio>=1.1.0",
@@ -63,7 +63,6 @@ full = [
     "scikit-image",
     "py7zr",
     "joblib",
-    "colorama",
     "tqdm",
     "hydropandas>=0.9.2",
     "owslib>=0.24.1",
@@ -71,7 +70,7 @@ full = [
 ]
 knmi = ["h5netcdf", "h5py", "nlmod[grib]"]
 grib = ["cfgrib", "ecmwflibs"]
-test = ["pytest>=7", "pytest-cov", "pytest-dependency"]
+test = ["pytest>=7", "pytest-cov", "lxml"]
 nbtest = ["nbformat", "nbconvert>6.4.5"]
 lint = ["ruff"]
 ci = ["nlmod[full,lint,test,nbtest]"]

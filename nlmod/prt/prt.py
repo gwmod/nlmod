@@ -144,6 +144,8 @@ def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
     """
     logger.info("creating mf6 PRP")
     prp_track_file = kwargs.pop("prp_track_file", f"{ds.model_name}.prp.trk")
+    # the default value in flopy for coordinate_check_method of 'eager' gives an error
+    # in MODFLOW verion 6.6.3
     prp = fp.mf6.ModflowPrtprp(
         prt,
         pname=pname,
@@ -156,6 +158,7 @@ def prp(ds, prt, packagedata, perioddata, pname="prp", **kwargs):
         boundnames=kwargs.pop("boundnames", False),
         exit_solve_tolerance=kwargs.pop("exit_solve_tolerance", 1e-5),
         extend_tracking=kwargs.pop("extend_tracking", True),
+        coordinate_check_method=kwargs.pop("coordinate_check_method", None),
         **kwargs,
     )
     return prp

@@ -96,8 +96,9 @@ def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
 
 @cache.cache_netcdf(coords_3d=True)
 def discretize_surface_water(ds, gdf, da_basename="rws_oppwater"):
-    """Create 3 data-arrays from the shapefile with surface water:
+    """Create 3 data-arrays from the shapefile with surface water.
 
+    These data arrays are:
     - area: area of the shape in the cell
     - cond: conductance based on the area and "bweerstand" column in shapefile
     - stage: surface water level based on the "peil" column in the shapefile
@@ -150,8 +151,9 @@ def discretize_surface_water(ds, gdf, da_basename="rws_oppwater"):
 
 @cache.cache_netcdf(coords_2d=True)
 def get_northsea(ds, gdf=None, da_name="northsea"):
-    """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is defined by
-    rws surface water shapefile.
+    """Get Dataset which is 1 at the northsea and 0 everywhere else.
+
+    Sea is defined by rws surface water shapefile.
 
     .. deprecated:: 0.10.0
         `get_northsea` will be removed in nlmod 1.0.0, it is replaced by
@@ -174,7 +176,6 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
         Dataset with a single DataArray, this DataArray is 1 at sea and 0
         everywhere else. Grid dimensions according to ds.
     """
-
     warnings.warn(
         "'get_northsea' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.rws.discretize_northsea' to project the northsea on the model grid",
@@ -186,8 +187,9 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
 
 @cache.cache_netcdf(coords_2d=True)
 def discretize_northsea(ds, gdf=None, da_name="northsea"):
-    """Get Dataset which is 1 at the northsea and 0 everywhere else. Sea is defined by
-    rws surface water shapefile.
+    """Get Dataset which is 1 at the northsea and 0 everywhere else.
+
+    Sea is defined by rws surface water shapefile.
 
     Parameters
     ----------
@@ -249,7 +251,7 @@ def calculate_sea_coverage(
         filled by the minial value of dtm.
     ds : xr.Dataset, optional
         Dataset with model information. When ds is not None, the sea DataArray is
-        transformed to the model grid. THe default is None.
+        transformed to the model grid. The default is None.
     zmax : float, optional
         Locations thet become sea when the sea level reaches a level of zmax will get a
         value of 1 in the resulting DataArray. The default is 0.0.

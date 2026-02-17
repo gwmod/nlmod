@@ -195,14 +195,14 @@ def test_download_ahn6():
     assert not da.isnull().all(), "AHN only has nan values"
 
 
-# def test_get_ahn():
-#     # model with sea
-#     ds = test_001_model.get_ds_from_cache("basic_sea_model")
+def test_get_ahn():
+    # model with sea
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
 
-#     # add ahn data to the model dataset
-#     ahn_ds = nlmod.read.ahn.get_ahn(ds)
+    # add ahn data to the model dataset
+    ahn_ds = nlmod.read.ahn.get_ahn(ds)
 
-#     assert not ahn_ds["ahn"].isnull().all(), "AHN only has nan values"
+    assert not ahn_ds["ahn"].isnull().all(), "AHN only has nan values"
 
 
 def test_get_ahn_at_point():

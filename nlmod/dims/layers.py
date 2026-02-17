@@ -273,9 +273,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(
-                np.sum(split_dict[lay0]), 1
-            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            assert np.isclose(np.sum(split_dict[lay0]), 1), (
+                f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            )
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -921,6 +921,26 @@ def set_layer_thickness(ds, layer, thickness, change="botm", copy=True):
     new_botm = top - thickness
     ds = set_layer_botm(ds, layer, new_botm)
     return ds
+
+
+def get_zcellcenters(ds):
+    """Calculate the z-coordinates of cell centers. Equivalent of modelgrid.zcellcenters in flopy.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing information about layers, including top and botm
+
+    Returns
+    -------
+    zcellcenters : xarray.DataArray
+        data array containing the z-coordinates of cell centers
+    """
+    if "layer" in ds["top"].dims:
+        top = ds["top"]
+    else:
+        top = ds["botm"] + calculate_thickness(ds)
+    return (top + ds["botm"]) / 2
 
 
 def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm", copy=True):

@@ -100,12 +100,44 @@ def test_add_recharge_as_float():
     gwf = nlmod.gwf.gwf(ds, sim)
     _ = nlmod.sim.ims(sim)
     _ = nlmod.gwf.dis(ds, gwf)
+
+    # test with recharge as time series
+    ds["recharge"] = xr.full_like(ds["time"], 0.7e-3, dtype=float)
+    _ = nlmod.gwf.rch(ds, gwf)
+
+    # test with single recharge value
+    gwf.remove_package("rch")
     _ = nlmod.gwf.rch(ds, gwf, recharge=0.1)
 
     spd = gwf.rch.stress_period_data.data
     assert len(spd) == 1
     assert len(spd[0]) == 10000
     assert (spd[0]["recharge"] == 0.1).all()
+
+
+def test_add_recharge_as_ts():
+    ds = nlmod.get_ds(
+        [100000, 110000, 420000, 430000],
+        model_ws=os.path.join("models", "test_add_recharge_as_float"),
+        model_name="test",
+    )
+    time = pd.date_range("2024", "2025")
+    ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
+
+    sim = nlmod.sim.sim(ds)
+    _ = nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    _ = nlmod.sim.ims(sim)
+    _ = nlmod.gwf.dis(ds, gwf)
+
+    # test with recharge as time series
+    ds["recharge"] = xr.full_like(ds["time"], 0.7e-3, dtype=float)
+    _ = nlmod.gwf.rch(ds, gwf)
+
+    spd = gwf.rch.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000
+    assert spd[0]["recharge"].dtype == object
 
 
 def test_ahn_within_extent():

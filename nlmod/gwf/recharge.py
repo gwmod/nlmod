@@ -660,7 +660,7 @@ def _get_meteo_da_from_input(recharge, ds, pname, stn_var):
         mask_recharge = fal != fal.attrs["nodata"]
         use_ts = False
     else:
-        raise NotImplementedError("Type {type(recharge)} not supported for recharge")
+        raise NotImplementedError(f"Type {type(recharge)} not supported for recharge")
 
     return recharge, mask_recharge, rch_unique_df
 

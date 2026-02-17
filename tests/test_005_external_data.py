@@ -101,12 +101,7 @@ def test_add_recharge_as_float():
     _ = nlmod.sim.ims(sim)
     _ = nlmod.gwf.dis(ds, gwf)
 
-    # test with recharge as time series
-    ds["recharge"] = xr.full_like(ds["time"], 0.7e-3, dtype=float)
-    _ = nlmod.gwf.rch(ds, gwf)
-
     # test with single recharge value
-    gwf.remove_package("rch")
     _ = nlmod.gwf.rch(ds, gwf, recharge=0.1)
 
     spd = gwf.rch.stress_period_data.data

@@ -243,3 +243,23 @@ def download_waterboards_gdf(**kwargs):
         polygons of the Netherlands
     """
     return waterboard.download_polygons(**kwargs)
+
+
+def download_kadaster_percelen(extent):
+    """Download percelen (cadastral parcels) from the Dutch Kadaster.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
+
+    Returns
+    -------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame with polygons of the parcels
+
+    """
+    url = "https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?service=WFS"
+    layer = "kadastralekaartv5:perceel"
+    gdf = webservices.wfs(url, layer, extent)
+    return gdf

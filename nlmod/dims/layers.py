@@ -1982,7 +1982,7 @@ def remove_layer(ds, layer):
     return ds
 
 
-def get_isosurface_1d(da, z, value):
+def get_isosurface_1d(da, z, value, left=np.nan, right=np.nan):
     """Linear interpolation to get the elevation corresponding to value.
 
     This function interpolates linearly along z, if da crosses the given interpolation
@@ -1996,17 +1996,52 @@ def get_isosurface_1d(da, z, value):
         array of elevations
     value : float
         value for which to compute the elevations corresponding to value
+    left : float, optional
+        value to return when value is below the minimum of da. The default is np.nan.
+    right : float, optional
+        value to return when value is above the maximum of da. The default is np.nan.
 
     Returns
     -------
     float
         first elevation at which data crosses value
     """
-    mask = np.invert(np.isnan(da))
-    return np.interp(value, da[mask].squeeze(), z[mask].squeeze())
+    mask_valid = np.isfinite(da)
+    z, da = z[mask_valid], da[mask_valid]
+    f = da - value
+    if len(z) < 2:
+        return np.nan
+
+    # exact first hit
+    idx0 = np.flatnonzero(f == 0)
+    if idx0.size:
+        return z[idx0[0]]
+
+    # first sign change interval
+    s = f[:-1] * f[1:]
+    idx = np.flatnonzero(s < 0)
+    # no crossing
+    if not idx.size:
+        if value < da.min():
+            return left
+        elif value > da.max():
+            return right
+        else:
+            return np.nan
+    i = idx[0]
+    return z[i] + (value - da[i]) * (z[i + 1] - z[i]) / (da[i + 1] - da[i])
 
 
-def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwargs):
+def get_isosurface(
+    da,
+    z,
+    value,
+    input_core_dims=None,
+    exclude_dims=None,
+    left=np.nan,
+    right=np.nan,
+    **kwargs,
+):
     """Linear interpolation to compute the elevation of an isosurface.
 
     Currently only supports linear interpolation.
@@ -2030,6 +2065,10 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         which assumes the layer dimension is allowed to change. In the example
         above this would mean `exclude_dims={"layer"}`. This will result in the
         an isosurface for each time step.
+    left : float, optional
+        value to return when value is above the maximum of da. The default is np.nan.
+    right : float, optional
+        value to return when value is below the minimum of da. The default is np.nan.
     kwargs : dict
         additional arguments passed to xarray.apply_ufunc
 
@@ -2054,6 +2093,7 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         input_core_dims=input_core_dims,
         exclude_dims=exclude_dims,
         dask="forbidden",
+        kwargs={"right": right, "left": left},
         **kwargs,
     )
 

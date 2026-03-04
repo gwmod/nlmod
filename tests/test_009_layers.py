@@ -1,5 +1,6 @@
 # %%
 import os
+import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -400,23 +401,33 @@ def test_get_modellayers_indexer():
     assert (idxfull["modellayer_bot"] == np.array([2, 4, 4])).all()
 
 
-def test_isosurface_1d():
+@pytest.mark.parametrize(
+    "func",
+    [
+        nlmod.layers.get_isosurface_1d,
+        nlmod.layers._get_isosurface_1d_numpy,
+        nlmod.layers._get_isosurface_1d_numba,
+    ],
+)
+def test_isosurface_1d(func):
+    left = np.nan
+    right = np.nan
     # monotonic increasing with duplicates
     da = np.array([10, 20, 30, 30, 40])
     z = np.array([-1, -2, -3, -4, -5])
     value = 30
-    elev = nlmod.layers.get_isosurface_1d(da, z, value)
+    elev = func(da, z, value, left=left, right=right)
     assert elev == -3.0
 
     # non-monotonic with duplicates
     da = np.array([10, 20, 30, 30, 10])
     z = np.array([-1, -2, -3, -4, -5])
     value = 25
-    elev = nlmod.layers.get_isosurface_1d(da, z, value)
+    elev = func(da, z, value, left=left, right=right)
     assert elev == -2.5
 
     # negative of previous
-    elev = nlmod.layers.get_isosurface_1d(-da, -z, -value)
+    elev = func(-da, -z, -value, left=left, right=right)
     assert elev == 2.5
 
     # check left and right limits
@@ -425,11 +436,11 @@ def test_isosurface_1d():
     value = 25
     left = 999
     right = -999
-    elev = nlmod.layers.get_isosurface_1d(da, z, value, left=left, right=right)
+    elev = func(da, z, value, left=left, right=right)
     assert elev == right
 
     da = -np.array([10, 11, 10])
     z = -np.array([-1, -2, -3])
     value = -25
-    elev = nlmod.layers.get_isosurface_1d(da, z, value, left=left, right=right)
+    elev = func(da, z, value, left=left, right=right)
     assert elev == left

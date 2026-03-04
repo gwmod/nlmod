@@ -33,6 +33,7 @@ dependencies = [
     "requests",
     "scipy",
     "bottleneck",
+    "numba",
 ]
 keywords = ["hydrology", "groundwater", "modeling", "MODFLOW", "flopy"]
 classifiers = [

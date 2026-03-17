@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 from shapely.geometry import LineString
 
@@ -10,11 +11,12 @@ MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
 def get_model_data_dir():
     model_data_dir = os.environ.get(MODEL_DATA_ENV_VAR)
     if model_data_dir is None:
-        raise RuntimeError(
-            f"Environment variable {MODEL_DATA_ENV_VAR} is not set. "
-            "Run tests via pytest so tests/conftest.py can configure "
-            "the shared model-data directory."
+        # In interactive windows there is no pytest fixture lifecycle, so provide
+        # a deterministic temp fallback to make single-test debugging possible.
+        model_data_dir = os.path.join(
+            tempfile.gettempdir(), "nlmod_test_model_data_interactive"
         )
+        os.environ[MODEL_DATA_ENV_VAR] = model_data_dir
     os.makedirs(model_data_dir, exist_ok=True)
     return model_data_dir
 

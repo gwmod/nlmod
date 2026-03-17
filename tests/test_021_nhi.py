@@ -69,11 +69,15 @@ def test_gwo_entire_pumping_station():
     ncols = 3
     nrows = int(np.ceil(len(gdf.index) / ncols))
     f, axes = plt.subplots(
-        nrows=nrows, ncols=ncols, figsize=(10, 10), sharex=True, sharey=True
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(10, 10),
+        sharex=True,
+        sharey=True,
+        layout="constrained",
     )
     axes = axes.ravel()
     for name, ax in zip(gdf.index, axes):
         measurements.loc[name, "Volume"].plot(ax=ax)
         ax.set_xlabel("")
         ax.set_title(name)
-    f.tight_layout(pad=0.0)

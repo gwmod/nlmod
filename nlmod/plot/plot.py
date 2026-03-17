@@ -450,9 +450,7 @@ def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=False, extent=N
             fmt = "{:.1f}"
         else:
             fmt = "{:.0f}"
-        f, ax = get_map(
-            extent, base=base, figsize=figsize, tight_layout=False, layout=None, fmt=fmt
-        )
+        f, ax = get_map(extent, base=base, figsize=figsize, layout=None, fmt=fmt)
         ax.set_aspect("equal", adjustable="box")
     return f, ax
 
@@ -527,7 +525,6 @@ def map_array(
     else:
         t = None
 
-    fig_tight_layout = ax is None
     f, ax = _get_figure(
         ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated, extent=extent
     )
@@ -580,8 +577,6 @@ def map_array(
         if levels is not None:
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
-
-    _ = f.tight_layout() if fig_tight_layout else None
 
     if animate:
         return f, ax, pc

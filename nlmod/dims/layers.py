@@ -3,6 +3,14 @@ import warnings
 
 import flopy
 import numpy as np
+
+try:
+    import numba
+
+    _NUMBA_AVAILABLE = True
+except ImportError:
+    numba = None
+    _NUMBA_AVAILABLE = False
 import xarray as xr
 from geopandas import GeoSeries, points_from_xy
 
@@ -1982,11 +1990,16 @@ def remove_layer(ds, layer):
     return ds
 
 
-def get_isosurface_1d(da, z, value):
-    """Linear interpolation to get the elevation corresponding to value.
+def get_isosurface_1d(da, z, value, left=np.nan, right=np.nan):
+    """Linear interpolation to get the first elevation corresponding to value.
 
     This function interpolates linearly along z, if da crosses the given interpolation
     value at multiple depths, the first elevation is returned.
+
+    Note
+    ----
+    This function is no longer used in nlmod, but is kept for backward compatibility,
+    and as a reference for the implementations in get_isosurface.
 
     Parameters
     ----------
@@ -1996,17 +2009,250 @@ def get_isosurface_1d(da, z, value):
         array of elevations
     value : float
         value for which to compute the elevations corresponding to value
+    left : float, optional
+        value to return when value is below the minimum of da. The default is np.nan.
+    right : float, optional
+        value to return when value is above the maximum of da. The default is np.nan.
 
     Returns
     -------
     float
         first elevation at which data crosses value
+
+    See Also
+    --------
+    get_isosurface : generalization of this function to 3D and 4D DataArrays, with
+    support for numba and numpy implementations.
+    _get_isosurface_1d_numpy : vectorized numpy implementation of this function
+    _get_isosurface_1d_numba : numba implementation of this function
     """
-    mask = np.invert(np.isnan(da))
-    return np.interp(value, da[mask].squeeze(), z[mask].squeeze())
+    mask_valid = np.isfinite(da)
+    z, da = z[mask_valid], da[mask_valid]
+    f = da - value
+    if len(z) < 2:
+        return np.nan
+
+    # exact first hit
+    idx0 = np.flatnonzero(f == 0)
+    if idx0.size:
+        return z[idx0[0]]
+
+    # first sign change interval
+    s = f[:-1] * f[1:]
+    idx = np.flatnonzero(s < 0)
+    # no crossing
+    if not idx.size:
+        if value < da.min():
+            return left
+        elif value > da.max():
+            return right
+        else:
+            return np.nan
+    i = idx[0]
+    return z[i] + (value - da[i]) * (z[i + 1] - z[i]) / (da[i + 1] - da[i])
 
 
-def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwargs):
+def _get_isosurface_1d_numpy(da_arr, z_arr, value, left=np.nan, right=np.nan):
+    """
+    Vectorized numpy implementation of get_isosurface_1d.
+
+    da_arr, z_arr: ndarrays with layer as the LAST axis. When called via
+    xr.apply_ufunc with input_core_dims=[["layer"], ["layer"], []], xarray
+    automatically moves the layer dimension to the last axis before calling
+    this function.
+
+    Returns array of shape da_arr.shape[:-1].
+    """
+    valid = np.isfinite(da_arr)
+    f = np.where(valid, da_arr - value, np.nan)
+
+    # --- exact hits ---
+    exact = f == 0.0
+    has_exact = exact.any(axis=-1)
+    idx_exact = np.argmax(exact, axis=-1)
+    z_exact = np.take_along_axis(z_arr, idx_exact[..., np.newaxis], axis=-1)[..., 0]
+
+    # --- first sign change between adjacent valid pairs ---
+    sc = (f[..., :-1] * f[..., 1:] < 0) & valid[..., :-1] & valid[..., 1:]
+    has_sc = sc.any(axis=-1)
+    idx_sc = np.argmax(sc, axis=-1)
+
+    z_i = np.take_along_axis(z_arr, idx_sc[..., np.newaxis], axis=-1)[..., 0]
+    z_i1 = np.take_along_axis(z_arr, (idx_sc + 1)[..., np.newaxis], axis=-1)[..., 0]
+    da_i = np.take_along_axis(da_arr, idx_sc[..., np.newaxis], axis=-1)[..., 0]
+    da_i1 = np.take_along_axis(da_arr, (idx_sc + 1)[..., np.newaxis], axis=-1)[..., 0]
+    interp = z_i + (value - da_i) * (z_i1 - z_i) / (da_i1 - da_i)
+
+    # --- out-of-bounds ---
+    da_min = np.nanmin(da_arr, axis=-1)
+    da_max = np.nanmax(da_arr, axis=-1)
+
+    out = np.full(da_arr.shape[:-1], np.nan)
+    out = np.where(has_exact, z_exact, out)
+    out = np.where(~has_exact & has_sc, interp, out)
+    out = np.where(~has_exact & ~has_sc & (value < da_min), left, out)
+    out = np.where(~has_exact & ~has_sc & (value > da_max), right, out)
+    return out
+
+
+if _NUMBA_AVAILABLE:
+
+    @numba.guvectorize(
+        ["(float64[:], float64[:], float64, float64, float64, float64[:])"],
+        "(n),(n),(),(),()->()",
+        nopython=True,
+        target="parallel",  # or "cpu" for single-threaded
+        cache=True,
+    )
+    def _get_isosurface_1d_gufunc_numba(da, z, value, left, right, out):  # numba impl
+        """Numba implementation of get_isosurface_1d.
+
+        This is some wizardry that automatically returns an out variable without
+        having to specify that in the call. The signature of the gufunc is specified
+        in the decorator.
+
+        Parameters
+        ----------
+        da : 1d-array
+            array of values, e.g. concentration, pressure, etc.
+        z : 1d-array
+            array of elevations
+        value : float
+            value for which to compute the elevations corresponding to value
+        left : float
+            value to return when value is below the minimum of da.
+        right : float
+            value to return when value is above the maximum of da.
+
+        Returns
+        -------
+        out : float
+            first elevation at which data crosses value
+        """
+        # collect valid entries
+        n_valid = 0
+        for i in range(len(da)):
+            if np.isfinite(da[i]):
+                n_valid += 1
+        if n_valid < 2:
+            out[0] = np.nan
+            return
+
+        z_v = np.empty(n_valid)
+        da_v = np.empty(n_valid)
+        j = 0
+        for i in range(len(da)):
+            if np.isfinite(da[i]):
+                z_v[j] = z[i]
+                da_v[j] = da[i]
+                j += 1
+
+        f0 = da_v[0] - value
+        da_min = da_v[0]
+        da_max = da_v[0]
+
+        # exact first hit
+        if f0 == 0.0:
+            out[0] = z_v[0]
+            return
+
+        for i in range(1, n_valid):
+            fi = da_v[i] - value
+            if fi == 0.0:
+                out[0] = z_v[i]
+                return
+            if da_v[i] < da_min:
+                da_min = da_v[i]
+            if da_v[i] > da_max:
+                da_max = da_v[i]
+
+        # first sign change
+        fp = da_v[0] - value
+        for i in range(1, n_valid):
+            fc = da_v[i] - value
+            if fp * fc < 0.0:
+                out[0] = z_v[i - 1] + (value - da_v[i - 1]) * (z_v[i] - z_v[i - 1]) / (
+                    da_v[i] - da_v[i - 1]
+                )
+                return
+            fp = fc
+
+        # no crossing
+        if value < da_min:
+            out[0] = left
+        elif value > da_max:
+            out[0] = right
+        else:
+            out[0] = np.nan
+
+    def _get_isosurface_1d_numba(
+        da: np.ndarray,
+        z: np.ndarray,
+        value: float,
+        left: float,
+        right: float,
+    ) -> np.ndarray:
+        """Typed wrapper so linters see the correct signature."""
+        return _get_isosurface_1d_gufunc_numba(da, z, value, left, right)  # pylint: disable=no-value-for-parameter
+
+    def _get_isosurface_numba(da, z, value, left=np.nan, right=np.nan, **kwargs):
+        """Wrapper for numba implementation of get_isosurface_1d.
+
+        This wrapper is needed to move the layer dimension to the last position, as required
+        by the gufunc, and to move the result back to an xarray DataArray with the correct
+        dimensions and coordinates.
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            3D or 4D DataArray with values, e.g. concentration, pressure
+        z : xr.DataArray
+            3D DataArray with elevations
+        value : float
+            value at which to compute the elevations of the isosurface
+        left : float, optional
+            value to return when value is above the maximum of da. The default is np.nan.
+        right : float, optional
+            value to return when value is below the minimum of da. The default is np.nan.
+        kwargs : dict
+            additional arguments passed to xarray.apply_ufunc, not used in this function but
+            included for consistency with get_isosurface.
+
+        Returns
+        -------
+        xr.DataArray
+            2D/3D DataArray with elevations of the isosurface
+        """
+        # move layer axis to last position
+        layer_dim = next(d for d in da.dims if d not in {"time", "x", "y", "icell2d"})
+        da_t = da.transpose(..., layer_dim)
+        z_t = z.transpose(..., layer_dim)
+        result_np = _get_isosurface_1d_numba(
+            da_t.values,
+            z_t.values,
+            np.float64(value),
+            np.float64(left),
+            np.float64(right),
+        )
+        dims = [d for d in da.dims if d != layer_dim]
+        return xr.DataArray(
+            result_np,
+            dims=dims,
+            coords={d: da.coords[d] for d in dims if d in da.coords},
+        )
+
+
+def get_isosurface(
+    da,
+    z,
+    value,
+    left=np.nan,
+    right=np.nan,
+    method="numba",
+    input_core_dims=None,
+    exclude_dims=None,
+    **kwargs,
+):
     """Linear interpolation to compute the elevation of an isosurface.
 
     Currently only supports linear interpolation.
@@ -2019,6 +2265,15 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         3D DataArray with elevations
     value : float
         value at which to compute the elevations of the isosurface
+    left : float, optional
+        value to return when value is above the maximum of da. The default is np.nan.
+    right : float, optional
+        value to return when value is below the minimum of da. The default is np.nan.
+    method : str, optional
+        method to compute the isosurface. The default is "numba".
+        Other option is "numpy". The numba method is usually faster than the
+        numpy method, but the numpy method can be faster for small datasets, and does
+        not require numba to be installed.
     input_core_dims : list of lists, optional
         list of core dimensions for each input, if not provided assumes core dimensions
         are any dimensions that are not x, y or icell2d. Example input_core_dims for
@@ -2038,24 +2293,41 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
     xr.DataArray
         2D/3D DataArray with elevations of the isosurface
     """
-    if input_core_dims is None:
-        dims_da = set(da.dims) - {"time", "x", "y", "icell2d"}
-        dims_z = set(z.dims) - {"x", "y", "icell2d"}
-        input_core_dims = [list(dims_da), list(dims_z), []]
-    if exclude_dims is None:
-        exclude_dims = {"layer"}
+    if method == "numba":
+        if not _NUMBA_AVAILABLE:
+            logger.warning(
+                "numba is not installed, falling back to numpy method for get_isosurface."
+            )
+            method = "numpy"
+        else:
+            return _get_isosurface_numba(
+                da,
+                z,
+                value,
+                left=left,
+                right=right,
+                **kwargs,
+            )
+    if method == "numpy":
+        if input_core_dims is None:
+            dims_da = set(da.dims) - {"time", "x", "y", "icell2d"}
+            dims_z = set(z.dims) - {"x", "y", "icell2d"}
+            input_core_dims = [list(dims_da), list(dims_z), []]
+        if exclude_dims is None:
+            exclude_dims = {"layer"}
 
-    return xr.apply_ufunc(
-        get_isosurface_1d,
-        da,
-        z,
-        value,
-        vectorize=True,  # loop over time dimension
-        input_core_dims=input_core_dims,
-        exclude_dims=exclude_dims,
-        dask="forbidden",
-        **kwargs,
-    )
+        return xr.apply_ufunc(
+            _get_isosurface_1d_numpy,
+            da,
+            z,
+            value,
+            input_core_dims=input_core_dims,
+            exclude_dims=exclude_dims,
+            dask="parallelized",
+            output_dtypes=[float],
+            kwargs={"right": right, "left": left},
+            **kwargs,
+        )
 
 
 def add_bathymetry_to_layer_model(

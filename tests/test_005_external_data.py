@@ -241,7 +241,14 @@ def test_get_surface_water_ghb():
     nlmod.gwf.dis(ds, gwf)
 
     # add surface water levels to the model dataset
-    ds.update(nlmod.read.rws.get_surface_water(ds, da_basename="surface_water"))
+    gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(ds)
+    ds.update(
+        nlmod.read.rws.discretize_surface_water(
+            ds,
+            gdf_surface_water,
+            da_basename="surface_water",
+        )
+    )
 
 
 def test_get_brp():

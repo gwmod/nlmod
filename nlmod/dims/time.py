@@ -266,7 +266,11 @@ def set_ds_time(
             else:
                 time = start + pd.to_timedelta(time, time_units)
         elif isinstance(time[0], str):
-            time = pd.to_datetime(time)
+            try:
+                time = pd.to_datetime(time, format="mixed")
+            except TypeError:
+                # Fallback for older pandas versions without format="mixed".
+                time = pd.to_datetime(time)
             if isinstance(start, cftime.datetime):
                 time = _pd_timestamp_to_cftime(time)
         elif isinstance(time[0], (pd.Timestamp)):

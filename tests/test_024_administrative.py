@@ -1,3 +1,6 @@
+import requests
+import pytest
+
 import nlmod
 
 
@@ -34,5 +37,8 @@ def test_get_netherlands_kadaster():
 
 
 def test_get_waterboards():
-    gdf = nlmod.read.administrative.download_waterboards_gdf()
-    assert len(gdf) > 0
+    try:
+        gdf = nlmod.read.administrative.download_waterboards_gdf()
+        assert len(gdf) > 0
+    except requests.exceptions.RequestException as exc:
+        pytest.skip(f"Network unavailable: {exc}")

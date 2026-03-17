@@ -2,6 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pytest
 
 MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
@@ -27,3 +28,10 @@ def session_model_data_dir(tmp_path_factory):
             os.environ.pop(MODEL_DATA_ENV_VAR, None)
         else:
             os.environ[MODEL_DATA_ENV_VAR] = old_value
+
+
+@pytest.fixture(autouse=True)
+def close_all_matplotlib_figures():
+    """Close figures created during a test to avoid cross-test leakage."""
+    yield
+    plt.close("all")

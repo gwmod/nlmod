@@ -150,8 +150,11 @@ def to_model_layers(
     geulen = []
     for layer, unit in enumerate(units):
         mask = strat == unit
-        top[layer] = np.nanmax(np.where(mask, z, np.nan), 0) + 0.25
-        bot[layer] = np.nanmin(np.where(mask, z, np.nan), 0) - 0.25
+        # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
+        maxz = np.max(np.where(mask, z, -np.inf), axis=0)
+        minz = np.min(np.where(mask, z, np.inf), axis=0)
+        top[layer] = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
+        bot[layer] = np.where(np.isfinite(minz), minz - 0.25, np.nan)
         if int(unit) in strat_props.index:
             layers.append(strat_props.at[unit, "code"])
         else:
@@ -530,13 +533,33 @@ def add_kh_and_kv(
                 kv_ar = kv_ar + (probability / kvi)
             probability_total += probability
         if kh_method == "arithmetic_mean":
-            kh_ar = kh_ar / probability_total
+            kh_ar = np.divide(
+                kh_ar,
+                probability_total,
+                out=np.full_like(kh_ar, np.nan),
+                where=probability_total > 0,
+            )
         else:
-            kh_ar = probability_total / kh_ar
+            kh_ar = np.divide(
+                probability_total,
+                kh_ar,
+                out=np.full_like(kh_ar, np.nan),
+                where=kh_ar != 0,
+            )
         if kv_method == "arithmetic_mean":
-            kv_ar = kv_ar / probability_total
+            kv_ar = np.divide(
+                kv_ar,
+                probability_total,
+                out=np.full_like(kv_ar, np.nan),
+                where=probability_total > 0,
+            )
         else:
-            kv_ar = probability_total / kv_ar
+            kv_ar = np.divide(
+                probability_total,
+                kv_ar,
+                out=np.full_like(kv_ar, np.nan),
+                where=kv_ar != 0,
+            )
     else:
         raise (ValueError(f"Unsupported value for stochastic: '{stochastic}'"))
 

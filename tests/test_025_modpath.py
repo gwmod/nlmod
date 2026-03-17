@@ -40,7 +40,7 @@ def test_modpath():
     nlmod.modpath.load_pathline_data(mpf)
 
     # get the nodes from a package
-    nodes = nlmod.modpath.package_to_nodes(gwf, "GHB", mpf)
+    nodes = nlmod.modpath.package_to_nodes(gwf, "GHB", ibound=mpf.ib)
 
     # get nodes of all cells in the top modellayer
     nodes = nlmod.modpath.layer_to_nodes(mpf, 0)

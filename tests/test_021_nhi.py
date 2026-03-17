@@ -17,7 +17,7 @@ tmp_path = tempfile.gettempdir()
 def test_buisdrainage():
     model_ws = os.path.join(tmp_path, "buidrain")
     ds = nlmod.get_ds([110_000, 130_000, 435_000, 445_000], model_ws=model_ws)
-    ds = nlmod.read.nhi.add_buisdrainage(ds)
+    ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))
 
     # assert that all locations with a specified depth also have a positive conductance
     mask = ~ds["buisdrain_depth"].isnull()
@@ -34,13 +34,13 @@ def test_gwo():
 
     # download all wells from Brabant Water
     try:
-        wells = nlmod.read.nhi.get_gwo_wells(
+        wells = nlmod.read.nhi.download_gwo_wells(
             username=username, password=password, organisation="Brabant Water"
         )
         assert isinstance(wells, gpd.GeoDataFrame)
 
         # download extractions from well "13-PP016" of pomping station Veghel
-        measurements, gdf = nlmod.read.nhi.get_gwo_measurements(
+        measurements, gdf = nlmod.read.nhi.download_gwo_measurements(
             username, password, well_site="veghel", filter__well__name="13-PP016"
         )
         assert measurements.reset_index()["Name"].isin(gdf.index).all()
@@ -59,7 +59,7 @@ def allow_network_fail(e):
 def test_gwo_entire_pumping_station():
     username = os.environ["NHI_GWO_USERNAME"]
     password = os.environ["NHI_GWO_PASSWORD"]
-    measurements, gdf = nlmod.read.nhi.get_gwo_measurements(
+    measurements, gdf = nlmod.read.nhi.download_gwo_measurements(
         username,
         password,
         well_site="veghel",

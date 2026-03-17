@@ -51,7 +51,7 @@ def test_cache_ahn_data_array():
 
 def test_cache_northsea_data_array():
     """Test caching of AHN data array. Does have dataset as argument."""
-    from nlmod.read.rws import get_northsea
+    from nlmod.read.rws import discretize_northsea
 
     ds1 = nlmod.get_ds(
         [119_700, 120_000, 441_900, 442_000],
@@ -78,12 +78,12 @@ def test_cache_northsea_data_array():
         assert not os.path.exists(os.path.join(tmp_path, cache_name)), (
             "Cache should not exist yet1"
         )
-        out1_no_cache = get_northsea(ds1)
+        out1_no_cache = discretize_northsea(ds1)
         assert not os.path.exists(os.path.join(tmp_path, cache_name)), (
             "Cache should not exist yet2"
         )
 
-        out1_cached = get_northsea(ds1, cachedir=tmp_path, cachename=cache_name)
+        out1_cached = discretize_northsea(ds1, cachedir=tmp_path, cachename=cache_name)
         assert os.path.exists(os.path.join(tmp_path, cache_name)), (
             "Cache should exist by now"
         )
@@ -91,20 +91,20 @@ def test_cache_northsea_data_array():
         modification_time1 = os.path.getmtime(os.path.join(tmp_path, cache_name))
 
         # Check if the cache is used. If not, cache is rewritten and modification time changes
-        out1_cache = get_northsea(ds1, cachedir=tmp_path, cachename=cache_name)
+        out1_cache = discretize_northsea(ds1, cachedir=tmp_path, cachename=cache_name)
         assert out1_cache.equals(out1_no_cache)
         modification_time2 = os.path.getmtime(os.path.join(tmp_path, cache_name))
         assert modification_time1 == modification_time2, "Cache should not be rewritten"
 
         # Only properties of `coords_2d` determine if the cache is used. Cache should still be used.
         ds1["toppertje"] = ds1.top + 1
-        out1_cache = get_northsea(ds1, cachedir=tmp_path, cachename=cache_name)
+        out1_cache = discretize_northsea(ds1, cachedir=tmp_path, cachename=cache_name)
         assert out1_cache.equals(out1_no_cache)
         modification_time2 = os.path.getmtime(os.path.join(tmp_path, cache_name))
         assert modification_time1 == modification_time2, "Cache should not be rewritten"
 
         # Different extent should not lead to using the cache
-        out2_cache = get_northsea(ds2, cachedir=tmp_path, cachename=cache_name)
+        out2_cache = discretize_northsea(ds2, cachedir=tmp_path, cachename=cache_name)
         modification_time3 = os.path.getmtime(os.path.join(tmp_path, cache_name))
         assert modification_time1 != modification_time3, (
             "Cache should have been rewritten"

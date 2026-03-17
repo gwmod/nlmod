@@ -12,7 +12,7 @@ import nlmod
 
 def test_get_recharge():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add knmi recharge to the model dataset
     ds.update(nlmod.read.knmi.get_recharge(ds))
@@ -29,7 +29,7 @@ def test_get_recharge_most_common():
 
 def test_get_recharge_steady_state():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # modify mtime
     ds = ds.drop_dims("time")
@@ -197,7 +197,7 @@ def test_download_ahn6():
 
 def test_get_ahn():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add ahn data to the model dataset
     ahn_ds = nlmod.read.ahn.get_ahn(ds)
@@ -224,7 +224,7 @@ def test_check_ahn_files_up_to_date():
 
 def test_get_surface_water_ghb():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -253,7 +253,7 @@ def test_get_brp():
 @pytest.mark.skip(reason="slow")
 def test_get_bofek():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add knmi recharge to the model dataset
     gdf_bofek = nlmod.read.bofek.download_bofek_gdf(ds)

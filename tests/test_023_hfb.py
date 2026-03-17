@@ -1,4 +1,8 @@
 # ruff: noqa: D103
+import matplotlib
+
+matplotlib.use("Agg")
+
 import flopy
 import geopandas as gpd
 import util

@@ -1,14 +1,14 @@
 # ruff: noqa: D103
+import shutil
 from pathlib import Path
 
 from xarray import Dataset
 
 from nlmod.read import knmi_data_platform
+import os
 
-data_path = Path(__file__).parent / "data"
 
-
-def test_download_multiple_nc_files() -> None:
+def test_download_multiple_nc_files(tmp_path) -> None:
     dataset_name = "EV24"
     dataset_version = "2"
 
@@ -24,11 +24,10 @@ def test_download_multiple_nc_files() -> None:
 
         # download the first file
         fnames = files[0:1]
-        dirname = "download"
         knmi_data_platform.download_files(
-            dataset_name, dataset_version, fnames, dirname=dirname
+            dataset_name, dataset_version, fnames, dirname=tmp_path
         )
-        file = Path(dirname) / fnames[0]
+        file = tmp_path / fnames[0]
         assert file.exists(), f"File {file} was not downloaded properly"
 
         ds = knmi_data_platform.read_nc(file)
@@ -37,7 +36,7 @@ def test_download_multiple_nc_files() -> None:
         print(f"Error in knmi_data_platform test: {e}")
 
 
-def test_download_read_zip_file() -> None:
+def test_download_read_zip_file(tmp_path) -> None:
     dataset_name = "rad_nl25_rac_mfbs_24h_netcdf4"
     dataset_version = "2.0"
     try:
@@ -46,35 +45,40 @@ def test_download_read_zip_file() -> None:
         assert len(files) > 0, "No files found"
 
         # download the last file
-        dirname = "download"
         fname = files[1]
         knmi_data_platform.download_file(
-            dataset_name, dataset_version, fname=fname, dirname=dirname
+            dataset_name, dataset_version, fname=fname, dirname=tmp_path
         )
-        file = Path(dirname) / fname
+        file = tmp_path / fname
         assert file.exists(), f"File {file} was not downloaded properly"
     except knmi_data_platform.KNMIDataPlatformError as e:
         print(f"Error in knmi_data_platform test: {e}")
 
 
-def test_read_zip_file() -> None:
-    fname = data_path / "KNMI_Data_Platform_NETCDF.zip"
+def test_read_zip_file(tmp_path) -> None:
+    src = Path(__file__).resolve().parent / "data" / "KNMI_Data_Platform_NETCDF.zip"
+    fname = tmp_path / src.name
+    shutil.copy2(src, fname)
     try:
-        _ = knmi_data_platform.read_dataset_from_zip(str(fname), hour=24)
+        _ = knmi_data_platform.read_dataset_from_zip(fname, hour=24)
     except RuntimeError:
         # allow RuntimeError for this test for now (2025-11-19)
         # locally this fail does not happen, and we cannot recreate it
         pass
 
 
-def test_read_h5() -> None:
-    fname = data_path / "KNMI_Data_Platform_H5.zip"
-    _ = knmi_data_platform.read_dataset_from_zip(str(fname))
+def test_read_h5(tmp_path) -> None:
+    src = Path(__file__).resolve().parent / "data" / "KNMI_Data_Platform_H5.zip"
+    fname = tmp_path / src.name
+    shutil.copy2(src, fname)
+    _ = knmi_data_platform.read_dataset_from_zip(fname)
 
 
-def test_read_grib() -> None:
-    fname = data_path / "KNMI_Data_Platform_GRIB.tar"
+def test_read_grib(tmp_path) -> None:
+    src = Path(__file__).resolve().parent / "data" / "KNMI_Data_Platform_GRIB.tar"
+    fname = tmp_path / src.name
+    shutil.copy2(src, fname)
     _ = knmi_data_platform.read_dataset_from_zip(
-        str(fname),
+        fname,
         filter_by_keys={"stepType": "instant", "typeOfLevel": "heightAboveGround"},
     )

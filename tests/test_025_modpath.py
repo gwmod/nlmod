@@ -8,7 +8,7 @@ import nlmod
 
 def test_modpath():
     # start with runned model from test_001_model.test_create_sea_model
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model")
 
     sim = flopy.mf6.MFSimulation.load("mfsim.nam", sim_ws=ds.model_ws)
     gwf = sim.get_model(ds.model_name)

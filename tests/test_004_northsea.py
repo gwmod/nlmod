@@ -10,14 +10,14 @@ def test_get_gdf_opp_water():
 
 def test_surface_water_to_dataset():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
     name = "surface_water"
     nlmod.read.rws.get_surface_water(ds, da_basename=name)
 
 
 def test_get_northsea_seamodel():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
     ds_sea = nlmod.read.rws.get_northsea(ds)
 
     assert (ds_sea.northsea == 1).sum() > 0
@@ -33,7 +33,7 @@ def test_get_northsea_nosea():
 
 def test_fill_top_bot_kh_kv_seamodel():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
     ds.update(nlmod.read.rws.get_northsea(ds))
 
     fal = nlmod.layers.get_first_active_layer(ds)
@@ -53,7 +53,7 @@ def test_fill_top_bot_kh_kv_nosea():
 
 def test_get_bathymetry_seamodel():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
     ds.update(nlmod.read.rws.get_northsea(ds))
     ds_bathymetry = nlmod.read.jarkus.get_bathymetry(ds, datavar_sea="northsea")
 
@@ -71,7 +71,7 @@ def test_get_bathymetry_nosea():
 
 def test_add_bathymetry_to_top_bot_kh_kv_seamodel():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
     ds.update(nlmod.read.rws.discretize_northsea(ds))
     bathymetry = nlmod.read.jarkus.get_bathymetry(ds, datavar_sea="northsea")
     ds.update(bathymetry.drop_vars("time"))

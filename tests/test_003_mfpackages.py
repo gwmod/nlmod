@@ -5,8 +5,8 @@ import xarray as xr
 import nlmod
 
 
-def sim_tdis_gwf_ims_from_ds(tmpdir):
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+def sim_tdis_gwf_ims_from_ds():
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -23,59 +23,59 @@ def sim_tdis_gwf_ims_from_ds(tmpdir):
     return sim, gwf
 
 
-def test_dis_from_ds(tmpdir):
+def test_dis_from_ds():
     ds = test_001_model.get_ds_from_cache("small_model")
 
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+    _, gwf = sim_tdis_gwf_ims_from_ds()
 
     nlmod.gwf.dis(ds, gwf)
 
 
-def test_npf_from_ds(tmpdir):
+def test_npf_from_ds():
     ds = test_001_model.get_ds_from_cache("small_model")
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+    _, gwf = sim_tdis_gwf_ims_from_ds()
     nlmod.gwf.dis(ds, gwf)
     nlmod.gwf.npf(ds, gwf)
 
 
-def test_oc_from_ds(tmpdir):
+def test_oc_from_ds():
     ds = test_001_model.get_ds_from_cache("small_model")
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+    _, gwf = sim_tdis_gwf_ims_from_ds()
     nlmod.gwf.oc(ds, gwf)
 
 
-def test_sto_from_ds(tmpdir):
+def test_sto_from_ds():
     ds = test_001_model.get_ds_from_cache("small_model")
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+    _, gwf = sim_tdis_gwf_ims_from_ds()
     nlmod.gwf.sto(ds, gwf)
 
 
-def test_ghb_from_ds(tmpdir):
-    ds = test_001_model.get_ds_from_cache("full_sea_model")
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+def test_ghb_from_ds():
+    ds = test_001_model.get_ds_from_cache("sea_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds()
     _ = nlmod.gwf.dis(ds, gwf)
 
     nlmod.gwf.ghb(ds, gwf, bhead="surface_water_stage", cond="surface_water_cond")
 
 
-def test_rch_from_ds(tmpdir):
-    ds = test_001_model.get_ds_from_cache("full_sea_model")
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+def test_rch_from_ds():
+    ds = test_001_model.get_ds_from_cache("sea_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds()
     _ = nlmod.gwf.dis(ds, gwf)
 
     nlmod.gwf.rch(ds, gwf)
 
 
-def test_drn_from_ds(tmpdir):
-    ds = test_001_model.get_ds_from_cache("full_sea_model")
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+def test_drn_from_ds():
+    ds = test_001_model.get_ds_from_cache("sea_model")
+    _, gwf = sim_tdis_gwf_ims_from_ds()
     _ = nlmod.gwf.dis(ds, gwf)
     nlmod.gwf.surface_drain_from_ds(ds, gwf, 1.0)
 
 
-def test_chd_from_ds(tmpdir):
+def test_chd_from_ds():
     ds = test_001_model.get_ds_from_cache("small_model")
-    _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
+    _, gwf = sim_tdis_gwf_ims_from_ds()
     _ = nlmod.gwf.dis(ds, gwf)
 
     _ = nlmod.gwf.ic(ds, gwf, starting_head=1.0)

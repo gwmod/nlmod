@@ -40,9 +40,13 @@ NOTEBOOK_DEPENDENCIES = {
         "examples/03_local_grid_refinement.ipynb",
     ],
     "utilities/13_plot_methods.ipynb": ["examples/09_schoonhoven.ipynb"],
-    "workflows/03_aggregating_surface_water.ipynb": ["data_sources/02_surface_water.ipynb"],
+    "workflows/03_aggregating_surface_water.ipynb": [
+        "data_sources/02_surface_water.ipynb"
+    ],
     "workflows/10_modpath.ipynb": ["examples/03_local_grid_refinement.ipynb"],
-    "workflows/11_particle_tracking_prt.ipynb": ["examples/00_model_from_scratch.ipynb"],
+    "workflows/11_particle_tracking_prt.ipynb": [
+        "examples/00_model_from_scratch.ipynb"
+    ],
     "workflows/18_observations.ipynb": ["examples/03_local_grid_refinement.ipynb"],
 }
 

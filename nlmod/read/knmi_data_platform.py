@@ -101,7 +101,7 @@ def download_file(
     dataset_name: str,
     dataset_version: str,
     fname: str,
-    dirname: str = ".",
+    dirname: Union[str, os.PathLike] = ".",
     api_key: Optional[str] = None,
     timeout: int = 120,
 ) -> None:
@@ -114,6 +114,7 @@ def download_file(
     )
     r = requests.get(url, headers={"Authorization": api_key}, timeout=timeout)
     rjson = r.json()
+    dirname = os.fspath(dirname)
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
     logger.info(f"Download {fname} to {dirname}")
@@ -133,7 +134,7 @@ def download_files(
     dataset_name: str,
     dataset_version: str,
     fnames: List[str],
-    dirname: str = ".",
+    dirname: Union[str, os.PathLike] = ".",
     api_key: Optional[str] = None,
     timeout: int = 120,
 ) -> None:
@@ -260,9 +261,10 @@ def read_grib(
 
 
 def read_dataset_from_zip(
-    fname: str, hour: Optional[int] = None, **kwargs: dict
+    fname: Union[str, os.PathLike], hour: Optional[int] = None, **kwargs: dict
 ) -> xr.Dataset:
     """Read KNMI data platfrom .zip file to xarray Dataset."""
+    fname = os.fspath(fname)
     if fname.endswith(".zip"):
         with ZipFile(fname) as zipfo:
             fnames = sorted([x for x in zipfo.namelist() if not x.endswith("/")])

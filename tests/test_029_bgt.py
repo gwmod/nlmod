@@ -1,5 +1,3 @@
-import os
-
 import requests
 from lxml import html
 from pandas import to_datetime
@@ -29,11 +27,8 @@ def test_bgt_layers():
     assert "waterdeel" in layers
 
 
-def test_bgt_zipfile():
-    pathname = "download"
-    if not os.path.isdir(pathname):
-        os.makedirs(pathname)
-    fname = os.path.join(pathname, "test_bgt_zipfile.zip")
+def test_bgt_zipfile(tmp_path):
+    fname = tmp_path / "test_bgt_zipfile.zip"
 
     # download data from 2 layers within extent, and also save data to zipfile
     extent = [119900, 120000, 440000, 440100]

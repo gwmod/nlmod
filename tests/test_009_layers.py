@@ -9,12 +9,15 @@ from shapely.geometry import LineString
 
 import nlmod
 from nlmod.plot import DatasetCrossSection
+import util
+
+MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
 
 
 def get_regis_horstermeer(cachedir=None, cachename="regis_horstermeer"):
     extent = [131000, 136800, 471500, 475700]
     if cachedir is None:
-        cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+        cachedir = os.path.join(util.get_model_data_dir(), "regis_cache")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
     regis = nlmod.read.download_regis(extent, cachedir=cachedir, cachename=cachename)
@@ -23,7 +26,7 @@ def get_regis_horstermeer(cachedir=None, cachename="regis_horstermeer"):
 
 def get_regis_unstructured():
     regis = get_regis_horstermeer()
-    cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+    cachedir = os.path.join(util.get_model_data_dir(), "regis_cache")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
     return nlmod.grid.refine(regis, cachedir)

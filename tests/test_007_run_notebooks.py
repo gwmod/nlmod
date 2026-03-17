@@ -1,111 +1,76 @@
-"""run notebooks in the examples directory."""
+"""Run all notebooks in the docs directory recursively."""
 
 # ruff: noqa: D103
-import os
+import re
+from pathlib import Path
 
 import nbformat
 import pytest
 from nbconvert.preprocessors import ExecutePreprocessor
 
-tst_dir = os.path.dirname(os.path.realpath(__file__))
-nbdir = os.path.join(tst_dir, "..", "docs", "examples")
+tst_dir = Path(__file__).resolve().parent
+docs_dir = (tst_dir / ".." / "docs").resolve()
 
 
-def _run_notebook(nbdir, fname):
-    fname_nb = os.path.join(nbdir, fname)
-    with open(fname_nb) as f:
+def _is_dated_notebook_copy(path):
+    return re.match(r"^\d{8,10}_", path.name) is not None
+
+
+def _iter_notebooks(base_dir):
+    for path in sorted(base_dir.rglob("*.ipynb")):
+        rel_parts = path.relative_to(base_dir).parts
+        if rel_parts and rel_parts[0] == "build":
+            continue
+        if ".ipynb_checkpoints" in rel_parts:
+            continue
+        if _is_dated_notebook_copy(path):
+            continue
+        yield path
+
+
+NOTEBOOKS = list(_iter_notebooks(docs_dir))
+NOTEBOOKS_BY_REL = {path.relative_to(docs_dir).as_posix(): path for path in NOTEBOOKS}
+
+# Some notebooks consume artifacts produced by other notebooks.
+NOTEBOOK_DEPENDENCIES = {
+    "examples/09_schoonhoven.ipynb": ["data_sources/02_surface_water.ipynb"],
+    "examples/14_stromingen_example.ipynb": ["data_sources/02_surface_water.ipynb"],
+    "utilities/13_plot_methods.ipynb": ["examples/09_schoonhoven.ipynb"],
+    "workflows/03_aggregating_surface_water.ipynb": ["data_sources/02_surface_water.ipynb"],
+    "workflows/10_modpath.ipynb": ["examples/03_local_grid_refinement.ipynb"],
+    "workflows/11_particle_tracking_prt.ipynb": ["examples/00_model_from_scratch.ipynb"],
+    "workflows/18_observations.ipynb": ["examples/03_local_grid_refinement.ipynb"],
+}
+
+_EXECUTED_NOTEBOOKS = set()
+
+
+def _run_notebook(path):
+    with path.open(encoding="utf-8") as f:
         nb = nbformat.read(f, as_version=4)
     ep = ExecutePreprocessor(timeout=6000)
-    out = ep.preprocess(nb, {"metadata": {"path": nbdir}})
-
-    return out
+    ep.preprocess(nb, {"metadata": {"path": str(path.parent)}})
 
 
-@pytest.mark.notebooks
-def test_run_notebook_00_model_from_scratch():
-    _run_notebook(nbdir, "00_model_from_scratch.ipynb")
+def _run_with_dependencies(path):
+    rel = path.relative_to(docs_dir).as_posix()
+    for dep_rel in NOTEBOOK_DEPENDENCIES.get(rel, []):
+        dep_path = NOTEBOOKS_BY_REL.get(dep_rel)
+        if dep_path is None:
+            raise RuntimeError(f"Notebook dependency not found: {dep_rel}")
+        if dep_path not in _EXECUTED_NOTEBOOKS:
+            _run_with_dependencies(dep_path)
 
-
-@pytest.mark.notebooks
-def test_run_notebook_01_basic_model():
-    _run_notebook(nbdir, "01_basic_model.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_02_surface_water():
-    _run_notebook(nbdir, "02_surface_water.ipynb")
+    if path not in _EXECUTED_NOTEBOOKS:
+        _run_notebook(path)
+        _EXECUTED_NOTEBOOKS.add(path)
 
 
 @pytest.mark.notebooks
-def test_run_notebook_03_local_grid_refinement():
-    _run_notebook(nbdir, "03_local_grid_refinement.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_04_modifying_layermodels():
-    _run_notebook(nbdir, "04_modifying_layermodels.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_05_caching():
-    _run_notebook(nbdir, "05_caching.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_06_gridding_vector_data():
-    _run_notebook(nbdir, "06_gridding_vector_data.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_07_resampling():
-    _run_notebook(nbdir, "07_resampling.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_08_gis():
-    _run_notebook(nbdir, "08_gis.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_09_schoonhoven():
-    _run_notebook(nbdir, "09_schoonhoven.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_10_modpath():
-    _run_notebook(nbdir, "10_modpath.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_11_grid_rotation():
-    _run_notebook(nbdir, "11_grid_rotation.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_12_layer_generation():
-    _run_notebook(nbdir, "12_layer_generation.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_13_plot_methods():
-    _run_notebook(nbdir, "13_plot_methods.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_14_stromingen_example():
-    _run_notebook(nbdir, "14_stromingen_example.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_15_geotop():
-    _run_notebook(nbdir, "15_geotop.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_16_groundwater_transport():
-    _run_notebook(nbdir, "16_groundwater_transport.ipynb")
-
-
-@pytest.mark.notebooks
-def test_run_notebook_17_unsaturated_zone_flow():
-    _run_notebook(nbdir, "17_unsaturated_zone_flow.ipynb")
+@pytest.mark.parametrize(
+    "notebook_path",
+    NOTEBOOKS,
+    ids=[str(path.relative_to(docs_dir)) for path in NOTEBOOKS],
+)
+def test_run_notebook(notebook_path):
+    _run_with_dependencies(notebook_path)

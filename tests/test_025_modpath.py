@@ -1,15 +1,14 @@
 import os
 
 import flopy
-import xarray as xr
+import test_001_model
 
 import nlmod
 
 
 def test_modpath():
     # start with runned model from test_001_model.test_create_sea_model
-    model_ws = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
-    ds = xr.open_dataset(os.path.join(model_ws, "basic_sea_model.nc"))
+    ds = test_001_model.get_ds_from_cache("basic_sea_model")
 
     sim = flopy.mf6.MFSimulation.load("mfsim.nam", sim_ws=ds.model_ws)
     gwf = sim.get_model(ds.model_name)

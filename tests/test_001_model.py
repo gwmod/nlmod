@@ -7,9 +7,54 @@ import pytest
 import xarray as xr
 
 import nlmod
+import util
 
 tmpdir = tempfile.gettempdir()
-tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
+
+
+def _get_model_data_path(name):
+    return os.path.join(util.get_model_data_dir(), name)
+
+
+def _ensure_cached_model(name):
+    model_data_path = _get_model_data_path(name + ".nc")
+    if os.path.exists(model_data_path):
+        return model_data_path
+
+    if name == "small_model":
+        test_create_small_model_grid_only(tmpdir)
+    elif name == "basic_sea_model":
+        test_create_sea_model_grid_only(tmpdir)
+    elif name == "sea_model_grid_50":
+        test_create_sea_model_grid_only_delr_delc_50(tmpdir)
+    elif name == "full_sea_model":
+        _ensure_cached_model("basic_sea_model")
+        basic_path = _get_model_data_path("basic_sea_model.nc")
+        with xr.open_dataset(basic_path, mask_and_scale=False) as ds:
+            ds = ds.load()
+
+        da_name = "surface_water"
+        gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(ds=ds)
+        ds.update(
+            nlmod.read.rws.discretize_surface_water(
+                ds, gdf=gdf_surface_water, da_basename=da_name
+            )
+        )
+        ds.update(nlmod.read.ahn.get_ahn(ds))
+        ds.update(nlmod.read.knmi.get_recharge(ds))
+        ds.to_netcdf(model_data_path)
+    else:
+        raise FileNotFoundError(
+            f"No cached model generator is configured for '{name}'."
+        )
+
+    if not os.path.exists(model_data_path):
+        raise FileNotFoundError(
+            f"Cached model '{name}' was not created at expected path: {model_data_path}"
+        )
+
+    return model_data_path
 
 
 def test_model_directories(tmpdir):
@@ -114,7 +159,7 @@ def test_create_small_model_grid_only(tmpdir, model_name="test"):
     _ = nlmod.gwf.dis(ds, gwf)
 
     # save ds
-    ds.to_netcdf(os.path.join(tst_model_dir, "small_model.nc"))
+    ds.to_netcdf(_get_model_data_path("small_model.nc"))
 
 
 @pytest.mark.slow
@@ -140,7 +185,7 @@ def test_create_sea_model_grid_only(tmpdir, model_name="test"):
     )
 
     # save ds
-    ds.to_netcdf(os.path.join(tst_model_dir, "basic_sea_model.nc"))
+    ds.to_netcdf(_get_model_data_path("basic_sea_model.nc"))
 
 
 @pytest.mark.slow
@@ -157,13 +202,13 @@ def test_create_sea_model_grid_only_delr_delc_50(tmpdir, model_name="test"):
     )
 
     # save ds
-    ds.to_netcdf(os.path.join(tst_model_dir, "sea_model_grid_50.nc"))
+    ds.to_netcdf(_get_model_data_path("sea_model_grid_50.nc"))
 
 
 @pytest.mark.slow
 def test_create_sea_model(tmpdir):
     ds = xr.open_dataset(
-        os.path.join(tst_model_dir, "basic_sea_model.nc"), mask_and_scale=False
+        _get_model_data_path("basic_sea_model.nc"), mask_and_scale=False
     )
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -217,7 +262,7 @@ def test_create_sea_model(tmpdir):
 
 @pytest.mark.slow
 def test_create_sea_model_perlen_list(tmpdir):
-    ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
+    ds = xr.open_dataset(_get_model_data_path("basic_sea_model.nc"))
 
     # update model_ws
     model_ws = os.path.join(tmpdir, "test_model_perlen_list")
@@ -290,7 +335,7 @@ def test_create_sea_model_perlen_list(tmpdir):
 
 @pytest.mark.slow
 def test_create_sea_model_perlen_14(tmpdir):
-    ds = xr.open_dataset(os.path.join(tst_model_dir, "basic_sea_model.nc"))
+    ds = xr.open_dataset(_get_model_data_path("basic_sea_model.nc"))
 
     # update model_ws
     model_ws = os.path.join(tmpdir, "test_model_perlen_14")
@@ -367,8 +412,10 @@ def test_create_sea_model_perlen_14(tmpdir):
 
 # obtaining the test models
 def get_ds_from_cache(name="small_model"):
-    ds = xr.open_dataset(os.path.join(tst_model_dir, name + ".nc"))
-    return ds
+    model_data_path = _ensure_cached_model(name)
+    # Load into memory so the source file handle can be closed immediately.
+    with xr.open_dataset(model_data_path) as ds:
+        return ds.load()
 
 
 # other functions

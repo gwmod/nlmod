@@ -23,7 +23,7 @@ def sim_tdis_gwf_ims_from_ds(tmpdir):
     return sim, gwf
 
 
-def dis_from_ds(tmpdir):
+def test_dis_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("small_model")
 
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
@@ -31,26 +31,26 @@ def dis_from_ds(tmpdir):
     nlmod.gwf.dis(ds, gwf)
 
 
-def npf_from_ds(tmpdir):
+def test_npf_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("small_model")
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
-    nlmod.gwf.dis(ds)
+    nlmod.gwf.dis(ds, gwf)
     nlmod.gwf.npf(ds, gwf)
 
 
-def oc_from_ds(tmpdir):
+def test_oc_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("small_model")
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     nlmod.gwf.oc(ds, gwf)
 
 
-def sto_from_ds(tmpdir):
+def test_sto_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("small_model")
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     nlmod.gwf.sto(ds, gwf)
 
 
-def ghb_from_ds(tmpdir):
+def test_ghb_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("full_sea_model")
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
@@ -58,7 +58,7 @@ def ghb_from_ds(tmpdir):
     nlmod.gwf.ghb(ds, gwf, bhead="surface_water_stage", cond="surface_water_cond")
 
 
-def rch_from_ds(tmpdir):
+def test_rch_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("full_sea_model")
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
@@ -66,14 +66,14 @@ def rch_from_ds(tmpdir):
     nlmod.gwf.rch(ds, gwf)
 
 
-def drn_from_ds(tmpdir):
+def test_drn_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("full_sea_model")
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
     nlmod.gwf.surface_drain_from_ds(ds, gwf, 1.0)
 
 
-def chd_from_ds(tmpdir):
+def test_chd_from_ds(tmpdir):
     ds = test_001_model.get_ds_from_cache("small_model")
     _, gwf = sim_tdis_gwf_ims_from_ds(tmpdir)
     _ = nlmod.gwf.dis(ds, gwf)
@@ -85,7 +85,7 @@ def chd_from_ds(tmpdir):
     nlmod.gwf.chd(ds, gwf, mask="edge_mask", head="starting_head")
 
 
-def get_value_from_ds_datavar():
+def test_get_value_from_ds_datavar():
     ds = xr.Dataset(
         coords={
             "layer": [0, 1],
@@ -104,7 +104,7 @@ def get_value_from_ds_datavar():
 
     # get value from ds, variable and stored name are different
     v1 = nlmod.util._get_value_from_ds_datavar(ds, "test", "test_var")
-    xr.testing.assert_equal(ds["test_var"].values, v1)
+    (ds["test_var"].values == v1).all()
 
     # do not get value from ds, value is Data Array, should log info msg
     v2 = nlmod.util._get_value_from_ds_datavar(ds, "test", v0, return_da=True)
@@ -124,7 +124,7 @@ def get_value_from_ds_datavar():
     assert v5 is None, "should be None."
 
 
-def get_value_from_ds_attr():
+def test_get_value_from_ds_attr():
     ds = xr.Dataset(
         coords={
             "layer": [0, 1],
@@ -159,7 +159,7 @@ def get_value_from_ds_attr():
     v5 = nlmod.util._get_value_from_ds_attr(ds, "test", "test", value=3.0)
     assert v5 == 3.0
 
-    # user user-provided str value, no msg, since "test" is not in attrs
+    # use user-provided str value, no msg, since "test" is not in attrs
     v6 = nlmod.util._get_value_from_ds_attr(ds, "test", "test", value="test")
     assert v6 == "test"
 

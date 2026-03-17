@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 import numpy as np
 import pytest
@@ -8,9 +7,6 @@ import test_001_model
 import nlmod
 from nlmod.dims.grid import refine
 from nlmod.gwf import get_budget_da, get_heads_da
-
-tmpdir = tempfile.gettempdir()
-tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
 
 grberror = "Cannot create budget data-array without grid information."
 

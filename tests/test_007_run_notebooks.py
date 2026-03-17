@@ -35,6 +35,10 @@ NOTEBOOKS_BY_REL = {path.relative_to(docs_dir).as_posix(): path for path in NOTE
 NOTEBOOK_DEPENDENCIES = {
     "examples/09_schoonhoven.ipynb": ["data_sources/02_surface_water.ipynb"],
     "examples/14_stromingen_example.ipynb": ["data_sources/02_surface_water.ipynb"],
+    "utilities/08_gis.ipynb": [
+        "examples/01_basic_model.ipynb",
+        "examples/03_local_grid_refinement.ipynb",
+    ],
     "utilities/13_plot_methods.ipynb": ["examples/09_schoonhoven.ipynb"],
     "workflows/03_aggregating_surface_water.ipynb": ["data_sources/02_surface_water.ipynb"],
     "workflows/10_modpath.ipynb": ["examples/03_local_grid_refinement.ipynb"],

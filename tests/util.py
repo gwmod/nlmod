@@ -4,11 +4,25 @@ from shapely.geometry import LineString
 
 import nlmod
 
+MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
+
+
+def get_model_data_dir():
+    model_data_dir = os.environ.get(MODEL_DATA_ENV_VAR)
+    if model_data_dir is None:
+        raise RuntimeError(
+            f"Environment variable {MODEL_DATA_ENV_VAR} is not set. "
+            "Run tests via pytest so tests/conftest.py can configure "
+            "the shared model-data directory."
+        )
+    os.makedirs(model_data_dir, exist_ok=True)
+    return model_data_dir
+
 
 def get_ds_structured(extent=None, model_name="test", **kwargs):
     if extent is None:
         extent = [0, 1000, 0, 1000]
-    model_ws = os.path.join("data", model_name)
+    model_ws = os.path.join(get_model_data_dir(), model_name)
     ds = nlmod.get_ds(extent, model_name=model_name, model_ws=model_ws, **kwargs)
     return ds
 
@@ -17,7 +31,7 @@ def get_ds_vertex(extent=None, line=None, **kwargs):
     if line is None:
         line = [(0, 1000), (1000, 0)]
     ds = get_ds_structured(extent=extent, **kwargs)
-    model_ws = os.path.join("data", "gridgen")
+    model_ws = os.path.join(get_model_data_dir(), "gridgen")
     refinement_features = [([LineString(line)], "line", 1)]
     ds = nlmod.grid.refine(ds, model_ws, refinement_features=refinement_features)
     return ds

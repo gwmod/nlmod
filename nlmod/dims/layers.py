@@ -546,9 +546,7 @@ def kveq_combined_layers(kv, thickness, reindexer):
     for k, v in reindexer.items():
         if isinstance(v, tuple):
             numerator = np.nansum(thickness.data[v, ...], axis=0)
-            denominator = np.nansum(
-                thickness.data[v, ...] / kv.data[v, ...], axis=0
-            )
+            denominator = np.nansum(thickness.data[v, ...] / kv.data[v, ...], axis=0)
             kveq = np.divide(
                 numerator,
                 denominator,

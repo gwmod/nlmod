@@ -12,7 +12,9 @@ def test_get_municipalities_cbs():
 
 def test_get_municipalities_kadaster():
     extent = [100000, 110000, 400000, 410000]
-    gdf = nlmod.read.administrative.download_municipalities_gdf(source="kadaster", extent=extent)
+    gdf = nlmod.read.administrative.download_municipalities_gdf(
+        source="kadaster", extent=extent
+    )
     assert len(gdf) > 0
 
 

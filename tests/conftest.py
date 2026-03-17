@@ -1,9 +1,15 @@
 import os
 import shutil
+import gc
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
+
+try:
+    from xarray.backends.file_manager import FILE_CACHE
+except Exception:  # pragma: no cover - defensive for xarray internals
+    FILE_CACHE = None
 
 MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
 
@@ -32,6 +38,9 @@ def session_model_data_dir(tmp_path_factory):
 
 @pytest.fixture(autouse=True)
 def close_all_matplotlib_figures():
-    """Close figures created during a test to avoid cross-test leakage."""
+    """Close figures and backend file handles created during a test."""
     yield
     plt.close("all")
+    gc.collect()
+    if FILE_CACHE is not None:
+        FILE_CACHE.clear()

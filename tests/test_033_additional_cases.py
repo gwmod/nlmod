@@ -84,7 +84,9 @@ def test_webservices_get_data_non_json_propagates_value_error(monkeypatch):
         def json(self):
             raise ValueError("not json")
 
-    monkeypatch.setattr(webservices.requests, "get", lambda *args, **kwargs: DummyResponse())
+    monkeypatch.setattr(
+        webservices.requests, "get", lambda *args, **kwargs: DummyResponse()
+    )
 
     with pytest.raises(ValueError, match="not json"):
         webservices._get_data("https://example.test", {})
@@ -95,7 +97,9 @@ def test_webservices_get_data_http_error_on_bad_status(monkeypatch):
         ok = False
         url = "https://example.test"
 
-    monkeypatch.setattr(webservices.requests, "get", lambda *args, **kwargs: DummyResponse())
+    monkeypatch.setattr(
+        webservices.requests, "get", lambda *args, **kwargs: DummyResponse()
+    )
 
     with pytest.raises(HTTPError, match="Request not successful"):
         webservices._get_data("https://example.test", {})
@@ -109,7 +113,9 @@ def test_webservices_get_data_error_payload_raises(monkeypatch):
         def json(self):
             return {"error": {"code": 500, "message": "boom"}}
 
-    monkeypatch.setattr(webservices.requests, "get", lambda *args, **kwargs: DummyResponse())
+    monkeypatch.setattr(
+        webservices.requests, "get", lambda *args, **kwargs: DummyResponse()
+    )
 
     with pytest.raises(ValueError, match="Error code 500"):
         webservices._get_data("https://example.test", {})

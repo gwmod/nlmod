@@ -47,9 +47,7 @@ def test_cache_options_restores_on_exception():
         with config.cache_options(explicit_dataset_coordinate_comparison=not original):
             raise RuntimeError("boom")
 
-    assert (
-        config.get_options()["explicit_dataset_coordinate_comparison"] is original
-    )
+    assert config.get_options()["explicit_dataset_coordinate_comparison"] is original
 
 
 def test_show_versions_prints_expected_lines(capsys):

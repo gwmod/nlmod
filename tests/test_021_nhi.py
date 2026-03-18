@@ -1,6 +1,5 @@
 # ruff: noqa: D103
 import os
-import tempfile
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -10,11 +9,9 @@ import pytest
 
 import nlmod
 
-tmp_path = tempfile.gettempdir()
-
 
 @pytest.mark.slow
-def test_buisdrainage():
+def test_buisdrainage(tmp_path):
     model_ws = os.path.join(tmp_path, "buidrain")
     ds = nlmod.get_ds([110_000, 130_000, 435_000, 445_000], model_ws=model_ws)
     ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))

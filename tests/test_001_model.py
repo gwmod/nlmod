@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 import numpy as np
 import pandas as pd
@@ -8,9 +7,6 @@ import xarray as xr
 
 import nlmod
 import util
-
-tmp_path = tempfile.gettempdir()
-MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
 
 
 def _get_model_data_path(name):
@@ -61,7 +57,7 @@ def test_snap_extent():
     assert new_extent == [1000.0, 2000.0, 7975.0, 10010.0]
 
 
-def test_get_ds():
+def test_get_ds(tmp_path):
     model_ws = os.path.join(tmp_path, "test_model_ds")
     nlmod.get_ds(
         [-500, 500, -500, 500],
@@ -76,7 +72,7 @@ def test_get_ds():
     )
 
 
-def test_get_ds_variable_delrc():
+def test_get_ds_variable_delrc(tmp_path):
     model_ws = os.path.join(tmp_path, "test_model_ds")
     nlmod.get_ds(
         extent=[-500, 500, -500, 500],

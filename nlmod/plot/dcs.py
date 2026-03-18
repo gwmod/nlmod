@@ -490,6 +490,45 @@ class DatasetCrossSection:
         self.ax.add_collection(patch_collection)
         return patch_collection
 
+    def hatch_layers(self, layers, color="k", hatch="/", **kwargs):
+        polygons = []
+        fc = kwargs.pop("facecolor", "none")
+        ec = kwargs.pop("edgecolor", "none")
+        for i, lay in enumerate(self.ds.layer.values):
+            if lay in layers:
+                if np.all(np.isnan(self.bot[i]) | (self.bot[i] == self.zmax)):
+                    continue
+                if np.all(np.isnan(self.top[i]) | (self.top[i] == self.zmin)):
+                    continue
+                z_not_nan = np.where(~np.isnan(self.top[i]) & ~np.isnan(self.bot[i]))[0]
+                vans = [z_not_nan[0]]
+                tots = []
+                for x in np.where(np.diff(z_not_nan) > 1)[0]:
+                    tots.append(z_not_nan[x] + 1)
+                    vans.append(z_not_nan[x + 1])
+                tots.append(z_not_nan[-1] + 1)
+                for van, tot in zip(vans, tots):
+                    t = self.top[i, van:tot]
+                    b = self.bot[i, van:tot]
+                    n = tot - van
+
+                    x = self.s[van:tot].ravel()
+                    x = np.concatenate((x, x[::-1]))
+                    y = np.concatenate(
+                        (
+                            t[sorted(list(range(n)) * 2)],
+                            b[sorted(list(range(n)) * 2, reverse=True)],
+                        )
+                    )
+                    xy = list(zip(x, y))
+                    pol = matplotlib.patches.Polygon(
+                        xy, facecolor=fc, edgecolor=ec, hatch=hatch, **kwargs
+                    )
+                    pol._hatch_color = matplotlib.colors.to_rgba(color)
+                    self.ax.add_patch(pol)
+                    polygons.append(pol)
+        return polygons
+
     def plot_surface(self, z, **kwargs):
         if isinstance(z, xr.DataArray):
             z = z.data

@@ -1,18 +1,17 @@
 import os
-import tempfile
 
 import pandas as pd
 import xarray as xr
 
 import nlmod
+import util
 
 
 def test_gwt_model():
     extent = [103700, 106700, 527500, 528500]
 
-    tmpdir = tempfile.gettempdir()
     model_name = "trnsprt_tst"
-    model_ws = os.path.join(tmpdir, model_name)
+    model_ws = os.path.join(util.get_model_data_dir(), model_name)
 
     layer_model = nlmod.read.download_regis(extent, botm_layer="MSz1")
     # create a model ds

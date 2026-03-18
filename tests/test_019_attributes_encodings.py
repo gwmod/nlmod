@@ -30,8 +30,8 @@ def test_encodings_float_as_int16():
     assert encodings["porosity"]["dtype"] == "int16", "dtype should be int16"
 
     # test writing to temporary netcdf file
-    with TemporaryDirectory() as tmpdir:
-        fp_test = os.path.join(tmpdir, "test2.nc")
+    with TemporaryDirectory() as tmp_path:
+        fp_test = os.path.join(tmp_path, "test2.nc")
         ds.to_netcdf(fp_test, encoding=encodings)
 
         with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
@@ -75,14 +75,14 @@ def test_encondings_inplace():
     )
 
     # test writing to temporary netcdf file
-    with TemporaryDirectory() as tmpdir:
-        fp_test = os.path.join(tmpdir, "test2.nc")
+    with TemporaryDirectory() as tmp_path:
+        fp_test = os.path.join(tmp_path, "test2.nc")
         ds.to_netcdf(fp_test, encoding=encodings)
 
         with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
             ds2.load()
 
-        fp_test_inplace = os.path.join(tmpdir, "test_inplace.nc")
+        fp_test_inplace = os.path.join(tmp_path, "test_inplace.nc")
         ds_inplace.to_netcdf(fp_test_inplace)
 
         with xr.open_dataset(fp_test_inplace, mask_and_scale=True) as ds_inplace2:

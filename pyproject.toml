@@ -72,7 +72,7 @@ full = [
 knmi = ["h5netcdf", "h5py", "nlmod[grib]"]
 grib = ["cfgrib"]
 test = ["pytest>=7", "pytest-cov", "lxml"]
-nbtest = ["nbformat", "nbconvert>6.4.5"]
+nbtest = ["nbformat", "nbconvert>6.4.5", "openpyxl"]
 lint = ["ruff"]
 ci = ["nlmod[full,lint,test,nbtest]"]
 rtd = [
@@ -134,5 +134,3 @@ pydocstyle.convention = "numpy"
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"
 markers = ["notebooks: run notebooks", "slow: slow tests", "skip: skip tests"]
 
-[tool.coverage.run]
-dynamic_context = "test_function"

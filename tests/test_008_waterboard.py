@@ -1,11 +1,11 @@
 import os
-import tempfile
 
 import matplotlib
 import numpy as np
 import pytest
 
 import nlmod
+import util
 
 # def test_download_polygons(): # is tested in test_024_administrative.test_get_waterboards
 #     nlmod.read.waterboard.get_polygons()
@@ -47,7 +47,7 @@ def get_ahn_colormap(name="ahn", N=256):
 def test_download_level_areas(
     data_kind="level_areas", plot=True, save=True, figdir=r"..\docs\_static"
 ):
-    cachedir = os.path.join(tempfile.tempdir, "test_download_level_areas")
+    cachedir = os.path.join(util.get_model_data_dir(), "test_download_level_areas")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
 
@@ -123,7 +123,7 @@ def test_download_watercourses(plot=True):
         #    extent = [57000, 58000, 378000, 379000]
         return extent
 
-    cachedir = os.path.join(tempfile.tempdir, "test_download_watercourses")
+    cachedir = os.path.join(util.get_model_data_dir(), "test_download_watercourses")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
 

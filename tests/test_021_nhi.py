@@ -1,6 +1,5 @@
 # ruff: noqa: D103
 import os
-import tempfile
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -10,14 +9,12 @@ import pytest
 
 import nlmod
 
-tmpdir = tempfile.gettempdir()
-
 
 @pytest.mark.slow
-def test_buisdrainage():
-    model_ws = os.path.join(tmpdir, "buidrain")
+def test_buisdrainage(tmp_path):
+    model_ws = os.path.join(tmp_path, "buidrain")
     ds = nlmod.get_ds([110_000, 130_000, 435_000, 445_000], model_ws=model_ws)
-    ds = nlmod.read.nhi.add_buisdrainage(ds)
+    ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))
 
     # assert that all locations with a specified depth also have a positive conductance
     mask = ~ds["buisdrain_depth"].isnull()
@@ -34,13 +31,13 @@ def test_gwo():
 
     # download all wells from Brabant Water
     try:
-        wells = nlmod.read.nhi.get_gwo_wells(
+        wells = nlmod.read.nhi.download_gwo_wells(
             username=username, password=password, organisation="Brabant Water"
         )
         assert isinstance(wells, gpd.GeoDataFrame)
 
         # download extractions from well "13-PP016" of pomping station Veghel
-        measurements, gdf = nlmod.read.nhi.get_gwo_measurements(
+        measurements, gdf = nlmod.read.nhi.download_gwo_measurements(
             username, password, well_site="veghel", filter__well__name="13-PP016"
         )
         assert measurements.reset_index()["Name"].isin(gdf.index).all()
@@ -59,7 +56,7 @@ def allow_network_fail(e):
 def test_gwo_entire_pumping_station():
     username = os.environ["NHI_GWO_USERNAME"]
     password = os.environ["NHI_GWO_PASSWORD"]
-    measurements, gdf = nlmod.read.nhi.get_gwo_measurements(
+    measurements, gdf = nlmod.read.nhi.download_gwo_measurements(
         username,
         password,
         well_site="veghel",
@@ -69,11 +66,15 @@ def test_gwo_entire_pumping_station():
     ncols = 3
     nrows = int(np.ceil(len(gdf.index) / ncols))
     f, axes = plt.subplots(
-        nrows=nrows, ncols=ncols, figsize=(10, 10), sharex=True, sharey=True
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(10, 10),
+        sharex=True,
+        sharey=True,
+        layout="constrained",
     )
     axes = axes.ravel()
     for name, ax in zip(gdf.index, axes):
         measurements.loc[name, "Volume"].plot(ax=ax)
         ax.set_xlabel("")
         ax.set_title(name)
-    f.tight_layout(pad=0.0)

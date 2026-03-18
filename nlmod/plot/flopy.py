@@ -23,9 +23,7 @@ def _get_figure(ax=None, gwf=None, figsize=None):
             figsize = (figsize[0], np.round(figsize[1] / 0.02, 0) * 0.02)
 
         base = 10 ** int(np.log10(gwf.modelgrid.extent[1] - gwf.modelgrid.extent[0]))
-        f, ax = get_map(
-            gwf.modelgrid.extent, base=base, figsize=figsize, tight_layout=False
-        )
+        f, ax = get_map(gwf.modelgrid.extent, base=base, figsize=figsize)
         ax.set_aspect("equal", adjustable="box")
     return f, ax
 
@@ -148,8 +146,6 @@ def map_array(
     # axes properties
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
-
-    f.tight_layout()
 
     # colorbar
     divider = make_axes_locatable(ax)
@@ -278,8 +274,6 @@ def contour_array(
     # axes properties
     axprops = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
     ax.set(**axprops)
-
-    f.tight_layout()
 
     if animate:
         return f, ax, cs

@@ -553,10 +553,14 @@ def kveq_combined_layers(kv, thickness, reindexer):
     da_kv = _get_empty_layered_da(kv, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.nansum(thickness.data[v, ...], axis=0) / np.nansum(
-                thickness.data[v, ...] / kv.data[v, ...], axis=0
+            numerator = np.nansum(thickness.data[v, ...], axis=0)
+            denominator = np.nansum(thickness.data[v, ...] / kv.data[v, ...], axis=0)
+            kveq = np.divide(
+                numerator,
+                denominator,
+                out=np.full_like(numerator, np.nan),
+                where=denominator != 0,
             )
-            kveq[np.isinf(kveq)] = np.nan
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq

@@ -30,8 +30,5 @@ def download_percelen_gdf(extent, year=None):
         gdf = webservices.wfs(url, layer, extent)
         gdf = gdf.set_index("fuuid")
     else:
-        if year < 2009 or year > 2021:
-            raise (ValueError("Only data available from 2009 up to and including 2021"))
-        url = f"https://services.arcgis.com/nSZVuSZjHpEZZbRo/ArcGIS/rest/services/BRP_{year}/FeatureServer"
-        gdf = webservices.arcrest(url, 0, extent=extent)
+        raise ValueError("The argument `year` is not supported any more.")
     return gdf

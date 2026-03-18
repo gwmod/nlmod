@@ -1,15 +1,14 @@
 import os
 
 import flopy
-import xarray as xr
+import test_001_model
 
 import nlmod
 
 
 def test_modpath():
     # start with runned model from test_001_model.test_create_sea_model
-    model_ws = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
-    ds = xr.open_dataset(os.path.join(model_ws, "basic_sea_model.nc"))
+    ds = test_001_model.get_ds_from_cache("sea_model")
 
     sim = flopy.mf6.MFSimulation.load("mfsim.nam", sim_ws=ds.model_ws)
     gwf = sim.get_model(ds.model_name)
@@ -41,7 +40,7 @@ def test_modpath():
     nlmod.modpath.load_pathline_data(mpf)
 
     # get the nodes from a package
-    nodes = nlmod.modpath.package_to_nodes(gwf, "GHB", mpf)
+    nodes = nlmod.modpath.package_to_nodes(gwf, "GHB", ibound=mpf.ib)
 
     # get nodes of all cells in the top modellayer
     nodes = nlmod.modpath.layer_to_nodes(mpf, 0)

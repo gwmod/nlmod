@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 import numpy as np
 import pytest
@@ -9,20 +8,17 @@ import nlmod
 from nlmod.dims.grid import refine
 from nlmod.gwf import get_budget_da, get_heads_da
 
-tmpdir = tempfile.gettempdir()
-tst_model_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
-
 grberror = "Cannot create budget data-array without grid information."
 
 
-def test_create_small_model_grid_only(tmpdir, model_name="test"):
+def test_create_small_model_grid_only(tmp_path, model_name="test"):
     model_name = "test"
     extent = [98700.0, 99000.0, 489500.0, 489700.0]
     # extent, nrow, ncol = nlmod.read.regis.fit_extent_to_regis(extent, 100, 100)
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, regis_botm_layer="KRz5", use_regis=True, use_geotop=True
     )
-    model_ws = os.path.join(tmpdir, model_name)
+    model_ws = os.path.join(tmp_path, model_name)
     ds = nlmod.to_model_ds(
         regis_geotop_ds, model_name, model_ws, delr=100.0, delc=100.0
     )
@@ -215,7 +211,7 @@ def test_get_budget_da_from_file_unstructured_with_grb():
 
 
 def test_postprocess_head():
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model")
     head = nlmod.gwf.get_heads_da(ds)
 
     nlmod.gwf.calculate_gxg(head)
@@ -226,7 +222,7 @@ def test_postprocess_head():
 
 
 def test_get_flow_residuals():
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model")
     da = nlmod.gwf.output.get_flow_residuals(ds)
     assert "time" in da.dims
     da = nlmod.gwf.output.get_flow_residuals(ds, kstpkper=(0, 0))
@@ -234,7 +230,7 @@ def test_get_flow_residuals():
 
 
 def test_get_flow_lower_face():
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model")
     da = nlmod.gwf.output.get_flow_lower_face(ds)
     assert "time" in da.dims
     da = nlmod.gwf.output.get_flow_lower_face(ds, kstpkper=(0, 0))

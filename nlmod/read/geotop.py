@@ -649,7 +649,13 @@ def aggregate_to_ds(
     ds : xr.Dataset
         The Dataset ds, with added variables kh and kv (and optionally kd and c).
     """
-    assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
+    msg = (
+        "x and/or y coordinates do not match between 'ds' and 'gt'. "
+        "Both datasets must be on the same grid. For rotated grids, make sure "
+        "gt uses model-local coordinates (not real-world coordinates)."
+    )
+    if not (np.array_equal(ds.x.values, gt.x.values) and np.array_equal(ds.y.values, gt.y.values)):
+        raise ValueError(msg)
     msg = "Please add '{}' to geotop-Dataset first, using add_kh_and_kv()"
     if kh_gt not in gt:
         raise (MissingValueError(msg.format(kh_gt)))

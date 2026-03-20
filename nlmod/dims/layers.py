@@ -1664,7 +1664,11 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
     """Aggregate source data to a model dataset using the weighted mean.
 
     The weighted average per model layer is calculated for the variable in the
-    source dataset. The datasets must have the same grid.
+    source dataset. The datasets must have the same grid. For rotated grids,
+    both ``ds`` and ``source_ds`` must use model-local coordinates (not
+    real-world coordinates). Use ``nlmod.dims.resample.structured_da_to_ds``
+    or ``nlmod.dims.resample.ds_to_structured_grid`` to resample source data to
+    the rotated model grid before calling this function.
 
     Parameters
     ----------
@@ -1684,13 +1688,23 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
     ------
     ValueError
         if source_ds does not have a layer dimension
+    ValueError
+        if x and/or y coordinates do not match between ds and source_ds
 
     See Also
     --------
     nlmod.read.geotop.aggregate_to_ds
     """
-    msg = "x and/or y coordinates do not match between 'ds' and 'source_ds'"
-    assert (ds.x == source_ds.x).all() and (ds.y == source_ds.y).all(), msg
+    msg = (
+        "x and/or y coordinates do not match between 'ds' and 'source_ds'. "
+        "Both datasets must be on the same grid. For rotated grids, make sure "
+        "source_ds uses model-local coordinates (not real-world coordinates)."
+    )
+    if not (
+        np.array_equal(ds.x.values, source_ds.x.values)
+        and np.array_equal(ds.y.values, source_ds.y.values)
+    ):
+        raise ValueError(msg)
 
     if "layer" in ds["top"].dims:
         # make sure there is no layer dimension in top

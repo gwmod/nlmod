@@ -4,6 +4,7 @@ import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import xarray as xr
 import test_001_model
 from pandas import DataFrame
 from shapely.geometry import LineString
@@ -211,6 +212,75 @@ def test_aggregate_by_weighted_mean_to_ds():
     kh_new = nlmod.layers.aggregate_by_weighted_mean_to_ds(regis, regis2, "kh")
     assert np.abs(kh_new - regis["kh"]).max() < 1e-5
     # assert (kh_new.isnull() == regis["kh"].isnull()).all() # does not assert to True...
+
+
+def test_aggregate_by_weighted_mean_to_ds_rotated():
+    """Test that aggregate_by_weighted_mean_to_ds works for rotated structured grids
+    and raises a proper ValueError when coordinate systems don't match."""
+    from affine import Affine
+
+    # Build a small rotated model grid (model-local coordinates)
+    x_local = np.array([5.0, 15.0, 25.0])
+    y_local = np.array([5.0, 15.0, 25.0])
+    layer_model = np.array([0, 1, 2])
+
+    angrot = 30.0
+    xorigin = 131000.0
+    yorigin = 471500.0
+
+    affine = Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+    xc, yc = affine * np.meshgrid(x_local, y_local)
+
+    ds = xr.Dataset(
+        {
+            "top": (["y", "x"], np.ones((3, 3)) * 10.0),
+            "botm": (
+                ["layer", "y", "x"],
+                np.stack([np.ones((3, 3)) * (10 - (i + 1) * 3.0) for i in range(3)]),
+            ),
+        },
+        coords={
+            "x": x_local,
+            "y": y_local,
+            "layer": layer_model,
+            "xc": (["y", "x"], xc),
+            "yc": (["y", "x"], yc),
+        },
+        attrs={"angrot": angrot, "xorigin": xorigin, "yorigin": yorigin},
+    )
+
+    # Create source_ds on the same rotated model grid (model-local coords)
+    source_top = np.stack([np.ones((3, 3)) * (10 - i * 1.0) for i in range(9)])
+    source_bot = np.stack([np.ones((3, 3)) * (10 - (i + 1) * 1.0) for i in range(9)])
+    kh_values = np.ones((9, 3, 3)) * 5.0
+
+    source_ds = xr.Dataset(
+        {
+            "top": (["layer", "y", "x"], source_top),
+            "bottom": (["layer", "y", "x"], source_bot),
+            "kh": (["layer", "y", "x"], kh_values),
+        },
+        coords={
+            "x": x_local,
+            "y": y_local,
+            "layer": np.arange(9),
+            "xc": (["y", "x"], xc),
+            "yc": (["y", "x"], yc),
+        },
+    )
+
+    # Should succeed: same model-local coordinates
+    result = nlmod.layers.aggregate_by_weighted_mean_to_ds(ds, source_ds, "kh")
+    assert result.shape == (3, 3, 3)
+    assert np.allclose(result.values, 5.0, equal_nan=True)
+
+    # Should raise ValueError: source_ds uses real-world coordinates instead of
+    # model-local coordinates (the former bug passed this check vacuously)
+    x_world = xc[0]  # world (RD) x values - different from model-local x
+    y_world = yc[:, 0]  # world (RD) y values - different from model-local y
+    source_ds_world = source_ds.assign_coords(x=x_world, y=y_world)
+    with pytest.raises(ValueError, match="x and/or y coordinates do not match"):
+        nlmod.layers.aggregate_by_weighted_mean_to_ds(ds, source_ds_world, "kh")
 
 
 def test_check_elevations_consistency(caplog):

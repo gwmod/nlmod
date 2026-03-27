@@ -317,16 +317,18 @@ def geotop_strat_in_cross_section(
     if strat_props is None:
         strat_props = geotop.get_strat_props()
 
-    cs = geotop_var_in_cross_section(line,
-                                     'strat',
-                                     gt=gt,
-                                     ax=ax,
-                                     legend=legend,
-                                     legend_loc=legend_loc,
-                                     var_props=strat_props,
-                                     alpha=alpha,
-                                     label_col='code',
-                                     **kwargs)
+    cs = geotop_var_in_cross_section(
+        line,
+        "strat",
+        gt=gt,
+        ax=ax,
+        legend=legend,
+        legend_loc=legend_loc,
+        var_props=strat_props,
+        alpha=alpha,
+        label_col="code",
+        **kwargs,
+    )
     return cs
 
 
@@ -376,15 +378,17 @@ def geotop_lithok_in_cross_section(
     if lithok_props is None:
         lithok_props = geotop.get_lithok_props()
 
-    cs = geotop_var_in_cross_section(line,
-                                     'lithok',
-                                     gt=gt,
-                                     ax=ax,
-                                     legend=legend,
-                                     legend_loc=legend_loc,
-                                     var_props=lithok_props,
-                                     alpha=alpha,
-                                     **kwargs)
+    cs = geotop_var_in_cross_section(
+        line,
+        "lithok",
+        gt=gt,
+        ax=ax,
+        legend=legend,
+        legend_loc=legend_loc,
+        var_props=lithok_props,
+        alpha=alpha,
+        **kwargs,
+    )
     return cs
 
 
@@ -397,7 +401,7 @@ def geotop_var_in_cross_section(
     legend_loc=None,
     var_props=None,
     alpha=None,
-    label_col='name',
+    label_col="name",
     **kwargs,
 ):
     """PLot the lithoclass-data of GeoTOP in a cross-section.
@@ -450,12 +454,14 @@ def geotop_var_in_cross_section(
         gt = geotop.add_top_and_botm(gt)
 
     if var_props is None:
-        if var == 'lithok':
+        if var == "lithok":
             var_props = geotop.get_lithok_props()
-        elif var == 'strat':
+        elif var == "strat":
             var_props = geotop.get_strat_props()
         else:
-            raise ValueError(f"Variable {var} not recognized. Can only be 'lithok' or 'strat'.")
+            raise ValueError(
+                f"Variable {var} not recognized. Can only be 'lithok' or 'strat'."
+            )
 
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
     array, cmap, norm = _get_geotop_cmap_and_norm(gt[var], var_props)
@@ -463,11 +469,9 @@ def geotop_var_in_cross_section(
 
     if legend:
         # make a legend with dummy handles
-        _add_geotop_var_legend(var_props,
-                               ax,
-                               var=gt[var],
-                               label_col=label_col,
-                               loc=legend_loc)
+        _add_geotop_var_legend(
+            var_props, ax, var=gt[var], label_col=label_col, loc=legend_loc
+        )
 
     return cs
 
@@ -523,15 +527,15 @@ def geotop_lithok_on_map(
     return qm
 
 
-def _add_geotop_var_legend(var_props, ax, var=None, label_col='name', **kwargs):
+def _add_geotop_var_legend(var_props, ax, var=None, label_col="name", **kwargs):
     """Add a legend with lithok- or strat-data."""
     handles = []
     if var is None:
-        vars = var_props.index
+        unique_vals = var_props.index
     else:
-        vars = np.unique(var)
-        vars = vars[~np.isnan(vars)]
-    for index in vars:
+        unique_vals = np.unique(var)
+        unique_vals = unique_vals[~np.isnan(unique_vals)]
+    for index in unique_vals:
         color = var_props.at[index, "color"]
         label = var_props.at[int(index), label_col]
         handles.append(Patch(facecolor=color, label=label))

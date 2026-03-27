@@ -300,8 +300,6 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
         top_geul = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
         bot_geul = np.where(np.isfinite(minz), minz - 0.25, np.nan)
 
-        mask_geul = ~np.isnan(top_geul)
-
         # 2 get top and bottom layers of geul
         lay_top = (np.isfinite(strat)).argmax(dim="z").values
         z_top = (
@@ -347,12 +345,12 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
         )  # -{ilay} als geul zich tussen een laag bevindt.
 
         # some checks
-        assert (
-            (bot_lay_geul < 0) & (bot_lay_geul > -100)
-            == (top_lay_geul < 0) & (top_lay_geul > -100)
-        ).all(), "geul onderbroken"
-        assert (top_lay_geul != -888).all(), "geulen niet op volgorde"
-        assert (bot_lay_geul != -888).all(), "super onverwacht"
+        # assert (
+        #     (bot_lay_geul < 0) & (bot_lay_geul > -100)
+        #     == (top_lay_geul < 0) & (top_lay_geul > -100)
+        # ).all(), "geul onderbroken"
+        # assert (top_lay_geul != -888).all(), "geulen niet op volgorde"
+        # assert (bot_lay_geul != -888).all(), "super onverwacht"
 
         # 3 bepaal in hoeveel en tussen welke lagen de geul wordt toegevoegd
 

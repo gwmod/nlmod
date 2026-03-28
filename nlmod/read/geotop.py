@@ -95,7 +95,8 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
     strat : xarray DataArray
         Modified stratigraphic data
     new_units : list
-        List of new stratigraphic units including split geulen layers.
+        List of new stratigraphic units, including all the splitted layers, from top
+        to bottom.
 
     Notes
     -----
@@ -240,8 +241,17 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
 
 def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
     """Modifies the stratigraphic data from geotop in such a way that every layer
-    is above another layer. This is done by splitting layers when they are locally both
-    above and below a geul.
+    is above another layer. This is done by splitting the geulen over multiple layers
+    and splitting other layers locally when a geul is partly above and partly below
+    that layer.
+
+    This function differs slightly from `split_layers_on_geul`. The `split_layers_on_geul`
+    function will add a geul layer on top of the layer directly below. This can lead to
+    a geul being split up in more layers than is strictly necessary.
+
+    This function has some extra logic to find all possible layers where the geul can
+    be added to. Then it tries to minimize the number of geul layers by finding the
+    most efficient layer to add the geul to.
 
     Parameters
     ----------
@@ -258,7 +268,8 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
     strat : xarray DataArray
         Modified stratigraphic data
     new_units : list
-        List of new stratigraphic units including split geulen layers.
+        List of new stratigraphic units, including all the splitted layers, from top
+        to bottom.
 
     Notes
     -----
@@ -277,7 +288,8 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
     )
 
     for ilay_geul, geul in enumerate(geulen):
-        # 1 get top/bot units (bovenste laag is dummy laag voor bepalen aangrenzende lagen, om te zorgen
+        # 1 get top/bot units
+        # (bovenste laag is dummy laag voor bepalen aangrenzende lagen, om te zorgen
         # dat je met argmax een onderscheid kan maken tussen geen maximum gevonden (0) en de bovenste
         # laag bevat het maximum (1). Zonder deze extra laag zijn ze allebei 0.
         shape_no_geul = (len(new_units) + 1, len(strat.y), len(strat.x))
@@ -300,7 +312,7 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
         top_geul = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
         bot_geul = np.where(np.isfinite(minz), minz - 0.25, np.nan)
 
-        # 2 get top and bottom layers of geul
+        # 2 get top and bottom height (m NAP) of model)
         lay_top = (np.isfinite(strat)).argmax(dim="z").values
         z_top = (
             np.take_along_axis(z, lay_top[np.newaxis, ...], axis=0).squeeze(axis=0)
@@ -354,8 +366,8 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
 
         # 3 bepaal in hoeveel en tussen welke lagen de geul wordt toegevoegd
 
-        # a: maak een lege array waarin per cel wordt opgeslagen bij welk unit (ilay) de geul wordt gepropt.
-        # de geul wordt steeds onder deze unit gepropt.
+        # a: maak een lege array waarin per cel wordt opgeslagen bij welk unit (ilay)
+        # de geul wordt gepropt. De geul wordt steeds onder deze unit gepropt.
         lay_geul = np.ones_like(top_lay_geul) * np.nan
 
         # b: lagen waar de geul tussen zit
@@ -371,7 +383,8 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
                 (abs(lay) >= np.abs(top_lay_geul)) & (abs(lay) <= np.abs(bot_lay_geul))
             ] = lay
 
-        # c: op de plekken waar dit niet kan, zoek de laag die het dichtst bij de laag zit waar de geul tussen zit.
+        # c: op de plekken waar dit niet kan, zoek de laag die het dichtst bij de
+        # laag zit waar de geul tussen zit.
         dif_top = np.ones((len(layers), *top_geul.shape)) * np.nan
         dif_bot = np.ones((len(layers), *top_geul.shape)) * np.nan
         for i, lay in enumerate(layers):

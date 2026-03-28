@@ -511,6 +511,9 @@ def to_model_layers(
 
     if method_geulen == "split_layers":
         # remove geulen from units
+        logger.warning(
+            "the 'split_layers' method for geulen is still experimental and not yet thoroughly tested."
+        )
         units_no_geul = [unit for unit in units if unit < 6000]
         geulen = [unit for unit in units if unit >= 6000]
         if optimal:

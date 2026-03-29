@@ -284,7 +284,7 @@ def geotop_strat_in_cross_section(
     alpha=None,
     **kwargs,
 ):
-    """PLot the stratigraphic-data of GeoTOP in a cross-section.
+    """Plot the stratigraphic-data of GeoTOP in a cross-section.
 
     Parameters
     ----------

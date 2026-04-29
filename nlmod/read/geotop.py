@@ -76,181 +76,15 @@ def get_kh_kv_table(kind="Brabant"):
 
 
 def split_layers_on_geul(strat, units_no_geul, geulen):
-    """Modifies the stratigraphic data from geotop in such a way that every layer
-    is above another layer. This is done by splitting layers when they are locally both
-    above and below a geul.
+    """Modifies the stratigraphic data from geotop in such a way that every stratigraphic
+    unit is completely above or completely below any other unit (and never both above
+    and below the same unit). This is useful for creating a layer model from the
+    stratigraphic units.
 
-    Parameters
-    ----------
-    strat : xarray DataArray
-        with dimensions z, y and x, with values corresponding to the stratigraphic
-        unit in each voxel.
-    units_no_geul : list
-        List of stratigraphic units without geulen.
-    geulen : list
-        List of geulen units.
+    This function splits the geulen over multiple layers and splits other layers
+    locally when a geul is partly above and partly below that layer.
 
-    Returns
-    -------
-    strat : xarray DataArray
-        Modified stratigraphic data
-    new_units : list
-        List of new stratigraphic units, including all the splitted layers, from top
-        to bottom.
-
-    Notes
-    -----
-    the new stratigraphic data contains more unit numbers than the original
-    stratigraphic data, because when a layer is split by a geul, the part of the layer
-    below the geul gets a new unit number. The same goes for the geul itself when it
-    occurs across multiple layers.
-    """
-    new_units = units_no_geul.copy()
-    strat = strat.copy()
-    z = (
-        strat["z"]
-        .data[:, np.newaxis, np.newaxis]
-        .repeat(len(strat.y), 1)
-        .repeat(len(strat.x), 2)
-    )
-
-    new_layers = []
-    for lay_geul, geul in enumerate(geulen):
-        # get top/bot units
-        shape_no_geul = (len(new_units), len(strat.y), len(strat.x))
-        top = np.full(shape_no_geul, np.nan)
-        bot = np.full(shape_no_geul, np.nan)
-
-        for layer, unit in enumerate(new_units):
-            mask = strat == unit
-            # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
-            maxz = np.max(np.where(mask, z, -np.inf), axis=0)
-            minz = np.min(np.where(mask, z, np.inf), axis=0)
-            top[layer] = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
-            bot[layer] = np.where(np.isfinite(minz), minz - 0.25, np.nan)
-
-        # get top/bot geulen
-        mask = strat == geul
-        maxz = np.max(np.where(mask, z, -np.inf), axis=0)
-        minz = np.min(np.where(mask, z, np.inf), axis=0)
-
-        top_geul = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
-        bot_geul = np.where(np.isfinite(minz), minz - 0.25, np.nan)
-
-        geul_layer_counter = (
-            1  # counts how many times a geul layer has to be added as a seperate layer
-        )
-        for ilay, unit in enumerate(new_units):
-            logger.debug(f"checking layer {unit} against geul {geul}")
-
-            # recaulcaulte top and bot of geul based on modified strat
-            mask = strat == geul
-            maxz = np.max(np.where(mask, z, -np.inf), axis=0)
-            minz = np.min(np.where(mask, z, np.inf), axis=0)
-            top_geul = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
-            bot_geul = np.where(np.isfinite(minz), minz - 0.25, np.nan)
-
-            mask_geul = np.isfinite(bot_geul) & np.isfinite(bot[ilay])
-            geul_subset = geul + (10000 * (geul_layer_counter))
-            if (~mask_geul).all():  # no overlap between geul and layer do nothing
-                logger.debug(f"geul {geul} and {unit} do not overlap")
-                new_layers.append(unit)
-                continue
-
-            elif (
-                bot[ilay][mask_geul] >= top_geul[mask_geul]
-            ).all():  # geul is completely below layer
-                logger.debug(f"geul {geul} completely below {unit}")
-                new_layers.append(unit)
-                continue
-            elif (
-                top[ilay][mask_geul] < bot_geul[mask_geul]
-            ).all():  # geul is completely above and not touching layer
-                logger.debug(f"geul {geul} completely above {unit} and not touching")
-                new_layers.append(unit)
-                continue
-            elif (
-                top[ilay][mask_geul] == bot_geul[mask_geul]
-            ).all():  # geul completely touches top of layer
-                logger.debug(f"geul {geul} completely above {unit} and touching")
-                logger.debug(f"voeg geul {geul} toe als {geul_subset}")
-                mask1 = top[ilay] == bot_geul  # 2d mask of where geul is above layer
-                mask2 = strat == geul  # 3d mask of where unit is present
-                strat = xr.where(
-                    mask2 & mask1 & mask_geul, geul_subset, strat
-                )  # mask geul waarschijnlijk niet nodig
-
-                new_layers.append(geul_subset)
-                new_layers.append(unit)
-                geul_layer_counter += 1
-                continue
-
-            mask_below_lay = (
-                top[ilay][mask_geul] >= top_geul[mask_geul]
-            )  # deel van de geul onder laag
-            mask_above_lay = (
-                bot[ilay][mask_geul] <= bot_geul[mask_geul]
-            )  # deel van de geul boven laag
-            mask_geul_between = (
-                mask_below_lay & mask_above_lay
-            )  # geul ligt ingeklemd in laag
-            mask_geul_above = mask_above_lay & (
-                ~mask_below_lay
-            )  # geul ligt boven de laag
-
-            if (
-                mask_geul_between.any()
-            ):  # Deel de laag in twee delen (boven en onder geul)
-                logger.debug(f"geul {geul} deels boven en deels onder laag {unit}")
-                unit_below = unit + (10000 * (lay_geul + 1))
-                logger.debug(
-                    f"deel laag {unit} op in boven: {unit} en onder: {unit_below}"
-                )
-                # voeg laag onder de geul toe als nieuwe laag
-                mask1 = bot[ilay] < bot_geul  # 2d mask of where geul is above layer
-                mask2 = z <= bot_geul  # 3d mask of where z value is below geul
-                mask3 = strat == unit  # 3d mask of where unit is present
-                strat = xr.where(
-                    (mask2 & mask3) & mask1 & mask_geul, unit_below, strat
-                )  # mask geul waarschijnlijk niet nodig
-                logger.debug(f"voeg geul {geul} toe als {geul_subset}")
-                mask4 = strat == geul  # 3d mask of where geul is present
-                strat = xr.where(mask4 & mask1, geul_subset, strat)
-                new_layers.append(unit)
-                new_layers.append(geul_subset)
-                new_layers.append(unit_below)
-            elif mask_geul_above.any():
-                logger.debug(f"geul {geul} deels boven laag {unit}")
-                logger.debug(f"voeg geul {geul} toe als {geul_subset}")
-                mask1 = top[ilay] == bot_geul  # 2d mask of where geul is above layer
-                mask2 = strat == geul  # 3d mask of where unit is present
-                strat = xr.where(
-                    mask2 & mask1 & mask_geul, geul_subset, strat
-                )  # mask geul waarschijnlijk niet nodig
-                new_layers.append(geul_subset)
-                new_layers.append(unit)
-            else:
-                logger.warning(f"unexpected result for geul {geul} and layer {unit}")
-            geul_layer_counter += 1
-
-        new_units = new_layers.copy()
-        new_layers = []
-
-    return strat, new_units
-
-
-def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
-    """Modifies the stratigraphic data from geotop in such a way that every layer
-    is above another layer. This is done by splitting the geulen over multiple layers
-    and splitting other layers locally when a geul is partly above and partly below
-    that layer.
-
-    This function differs slightly from `split_layers_on_geul`. The `split_layers_on_geul`
-    function will add a geul layer on top of the layer directly below. This can lead to
-    a geul being split up in more layers than is strictly necessary.
-
-    This function has some extra logic to find all possible layers where the geul can
-    be added to. Then it tries to minimize the number of geul layers by finding the
+    Some extra logic is added to minimize the number of geul layers by finding the
     most efficient layer to add the geul to.
 
     Parameters
@@ -259,26 +93,27 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
         with dimensions z, y and x, with values corresponding to the stratigraphic
         unit in each voxel.
     units_no_geul : list
-        List of stratigraphic units without geulen.
+        Ordered list of stratigraphic units without geulen.
     geulen : list
-        List of geulen units.
+        Ordered list of geulen units.
 
     Returns
     -------
     strat : xarray DataArray
-        Modified stratigraphic data
-    new_units : list
-        List of new stratigraphic units, including all the splitted layers, from top
-        to bottom.
+        Modified stratigraphic data, including all the new geul units and the non-geul
+        units that are split because the geul was in between them.
+    new_unit_order : list
+        Ordered list with new stratigraphic units, including all the new geul units
+        and the non-geul units that are split because the geul was in between them.
 
     Notes
     -----
     the new stratigraphic data contains more unit numbers than the original
-    stratigraphic data, because when a layer is split by a geul, the part of the layer
+    stratigraphic data. When a layer is split by a geul, the part of the layer
     below the geul gets a new unit number. The same goes for the geul itself when it
     occurs across multiple layers.
     """
-    new_units = units_no_geul.copy()
+    unit_order = units_no_geul.copy()
     strat = strat.copy()
     z = (
         strat["z"]
@@ -289,22 +124,8 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
 
     for ilay_geul, geul in enumerate(geulen):
         # 1 get top/bot units
-        # (bovenste laag is dummy laag voor bepalen aangrenzende lagen, om te zorgen
-        # dat je met argmax een onderscheid kan maken tussen geen maximum gevonden (0) en de bovenste
-        # laag bevat het maximum (1). Zonder deze extra laag zijn ze allebei 0.
-        shape_no_geul = (len(new_units) + 1, len(strat.y), len(strat.x))
-        top = np.full(shape_no_geul, np.nan)
-        bot = np.full(shape_no_geul, np.nan)
 
-        for layer, unit in enumerate(new_units):
-            mask = strat == unit
-            # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
-            maxz = np.max(np.where(mask, z, -np.inf), axis=0)
-            minz = np.min(np.where(mask, z, np.inf), axis=0)
-            top[layer + 1] = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
-            bot[layer + 1] = np.where(np.isfinite(minz), minz - 0.25, np.nan)
-
-        # get top/bot geulen
+        # a. get top/bot for this geul
         mask = strat == geul
         maxz = np.max(np.where(mask, z, -np.inf), axis=0)
         minz = np.min(np.where(mask, z, np.inf), axis=0)
@@ -312,138 +133,194 @@ def split_layers_on_geul_optimal(strat, units_no_geul, geulen):
         top_geul = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
         bot_geul = np.where(np.isfinite(minz), minz - 0.25, np.nan)
 
-        # 2 get top and bottom height (m NAP) of model)
+        # b. get top and bottom height (m NAP) of all other stratographic layers
+        # top layer is a dummy layer in order to obtain a different value for the
+        # case where no maximum is found (0) and the case where the maximum is found
+        # in the top layer (1).
+        shape_no_geul = (len(unit_order) + 1, len(strat.y), len(strat.x))
+        top = np.full(shape_no_geul, np.nan)
+        bot = np.full(shape_no_geul, np.nan)
+
+        for layer, unit in enumerate(unit_order):
+            mask = strat == unit
+            # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
+            maxz = np.max(np.where(mask, z, -np.inf), axis=0)
+            minz = np.min(np.where(mask, z, np.inf), axis=0)
+            top[layer + 1] = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
+            bot[layer + 1] = np.where(np.isfinite(minz), minz - 0.25, np.nan)
+
+        # c. get top and bottom height of the model
         lay_top = (np.isfinite(strat)).argmax(dim="z").values
         z_top = (
             np.take_along_axis(z, lay_top[np.newaxis, ...], axis=0).squeeze(axis=0)
             + 0.25
-        )  # z hoogte bovenste laag
+        )  # z value of top layer
         lay_bot = (np.isfinite(strat[::-1])).argmax(dim="z").values
         z_bot = (
             np.take_along_axis(z[::-1], lay_bot[np.newaxis, ...], axis=0).squeeze(
                 axis=0
             )
             - 0.25
-        )  # z hoogte onderste laag (vrijwel altijd -50.25)
+        )  # z value of bottom layer (nearly always -50.25)
 
-        # find for each cell the layer on top of the geul
+        # 2 find units above and below the geul
+        # a find for each cell the layer on top of the geul
         top_lay_geul = (top_geul == bot).argmax(
             axis=0
-        )  # index nummer (+1) laag direct boven geul
-        top_lay_geul[np.isnan(top_geul)] = -999  # -999 als geul niet aanwezig is
+        )  # index (+1) of unit directly above the geul
+        top_lay_geul[
+            np.isnan(top_geul)
+        ] = -999  # -999 if geul is not present in vertical
         geul_between_lay = ((top_geul < top) & (top_geul > bot)).argmax(axis=0)
         top_lay_geul = np.where(
             geul_between_lay != 0, -geul_between_lay, top_lay_geul
-        )  # -{ilay} als geul zich tussen een laag bevindt.
-        top_lay_geul[top_lay_geul == 0] = -888  # -888 als laag boven geul ook geul is.
-        top_lay_geul[top_geul == z_top] = 0  # 0 als geul de bovenste laag is
+        )  # -index if geul is in between a unit.
+        top_lay_geul[top_lay_geul == 0] = -888  # -888 if layer above geul is also geul.
+        top_lay_geul[top_geul == z_top] = 0  # 0 if geul is the top layer
 
-        # find for each cell the layer below the geul
+        # b find for each cell the layer below the geul
         bot_lay_geul = (bot_geul == top).argmax(
             axis=0
-        )  # index nummer (+1) laag direct onder geul
-        bot_lay_geul[np.isnan(bot_geul)] = -999  # -999 als geul niet aanwezig is
-        bot_lay_geul[bot_lay_geul == 0] = -888  # -888 als laag onder geul ook geul is.
-        bot_lay_geul[bot_geul == z_bot] = 999  # 999 als geul de onderste laag is
+        )  # index (+1) of unit directly below the geul
+        bot_lay_geul[
+            np.isnan(bot_geul)
+        ] = -999  # -999 if geul is not present in vertical
+        bot_lay_geul[bot_lay_geul == 0] = -888  # -888 if layer below geul is also geul.
+        bot_lay_geul[bot_geul == z_bot] = 999  # 999 if geul is the bottom layer
+
         bot_lay_geul = np.where(
             bot_lay_geul == -888, (bot_geul > bot).argmax(axis=0), bot_lay_geul
-        )  # als laag onder geul ook geul is pak dan de laag onder die geul :)
-        bot_lay_geul = np.where(
-            (bot_lay_geul > -888) & (bot_lay_geul < 999), bot_lay_geul - 1, bot_lay_geul
-        )  # index nummer (+1) laag direct boven geul
+        )  # if layer below geul is also geul, take the layer below that geul :)
         geul_between_lay = ((bot_geul > bot) & (bot_geul < top)).argmax(axis=0)
         bot_lay_geul = np.where(
             geul_between_lay != 0, -geul_between_lay, bot_lay_geul
-        )  # -{ilay} als geul zich tussen een laag bevindt.
+        )  # -index if geul is in between a unit.
 
-        # some checks
-        # assert (
-        #     (bot_lay_geul < 0) & (bot_lay_geul > -100)
-        #     == (top_lay_geul < 0) & (top_lay_geul > -100)
-        # ).all(), "geul onderbroken"
-        # assert (top_lay_geul != -888).all(), "geulen niet op volgorde"
-        # assert (bot_lay_geul != -888).all(), "super onverwacht"
+        # check assumption if geul is in both arrays in between a unit
+        if not (
+            (bot_lay_geul < 0) & (bot_lay_geul > -100)
+            == (top_lay_geul < 0) & (top_lay_geul > -100)
+        ).all():
+            raise ValueError(
+                "unexpected geulen configuration, probably because a geul is cut by another stratigraphic unit."
+            )
 
-        # 3 bepaal in hoeveel en tussen welke lagen de geul wordt toegevoegd
-
-        # a: maak een lege array waarin per cel wordt opgeslagen bij welk unit (ilay)
-        # de geul wordt gepropt. De geul wordt steeds onder deze unit gepropt.
+        # 3 decide where to add the geul layer
+        # create an empty array to store for each cell the index number of the unit.
+        # The geul will be added right below this unit.
         lay_geul = np.ones_like(top_lay_geul) * np.nan
 
-        # b: lagen waar de geul tussen zit
+        # Get the layers where the geul is in between a unit.
         layers, counts = np.unique(
             bot_lay_geul[(bot_lay_geul < 0) & (bot_lay_geul != -999)],
             return_counts=True,
         )
-        layers = layers[np.argsort(counts)]
+        if len(layers) == 0:  # a. The geul is never in between a unit.
+            layers, counts = np.unique([top_lay_geul, bot_lay_geul], return_counts=True)
+            layers = layers[np.argsort(counts)][::-1]
+            layers = [lay for lay in layers if lay >= 0]
+            for lay in layers:
+                mask = np.isnan(lay_geul) & (~np.isnan(top_geul))
+                if (~mask).all():
+                    break  # all cells have a layer assigned
+                lay_geul = np.where(
+                    mask & (top_lay_geul <= lay) & (bot_lay_geul >= lay), lay, lay_geul
+                )  # assign geul to unit
+        else:  # b. In some places the geul is in between a unit.
+            layers = layers[np.argsort(counts)]
+            for lay in layers:
+                # Assign geul where it is in between a unit
+                lay_geul[lay == top_lay_geul] = lay
+                # Assign geul to same unit wherever that is possible
+                lay_geul[(abs(lay) >= top_lay_geul) & (abs(lay) <= bot_lay_geul)] = abs(
+                    lay
+                )
 
-        # voeg de lagen waar de geul tussen zit op alle plekken toe waar dat kan.
-        for lay in layers:
-            lay_geul[
-                (abs(lay) >= np.abs(top_lay_geul)) & (abs(lay) <= np.abs(bot_lay_geul))
-            ] = lay
+            # c. In some places the geul is still not assigned to a unit.
+            # In those cases, assign the geul to the layer closest to the in
+            # between unit.
 
-        # c: op de plekken waar dit niet kan, zoek de laag die het dichtst bij de
-        # laag zit waar de geul tussen zit.
-        dif_top = np.ones((len(layers), *top_geul.shape)) * np.nan
-        dif_bot = np.ones((len(layers), *top_geul.shape)) * np.nan
-        for i, lay in enumerate(layers):
-            lay = abs(lay)
-            dif_top[i] = np.abs(np.abs(top_lay_geul) - lay)
-            dif_bot[i] = np.abs(np.abs(bot_lay_geul) - lay)
+            # absolute difference between possible top and in between unit
+            dif_top = np.ones((len(layers), *top_geul.shape)) * np.nan
+            # absolute difference between possible bottom and in between unit
+            dif_bot = np.ones((len(layers), *top_geul.shape)) * np.nan
+            for i, lay in enumerate(layers):
+                lay = abs(lay)
+                dif_top[i] = np.abs(np.abs(top_lay_geul) - lay)
+                dif_bot[i] = np.abs(np.abs(bot_lay_geul) - lay)
 
-        top_min = np.min(dif_top, axis=0)
-        bot_min = np.min(dif_bot, axis=0)
-        topbot_min = np.argmin((top_min, bot_min), axis=0)
-        closest_lay = np.where(topbot_min == 1, bot_lay_geul, top_lay_geul)
+            top_min = np.min(
+                dif_top, axis=0
+            )  # minimal difference between possible top and in between unit
+            bot_min = np.min(
+                dif_bot, axis=0
+            )  # minimal difference between possible bottom and in between unit
+            topbot_min = np.argmin((top_min, bot_min), axis=0)
+            # closest possible layer to inbetween unit
+            closest_lay = np.where(topbot_min == 1, bot_lay_geul, top_lay_geul)
 
-        # voeg dichtstbijzijnde laag toe aan laag met geulen
-        mask = np.isnan(lay_geul) & (~np.isnan(top_geul))
-        lay_geul = np.where(mask, closest_lay, lay_geul)
+            # assign geul to closest layer where it is not yet assigned
+            mask = np.isnan(lay_geul) & (~np.isnan(top_geul))
+            lay_geul = np.where(mask, closest_lay, lay_geul)
 
-        # 4 pas strat aan zodat de geul als apart lagen worden ingevoegd.
-        newest_units = new_units.copy()
+        # 4. Modify strat so that the geul is inserted as separate layers.
+        new_unit_order = unit_order.copy()
         layers = np.unique(lay_geul)
-        for geul_lay_count, lay in enumerate(layers):
+        layers_abs = np.unique(np.abs(layers))[
+            ::-1
+        ]  # sort absolute values in descending order
+        layers_ordered = [
+            -l if (-l in layers) else l for l in layers_abs
+        ]  # use negative value if available
+        for geul_lay_count, lay in enumerate(layers_ordered):
             if np.isnan(lay):
                 continue
 
-            unit = new_units[abs(int(lay)) - 1]  # correctie voor extra dummy laag
             geul_subset = geul + (10000 * (geul_lay_count + 1))
 
-            logger.debug(f"adding geul {geul} to unit {unit} as {geul_subset}")
-
-            # voeg geul subset toe voor deze laag
-            mask1 = lay_geul == lay
-            mask4 = strat == geul
-            strat = xr.where(mask4 & mask1, geul_subset, strat)
-
-            if lay == 0:  # geul is bovenste laag
+            if lay == 0:  # geul is the top layer
                 logger.debug(f"adding geul {geul} on top of model as {geul_subset}")
-                newest_units = [geul_subset] + newest_units
+                new_unit_order = [geul_subset] + new_unit_order
                 continue
 
-            # maak volgorde lagen
-            ilay = newest_units.index(unit)
-            newest_units = (
-                newest_units[: ilay + 1] + [geul_subset] + newest_units[ilay + 1 :]
-            )
+            ilay = abs(int(lay)) - 1  # correction for dummy layer
+            unit = unit_order[ilay]
 
-            # splits laag boven en onder geul
-            if lay < 0:
-                # geul is in between layer
+            # Add new geul units to strat and add the geul units to the ordered units.
+            if lay < 0:  # geul is in between a unit
                 logger.debug(f"geul {geul} below and above unit {unit}")
-                unit_below = unit + (10000 * (ilay_geul + 1))
-                logger.debug(f"split {unit}, part below geul is {unit_below}")
-                mask2 = strat == unit  # layer below and above
-                mask3 = z < bot_geul
-                strat = xr.where((mask2 & mask3), unit_below, strat)
-                newest_units = (
-                    newest_units[: ilay + 2] + [unit_below] + newest_units[ilay + 2 :]
+                unit_above = unit + (10000 * (ilay_geul + 1))
+                logger.debug(f"split {unit}, part above geul is {unit_above}")
+                mask2 = strat == unit  # 3d mask of where unit is present
+                mask3 = z > bot_geul  # 3d mask of where z value is above geul
+                strat = xr.where(
+                    (mask2 & mask3), unit_above, strat
+                )  # add unit above geul
+                logger.debug(
+                    f"adding geul {geul} below unit {unit_above} as {geul_subset}"
                 )
-        new_units = newest_units.copy()
+                mask1 = np.abs(lay_geul) == np.abs(
+                    lay
+                )  # 2d mask of where geul can be added to this layer
+                mask4 = strat == geul  # 3d mask of where geul is present
+                strat = xr.where(mask4 & mask1, geul_subset, strat)  # add geul
+                new_unit_order = (
+                    new_unit_order[:ilay]
+                    + [unit_above, geul_subset]
+                    + new_unit_order[ilay:]
+                )  # update order with (part of) unit above geul and geul
+            else:
+                # add geul below unit
+                logger.debug(f"adding geul {geul} below unit {unit} as {geul_subset}")
+                mask1 = np.abs(lay_geul) == np.abs(lay)
+                mask4 = strat == geul
+                strat = xr.where(mask4 & mask1, geul_subset, strat)
+                new_unit_order = (
+                    new_unit_order[:ilay] + [geul_subset] + new_unit_order[ilay:]
+                )
+        unit_order = new_unit_order.copy()
 
-    return strat, new_units
+    return strat, new_unit_order
 
 
 @cache.cache_netcdf()
@@ -451,7 +328,6 @@ def to_model_layers(
     geotop_ds,
     strat_props=None,
     method_geulen="add_to_layer_below",
-    optimal=True,  # remove later just for testing
     drop_layer_dim_from_top=True,
     **kwargs,
 ):
@@ -516,11 +392,7 @@ def to_model_layers(
         )
         units_no_geul = [unit for unit in units if unit < 6000]
         geulen = [unit for unit in units if unit >= 6000]
-        if optimal:
-            strat, units = split_layers_on_geul_optimal(strat, units_no_geul, geulen)
-        else:
-            geulen.sort(reverse=True)  # make sure to start with the deepest geul
-            strat, units = split_layers_on_geul(strat, units_no_geul, geulen)
+        strat, units = split_layers_on_geul(strat, units_no_geul, geulen)
     shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
     # fill top and bot
@@ -551,9 +423,12 @@ def to_model_layers(
                 subset = str_unit[:-4]
                 if unit in strat_props.index:
                     layers.append(f"{strat_props.at[unit, 'code']}_{subset}")
+                else:
+                    logger.warning(f"Unknown strat-value: {unit}")
+                    layers.append(unit)
             else:
                 logger.warning(f"Unknown strat-value: {unit}")
-                layers.append(str_unit)
+                layers.append(unit)
         if unit >= 6000 and not method_geulen == "split_layers":
             geulen.append(layers[-1])
 

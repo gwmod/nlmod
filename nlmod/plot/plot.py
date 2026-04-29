@@ -404,7 +404,7 @@ def geotop_var_in_cross_section(
     label_col="name",
     **kwargs,
 ):
-    """PLot the lithoclass-data of GeoTOP in a cross-section.
+    """Plot a variable (lithoclass or stratigraphy) from GeoTOP in a cross-section.
 
     Parameters
     ----------

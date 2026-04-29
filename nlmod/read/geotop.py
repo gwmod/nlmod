@@ -429,7 +429,7 @@ def to_model_layers(
             else:
                 logger.warning(f"Unknown strat-value: {unit}")
                 layers.append(unit)
-        if unit >= 6000 and not method_geulen == "split_layers":
+        if unit >= 6000 and method_geulen != "split_layers":
             geulen.append(layers[-1])
 
     dims = ("layer", "y", "x")

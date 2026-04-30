@@ -321,7 +321,7 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
                     + [geul_subset]
                     + new_unit_order[ilay + 1 :]
                 )
-                logger.debug(new_unit_order)
+        logger.debug(f"new order of units: {new_unit_order}")
         unit_order = new_unit_order.copy()
 
     return strat, new_unit_order

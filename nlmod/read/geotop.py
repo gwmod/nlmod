@@ -247,7 +247,7 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             for i, lay in enumerate(layers):
                 lay = abs(lay)
                 dif_top[i] = np.abs(np.abs(top_lay_geul) - lay)
-                dif_bot[i] = np.abs(np.abs(bot_lay_geul) - lay)
+                dif_bot[i] = np.abs(np.abs(bot_lay_geul) - 1 - lay)
 
             top_min = np.min(
                 dif_top, axis=0
@@ -257,7 +257,7 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             )  # minimal difference between possible bottom and in between unit
             topbot_min = np.argmin((top_min, bot_min), axis=0)
             # closest possible layer to inbetween unit
-            closest_lay = np.where(topbot_min == 1, bot_lay_geul, top_lay_geul)
+            closest_lay = np.where(topbot_min == 1, bot_lay_geul - 1, top_lay_geul)
 
             # assign geul to closest layer where it is not yet assigned
             mask = np.isnan(lay_geul) & (~np.isnan(top_geul))
@@ -272,6 +272,7 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
         layers_ordered = [
             -l if (-l in layers) else l for l in layers_abs
         ]  # use negative value if available
+
         for geul_lay_count, lay in enumerate(layers_ordered):
             if np.isnan(lay):
                 continue
@@ -316,8 +317,11 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
                 mask4 = strat == geul
                 strat = xr.where(mask4 & mask1, geul_subset, strat)
                 new_unit_order = (
-                    new_unit_order[:ilay] + [geul_subset] + new_unit_order[ilay:]
+                    new_unit_order[: ilay + 1]
+                    + [geul_subset]
+                    + new_unit_order[ilay + 1 :]
                 )
+                logger.debug(new_unit_order)
         unit_order = new_unit_order.copy()
 
     return strat, new_unit_order

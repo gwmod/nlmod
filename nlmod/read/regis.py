@@ -400,7 +400,8 @@ def add_geotop_to_regis_layers(
             gtl = gtl.sel(layer=(th > 0).any(th.dims[1:]))
 
         # add kh and kv from gt to gtl
-        gtl = geotop.aggregate_to_ds(gt, gtl)
+        if "kh" not in gtl or "kv" not in gtl:
+            gtl = geotop.aggregate_to_ds(gt, gtl)
 
         # add gtl-layers to rg-layers
         lay = np.where(rg.layer == layer)[0][0]

@@ -263,7 +263,7 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             mask = np.isnan(lay_geul) & (~np.isnan(top_geul))
             lay_geul = np.where(mask, closest_lay, lay_geul)
 
-        # 4. Modify strat so that the geul is inserted as separate layers.
+        # 4. Modify strat in such a way that the geul is inserted as separate layers.
         new_unit_order = unit_order.copy()
         layers = np.unique(lay_geul)
         layers_abs = np.unique(np.abs(layers))[
@@ -357,9 +357,8 @@ def to_model_layers(
         the 'geul'. The method "add_as_layer" tries to add the 'geulen' as one or more
         layers, which can fail if a 'geul' is locally both below the top and above the
         bottom of another layer (splitting the layer in two, which is not supported).
-        The method "split_layers" tries to split layers when a 'geul' is locally both
-        below the top and above the bottom of another layer.
-        The default is "add_to_layer_below".
+        The method "split_layers" splits layers when a 'geul' is both below the top and
+        above the bottom of another layer. The default is "add_to_layer_below".
     drop_layer_dim_from_top : bool, optional
         When True, fill NaN values in top and botm and drop the layer dimension from
         top. This will transform top and botm to the data model in MODFLOW. An advantage

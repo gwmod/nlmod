@@ -116,9 +116,11 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
     unit_order = units_no_geul.copy()
     strat = strat.copy()
 
-    assert np.unique(strat.z.diff(dim="z")) == -0.5, (
-        "this function assumes a layer thickness of 0.5 m, please check the z values of the strat DataArray"
-    )
+    if not np.unique(strat.z.diff(dim="z")) == -0.5:
+        raise ValueError(
+            "this function assumes a layer thickness of 0.5 m, please check the z values of the strat DataArray"
+        )
+
     z = (
         strat["z"]
         .data[:, np.newaxis, np.newaxis]

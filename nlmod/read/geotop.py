@@ -196,7 +196,7 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
 
         bot_lay_geul = np.where(
             bot_lay_geul == -888, (bot_geul > bot).argmax(axis=0), bot_lay_geul
-        )  # if layer below geul is also geul, take the layer below that geul :)
+        )  # if layer below geul is also geul, take the first non-geul layer.
         geul_between_lay = ((bot_geul > bot) & (bot_geul < top)).argmax(axis=0)
         bot_lay_geul = np.where(
             geul_between_lay != 0, -geul_between_lay, bot_lay_geul

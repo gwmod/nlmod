@@ -115,6 +115,10 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
     """
     unit_order = units_no_geul.copy()
     strat = strat.copy()
+
+    assert np.unique(strat.z.diff(dim="z")) == -0.5, (
+        "this function assumes a layer thickness of 0.5 m, please check the z values of the strat DataArray"
+    )
     z = (
         strat["z"]
         .data[:, np.newaxis, np.newaxis]
@@ -186,7 +190,9 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             np.isnan(bot_geul)
         ] = -999  # -999 if geul is not present in vertical
         bot_lay_geul[bot_lay_geul == 0] = -888  # -888 if layer below geul is also geul.
-        bot_lay_geul[bot_geul == z_bot] = 999  # 999 if geul is the bottom layer
+        bot_lay_geul[bot_geul == z_bot] = (
+            len(unit_order) + 1
+        )  # 999 if geul is the bottom layer
 
         bot_lay_geul = np.where(
             bot_lay_geul == -888, (bot_geul > bot).argmax(axis=0), bot_lay_geul
@@ -216,7 +222,9 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             return_counts=True,
         )
         if len(layers) == 0:  # a. The geul is never in between a unit.
-            layers, counts = np.unique([top_lay_geul, bot_lay_geul], return_counts=True)
+            layers, counts = np.unique(
+                [top_lay_geul, bot_lay_geul - 1], return_counts=True
+            )
             layers = layers[np.argsort(counts)][::-1]
             layers = [lay for lay in layers if lay >= 0]
             for lay in layers:
@@ -224,7 +232,9 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
                 if (~mask).all():
                     break  # all cells have a layer assigned
                 lay_geul = np.where(
-                    mask & (top_lay_geul <= lay) & (bot_lay_geul >= lay), lay, lay_geul
+                    mask & (top_lay_geul <= lay) & (bot_lay_geul - 1 >= lay),
+                    lay,
+                    lay_geul,
                 )  # assign geul to unit
         else:  # b. In some places the geul is in between a unit.
             layers = layers[np.argsort(counts)]
@@ -282,6 +292,9 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             if lay == 0:  # geul is the top layer
                 logger.debug(f"adding geul {geul} on top of model as {geul_subset}")
                 new_unit_order = [geul_subset] + new_unit_order
+                mask1 = np.abs(lay_geul) == np.abs(lay)
+                mask4 = strat == geul
+                strat = xr.where(mask4 & mask1, geul_subset, strat)
                 continue
 
             ilay = abs(int(lay)) - 1  # correction for dummy layer

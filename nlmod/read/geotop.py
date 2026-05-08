@@ -425,6 +425,8 @@ def to_model_layers(
     )
     layers = []
     geulen = geulen if method_geulen == "split_layers" else []
+    uc = np.unique([str(u)[-4:] for u in units], return_counts=True)
+    split_unit_counter = {int(unit): count for unit, count in zip(*uc)}
     for layer, unit in enumerate(units):
         mask = strat.values == unit
         # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
@@ -438,7 +440,11 @@ def to_model_layers(
             str_unit = str(int(unit))
             if method_geulen == "split_layers" and len(str_unit) > 4:
                 unit = int(str_unit[-4:])
-                subset = str_unit[:-4]
+                if unit in split_unit_counter:
+                    split_unit_counter[unit] -= 1
+                else:
+                    logger.warning(f"Unknown strat-value: {str_unit}")
+                subset = split_unit_counter[unit]
                 if unit in strat_props.index:
                     layers.append(f"{strat_props.at[unit, 'code']}_{subset}")
                 else:

@@ -274,6 +274,64 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
         return ax.pcolormesh(x, y, da, shading=shading, edgecolor=edgecolor, **kwargs)
 
 
+def geotop_strat_in_cross_section(
+    line,
+    gt=None,
+    ax=None,
+    legend=True,
+    legend_loc=None,
+    strat_props=None,
+    alpha=None,
+    **kwargs,
+):
+    """Plot the stratigraphic-data of GeoTOP in a cross-section.
+
+    Parameters
+    ----------
+    line : shapely.LineString
+        The line along which the GeoTOP data is plotted
+    gt : xr.Dataset, optional
+        The voxel-dataset from GeoTOP. It is downloaded with the method
+        `nlmod.read.geotop.get_geotop()` if None. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes in which the cross-section is plotted. Will default to the current axes
+        if None. The default is None.
+    legend : bool, optional
+        When True, add a legend to the plot with the lithology-classes. The default is
+        True.
+    legend_loc : None or str, optional
+        The location of the legend. See matplotlib documentation. The default is None.
+    strat_props : pd.DataFrame, optional
+        A DataFrame containing the properties of the stratigraphic classes.
+        Will call nlmod.read.geotop.get_strat_props() when None. The default is None.
+    alpha : float, optional
+        Opacity for plot_array function, The default is None.
+    **kwargs : dict
+        kwargs are passed onto DatasetCrossSection.
+
+    Returns
+    -------
+    cs : DatasetCrossSection
+        The instance of DatasetCrossSection that is used to plot the cross-section.
+    """
+    if strat_props is None:
+        strat_props = geotop.get_strat_props()
+
+    cs = geotop_var_in_cross_section(
+        line,
+        "strat",
+        gt=gt,
+        ax=ax,
+        legend=legend,
+        legend_loc=legend_loc,
+        var_props=strat_props,
+        alpha=alpha,
+        label_col="code",
+        **kwargs,
+    )
+    return cs
+
+
 def geotop_lithok_in_cross_section(
     line,
     gt=None,
@@ -316,6 +374,72 @@ def geotop_lithok_in_cross_section(
     cs : DatasetCrossSection
         The instance of DatasetCrossSection that is used to plot the cross-section.
     """
+
+    if lithok_props is None:
+        lithok_props = geotop.get_lithok_props()
+
+    cs = geotop_var_in_cross_section(
+        line,
+        "lithok",
+        gt=gt,
+        ax=ax,
+        legend=legend,
+        legend_loc=legend_loc,
+        var_props=lithok_props,
+        alpha=alpha,
+        **kwargs,
+    )
+    return cs
+
+
+def geotop_var_in_cross_section(
+    line,
+    var,
+    gt=None,
+    ax=None,
+    legend=True,
+    legend_loc=None,
+    var_props=None,
+    alpha=None,
+    label_col="name",
+    **kwargs,
+):
+    """Plot a variable (lithoclass or stratigraphy) from GeoTOP in a cross-section.
+
+    Parameters
+    ----------
+    line : shapely.LineString
+        The line along which the GeoTOP data is plotted
+    var : str
+        The variable in the GeoTOP dataset to plot in the cross-section. Can be
+        'lithok' or 'strat'
+    gt : xr.Dataset, optional
+        The voxel-dataset from GeoTOP. It is downloaded with the method
+        `nlmod.read.geotop.get_geotop()` if None. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes in which the cross-section is plotted. Will default to the current axes
+        if None. The default is None.
+    legend : bool, optional
+        When True, add a legend to the plot with the lithology-classes. The default is
+        True.
+    legend_loc : None or str, optional
+        The location of the legend. See matplotlib documentation. The default is None.
+    var_props : pd.DataFrame, optional
+        A DataFrame containing the properties of the variable (lithoclasses or
+        stratigraphy). Will call nlmod.read.geotop.get_{var}_props() when None.
+        The default is None.
+    alpha : float, optional
+        Opacity for plot_array function, The default is None.
+    label_col : str, optional
+        column in the var_props dataframe to use a a label. The default is 'name'.
+    **kwargs : dict
+        kwargs are passed onto DatasetCrossSection.
+
+    Returns
+    -------
+    cs : DatasetCrossSection
+        The instance of DatasetCrossSection that is used to plot the cross-section.
+    """
     if ax is None:
         ax = plt.gca()
 
@@ -329,16 +453,25 @@ def geotop_lithok_in_cross_section(
     if "top" not in gt or "botm" not in gt:
         gt = geotop.add_top_and_botm(gt)
 
-    if lithok_props is None:
-        lithok_props = geotop.get_lithok_props()
+    if var_props is None:
+        if var == "lithok":
+            var_props = geotop.get_lithok_props()
+        elif var == "strat":
+            var_props = geotop.get_strat_props()
+        else:
+            raise ValueError(
+                f"Variable {var} not recognized. Can only be 'lithok' or 'strat'."
+            )
 
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
-    array, cmap, norm = _get_geotop_cmap_and_norm(gt["lithok"], lithok_props)
+    array, cmap, norm = _get_geotop_cmap_and_norm(gt[var], var_props)
     cs.plot_array(array, norm=norm, cmap=cmap, alpha=alpha)
 
     if legend:
         # make a legend with dummy handles
-        _add_geotop_lithok_legend(lithok_props, ax, lithok=gt["lithok"], loc=legend_loc)
+        _add_geotop_var_legend(
+            var_props, ax, var=gt[var], label_col=label_col, loc=legend_loc
+        )
 
     return cs
 
@@ -390,21 +523,21 @@ def geotop_lithok_on_map(
     qm = ax.pcolormesh(lithok.x, lithok.y, array, norm=norm, cmap=cmap, **kwargs)
     if legend:
         # make a legend with dummy handles
-        _add_geotop_lithok_legend(lithok_props, ax, lithok=lithok, loc=legend_loc)
+        _add_geotop_var_legend(lithok_props, ax, var=lithok, loc=legend_loc)
     return qm
 
 
-def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
-    """Add a legend with lithok-data."""
+def _add_geotop_var_legend(var_props, ax, var=None, label_col="name", **kwargs):
+    """Add a legend with lithok- or strat-data."""
     handles = []
-    if lithok is None:
-        lithoks = lithok_props.index
+    if var is None:
+        unique_vals = var_props.index
     else:
-        lithoks = np.unique(lithok)
-        lithoks = lithoks[~np.isnan(lithoks)]
-    for index in lithoks:
-        color = lithok_props.at[index, "color"]
-        label = lithok_props.at[int(index), "name"]
+        unique_vals = np.unique(var)
+        unique_vals = unique_vals[~np.isnan(unique_vals)]
+    for index in unique_vals:
+        color = var_props.at[index, "color"]
+        label = var_props.at[int(index), label_col]
         handles.append(Patch(facecolor=color, label=label))
     return ax.legend(handles=handles, **kwargs)
 

@@ -2701,6 +2701,8 @@ def get_modellayers_indexer(
             obs_ds["modellayer"].astype(int)
         ].values
     elif drop_nan_layers:
+        nan_mask = obs_ds["modellayer"].isnull()
+        pts = pts.loc[~nan_mask.values]
         obs_ds = obs_ds.dropna(dim, subset=["modellayer"])
         obs_ds["modellayer"].values = ds["layer"][
             obs_ds["modellayer"].astype(int)
@@ -2739,9 +2741,7 @@ def get_modellayers_indexer(
     # add local x, y coords of observation points if structured grid is rotated
     if full_output and grid.is_rotated(ds) and grid.is_structured(ds):
         affine = grid.get_affine_world_to_mod(ds)
-        pts_local = pts.loc[obs_ds["name"].values.tolist()].affine_transform(
-            affine.to_shapely()
-        )
+        pts_local = pts.affine_transform(affine.to_shapely())
         obs_ds["x_obs_local"] = (dim,), pts_local.x.values
         obs_ds["y_obs_local"] = (dim,), pts_local.y.values
 

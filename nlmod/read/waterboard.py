@@ -42,8 +42,16 @@ def download_polygons(**kwargs):
     ws["waterschap"] = ws["waterschap"].str.replace("HH van ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("HHS van ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("HH ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Hoogheemraadschap van ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Hoogheemraadschap ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Administratieve grens ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace(" 2018", "")
+    ws["waterschap"] = ws["waterschap"].str.replace(" (INSPIRE-grens)", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Beheergebied waterschap ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("WS ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("Waterschap ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("Wetterskip ", "")
+
     ws = ws.set_index("waterschap")
 
     return ws
@@ -170,16 +178,20 @@ def get_configuration():
             "index": "Nieuw_Dommel_ID",
         },
         "culverts": {
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Duiker_V/FeatureServer"
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Duiker_V/FeatureServer",
+            "index": "Lokaal_ID",
         },
         "weirs": {
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Stuw_V/FeatureServer"
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Stuw_V/FeatureServer",
+            "index": "Lokaal_ID",
         },
         "profile_lines": {
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profiellijn_V/FeatureServer"
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profiellijn_V/FeatureServer",
+            "index": "Dommel_ID",
         },
         "profile_points": {
             "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profielpunt_V/FeatureServer",
+            "index": "Dommel_ID",
         },
     }
 
@@ -452,12 +464,12 @@ def get_configuration():
             # "layer": 70,  # Profiellijnen
         },
         "weirs": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
-            "layer": 8,  # Stuw beheer (9)
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Watersysteem/Legger_en_Werkingsgebieden_Wateren_Vastgesteld/MapServer",
+            "layer": 11,  # Stuw
         },
         "culverts": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
-            "layer": 5,  # Duiker sifon hevel beheer (5)
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Watersysteem/Legger_en_Werkingsgebieden_Wateren_Vastgesteld/MapServer",
+            "layer": 7,  # Duiker, sifon, hevel
         },
         "level_areas": {
             # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
@@ -768,11 +780,41 @@ def download_data(
 
 
 def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
-    """Retrieve values from one or more Geo)DataFrame-columns and set these values as
-    another column.
+    """Populate a target column from one or more source columns.
+
+    The function creates ``set_column`` and fills missing values by iterating over
+    ``from_columns`` in order. Each source can be either a single column name or a
+    list of column names. For a list input, the row-wise mean of available values is
+    used. Existing values in ``set_column`` are preserved once filled.
+
+    Parameters
+    ----------
+    gdf : pandas.DataFrame or geopandas.GeoDataFrame
+        Input table that contains the source columns.
+    set_column : str
+        Name of the column that will be created and filled.
+    from_columns : str or list, optional
+        Source definition used to populate ``set_column``. Supported entries are:
+        - ``str``: copy values from this column.
+        - ``list[str]``: use row-wise mean of these columns.
+        - ``list`` containing a mix of the above: processed in order until all
+          possible values are filled.
+    nan_values : float, int or list, optional
+        Value or values that should be interpreted as missing and replaced by
+        ``np.nan`` in the resulting ``set_column``.
+
+    Returns
+    -------
+    pandas.DataFrame or geopandas.GeoDataFrame
+        ``gdf`` with the newly created ``set_column``.
+
+    Raises
+    ------
+    ValueError
+        If ``set_column`` already exists in ``gdf``.
     """
     if set_column in gdf.columns:
-        raise (Exception(f"Column {set_column} allready exists"))
+        raise (ValueError(f"Column {set_column} allready exists"))
     gdf[set_column] = np.nan
     if from_columns is None:
         return gdf

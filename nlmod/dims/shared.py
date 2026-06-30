@@ -7,10 +7,10 @@ import xarray as xr
 class GridTypeDims(Enum):
     """Enum for grid dimensions."""
 
-    STRUCTURED_LAYERED = ("layer", "y", "x")
     VERTEX_LAYERED = ("layer", "icell2d")
-    STRUCTURED = ("y", "x")
     VERTEX = ("icell2d",)
+    STRUCTURED_LAYERED = ("layer", "y", "x")
+    STRUCTURED = ("y", "x")
 
     @classmethod
     def parse_dims(cls, ds):
@@ -31,6 +31,14 @@ class GridTypeDims(Enum):
         ValueError
             If no partially matching gridtype is found.
         """
+        layer_is_dim = "layer" in ds.dims
+        if "x" in ds and "y" in ds:
+            x_dims = set(ds["x"].dims)
+            y_dims = set(ds["y"].dims)
+            if "icell2d" in x_dims or "icell2d" in y_dims:
+                return cls.VERTEX_LAYERED if layer_is_dim else cls.VERTEX
+            if x_dims == {"x"} and y_dims == {"y"}:
+                return cls.STRUCTURED_LAYERED if layer_is_dim else cls.STRUCTURED
         for gridtype in GridTypeDims:
             if set(gridtype.value).issubset(ds.dims):
                 return gridtype

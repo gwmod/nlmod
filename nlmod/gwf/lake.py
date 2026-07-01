@@ -24,6 +24,15 @@ LAKE_KWDS = [
     "ROUGH",
 ]
 
+LAKE_GWT_KWDS = [
+    "GWT_STATUS",
+    "GWT_CONCENTRATION",
+    "GWT_RAINFALL",
+    "GWT_EVAPORATION",
+    "GWT_RUNOFF",
+    "GWT_EXT-INFLOW",
+]
+
 # order of dictionary matters!
 OUTLET_DEFAULT = {
     "couttype": "WEIR",
@@ -66,12 +75,12 @@ def lake_from_gdf(
             'RUNOFF', 'INFLOW', 'WITHDRAWAL', 'AUXILIARY', 'RATE', 'INVERT',
             'WIDTH', 'SLOPE', 'ROUGH'. These columns should contain the name
             of a dataarray in ds with the dimension time.
-        if the lake has any outlets they should be specified in the column
-            lakeout : the lake number of the outlet, if this is -1 the water
-            is removed from the model.
-            optinal columns are 'couttype', 'outlet_invert', 'outlet_width',
-            'outlet_rough' and 'outlet_slope'. These columns should contain a
-            unique value for each outlet.
+        If the lake has any outlets they should be specified in the column 'lakeout'.
+        This is the lake number or boundname of the lake to which the outlet flows. If
+        lakeout is -1 the water is removed from the model.
+        Optional columns are 'couttype', 'outlet_invert', 'outlet_width',
+        'outlet_rough' and 'outlet_slope'. These columns should contain a
+        unique value for each outlet.
     ds : xr.Dataset
         dataset containing relevant model grid and time information
     rainfall : int, float, str, np.array or pd.DataFrame, optional
@@ -146,6 +155,12 @@ def lake_from_gdf(
     if gwt is not None:
         packagedata_gwt = []
         perioddata_gwt = {0: []}
+        for iper in range(ds.sizes["time"]):
+            perioddata_gwt[iper] = []
+
+        lake_gwt_settings = [
+            setting for setting in LAKE_GWT_KWDS if setting in gdf.columns
+        ]
 
     lake_settings = [setting for setting in LAKE_KWDS if setting in gdf.columns]
 
@@ -207,7 +222,10 @@ def lake_from_gdf(
             and not lake_gdf["lakeout"].eq("").all()
         ):
             lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
-            if isinstance(lakeout, str):
+            if isinstance(lakeout, str) and lakeout == "-1":
+                # an integer -1 could have been converted to a string after saving gdf to disk
+                lakeout = int(lakeout)
+            elif isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname
                 # we need to find the lakeno that belongs to this boundname
                 boundnameout = lakeout
@@ -271,9 +289,18 @@ def lake_from_gdf(
                 if pd.isna(datavar) or datavar == "":  # None or nan or ""
                     logger.debug(f"no {lake_setting} given for lake no {lakeno}")
                     continue
-                perioddata[iper].append(
-                    [lakeno, lake_setting, ds[datavar].values[iper]]
-                )
+                if datavar in ds:
+                    da = ds[datavar]
+                    if len(da.dims) > 1:
+                        if boundname_column is not None:
+                            da = da.loc[:, boundname]
+                        else:
+                            da = da.loc[:, lakeno]
+                    value = da.values[iper]
+                else:
+                    value = datavar
+
+                perioddata[iper].append([lakeno, lake_setting, value])
         if gwt is not None:
             if "strt_concentration" in lake_gdf.columns:
                 strt = _get_and_check_single_value(lake_gdf, "strt_concentration")
@@ -286,14 +313,38 @@ def lake_from_gdf(
                 packagedata_gwt.append([lakeno, strt, boundname])
             else:
                 packagedata_gwt.append([lakeno, strt])
-            if rainfall is not None:
-                perioddata_gwt[0].append([lakeno, "rainfall", rainfall_concentration])
-            if evaporation is not None:
-                perioddata_gwt[0].append(
-                    [lakeno, "evaporation", evaporation_concentration]
-                )
+            for iper in range(ds.sizes["time"]):
+                if rainfall is not None and "GWT_RAINFALL" not in lake_gwt_settings:
+                    perioddata_gwt[iper].append(
+                        [lakeno, "rainfall", rainfall_concentration]
+                    )
+                if (
+                    evaporation is not None
+                    and "GWT_EVAPORATION" not in lake_gwt_settings
+                ):
+                    perioddata_gwt[iper].append(
+                        [lakeno, "evaporation", evaporation_concentration]
+                    )
+                for lake_setting in lake_gwt_settings:
+                    datavar = _get_and_check_single_value(lake_gdf, lake_setting)
+                    if pd.isna(datavar) or datavar == "":  # None or nan or ""
+                        logger.debug(f"no {lake_setting} given for lake no {lakeno}")
+                        continue
+                    if datavar in ds:
+                        da = ds[datavar]
+                        if len(da.dims) > 1:
+                            if boundname_column is not None:
+                                da = da.loc[:, boundname]
+                            else:
+                                da = da.loc[:, lakeno]
+                        value = da.values[iper]
+                    else:
+                        value = datavar
+                    perioddata_gwt[iper].append([lakeno, lake_setting[4:], value])
 
-    if boundname_column is not None:
+    if "observations" in kwargs:
+        observations = kwargs.pop("observations")
+    elif boundname_column is not None:
         observations = {}
         if isinstance(obs_type, str):
             obs_type = [obs_type]

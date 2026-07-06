@@ -314,13 +314,18 @@ def lake_from_gdf(
             else:
                 packagedata_gwt.append([lakeno, strt])
             for iper in range(ds.sizes["time"]):
-                if rainfall is not None and "GWT_RAINFALL" not in lake_gwt_settings:
+                if rainfall is not None and (
+                    "GWT_RAINFALL" not in lake_gdf.columns
+                    or lake_gdf["GWT_RAINFALL"].isna().all()
+                    or lake_gdf["GWT_RAINFALL"].eq("").all()
+                ):
                     perioddata_gwt[iper].append(
                         [lakeno, "rainfall", rainfall_concentration]
                     )
-                if (
-                    evaporation is not None
-                    and "GWT_EVAPORATION" not in lake_gwt_settings
+                if evaporation is not None and (
+                    "GWT_EVAPORATION" not in lake_gdf.columns
+                    or lake_gdf["GWT_EVAPORATION"].isna().all()
+                    or lake_gdf["GWT_EVAPORATION"].eq("").all()
                 ):
                     perioddata_gwt[iper].append(
                         [lakeno, "evaporation", evaporation_concentration]

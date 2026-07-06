@@ -532,6 +532,7 @@ def read_gleg(fname):
         sep="\t",
         header=None,
         names=["naam", "beschrijving", "r", "g", "b", "a", "x"],
+        na_filter=False,
     )
     leg["naam"] = leg["naam"].str.replace("-", "")
     leg.set_index("naam", inplace=True)

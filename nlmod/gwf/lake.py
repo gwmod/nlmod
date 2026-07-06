@@ -222,10 +222,14 @@ def lake_from_gdf(
             and not lake_gdf["lakeout"].eq("").all()
         ):
             lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
-            if isinstance(lakeout, str) and lakeout == "-1":
-                # an integer -1 could have been converted to a string after saving gdf to disk
-                lakeout = int(lakeout)
-            elif isinstance(lakeout, str):
+            if isinstance(lakeout, str):
+                try:
+                    # an integer lakeout could have been converted to a string
+                    # after saving gdf to disk
+                    lakeout = int(lakeout)
+                except ValueError:
+                    pass
+            if isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname
                 # we need to find the lakeno that belongs to this boundname
                 boundnameout = lakeout

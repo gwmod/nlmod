@@ -529,7 +529,7 @@ def _calculate_gxg(
 def calculate_gxg(
     head: xr.DataArray,
     below_surfacelevel: bool = False,
-    tolerance: pd.Timedelta = pd.Timedelta(days=7),
+    tolerance: pd.Timedelta = None,
 ) -> xr.DataArray:
     """Calculate GxG groundwater characteristics from head time series.
 
@@ -556,7 +556,7 @@ def calculate_gxg(
     below_surfacelevel : boolean, optional, default: False.
         False (default) if heads are relative to a datum (e.g. sea level). If
         True, heads are taken as m below surface level.
-    tolerance: pd.Timedelta, default: 7 days.
+    tolerance: pd.Timedelta, optional, default: 7 days.
         Maximum time window allowed when searching for dates around the 14th
         and 28th of every month.
 
@@ -576,6 +576,8 @@ def calculate_gxg(
     >>> head = nlmod.gwf.get_heads_da(ds)
     >>> gxg = nlmod.gwf.output.calculate_gxg(head)
     """
+    if tolerance is None:
+        tolerance = pd.Timedelta(days=7)
     # if not head.dims == ("time", "y", "x"):
     #    raise ValueError('Dimensions must be ("time", "y", "x")')
     if not np.issubdtype(head["time"].dtype, np.datetime64):

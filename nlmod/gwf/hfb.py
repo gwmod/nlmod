@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
-from geopandas import GeoSeries
+from geopandas import GeoDataFrame, GeoSeries
 from shapely.geometry import Point, Polygon
 
 from ..dims.grid import (
@@ -22,12 +22,139 @@ from ..dims.layers import calculate_thickness, get_idomain
 
 logger = logging.getLogger(__name__)
 
+LINE_GEOM_TYPES = {"LineString", "MultiLineString"}
+
+
+def hfb_from_df(
+    df,
+    gwf,
+    ds,
+    hydchr="hydchr",
+    depth="depth",
+    elevation="elevation",
+    pname="hfb",
+    **kwargs,
+):
+    """Add a Horizontal Flow Barrier (HFB) package from line features.
+
+    Parameters
+    ----------
+    df : geopandas.GeoDataFrame
+        GeoDataFrame with LineString or MultiLineString features.
+    gwf : flopy.mf6.ModflowGwf
+        Groundwater flow model to add the HFB package to.
+    ds : xr.Dataset
+        Dataset with model data. Used for grid intersection, active cells, and layer
+        placement.
+    hydchr : str or float, optional
+        Column in ``df`` with the hydraulic characteristic, or a single value applied
+        to every feature. The default is "hydchr".
+    depth : str or float, optional
+        Column in ``df`` with the barrier depth below model top, or a single value
+        applied to every feature. Exactly one of ``depth`` or ``elevation`` must be set
+        per feature. The default is "depth".
+    elevation : str or float, optional
+        Column in ``df`` with the barrier bottom elevation, or a single value applied
+        to every feature. Exactly one of ``depth`` or ``elevation`` must be set per
+        feature. The default is "elevation".
+    pname : str, optional
+        Package name. The default is "hfb".
+    **kwargs : dict
+        Keyword arguments are passed to ``flopy.mf6.ModflowGwfhfb``.
+
+    Returns
+    -------
+    hfb : flopy.mf6.ModflowGwfhfb or None
+        HFB package. Returns None when no stress-period data are generated.
+    """
+    logger.info("creating mf6 HFB from dataframe")
+
+    if not isinstance(df, GeoDataFrame):
+        raise TypeError("df must be a geopandas GeoDataFrame")
+
+    if df.empty:
+        logger.warning("no hfb pkg added")
+        return None
+
+    unsupported = set(df.geometry.geom_type.dropna().unique()) - LINE_GEOM_TYPES
+    if unsupported:
+        raise ValueError(
+            "hfb_from_df supports only LineString and MultiLineString geometries; "
+            f"found {sorted(unsupported)}"
+        )
+
+    spd = []
+    for row_number, (index, row) in enumerate(df.iterrows()):
+        hydchr_value = _get_optional_hfb_value(row, hydchr, "hydchr", index)
+        if hydchr_value is None:
+            raise ValueError(f"hydchr must be set for HFB feature at index {index!r}")
+        if hydchr_value <= 0:
+            raise ValueError(
+                f"hydchr must be positive for HFB feature at index {index!r}"
+            )
+
+        depth_value = _get_optional_hfb_value(row, depth, "depth", index)
+        elevation_value = _get_optional_hfb_value(row, elevation, "elevation", index)
+        if (depth_value is None) == (elevation_value is None):
+            raise ValueError(
+                "Exactly one of depth or elevation must be set for HFB feature "
+                f"at index {index!r}"
+            )
+
+        feature = df.iloc[[row_number]]
+        if depth_value is not None:
+            spd += get_hfb_spd(ds, feature, hydchr=hydchr_value, depth=depth_value)
+        else:
+            spd += get_hfb_spd(
+                ds, feature, hydchr=hydchr_value, elevation=elevation_value
+            )
+
+    spd = _clean_hfb_spd(spd)
+    if len(spd) == 0:
+        logger.warning("no hfb pkg added")
+        return None
+
+    maxhfb = kwargs.pop("maxhfb", len(spd))
+    return flopy.mf6.ModflowGwfhfb(
+        gwf,
+        stress_period_data={0: spd},
+        maxhfb=maxhfb,
+        pname=pname,
+        **kwargs,
+    )
+
+
+def _get_optional_hfb_value(row, value_or_column, name, index):
+    if value_or_column is None:
+        return None
+    if isinstance(value_or_column, str):
+        if value_or_column not in row.index:
+            raise KeyError(
+                f"Column {value_or_column!r} not found for {name} of HFB feature "
+                f"at index {index!r}"
+            )
+        value = row[value_or_column]
+    else:
+        value = value_or_column
+    if pd.isna(value):
+        return None
+    return float(value)
+
+
+def _clean_hfb_spd(spd):
+    return [
+        [cellid1, cellid2, hydchr_float]
+        for cellid1, cellid2, hydchr in spd
+        if (hydchr_float := float(hydchr)) > 0
+    ]
+
 
 def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
-    """Generate a stress period data for horizontal flow barrier between two cell nodes,
-    with several limitations. The stress period data can be used directly in the HFB
-    package of flopy. The hfb is placed at the cell interface; it follows the sides of
-    the cells.
+    """Generate HFB stress period data between two cell nodes.
+
+    The function has several limitations. The stress period data can be used directly
+    in the HFB package of flopy. The hfb is placed at the cell interface; it follows
+    the sides of the cells.
 
     The estimation of the cross-sectional area at the interface is pretty crude, as the
     thickness at the cell interface is just the average of the thicknesses of the two
@@ -54,9 +181,9 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
     """
-    assert (
-        sum([depth is None, elevation is None]) == 1
-    ), "Use either depth or elevation argument"
+    assert sum([depth is None, elevation is None]) == 1, (
+        "Use either depth or elevation argument"
+    )
 
     if not isinstance(ds, xr.Dataset):
         raise TypeError("Please pass a model dataset!")
@@ -76,8 +203,10 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
             thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
             topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
         else:
-            thicki = (thick[:, *icell2d1] + thick[:, *icell2d2]) / 2
-            topi = (tops[*icell2d1] + tops[*icell2d2]) / 2
+            cell_index1 = (slice(None), *icell2d1)
+            cell_index2 = (slice(None), *icell2d2)
+            thicki = (thick[cell_index1] + thick[cell_index2]) / 2
+            topi = (tops[cell_index1] + tops[cell_index2]) / 2
 
         for ilay in range(ds.sizes["layer"]):
             cellid1 = (ilay,) + (
@@ -123,9 +252,10 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
 
 
 def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
+    """Snap line to grid and return HFB cell pairs."""
     warnings.warn(
-        "The function 'line2hfb' is deprecated and will be removed in a future version. "
-        "Please use 'line_to_hfb' instead.",
+        "The function 'line2hfb' is deprecated and will be removed in a future "
+        "version. Please use 'line_to_hfb' instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -278,9 +408,12 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
     # hfb_seg_unique, uidx = np.unique(hfb_seg[:, 1:], return_index=True, axis=0)
     # ucids = hfb_seg[uidx, 0]
     # try:
-    #     endpoint_cellid = mgrid.intersect(get_coordinates(gdf.geometry.union_all()[-1]))
+    #     endpoint_cellid = mgrid.intersect(
+    #         get_coordinates(gdf.geometry.union_all()[-1])
+    #     )
     # except Exception:  # e.g. point is on our outside model boundary
-    #     endpoint_cellid = ucids[-1]  # pick last cellid (this might not be the endpoint)
+    #     # Pick last cellid, which might not be the endpoint.
+    #     endpoint_cellid = ucids[-1]
     # n_segments_endpoint_cell = 0
 
     # Get rid of disconnected (or 'open') segments
@@ -395,7 +528,7 @@ def line_to_hfb_buffer(gdf, ds, buffer_distance=None, gi=None):
     mgrid = modelgrid_from_ds(ds)
     hfb_seg = []
     if is_structured(ds):
-        for cid in zip(*cellids):
+        for cid in zip(*cellids, strict=False):
             neighbors = mgrid.neighbors(0, *cid)
             for n in neighbors:
                 if da.values[n[1:]] == -1:

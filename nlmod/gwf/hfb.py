@@ -185,9 +185,8 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
     """
-    assert sum([depth is None, elevation is None]) == 1, (
-        "Use either depth or elevation argument"
-    )
+    if (depth is None) == (elevation is None):
+        raise ValueError("Use either depth or elevation argument")
 
     if not isinstance(ds, xr.Dataset):
         raise TypeError("Please pass a model dataset!")
@@ -234,7 +233,8 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
                 elif sum(thicki[:ilay]) <= depth:
                     # hfb spans the cell partially
                     hydchr_frac = (depth - sum(thicki[:ilay])) / thicki[ilay]
-                    assert 0 <= hydchr_frac <= 1, "Something is wrong"
+                    if not 0 <= hydchr_frac <= 1:
+                        raise RuntimeError("HFB depth fraction is outside [0, 1]")
 
                     spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                     break  # go to next cell
@@ -246,7 +246,8 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
             else:
                 # hfb spans the cell partially
                 hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
-                assert 0 <= hydchr_frac <= 1, "Something is wrong"
+                if not 0 <= hydchr_frac <= 1:
+                    raise RuntimeError("HFB elevation fraction is outside [0, 1]")
 
                 spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                 break  # go to next cell

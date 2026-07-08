@@ -54,7 +54,7 @@ def test_hfb_from_df_vertex():
                 LineString([(0, 1000), (1000, 0)]),
                 LineString([(100, 1000), (1000, 100)]),
             ],
-        }
+        },
     )
 
     hfb = nlmod.gwf.hfb.hfb_from_df(gdf, gwf, ds, pname="hfb_test")
@@ -97,7 +97,7 @@ def test_hfb_from_df_requires_depth_or_elevation():
             "depth": [None],
             "elevation": [None],
             "geometry": [LineString([(0, 1000), (1000, 0)])],
-        }
+        },
     )
 
     with pytest.raises(ValueError, match="Exactly one"):
@@ -119,7 +119,7 @@ def test_hfb_from_df_rejects_nonpositive_hydchr(hydchr):
             "hydchr": [hydchr],
             "depth": [5.0],
             "geometry": [LineString([(0, 1000), (1000, 0)])],
-        }
+        },
     )
 
     with pytest.raises(ValueError, match="hydchr must be positive"):
@@ -135,7 +135,7 @@ def test_hfb_from_df_returns_none_when_all_hydchr_rows_are_zero():
             "hydchr": [1 / 100.0],
             "depth": [0.0],
             "geometry": [LineString([(0, 1000), (1000, 0)])],
-        }
+        },
     )
 
     assert nlmod.gwf.hfb.hfb_from_df(gdf, gwf, ds, elevation=None) is None
@@ -150,7 +150,7 @@ def test_hfb_from_df_rejects_non_line_geometries():
             "hydchr": [1 / 100.0],
             "depth": [5.0],
             "geometry": [Point(0, 1000)],
-        }
+        },
     )
 
     with pytest.raises(ValueError, match="LineString"):
@@ -198,8 +198,8 @@ def test_hfb_from_df_scalar_values_apply_to_all_features():
             "geometry": [
                 LineString([(0, 1000), (1000, 0)]),
                 LineString([(100, 1000), (1000, 100)]),
-            ]
-        }
+            ],
+        },
     )
 
     hfb = nlmod.gwf.hfb.hfb_from_df(
@@ -239,7 +239,7 @@ def test_hfb_from_df_accepts_custom_column_names():
             "resistance_inverse": [1 / 100.0],
             "barrier_depth": [5.0],
             "geometry": [LineString([(0, 1000), (1000, 0)])],
-        }
+        },
     )
 
     hfb = nlmod.gwf.hfb.hfb_from_df(
@@ -279,10 +279,10 @@ def test_hfb_from_df_accepts_multilinestring():
                     [
                         [(0, 1000), (500, 500)],
                         [(500, 500), (1000, 0)],
-                    ]
-                )
-            ]
-        }
+                    ],
+                ),
+            ],
+        },
     )
 
     hfb = nlmod.gwf.hfb.hfb_from_df(
@@ -379,7 +379,7 @@ def test_line_to_hfb_buffer_structured():
                 LineString([(100, 1000), (225.0, 425.1)]),
                 LineString([(225.0, 425.1), (225.0, 0)]),
             ],
-        }
+        },
     )
     cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
     # also test the plot method
@@ -400,7 +400,7 @@ def test_line_to_hfb_buffer_vertex():
                 LineString([(100, 1000), (225.0, 425.1)]),
                 LineString([(225.0, 425.1), (225.0, 0)]),
             ],
-        }
+        },
     )
     cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
     # also test the plot method

@@ -29,6 +29,7 @@ def hfb_from_df(
     df,
     gwf,
     ds,
+    *,
     hydchr="hydchr",
     depth="depth",
     elevation="elevation",
@@ -80,7 +81,7 @@ def hfb_from_df(
     if unsupported:
         raise ValueError(
             "hfb_from_df supports only LineString and MultiLineString geometries; "
-            f"found {sorted(unsupported)}"
+            f"found {sorted(unsupported)}",
         )
 
     spd = []
@@ -90,7 +91,7 @@ def hfb_from_df(
             raise ValueError(f"hydchr must be set for HFB feature at index {index!r}")
         if hydchr_value <= 0:
             raise ValueError(
-                f"hydchr must be positive for HFB feature at index {index!r}"
+                f"hydchr must be positive for HFB feature at index {index!r}",
             )
 
         depth_value = _get_optional_hfb_value(row, depth, "depth", index)
@@ -98,7 +99,7 @@ def hfb_from_df(
         if (depth_value is None) == (elevation_value is None):
             raise ValueError(
                 "Exactly one of depth or elevation must be set for HFB feature "
-                f"at index {index!r}"
+                f"at index {index!r}",
             )
 
         feature = df.iloc[[row_number]]
@@ -106,7 +107,10 @@ def hfb_from_df(
             spd += get_hfb_spd(ds, feature, hydchr=hydchr_value, depth=depth_value)
         else:
             spd += get_hfb_spd(
-                ds, feature, hydchr=hydchr_value, elevation=elevation_value
+                ds,
+                feature,
+                hydchr=hydchr_value,
+                elevation=elevation_value,
             )
 
     spd = _clean_hfb_spd(spd)
@@ -131,7 +135,7 @@ def _get_optional_hfb_value(row, value_or_column, name, index):
         if value_or_column not in row.index:
             raise KeyError(
                 f"Column {value_or_column!r} not found for {name} of HFB feature "
-                f"at index {index!r}"
+                f"at index {index!r}",
             )
         value = row[value_or_column]
     else:
@@ -235,18 +239,17 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
                     spd.append([cellid1, cellid2, hydchr * hydchr_frac])
                     break  # go to next cell
 
+            elif topi[ilay + 1] >= elevation:
+                # hfb spans the entire cell
+                spd.append([cellid1, cellid2, hydchr])
+
             else:
-                if topi[ilay + 1] >= elevation:
-                    # hfb spans the entire cell
-                    spd.append([cellid1, cellid2, hydchr])
+                # hfb spans the cell partially
+                hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
+                assert 0 <= hydchr_frac <= 1, "Something is wrong"
 
-                else:
-                    # hfb spans the cell partially
-                    hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
-                    assert 0 <= hydchr_frac <= 1, "Something is wrong"
-
-                    spd.append([cellid1, cellid2, hydchr * hydchr_frac])
-                    break  # go to next cell
+                spd.append([cellid1, cellid2, hydchr * hydchr_frac])
+                break  # go to next cell
 
     return spd
 
@@ -306,13 +309,13 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         else:
             raise TypeError(
                 "Please pass either a flopy.discretization.grid.Grid or "
-                "flopy.mf6.ModflowGwf object as gwf."
+                "flopy.mf6.ModflowGwf object as gwf.",
             )
     elif ds is not None:
         mgrid = modelgrid_from_ds(ds)
     else:
         raise ValueError(
-            "Please pass either a dataset or a flopy.mf6.ModflowGwf object."
+            "Please pass either a dataset or a flopy.mf6.ModflowGwf object.",
         )
 
     gdfg = gdf_to_grid(gdf, gwf if gwf is not None else ds, desc="Intersecting HFB(s)")
@@ -332,15 +335,17 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         cell2d.index.name = "icell2d"
         icvert = np.array(
             [
-                mgrid._build_structured_iverts(*mgrid.get_lrc(icpl)[0][1:])
+                mgrid._build_structured_iverts(  # pylint: disable=protected-access
+                    *mgrid.get_lrc(icpl)[0][1:],
+                )
                 for icpl in range(mgrid.ncpl)
-            ]
+            ],
         )
         # add first vertex to the end of the list
         icvert = np.hstack([icvert, icvert[:, :1]])
         gdfg["cellid_structured"] = gdfg["cellid"]
         gdfg["cellid"] = gdfg["cellid"].map(
-            lambda cid: get_node_structured(0, *cid, shape=mgrid.shape)
+            lambda cid: get_node_structured(0, *cid, shape=mgrid.shape),
         )
     elif mgrid.grid_type == "vertex":
         cell2d = pd.DataFrame(mgrid.cell2d)
@@ -358,7 +363,7 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
     else:
         raise ValueError(
             f"gridtype {mgrid.grid_type} not supported. Only 'structured' "
-            "and 'vertex' are supported."
+            "and 'vertex' are supported.",
         )
 
     # for every cell determine which cell-edge could form the line
@@ -504,7 +509,7 @@ def line_to_hfb_buffer(gdf, ds, buffer_distance=None, gi=None):
     if buffer_distance is None:
         # buffer distance ~ 1.5 * max cell size
         buffer_distance = 1.5 * np.max(
-            [np.max(np.abs(np.diff(ds["x"]))), np.max(np.abs(np.diff(ds["y"])))]
+            [np.max(np.abs(np.diff(ds["x"]))), np.max(np.abs(np.diff(ds["y"])))],
         )
 
     zone_left = gdf.buffer(-buffer_distance, single_sided=True)
@@ -519,7 +524,7 @@ def line_to_hfb_buffer(gdf, ds, buffer_distance=None, gi=None):
         logger.warning(
             "The left and right buffer zones intersect. Please check your input."
             "Perhaps there are multiple linestrings, or the linestring geometry is "
-            "causing potential issues. You can also try modifying the buffer_distance."
+            "causing potential issues. You can also try modifying the buffer_distance.",
         )
     zone_gdf = pd.concat([zone_left, zone_right], axis=0).reset_index(drop=True)
 
@@ -542,13 +547,20 @@ def line_to_hfb_buffer(gdf, ds, buffer_distance=None, gi=None):
     else:
         raise ValueError(
             f"gridtype {mgrid.grid_type} not supported. Only 'structured' "
-            "and 'vertex' are supported."
+            "and 'vertex' are supported.",
         )
     return hfb_seg
 
 
-def polygon_to_hfb(
-    gdf, ds, hydchr, column=None, gwf=None, lay=0, add_data=False, include_nan=True
+def polygon_to_hfb(  # pylint: disable=too-many-positional-arguments
+    gdf,
+    ds,
+    hydchr,
+    column=None,
+    gwf=None,
+    lay=0,
+    add_data=False,
+    include_nan=True,
 ):
     """Snap polygon exterior to grid to form a horizontal flow barrier.
 
@@ -637,8 +649,7 @@ def polygon_to_hfb(
                 spd[-1].extend([data[icell2d1], data[icell2d2]])
     if gwf is None:
         return spd
-    else:
-        return flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
+    return flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
 
 
 def plot_hfb(cellids, modelgrid, ax=None, color="red", **kwargs):

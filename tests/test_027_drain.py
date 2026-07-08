@@ -236,6 +236,157 @@ def test_drain_from_df_places_2d_cellids_in_layer_from_elevation():
     _assert_mapping_matches_stress_period_data(drn, provider_mapping)
 
 
+def test_drain_from_df_places_2d_cellids_below_inactive_top_layer():
+    """Test 2D cell IDs skip inactive layers during layer placement."""
+    ds = test_010_wells.get_model_ds()
+    ds["active_domain"] = ds["botm"].notnull()
+    ds["active_domain"].data[0, 0, 0] = False
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [0, 1, 1]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0)],
+            "elevation": [-1.0],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_inactive_top",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping.loc[0, "cellid"] == (1, 0, 0)
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
+def test_drain_from_df_keeps_valid_2d_cellids_after_omitting_inactive_column():
+    """Test omitted 2D rows do not suppress later valid rows."""
+    ds = test_010_wells.get_model_ds()
+    ds["active_domain"] = ds["top"].notnull()
+    ds["active_domain"].data[0, 0] = False
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [0, 0, 0]
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 1].tolist() == [1, 1, 1]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0), (0, 1)],
+            "elevation": [-1.0, -1.0],
+            "cond": [5.0, 7.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_mixed_active",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert drn is not None
+    assert provider_mapping["mvr_provider_id"].tolist() == [0]
+    assert provider_mapping.loc[0, "cellid"] == (0, 0, 1)
+    assert provider_mapping.loc[0, "cond"] == 7.0
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
+def test_drain_from_df_places_2d_cellids_below_pass_through_layer():
+    """Test 2D cell IDs skip pass-through layers during layer placement."""
+    ds = test_010_wells.get_model_ds()
+    ds["botm"].data[1, 0, 0] = ds["botm"].data[0, 0, 0]
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [1, -1, 1]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0)],
+            "elevation": [-12.0],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_pass_through",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping.loc[0, "cellid"] == (2, 0, 0)
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
+def test_drain_from_df_omits_2d_cellids_without_active_layers():
+    """Test 2D cell IDs are omitted when the column has no active layers."""
+    ds = test_010_wells.get_model_ds()
+    ds["active_domain"] = ds["top"].notnull()
+    ds["active_domain"].data[0, 0] = False
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [0, 0, 0]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0)],
+            "elevation": [-1.0],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_no_active_layers",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert drn is None
+    assert provider_mapping.empty
+
+
+@pytest.mark.parametrize(
+    ("cellid", "setup_idomain", "expected_idomain"),
+    [
+        ((0, 0, 0), "inactive_top", [0, 1, 1]),
+        ((1, 0, 0), "pass_through_middle", [1, -1, 1]),
+    ],
+)
+def test_drain_from_df_rejects_3d_inactive_or_pass_through_cellids(
+    cellid, setup_idomain, expected_idomain
+):
+    """Test explicit 3D cell IDs must target active cells."""
+    ds = test_010_wells.get_model_ds()
+    if setup_idomain == "inactive_top":
+        ds["botm"].data[0, 0, 0] = ds["top"].data[0, 0]
+    elif setup_idomain == "pass_through_middle":
+        ds["botm"].data[1, 0, 0] = ds["botm"].data[0, 0, 0]
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == expected_idomain
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [cellid],
+            "elevation": [-1.0],
+            "cond": [5.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="inactive or pass-through"):
+        nlmod.gwf.drain.drain_from_df(
+            drains,
+            gwf,
+            ds,
+            pname="drn_bad_3d_idomain",
+            silent=True,
+        )
+
+
 def test_drain_from_df_preserves_point_conductance():
     """Test that point drains use supplied integrated conductance unchanged."""
     ds = test_010_wells.get_model_ds()

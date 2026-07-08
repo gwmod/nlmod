@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..dims.grid import gdf_to_grid
+from ..dims.layers import get_idomain
 from ..util import tqdm
 from .surface_water import build_spd
 
@@ -96,6 +97,24 @@ def drain_from_df(
     drn : flopy.mf6.ModflowGwfdrn
         DRN package. When ``return_provider_mapping`` is True, returns a tuple of
         ``(drn, provider_mapping)``.
+
+    Notes
+    -----
+    This function overlaps with ``nlmod.gwf.surface_water.gdf_to_seasonal_pkg``
+    for polygon-to-DRN conversion. Use ``gdf_to_seasonal_pkg`` for surface-water
+    polygons with winter and summer stages and seasonal conductance timeseries.
+    Use ``drain_from_df`` for fixed drain features such as pipes, basins, point
+    drains, or direct cellid input, and when deterministic MVR provider IDs are
+    needed.
+
+    For vector geometries and 2D cellids, layer placement is delegated to
+    ``nlmod.gwf.surface_water.build_spd``. That helper uses
+    ``nlmod.dims.layers.get_idomain`` to skip columns without active cells and to
+    place the drain in a suitable active layer (``idomain > 0``), not in inactive
+    (``idomain == 0``) or vertical pass-through (``idomain < 0``) cells. FloPy
+    receives explicit 3D DRN cellids and does not relocate boundaries to the first
+    active layer. Therefore explicit 3D cellids passed to this function are
+    checked and rejected when they target ``idomain <= 0``.
     """
     logger.info("creating mf6 DRN from dataframe")
 
@@ -349,7 +368,7 @@ def _build_spd_with_provider_mapping(celldata, ds, layer_method, silent):
         disable=silent,
     ):
         if _is_3d_cellid(cellid, ds):
-            row_spd = [_record_from_3d_cellid(cellid, row)]
+            row_spd = [_record_from_3d_cellid(cellid, row, ds)]
         else:
             index = np.empty(1, dtype=object)
             index[0] = cellid
@@ -390,7 +409,15 @@ def _is_3d_cellid(cellid, ds):
     raise ValueError(f"Unsupported gridtype: {ds.gridtype}")
 
 
-def _record_from_3d_cellid(cellid, row):
+def _record_from_3d_cellid(cellid, row, ds):
+    idomain_value = get_idomain(ds).data[cellid]
+    if idomain_value <= 0:
+        raise ValueError(
+            f"DRN cellid {cellid} is inactive or pass-through "
+            f"(idomain={idomain_value}). Use a 2D cellid or vector geometry to let "
+            "nlmod choose an active layer."
+        )
+
     if np.isnan(row["cond"]):
         raise ValueError(f"Conductance is NaN in cell {cellid}")
     if row["cond"] < 0:

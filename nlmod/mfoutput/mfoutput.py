@@ -203,6 +203,7 @@ def _get_budget_da(
     text,
     modelgrid=None,
     column="q",
+    pname=None,
     **kwargs,
 ):
     """Get budget data array based on CellBudgetFile and text string.
@@ -222,6 +223,10 @@ def _get_budget_da(
     column : str
         name of column in rec-array to read, default is 'q' which contains the fluxes
         for most budget datasets.
+    pname : str, optional
+        mf6 package name to get data for, useful when multiple packages of
+        same type exist in the model. If None, then all packages of the same type will
+        be read and added together.
 
     Returns
     -------
@@ -245,6 +250,7 @@ def _get_budget_da(
         fobj=cbcobj,
         text=text,
         column=column,
+        paknam2=pname,
         **kwargs,
     )
 

@@ -1,13 +1,14 @@
 # %%
 import os
+
 import geopandas as gpd
-from shapely.geometry import Polygon, MultiPolygon
-from matplotlib.textpath import TextPath
-from matplotlib.font_manager import FontProperties
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.font_manager import FontProperties
+from matplotlib.textpath import TextPath
+from shapely.geometry import Polygon
 
 import nlmod
-import numpy as np
 
 
 # %%
@@ -103,7 +104,9 @@ ax = f.add_axes([0, 0, 1, 1])
 ax.axis("equal")
 ax.axis(extent)
 color = "k"
-nlmod.plot.modelgrid(ds, color=color, ax=ax, linewidth=0.5, clip_on=False, antialiased=False)
+nlmod.plot.modelgrid(
+    ds, color=color, ax=ax, linewidth=0.5, clip_on=False, antialiased=False
+)
 
 ax.set_xlabel("")
 ax.set_ylabel("")
@@ -111,7 +114,7 @@ ax.set_title("")
 ax.axis("off")
 
 # %% save logo
-fname = f"logo_text"
+fname = "logo_text"
 dpi = 300
 if figwidth != 5:
     fname = f"{fname}_{figwidth}"

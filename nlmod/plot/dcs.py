@@ -190,6 +190,7 @@ class DatasetCrossSection:
         min_label_area=np.inf,
         fontsize=None,
         only_labels=False,
+        ha="center",
         **kwargs,
     ):
         if colors is None:
@@ -258,7 +259,7 @@ class DatasetCrossSection:
                                 xt,
                                 yt,
                                 self.layer[i],
-                                ha="center",
+                                ha=ha,
                                 va="center",
                                 fontsize=fontsize,
                             )
@@ -566,7 +567,7 @@ class DatasetCrossSection:
         filter_rect_kwargs=None,
         tubeline_kwargs=None,
     ):
-        """plot filter screens in cross section from a DataFrame
+        """Plot filter screens in cross section from a DataFrame
 
         Parameters
         ----------
@@ -627,7 +628,6 @@ class DatasetCrossSection:
         matplotlib.collections.PatchCollection
 
         """
-
         # check screen top and bot
         if (df[col_screen_top] < df[col_screen_bottom]).any():
             logger.warning("screen top is lower than screen bottom")

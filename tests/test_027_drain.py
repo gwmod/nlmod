@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import test_010_wells
+import util
 from shapely.geometry import LineString, MultiPoint, Polygon
 
 import nlmod
@@ -188,7 +189,7 @@ def test_drain_from_df_preserves_direct_3d_cellids():
     _, gwf = test_010_wells.get_sim_and_gwf(ds)
     drains = pd.DataFrame(
         {
-            "cellid": [(1, 0, 0)],
+            "cellid": [(0, 0, 0)],
             "elevation": [-12.0],
             "cond": [5.0],
         }
@@ -203,8 +204,35 @@ def test_drain_from_df_preserves_direct_3d_cellids():
         return_provider_mapping=True,
     )
 
-    assert provider_mapping.loc[0, "cellid"] == (1, 0, 0)
+    assert provider_mapping.loc[0, "cellid"] == (0, 0, 0)
     assert provider_mapping.loc[0, "elev"] == -12.0
+    assert provider_mapping.loc[0, "cond"] == 5.0
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
+def test_drain_from_df_preserves_active_3d_cellid_with_timeseries_elevation():
+    """Test active explicit 3D cell IDs can keep timeseries elevations."""
+    ds = test_010_wells.get_model_ds()
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0, 0)],
+            "elevation": ["stage_ts"],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_3d_ts",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping.loc[0, "cellid"] == (0, 0, 0)
+    assert provider_mapping.loc[0, "elev"] == "stage_ts"
     assert provider_mapping.loc[0, "cond"] == 5.0
     _assert_mapping_matches_stress_period_data(drn, provider_mapping)
 
@@ -352,32 +380,67 @@ def test_drain_from_df_omits_2d_cellids_without_active_layers():
 
 
 @pytest.mark.parametrize(
-    ("cellid", "setup_idomain", "expected_idomain"),
+    ("cellid", "setup_idomain", "elevation", "expected_idomain", "expected_cellid"),
     [
-        ((0, 0, 0), "inactive_top", [0, 1, 1]),
-        ((1, 0, 0), "pass_through_middle", [1, -1, 1]),
+        ((0, 0, 0), "inactive_top", -1.0, [0, 1, 1], (1, 0, 0)),
+        ((1, 0, 0), "pass_through_middle", -12.0, [1, -1, 1], (2, 0, 0)),
+        ((1, 0, 0), "inactive_middle", -12.0, [1, 0, 1], (0, 0, 0)),
+        ((1, 0, 0), "inactive_middle", -14.0, [1, 0, 1], (2, 0, 0)),
     ],
 )
-def test_drain_from_df_rejects_3d_inactive_or_pass_through_cellids(
-    cellid, setup_idomain, expected_idomain
+def test_drain_from_df_remaps_3d_inactive_or_pass_through_cellids(
+    cellid, setup_idomain, elevation, expected_idomain, expected_cellid
 ):
-    """Test explicit 3D cell IDs must target active cells."""
+    """Test explicit 3D cell IDs are remapped to the nearest active layer."""
     ds = test_010_wells.get_model_ds()
     if setup_idomain == "inactive_top":
         ds["botm"].data[0, 0, 0] = ds["top"].data[0, 0]
     elif setup_idomain == "pass_through_middle":
         ds["botm"].data[1, 0, 0] = ds["botm"].data[0, 0, 0]
+    elif setup_idomain == "inactive_middle":
+        ds["active_domain"] = ds["botm"].notnull()
+        ds["active_domain"].data[1, 0, 0] = False
     assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == expected_idomain
     _, gwf = test_010_wells.get_sim_and_gwf(ds)
     drains = pd.DataFrame(
         {
             "cellid": [cellid],
+            "elevation": [elevation],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_remapped_3d_idomain",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping.loc[0, "cellid"] == expected_cellid
+    assert provider_mapping.loc[0, "elev"] == elevation
+    assert provider_mapping.loc[0, "cond"] == 5.0
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
+def test_drain_from_df_raises_for_3d_cellids_without_active_layers():
+    """Test explicit 3D cell IDs still require an active column."""
+    ds = test_010_wells.get_model_ds()
+    ds["active_domain"] = ds["top"].notnull()
+    ds["active_domain"].data[0, 0] = False
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [0, 0, 0]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0, 0)],
             "elevation": [-1.0],
             "cond": [5.0],
         }
     )
 
-    with pytest.raises(ValueError, match="inactive or pass-through"):
+    with pytest.raises(ValueError, match="no active layers"):
         nlmod.gwf.drain.drain_from_df(
             drains,
             gwf,
@@ -385,6 +448,102 @@ def test_drain_from_df_rejects_3d_inactive_or_pass_through_cellids(
             pname="drn_bad_3d_idomain",
             silent=True,
         )
+
+
+def test_drain_from_df_requires_numeric_elevation_to_remap_3d_cellids():
+    """Test inactive explicit 3D cell IDs need numeric elevations for remapping."""
+    ds = test_010_wells.get_model_ds()
+    ds["botm"].data[0, 0, 0] = ds["top"].data[0, 0]
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [0, 1, 1]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0, 0)],
+            "elevation": ["stage_ts"],
+            "cond": [5.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="elevation is not numeric"):
+        nlmod.gwf.drain.drain_from_df(
+            drains,
+            gwf,
+            ds,
+            pname="drn_non_numeric_remap",
+            silent=True,
+        )
+
+
+def test_drain_from_df_remaps_vertex_3d_cellids_to_nearest_active_layer():
+    """Test explicit vertex 3D cell IDs are remapped like structured cell IDs."""
+    ds = util.get_ds_vertex(
+        model_name="drain_vertex",
+        top=0.0,
+        botm=[-10.0, -15.0, -30.0],
+        kh=[10.0, 0.1, 20.0],
+        kv=[5.0, 0.05, 10.0],
+    )
+    ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
+    ds["active_domain"] = ds["botm"].notnull()
+    ds["active_domain"].data[1, 0] = False
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0].tolist() == [1, 0, 1]
+    gwf = util.get_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(1, 0)],
+            "elevation": [-14.0],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_vertex_remap",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping.loc[0, "cellid"] == (2, 0)
+    assert provider_mapping.loc[0, "elev"] == -14.0
+    assert provider_mapping.loc[0, "cond"] == 5.0
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
+def test_drain_from_df_preserves_active_vertex_3d_cellids():
+    """Test active explicit vertex 3D cell IDs are preserved exactly."""
+    ds = util.get_ds_vertex(
+        model_name="drn_vtx_active",
+        top=0.0,
+        botm=[-10.0, -15.0, -30.0],
+        kh=[10.0, 0.1, 20.0],
+        kv=[5.0, 0.05, 10.0],
+    )
+    ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 1].tolist() == [1, 1, 1]
+    gwf = util.get_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 1)],
+            "elevation": [-14.0],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_vertex_active",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping.loc[0, "cellid"] == (0, 1)
+    assert provider_mapping.loc[0, "elev"] == -14.0
+    assert provider_mapping.loc[0, "cond"] == 5.0
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
 
 
 def test_drain_from_df_preserves_point_conductance():
@@ -444,7 +603,10 @@ def _assert_mapping_matches_stress_period_data(drn, provider_mapping):
     for _, row in provider_mapping.iterrows():
         record = spd[int(row["mvr_provider_id"])]
         assert record["cellid"] == row["cellid"]
-        assert record["elev"] == pytest.approx(row["elev"])
+        if isinstance(row["elev"], str):
+            assert record["elev"] == row["elev"]
+        else:
+            assert record["elev"] == pytest.approx(row["elev"])
         assert record["cond"] == pytest.approx(row["cond"])
         if "boundname" in record.dtype.names and pd.notna(row["boundname"]):
             assert record["boundname"] == row["boundname"]

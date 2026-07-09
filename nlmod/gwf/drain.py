@@ -112,9 +112,11 @@ def drain_from_df(
     ``nlmod.dims.layers.get_idomain`` to skip columns without active cells and to
     place the drain in a suitable active layer (``idomain > 0``), not in inactive
     (``idomain == 0``) or vertical pass-through (``idomain < 0``) cells. FloPy
-    receives explicit 3D DRN cellids and does not relocate boundaries to the first
-    active layer. Therefore explicit 3D cellids passed to this function are
-    checked and rejected when they target ``idomain <= 0``.
+    receives explicit 3D DRN cellids and does not relocate boundaries. Therefore
+    explicit 3D cellids passed to this function that target ``idomain <= 0`` are
+    remapped to the nearest active layer in the same vertical column, based on the
+    drain elevation. If no active layer exists, or if remapping is required for a
+    nonnumeric drain elevation, a ``ValueError`` is raised.
     """
     logger.info("creating mf6 DRN from dataframe")
 
@@ -410,13 +412,7 @@ def _is_3d_cellid(cellid, ds):
 
 
 def _record_from_3d_cellid(cellid, row, ds):
-    idomain_value = get_idomain(ds).data[cellid]
-    if idomain_value <= 0:
-        raise ValueError(
-            f"DRN cellid {cellid} is inactive or pass-through "
-            f"(idomain={idomain_value}). Use a 2D cellid or vector geometry to let "
-            "nlmod choose an active layer."
-        )
+    cellid = _get_active_cellid_for_3d_cellid(cellid, row, ds)
 
     if np.isnan(row["cond"]):
         raise ValueError(f"Conductance is NaN in cell {cellid}")
@@ -427,6 +423,73 @@ def _record_from_3d_cellid(cellid, row, ds):
     if "boundname" in row:
         auxlist.append(row["boundname"])
     return [cellid, row["stage"], row["cond"]] + auxlist
+
+
+def _get_active_cellid_for_3d_cellid(cellid, row, ds):
+    idomain = get_idomain(ds).data
+    if idomain[cellid] > 0:
+        return cellid
+
+    try:
+        drain_elevation = float(row["stage"])
+    except (TypeError, ValueError) as err:
+        raise ValueError(
+            f"Cannot remap DRN cellid {cellid} to the nearest active layer "
+            "because the drain elevation is not numeric."
+        ) from err
+    if not np.isfinite(drain_elevation):
+        raise ValueError(
+            f"Cannot remap DRN cellid {cellid} to the nearest active layer "
+            "because the drain elevation is not finite."
+        )
+
+    layer = cellid[0]
+    if ds.gridtype == "vertex":
+        icell2d = cellid[1]
+        idomain_column = idomain[:, icell2d]
+        layer_tops = np.r_[ds["top"].data[icell2d], ds["botm"].data[:-1, icell2d]]
+        layer_botms = ds["botm"].data[:, icell2d]
+        column_cellid = (icell2d,)
+    elif ds.gridtype == "structured":
+        row_index, column_index = cellid[1:]
+        idomain_column = idomain[:, row_index, column_index]
+        layer_tops = np.r_[
+            ds["top"].data[row_index, column_index],
+            ds["botm"].data[:-1, row_index, column_index],
+        ]
+        layer_botms = ds["botm"].data[:, row_index, column_index]
+        column_cellid = (row_index, column_index)
+    else:
+        raise ValueError(f"Unsupported gridtype: {ds.gridtype}")
+
+    active_layers = np.where(idomain_column > 0)[0]
+    if len(active_layers) == 0:
+        raise ValueError(
+            f"Cannot remap DRN cellid {cellid}; the vertical column has no active "
+            "layers."
+        )
+
+    nearest_layer = min(
+        active_layers,
+        key=lambda active_layer: (
+            _distance_to_layer_interval(
+                drain_elevation,
+                layer_top=layer_tops[active_layer],
+                layer_botm=layer_botms[active_layer],
+            ),
+            abs(active_layer - layer),
+            active_layer,
+        ),
+    )
+    return (nearest_layer,) + column_cellid
+
+
+def _distance_to_layer_interval(elevation, layer_top, layer_botm):
+    upper = max(layer_top, layer_botm)
+    lower = min(layer_top, layer_botm)
+    if lower <= elevation <= upper:
+        return 0.0
+    return min(abs(elevation - lower), abs(elevation - upper))
 
 
 def _empty_celldata():

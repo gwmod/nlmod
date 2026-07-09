@@ -216,8 +216,9 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     spd : List of Tuple
         Stress period data used to configure the hfb package of Flopy.
     """
-    if (depth is None) == (elevation is None):
-        raise ValueError("Use either depth or elevation argument")
+    assert sum([depth is None, elevation is None]) == 1, (
+        "Use either depth or elevation argument"
+    )
 
     if not isinstance(ds, xr.Dataset):
         raise TypeError("Please pass a model dataset!")
@@ -706,8 +707,12 @@ def plot_hfb(cellids, modelgrid, ax=None, color="red", **kwargs):
             spd = cellids.stress_period_data.data[0]
             cellids = [[row[0][1:], row[1][1:]] for row in spd]
         for line in cellids:
-            pc1 = Polygon(modelgrid.get_cell_vertices(*line[0]))
-            pc2 = Polygon(modelgrid.get_cell_vertices(*line[1]))
+            if len(line) == 2:
+                pc1 = Polygon(modelgrid.get_cell_vertices(*line[0]))
+                pc2 = Polygon(modelgrid.get_cell_vertices(*line[1]))
+            elif len(line) == 4:
+                pc1 = Polygon(modelgrid.get_cell_vertices(*line[:2]))
+                pc2 = Polygon(modelgrid.get_cell_vertices(*line[2:]))
             x, y = pc1.intersection(pc2).xy
             ax.plot(x, y, color=color, **kwargs)
 

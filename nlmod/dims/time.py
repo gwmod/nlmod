@@ -790,7 +790,6 @@ def dataframe_to_flopy_timeseries(
     AssertionError
         If DataFrame contains NaNs or if `ds.time` is not datetime64.
     """
-
     msg = "No nan values are allowed in dataframe_to_flopy_timeseries"
     assert not df.isna().any(axis=None), msg
     msg = "get recharge requires a datetime64[ns] time index"
@@ -862,3 +861,24 @@ def ds_time_to_pandas_index(da_or_ds, include_start=True):
             raise TypeError("Unknown time dtype")
     else:
         return da.to_index()
+
+
+def apply_tsmult(perlen, nstp, tsmult):
+    """Apply tsmult to perlen and nstp to get the time step lengths.
+
+    Parameters
+    ----------
+    perlen : array-like
+        length of each stress-period
+    nstp : array-like
+        number of steps in each stress-period
+    tsmult : array-like
+        timestep multiplier for each stress-period
+
+    Returns
+    -------
+    dt : np.ndarray
+        array with the length of each timestep
+    """
+    delt0 = perlen * (tsmult - 1) / (tsmult**nstp - 1)
+    return delt0 * tsmult ** np.arange(0, 3)

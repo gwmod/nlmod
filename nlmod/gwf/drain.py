@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..dims.grid import gdf_to_grid
-from ..dims.layers import get_idomain, get_nearest_active_layer
+from ..dims.layers import get_idomain, get_layer_of_z
 from ..util import tqdm
 from .surface_water import build_spd
 
@@ -372,19 +372,52 @@ def _base_celldata(df, elev, boundnames, mover_destinations):
 def _build_spd_with_provider_mapping(celldata, ds, layer_method, silent):
     spd = []
     provider_mapping = []
-    idomain = None
-    for cellid, row in tqdm(
-        celldata.iterrows(),
-        total=celldata.index.size,
-        desc="Building stress period data DRN",
-        disable=silent,
+    index = np.empty(1, dtype=object)
+    cellids = celldata.index.to_list()
+    is_3d_cellid = np.array([_is_3d_cellid(cellid, ds) for cellid in cellids])
+    if is_3d_cellid.any():
+        idomain = get_idomain(ds)
+        positions = np.where(is_3d_cellid)[0]
+        original_cellids = [cellids[position] for position in positions]
+        active = np.array([idomain.data[cellid] > 0 for cellid in original_cellids])
+        remap_positions = positions[~active]
+        if len(remap_positions) > 0:
+            try:
+                remap_layers = get_layer_of_z(
+                    ds,
+                    celldata.iloc[remap_positions]["stage"].to_numpy(),
+                    cellid=[cellids[position][1:] for position in remap_positions],
+                    idomain=idomain,
+                    nearest_active=True,
+                    preferred_layer=[
+                        cellids[position][0] for position in remap_positions
+                    ],
+                )
+            except ValueError as err:
+                raise ValueError(f"Cannot remap DRN cellids; {err}") from err
+            for position, layer in zip(remap_positions, remap_layers, strict=True):
+                cellids[position] = (layer,) + cellids[position][1:]
+
+    for position, (cellid, row) in enumerate(
+        tqdm(
+            celldata.iterrows(),
+            total=celldata.index.size,
+            desc="Building stress period data DRN",
+            disable=silent,
+        )
     ):
-        if _is_3d_cellid(cellid, ds):
-            if idomain is None:
-                idomain = get_idomain(ds)
-            row_spd = [_record_from_3d_cellid(cellid, row, ds, idomain)]
+        if is_3d_cellid[position]:
+            cellid = cellids[position]
+            if pd.isna(row["stage"]):
+                row_spd = []
+                continue
+            if np.isnan(row["cond"]):
+                raise ValueError(f"Conductance is NaN in cell {cellid}")
+            if row["cond"] < 0:
+                raise ValueError(f"Conductance is negative in cell {cellid}")
+            auxlist = [row["boundname"]] if "boundname" in row else []
+            row_spd = [[cellid, row["stage"], row["cond"]] + auxlist]
         else:
-            index = np.empty(1, dtype=object)
             index[0] = cellid
             row_df = pd.DataFrame(
                 [row],
@@ -421,34 +454,6 @@ def _is_3d_cellid(cellid, ds):
     if ds.gridtype == "structured":
         return len(cellid) == 3
     raise ValueError(f"Unsupported gridtype: {ds.gridtype}")
-
-
-def _record_from_3d_cellid(cellid, row, ds, idomain):
-    cellid = _get_active_cellid_for_3d_cellid(cellid, row, ds, idomain)
-
-    if np.isnan(row["cond"]):
-        raise ValueError(f"Conductance is NaN in cell {cellid}")
-    if row["cond"] < 0:
-        raise ValueError(f"Conductance is negative in cell {cellid}")
-
-    auxlist = []
-    if "boundname" in row:
-        auxlist.append(row["boundname"])
-    return [cellid, row["stage"], row["cond"]] + auxlist
-
-
-def _get_active_cellid_for_3d_cellid(cellid, row, ds, idomain):
-    if idomain.data[cellid] > 0:
-        return cellid
-
-    column_cellid = cellid[1:]
-    try:
-        nearest_layer = get_nearest_active_layer(
-            ds, column_cellid, row["stage"], idomain=idomain, preferred_layer=cellid[0]
-        )
-    except ValueError as err:
-        raise ValueError(f"Cannot remap DRN cellid {cellid}; {err}") from err
-    return (nearest_layer,) + column_cellid
 
 
 def _validate_columns(df, columns, name):

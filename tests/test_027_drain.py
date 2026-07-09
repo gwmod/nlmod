@@ -237,6 +237,31 @@ def test_drain_from_df_preserves_active_3d_cellid_with_timeseries_elevation():
     _assert_mapping_matches_stress_period_data(drn, provider_mapping)
 
 
+def test_drain_from_df_omits_3d_cellids_without_elevation():
+    """Test explicit 3D cell IDs without elevation are omitted."""
+    ds = test_010_wells.get_model_ds()
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0, 0)],
+            "elevation": [np.nan],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_3d_nan",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert drn is None
+    assert provider_mapping.empty
+
+
 def test_drain_from_df_places_2d_cellids_in_layer_from_elevation():
     """Test that 2D cell IDs use drain elevation for layer placement."""
     ds = test_010_wells.get_model_ds()
@@ -386,7 +411,6 @@ def test_drain_from_df_omits_2d_cellids_without_active_layers():
         ((1, 0, 0), "pass_through_middle", -12.0, [1, -1, 1], (2, 0, 0)),
         ((1, 0, 0), "inactive_middle", -12.0, [1, 0, 1], (0, 0, 0)),
         ((1, 0, 0), "inactive_middle", -14.0, [1, 0, 1], (2, 0, 0)),
-        ((1, 0, 0), "inactive_middle", -12.5, [1, 0, 1], (0, 0, 0)),
     ],
 )
 def test_drain_from_df_remaps_3d_inactive_or_pass_through_cellids(
@@ -423,6 +447,61 @@ def test_drain_from_df_remaps_3d_inactive_or_pass_through_cellids(
     assert provider_mapping.loc[0, "cellid"] == expected_cellid
     assert provider_mapping.loc[0, "elev"] == elevation
     assert provider_mapping.loc[0, "cond"] == 5.0
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
+def test_drain_from_df_raises_for_ambiguous_nearest_active_layer():
+    """Test unresolved nearest-active ties require explicit modeler input."""
+    ds = test_010_wells.get_model_ds()
+    ds["active_domain"] = ds["botm"].notnull()
+    ds["active_domain"].data[1, 0, 0] = False
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [1, 0, 1]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(1, 0, 0)],
+            "elevation": [-12.5],
+            "cond": [5.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="equally near"):
+        nlmod.gwf.drain.drain_from_df(
+            drains,
+            gwf,
+            ds,
+            pname="drn_ambiguous_remap",
+            silent=True,
+        )
+
+
+def test_drain_from_df_remaps_multiple_3d_cellids_in_one_call():
+    """Test batched explicit 3D remapping keeps row-specific layer choices."""
+    ds = test_010_wells.get_model_ds()
+    ds["active_domain"] = ds["botm"].notnull()
+    ds["active_domain"].data[1, 0, 0] = False
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [1, 0, 1]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    drains = pd.DataFrame(
+        {
+            "cellid": [(0, 0, 0), (1, 0, 0), (1, 0, 0)],
+            "elevation": [-1.0, -12.0, -14.0],
+            "cond": [3.0, 5.0, 7.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_multi_remap",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping["cellid"].tolist() == [(0, 0, 0), (0, 0, 0), (2, 0, 0)]
+    assert provider_mapping["elev"].tolist() == [-1.0, -12.0, -14.0]
+    assert provider_mapping["cond"].tolist() == [3.0, 5.0, 7.0]
     _assert_mapping_matches_stress_period_data(drn, provider_mapping)
 
 

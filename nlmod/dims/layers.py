@@ -1572,7 +1572,16 @@ def get_last_active_layer_from_idomain(idomain, nodata=-999):
     return last_active_layer
 
 
-def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
+def get_layer_of_z(
+    ds,
+    z,
+    above_model=-999,
+    below_model=-999,
+    cellid=None,
+    idomain=None,
+    nearest_active=False,
+    preferred_layer=None,
+):
     """Get the layer of a certain z-value in all cells from a model ds.
 
     Parameters
@@ -1585,13 +1594,126 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
         value used for cells where z is above the top of the model. The default is -999.
     below_model : int, optional
         value used for cells where z is below the top of the model. The default is -999.
+    cellid : int, tuple of int or sequence, optional
+        Two-dimensional cellid(s) of vertical column(s). Use integers for vertex grids
+        and ``(row, column)`` tuples for structured grids. If None, layers are returned
+        for all model cells. The default is None.
+    idomain : xarray.DataArray, optional
+        Idomain array. Only used when ``cellid`` is not None and ``nearest_active`` is
+        True. If None, it is calculated from ``ds``. The default is None.
+    nearest_active : bool, optional
+        If True, return the active layer nearest to ``z`` in each vertical column,
+        ignoring inactive and pass-through cells. The default is False.
+    preferred_layer : int or sequence of int, optional
+        Layer(s) used as a secondary tie-breaker when multiple active layers are
+        equally near to ``z``. The default is None, which breaks ties to the shallower
+        layer.
 
     Returns
     -------
-    layer : xr.DataArray
-        DataArray with values representing the integer layer index. Shape can be (y, x)
-        or (icell2d)
+    layer : xr.DataArray, int or np.ndarray
+        DataArray with values representing the integer layer index when ``cellid`` is
+        None. If ``cellid`` is supplied, returns an int for one cellid or an array for
+        multiple cellids.
     """
+    if cellid is not None:
+        scalar_cellid = isinstance(cellid, (int, np.integer)) or (
+            isinstance(cellid, tuple)
+            and all(isinstance(part, (int, np.integer)) for part in cellid)
+        )
+        cellids = [cellid] if scalar_cellid else list(cellid)
+        column_cellids = [
+            (item,) if isinstance(item, (int, np.integer)) else tuple(item)
+            for item in cellids
+        ]
+        try:
+            z = np.asarray(z, dtype=float)
+        except (TypeError, ValueError) as err:
+            raise ValueError("z must be numeric to determine the layer") from err
+        if z.ndim == 0:
+            z = np.full(len(column_cellids), float(z))
+        elif z.size == 1 and len(column_cellids) != 1:
+            z = np.full(len(column_cellids), float(z.ravel()[0]))
+        elif z.size != len(column_cellids):
+            raise ValueError("z must be scalar or have the same length as cellid")
+        else:
+            z = z.ravel()
+        if not np.isfinite(z).all():
+            raise ValueError("z must be finite to determine the layer")
+
+        cellids_array = np.asarray(column_cellids, dtype=int)
+        if cellids_array.ndim == 1:
+            cellids_array = cellids_array[:, np.newaxis]
+        if cellids_array.shape[1] != len(ds["botm"].dims) - 1:
+            raise ValueError("cellid does not match the model grid dimensions")
+
+        layer_botms = ds["botm"].data[(slice(None), *cellids_array.T)]
+        if "layer" in ds["top"].dims:
+            layer_tops = ds["top"].data[(slice(None), *cellids_array.T)]
+            top0 = layer_tops[0]
+        else:
+            top0 = ds["top"].data[tuple(cellids_array.T)]
+            layer_tops = np.vstack((top0, layer_botms[:-1]))
+
+        if not nearest_active:
+            below_z = layer_botms < z
+            layer = np.where(
+                below_z.any(axis=0), np.argmax(below_z, axis=0), below_model
+            )
+            layer = np.where(z > top0, above_model, layer)
+            return int(layer[0]) if scalar_cellid else layer
+
+        if idomain is None:
+            idomain = get_idomain(ds)
+        idomain_column = idomain.data[(slice(None), *cellids_array.T)]
+        active = idomain_column > 0
+        if not active.any(axis=0).all():
+            bad = np.where(~active.any(axis=0))[0]
+            raise ValueError(
+                "the vertical column has no active layers for cellid positions "
+                f"{bad.tolist()}"
+            )
+
+        distances = np.abs(
+            z
+            - np.clip(
+                z,
+                np.minimum(layer_tops, layer_botms),
+                np.maximum(layer_tops, layer_botms),
+            )
+        )
+        distances[~active] = np.inf
+        candidates = distances == distances.min(axis=0)
+
+        if preferred_layer is not None:
+            preferred_layer = np.asarray(preferred_layer, dtype=int)
+            if preferred_layer.ndim == 0:
+                preferred_layer = np.full(len(column_cellids), int(preferred_layer))
+            elif preferred_layer.size == 1 and len(column_cellids) != 1:
+                preferred_layer = np.full(
+                    len(column_cellids), int(preferred_layer.ravel()[0])
+                )
+            elif preferred_layer.size != len(column_cellids):
+                raise ValueError(
+                    "preferred_layer must be scalar or have the same length as cellid"
+                )
+            else:
+                preferred_layer = preferred_layer.ravel()
+
+            layer_number = np.arange(len(ds.layer))[:, np.newaxis]
+            layer_distance = np.abs(layer_number - preferred_layer)
+            layer_distance[~candidates] = np.iinfo(layer_distance.dtype).max
+            candidates &= layer_distance == layer_distance.min(axis=0)
+            unresolved = np.where(candidates.sum(axis=0) > 1)[0]
+            if len(unresolved) > 0:
+                raise ValueError(
+                    "multiple active layers are equally near to z for cellid "
+                    f"positions {unresolved.tolist()}"
+                )
+
+        layer = np.argmax(candidates, axis=0)
+        return int(layer[0]) if scalar_cellid else layer
+
     layer = xr.where(ds["botm"][0] < z, 0, below_model)
     for i in range(1, len(ds.layer)):
         layer = xr.where((layer == below_model) & (ds["botm"][i] < z), i, layer)
@@ -1609,73 +1731,6 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
     # drop layer coordinates, as it is inherited from one of the actions above
     layer = layer.drop_vars("layer")
     return layer
-
-
-def get_nearest_active_layer(ds, cellid, z, idomain=None, preferred_layer=None):
-    """Get the active layer nearest to a z-value in one vertical column.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Model Dataset.
-    cellid : int or tuple of int
-        Two-dimensional cellid of the vertical column. Use an integer for vertex
-        grids and ``(row, column)`` for structured grids.
-    z : float
-        Elevation for which the nearest active layer is determined.
-    idomain : xarray.DataArray, optional
-        Idomain array. If None, it is calculated from ``ds``. The default is
-        None.
-    preferred_layer : int, optional
-        Layer used as a secondary tie-breaker when multiple active layers are
-        equally near to ``z``. The default is None, which breaks ties to the
-        shallower layer.
-
-    Returns
-    -------
-    layer : int
-        Zero-based layer index of the active layer nearest to ``z``.
-    """
-    try:
-        z = float(z)
-    except (TypeError, ValueError) as err:
-        raise ValueError(
-            "z must be numeric to determine the nearest active layer"
-        ) from err
-    if not np.isfinite(z):
-        raise ValueError("z must be finite to determine the nearest active layer")
-
-    if idomain is None:
-        idomain = get_idomain(ds)
-
-    column_cellid = (cellid,) if not isinstance(cellid, tuple) else cellid
-    column_indexer = dict(zip(ds["botm"].dims[1:], column_cellid, strict=True))
-    idomain_column = idomain.isel(column_indexer).data
-    active_layers = np.where(idomain_column > 0)[0]
-    if len(active_layers) == 0:
-        raise ValueError("the vertical column has no active layers")
-
-    layer_botms = ds["botm"].isel(column_indexer).data
-    top_indexer = {
-        dim: index for dim, index in column_indexer.items() if dim in ds["top"].dims
-    }
-    if "layer" in ds["top"].dims:
-        layer_tops = ds["top"].isel(top_indexer).data
-    else:
-        layer_tops = np.r_[ds["top"].isel(top_indexer).data, layer_botms[:-1]]
-
-    distances = np.abs(
-        z
-        - np.clip(
-            z,
-            np.minimum(layer_tops[active_layers], layer_botms[active_layers]),
-            np.maximum(layer_tops[active_layers], layer_botms[active_layers]),
-        )
-    )
-    if preferred_layer is None:
-        return int(active_layers[np.lexsort((active_layers, distances))[0]])
-    layer_distance = np.abs(active_layers - preferred_layer)
-    return int(active_layers[np.lexsort((active_layers, layer_distance, distances))[0]])
 
 
 def update_idomain_from_thickness(idomain, thickness, mask):

@@ -386,6 +386,7 @@ def test_drain_from_df_omits_2d_cellids_without_active_layers():
         ((1, 0, 0), "pass_through_middle", -12.0, [1, -1, 1], (2, 0, 0)),
         ((1, 0, 0), "inactive_middle", -12.0, [1, 0, 1], (0, 0, 0)),
         ((1, 0, 0), "inactive_middle", -14.0, [1, 0, 1], (2, 0, 0)),
+        ((1, 0, 0), "inactive_middle", -12.5, [1, 0, 1], (0, 0, 0)),
     ],
 )
 def test_drain_from_df_remaps_3d_inactive_or_pass_through_cellids(
@@ -492,7 +493,7 @@ def test_drain_from_df_requires_numeric_elevation_to_remap_3d_cellids():
         }
     )
 
-    with pytest.raises(ValueError, match="elevation is not numeric"):
+    with pytest.raises(ValueError, match="numeric"):
         nlmod.gwf.drain.drain_from_df(
             drains,
             gwf,

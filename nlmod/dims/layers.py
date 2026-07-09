@@ -1611,6 +1611,73 @@ def get_layer_of_z(ds, z, above_model=-999, below_model=-999):
     return layer
 
 
+def get_nearest_active_layer(ds, cellid, z, idomain=None, preferred_layer=None):
+    """Get the active layer nearest to a z-value in one vertical column.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Model Dataset.
+    cellid : int or tuple of int
+        Two-dimensional cellid of the vertical column. Use an integer for vertex
+        grids and ``(row, column)`` for structured grids.
+    z : float
+        Elevation for which the nearest active layer is determined.
+    idomain : xarray.DataArray, optional
+        Idomain array. If None, it is calculated from ``ds``. The default is
+        None.
+    preferred_layer : int, optional
+        Layer used as a secondary tie-breaker when multiple active layers are
+        equally near to ``z``. The default is None, which breaks ties to the
+        shallower layer.
+
+    Returns
+    -------
+    layer : int
+        Zero-based layer index of the active layer nearest to ``z``.
+    """
+    try:
+        z = float(z)
+    except (TypeError, ValueError) as err:
+        raise ValueError(
+            "z must be numeric to determine the nearest active layer"
+        ) from err
+    if not np.isfinite(z):
+        raise ValueError("z must be finite to determine the nearest active layer")
+
+    if idomain is None:
+        idomain = get_idomain(ds)
+
+    column_cellid = (cellid,) if not isinstance(cellid, tuple) else cellid
+    column_indexer = dict(zip(ds["botm"].dims[1:], column_cellid, strict=True))
+    idomain_column = idomain.isel(column_indexer).data
+    active_layers = np.where(idomain_column > 0)[0]
+    if len(active_layers) == 0:
+        raise ValueError("the vertical column has no active layers")
+
+    layer_botms = ds["botm"].isel(column_indexer).data
+    top_indexer = {
+        dim: index for dim, index in column_indexer.items() if dim in ds["top"].dims
+    }
+    if "layer" in ds["top"].dims:
+        layer_tops = ds["top"].isel(top_indexer).data
+    else:
+        layer_tops = np.r_[ds["top"].isel(top_indexer).data, layer_botms[:-1]]
+
+    distances = np.abs(
+        z
+        - np.clip(
+            z,
+            np.minimum(layer_tops[active_layers], layer_botms[active_layers]),
+            np.maximum(layer_tops[active_layers], layer_botms[active_layers]),
+        )
+    )
+    if preferred_layer is None:
+        return int(active_layers[np.lexsort((active_layers, distances))[0]])
+    layer_distance = np.abs(active_layers - preferred_layer)
+    return int(active_layers[np.lexsort((active_layers, layer_distance, distances))[0]])
+
+
 def update_idomain_from_thickness(idomain, thickness, mask):
     """Get new idomain from thickness in the cells where mask is 1 (or True).
 

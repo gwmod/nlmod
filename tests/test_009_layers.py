@@ -1,16 +1,16 @@
 # %%
 import os
-import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 import test_001_model
+import util
 from pandas import DataFrame
 from shapely.geometry import LineString
 
 import nlmod
 from nlmod.plot import DatasetCrossSection
-import util
 
 MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
 
@@ -198,6 +198,29 @@ def test_get_layer_of_z_below_model():
     ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -20])
     layer = nlmod.layers.get_layer_of_z(ds, -30, below_model=-999, above_model=999)
     assert (layer == layer.attrs["below_model"]).all()
+
+
+def test_get_nearest_active_layer():
+    ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -15, -30])
+    ds["active_domain"] = ds["botm"].notnull()
+    ds["active_domain"].data[1, 0, 0] = False
+    idomain = nlmod.layers.get_idomain(ds)
+
+    assert idomain.data[:, 0, 0].tolist() == [1, 0, 1]
+    assert nlmod.layers.get_nearest_active_layer(ds, (0, 0), -12.0, idomain) == 0
+    assert nlmod.layers.get_nearest_active_layer(ds, (0, 0), -14.0, idomain) == 2
+    assert nlmod.layers.get_nearest_active_layer(ds, (0, 0), -12.5, idomain) == 0
+    assert (
+        nlmod.layers.get_nearest_active_layer(
+            ds, (0, 0), -12.5, idomain, preferred_layer=2
+        )
+        == 2
+    )
+
+    ds["active_domain"].data[:, 0, 1] = False
+    idomain = nlmod.layers.get_idomain(ds)
+    with pytest.raises(ValueError, match="no active layers"):
+        nlmod.layers.get_nearest_active_layer(ds, (0, 1), -12.0, idomain)
 
 
 def test_aggregate_by_weighted_mean_to_ds():

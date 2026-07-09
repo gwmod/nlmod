@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..dims.grid import gdf_to_grid
-from ..dims.layers import get_idomain
+from ..dims.layers import get_idomain, get_nearest_active_layer
 from ..util import tqdm
 from .surface_water import build_spd
 
@@ -441,57 +441,14 @@ def _get_active_cellid_for_3d_cellid(cellid, row, ds, idomain):
     if idomain.data[cellid] > 0:
         return cellid
 
-    try:
-        drain_elevation = float(row["stage"])
-    except (TypeError, ValueError) as err:
-        raise ValueError(
-            f"Cannot remap DRN cellid {cellid} to the nearest active layer "
-            "because the drain elevation is not numeric."
-        ) from err
-    if not np.isfinite(drain_elevation):
-        raise ValueError(
-            f"Cannot remap DRN cellid {cellid} to the nearest active layer "
-            "because the drain elevation is not finite."
-        )
-
     column_cellid = cellid[1:]
-    column_indexer = dict(zip(ds["botm"].dims[1:], column_cellid, strict=True))
-    idomain_column = idomain.isel(column_indexer).data
-    layer_botms = ds["botm"].isel(column_indexer).data
-    top_indexer = {
-        dim: index for dim, index in column_indexer.items() if dim in ds["top"].dims
-    }
-    if "layer" in ds["top"].dims:
-        layer_tops = ds["top"].isel(top_indexer).data
-    else:
-        layer_tops = np.r_[ds["top"].isel(top_indexer).data, layer_botms[:-1]]
-
-    active_layers = np.where(idomain_column > 0)[0]
-    if len(active_layers) == 0:
-        raise ValueError(
-            f"Cannot remap DRN cellid {cellid}; the vertical column has no active "
-            "layers."
+    try:
+        nearest_layer = get_nearest_active_layer(
+            ds, column_cellid, row["stage"], idomain=idomain, preferred_layer=cellid[0]
         )
-
-    nearest_layer = min(
-        active_layers,
-        key=lambda active_layer: (
-            _distance_to_layer_interval(
-                drain_elevation,
-                layer_top=layer_tops[active_layer],
-                layer_botm=layer_botms[active_layer],
-            ),
-            abs(active_layer - cellid[0]),
-            active_layer,
-        ),
-    )
+    except ValueError as err:
+        raise ValueError(f"Cannot remap DRN cellid {cellid}; {err}") from err
     return (nearest_layer,) + column_cellid
-
-
-def _distance_to_layer_interval(elevation, layer_top, layer_botm):
-    upper = max(layer_top, layer_botm)
-    lower = min(layer_top, layer_botm)
-    return abs(elevation - np.clip(elevation, lower, upper))
 
 
 def _validate_columns(df, columns, name):

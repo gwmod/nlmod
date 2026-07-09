@@ -50,6 +50,10 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
 
     if write_ds:
         logger.info("write model dataset to cache")
+        for attr, value in ds.attrs.items():
+            if isinstance(value, pathlib.PurePath):
+                ds.attrs[attr] = str(value)
+
         ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
             "%Y%m%d_%H:%M:%S"
         )

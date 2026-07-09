@@ -276,17 +276,24 @@ def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
     """Snap line to grid and return HFB cell pairs."""
     warnings.warn(
         "The function 'line2hfb' is deprecated and will be removed in a future "
-        "version. Please use 'line_to_hfb' instead.",
+        "version. Please use 'flopy.utils.make_hfb_array' for cell-pair routing, "
+        "or 'get_hfb_spd'/'hfb_from_df' for nlmod HFB stress-period data.",
         DeprecationWarning,
         stacklevel=2,
     )
-    return line_to_hfb(
-        gdf=gdf,
-        ds=ds,
-        gwf=gwf,
-        prevent_rings=prevent_rings,
-        plot=plot,
-    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="The function 'line_to_hfb' is deprecated.*",
+            category=DeprecationWarning,
+        )
+        return line_to_hfb(
+            gdf=gdf,
+            ds=ds,
+            gwf=gwf,
+            prevent_rings=prevent_rings,
+            plot=plot,
+        )
 
 
 def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
@@ -316,6 +323,14 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
     cellids : 2d list of ints
         a list with pairs of cells that have a hfb between them.
     """
+    warnings.warn(
+        "The function 'line_to_hfb' is deprecated and will be removed in a future "
+        "version. Please use 'flopy.utils.make_hfb_array' for cell-pair routing, "
+        "or 'get_hfb_spd'/'hfb_from_df' for nlmod HFB stress-period data.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     # for the idea, see:
     # https://gis.stackexchange.com/questions/188755/how-to-snap-a-road-network-to-a-hexagonal-grid-in-qgis
 
@@ -500,6 +515,14 @@ def line_to_hfb_buffer(gdf, ds, buffer_distance=None, gi=None):
     hfb_seg : list of tuples
         List of tuples with cellids that share a face.
     """
+    warnings.warn(
+        "The function 'line_to_hfb_buffer' is deprecated and will be removed in a "
+        "future version. Please use 'flopy.utils.make_hfb_array' for cell-pair "
+        "routing, or 'get_hfb_spd'/'hfb_from_df' for nlmod HFB stress-period data.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     if buffer_distance is None:
         # buffer distance ~ 1.5 * max cell size
         buffer_distance = 1.5 * np.max(

@@ -472,8 +472,32 @@ def test_polygon_to_hfb_structured():
     nlmod.gwf.hfb.plot_hfb(hfb, gwf, ax=ax)
 
 
+def test_line_to_hfb_deprecated():
+    ds = util.get_ds_structured()
+    gdf = gpd.GeoDataFrame({"geometry": [LineString([(100, 1000), (225.0, 425.1)])]})
+
+    with pytest.warns(DeprecationWarning, match="line_to_hfb.*deprecated"):
+        cellids = nlmod.gwf.hfb.line_to_hfb(gdf, ds)
+
+    assert cellids
+
+
+def test_line2hfb_deprecated_without_duplicate_line_to_hfb_warning():
+    ds = util.get_ds_structured()
+    gdf = gpd.GeoDataFrame({"geometry": [LineString([(100, 1000), (225.0, 425.1)])]})
+
+    with pytest.warns(
+        DeprecationWarning, match="line2hfb.*deprecated"
+    ) as warning_records:
+        cellids = nlmod.gwf.hfb.line2hfb(gdf, ds)
+
+    messages = [str(record.message) for record in warning_records]
+    assert any("line2hfb" in message for message in messages)
+    assert not any("line_to_hfb" in message for message in messages)
+    assert cellids
+
+
 def test_line_to_hfb_buffer_structured():
-    # this test also tests line_to_hfb
     ds = util.get_ds_structured()
     ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
     gwf = util.get_gwf(ds)
@@ -486,7 +510,8 @@ def test_line_to_hfb_buffer_structured():
             ],
         },
     )
-    cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
+    with pytest.warns(DeprecationWarning, match="line_to_hfb_buffer.*deprecated"):
+        cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
     # also test the plot method
     ax = gdf.plot(column="name")
     gwf.modelgrid.plot(ax=ax)
@@ -494,7 +519,6 @@ def test_line_to_hfb_buffer_structured():
 
 
 def test_line_to_hfb_buffer_vertex():
-    # this test also tests line_to_hfb
     ds = util.get_ds_vertex()
     ds = nlmod.time.set_ds_time(ds, "2023", time="2024")
     gwf = util.get_gwf(ds)
@@ -507,7 +531,8 @@ def test_line_to_hfb_buffer_vertex():
             ],
         },
     )
-    cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
+    with pytest.warns(DeprecationWarning, match="line_to_hfb_buffer.*deprecated"):
+        cellids = nlmod.gwf.hfb.line_to_hfb_buffer(gdf, ds)
     # also test the plot method
     ax = gdf.plot(column="name")
     gwf.modelgrid.plot(ax=ax)

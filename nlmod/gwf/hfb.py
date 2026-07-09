@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from flopy.utils import make_hfb_array
 from geopandas import GeoDataFrame, GeoSeries
-from shapely.geometry import Point, Polygon
+from shapely.geometry import MultiLineString, Point, Polygon
 
 from ..dims.grid import (
     gdf_to_da,
@@ -153,6 +154,36 @@ def _clean_hfb_spd(spd):
     ]
 
 
+def _iter_linestring_geometries(linestrings):
+    if isinstance(linestrings, GeoDataFrame):
+        geometries = linestrings.geometry
+    elif isinstance(linestrings, GeoSeries):
+        geometries = linestrings
+    else:
+        geometries = [linestrings]
+
+    for geometry in geometries:
+        if geometry is None:
+            continue
+        if isinstance(geometry, MultiLineString):
+            yield from geometry.geoms
+        else:
+            yield geometry
+
+
+def _get_hfb_cells_from_linestrings(ds, linestrings, idomain):
+    modelgrid = modelgrid_from_ds(ds, idomain=idomain.values)
+    cells = []
+    for geometry in _iter_linestring_geometries(linestrings):
+        cells.extend(
+            [
+                (tuple(int(i) for i in row.cellid1), tuple(int(i) for i in row.cellid2))
+                for row in make_hfb_array(modelgrid, geometry)
+            ]
+        )
+    return cells
+
+
 def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     """Generate HFB stress period data between two cell nodes.
 
@@ -191,66 +222,52 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     if not isinstance(ds, xr.Dataset):
         raise TypeError("Please pass a model dataset!")
 
-    thick = calculate_thickness(ds)
+    thick = calculate_thickness(ds).values
     idomain = get_idomain(ds)
     tops = np.concatenate((ds["top"].values[np.newaxis], ds["botm"].values))
-    cells = line_to_hfb(linestrings, ds)
-
-    # drop cells on the edge of the model
-    cells = [x for x in cells if len(x) > 1]
+    cells = _get_hfb_cells_from_linestrings(ds, linestrings, idomain)
 
     spd = []
-    for icell2d1, icell2d2 in cells:
+    for cellid1, cellid2 in cells:
+        if idomain.values[cellid1] <= 0:
+            continue
+
+        if idomain.values[cellid2] <= 0:
+            continue
+
+        ilay = cellid1[0]
         # TODO: Improve assumption of the thickness between the cells.
-        if isinstance(icell2d1, (int, np.integer)):
-            thicki = (thick[:, icell2d1] + thick[:, icell2d2]) / 2
-            topi = (tops[:, icell2d1] + tops[:, icell2d2]) / 2
-        else:
-            cell_index1 = (slice(None), *icell2d1)
-            cell_index2 = (slice(None), *icell2d2)
-            thicki = (thick[cell_index1] + thick[cell_index2]) / 2
-            topi = (tops[cell_index1] + tops[cell_index2]) / 2
+        cell_index1 = (slice(None), *cellid1[1:])
+        cell_index2 = (slice(None), *cellid2[1:])
+        thicki = (thick[cell_index1] + thick[cell_index2]) / 2
+        topi = (tops[cell_index1] + tops[cell_index2]) / 2
 
-        for ilay in range(ds.sizes["layer"]):
-            cellid1 = (ilay,) + (
-                icell2d1 if isinstance(icell2d1, tuple) else (icell2d1,)
-            )
-            cellid2 = (ilay,) + (
-                icell2d2 if isinstance(icell2d2, tuple) else (icell2d2,)
-            )
-
-            if idomain.values[cellid1] <= 0:
-                continue
-
-            if idomain.values[cellid2] <= 0:
-                continue
-
-            if depth is not None:
-                if sum(thicki[: ilay + 1]) <= depth:
-                    # hfb spans the entire cell
-                    spd.append([cellid1, cellid2, hydchr])
-
-                elif sum(thicki[:ilay]) <= depth:
-                    # hfb spans the cell partially
-                    hydchr_frac = (depth - sum(thicki[:ilay])) / thicki[ilay]
-                    if not 0 <= hydchr_frac <= 1:
-                        raise RuntimeError("HFB depth fraction is outside [0, 1]")
-
-                    spd.append([cellid1, cellid2, hydchr * hydchr_frac])
-                    break  # go to next cell
-
-            elif topi[ilay + 1] >= elevation:
+        if depth is not None:
+            layer_top_depth = sum(thicki[:ilay])
+            layer_bottom_depth = sum(thicki[: ilay + 1])
+            if layer_bottom_depth <= depth:
                 # hfb spans the entire cell
                 spd.append([cellid1, cellid2, hydchr])
 
-            else:
+            elif layer_top_depth <= depth:
                 # hfb spans the cell partially
-                hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
+                hydchr_frac = (depth - layer_top_depth) / thicki[ilay]
                 if not 0 <= hydchr_frac <= 1:
-                    raise RuntimeError("HFB elevation fraction is outside [0, 1]")
+                    raise RuntimeError("HFB depth fraction is outside [0, 1]")
 
                 spd.append([cellid1, cellid2, hydchr * hydchr_frac])
-                break  # go to next cell
+
+        elif topi[ilay + 1] >= elevation:
+            # hfb spans the entire cell
+            spd.append([cellid1, cellid2, hydchr])
+
+        elif topi[ilay] >= elevation:
+            # hfb spans the cell partially
+            hydchr_frac = (topi[ilay] - elevation) / thicki[ilay]
+            if not 0 <= hydchr_frac <= 1:
+                raise RuntimeError("HFB elevation fraction is outside [0, 1]")
+
+            spd.append([cellid1, cellid2, hydchr * hydchr_frac])
 
     return spd
 
@@ -409,18 +426,6 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
 
     # get unique segments
     hfb_seg_unique = np.unique(hfb_seg[:, 1:], axis=0)
-    # NOTE: see next note describing the idea behind this code. Leaving here for future
-    # review.
-    # hfb_seg_unique, uidx = np.unique(hfb_seg[:, 1:], return_index=True, axis=0)
-    # ucids = hfb_seg[uidx, 0]
-    # try:
-    #     endpoint_cellid = mgrid.intersect(
-    #         get_coordinates(gdf.geometry.union_all()[-1])
-    #     )
-    # except Exception:  # e.g. point is on our outside model boundary
-    #     # Pick last cellid, which might not be the endpoint.
-    #     endpoint_cellid = ucids[-1]
-    # n_segments_endpoint_cell = 0
 
     # Get rid of disconnected (or 'open') segments
     # Let's remove disconnected/open segments
@@ -433,18 +438,6 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
             segments_per_iv[segment[1]] == 1 and segments_per_iv[segment[0]] >= 3
         ):
             mask[i] = False
-        # NOTE: the code below can be used to avoid dropping all segments in the
-        # final cell, leaving it here for review in the future.
-        #     if ensure_endpoint_segment:
-        #         # keep at least one segment in final cell
-        #         if ucids[i] == endpoint_cellid and n_segments_endpoint_cell == 0:
-        #             continue
-        #         else:
-        #             mask[i] = False
-        #     else:
-        #         mask[i] = False
-        # elif ensure_endpoint_segment and ucids[i] == endpoint_cellid:
-        #     n_segments_endpoint_cell += 1
     hfb_seg_unique = hfb_seg_unique[mask]
 
     if plot:

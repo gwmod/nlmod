@@ -20,7 +20,7 @@ maintainers = [
 ]
 requires-python = ">= 3.10"
 dependencies = [
-    "flopy>=3.10.0",
+    "flopy @ git+https://github.com/modflowpy/flopy.git@7c717126d81259eb9ae6196f420e56aa56744a86",
     "xarray>=0.16.1",
     "netcdf4>=1.7.2",
     "rasterio>=1.1.0",
@@ -133,4 +133,3 @@ pydocstyle.convention = "numpy"
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"
 markers = ["notebooks: run notebooks", "slow: slow tests", "skip: skip tests"]
-

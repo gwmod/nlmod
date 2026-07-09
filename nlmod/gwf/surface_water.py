@@ -16,7 +16,7 @@ from ..dims.grid import (
 )
 from ..dims.layers import get_idomain
 from ..read import bgt, waterboard
-from ..util import extent_to_polygon, gdf_intersection_join, zonal_statistics, tqdm
+from ..util import extent_to_polygon, gdf_intersection_join, tqdm, zonal_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -448,7 +448,7 @@ def build_spd(
                 f"WARNING: stage below bottom elevation in {cellid}, "
                 "stage reset to rbot!"
             )
-            stage = rbot
+            stage = rbot + 1e-6  # avoid floating point comparison issues
 
         # conductance
         cond = row["cond"]
@@ -505,7 +505,12 @@ def build_spd(
         for lay, cond in zip(lays, conds):
             cid = (lay,) + cellid
             if pkg == "RIV":
-                spd.append([cid, stage, cond, rbot] + auxlist)
+                cell_bot = float(botm_cell[lay])
+                rbot_entry = max(rbot, cell_bot + 1e-6) if np.isfinite(rbot) else rbot
+                stage_entry = (
+                    max(stage, rbot_entry + 1e-6) if np.isfinite(stage) else stage
+                )
+                spd.append([cid, stage_entry, cond, rbot_entry] + auxlist)
             elif pkg in ["DRN", "GHB"]:
                 spd.append([cid, stage, cond] + auxlist)
 
@@ -1122,7 +1127,9 @@ def add_season_timeseries(
     else:
         ts_data = [(0.0, 1.0, 0.0)]
     tmax = pd.to_datetime(ds["time"].data[-1])
-    years = range(tmin.year, tmax.year + 1)
+    # add extra year to make sure we have a record for the start of the
+    # last season in the model
+    years = range(tmin.year, tmax.year + 2)
     for year in years:
         # add a record for the start of summer
         time = pd.Timestamp(f"{year}-{start_summer}")

@@ -20,7 +20,7 @@ maintainers = [
 ]
 requires-python = ">= 3.10"
 dependencies = [
-    "flopy @ git+https://github.com/modflowpy/flopy.git@3405517c7d2fed2667722fe8dc07b0d2af269fbe",
+    "flopy @ git+https://github.com/modflowpy/flopy.git@develop", # HFB utility from flopy#2745, to be released in flopy>3.10.0
     "xarray>=0.16.1",
     "netcdf4>=1.7.2",
     "rasterio>=1.1.0",

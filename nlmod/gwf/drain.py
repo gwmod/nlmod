@@ -297,7 +297,16 @@ def _drain_celldata_from_df(
         raise TypeError(f"Unsupported drain geometry types: {unsupported_geom_types}")
 
     if len(parts) == 0:
-        return _empty_celldata()
+        return pd.DataFrame(
+            columns=[
+                "stage",
+                "rbot",
+                "cond",
+                "area",
+                "len_estimate",
+                "source_index",
+            ]
+        )
     return pd.concat(parts, axis=0)
 
 
@@ -483,19 +492,6 @@ def _distance_to_layer_interval(elevation, layer_top, layer_botm):
     upper = max(layer_top, layer_botm)
     lower = min(layer_top, layer_botm)
     return abs(elevation - np.clip(elevation, lower, upper))
-
-
-def _empty_celldata():
-    return pd.DataFrame(
-        columns=[
-            "stage",
-            "rbot",
-            "cond",
-            "area",
-            "len_estimate",
-            "source_index",
-        ]
-    )
 
 
 def _validate_columns(df, columns, name):

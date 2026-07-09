@@ -363,6 +363,7 @@ def _base_celldata(df, elev, boundnames, mover_destinations):
 def _build_spd_with_provider_mapping(celldata, ds, layer_method, silent):
     spd = []
     provider_mapping = []
+    idomain = None
     for cellid, row in tqdm(
         celldata.iterrows(),
         total=celldata.index.size,
@@ -370,7 +371,9 @@ def _build_spd_with_provider_mapping(celldata, ds, layer_method, silent):
         disable=silent,
     ):
         if _is_3d_cellid(cellid, ds):
-            row_spd = [_record_from_3d_cellid(cellid, row, ds)]
+            if idomain is None:
+                idomain = get_idomain(ds)
+            row_spd = [_record_from_3d_cellid(cellid, row, ds, idomain)]
         else:
             index = np.empty(1, dtype=object)
             index[0] = cellid
@@ -411,8 +414,8 @@ def _is_3d_cellid(cellid, ds):
     raise ValueError(f"Unsupported gridtype: {ds.gridtype}")
 
 
-def _record_from_3d_cellid(cellid, row, ds):
-    cellid = _get_active_cellid_for_3d_cellid(cellid, row, ds)
+def _record_from_3d_cellid(cellid, row, ds, idomain):
+    cellid = _get_active_cellid_for_3d_cellid(cellid, row, ds, idomain)
 
     if np.isnan(row["cond"]):
         raise ValueError(f"Conductance is NaN in cell {cellid}")
@@ -425,9 +428,8 @@ def _record_from_3d_cellid(cellid, row, ds):
     return [cellid, row["stage"], row["cond"]] + auxlist
 
 
-def _get_active_cellid_for_3d_cellid(cellid, row, ds):
-    idomain = get_idomain(ds).data
-    if idomain[cellid] > 0:
+def _get_active_cellid_for_3d_cellid(cellid, row, ds, idomain):
+    if idomain.data[cellid] > 0:
         return cellid
 
     try:
@@ -443,24 +445,17 @@ def _get_active_cellid_for_3d_cellid(cellid, row, ds):
             "because the drain elevation is not finite."
         )
 
-    layer = cellid[0]
-    if ds.gridtype == "vertex":
-        icell2d = cellid[1]
-        idomain_column = idomain[:, icell2d]
-        layer_tops = np.r_[ds["top"].data[icell2d], ds["botm"].data[:-1, icell2d]]
-        layer_botms = ds["botm"].data[:, icell2d]
-        column_cellid = (icell2d,)
-    elif ds.gridtype == "structured":
-        row_index, column_index = cellid[1:]
-        idomain_column = idomain[:, row_index, column_index]
-        layer_tops = np.r_[
-            ds["top"].data[row_index, column_index],
-            ds["botm"].data[:-1, row_index, column_index],
-        ]
-        layer_botms = ds["botm"].data[:, row_index, column_index]
-        column_cellid = (row_index, column_index)
+    column_cellid = cellid[1:]
+    column_indexer = dict(zip(ds["botm"].dims[1:], column_cellid, strict=True))
+    idomain_column = idomain.isel(column_indexer).data
+    layer_botms = ds["botm"].isel(column_indexer).data
+    top_indexer = {
+        dim: index for dim, index in column_indexer.items() if dim in ds["top"].dims
+    }
+    if "layer" in ds["top"].dims:
+        layer_tops = ds["top"].isel(top_indexer).data
     else:
-        raise ValueError(f"Unsupported gridtype: {ds.gridtype}")
+        layer_tops = np.r_[ds["top"].isel(top_indexer).data, layer_botms[:-1]]
 
     active_layers = np.where(idomain_column > 0)[0]
     if len(active_layers) == 0:
@@ -477,7 +472,7 @@ def _get_active_cellid_for_3d_cellid(cellid, row, ds):
                 layer_top=layer_tops[active_layer],
                 layer_botm=layer_botms[active_layer],
             ),
-            abs(active_layer - layer),
+            abs(active_layer - cellid[0]),
             active_layer,
         ),
     )
@@ -487,9 +482,7 @@ def _get_active_cellid_for_3d_cellid(cellid, row, ds):
 def _distance_to_layer_interval(elevation, layer_top, layer_botm):
     upper = max(layer_top, layer_botm)
     lower = min(layer_top, layer_botm)
-    if lower <= elevation <= upper:
-        return 0.0
-    return min(abs(elevation - lower), abs(elevation - upper))
+    return abs(elevation - np.clip(elevation, lower, upper))
 
 
 def _empty_celldata():

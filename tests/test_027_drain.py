@@ -425,6 +425,34 @@ def test_drain_from_df_remaps_3d_inactive_or_pass_through_cellids(
     _assert_mapping_matches_stress_period_data(drn, provider_mapping)
 
 
+def test_drain_from_df_remaps_3d_cellids_with_layered_top():
+    """Test remapping uses layer-specific top when top has a layer dimension."""
+    ds = test_010_wells.get_model_ds()
+    ds["botm"].data[1, 0, 0] = ds["botm"].data[0, 0, 0]
+    _, gwf = test_010_wells.get_sim_and_gwf(ds)
+    ds = nlmod.layers.add_layer_dim_to_top(ds)
+    assert nlmod.dims.layers.get_idomain(ds).data[:, 0, 0].tolist() == [1, -1, 1]
+    drains = pd.DataFrame(
+        {
+            "cellid": [(1, 0, 0)],
+            "elevation": [-12.0],
+            "cond": [5.0],
+        }
+    )
+
+    drn, provider_mapping = nlmod.gwf.drain.drain_from_df(
+        drains,
+        gwf,
+        ds,
+        pname="drn_layered_top",
+        silent=True,
+        return_provider_mapping=True,
+    )
+
+    assert provider_mapping.loc[0, "cellid"] == (2, 0, 0)
+    _assert_mapping_matches_stress_period_data(drn, provider_mapping)
+
+
 def test_drain_from_df_raises_for_3d_cellids_without_active_layers():
     """Test explicit 3D cell IDs still require an active column."""
     ds = test_010_wells.get_model_ds()

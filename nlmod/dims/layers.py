@@ -1660,7 +1660,9 @@ def update_idomain_from_thickness(idomain, thickness, mask):
     return idomain
 
 
-def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
+def aggregate_by_weighted_mean_to_ds(
+    ds, source_ds, var_name, source_top_name="top", source_botm_name="botm"
+):
     """Aggregate source data to a model dataset using the weighted mean.
 
     The weighted average per model layer is calculated for the variable in the
@@ -1672,6 +1674,10 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
         model dataset containing layer information (x, y, top, botm)
     source_ds : xr.Dataset
         dataset containing x, y, top, botm and a data variable to aggregate.
+    source_top_name : str
+        name of the top variable in source_ds
+    source_botm_name : str
+        name of the botm variable in source_ds
     var_name : str
         name of the data array to aggregate
 
@@ -1692,6 +1698,8 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
     msg = "x and/or y coordinates do not match between 'ds' and 'source_ds'"
     assert (ds.x == source_ds.x).all() and (ds.y == source_ds.y).all(), msg
 
+    assert "top" in ds and "botm" in ds, "'ds' must contain 'top' and 'botm' variables"
+
     if "layer" in ds["top"].dims:
         # make sure there is no layer dimension in top
         ds["top"] = ds["top"].max(dim="layer")
@@ -1701,6 +1709,17 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
 
     agg_ar = []
 
+    n_src = len(source_ds.layer)
+    if "layer" in source_ds[source_top_name].dims:
+        source_ds_tops = source_ds[source_top_name]
+    else:
+        source_ds_tops = [
+            source_ds[source_top_name]
+            .expand_dims(dim="layer")
+            .assign_coords({"layer": [-1]})
+        ] + [source_ds[source_botm_name].isel(layer=i) for i in range(n_src - 1)]
+        source_ds_tops = xr.concat(source_ds_tops, dim="layer")
+
     for ilay in range(len(ds.layer)):
         if ilay == 0:
             top = ds["top"]
@@ -1708,8 +1727,8 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
             top = ds["botm"][ilay - 1].drop_vars("layer")
         bot = ds["botm"][ilay].drop_vars("layer")
 
-        s_top = source_ds.top
-        s_bot = source_ds.bottom
+        s_top = source_ds_tops
+        s_bot = source_ds[source_botm_name]
         s_top = s_top.where(s_top < top, top)
         s_top = s_top.where(s_top > bot, bot)
         s_bot = s_bot.where(s_bot < top, top)

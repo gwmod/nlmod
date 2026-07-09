@@ -1,5 +1,5 @@
-import requests
 import pytest
+import requests
 
 import nlmod
 

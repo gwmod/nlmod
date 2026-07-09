@@ -3,10 +3,10 @@ import os
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import util
 import xarray as xr
 
 import nlmod
-import util
 
 model_ws = os.path.join(util.get_model_data_dir(), "test_grid")
 extent = [98000.0, 99000.0, 489000.0, 490000.0]

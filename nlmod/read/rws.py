@@ -54,7 +54,7 @@ def get_gdf_surface_water(ds=None, extent=None):
 
 @cache.cache_netcdf(coords_3d=True)
 def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
-    """Create 3 data-arrays from the shapefile with surface water:
+    """Create 3 data-arrays from the shapefile with surface water.
 
     .. deprecated:: 0.10.0
         `get_surface_water` will be removed in nlmod 1.0.0, it is replaced by
@@ -81,7 +81,6 @@ def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     ds : xarray.Dataset
         dataset with modelgrid data.
     """
-
     warnings.warn(
         "'get_surface_water' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.rws.discretize_surface_water' to project the surface water on the model grid",

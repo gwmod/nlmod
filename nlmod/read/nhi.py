@@ -121,7 +121,6 @@ def add_buisdrainage(
         The model dataset with added variables with the names `cond_var` and
         `depth_var`.
     """
-
     warnings.warn(
         "'add_buisdrainage' is deprecated and will be removed in a future version. "
         "Use 'ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))' to project the "

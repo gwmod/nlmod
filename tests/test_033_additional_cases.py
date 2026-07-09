@@ -256,6 +256,7 @@ def test_modpath_package_to_nodes_without_ibound_structured_and_vertex():
 
 def test_show_versions_propagates_missing_dependency(monkeypatch):
     from importlib import metadata
+
     from nlmod import version as version_module
 
     def fake_version(name):

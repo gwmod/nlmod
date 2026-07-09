@@ -42,7 +42,6 @@ def download_bathymetry(extent, kind="jarkus"):
     da_bathymetry : xarray.DataArray
         bathymetry data
     """
-
     # try to get bathymetry via opendap
     jarkus_ds = get_dataset_jarkus(extent=extent, kind=kind)
 
@@ -188,7 +187,6 @@ def discretize_bathymetry(
     data is resampled to the modelgrid. Maybe we can speed up things by
     changing the order in which operations are executed.
     """
-
     # fill nan values in bathymetry
     da_bathymetry_filled = fillnan_da(bathymetry_da)
 

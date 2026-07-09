@@ -3,9 +3,9 @@ import os
 import matplotlib
 import numpy as np
 import pytest
+import util
 
 import nlmod
-import util
 
 # def test_download_polygons(): # is tested in test_024_administrative.test_get_waterboards
 #     nlmod.read.waterboard.get_polygons()

@@ -88,7 +88,7 @@ def arcrest(
         object_ids.sort()
         n_d = int(np.ceil((len(object_ids) / max_record_count)))
         features = []
-        for i_d in tqdm(range(n_d)"):
+        for i_d in tqdm(range(n_d)):
             i_min = i_d * max_record_count
             i_max = min(i_min + max_record_count - 1, len(object_ids) - 1)
             where = "{}>={} and {}<={}".format(

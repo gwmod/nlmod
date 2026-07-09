@@ -167,9 +167,9 @@ def get_encodings(
         if np.issubdtype(da.dtype, np.character):
             continue
 
-        assert (
-            "_FillValue" not in da.attrs
-        ), f"Custom fillvalues are not supported. {varname} has a fillvalue set."
+        assert "_FillValue" not in da.attrs, (
+            f"Custom fillvalues are not supported. {varname} has a fillvalue set."
+        )
 
         encoding = {
             "zlib": True,

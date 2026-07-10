@@ -190,6 +190,7 @@ class DatasetCrossSection:
         min_label_area=np.inf,
         fontsize=None,
         only_labels=False,
+        ha="center",
         **kwargs,
     ):
         if colors is None:
@@ -258,7 +259,7 @@ class DatasetCrossSection:
                                 xt,
                                 yt,
                                 self.layer[i],
-                                ha="center",
+                                ha=ha,
                                 va="center",
                                 fontsize=fontsize,
                             )

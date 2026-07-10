@@ -137,6 +137,7 @@ def get_budget_da(
     fname=None,
     grb_file=None,
     column="q",
+    pname=None,
     delayed=False,
     chunked=False,
     precision="auto",
@@ -161,6 +162,10 @@ def get_budget_da(
     column : str
         name of column in rec-array to read, default is 'q' which contains the fluxes
         for most budget datasets.
+    pname : str, optional
+        mf6 package name to get data for, useful when multiple packages of
+        same type exist in the model. If None, then all packages of the same type will
+        be read and added together.
     delayed : bool, optional
         if delayed is True, do not load output data into memory, default is False.
     chunked : bool, optional
@@ -178,7 +183,7 @@ def get_budget_da(
     cbcobj = get_cellbudgetfile(
         ds=ds, gwf=gwf, fname=fname, grb_file=grb_file, precision=precision
     )
-    da = _get_budget_da(cbcobj, text, column=column, **kwargs)
+    da = _get_budget_da(cbcobj, text, column=column, pname=pname, **kwargs)
     da.attrs["units"] = "m3/d"
 
     # set time index if ds/gwt are provided
@@ -298,7 +303,13 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
 
 
 def get_flow_lower_face(
-    ds, gwf=None, fname=None, grb_file=None, kstpkper=None, lays=None
+    ds,
+    gwf=None,
+    fname=None,
+    grb_file=None,
+    kstpkper=None,
+    lays=None,
+    precision="auto",
 ):
     """Get the flow over the lower face of all model cells.
 
@@ -323,6 +334,9 @@ def get_flow_lower_face(
     lays : int or list of ints, optional
         The layers to include in the result. When lays is None, all layers are included.
         The default is None.
+    precision : str, optional
+        precision of floating point data in the budget-file. Accepted values are 'auto',
+        'single' or 'double'.
 
     Returns
     -------
@@ -331,7 +345,9 @@ def get_flow_lower_face(
     """
     if grb_file is None:
         grb_file = _get_grb_file(ds)
-    cbf = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
+    cbf = get_cellbudgetfile(
+        ds=ds, gwf=gwf, fname=fname, grb_file=grb_file, precision=precision
+    )
     flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
 
     if ds.gridtype == "vertex":

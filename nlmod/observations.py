@@ -1,8 +1,16 @@
+import logging
+
+import flopy as fp
 import numpy as np
+import pandas as pd
 import xarray as xr
+from geopandas import GeoDataFrame, points_from_xy
 from scipy.spatial import Delaunay
+from tqdm import tqdm
 
 from nlmod.dims import grid
+
+logger = logging.getLogger(__name__)
 
 
 def _compute_interpolation_weights(xy, uv, d=2):
@@ -233,3 +241,64 @@ def interpolate_to_points(
         return interp_da  # also returns vertices and weights
     else:
         return interp_da["interpolated"]
+
+
+def obs(
+    ds,
+    gwf_or_gwt,
+    df,
+    obs_type="head",
+    fname=None,
+    x="x",
+    y="y",
+    z="z",
+    screen_top="screen_top",
+    screen_bottom="screen_bottom",
+):
+    logger.info("creating mf6 OBS")
+    # store observations at locations of measurements
+    if z not in df.columns:
+        df[z] = df.loc[:, [screen_top, screen_bottom]].mean(axis=1)
+    if isinstance(df, pd.DataFrame):
+        pts = points_from_xy(*df.loc[:, [x, y, z]].values.T)
+    elif isinstance(df, GeoDataFrame):
+        pts = df.geometry
+    else:
+        raise ValueError("df must be a pandas DataFrame or a GeoDataFrame")
+    ix = fp.utils.GridIntersect(gwf_or_gwt.modelgrid)
+    r = ix.points_to_cellids(np.asarray(pts), handle_z=True)
+    continuous = []
+    for i, name in tqdm(
+        enumerate(df.index),
+        desc="Adding head observations",
+        total=df.index.size,
+    ):
+        if pd.isna(r["layer"].iloc[i]):
+            continue
+        if grid.is_structured(ds):
+            icellid = (
+                int(r["layer"].iloc[i]),
+                int(r["row"].iloc[i]),
+                int(r["col"].iloc[i]),
+            )
+        elif grid.is_vertex(ds):
+            icellid = (
+                int(r["layer"].iloc[i]),
+                int(r["cellid"].iloc[i]),
+            )
+        else:
+            icellid = None
+        if icellid is not None:
+            continuous.append((name, obs_type, icellid))
+
+    if fname is None:
+        fname = f"{obs_type}_obs.csv"
+    continuous = {fname: continuous}
+    obs = fp.mf6.ModflowUtlobs(
+        gwf_or_gwt,
+        digits=10,
+        print_input=True,
+        continuous=continuous,
+        pname=f"{obs_type}_obs",
+    )
+    return obs

@@ -68,7 +68,6 @@ def get_bgt(*args, **kwargs):
         A GeoDataFrame (when only one layer is requested) or a dict of GeoDataFrames
         containing all geometries and properties.
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.bgt.download_bgt() in the future.",

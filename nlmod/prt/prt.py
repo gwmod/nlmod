@@ -1,8 +1,9 @@
 import logging
 from pathlib import Path
-from pandas import read_csv, DataFrame
+
 import flopy as fp
 from flopy.plot.plotutil import PRT_PATHLINE_DTYPE
+from pandas import DataFrame, read_csv
 
 from ..gwf.gwf import _dis, _disv, _set_record
 from ..util import _get_value_from_ds_datavar

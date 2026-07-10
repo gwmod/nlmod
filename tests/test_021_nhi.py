@@ -4,8 +4,8 @@ import os
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-import requests
 import pytest
+import requests
 
 import nlmod
 

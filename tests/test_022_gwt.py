@@ -1,10 +1,10 @@
 import os
 
 import pandas as pd
+import util
 import xarray as xr
 
 import nlmod
-import util
 
 
 def test_gwt_model():
@@ -136,7 +136,7 @@ def test_gwt_model():
 
     # test isosurface: first elevation where 10_000 mg/l is reached
     z = nlmod.dims.layers.get_zcellcenters(ds)
-    nlmod.layers.get_isosurface(c, z, 10_000.0)
+    nlmod.layers.get_isosurface(c, z, 10_000.0, method="numpy")
 
     # Convert calculated heads to equivalent freshwater heads, and vice versa
     hf = nlmod.gwt.output.freshwater_head(ds, h, c)

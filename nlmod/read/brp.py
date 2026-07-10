@@ -12,7 +12,6 @@ def get_percelen(*args, **kwargs):
         https://github.com/gwmod/nlmod/issues/47
 
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.brp.download_percelen_gdf() in the future.",

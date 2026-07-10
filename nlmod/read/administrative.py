@@ -1,7 +1,7 @@
 import warnings
 
-from . import waterboard, webservices
 from .. import cache
+from . import waterboard, webservices
 
 
 def get_municipalities(*args, **kwargs):
@@ -97,7 +97,6 @@ def get_provinces(*args, **kwargs):
     gpd.GeoDataFrame
         polygons of provinces
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.administrative.download_provinces_gdf() in the future.",
@@ -160,7 +159,6 @@ def get_netherlands(*args, **kwargs):
     gpd.GeoDataFrame
         polygons of the Netherlands
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.administrative.download_netherlands_gdf() in the future.",

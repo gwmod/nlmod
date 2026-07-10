@@ -18,7 +18,6 @@ def get_polygons(**kwargs):
         https://github.com/gwmod/nlmod/issues/47
 
     """
-
     warnings.warn(
         "get_polygons is deprecated and will eventually be removed, "
         "please use nlmod.read.waterboard.download_polygons() in the future.",
@@ -657,7 +656,6 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         A GeoDataFrame containing data from the waterboard (polygons for
         level_areas/level_deviations and lines for watercourses).
     """
-
     warnings.warn(
         "'get_data' is deprecated and will eventually be removed, "
         "please use 'nlmod.read.waterboard.download_data()' in the future.",

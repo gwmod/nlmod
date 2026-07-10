@@ -3,7 +3,6 @@ import warnings
 
 import numpy as np
 import pandas as pd
-
 from pyproj import Transformer
 
 from .. import cache, util
@@ -38,7 +37,6 @@ def get_bro(*args, **kwargs):
     -------
     ObsCollection
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.bro.download_bro_groundwater() in the future.",

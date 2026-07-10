@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 from .. import cache, util
+from ..dims.base import get_ds
 from ..dims.grid import get_affine_mod_to_world, is_structured, is_vertex
 from ..dims.layers import get_first_active_layer
-from ..dims.base import get_ds
 from ..dims.shared import get_area
 from ..dims.time import ds_time_to_pandas_index
 
@@ -92,7 +92,7 @@ def discretize_knmi(
     to_model_time=True,
     hourly_precision=None,
 ):
-    """discretize knmi data to model grid
+    """Discretize knmi data to model grid.
 
     Create a dataset with recharge (and evaporation) data by following these steps:
        1. Check for each cell (structured or vertex) which knmi measurement
@@ -154,7 +154,6 @@ def discretize_knmi(
     ValueError
         if grid is not vertex
     """
-
     # check time settings
     if "time" not in ds:
         raise (
@@ -200,8 +199,7 @@ def discretize_knmi(
         nodata = -999
         shape = [len(ds_out[dim]) for dim in dims]
         variables = {"recharge": "stn_RD", "evaporation": "stn_EV24"}
-        for var in variables:
-            stn_var = variables[var]
+        for var, stn_var in variables.items():
             ds_out[f"{var}_stn"] = dims, np.full(shape, nodata)
             values = [int(x.split("_")[-1]) for x in locations[stn_var]]
             if is_structured(ds):
@@ -443,10 +441,9 @@ def download_knmi(
     for obs in oc_knmi["obs"]:
         msg = f"No data available for time series'{obs.name}'"
         if obs.empty:
-            raise (ValueError(msg))
-
+            raise ValueError(msg)
         if obs.index[-1] < end:
-            raise ValueError(f"{msg} untill date {end}")
+            raise ValueError(f"{msg} until date {end}")
     return oc_knmi
 
 

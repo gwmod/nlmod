@@ -397,7 +397,7 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
     return path_list
 
 
-def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
+def download_mfbinaries(bindir=None, version_tag="latest", repo="modflow6"):
     """Download and unpack platform-specific modflow binaries.
 
     Source: USGS

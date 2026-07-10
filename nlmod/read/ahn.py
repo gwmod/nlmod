@@ -1,8 +1,8 @@
 import datetime as dt
 import logging
 import os
-import warnings
 import tempfile
+import warnings
 from typing import Literal
 
 import geopandas as gpd
@@ -15,6 +15,7 @@ import xarray as xr
 from rasterio.env import Env
 from requests.exceptions import HTTPError
 from rioxarray.merge import merge_arrays
+
 from .. import NLMOD_DATADIR, cache
 from ..dims.grid import get_extent
 from ..dims.resample import structured_da_to_ds
@@ -285,7 +286,6 @@ def get_ahn_at_point(
     float
         The surface level value at the requested point.
     """
-
     warnings.warn(
         "'get_ahn_at_point' is deprecated and will eventually be removed, "
         "please use nlmod.read.ahn.download_ahn_at_point() in the future.",
@@ -1052,7 +1052,6 @@ def download_ahn5(
 def download_ahn6(extent: list[float], tile_size: str = "1x1km", **kwargs):
     """Download AHN6.
 
-
     Parameters
     ----------
     extent : list, tuple or np.array
@@ -1440,10 +1439,10 @@ def _download_ahn_hwh(
         If True, the function returns a merged DataArray. If False, the function
         returns a list of DataArrays with the original tiles. The default is True.
     cut_extent : bool, optional
-        If True, only keep the requested extent from the data. The defualts is True.
+        If True, only keep the requested extent from the data. The default is True.
     config : dict, optional
         A dictionary with properties of the data sources of the different AHN-versions.
-        When None, the configuration is retreived from the method get_configuration().
+        When None, the configuration is retrieved from the method get_configuration().
         The default is None.
 
     Raises

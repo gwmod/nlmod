@@ -153,7 +153,6 @@ def get_regis(
     regis_ds : xarray dataset
         dataset with regis data projected on the modelgrid.
     """
-
     warnings.warn(
         "'get_regis' is deprecated and will eventually be removed, "
         "please use 'nlmod.read.regis.download_regis()' in the future.",

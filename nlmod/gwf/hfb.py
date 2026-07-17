@@ -195,6 +195,11 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     thickness at the cell interface is just the average of the thicknesses of the two
     cells.
 
+    For the layer that contains the bottom of the barrier, an equivalent hydraulic
+    characteristic is used that combines the open part of the face (below the barrier)
+    in parallel with the walled part, so a barrier that barely penetrates a layer
+    leaves that face effectively open instead of blocking it.
+
     Parameters
     ----------
     ds : xr.Dataset
@@ -227,6 +232,11 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     tops = np.concatenate((ds["top"].values[np.newaxis], ds["botm"].values))
     cells = _get_hfb_cells_from_linestrings(ds, linestrings, idomain)
 
+    kh = ds["kh"].values
+    x = ds["x"].values
+    y = ds["y"].values
+    structured = is_structured(ds)
+
     spd = []
     for cellid1, cellid2 in cells:
         if idomain.values[cellid1] <= 0:
@@ -255,7 +265,9 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
                 if not 0 <= hydchr_frac <= 1:
                     raise RuntimeError("HFB depth fraction is outside [0, 1]")
 
-                spd.append([cellid1, cellid2, hydchr * hydchr_frac])
+                _append_partial_hydchr(
+                    spd, cellid1, cellid2, hydchr, hydchr_frac, kh, x, y, structured
+                )
 
         elif topi[ilay + 1] >= elevation:
             # hfb spans the entire cell
@@ -267,9 +279,43 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
             if not 0 <= hydchr_frac <= 1:
                 raise RuntimeError("HFB elevation fraction is outside [0, 1]")
 
-            spd.append([cellid1, cellid2, hydchr * hydchr_frac])
+            _append_partial_hydchr(
+                spd, cellid1, cellid2, hydchr, hydchr_frac, kh, x, y, structured
+            )
 
     return spd
+
+
+def _append_partial_hydchr(spd, cellid1, cellid2, hydchr, frac, kh, x, y, structured):
+    """Append the parallel-path equivalent HYDCHR for a partially penetrated layer.
+
+    The face between the two cells consists of an open strip over the un-penetrated
+    fraction ``1 - frac`` in parallel with the barrier strip over ``frac``, the latter
+    in series with the aquifer. Equating the MF6 series form
+    ``C = c * b_eff / (c + b_eff)`` to that parallel combination gives
+    ``b_eff = (b + (1 - frac) * c) / frac``, with all conductances per unit of face
+    area: ``c = kh_harmonic / distance`` between the cell centers and ``b = hydchr``.
+    A barrier that barely penetrates a layer (``frac -> 0``) leaves the face open
+    (``b_eff -> inf``) and ``frac == 1`` recovers the fully penetrating ``hydchr``.
+    """
+    if frac == 0:
+        # the layer is not penetrated; leave the face open
+        return
+    if structured:
+        x1, y1 = x[cellid1[2]], y[cellid1[1]]
+        x2, y2 = x[cellid2[2]], y[cellid2[1]]
+    else:
+        x1, y1 = x[cellid1[1]], y[cellid1[1]]
+        x2, y2 = x[cellid2[1]], y[cellid2[1]]
+    distance = float(np.hypot(x1 - x2, y1 - y2))
+    kh1 = kh[cellid1]
+    kh2 = kh[cellid2]
+    if np.isfinite(kh1) and np.isfinite(kh2) and kh1 > 0 and kh2 > 0:
+        open_face_conductance = 2.0 * kh1 * kh2 / ((kh1 + kh2) * distance)
+    else:
+        open_face_conductance = 0.0
+    hydchr_eff = (hydchr + (1.0 - frac) * open_face_conductance) / frac
+    spd.append([cellid1, cellid2, float(hydchr_eff)])
 
 
 def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):

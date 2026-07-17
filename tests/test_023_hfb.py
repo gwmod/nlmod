@@ -6,6 +6,7 @@ matplotlib.use("Agg")
 
 import flopy
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import util
 from flopy.utils import make_hfb_array
@@ -23,14 +24,41 @@ def _normalize_spd(spd):
     ]
 
 
-def _structured_diagonal_expected_spd(hydchr=1 / 100.0):
+def _expected_partial_hydchr(ds, cellid1, cellid2, hydchr, frac):
+    # Mirrors the parallel-path equivalent of nlmod.gwf.hfb._append_partial_hydchr.
+    # The physics of that equivalent is validated independently in
+    # test_get_hfb_spd_partial_penetration_matches_resolved_barrier.
+    x = ds["x"].values
+    y = ds["y"].values
+    if len(cellid1) == 3:
+        x1, y1 = x[cellid1[2]], y[cellid1[1]]
+        x2, y2 = x[cellid2[2]], y[cellid2[1]]
+    else:
+        x1, y1 = x[cellid1[1]], y[cellid1[1]]
+        x2, y2 = x[cellid2[1]], y[cellid2[1]]
+    distance = float(np.hypot(x1 - x2, y1 - y2))
+    kh1 = ds["kh"].values[cellid1]
+    kh2 = ds["kh"].values[cellid2]
+    open_face_conductance = 2.0 * kh1 * kh2 / ((kh1 + kh2) * distance)
+    return float((hydchr + (1.0 - frac) * open_face_conductance) / frac)
+
+
+def _structured_diagonal_expected_spd(ds, hydchr=1 / 100.0):
     expected_spd = []
-    for ilay, layer_hydchr in ((0, hydchr), (1, hydchr), (2, hydchr * 0.5)):
+    for ilay in (0, 1, 2):
         for idx in range(9):
-            expected_spd.append(((ilay, idx, idx), (ilay, idx + 1, idx), layer_hydchr))
-            expected_spd.append(
-                ((ilay, idx + 1, idx + 1), (ilay, idx + 1, idx), layer_hydchr)
-            )
+            for cellid1, cellid2 in (
+                ((ilay, idx, idx), (ilay, idx + 1, idx)),
+                ((ilay, idx + 1, idx + 1), (ilay, idx + 1, idx)),
+            ):
+                if ilay == 2:
+                    # barrier penetrates half of the bottom layer
+                    layer_hydchr = _expected_partial_hydchr(
+                        ds, cellid1, cellid2, hydchr, 0.5
+                    )
+                else:
+                    layer_hydchr = hydchr
+                expected_spd.append((cellid1, cellid2, layer_hydchr))
     return expected_spd
 
 
@@ -58,7 +86,14 @@ def _flopy_depth5_top_layer_spd(ds, geometries, hydchr):
             cellid1 = tuple(int(i) for i in row.cellid1)
             cellid2 = tuple(int(i) for i in row.cellid2)
             if cellid1[0] == 0:
-                expected_spd.append((cellid1, cellid2, hydchr * 0.5))
+                # depth 5.0 penetrates half of the 10-m top layer
+                expected_spd.append(
+                    (
+                        cellid1,
+                        cellid2,
+                        _expected_partial_hydchr(ds, cellid1, cellid2, hydchr, 0.5),
+                    )
+                )
     return expected_spd
 
 
@@ -93,7 +128,11 @@ def test_get_hfb_spd_vertex():
     assert {
         frozenset((cellid1, cellid2)) for cellid1, cellid2, _ in _normalize_spd(spd)
     } == _flopy_pair_set(ds, geometry)
-    assert {hydchr for _, _, hydchr in _normalize_spd(spd)} == {0.005}
+    # depth 5.0 penetrates half of the 10-m top layer
+    for cellid1, cellid2, hydchr_value in _normalize_spd(spd):
+        assert hydchr_value == _expected_partial_hydchr(
+            ds, cellid1, cellid2, 1 / 100.0, 0.5
+        )
     hfb = flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
     # also test the plot method
     ax = gdf.plot()
@@ -107,11 +146,11 @@ def test_get_hfb_spd_structured():
     coords = [(0, 1000), (1000, 0)]
     gdf = gpd.GeoDataFrame({"geometry": [LineString(coords)]})
     spd = nlmod.gwf.hfb.get_hfb_spd(ds, gdf, hydchr=1 / 100.0, depth=25.0)
-    assert _normalize_spd(spd) == _structured_diagonal_expected_spd()
+    assert _normalize_spd(spd) == _structured_diagonal_expected_spd(ds)
     elevation_spd = nlmod.gwf.hfb.get_hfb_spd(
         ds, gdf, hydchr=1 / 100.0, elevation=-25.0
     )
-    assert _normalize_spd(elevation_spd) == _structured_diagonal_expected_spd()
+    assert _normalize_spd(elevation_spd) == _structured_diagonal_expected_spd(ds)
     hfb = flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: spd})
     # also test the plot method
     ax = gdf.plot()
@@ -132,12 +171,21 @@ def test_get_hfb_spd_skips_inactive_and_passthrough_cells():
         nlmod.gwf.hfb.get_hfb_spd(ds, gdf, hydchr=1 / 100.0, depth=25.0)
     )
     expected_spd = []
-    for ilay, layer_hydchr in ((0, 1 / 100.0), (2, 0.0075)):
+    for ilay in (0, 2):
         for idx in range(9):
-            expected_spd.append(((ilay, idx, idx), (ilay, idx + 1, idx), layer_hydchr))
-            expected_spd.append(
-                ((ilay, idx + 1, idx + 1), (ilay, idx + 1, idx), layer_hydchr)
-            )
+            for cellid1, cellid2 in (
+                ((ilay, idx, idx), (ilay, idx + 1, idx)),
+                ((ilay, idx + 1, idx + 1), (ilay, idx + 1, idx)),
+            ):
+                if ilay == 2:
+                    # with layer 1 collapsed, depth 25.0 penetrates 15 of the
+                    # 20 m of layer 2
+                    layer_hydchr = _expected_partial_hydchr(
+                        ds, cellid1, cellid2, 1 / 100.0, 0.75
+                    )
+                else:
+                    layer_hydchr = 1 / 100.0
+                expected_spd.append((cellid1, cellid2, layer_hydchr))
     expected_spd = [
         row for row in expected_spd if row[0][1:] != (0, 0) and row[1][1:] != (0, 0)
     ]
@@ -537,3 +585,60 @@ def test_line_to_hfb_buffer_vertex():
     ax = gdf.plot(column="name")
     gwf.modelgrid.plot(ax=ax)
     nlmod.gwf.hfb.plot_hfb(cellids, gwf, ax=ax)
+
+
+def _run_two_column_flow(ws, nlay, top, botm, hfb_spd):
+    """Steady two-column CHD model; returns the flow crossing the shared face."""
+    sim = flopy.mf6.MFSimulation(
+        sim_name="t", sim_ws=str(ws), exe_name=nlmod.util.get_exe_path("mf6")
+    )
+    flopy.mf6.ModflowTdis(sim)
+    flopy.mf6.ModflowIms(sim, outer_dvclose=1e-9, inner_dvclose=1e-10)
+    gwf = flopy.mf6.ModflowGwf(sim, modelname="t", save_flows=True)
+    flopy.mf6.ModflowGwfdis(
+        gwf, nlay=nlay, nrow=1, ncol=2, delr=100.0, delc=100.0, top=top, botm=botm
+    )
+    flopy.mf6.ModflowGwfnpf(gwf, icelltype=0, k=10.0)
+    flopy.mf6.ModflowGwfic(gwf, strt=1.0)
+    chd_spd = [[(ilay, 0, 0), 1.0] for ilay in range(nlay)]
+    chd_spd += [[(ilay, 0, 1), 0.0] for ilay in range(nlay)]
+    flopy.mf6.ModflowGwfchd(gwf, stress_period_data=chd_spd)
+    flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: hfb_spd})
+    flopy.mf6.ModflowGwfoc(
+        gwf, budget_filerecord="t.cbc", saverecord=[("BUDGET", "ALL")]
+    )
+    sim.write_simulation(silent=True)
+    success, _ = sim.run_simulation(silent=True)
+    assert success
+    cbc = flopy.utils.CellBudgetFile(str(ws / "t.cbc"))
+    chd_flows = cbc.get_data(text="CHD")[0]
+    return chd_flows["q"][chd_flows["q"] > 0].sum()
+
+
+def test_get_hfb_spd_partial_penetration_matches_resolved_barrier(tmp_path):
+    # A barrier penetrating the upper half of a single 10-m layer. The reference run
+    # resolves that layer into a walled and an open sublayer; the equivalent
+    # single-layer HYDCHR produced by get_hfb_spd must reproduce the reference flow.
+    ds = util.get_ds_structured(
+        extent=[0, 200, 0, 100],
+        model_name="hfb_partial",
+        top=10.0,
+        botm=[0.0],
+        kh=10.0,
+        kv=1.0,
+    )
+    gdf = gpd.GeoDataFrame({"geometry": [LineString([(100, 0), (100, 100)])]})
+    spd = nlmod.gwf.hfb.get_hfb_spd(ds, gdf, hydchr=1 / 100.0, depth=5.0)
+    spd = [[cellid1, cellid2, float(hydchr)] for cellid1, cellid2, hydchr in spd]
+    assert len(spd) == 1
+    q_equivalent = _run_two_column_flow(
+        tmp_path / "eq", nlay=1, top=10.0, botm=[0.0], hfb_spd=spd
+    )
+    q_reference = _run_two_column_flow(
+        tmp_path / "ref",
+        nlay=2,
+        top=10.0,
+        botm=[5.0, 0.0],
+        hfb_spd=[[(0, 0, 0), (0, 0, 1), 1 / 100.0]],
+    )
+    assert q_equivalent == pytest.approx(q_reference, rel=0.01)

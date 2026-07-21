@@ -448,7 +448,7 @@ def build_spd(
                 f"WARNING: stage below bottom elevation in {cellid}, "
                 "stage reset to rbot!"
             )
-            stage = rbot + 1e-6  # avoid floating point comparison issues
+            stage = rbot
 
         # conductance
         cond = row["cond"]
@@ -505,12 +505,7 @@ def build_spd(
         for lay, cond in zip(lays, conds):
             cid = (lay,) + cellid
             if pkg == "RIV":
-                cell_bot = float(botm_cell[lay])
-                rbot_entry = max(rbot, cell_bot + 1e-6) if np.isfinite(rbot) else rbot
-                stage_entry = (
-                    max(stage, rbot_entry + 1e-6) if np.isfinite(stage) else stage
-                )
-                spd.append([cid, stage_entry, cond, rbot_entry] + auxlist)
+                spd.append([cid, stage, cond, rbot] + auxlist)
             elif pkg in ["DRN", "GHB"]:
                 spd.append([cid, stage, cond] + auxlist)
 

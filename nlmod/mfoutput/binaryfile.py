@@ -62,7 +62,7 @@ def __create3D(data, fobj, column="q", node="node"):
     return np.ma.reshape(out, fobj.shape)
 
 
-def _select_data_indices_budget(fobj, text, kstpkper):
+def _select_data_indices_budget(fobj, text, kstpkper, paknam2=None):
     """Select data indices for budgetfile.
 
     Parameters
@@ -73,6 +73,10 @@ def _select_data_indices_budget(fobj, text, kstpkper):
         text indicating which dataset to load
     kstpkper : tuple(int, int)
         step and period index
+    paknam2 : str
+        mf6 package name to get data for, useful when multiple packages of
+        same type exist in the model. If None, then all packages of the same type will
+        be
 
     Returns
     -------
@@ -84,20 +88,19 @@ def _select_data_indices_budget(fobj, text, kstpkper):
     if text is not None:
         text16 = fobj._find_text(text)
 
+    if paknam2 is not None:
+        paknam2 = fobj._find_paknam(paknam2, to=True)
+
     # get kstpkper indices
     kstp1 = kstpkper[0] + 1
     kper1 = kstpkper[1] + 1
-    if text is None:
-        select_indices = np.where(
-            (fobj.recordarray["kstp"] == kstp1) & (fobj.recordarray["kper"] == kper1)
-        )
-    else:
-        if text is not None:
-            select_indices = np.where(
-                (fobj.recordarray["kstp"] == kstp1)
-                & (fobj.recordarray["kper"] == kper1)
-                & (fobj.recordarray["text"] == text16)
-            )
+
+    mask = (fobj.recordarray["kstp"] == kstp1) & (fobj.recordarray["kper"] == kper1)
+    if text is not None:
+        mask = mask & (fobj.recordarray["text"] == text16)
+    if paknam2 is not None:
+        mask = mask & (fobj.recordarray["paknam2"] == paknam2)
+    select_indices = np.where(mask)
 
     # build and return the record list
     if isinstance(select_indices, tuple):
@@ -105,7 +108,9 @@ def _select_data_indices_budget(fobj, text, kstpkper):
     return select_indices
 
 
-def _get_binary_budget_data(kstpkper, fobj, text, column="q", node="node"):
+def _get_binary_budget_data(
+    kstpkper, fobj, text, column="q", node="node", paknam2=None
+):
     """Get budget data from binary CellBudgetFile.
 
     Code copied from flopy.utils.binaryfile.CellBudgetFile and adapted to
@@ -124,6 +129,10 @@ def _get_binary_budget_data(kstpkper, fobj, text, column="q", node="node"):
     column : str
         name of column in rec-array to read, default is 'q' which contains the fluxes
         for most budget datasets.
+    paknam2 : str
+        mf6 package name to get data for, useful when multiple packages of
+        same type exist in the model. If None, then all packages of the same type will
+        be read and added together.
 
     Returns
     -------
@@ -131,7 +140,7 @@ def _get_binary_budget_data(kstpkper, fobj, text, column="q", node="node"):
         array containing data for a specific timestep
     """
     # select indices to read
-    idx = _select_data_indices_budget(fobj, text, kstpkper)
+    idx = _select_data_indices_budget(fobj, text, kstpkper, paknam2=paknam2)
 
     # idx must be an ndarray, so if it comes in as an integer then convert
     if np.isscalar(idx):
@@ -147,6 +156,7 @@ def _get_binary_budget_data(kstpkper, fobj, text, column="q", node="node"):
     for ipos in fobj.iposarray[idx]:
         data.append(_get_binary_budget_record(fobj, ipos, header, column, node))
 
+    # check if multiple instances of the package exist, if so add them together
     if len(data) == 1:
         return data[0]
     else:

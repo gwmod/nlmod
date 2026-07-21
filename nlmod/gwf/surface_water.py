@@ -1122,7 +1122,9 @@ def add_season_timeseries(
     else:
         ts_data = [(0.0, 1.0, 0.0)]
     tmax = pd.to_datetime(ds["time"].data[-1])
-    years = range(tmin.year, tmax.year + 1)
+    # add extra year to make sure we have a record for the start of the
+    # last season in the model
+    years = range(tmin.year, tmax.year + 2)
     for year in years:
         # add a record for the start of summer
         time = pd.Timestamp(f"{year}-{start_summer}")

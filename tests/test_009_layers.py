@@ -200,6 +200,100 @@ def test_get_layer_of_z_below_model():
     assert (layer == layer.attrs["below_model"]).all()
 
 
+def test_get_layer_of_z_nearest_active_cellids():
+    ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -15, -30])
+    ds["active_domain"] = ds["botm"].notnull()
+    ds["active_domain"].data[1, 0, 0] = False
+    idomain = nlmod.layers.get_idomain(ds)
+
+    assert idomain.data[:, 0, 0].tolist() == [1, 0, 1]
+    assert (
+        nlmod.layers.get_layer_of_z(
+            ds, -12.0, cellid=(0, 0), idomain=idomain, nearest_active=True
+        )
+        == 0
+    )
+    assert (
+        nlmod.layers.get_layer_of_z(
+            ds, -14.0, cellid=(0, 0), idomain=idomain, nearest_active=True
+        )
+        == 2
+    )
+    assert (
+        nlmod.layers.get_layer_of_z(
+            ds, -12.5, cellid=(0, 0), idomain=idomain, nearest_active=True
+        )
+        == 0
+    )
+    assert (
+        nlmod.layers.get_layer_of_z(
+            ds,
+            -12.5,
+            cellid=(0, 0),
+            idomain=idomain,
+            nearest_active=True,
+            preferred_layer=2,
+        )
+        == 2
+    )
+    with pytest.raises(ValueError, match="equally near"):
+        nlmod.layers.get_layer_of_z(
+            ds,
+            -12.5,
+            cellid=(0, 0),
+            idomain=idomain,
+            nearest_active=True,
+            preferred_layer=1,
+        )
+
+    ds["active_domain"].data[:, 0, 1] = False
+    idomain = nlmod.layers.get_idomain(ds)
+    with pytest.raises(ValueError, match="no active layers"):
+        nlmod.layers.get_layer_of_z(
+            ds, -12.0, cellid=(0, 1), idomain=idomain, nearest_active=True
+        )
+
+
+def test_get_layer_of_z_nearest_active_vector_cellids():
+    ds = nlmod.get_ds([0, 1000, 0, 500], top=0, botm=[-10, -15, -30])
+    ds["active_domain"] = ds["botm"].notnull()
+    ds["active_domain"].data[1, 0, 0] = False
+    ds["active_domain"].data[0, 0, 1] = False
+    idomain = nlmod.layers.get_idomain(ds)
+
+    layers = nlmod.layers.get_layer_of_z(
+        ds,
+        [-12.0, -14.0, -1.0, 1.0, -40.0],
+        cellid=[(0, 0), (0, 0), (0, 1), (0, 2), (0, 2)],
+        idomain=idomain,
+        nearest_active=True,
+        preferred_layer=[1, 1, 0, 0, 2],
+    )
+
+    np.testing.assert_array_equal(layers, [0, 2, 1, 0, 2])
+
+    layers = nlmod.layers.get_layer_of_z(
+        ds,
+        [-12.5, -12.5],
+        cellid=[(0, 0), (0, 0)],
+        idomain=idomain,
+        nearest_active=True,
+        preferred_layer=[0, 2],
+    )
+    np.testing.assert_array_equal(layers, [0, 2])
+
+    ds["active_domain"].data[:, 0, 2] = False
+    idomain = nlmod.layers.get_idomain(ds)
+    with pytest.raises(ValueError, match="no active layers"):
+        nlmod.layers.get_layer_of_z(
+            ds,
+            [-12.0, -12.0],
+            cellid=[(0, 0), (0, 2)],
+            idomain=idomain,
+            nearest_active=True,
+        )
+
+
 def test_aggregate_by_weighted_mean_to_ds():
     regis = get_regis_horstermeer()
     regis2 = regis.copy(deep=True)

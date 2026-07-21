@@ -912,9 +912,10 @@ def gdf_to_seasonal_pkg(
     season_filename="season.ts",
     **kwargs,
 ):
-    """Add a surface water package to a groundwater-model, based on input from a
-    GeoDataFrame. This method adds two boundary conditions for each record in the
-    GeoDataFrame: one for the winter_stage and one for the summer_stage.
+    """Add a surface water package to a groundwater-model from a GeoDataFrame.
+
+    This method adds two boundary conditions for each record in the GeoDataFrame:
+    one for the winter_stage and one for the summer_stage.
     The conductance of each record is a time-series called 'winter' or 'summer' with
     values of either 0 or 1. These conductance values are multiplied by an auxiliary
     variable that contains the actual conductance.
@@ -969,6 +970,15 @@ def gdf_to_seasonal_pkg(
     -------
     package : ModflowGwfdrn, ModflowGwfriv or ModflowGwfghb
         The generated flopy-package
+
+    Notes
+    -----
+    This function overlaps with ``nlmod.gwf.drain.drain_from_df`` for
+    polygon-to-DRN conversion. Use this function for surface-water polygons with
+    winter and summer stages and seasonal conductance timeseries. Use
+    ``drain_from_df`` for fixed drain features such as pipes, basins, point
+    drains, or direct cellid input, and when deterministic MVR provider IDs are
+    needed.
     """
     if gdf.index.name != "cellid":
         # if "cellid" not in gdf:

@@ -25,6 +25,7 @@ def test_buisdrainage(tmp_path):
     assert np.all(~np.isnan(ds["buisdrain_depth"].data[mask]))
 
 
+@pytest.mark.skip("NHI GWO Database is down until further notice.")
 def test_gwo():
     username = os.environ["NHI_GWO_USERNAME"]
     password = os.environ["NHI_GWO_PASSWORD"]

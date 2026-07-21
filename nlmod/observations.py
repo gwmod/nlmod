@@ -255,6 +255,42 @@ def obs(
     screen_top="screen_top",
     screen_bottom="screen_bottom",
 ):
+    """Add observation package to a MODFLOW 6 model.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset containing model grid and other model information
+    gwf_or_gwt : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        MODFLOW 6 groundwater flow or transport model object
+    df : pd.DataFrame or geopandas.GeoDataFrame
+        DataFrame containing observation locations and optionally the
+        layer of the observation. If a GeoDataFrame is provided, the
+        geometry column must contain Point geometries.
+    obs_type : str, optional
+        Type of observation, default is "head"
+    fname : str, optional
+        Name of the observation file, default is None, which will create
+        a file named "{obs_type}_obs.csv"
+    x : str, optional
+        Name of the column in df containing x-coordinates, default is "x"
+    y : str, optional
+        Name of the column in df containing y-coordinates, default is "y"
+    z : str, optional
+        Name of the column in df containing z-coordinates, default is "z". If
+        z is not provided, the mean of screen_top and screen_bottom will be used.
+    screen_top : str, optional
+        Name of the column in df containing the top of the screen, default is
+        "screen_top", only used if z is not provided
+    screen_bottom : str, optional
+        Name of the column in df containing the bottom of the screen, default is
+        "screen_bottom", only used if z is not provided
+
+    Returns
+    -------
+    obs : flopy.mf6.ModflowUtlobs
+        MODFLOW 6 observation package object
+    """
     logger.info("creating mf6 OBS")
     # store observations at locations of measurements
     if z not in df.columns:

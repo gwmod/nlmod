@@ -1,6 +1,6 @@
+import gc
 import os
 import shutil
-import gc
 from pathlib import Path
 
 import matplotlib.pyplot as plt

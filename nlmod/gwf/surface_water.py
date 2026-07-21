@@ -16,7 +16,7 @@ from ..dims.grid import (
 )
 from ..dims.layers import get_idomain
 from ..read import bgt, waterboard
-from ..util import extent_to_polygon, gdf_intersection_join, zonal_statistics, tqdm
+from ..util import extent_to_polygon, gdf_intersection_join, tqdm, zonal_statistics
 
 logger = logging.getLogger(__name__)
 

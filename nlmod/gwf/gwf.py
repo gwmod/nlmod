@@ -113,7 +113,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
         yorigin = ds.extent[2]
         angrot = 0.0
 
-    idomain = get_idomain(ds).data
+    idomain = kwargs.pop("idomain", get_idomain(ds).data)
     if model.model_type == "gwf6":
         filename = f"{ds.model_name}.dis"
         klass = flopy.mf6.ModflowGwfdis

@@ -1,16 +1,16 @@
 # %%
 import os
-import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 import test_001_model
+import util
 from pandas import DataFrame
 from shapely.geometry import LineString
 
 import nlmod
 from nlmod.plot import DatasetCrossSection
-import util
 
 MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
 

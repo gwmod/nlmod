@@ -198,7 +198,7 @@ def _get_data(url, params, timeout=120, **kwargs):
     if "error" in data:
         code = data["error"]["code"]
         message = data["error"]["message"]
-        raise (ValueError(f"Error code {code}: {message}"))
+        raise (ValueError(f"Error code {code}: '{message}' from {url}"))
     return data
 
 

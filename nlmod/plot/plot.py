@@ -9,7 +9,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import PatchCollection
-from matplotlib.colors import ListedColormap, Normalize, LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap, Normalize
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -374,7 +374,6 @@ def geotop_lithok_in_cross_section(
     cs : DatasetCrossSection
         The instance of DatasetCrossSection that is used to plot the cross-section.
     """
-
     if lithok_props is None:
         lithok_props = geotop.get_lithok_props()
 

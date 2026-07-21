@@ -790,7 +790,6 @@ def dataframe_to_flopy_timeseries(
     AssertionError
         If DataFrame contains NaNs or if `ds.time` is not datetime64.
     """
-
     msg = "No nan values are allowed in dataframe_to_flopy_timeseries"
     assert not df.isna().any(axis=None), msg
     msg = "get recharge requires a datetime64[ns] time index"

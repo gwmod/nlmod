@@ -566,7 +566,7 @@ class DatasetCrossSection:
         filter_rect_kwargs=None,
         tubeline_kwargs=None,
     ):
-        """plot filter screens in cross section from a DataFrame
+        """Plot filter screens in cross section from a DataFrame
 
         Parameters
         ----------
@@ -627,7 +627,6 @@ class DatasetCrossSection:
         matplotlib.collections.PatchCollection
 
         """
-
         # check screen top and bot
         if (df[col_screen_top] < df[col_screen_bottom]).any():
             logger.warning("screen top is lower than screen bottom")

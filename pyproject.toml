@@ -85,6 +85,7 @@ rtd = [
     "nbconvert",
     "openpyxl",
 ]
+lgn = ["xarray-spatial", "exactextract"]
 
 [tool.setuptools.dynamic]
 version = { attr = "nlmod.version.__version__" }

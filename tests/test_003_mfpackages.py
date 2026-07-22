@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import test_001_model
 import xarray as xr
 
@@ -120,6 +121,17 @@ def test_get_value_from_ds_datavar():
     # return None, no warning
     v5 = nlmod.util._get_value_from_ds_datavar(ds, "test", None)
     assert v5 is None, "should be None."
+
+
+def test_check_da_dims_coords_with_implicit_dim_coordinate():
+    ds = xr.Dataset(coords={"icell2d": np.arange(3)})
+    da = xr.DataArray(np.ones(3), dims=("icell2d",), name="test")
+
+    assert nlmod.util.check_da_dims_coords(da, ds)
+
+    ds_shifted = xr.Dataset(coords={"icell2d": np.arange(1, 4)})
+    with pytest.raises(AssertionError):
+        nlmod.util.check_da_dims_coords(da, ds_shifted)
 
 
 def test_get_value_from_ds_attr():

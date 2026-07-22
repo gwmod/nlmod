@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import test_001_model
 import util
+import xarray as xr
 from pandas import DataFrame
 from shapely.geometry import LineString
 
@@ -447,3 +448,38 @@ def test_isosurface_1d(func):
     value = -25
     elev = func(da, z, value, left=left, right=right)
     assert elev == left
+
+
+def test_get_isosurface_numpy_with_broadcast_z_dims():
+    layer = [0, 1, 2]
+    y = [0]
+    x = [0]
+    time = [0, 1]
+
+    # z has no time dimension
+    z = xr.DataArray(
+        np.array([[[-1.0, -2.0, -3.0]]]),
+        dims=("y", "x", "layer"),
+        coords={"y": y, "x": x, "layer": layer},
+    )
+
+    # da has time dimension and crosses value=15 between first two layers
+    da = xr.DataArray(
+        np.array(
+            [
+                [[[10.0, 20.0, 30.0]]],
+                [[[10.0, 20.0, 30.0]]],
+            ]
+        ),
+        dims=("time", "y", "x", "layer"),
+        coords={"time": time, "y": y, "x": x, "layer": layer},
+    )
+
+    iso = nlmod.layers.get_isosurface(da, z, 15.0, method="numpy")
+
+    expected = xr.DataArray(
+        np.array([[[-1.5]], [[-1.5]]]),
+        dims=("time", "y", "x"),
+        coords={"time": time, "y": y, "x": x},
+    )
+    xr.testing.assert_allclose(iso, expected)

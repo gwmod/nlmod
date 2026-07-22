@@ -2086,6 +2086,11 @@ def _get_isosurface_1d_numpy(da_arr, z_arr, value, left=np.nan, right=np.nan):
 
     Returns array of shape da_arr.shape[:-1].
     """
+    # apply_ufunc may pass z without broadcast-only dims present in da (e.g. time).
+    # take_along_axis requires equal rank, so align z to da explicitly.
+    if z_arr.ndim != da_arr.ndim:
+        z_arr = np.broadcast_to(z_arr, da_arr.shape)
+
     valid = np.isfinite(da_arr)
     f = np.where(valid, da_arr - value, np.nan)
 

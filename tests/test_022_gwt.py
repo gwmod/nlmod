@@ -41,7 +41,9 @@ def test_gwt_model():
     ds["sea"] = nlmod.read.rws.calculate_sea_coverage(ahn, ds=ds, method="average")
 
     # download knmi recharge data
-    knmi_ds = nlmod.read.knmi.get_recharge(ds, method="separate")
+    knmi_ds = nlmod.read.knmi.get_recharge(
+        ds, method="separate", hourly_precision=False
+    )
 
     # update model dataset
     ds.update(knmi_ds)

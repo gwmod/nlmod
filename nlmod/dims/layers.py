@@ -676,6 +676,25 @@ def combine_layers_ds(
     if isinstance(combine_layers, dict):
         # remove single layer entries if they exist:
         combine_layers = {k: v for k, v in combine_layers.items() if len(v) > 1}
+        # remove missing layers
+        for k, v in combine_layers.items():
+            missing = []
+            for i in v:
+                if i not in ds.layer:
+                    missing.append(i)
+            if len(missing) > 0:
+                logger.warning(
+                    "Layer(s) %s not found in dataset, will be "
+                    "removed from combine_layers.",
+                    missing,
+                )
+                # Preserve original layer order while removing missing entries.
+                combine_layers[k] = [i for i in v if i not in missing]
+
+        # Groups can become empty or single-layer after removing missing layers.
+        # Keep only true merge groups to avoid reindex/name mismatches downstream.
+        combine_layers = {k: v for k, v in combine_layers.items() if len(v) > 1}
+
         new_layer_names = combine_layers.keys()
         combine_layers_integer = [
             tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x

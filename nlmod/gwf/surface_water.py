@@ -457,13 +457,13 @@ def build_spd(
         if np.isnan(cond):
             raise ValueError(
                 f"Conductance is NaN in cell {cellid}. Info: area={row.area:.2f} "
-                f"len={row.len_estimate:.2f}, BL={row['rbot']}"
+                f", BL={row['rbot']}"
             )
 
         if cond < 0:
             raise ValueError(
                 f"Conductance is negative in cell {cellid}. Info: area={row.area:.2f} "
-                f"len={row.len_estimate:.2f}, BL={row['rbot']}"
+                f", BL={row['rbot']}"
             )
 
         if layer_method == "distribute_cond_over_lays":

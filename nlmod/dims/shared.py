@@ -1,5 +1,12 @@
 from enum import Enum
 
+try:
+    import numba
+
+    _NUMBA_AVAILABLE = True
+except ImportError:
+    numba = None
+    _NUMBA_AVAILABLE = False
 import numpy as np
 import xarray as xr
 
@@ -195,6 +202,40 @@ def _shoelace_formula(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 
+if _NUMBA_AVAILABLE:
+
+    @numba.njit(parallel=True)
+    def _compute_vertex_areas_numba(xv, yv, icvert, fill_value=-1):
+        ncells, max_vert = icvert.shape
+        areas = np.empty(ncells, dtype=np.float64)
+
+        # parallel=True parallelizes this outer loop across your CPU cores
+        for i in numba.prange(ncells):
+            # Determine actual number of vertices for this cell (ignoring padding)
+            nv = 0
+            for j in range(max_vert):
+                if icvert[i, j] == fill_value:
+                    break
+                nv += 1
+
+            if nv < 3:
+                areas[i] = 0.0
+                continue
+
+            # Inline Shoelace formula (avoids array allocations like np.roll)
+            area_sum = 0.0
+            for j in range(nv):
+                # Current vertex index and next vertex index (wrapped around)
+                v1 = icvert[i, j]
+                v2 = icvert[i, (j + 1) % nv]
+
+                area_sum += xv[v1] * yv[v2] - xv[v2] * yv[v1]
+
+            areas[i] = 0.5 * abs(area_sum)
+
+        return areas
+
+
 def get_area(ds):
     """Calculate the area of each cell in the model grid.
 
@@ -205,8 +246,8 @@ def get_area(ds):
 
     Returns
     -------
-    ds : xr.Dataset
-        model dataset with an area variable
+    area : xr.DataArray
+        area of each cell
     """
     if ds.gridtype == "structured":
         area = xr.DataArray(
@@ -215,16 +256,22 @@ def get_area(ds):
             coords={"y": ds["y"], "x": ds["x"]},
         )
     elif ds.gridtype == "vertex":
-        area = np.zeros(ds["icell2d"].size)
-        for icell2d in ds["icell2d"]:
-            area[icell2d] = _shoelace_formula(
-                ds["xv"][ds["icvert"].isel(icell2d=icell2d)],
-                ds["yv"][ds["icvert"].isel(icell2d=icell2d)],
-            )
-        area = xr.DataArray(
-            area,
-            dims=("icell2d"),
-            coords={"icell2d": ds["icell2d"]},
+        if _NUMBA_AVAILABLE:
+            xv = ds["xv"].values
+            yv = ds["yv"].values
+            icvert = ds["icvert"].values
+            fill_val = ds["icvert"].attrs.get("nodata", -1)
+            area_np = _compute_vertex_areas_numba(xv, yv, icvert, fill_value=fill_val)
+        else:
+            area_np = np.zeros(ds["icell2d"].size)
+            for icell2d in ds["icell2d"]:
+                area_np[icell2d] = _shoelace_formula(
+                    ds["xv"][ds["icvert"].isel(icell2d=icell2d)],
+                    ds["yv"][ds["icvert"].isel(icell2d=icell2d)],
+                )
+
+        return xr.DataArray(
+            area_np, dims=("icell2d"), coords={"icell2d": ds["icell2d"]}
         )
     else:
         raise ValueError("function only support structured or vertex gridtypes")

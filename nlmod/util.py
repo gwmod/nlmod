@@ -38,6 +38,21 @@ class MissingValueError(Exception):
     """Generic error when an expected value is not defined."""
 
 
+def _get_dim_coord_for_comparison(da_ds, dim):
+    """Get a normalized 1D coordinate for dimension comparison.
+
+    Bare xarray dimensions behave like ``range(size)`` when indexed, but they are not
+    registered as coordinates or indexes. Normalize both implicit and explicit
+    dimension coordinates to the same explicit representation before comparing.
+    """
+    if dim in da_ds.coords:
+        values = da_ds[dim].values
+    else:
+        values = np.arange(da_ds.sizes[dim])
+
+    return xr.DataArray(values, dims=(dim,), coords={dim: values}, name=dim)
+
+
 def check_da_dims_coords(da, ds):
     """Check if DataArray dimensions and coordinates match those in Dataset.
 
@@ -63,7 +78,10 @@ def check_da_dims_coords(da, ds):
     shared_dims = set(da.dims) & set(ds.dims)
     for dim in shared_dims:
         try:
-            xr.testing.assert_identical(da[dim], ds[dim])
+            xr.testing.assert_identical(
+                _get_dim_coord_for_comparison(da, dim),
+                _get_dim_coord_for_comparison(ds, dim),
+            )
         except AssertionError as e:
             logger.error(f"da '{da.name}' coordinates do not match ds!")
             raise e

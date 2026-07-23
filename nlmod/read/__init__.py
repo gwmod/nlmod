@@ -11,6 +11,7 @@ from . import (
     jarkus,
     knmi,
     knmi_data_platform,
+    lgn,
     meteobase,
     nhi,
     regis,

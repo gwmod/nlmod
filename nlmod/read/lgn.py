@@ -235,15 +235,15 @@ def download_lgn():
     return
 
 
-def load_lgn_within_extent(extent, lgn_tif_path: str | Path):
+def load_lgn_within_extent(lgn_tif_path: str | Path, extent: list):
     """Load LGN tif file and subset to the given extent.
 
     Parameters
     ----------
-    extent : list
-        list of [xmin, xmax, ymin, ymax]
     lgn_tif_path : str or Path
         Path to the LGN tiff file.
+    extent : list
+        list of [xmin, xmax, ymin, ymax]
 
     Returns
     -------
@@ -258,12 +258,13 @@ def load_lgn_within_extent(extent, lgn_tif_path: str | Path):
 
 
 def get_lgn_cmap_norm(lgn_color_dict=LGN_COLOR_DICT):
-    """Builds a ListedColormap and BoundaryNorm covering the exact pixel codes.
+    """Builds a ListedColormap and BoundaryNorm for LGN.
 
     Parameters
     ----------
     lgn_color_dict : dict
-        Dictionary mapping LGN codes to color and label information.
+        Dictionary mapping LGN codes to color and label information. Defaults to
+        predefined LGN_COLOR_DICT derived from default QGIS symbology.
 
     Returns
     -------
@@ -328,6 +329,9 @@ def lgn_to_grid(
 ) -> gpd.GeoDataFrame:
     """Compute area fractions per model cell from LGN.
 
+    Requires xrspatial or exactextract to be installed. Install with
+    `pip install nlmod[lgn]`.
+
     Parameters
     ----------
     lgn : xr.DataArray
@@ -336,7 +340,7 @@ def lgn_to_grid(
         Model dataset.
     engine : str, optional
         Engine to use for mapping. Options are "xrspatial" or "exactextract".
-        Default is "xrspatial". `xrspatial.zonal_crosstab` is faster but only counts
+        Defaults to "xrspatial". `xrspatial.zonal_crosstab` is faster but only counts
         pixels, while `exact_extract.exactextract` calculates area fractions.
 
     Returns

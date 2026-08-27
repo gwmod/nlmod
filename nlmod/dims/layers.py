@@ -675,7 +675,8 @@ def combine_layers_ds(
 
     if isinstance(combine_layers, dict):
         # remove single layer entries if they exist:
-        combine_layers = {k: v for k, v in combine_layers.items() if len(v) > 1}
+        combine_layers = {k: v for k, v in combine_layers.items()}
+        rename_layers = {v[0]: k for k, v in combine_layers.items() if len(v) == 1}
         # remove missing layers
         for k, v in combine_layers.items():
             missing = []
@@ -703,6 +704,7 @@ def combine_layers_ds(
     else:
         # remove single layer entries if they exist:
         combine_layers = [x for x in combine_layers if len(x) > 1]
+        rename_layers = None
         combine_layers_integer = [
             tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x
             for x in combine_layers
@@ -779,6 +781,11 @@ def combine_layers_ds(
 
     # remove layer dimension from top
     ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=0.001)
+
+    if rename_layers is not None:
+        ds_combine = ds_combine.assign_coords(
+            layer=[rename_layers.get(lay, lay) for lay in ds_combine["layer"].data]
+        )
 
     if return_reindexer:
         return ds_combine, reindexer

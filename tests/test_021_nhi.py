@@ -75,7 +75,7 @@ def test_gwo_entire_pumping_station():
         layout="constrained",
     )
     axes = axes.ravel()
-    for name, ax in zip(gdf.index, axes):
+    for name, ax in zip(gdf.index, axes, strict=False):
         measurements.loc[name, "Volume"].plot(ax=ax)
         ax.set_xlabel("")
         ax.set_title(name)

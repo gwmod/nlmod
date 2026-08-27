@@ -232,7 +232,6 @@ def remap_lgn(lgn: xr.DataArray, mappings: dict, fill_value=-999):
 def download_lgn():
     """Download LGN data from the LGN website."""
     print("Download LGN data from: https://lgn.nl/bestanden")
-    return
 
 
 def load_lgn_within_extent(lgn_tif_path: str | Path, extent: list):

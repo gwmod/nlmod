@@ -1,5 +1,5 @@
 """
-rdp
+rdp.
 
 This module is only used in the deprecated get_vertices_arr function in the grid module.
 As soon as that function is removed this module can be removed as well.
@@ -19,15 +19,21 @@ if sys.version_info[0] >= 3:
 
 
 def pldist(point, start, end):
-    """Calculates the distance from ``point`` to the line given by the points ``start``
-    and ``end``.
+    """Calculates the distance from point to the line given by start and end.
 
-    :param point: a point
-    :type point: numpy array
-    :param start: a point of the line
-    :type start: numpy array
-    :param end: another point of the line
-    :type end: numpy array
+    Parameters
+    ----------
+    point : numpy array
+        A point.
+    start : numpy array
+        A point of the line.
+    end : numpy array
+        Another point of the line.
+
+    Returns
+    -------
+    float
+        The distance from point to the line.
     """
     if np.all(np.equal(start, end)):
         return np.linalg.norm(point - start)
@@ -41,12 +47,20 @@ def pldist(point, start, end):
 def rdp_rec(M, epsilon, dist=pldist):
     """Simplifies a given array of points. Recursive version.
 
-    :param M: an array
-    :type M: numpy array
-    :param epsilon: epsilon in the rdp algorithm
-    :type epsilon: float
-    :param dist: distance function
-    :type dist: function with signature ``f(point, start, end)`` -- see :func:`rdp.pldist`
+    Parameters
+    ----------
+    M : numpy array
+        An array of points.
+    epsilon : float
+        Epsilon in the rdp algorithm.
+    dist : function, optional
+        Distance function with signature f(point, start, end).
+        See :func:`rdp.pldist`. The default is pldist.
+
+    Returns
+    -------
+    numpy array
+        Simplified array of points.
     """
     dmax = 0.0
     index = -1
@@ -99,14 +113,22 @@ def _rdp_iter(M, start_index, last_index, epsilon, dist=pldist):
 def rdp_iter(M, epsilon, dist=pldist, return_mask=False):
     """Simplifies a given array of points. Iterative version.
 
-    :param M: an array
-    :type M: numpy array
-    :param epsilon: epsilon in the rdp algorithm
-    :type epsilon: float
-    :param dist: distance function
-    :type dist: function with signature ``f(point, start, end)`` -- see :func:`rdp.pldist`
-    :param return_mask: return the mask of points to keep instead
-    :type return_mask: bool
+    Parameters
+    ----------
+    M : numpy array
+        An array of points.
+    epsilon : float
+        Epsilon in the rdp algorithm.
+    dist : function, optional
+        Distance function with signature f(point, start, end).
+        See :func:`rdp.pldist`. The default is pldist.
+    return_mask : bool, optional
+        Return the mask of points to keep instead. The default is False.
+
+    Returns
+    -------
+    numpy array or bool array
+        Simplified array of points or mask of points to keep.
     """
     mask = _rdp_iter(M, 0, len(M) - 1, epsilon, dist)
 
@@ -119,42 +141,47 @@ def rdp_iter(M, epsilon, dist=pldist, return_mask=False):
 def rdp(M, epsilon=0, dist=pldist, algo="iter", return_mask=False):
     """Simplifies a given array of points using the Ramer-Douglas-Peucker algorithm.
 
-    Example:
-    >>> from rdp import rdp
-    >>> rdp([[1, 1], [2, 2], [3, 3], [4, 4]])
-    [[1, 1], [4, 4]]
     This is a convenience wrapper around both :func:`rdp.rdp_iter`
     and :func:`rdp.rdp_rec` that detects if the input is a numpy array
     in order to adapt the output accordingly. This means that
     when it is called using a Python list as argument, a Python
     list is returned, and in case of an invocation using a numpy
     array, a NumPy array is returned.
+
     The parameter ``return_mask=True`` can be used in conjunction
-    with ``algo="iter"`` to return only the mask of points to keep. Example:
+    with ``algo="iter"`` to return only the mask of points to keep.
+
+    Parameters
+    ----------
+    M : numpy array
+        A series of points with shape (n,d) where n is the number of points
+        and d is their dimension.
+    epsilon : float, optional
+        Epsilon in the rdp algorithm. The default is 0.
+    dist : function, optional
+        Distance function with signature f(point, start, end).
+        See :func:`rdp.pldist`. The default is pldist.
+    algo : str, optional
+        Either "iter" for an iterative algorithm or "rec" for a recursive
+        algorithm. The default is "iter".
+    return_mask : bool, optional
+        Return mask instead of simplified array. The default is False.
+
+    Returns
+    -------
+    numpy array or list
+        Simplified array of points or mask of points to keep.
+
+    Examples
+    --------
     >>> from rdp import rdp
+    >>> rdp([[1, 1], [2, 2], [3, 3], [4, 4]])
+    [[1, 1], [4, 4]]
     >>> import numpy as np
     >>> arr = np.array([1, 1, 2, 2, 3, 3, 4, 4]).reshape(4, 2)
-    >>> arr
-    array([[1, 1],
-           [2, 2],
-           [3, 3],
-           [4, 4]])
     >>> mask = rdp(arr, algo="iter", return_mask=True)
-    >>> mask
-    array([ True, False, False,  True], dtype=bool)
     >>> arr[mask]
-    array([[1, 1],
-           [4, 4]])
-    :param M: a series of points
-    :type M: numpy array with shape ``(n,d)`` where ``n`` is the number of points and ``d`` their dimension
-    :param epsilon: epsilon in the rdp algorithm
-    :type epsilon: float
-    :param dist: distance function
-    :type dist: function with signature ``f(point, start, end)`` -- see :func:`rdp.pldist`
-    :param algo: either ``iter`` for an iterative algorithm or ``rec`` for a recursive algorithm
-    :type algo: string
-    :param return_mask: return mask instead of simplified array
-    :type return_mask: bool
+    array([[1, 1], [4, 4]])
     """
     if algo == "iter":
         algo = partial(rdp_iter, return_mask=return_mask)

@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
-    """Write modflow files and run the model. Extra options include writing the model
-    dataset to a netcdf file in the model workspace and copying the modelscript to the
-    model workspace.
+    """Write modflow files and run the model.
+
+    Extra options include writing the model dataset to a netcdf file in the model
+    workspace and copying the modelscript to the model workspace.
 
     Parameters
     ----------
@@ -76,7 +77,7 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
 
 
 def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
-    """Get tdis_perioddata from ds.
+    r"""Get tdis_perioddata from ds.
 
     Parameters
     ----------
@@ -107,7 +108,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
     if isinstance(tsmult, float):
         tsmult = [tsmult] * len(perlen)
 
-    tdis_perioddata = list(zip(perlen, nstp, tsmult))
+    tdis_perioddata = list(zip(perlen, nstp, tsmult, strict=False))
 
     return tdis_perioddata
 
@@ -256,10 +257,12 @@ def ems(sim, pname="ems", model=None, **kwargs):
 
 
 def register_ims_package(sim, model, ims):
+    """Register an ims package with the simulation."""
     sim.register_ims_package(ims, [model.name])
 
 
 def register_solution_package(sim, model, solver):
+    """Register a solution package with the simulation."""
     sim.register_solution_package(solver, [model.name])
 
 

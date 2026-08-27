@@ -32,6 +32,22 @@ logger = logging.getLogger(__name__)
 
 
 def surface_water(model_ds, ax=None, **kwargs):
+    """Plot surface water from model dataset.
+
+    Parameters
+    ----------
+    model_ds : xarray.Dataset
+        Model dataset containing surface water data.
+    ax : matplotlib Axes, optional
+        Axes to plot on. The default is None.
+    **kwargs : dict
+        Additional keyword arguments passed to GeoDataFrame.plot.
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        Axes with surface water plotted.
+    """
     surf_water = rws.get_gdf_surface_water(model_ds)
 
     if ax is None:
@@ -42,6 +58,24 @@ def surface_water(model_ds, ax=None, **kwargs):
 
 
 def modelgrid(ds, ax=None, rotated=False, **kwargs):
+    """Plot model grid from dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Model dataset.
+    ax : matplotlib Axes, optional
+        Axes to plot on. The default is None.
+    rotated : bool, optional
+        Whether the grid is rotated. The default is False.
+    **kwargs : dict
+        Additional keyword arguments passed to modelgrid.plot.
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        Axes with model grid plotted.
+    """
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
         ax.set_aspect("auto")
@@ -619,6 +653,66 @@ def map_array(
     animate=False,
     **kwargs,
 ):
+    """Plot a map of a data array from a model dataset.
+
+    Parameters
+    ----------
+    da : str, xr.DataArray, or np.ndarray
+        Data array or variable name to plot.
+    ds : xarray.Dataset
+        Model dataset.
+    ilay : int, optional
+        Layer index to plot. The default is 0.
+    iper : int, optional
+        Stress period index to plot. The default is 0.
+    extent : tuple, optional
+        Extent for the plot. The default is None.
+    ax : matplotlib Axes, optional
+        Axes to plot on. The default is None.
+    title : str, optional
+        Plot title. The default is "".
+    xlabel : str, optional
+        X-axis label. The default is "X [km RD]".
+    ylabel : str, optional
+        Y-axis label. The default is "Y [km RD]".
+    date_fmt : str, optional
+        Date format string. The default is "%Y-%m-%d".
+    norm : matplotlib.colors.Normalize, optional
+        Color normalization. The default is None.
+    vmin : float, optional
+        Minimum value for color scale. The default is None.
+    vmax : float, optional
+        Maximum value for color scale. The default is None.
+    levels : list, optional
+        Contour levels. The default is None.
+    cmap : str, optional
+        Colormap name. The default is "viridis".
+    alpha : float, optional
+        Transparency. The default is 1.0.
+    colorbar : bool, optional
+        Show colorbar. The default is True.
+    colorbar_label : str, optional
+        Colorbar label. The default is "".
+    plot_grid : bool, optional
+        Plot grid. The default is True.
+    rotated : bool, optional
+        Whether the grid is rotated. The default is False.
+    add_to_plot : callable, optional
+        Function to add additional elements to the plot. The default is None.
+    background : bool, optional
+        Use background. The default is False.
+    figsize : tuple, optional
+        Figure size. The default is None.
+    animate : bool, optional
+        Animate the plot. The default is False.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib imshow.
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        Axes with the array plotted.
+    """
     # get data
     if isinstance(da, str):
         da = ds[da]
@@ -934,7 +1028,8 @@ def get_ahn_colormap(name="ahn", N=256):
     Notes
     -----
     The color progression is as follows:
-    dark blue → medium blue → light blue → dark green → light green → yellow → orange → light red → dark red
+    dark blue → medium blue → light blue → dark green → light green →
+    yellow → orange → light red → dark red
     """
     colors = np.array(
         [

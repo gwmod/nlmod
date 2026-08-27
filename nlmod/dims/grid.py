@@ -52,8 +52,9 @@ logger = logging.getLogger(__name__)
 
 
 def snap_extent(extent, delr, delc):
-    """Snap the extent in such a way that an integer number of columns and rows fit in
-    the extent. The new extent is always equal to, or bigger than the original extent.
+    """Snap the extent so that an integer number of columns and rows fit.
+
+    The new extent is always equal to, or bigger than the original extent.
 
     Parameters
     ----------
@@ -414,6 +415,7 @@ def modelgrid_to_vertex_ds(mg, ds, nodata=-1):
         "'modelgrid_to_vertex_ds' is deprecated and will be removed in a"
         "future version, please use 'modelgrid_to_ds' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     # add modelgrid to ds
@@ -538,10 +540,12 @@ def get_dims_coords_from_modelgrid(mg):
 
 
 def gridprops_to_vertex_ds(gridprops, ds, nodata=-1):
-    """Gridprops is a dictionary containing keyword arguments needed to generate a flopy
-    modelgrid instance.
+    """Gridprops to vertex dataset.
+
+    Gridprops is a dictionary containing keyword arguments needed to generate
+    a flopy modelgrid instance.
     """
-    _, xv, yv = zip(*gridprops["vertices"])
+    _, xv, yv = zip(*gridprops["vertices"], strict=False)
     ds["xv"] = ("iv", np.array(xv))
     ds["yv"] = ("iv", np.array(yv))
 
@@ -560,7 +564,7 @@ def get_vertices_from_ds(ds):
 
     Flopy needs needs this list to build a disv-package
     """
-    vertices = list(zip(ds["iv"].data, ds["xv"].data, ds["yv"].data))
+    vertices = list(zip(ds["iv"].data, ds["xv"].data, ds["yv"].data, strict=False))
     return vertices
 
 
@@ -758,8 +762,7 @@ def refine(
 
 
 def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
-    """Resample a xarray dataset of a structured grid to a new dataset with a vertex
-    grid.
+    """Resample a xarray dataset of a structured grid to a vertex grid.
 
     Returns a dataset with resampled variables and the untouched variables.
 
@@ -803,8 +806,9 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
                     interp_vars.append(key)
                 else:
                     logger.info(
-                        f"Data variable {key} has spatial coordinates but it cannot be refined "
-                        "because of its non-numeric dtype. It is not available in the output Dataset."
+                        f"Data variable {key} has spatial coords but cannot be refined "
+                        "because of its non-numeric dtype. "
+                        "It is not available in the output Dataset."
                     )
             else:
                 not_interp_vars.append(key)
@@ -863,7 +867,7 @@ def get_xyi_icell2d(gridprops=None, ds=None):
         xyi = np.vstack((xc_gwf, yc_gwf)).T
         icell2d = np.array([c[0] for c in gridprops["cell2d"]])
     elif ds is not None:
-        xyi = np.array(list(zip(ds.x.values, ds.y.values)))
+        xyi = np.array(list(zip(ds.x.values, ds.y.values, strict=False)))
         icell2d = ds.icell2d.values
     else:
         raise ValueError("either gridprops or ds should be specified")
@@ -872,9 +876,10 @@ def get_xyi_icell2d(gridprops=None, ds=None):
 
 
 def update_ds_from_layer_ds(ds, layer_ds, method="nearest", **kwargs):
-    """Add variables from a layer Dataset to a model Dataset. Keep de grid- information
-    from the model Dataset (x and y or icell2d), but update the layer dimension when
-    neccesary.
+    """Add variables from a layer Dataset to a model Dataset.
+
+    Keep the grid information from the model Dataset (x and y or icell2d),
+    but update the layer dimension when necessary.
 
     Parameters
     ----------
@@ -969,12 +974,15 @@ def col_to_list(col_in, ds, cellids):
             # 3d grid
             col_lst = [
                 col_in.data[lay, row, col]
-                for lay, row, col in zip(cellids[0], cellids[1], cellids[2])
+                for lay, row, col in zip(
+                    cellids[0], cellids[1], cellids[2], strict=False
+                )
             ]
         elif len(cellids) == 2:
             # 2d grid or vertex 3d grid
             col_lst = [
-                col_in.data[row, col] for row, col in zip(cellids[0], cellids[1])
+                col_in.data[row, col]
+                for row, col in zip(cellids[0], cellids[1], strict=False)
             ]
         elif len(cellids) == 1:
             # 2d vertex grid
@@ -1075,7 +1083,7 @@ def lrc_to_reclist(
             else:
                 cols.append(col_to_list(i_aux, ds, cellids))
 
-    reclist = list(zip(zip(layers, rows, columns), *cols))
+    reclist = list(zip(zip(layers, rows, columns, strict=False), *cols, strict=False))
     return reclist
 
 
@@ -1168,7 +1176,7 @@ def lcid_to_reclist(
             else:
                 cols.append(col_to_list(i_aux, ds, cellids))
 
-    reclist = list(zip(zip(layers, cellids[-1]), *cols))
+    reclist = list(zip(zip(layers, cellids[-1], strict=False), *cols, strict=False))
     return reclist
 
 
@@ -1192,8 +1200,8 @@ def cols_to_reclist(ds, cellids, *args, cellid_column=0):
     """
     cols = [col_to_list(col, ds, cellids) for col in args]
     if cellid_column is not None:
-        cols.insert(cellid_column, list(zip(*cellids)))
-    return list(zip(*cols))
+        cols.insert(cellid_column, list(zip(*cellids, strict=False)))
+    return list(zip(*cols, strict=False))
 
 
 def da_to_reclist(
@@ -1297,7 +1305,8 @@ def da_to_reclist(
             ignore_cells = int(np.sum((mask) & (idomain[layer] != 1)))
             if ignore_cells > 0:
                 logger.info(
-                    f"ignore {ignore_cells} out of {np.sum(mask.values)} cells because idomain is inactive"
+                    f"ignore {ignore_cells} out of {np.sum(mask.values)} cells "
+                    "because idomain is inactive"
                 )
             layers = col_to_list(layer, ds, cellids)
         else:
@@ -1336,7 +1345,8 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
         pass
     elif polygon.geom_type == "MultiPolygon":
         warnings.warn(
-            "function not tested for MultiPolygon type, can have unexpected results"
+            "function not tested for MultiPolygon type, can have unexpected results",
+            stacklevel=2,
         )
     else:
         raise TypeError(
@@ -1348,7 +1358,7 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
 
     if gridtype == "structured":
         area_array = util.get_da_from_da_ds(da, dims=("y", "x"), data=0.0)
-        for row, col, area in zip(df["row"], df["col"], df["areas"]):
+        for row, col, area in zip(df["row"], df["col"], df["areas"], strict=False):
             area_array[row, col] = area
     elif gridtype == "vertex":
         area_array = util.get_da_from_da_ds(da, dims=("icell2d",), data=0.0)
@@ -1360,8 +1370,9 @@ def polygon_to_area(modelgrid, polygon, da, gridtype="structured"):
 def gdf_to_data_array_struc(
     gdf, gwf, field="VALUE", agg_method=None, interp_method=None
 ):
-    """Project vector data on a structured grid. Aggregate data if multiple geometries
-    are in a single cell.
+    """Project vector data on a structured grid.
+
+    Aggregate data if multiple geometries are in a single cell.
 
     Parameters
     ----------
@@ -1388,8 +1399,10 @@ def gdf_to_data_array_struc(
         The DataArray with the projected vector data.
     """
     warnings.warn(
-        "The method gdf_to_data_array_struc is deprecated. Please use gdf_to_da instead.",
+        "The method gdf_to_data_array_struc is deprecated. "
+        "Please use gdf_to_da instead.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     x = gwf.modelgrid.get_xcellcenters_for_layer(0)[0]
@@ -1428,8 +1441,11 @@ def gdf_to_data_array_struc(
 def gdf_to_da(
     gdf, ds, column, agg_method=None, fill_value=np.nan, min_total_overlap=0.0, ix=None
 ):
-    """Project vector data on a grid. Aggregate data if multiple geometries are in a
-    single cell. Supports structured and vertex grids. This method replaces
+    """Project vector data on a grid.
+
+    Aggregate data if multiple geometries are in a single cell.
+
+    Supports structured and vertex grids. This method replaces
     gdf_to_data_array_struc.
 
     Parameters
@@ -1497,7 +1513,7 @@ def gdf_to_da(
             gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
 
     if ds.gridtype == "structured":
-        ixs, iys = zip(*gdf_agg.index.values)
+        ixs, iys = zip(*gdf_agg.index.values, strict=False)
         da.values[ixs, iys] = gdf_agg[column]
     elif ds.gridtype == "vertex":
         da[gdf_agg.index] = gdf_agg[column]
@@ -1639,8 +1655,8 @@ def aggregate_vector_per_cell(gdf, fields_methods, modelgrid=None):
     geom_types = gdf.geometry.type.unique()
     if len(geom_types) > 1:
         if len(geom_types) == 2 and (
-            set(geom_types) == set(["LineString", "MultiLineString"])
-            or set(geom_types) == set(["Polygon", "MultiPolygon"])
+            set(geom_types) == {"LineString", "MultiLineString"}
+            or set(geom_types) == {"Polygon", "MultiPolygon"}
         ):
             pass
         else:
@@ -2027,7 +2043,8 @@ def gdf_to_grid(
                 shpn["area"] = row["areas"]
             shps.append(shpn)
     if len(shps) == 0:
-        # Unable to determine the column names, because no geometries intersect with the grid
+        # Unable to determine the column names,
+        # because no geometries intersect with the grid
         logger.info("No geometries intersect with the grid")
         columns = gdf.columns.to_list() + ["area", "length", "cellid"]
     else:
@@ -2090,8 +2107,10 @@ def gdf_area_to_da(
     Notes
     -----
     - Uses `flopy.utils.GridIntersect` under the hood for spatial intersection.
-    - For rotated grids, geometries are transformed into model space using an affine transformation.
-    - If the `sparse` package is installed and `sparse=True`, a `sparse.COO` array is returned.
+    - For rotated grids, geometries are transformed into model space using an
+      affine transformation.
+    - If the `sparse` package is installed and `sparse=True`,
+      a `sparse.COO` array is returned.
     - Suitable for use in spatial weighting or disaggregation tasks.
 
     Raises
@@ -2129,7 +2148,7 @@ def gdf_area_to_da(
     ):
         df = ix.intersect(gdf.at[index, geometry], geo_dataframe=True, **kwargs)
         if structured:
-            for row, col, area in zip(df["row"], df["col"], df["areas"]):
+            for row, col, area in zip(df["row"], df["col"], df["areas"], strict=False):
                 data[(row, col, irow)] += area
         else:
             data[list(df["cellid"]), irow] = df["areas"]
@@ -2163,8 +2182,10 @@ def get_thickness_from_topbot(top, bot):
         or (layer, icell2d).
     """
     warnings.warn(
-        "The method get_thickness_from_topbot is deprecated. Please use nlmod.layers.calculate_thickness instead.",
+        "The method get_thickness_from_topbot is deprecated. "
+        "Please use nlmod.layers.calculate_thickness instead.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     if np.ndim(top) > 2:
@@ -2188,9 +2209,10 @@ def get_thickness_from_topbot(top, bot):
 
 
 def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=False):
-    """Get vertices of a vertex modelgrid from a ds or the modelgrid. Only return the 4
-    corners of each cell and not the corners of adjacent cells thus limiting the
-    vertices per cell to 4 points.
+    """Get vertices of a vertex modelgrid from a ds or the modelgrid.
+
+    Only return the 4 corners of each cell and not the corners of adjacent cells,
+    thus limiting the vertices per cell to 4 points.
 
     This method uses the xvertices and yvertices attributes of the modelgrid.
     When no modelgrid is supplied, a modelgrid-object is created from ds.
@@ -2225,6 +2247,7 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
         "this function is deprecated and will eventually be removed, "
         "please use 'modelgrid_from_ds' and 'modelgrid.map_polygons' in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
     if modelgrid is None:
         modelgrid = modelgrid_from_ds(ds, rotated=rotated)
@@ -2232,21 +2255,23 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
     yvert = modelgrid.yvertices
     if vert_per_cid == 4:
         coord_list = []
-        for xv, yv in zip(xvert, yvert):
-            coords = rdp(list(zip(xv, yv)), epsilon=epsilon)[:-1]
+        for xv, yv in zip(xvert, yvert, strict=False):
+            coords = rdp(list(zip(xv, yv, strict=False)), epsilon=epsilon)[:-1]
             if len(coords) > 4:
                 raise RuntimeError(
-                    "unexpected number of coördinates, you probably want to change epsilon"
+                    "unexpected number of coördinates, "
+                    "you probably want to change epsilon"
                 )
             coord_list.append(coords)
         vertices_arr = np.array(coord_list)
     elif vert_per_cid == 5:
         coord_list = []
-        for xv, yv in zip(xvert, yvert):
-            coords = rdp(list(zip(xv, yv)), epsilon=epsilon)
+        for xv, yv in zip(xvert, yvert, strict=False):
+            coords = rdp(list(zip(xv, yv, strict=False)), epsilon=epsilon)
             if len(coords) > 5:
                 raise RuntimeError(
-                    "unexpected number of coördinates, you probably want to change epsilon"
+                    "unexpected number of coördinates, "
+                    "you probably want to change epsilon"
                 )
             coord_list.append(coords)
         vertices_arr = np.array(coord_list)
@@ -2257,9 +2282,10 @@ def get_vertices_arr(ds, modelgrid=None, vert_per_cid=4, epsilon=0, rotated=Fals
 
 
 def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
-    """Get vertices of a vertex modelgrid from a ds or the modelgrid. Only return the 4
-    corners of each cell and not the corners of adjacent cells thus limiting the
-    vertices per cell to 4 points.
+    """Get vertices of a vertex modelgrid from a ds or the modelgrid.
+
+    Only return the 4 corners of each cell and not the corners of adjacent cells,
+    thus limiting the vertices per cell to 4 points.
 
     This method uses the xvertices and yvertices attributes of the modelgrid.
     When no modelgrid is supplied, a modelgrid-object is created from ds.
@@ -2294,6 +2320,7 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
         "get_vertices is deprecated and will eventually be removed, "
         "please use 'modelgrid_from_ds' and 'modelgrid.map_polygons'.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     vertices_arr = get_vertices_arr(
@@ -2547,8 +2574,8 @@ def get_affine(ds, sx=None, sy=None):
         xorigin = attrs["xorigin"]
         yorigin = attrs["yorigin"]
         angrot = -attrs["angrot"]
-        # xorigin and yorigin represent the lower left corner, while for the transform we
-        # need the upper left
+        # xorigin and yorigin represent the lower left corner,
+        # while for the transform we need the upper left
         dy = attrs["extent"][3] - attrs["extent"][2]
         xoff = xorigin + dy * np.sin(angrot * np.pi / 180)
         yoff = yorigin + dy * np.cos(angrot * np.pi / 180)

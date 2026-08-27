@@ -91,7 +91,8 @@ def get_concentration_da(
 
 
 def get_concentration_at_gw_surface(conc, layer="layer"):
-    """Get the concentration level from a multi-dimensional concentration array where
+    """Get the concentration level from a multi-dimensional concentration array.
+
     dry or inactive cells are NaN. This methods finds the most upper non- nan-value of
     each cell or timestep.
 
@@ -137,8 +138,9 @@ def get_concentration_at_gw_surface(conc, layer="layer"):
 
 
 def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
-    """Calculate equivalent freshwater head from point water heads. Heads file produced
-    by mf6 contains point water heads.
+    """Calculate equivalent freshwater head from point water heads.
+
+    Heads file produced by mf6 contains point water heads.
 
     Parameters
     ----------
@@ -180,8 +182,9 @@ def freshwater_head(ds, hp, conc, denseref=None, drhodc=None):
 
 
 def pointwater_head(ds, hf, conc, denseref=None, drhodc=None):
-    """Calculate point water head from freshwater heads. Heads file produced by mf6
-    contains point water heads.
+    """Calculate point water head from freshwater heads.
+
+    Heads file produced by mf6 contains point water heads.
 
     Parameters
     ----------

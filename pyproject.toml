@@ -131,6 +131,10 @@ ignore = [
 extend-select = ["I"]
 pydocstyle.convention = "numpy"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D103", "D205", "E501", "E722", "PT011", "PT028", "PT030"]
+"docs/**" = ["D103", "E402", "E501"]
+
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"
 markers = ["notebooks: run notebooks", "slow: slow tests", "skip: skip tests"]

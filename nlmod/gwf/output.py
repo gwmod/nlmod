@@ -204,8 +204,9 @@ def get_budget_da(
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):
-    """Get the groundwater level from a multi-dimensional head array where dry cells are
-    NaN. This methods finds the most upper non-nan-value of each cell or timestep.
+    """Get groundwater level from multi-dimensional head array with dry cells as NaN.
+
+    This method finds the most upper non-nan-value of each cell or timestep.
 
     Parameters
     ----------
@@ -265,8 +266,8 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
         The location of the grb-file. grb_file is determied from ds when None. The
         default is None.
     kstpkper : tuple of 2 ints, optional
-        The index of the timestep and the stress period to include in the result. Include
-        all data in the budget-file when None. The default is None.
+        The index of the timestep and the stress period to include in the result.
+        Include all data in the budget-file when None. The default is None.
 
     Returns
     -------
@@ -329,8 +330,8 @@ def get_flow_lower_face(
         The location of the grb-file. grb_file is determied from ds when None. The
         default is None.
     kstpkper : tuple of 2 ints, optional
-        The index of the timestep and the stress period to include in the result. Include
-        all data in the budget-file when None. The default is None.
+        The index of the timestep and the stress period to include in the result.
+        Include all data in the budget-file when None. The default is None.
     lays : int or list of ints, optional
         The layers to include in the result. When lays is None, all layers are included.
         The default is None.
@@ -513,7 +514,8 @@ def _calculate_gxg(
     gxg_years = gxg_data.count("bimonth") == 24
     gxg_data = gxg_data.where(gxg_years)
 
-    # First compute LG3 and HG3 per hydrological year, then compute the mean over the total.
+    # First compute LG3 and HG3 per hydrological year, then compute the mean
+    # over the total.
     if gxg_data.chunks is not None:
         # If data is lazily loaded/chunked, process data of one year at a time.
         gxg_data = gxg_data.chunk({"hydroyear": 1})

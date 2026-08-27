@@ -65,6 +65,31 @@ def aggregate(gdf, method, ds=None):
 
 
 def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=None):
+    """Get surface water parameters based on the specified method.
+
+    Parameters
+    ----------
+    group : pandas.GroupBy
+        GroupBy object containing surface water data.
+    method : str
+        Method to use for parameter calculation. Options are 'area_weighted',
+        'max_area', or 'de_lange'.
+    cid : tuple, optional
+        Cell id (row, col) for de_lange method. Default is None.
+    ds : xarray.Dataset, optional
+        Model dataset for de_lange method. Default is None.
+    delange_params : dict, optional
+        Additional parameters for de_lange method. Default is None.
+
+    Returns
+    -------
+    stage : float
+        Stage value.
+    cond : float
+        Conductance value.
+    rbot : float
+        River bottom value.
+    """
     if method == "area_weighted":
         # stage
         stage = agg_area_weighted(group, "stage")
@@ -111,16 +136,68 @@ def get_surfacewater_params(group, method, cid=None, ds=None, delange_params=Non
 
 
 def agg_max_area(gdf, col):
+    """Aggregate by taking the value from the row with maximum area.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame to aggregate.
+    col : str
+        Column name to get value from.
+
+    Returns
+    -------
+    value
+        The value from the row with maximum area.
+    """
     return gdf.loc[gdf.area.idxmax(), col]
 
 
 def agg_area_weighted(gdf, col):
+    """Aggregate by calculating area-weighted average.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame to aggregate.
+    col : str
+        Column name to calculate weighted average from.
+
+    Returns
+    -------
+    float
+        The area-weighted average value.
+    """
     nanmask = gdf[col].isna()
     aw = (gdf.area * gdf[col]).sum(skipna=True) / gdf.loc[~nanmask].area.sum()
     return aw
 
 
 def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
+    """Calculate conductance using the de Lange method.
+
+    Parameters
+    ----------
+    group : pandas.GroupBy
+        GroupBy object containing surface water data.
+    cid : tuple
+        Cell id (row, col).
+    ds : xarray.Dataset
+        Model dataset.
+    c1 : float, optional
+        Parameter for de Lange method. Default is 0.0.
+    c0 : float, optional
+        Parameter for de Lange method. Default is 1.0.
+    N : float, optional
+        Parameter for de Lange method. Default is 1e-3.
+    crad_positive : bool, optional
+        Whether to use positive crest radius. Default is True.
+
+    Returns
+    -------
+    tuple
+        Tuple containing (A, laytop, laybot, kh, kv, thickness, cond).
+    """
     (A, laytop, laybot, kh, kv) = get_subsurface_params_by_cellid(ds, cid)
 
     rbot = group["botm"].min()
@@ -174,6 +251,28 @@ def agg_de_lange(group, cid, ds, c1=0.0, c0=1.0, N=1e-3, crad_positive=True):
 
 
 def get_subsurface_params_by_cellid(ds, cid):
+    """Get subsurface parameters for a specific cell.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Model dataset.
+    cid : tuple
+        Cell id (row, col).
+
+    Returns
+    -------
+    A : float
+        Area of the cell.
+    laytop : float
+        Top elevation of the cell.
+    laybot : array
+        Bottom elevations of each layer.
+    kh : array
+        Horizontal conductivity of each layer.
+    kv : array
+        Vertical conductivity of each layer.
+    """
     r, c = cid
     A = ds.area.isel(x=c, y=r).data
     laytop = ds["top"].isel(x=c, y=r).data
@@ -267,6 +366,26 @@ def de_lange_eqns(A, H0, kv, kh, c1, li, Bin, c0, p, N, crad_positive=True):
 
 
 def radial_resistance(L, B, H, kh, kv):
+    """Calculate radial resistance.
+
+    Parameters
+    ----------
+    L : float
+        Length.
+    B : float
+        Width.
+    H : float
+        Height.
+    kh : float
+        Horizontal conductivity.
+    kv : float
+        Vertical conductivity.
+
+    Returns
+    -------
+    float
+        Radial resistance value.
+    """
     return (
         L
         / (np.pi * np.sqrt(kh * kv))
@@ -275,10 +394,34 @@ def radial_resistance(L, B, H, kh, kv):
 
 
 def coth(x):
+    """Calculate hyperbolic cotangent.
+
+    Parameters
+    ----------
+    x : float
+        Input value.
+
+    Returns
+    -------
+    float
+        Hyperbolic cotangent of x.
+    """
     return 1.0 / np.tanh(x)
 
 
 def estimate_polygon_length(gdf):
+    """Estimate polygon length based on shape factor.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame with polygon geometries.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame with estimated length column.
+    """
     # estimate length from polygon (for shapefactor > 4)
     shape_factor = gdf.length / np.sqrt(gdf.area)
 
@@ -305,9 +448,10 @@ def estimate_polygon_length(gdf):
 def distribute_cond_over_lays(
     cond, cellid, rivbot, laytop, laybot, idomain=None, kh=None, stage=None
 ):
-    """Distribute the conductance in a cell over the layers in that cell, based on the
-    the river-bottom and the layer bottoms, and optionally based on the stage and the
-    hydraulic conductivity.
+    """Distribute the conductance in a cell over the layers in that cell.
+
+    Based on the river-bottom and the layer bottoms, and optionally based on the
+    stage and the hydraulic conductivity.
     """
     if isinstance(rivbot, (np.ndarray, xr.DataArray)):
         rivbot = float(rivbot[cellid])
@@ -351,7 +495,9 @@ def distribute_cond_over_lays(
             try:
                 first_active = np.where(idomain > 0)[0][0]
             except IndexError:
-                warnings.warn(f"No active layers in {cellid}, returning NaNs.")
+                warnings.warn(
+                    f"No active layers in {cellid}, returning NaNs.", stacklevel=2
+                )
                 return np.nan, np.nan
         else:
             first_active = 0
@@ -502,7 +648,7 @@ def build_spd(
             cellid = (cellid,)
 
         # write SPD
-        for lay, cond in zip(lays, conds):
+        for lay, cond in zip(lays, conds, strict=False):
             cid = (lay,) + cellid
             if pkg == "RIV":
                 spd.append([cid, stage, cond, rbot] + auxlist)
@@ -513,6 +659,7 @@ def build_spd(
 
 
 def add_info_to_gdf(*args, **kwargs):
+    """Deprecated function, use nlmod.util.gdf_intersection_join instead."""
     logger.warning(
         "nlmod.gwf.surface_water.add_info_to_gdf is deprecated. "
         "Use nlmod.util.gdf_intersection_join instead."
@@ -605,7 +752,8 @@ def download_level_areas(
             mask = ~la[wb].is_valid
             if mask.any():
                 logger.warning(
-                    f"{mask.sum()} geometries of level areas of {wb} are invalid. Thet are made valid by adding a buffer of 0.0."
+                    f"{mask.sum()} geometries of level areas of {wb} are invalid. "
+                    "They are made valid by adding a buffer of 0.0."
                 )
                 # first copy to prevent ValueError: assignment destination is read-only
                 la[wb] = la[wb].copy()
@@ -912,12 +1060,13 @@ def gdf_to_seasonal_pkg(
     season_filename="season.ts",
     **kwargs,
 ):
-    """Add a surface water package to a groundwater-model, based on input from a
-    GeoDataFrame. This method adds two boundary conditions for each record in the
-    GeoDataFrame: one for the winter_stage and one for the summer_stage.
-    The conductance of each record is a time-series called 'winter' or 'summer' with
-    values of either 0 or 1. These conductance values are multiplied by an auxiliary
-    variable that contains the actual conductance.
+    """Add a surface water package to a groundwater-model based on GeoDataFrame input.
+
+    This method adds two boundary conditions for each record in the GeoDataFrame:
+    one for the winter_stage and one for the summer_stage. The conductance of each
+    record is a time-series called 'winter' or 'summer' with values of either 0 or 1.
+    These conductance values are multiplied by an auxiliary variable that contains
+    the actual conductance.
 
     Parameters
     ----------
@@ -989,7 +1138,8 @@ def gdf_to_seasonal_pkg(
     mask = gdf["rbot"].isna()
     if mask.any():
         logger.info(
-            f"Filling {mask.sum()} NaN's in rbot using a water depth of {default_water_depth} meter."
+            f"Filling {mask.sum()} NaN's in rbot using a water depth of "
+            f"{default_water_depth} meter."
         )
         min_stage = pd.concat(stages, axis=1).min(axis=1)
         gdf.loc[mask, "rbot"] = min_stage[mask] - default_water_depth
@@ -1229,12 +1379,36 @@ def get_seaonal_timeseries(
 
 
 def rivdata_from_xylist(gwf, xylist, layer, stage, cond, rbot, aux=None):
+    """Create river data from a list of xy coordinates.
+
+    Parameters
+    ----------
+    gwf : flopy.mf6.mfmodel.MFModel
+        Groundwater flow model.
+    xylist : list
+        List of (x, y) coordinates.
+    layer : int
+        Layer number.
+    stage : float
+        Stage value.
+    cond : float
+        Conductance value.
+    rbot : float
+        River bottom value.
+    aux : dict, optional
+        Auxiliary data. Default is None.
+
+    Returns
+    -------
+    list
+        List of river data.
+    """
     gi = flopy.utils.GridIntersect(gwf.modelgrid)
     df = gi.intersect(xylist, shapetype="linestring", geo_dataframe=True)
     riv_data = []
 
     if "row" in df.columns:  # structured grid
-        for row, col in zip(df["row"], df["col"]):
+        for row, col in zip(df["row"], df["col"], strict=False):
             idata = [(layer, row, col), stage, cond, rbot]
             if aux is not None:
                 idata.append(aux)

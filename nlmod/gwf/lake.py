@@ -241,7 +241,8 @@ def lake_from_gdf(
                 lakeout = gdf.loc[mask, "lakeno"].iloc[0]
                 if not (gdf.loc[mask, "lakeno"] == lakeout).all():
                     raise ValueError(
-                        f"expected single value of lakeno for lakeout {boundnameout}, got {gdf.loc[mask, 'lakeno']}"
+                        f"expected single value of lakeno for lakeout {boundnameout}, "
+                        f"got {gdf.loc[mask, 'lakeno']}"
                     )
             assert lakeno != lakeout, "lakein and lakeout cannot be the same"
 
@@ -249,7 +250,8 @@ def lake_from_gdf(
             for outset, default_value in OUTLET_DEFAULT.items():
                 if outset not in lake_gdf.columns:
                     logger.debug(
-                        f"no value specified for {outset} and lake no {lakeno}, using default value {default_value}"
+                        f"no value specified for {outset} and lake no {lakeno}, "
+                        f"using default value {default_value}"
                     )
                     setval = default_value
                 else:
@@ -257,12 +259,14 @@ def lake_from_gdf(
                     if pd.notna(setval):
                         if not (lake_gdf[outset] == setval).all():
                             raise ValueError(
-                                f"expected single data variable for {outset} and lake number {lakeno}, got {lake_gdf[outset]}"
+                                f"expected single data variable for {outset} and lake "
+                                f"number {lakeno}, got {lake_gdf[outset]}"
                             )
                     else:  # setval is nan or None
                         setval = default_value
                         logger.debug(
-                            f"no value specified for {outset} and lake no {lakeno}, using default value {default_value}"
+                            f"no value specified for {outset} and lake no {lakeno}, "
+                            f"using default value {default_value}"
                         )
                 if outset == "outlet_invert" and isinstance(setval, str):
                     # setval can be the name of a timeseries
@@ -422,10 +426,12 @@ def _parse_laksetting_value(value, ds, key, iper):
     if isinstance(value, (float, int, str)):
         return value
     elif isinstance(value, pd.Series):
-        assert len(value.index) == len(ds.time) and (value.index == ds.time).all()
+        assert len(value.index) == len(ds.time)
+        assert (value.index == ds.time).all()
         return value.iloc[iper]
     elif isinstance(value, pd.DataFrame):
-        assert len(value.index) == len(ds.time) and (value.index == ds.time).all()
+        assert len(value.index) == len(ds.time)
+        assert (value.index == ds.time).all()
         return value[key].iloc[iper]
     else:
         assert len(value) == len(ds.time)
@@ -433,6 +439,20 @@ def _parse_laksetting_value(value, ds, key, iper):
 
 
 def add_lakeno_to_gdf(gdf, boundname_column):
+    """Add a lakeno column to a GeoDataFrame based on unique boundnames.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame to add lakeno column to.
+    boundname_column : str
+        Name of the column containing boundnames.
+
+    Returns
+    -------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame with added lakeno column.
+    """
     if boundname_column not in gdf.columns:
         raise (KeyError(f"Cannot find column {boundname_column} in gdf"))
     names = gdf[boundname_column].unique()
@@ -474,8 +494,15 @@ def _copy_da_from_ds(gdf, ds, variable, boundname_column=None, set_to_0_in_ds=Fa
 def copy_meteorological_data_from_ds(
     gdf, ds, boundname_column=None, set_to_0_in_ds=False
 ):
-    """
-    Copy meteorlogical data from the model dataset, and return rainfall and evaporation.
+    """Copy meteorological data from the model dataset.
+
+    Returns rainfall and evaporation DataFrames.
+
+    This method retrieves the values of rainfall and evaporation from a model Dataset.
+    It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
+    returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
+    each of the lakes. The columns of this DataFrame are either the boundnames (when
+    boundname_column is specified) or the lake-number (lakeno).
     This method retrieves the values of rainfall and evaporation from a model Dataset.
     It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
     returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
@@ -539,8 +566,10 @@ def clip_meteorological_data_from_ds(
     ds,
     boundname_column=None,
 ):
-    """
-    Clip meteorlogical data from the model dataset, and return rainfall and evaporation.
+    """Clip meteorological data from the model dataset.
+
+    Returns rainfall and evaporation DataFrames.
+
     This method retrieves the values of rainfall and evaporation from a model Dataset.
     It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
     returns a rainfall- and evaporation-DataFrame. These dataframes contain input for

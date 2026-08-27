@@ -230,7 +230,7 @@ def get_row_col_from_xy(x, y, ds, rotated=True, gi=None):
             raise (ValueError(f"Point ({x}, {y}) is outside of the model grid"))
         row, col = cellids[0]
         return row, col
-    if rotated and ("angrot" in ds.attrs) and (ds.attrs["angrot"] != 0.0):
+    if rotated and is_rotated(ds):
         # calculate the x and y in model coordinates
         affine = get_affine_world_to_mod(ds)
         x, y = affine * (x, y)
@@ -359,7 +359,7 @@ def modelgrid_from_ds(ds, rotated=True, nlay=None, top=None, botm=None, **kwargs
     modelgrid : StructuredGrid, VertexGrid
         grid information.
     """
-    if rotated and ("angrot" in ds.attrs) and (ds.attrs["angrot"] != 0.0):
+    if rotated and is_rotated(ds):
         xoff = ds.attrs["xorigin"]
         yoff = ds.attrs["yorigin"]
         angrot = ds.attrs["angrot"]
@@ -2314,8 +2314,10 @@ def get_vertices(ds, vert_per_cid=4, epsilon=0, rotated=False):
 
 @cache.cache_netcdf(coords_2d=True)
 def mask_model_edge(ds, idomain=None):
-    """Get data array which is 1 for every active cell (defined by idomain) at the
-    boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
+    """Get a mask of the model edge.
+
+    This method calculates a data array which is 1 for every active cell (defined by
+    idomain) at the boundaries of the model (xmin, xmax, ymin, ymax). Other cells are 0.
 
     Parameters
     ----------
@@ -2357,7 +2359,7 @@ def mask_model_edge(ds, idomain=None):
             )
 
     elif ds.gridtype == "vertex":
-        polygons_grid = polygons_from_ds(ds)
+        polygons_grid = polygons_from_ds(ds, rotated=False)
         gdf_grid = gpd.GeoDataFrame(geometry=polygons_grid)
         extent_edge = gdf_grid.union_all().exterior
         cids_edge = gdf_grid.loc[gdf_grid.touches(extent_edge)].index
@@ -2371,13 +2373,16 @@ def mask_model_edge(ds, idomain=None):
     return ds_out
 
 
-def polygons_from_ds(ds):
+def polygons_from_ds(ds, rotated=True):
     """Create polygons of each cell in a model dataset.
 
     Parameters
     ----------
     ds : xr.Dataset
         Dataset with model data.
+    rotated : bool, optional
+        if True, grid-rotation is applied to the polygons. If False, the polygons are
+        returned in model coordinates. The default is True.
 
     Raises
     ------
@@ -2411,13 +2416,13 @@ def polygons_from_ds(ds):
         ]
 
     elif ds.gridtype == "vertex":
-        modelgrid = modelgrid_from_ds(ds)
+        modelgrid = modelgrid_from_ds(ds, rotated=False)
         polygons = [Polygon(v.vertices) for v in modelgrid.map_polygons]
     else:
         raise ValueError(
             f"gridtype must be 'structured' or 'vertex', not {ds.gridtype}"
         )
-    if is_rotated(ds):
+    if rotated and is_rotated(ds):
         # rotate the model coordinates to real coordinates
         affine = get_affine_mod_to_world(ds).to_shapely()
         polygons = [affine_transform(polygon, affine) for polygon in polygons]
@@ -2436,7 +2441,7 @@ def get_extent_polygon(ds, rotated=True):
     """Get the model extent, as a shapely Polygon."""
     attrs = _get_attrs(ds)
     polygon = util.extent_to_polygon(attrs["extent"])
-    if rotated and "angrot" in ds.attrs and attrs["angrot"] != 0.0:
+    if rotated and is_rotated(ds):
         affine = get_affine_mod_to_world(ds)
         polygon = affine_transform(polygon, affine.to_shapely())
     return polygon
@@ -2450,7 +2455,7 @@ def get_extent_gdf(ds, rotated=True, crs="EPSG:28992"):
     ds : xr.Dataset
         model dataset.
     rotated : bool, optional
-        if True, the extent is corrected for angrot. The default is True.
+        if True, the extent is corrected for angrot (rotation). The default is True.
     crs : str, optional
         Coordinate reference system. The default is "EPSG:28992".
 
@@ -2473,14 +2478,14 @@ def affine_transform_gdf(gdf, affine):
 
 
 def get_extent(ds, rotated=True, xmargin=0.0, ymargin=0.0):
-    """Get the model extent, corrected for angrot if necessary.
+    """Get the model extent, corrected for angrot (rotation) if necessary.
 
     Parameters
     ----------
     ds : xr.Dataset
         model dataset.
     rotated : bool, optional
-        if True, the extent is corrected for angrot. The default is True.
+        if True, the extent is corrected for angrot (rotation). The default is True.
     xmargin : float, optional
         margin to add to the x-extent. The default is 0.0.
     ymargin : float, optional
@@ -2499,7 +2504,7 @@ def get_extent(ds, rotated=True, xmargin=0.0, ymargin=0.0):
         extent[2] - ymargin,
         extent[3] + ymargin,
     ]
-    if rotated and "angrot" in attrs and attrs["angrot"] != 0.0:
+    if rotated and is_rotated(ds):
         affine = get_affine_mod_to_world(ds)
         xc = np.array([extent[0], extent[1], extent[1], extent[0]])
         yc = np.array([extent[2], extent[2], extent[3], extent[3]])

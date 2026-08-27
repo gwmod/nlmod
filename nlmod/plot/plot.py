@@ -101,6 +101,9 @@ def facet_plot(
     cmap="turbo",
     rotated=True,
     figsize=(10, 10),
+    layout=None,
+    show_titles=True,
+    show_ticks=True,
     base=10_000,
     fmt_base=1_000,
     fmt="{:.0f}",
@@ -127,6 +130,14 @@ def facet_plot(
         The default is True, which plots the data in local coordinates.
     figsize : tuple, optional
         The size of the figure in inches. Default is (10, 10).
+    layout : str or None, optional
+        Matplotlib subplot layout mode passed to get_map. The default is None,
+        which avoids the overhead of constrained layout during batch rendering.
+    show_titles : bool, optional
+        When True, draw a title inside each facet. Default is True.
+    show_ticks : bool, optional
+        When True, draw axis ticks using base and fmt_base. Set to False for
+        faster batch rendering. Default is True.
     base : int, optional
         The base for the axis tick formatting. Default is 1,000.
     fmt_base : int, optional
@@ -142,13 +153,20 @@ def facet_plot(
     axes : numpy.ndarray
         An array of matplotlib.axes.Axes objects corresponding to each layer plotted.
     """
+    if isinstance(da, str):
+        da = ds[da]
+
     if selection is None:
         selection = da[dim].values
 
-    ndim = np.sqrt(len(selection))
+    nselection = len(selection)
+    if nselection == 0:
+        raise ValueError("selection must contain at least one value")
+
+    ndim = np.sqrt(nselection)
     nrows = np.floor(ndim).astype(int)
     ncols = np.ceil(ndim).astype(int)
-    if nrows * ncols < len(selection):
+    if nrows * ncols < nselection:
         nrows += 1
 
     f, axes = get_map(
@@ -158,25 +176,33 @@ def facet_plot(
         ncols=ncols,
         sharex=True,
         sharey=True,
-        base=base,
+        base=base if show_ticks else None,
         fmt_base=fmt_base,
         fmt=fmt,
+        layout=layout,
     )
-    if isinstance(da, str):
-        da = ds[da]
+
+    plot_ds = ds
+    if "icell2d" in da.dims:
+        plot_ds = get_patches(ds, rotated=rotated)
 
     qm = None  # please linter
     for i, isel in enumerate(selection):
         iax = axes.flat[i] if isinstance(axes, np.ndarray) else axes
-        if i < len(selection):
-            qm = data_array(
-                da.loc[{dim: isel}], ds, ax=iax, cmap=cmap, rotated=rotated, **kwargs
-            )
+        qm = data_array(
+            da.loc[{dim: isel}],
+            plot_ds,
+            ax=iax,
+            cmap=cmap,
+            rotated=rotated,
+            **kwargs,
+        )
+        if show_titles:
             if isinstance(isel, np.datetime64):
                 isel = pd.Timestamp(isel)
             title_inside(f"{isel}", ax=iax)
     if isinstance(axes, np.ndarray):
-        for j in range(i + 1, len(axes.flat)):
+        for j in range(nselection, len(axes.flat)):
             axes.flat[j].set_visible(False)
     if qm is not None and colorbar:
         cbar = f.colorbar(qm, ax=axes)

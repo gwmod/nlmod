@@ -264,6 +264,26 @@ def register_solution_package(sim, model, solver):
 
 
 def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
+    """Get geodataframe with shared faces between parent and child model grids.
+
+    Parameters
+    ----------
+    ds_parent : xarray.Dataset
+        dataset with model data for the parent model.
+    ds_child : xarray.Dataset
+        dataset with model data for the child model.
+    boundnames : str, optional
+        column to use as a boundname for modflow, default is 'angledegx', which will
+        convert the angle between the parent and child cell centroids to a compass
+        direction. If None, no boundnames will be used.
+
+    Returns
+    -------
+    shared_faces : geopandas.GeoDataFrame
+        geodataframe with shared faces between parent and child model grids, with
+        columns for parent and child cell ids, shared face geometry, and exchange
+        variables (cl1, cl2, hwva, angldegx, boundnames if applicable).
+    """
     gdf_parent = modelgrid_from_ds(ds_parent).to_geodataframe()
     gdf_child = modelgrid_from_ds(ds_child).to_geodataframe()
 
@@ -328,9 +348,14 @@ def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
 
         shared_faces["boundnames"] = shared_faces["angldegx"].apply(angle_to_compass)
         shared_faces = shared_faces.sort_values(by="angldegx")
-    elif boundnames:
-        shared_faces["boundnames"] = boundnames
+    elif boundnames in shared_faces.columns:
+        shared_faces["boundnames"] = shared_faces[boundnames]
         shared_faces = shared_faces.sort_values(by="boundnames")
+    else:
+        # not sure how this would work, since you don't really know the number of
+        # shared faces a priori and the order they would appear in... But maybe if
+        # you build multiple exchanges?
+        shared_faces["boundnames"] = boundnames
 
     return shared_faces
 

@@ -7,8 +7,10 @@ from shutil import copyfile
 import flopy
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from .. import util
+from ..dims.grid import get_idomain, modelgrid_from_ds
 from ..dims.time import get_perlen
 
 logger = logging.getLogger(__name__)
@@ -259,3 +261,179 @@ def register_ims_package(sim, model, ims):
 
 def register_solution_package(sim, model, solver):
     sim.register_solution_package(solver, [model.name])
+
+
+def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
+    """Get geodataframe with shared faces between parent and child model grids.
+
+    Parameters
+    ----------
+    ds_parent : xarray.Dataset
+        dataset with model data for the parent model.
+    ds_child : xarray.Dataset
+        dataset with model data for the child model.
+    boundnames : str, optional
+        column to use as a boundname for modflow, default is 'angledegx', which will
+        convert the angle between the parent and child cell centroids to a compass
+        direction. If None, no boundnames will be used.
+
+    Returns
+    -------
+    shared_faces : geopandas.GeoDataFrame
+        geodataframe with shared faces between parent and child model grids, with
+        columns for parent and child cell ids, shared face geometry, and exchange
+        variables (cl1, cl2, hwva, angldegx, boundnames if applicable).
+    """
+    gdf_parent = modelgrid_from_ds(ds_parent).to_geodataframe()
+    gdf_child = modelgrid_from_ds(ds_child).to_geodataframe()
+
+    outer_ring = gdf_parent.loc[gdf_parent.touches(gdf_child.union_all())]
+    candidates = outer_ring.sjoin(gdf_child, how="inner", predicate="intersects")
+    candidates["shared_face_geom"] = candidates.apply(
+        lambda row: row["geometry"].boundary.intersection(
+            gdf_child.loc[row["index_right"], "geometry"]
+        ),
+        axis=1,
+    )
+    shared_faces = candidates.loc[
+        candidates["shared_face_geom"].geom_type.isin(["LineString", "MultiLineString"])
+    ].copy()
+    shared_faces["child_geom"] = gdf_child.loc[
+        shared_faces["index_right"], "geometry"
+    ].values
+
+    # compute exchange variables
+    shared_faces["hwva"] = shared_faces.shared_face_geom.length
+    shared_faces["cl1"] = shared_faces.apply(
+        lambda row: row["geometry"].centroid.distance(row["shared_face_geom"]), axis=1
+    )
+    shared_faces["cl2"] = shared_faces.apply(
+        lambda row: row["shared_face_geom"].distance(row["child_geom"].centroid), axis=1
+    )
+
+    shared_faces = shared_faces.reset_index(names="parent_cellid").rename(
+        columns={"index_right": "child_cellid", "geometry": "parent_geom"}
+    )
+    dx = shared_faces["parent_geom"].centroid.x - shared_faces["child_geom"].centroid.x
+    dy = shared_faces["parent_geom"].centroid.y - shared_faces["child_geom"].centroid.y
+
+    shared_faces["angldegx"] = np.degrees(np.atan2(dy, dx)) % 360
+
+    shared_faces = shared_faces.loc[
+        :,
+        [
+            "parent_cellid",
+            "parent_geom",
+            "shared_face_geom",
+            "child_cellid",
+            "child_geom",
+            "cl1",
+            "cl2",
+            "hwva",
+            "angldegx",
+        ],
+    ]
+
+    if boundnames == "angldegx":
+
+        def angle_to_compass(angle):
+            if (315 <= angle < 360) or (0 <= angle < 45):
+                return "E"
+            elif 45 <= angle < 135:
+                return "N"
+            elif 135 <= angle < 225:
+                return "W"
+            elif 225 <= angle < 315:
+                return "S"
+
+        shared_faces["boundnames"] = shared_faces["angldegx"].apply(angle_to_compass)
+        shared_faces = shared_faces.sort_values(by="angldegx")
+    elif boundnames in shared_faces.columns:
+        shared_faces["boundnames"] = shared_faces[boundnames]
+        shared_faces = shared_faces.sort_values(by="boundnames")
+    else:
+        # not sure how this would work, since you don't really know the number of
+        # shared faces a priori and the order they would appear in... But maybe if
+        # you build multiple exchanges?
+        shared_faces["boundnames"] = boundnames
+
+    return shared_faces
+
+
+def gwfgwf(
+    sim, ds_parent, ds_child, exgtype="GWF6-GWF6", boundnames="angldegx", **kwargs
+):
+    """Create GWF-GWF exchange package from the model datasets.
+
+    Parameters
+    ----------
+    sim : flopy MFSimulation
+        simulation object.
+    ds_parent : xarray.Dataset
+        dataset with model data for the parent model.
+    ds_child : xarray.Dataset
+        dataset with model data for the child model.
+    exgtype : str, optional
+        exchange type. The default is "GWF6-GWF6".
+    boundnames : str, optional
+        name of the boundary condition. The default is "angldegx". If None, no
+        boundname is added to the exchangedata.
+    **kwargs
+        passed on to flopy.mf6.ModflowGwfgwf
+
+    Returns
+    -------
+    gwfgwf : flopy ModflowGwfgwf
+        gwfgwf exchange object.
+    """
+    # get single layer
+    exch_gdf = get_parent_child_exchange_gdf(
+        ds_parent,
+        ds_child,
+        boundnames=boundnames,
+    )
+    if exch_gdf.empty:
+        raise ValueError("No shared faces found between parent and child model grids.")
+
+    exch_gdf = exch_gdf.rename(
+        columns={
+            "parent_cellid": "cellidm1",
+            "child_cellid": "cellidm2",
+        }
+    )
+    exch_gdf["ihc"] = 1  # exchange is always horizontal
+    # ensure layers are equal
+    xr.testing.assert_equal(ds_parent.layer, ds_child.layer)
+
+    idomain_parent = get_idomain(ds_parent)
+    idomain_child = get_idomain(ds_child)
+    exchangedata = []
+    usecols = ["cellidm1", "cellidm2", "ihc", "cl1", "cl2", "hwva", "angldegx"]
+    if boundnames is not None:
+        usecols.append("boundnames")
+    for ilay in range(ds_parent.sizes["layer"]):
+        idf = exch_gdf.loc[:, usecols].copy()
+        mask_active_parent = (
+            idomain_parent.isel(layer=ilay, icell2d=idf["cellidm1"]) > 0
+        ).values
+        mask_active_child = (
+            idomain_child.isel(layer=ilay, icell2d=idf["cellidm2"]) > 0
+        ).values
+        idf = idf.loc[mask_active_parent & mask_active_child].copy()
+        idf["cellidm1"] = [(ilay, cid) for cid in idf["cellidm1"]]
+        idf["cellidm2"] = [(ilay, cid) for cid in idf["cellidm2"]]
+        exchangedata.append(idf)
+
+    exchangedata = pd.concat(exchangedata, axis=0)
+
+    return flopy.mf6.ModflowGwfgwf(
+        sim,
+        exgmnamea=ds_parent.model_name,
+        exgmnameb=ds_child.model_name,
+        exgtype=exgtype,
+        nexg=len(exchangedata),
+        exchangedata=exchangedata.to_records(index=False),
+        auxiliary=["ANGLDEGX"],
+        boundnames=True if boundnames is not None else None,
+        **kwargs,
+    )

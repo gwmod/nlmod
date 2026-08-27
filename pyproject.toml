@@ -18,7 +18,7 @@ maintainers = [
     { name = "R.J. Calje", email = "r.calje@artesia-water.nl" },
     { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
 ]
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 dependencies = [
     "flopy @ git+https://github.com/modflowpy/flopy.git@develop", # HFB utility from flopy#2745, to be released in flopy>3.10.0
     "xarray>=0.16.1",

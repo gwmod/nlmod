@@ -257,12 +257,12 @@ def load_lgn_within_extent(lgn_tif_path: str | Path, extent: list):
     return lgnsel.sel(band=1, drop=True)
 
 
-def get_lgn_cmap_norm(lgn_color_dict=LGN_COLOR_DICT):
+def get_lgn_cmap_norm(lgn_color_dict=None):
     """Builds a ListedColormap and BoundaryNorm for LGN.
 
     Parameters
     ----------
-    lgn_color_dict : dict
+    lgn_color_dict : dict, optional
         Dictionary mapping LGN codes to color and label information. Defaults to
         predefined LGN_COLOR_DICT derived from default QGIS symbology.
 
@@ -273,6 +273,9 @@ def get_lgn_cmap_norm(lgn_color_dict=LGN_COLOR_DICT):
     norm : matplotlib.colors.BoundaryNorm
         Normalization for LGN codes.
     """
+    if lgn_color_dict is None:
+        lgn_color_dict = LGN_COLOR_DICT
+
     max_code = max(lgn_color_dict.keys())
 
     # Default unmapped values to fully transparent white (#FFFFFF00)

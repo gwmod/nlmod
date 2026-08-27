@@ -20,10 +20,10 @@ jobs:
         python-version: [3.11]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -39,13 +39,7 @@ jobs:
 
       - name: Run tests only
         env:
-            NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}
-            NHI_GWO_PASSWORD: ${{ secrets.NHI_GWO_PASSWORD}}
+          NHI_GWO_USERNAME: ${{ secrets.NHI_GWO_USERNAME}}
+          NHI_GWO_PASSWORD: ${{ secrets.NHI_GWO_PASSWORD}}
         run: |
           py.test ./tests -m "not notebooks"
-
-      - name: Run codacy-coverage-reporter
-        uses: codacy/codacy-coverage-reporter-action@master
-        with:
-          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
-          coverage-reports: coverage.xml

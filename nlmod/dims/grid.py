@@ -455,12 +455,19 @@ def modelgrid_to_ds(mg=None, grbfile=None):
         x, y = mg.xyedges
         from .base import _get_structured_grid_ds
 
+        # temporary fix for flopy 3.11.0.dev3:
+        # https://github.com/modflowpy/flopy/issues/2831
+        if mg.top.ndim != mg.botm[0].ndim:
+            top = mg.top.reshape(mg.botm[0].shape)
+        else:
+            top = mg.top
+
         ds = _get_structured_grid_ds(
             xedges=x,
             yedges=y,
             nlay=mg.nlay,
             botm=mg.botm,
-            top=mg.top,
+            top=top,
             xorigin=mg.xoffset,
             yorigin=mg.yoffset,
             angrot=mg.angrot,

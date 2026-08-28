@@ -575,6 +575,7 @@ def chd(
         warnings.warn(
             "the 'chd' kwarg has been renamed to 'mask'!",
             DeprecationWarning,
+            stacklevel=2,
         )
         mask = kwargs.pop("chd")
 
@@ -941,8 +942,8 @@ def oc(
         default is True.
     print_head : bool or str
         Prints the head to the list-file. If print_head is a string, it needs to be
-        "all", "first" or "last". If print_head is True, it is set to "last". The default
-        is False.
+        "all", "first" or "last". If print_head is True, it is set to "last".
+        The default is False.
     print_budget : bool or str
         Prints the budgets to the list-file. If print_budget is a string, it needs to be
         "all", "first" or "last". If print_budget is True, it is set to "last". The

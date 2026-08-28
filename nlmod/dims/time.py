@@ -81,6 +81,7 @@ def set_ds_time_deprecated(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.time.set_ds_time() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     # checks
@@ -155,7 +156,7 @@ def set_ds_time_deprecated(
 
 
 def _pd_timestamp_to_cftime(time_pd):
-    """Convert a pandas timestamp into a cftime stamp
+    """Convert a pandas timestamp into a cftime stamp.
 
     Parameters
     ----------
@@ -259,7 +260,8 @@ def set_ds_time(
         else:
             raise TypeError("Cannot parse start datetime.")
 
-        # parse time make sure 'time' and 'start' are same type (pd.Timestamps or cftime.datetime)
+        # parse time make sure 'time' and 'start' are same type
+        # (pd.Timestamps or cftime.datetime)
         if isinstance(time[0], (int, np.integer, float)):
             if isinstance(start, cftime.datetime):
                 time = [start + dt.timedelta(days=int(td)) for td in time]
@@ -278,12 +280,16 @@ def set_ds_time(
                 time = _pd_timestamp_to_cftime(time)
         elif isinstance(time[0], (np.datetime64, xr.core.variable.Variable)):
             logger.info(
-                "time arguments with types np.datetime64, xr.core.variable.Variable not tested!"
+                "time arguments with types np.datetime64, xr.core.variable.Variable "
+                "not tested!"
             )
         elif isinstance(time[0], cftime.datetime):
             start = _pd_timestamp_to_cftime(start)
         else:
-            msg = f"Cannot process 'time' argument. Datatype -> {type(time)} not understood."
+            msg = (
+                f"Cannot process 'time' argument. Datatype -> {type(time)} "
+                "not understood."
+            )
             raise TypeError(msg)
     except (OutOfBoundsDatetime, OutOfBoundsTimedelta) as e:
         msg = (
@@ -574,7 +580,9 @@ def estimate_nstp(
         )
         dt_lists = [
             [dt0i * tsmulti**nstpii for nstpii in range(nstpi)]
-            for dt0i, nstpi, tsmulti in zip(dt0_ceiled, nstp_ceiled, tsmult)
+            for dt0i, nstpi, tsmulti in zip(
+                dt0_ceiled, nstp_ceiled, tsmult, strict=False
+            )
         ]
         dt_arr = np.concatenate(dt_lists)
 
@@ -643,10 +651,23 @@ def get_time_step_length(perlen, nstp, tsmult):
 
 
 def ds_time_from_model(gwf):
+    """Deprecated: use ds_time_idx_from_model instead.
+
+    Parameters
+    ----------
+    gwf : flopy MFModel object
+        groundwater flow or groundwater transport model
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
     warnings.warn(
         "this function was renamed to `ds_time_idx_from_model`. "
         "Please use the new function name.",
         DeprecationWarning,
+        stacklevel=2,
     )
     return ds_time_idx_from_model(gwf)
 
@@ -668,10 +689,23 @@ def ds_time_idx_from_model(gwf):
 
 
 def ds_time_from_modeltime(modeltime):
+    """Deprecated: use ds_time_idx_from_modeltime instead.
+
+    Parameters
+    ----------
+    modeltime : flopy MFModel.modeltime object
+        model time object
+
+    Returns
+    -------
+    IndexVariable
+        time coordinate for xarray data-array or dataset
+    """
     warnings.warn(
         "this function was renamed to `ds_time_idx_from_model`. "
         "Please use the new function name.",
         DeprecationWarning,
+        stacklevel=2,
     )
     return ds_time_idx_from_modeltime(modeltime)
 
@@ -804,7 +838,7 @@ def dataframe_to_flopy_timeseries(
         df = df.copy()
         df.index = (df.index - pd.to_datetime(ds.time.start)) / pd.Timedelta(1, "D")
     # generate a list of tuples with time as the first record, followed by the columns
-    timeseries = [(i,) + tuple(v) for i, v in zip(df.index, df.values)]
+    timeseries = [(i,) + tuple(v) for i, v in zip(df.index, df.values, strict=False)]
     if package is None:
         return timeseries
     if filename is None:

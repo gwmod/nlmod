@@ -6,34 +6,44 @@ import nlmod
 from nlmod.read.geotop import split_layers_on_geul
 
 
-def test_get_regis(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
+def test_get_regis(extent=None):
+    if extent is None:
+        extent = [98600.0, 99000.0, 489400.0, 489700.0]
     regis_ds = nlmod.read.regis.download_regis(extent)
 
     assert regis_ds.sizes["layer"] == 20
 
 
 def test_get_regis_botm_layer_BEk1(
-    extent=[98700.0, 99000.0, 489500.0, 489700.0],
+    extent=None,
     botm_layer="MSc",
 ):
+    if extent is None:
+        extent = [98700.0, 99000.0, 489500.0, 489700.0]
     regis_ds = nlmod.read.regis.download_regis(extent, botm_layer)
     assert regis_ds.sizes["layer"] == 15
     assert regis_ds.layer.values[-1] == botm_layer
 
 
-def test_get_regis_only_c(extent=[98700.0, 99000.0, 489500.0, 489700.0]):
+def test_get_regis_only_c(extent=None):
+    if extent is None:
+        extent = [98700.0, 99000.0, 489500.0, 489700.0]
     regis_ds = nlmod.read.regis.download_regis(extent, variables="c")
     assert np.all([x == "c" for x in regis_ds.data_vars])
     assert regis_ds.sizes["layer"] == 8
 
 
-def test_get_regis_only_c_and_kd(extent=[98700.0, 99000.0, 489500.0, 489700.0]):
+def test_get_regis_only_c_and_kd(extent=None):
+    if extent is None:
+        extent = [98700.0, 99000.0, 489500.0, 489700.0]
     regis_ds = nlmod.read.regis.download_regis(extent, variables=["c", "kD"])
     assert np.all([x in ["c", "kD"] for x in regis_ds.data_vars])
     assert regis_ds.sizes["layer"] == 18
 
 
-def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
+def test_get_geotop(extent=None):
+    if extent is None:
+        extent = [98600.0, 99000.0, 489400.0, 489700.0]
     geotop_ds = nlmod.read.geotop.download_geotop(extent)
     line = [(extent[0], extent[2]), (extent[1], extent[3])]
 
@@ -45,7 +55,9 @@ def test_get_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
     nlmod.plot.geotop_lithok_on_map(geotop_ds, z=-20.2, ax=ax)
 
 
-def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
+def test_get_regis_geotop(extent=None):
+    if extent is None:
+        extent = [98600.0, 99000.0, 489400.0, 489700.0]
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True
     )
@@ -54,8 +66,10 @@ def test_get_regis_geotop(extent=[98600.0, 99000.0, 489400.0, 489700.0]):
 
 
 def test_get_regis_geotop_keep_all_layers(
-    extent=[98600.0, 99000.0, 489400.0, 489700.0],
+    extent=None,
 ):
+    if extent is None:
+        extent = [98600.0, 99000.0, 489400.0, 489700.0]
     regis_geotop_ds = nlmod.read.regis.get_combined_layer_models(
         extent, use_regis=True, use_geotop=True, remove_nan_layers=False
     )

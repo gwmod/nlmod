@@ -150,7 +150,8 @@ def struc_da_to_gdf(
                     dv_dic[f"{da_name}_mean"] = da_mean.values.flatten("F")
                 else:
                     raise NotImplementedError(
-                        "Can only use the mean of a DataArray with dimension time, use dealing_with_time='mean'"
+                        "Can only use the mean of a DataArray with dimension time, "
+                        "use dealing_with_time='mean'"
                     )
             else:
                 raise ValueError(
@@ -158,7 +159,8 @@ def struc_da_to_gdf(
                 )
         else:
             raise NotImplementedError(
-                f"expected two or three dimensions got {no_dims} for data variable {da_name}"
+                f"expected two or three dimensions got {no_dims} for "
+                f"data variable {da_name}"
             )
 
     # create geometries
@@ -293,7 +295,8 @@ def ds_to_vector_file(
             da_names -= item
         else:
             logger.info(
-                f"could not add {item} into to geopackage because 1 or more of the data variables do not exist"
+                f"could not add {item} into to geopackage because 1 or more of "
+                "the data variables do not exist"
             )
 
     # create unique shapefiles for the other data variables
@@ -328,8 +331,9 @@ def ds_to_ugrid_nc_file(
     split_time_dimension=False,
     for_imod_qgis_plugin=False,
 ):
-    """Save a model dataset to a UGRID NetCDF file, so it can be opened as a Mesh Layer
-    in qgis.
+    """Save a model dataset to a UGRID NetCDF file.
+
+    So it can be opened as a Mesh Layer in qgis.
 
     Parameters
     ----------

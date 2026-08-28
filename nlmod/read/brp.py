@@ -16,6 +16,7 @@ def get_percelen(*args, **kwargs):
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.brp.download_percelen_gdf() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_percelen_gdf(*args, **kwargs)

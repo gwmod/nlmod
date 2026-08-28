@@ -149,9 +149,7 @@ def get_delr(ds):
 
 
 def get_delc(ds):
-    """
-    Get the distance along columns (delc) from the y-coordinate of a structured model
-    dataset.
+    """Get the distance along columns (delc) from y of structured model dataset.
 
     Parameters
     ----------
@@ -162,7 +160,6 @@ def get_delc(ds):
     -------
     delc : np.ndarray
         The cell-size along columns (of length nrow).
-
     """
     assert is_structured(ds)
     if "extent" in ds.attrs:
@@ -175,7 +172,7 @@ def get_delc(ds):
 
 
 def _get_delta_along_axis(x):
-    """Internal method to determine delr or delc from x or y relative to xmin or ymax"""
+    """Internal method to determine delr or delc from x or y relative to bounds."""
     delr = [x[0] * 2]
     for xi in x[1:]:
         delr.append((xi - np.sum(delr)) * 2)

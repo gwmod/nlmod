@@ -145,8 +145,8 @@ def get_regis(
         -9999.
     rename_layers_to_version_2_2_2 : bool, toptional
         From version 2.2.3 of regis, the names of stratigraphic layers change, compared
-        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names are
-        renamed back to their original names. The default is True.
+        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names
+        are renamed back to their original names. The default is True.
 
     Returns
     -------
@@ -157,6 +157,7 @@ def get_regis(
         "'get_regis' is deprecated and will eventually be removed, "
         "please use 'nlmod.read.regis.download_regis()' in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_regis(
@@ -212,8 +213,8 @@ def download_regis(
         -9999.
     rename_layers_to_version_2_2_2 : bool, toptional
         From version 2.2.3 of regis, the names of stratigraphic layers change, compared
-        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names are
-        renamed back to their original names. The default is True.
+        to previous versions. If rename_layers_to_version_2_2_2 is True, the layer-names
+        are renamed back to their original names. The default is True.
 
     Returns
     -------
@@ -234,7 +235,10 @@ def download_regis(
     ds = ds.sel(x=slice(extent[0], extent[1]), y=slice(extent[2], extent[3]))
 
     if len(ds.x) == 0 or len(ds.y) == 0:
-        msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
+        msg = (
+            "No data found. Please supply valid extent in the Netherlands in "
+            "RD-coordinates"
+        )
         raise (ValueError(msg))
 
     ds["layer"] = get_layer_names(
@@ -280,7 +284,10 @@ def download_regis(
         ds = ds.sel(layer=mask_layer)
 
         if len(ds.layer) == 0:
-            msg = "No data found. Please supply valid extent in the Netherlands in RD-coordinates"
+            msg = (
+                "No data found. Please supply valid extent in the Netherlands "
+                "in RD-coordinates"
+            )
             raise (Exception(msg))
 
     if drop_layer_dim_from_top and "botm" in ds and "top" in ds:
@@ -316,8 +323,10 @@ def add_geotop_to_regis_layers(
     anisotropy=1.0,
     gt_layered=None,
 ):
-    """Combine geotop and regis in such a way that the one or more layers in Regis are
-    replaced by the geo_eenheden of geotop.
+    """Combine geotop and regis.
+
+    In such a way that the one or more layers in Regis are replaced by the geo_eenheden
+    of geotop.
 
     Parameters
     ----------
@@ -352,12 +361,14 @@ def add_geotop_to_regis_layers(
     if "kh" not in gt or "kv" not in gt:
         if "kv" in gt:
             logger.info(
-                f"Calculating kh of geotop by multiplying kv with an anisotropy of {anisotropy}"
+                "Calculating kh of geotop by multiplying kv with an "
+                f"anisotropy of {anisotropy}"
             )
             gt["kh"] = gt["kv"] * anisotropy
         elif "kh" in gt:
             logger.info(
-                f"Calculating kv of geotop by dividing kh by an anisotropy of {anisotropy}"
+                "Calculating kv of geotop by dividing kh by an "
+                f"anisotropy of {anisotropy}"
             )
             gt["kv"] = gt["kh"] / anisotropy
         else:
@@ -369,7 +380,10 @@ def add_geotop_to_regis_layers(
     # copy the regis-dataset, before altering it
     rg = rg.copy(deep=True)
     if "layer" in rg["top"].dims:
-        msg = "Top in rg has a layer dimension. add_geotop_to_regis_layers will remove the layer dimension from top in rg."
+        msg = (
+            "Top in rg has a layer dimension. add_geotop_to_regis_layers will "
+            "remove the layer dimension from top in rg."
+        )
         logger.warning(msg)
     else:
         # temporarily add layer dimension to top in rg
@@ -512,6 +526,7 @@ def get_legend(kind="REGIS"):
 
 
 def get_legend_lithoclass():
+    """Get a legend (DataFrame) with the lithoclasses of GeoTOP layers."""
     dir_path = os.path.dirname(os.path.realpath(__file__))
     fname = os.path.join(dir_path, "..", "data", "geotop", "Lithoklasse.voleg")
     leg = read_voleg(fname)
@@ -519,6 +534,7 @@ def get_legend_lithoclass():
 
 
 def get_legend_lithostratigraphy():
+    """Get a legend (DataFrame) with the lithostratigraphy of GeoTOP layers."""
     dir_path = os.path.dirname(os.path.realpath(__file__))
     fname = os.path.join(dir_path, "..", "data", "geotop", "Lithostratigrafie.voleg")
     leg = read_voleg(fname)
@@ -526,6 +542,7 @@ def get_legend_lithostratigraphy():
 
 
 def read_gleg(fname):
+    """Read a gleg file and return a DataFrame with the legend."""
     leg = pd.read_csv(
         fname,
         sep="\t",
@@ -543,6 +560,7 @@ def read_gleg(fname):
 
 
 def read_voleg(fname):
+    """Read a voleg file and return a DataFrame with the legend."""
     leg = pd.read_csv(
         fname,
         sep="\t",

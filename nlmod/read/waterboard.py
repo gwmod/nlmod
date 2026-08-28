@@ -22,6 +22,7 @@ def get_polygons(**kwargs):
         "get_polygons is deprecated and will eventually be removed, "
         "please use nlmod.read.waterboard.download_polygons() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_polygons(**kwargs)
@@ -660,6 +661,7 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         "'get_data' is deprecated and will eventually be removed, "
         "please use 'nlmod.read.waterboard.download_data()' in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_data(wb, data_kind, extent, max_record_count, config, **kwargs)

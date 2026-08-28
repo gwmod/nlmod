@@ -378,7 +378,8 @@ def ds_to_uzf(
     # then use bfill to accont for inactive cells in the layer below, and set nans to -1
     ivertcon = ivertcon.where(ivertcon >= 0).bfill("layer").fillna(-1).astype(int)
 
-    # packagedata : [iuzno, cellid, landflag, ivertcon, surfdep, vks, thtr, thts, thti, eps, boundname]
+    # packagedata : [iuzno, cellid, landflag, ivertcon, surfdep, vks,
+    #  thtr, thts, thti, eps, boundname]
     packagedata = cols_to_reclist(
         ds,
         cellids,
@@ -425,7 +426,8 @@ def ds_to_uzf(
         extwc = thtr
         if simulate_et and unsat_etwc:
             logger.info(
-                f"Setting evapotranspiration extinction water content (extwc) to {extwc}"
+                f"Setting evapotranspiration extinction water content (extwc) "
+                f"to {extwc}"
             )
     if ha is None:
         ha = 0.0
@@ -470,7 +472,7 @@ def ds_to_uzf(
         iuzno_obs_vals = np.unique(iuzno_obs[~np.isnan(iuzno_obs)]).astype(int)
 
         # get cell ids of observations
-        cellids_obs = list(zip(*np.where(mask_obs)))
+        cellids_obs = list(zip(*np.where(mask_obs), strict=False))
         cellid_str = ["_".join(map(str, x)) for x in cellids_obs]
 
         # account for surfdep, as this decreases the height of the top of the upper cell

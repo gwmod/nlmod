@@ -78,7 +78,11 @@ LGN_COLOR_DICT = {
     },
     29: {"color": "#000000", "rgb": (0, 0, 0), "label": "zonneparken"},
     30: {"color": "#b03060", "rgb": (176, 48, 96), "label": "kwelders"},
-    31: {"color": "#e6fb00", "rgb": (230, 251, 0), "label": "open zand in kustgebied"},
+    31: {
+        "color": "#e6fb00",
+        "rgb": (230, 251, 0),
+        "label": "open zand in kustgebied",
+    },
     32: {
         "color": "#89d42b",
         "rgb": (137, 212, 43),
@@ -112,7 +116,11 @@ LGN_COLOR_DICT = {
         "rgb": (182, 182, 57),
         "label": "natuurlijk beheerde agrarische graslanden",
     },
-    46: {"color": "#f5e10f", "rgb": (245, 225, 15), "label": "gras in het kustgebied"},
+    46: {
+        "color": "#f5e10f",
+        "rgb": (245, 225, 15),
+        "label": "gras in het kustgebied",
+    },
     47: {"color": "#969639", "rgb": (150, 150, 57), "label": "overig gras"},
     61: {"color": "#ffb3a8", "rgb": (255, 179, 168), "label": "boomkwekerijen"},
     62: {"color": "#e3ff70", "rgb": (227, 255, 112), "label": "fruitkwekerijen"},
@@ -124,7 +132,10 @@ LGN_COLOR_DICT = {
     252: {
         "color": "#b02300",
         "rgb": (176, 35, 0),
-        "label": "halfverharde wegen, infrastructuur langzaam verkeer en overige infrastructuur",
+        "label": (
+            "halfverharde wegen, infrastructuur langzaam verkeer en overige"
+            " infrastructuur"
+        ),
     },
     253: {"color": "#a80000", "rgb": (168, 0, 0), "label": "smalle wegen"},
     321: {

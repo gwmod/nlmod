@@ -132,9 +132,7 @@ def model_unstructured():
     g.build()
     gridprops = g.get_gridprops_disu6()
     sim = fp.mf6.MFSimulation(version="mf6", exe_name="mf6", sim_ws=model_ws)
-    fp.mf6.ModflowTdis(
-        sim, time_units="DAYS", nper=3, perioddata=[[1.0, 1, 1.0]] * 3
-    )
+    fp.mf6.ModflowTdis(sim, time_units="DAYS", nper=3, perioddata=[[1.0, 1, 1.0]] * 3)
     fp.mf6.ModflowIms(sim)
     gwf = fp.mf6.ModflowGwf(sim, modelname=ds.model_name, save_flows=True)
     fp.mf6.ModflowGwfdisu(gwf, **gridprops)

@@ -71,6 +71,11 @@ def lake_from_gdf(
             lakeno : with the number of the lake
             strt : with the starting head of the lake
             clake : with the bed resistance of the lake
+        A lake may have multiple rows (polygon pieces) per cellid, e.g. straight
+        from nlmod.grid.gdf_to_grid. Pieces are combined into one lake-GWF
+        connection per cell with an area-weighted bed resistance (see
+        _aggregate_connections_per_cell), like nlmod.gwf.surface_water.aggregate
+        already does for RIV/DRN celldata.
             optional columns are 'STATUS', 'STAGE', 'RAINFALL', 'EVAPORATION',
             'RUNOFF', 'INFLOW', 'WITHDRAWAL', 'AUXILIARY', 'RATE', 'INVERT',
             'WIDTH', 'SLOPE', 'ROUGH'. These columns should contain the name
@@ -173,6 +178,8 @@ def lake_from_gdf(
         gdf = add_lakeno_to_gdf(gdf, boundname_column)
 
     for lakeno, lake_gdf in gdf.groupby("lakeno"):
+        if lake_gdf.index.duplicated().any():
+            lake_gdf = _aggregate_connections_per_cell(lake_gdf, ds)
         nlakeconn = lake_gdf.shape[0]
         if "strt" in lake_gdf:
             strt = _get_and_check_single_value(lake_gdf, "strt")
@@ -413,9 +420,38 @@ def lake_from_gdf(
     return lak
 
 
+def _aggregate_connections_per_cell(lake_gdf, ds):
+    """Combine multiple pieces of one lake within a grid cell into one connection.
+
+    A lake polygon commonly intersects a grid cell in more than one piece (e.g.
+    after nlmod.grid.gdf_to_grid). MODFLOW 6 applies each VERTICAL lake-GWF
+    connection over the full cell area, so per-piece rows would multiply-count the
+    exchange. Each piece therefore contributes conductance for its own area: the
+    combined bed resistance is clake = cell_area / sum(piece_area / clake), so
+    that the connection conductance cell_area / clake equals the summed piece
+    conductance — the same area-weighted aggregation nlmod.gwf.surface_water
+    .aggregate applies to RIV/DRN celldata. All other columns take the value of
+    the first piece per cell.
+    """
+    if "geometry" not in lake_gdf.columns or lake_gdf.geometry.isna().any():
+        raise ValueError(
+            "found multiple rows per cell for one lake; provide polygon "
+            "geometries so the pieces can be area-weighted into one connection"
+        )
+    cond = (lake_gdf.geometry.area / lake_gdf["clake"]).groupby(level=0).sum()
+    agg = lake_gdf.groupby(level=0).first()
+    agg["clake"] = ds["area"].data[agg.index] / cond
+    return agg
+
+
 def _get_and_check_single_value(lake_gdf, column):
     value = lake_gdf[column].iloc[0]
     if lake_gdf[column].isna().all() or lake_gdf[column].eq("").all():
+        return value
+    if pd.api.types.is_numeric_dtype(lake_gdf[column]):
+        # aggregated inputs (e.g. area-weighted stages) carry float-level noise
+        if not np.allclose(lake_gdf[column], value, rtol=1e-8, atol=0.0):
+            raise AssertionError(f"A single lake should have a single {column}")
         return value
     if not (lake_gdf[column] == value).all():
         raise (AssertionError(f"A single lake should have a single {column}"))

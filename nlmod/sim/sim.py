@@ -54,13 +54,13 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
     if write_ds:
         logger.info("write model dataset to cache")
         for attr, value in ds.attrs.items():
-            if isinstance(value, pathlib.PurePath):
+            if isinstance(value, pathlib.Path):
                 ds.attrs[attr] = str(value)
 
         ds.attrs["model_dataset_written_to_disk_on"] = dt.datetime.now().strftime(
             "%Y%m%d_%H:%M:%S"
         )
-        if isinstance(ds.attrs["model_ws"], pathlib.PurePath):
+        if isinstance(ds.attrs["model_ws"], pathlib.Path):
             ds.to_netcdf(ds.attrs["model_ws"] / f"{ds.model_name}.nc")
         else:
             ds.to_netcdf(os.path.join(ds.attrs["model_ws"], f"{ds.model_name}.nc"))
@@ -269,6 +269,10 @@ def register_solution_package(sim, model, solver):
 def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
     """Get geodataframe with shared faces between parent and child model grids.
 
+    Only considers horizontal connections between the parent and child model grids. The
+    shared faces are determined by finding the intersection of the boundaries of the
+    parent and child model grids.
+
     Parameters
     ----------
     ds_parent : xarray.Dataset
@@ -321,7 +325,7 @@ def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
     dy = shared_faces["parent_geom"].centroid.y - shared_faces["child_geom"].centroid.y
 
     shared_faces["angldegx"] = np.degrees(np.atan2(dy, dx)) % 360
-
+    shared_faces["cdist"] = np.sqrt(dx**2 + dy**2)
     shared_faces = shared_faces.loc[
         :,
         [
@@ -334,6 +338,7 @@ def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
             "cl2",
             "hwva",
             "angldegx",
+            "cdist",
         ],
     ]
 
@@ -411,7 +416,7 @@ def gwfgwf(
     idomain_parent = get_idomain(ds_parent)
     idomain_child = get_idomain(ds_child)
     exchangedata = []
-    usecols = ["cellidm1", "cellidm2", "ihc", "cl1", "cl2", "hwva", "angldegx"]
+    usecols = ["cellidm1", "cellidm2", "ihc", "cl1", "cl2", "hwva", "angldegx", "cdist"]
     if boundnames is not None:
         usecols.append("boundnames")
     for ilay in range(ds_parent.sizes["layer"]):
@@ -436,7 +441,7 @@ def gwfgwf(
         exgtype=exgtype,
         nexg=len(exchangedata),
         exchangedata=exchangedata.to_records(index=False),
-        auxiliary=["ANGLDEGX"],
+        auxiliary=["ANGLDEGX", "CDIST"],
         boundnames=True if boundnames is not None else None,
-        **kwargs,
+    **kwargs,
     )

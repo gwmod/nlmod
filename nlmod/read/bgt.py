@@ -20,14 +20,12 @@ from ..util import extent_to_polygon
 
 
 def get_bgt(*args, **kwargs):
-    """Get geometries within an extent or polygon from the Basis Registratie
-    Grootschalige Topografie (BGT)
+    """Get geometries from the Basis Registratie Grootschalige Topografie (BGT).
 
     .. deprecated:: 0.10.0
         `get_bgt` will be removed in nlmod 1.0.0, it is replaced by
         `download_bgt` because of new naming convention
         https://github.com/gwmod/nlmod/issues/47
-
 
     Parameters
     ----------
@@ -72,6 +70,7 @@ def get_bgt(*args, **kwargs):
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.bgt.download_bgt() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_bgt(*args, **kwargs)
@@ -89,8 +88,7 @@ def download_bgt(
     add_bronhouder_names=True,
     timeout=1200,
 ):
-    """Get geometries within an extent or polygon from the Basis Registratie
-    Grootschalige Topografie (BGT)
+    """Get geometries from the Basis Registratie Grootschalige Topografie (BGT).
 
     Parameters
     ----------
@@ -281,6 +279,23 @@ def read_bgt_zipfile(
 
 
 def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
+    """Read BGT data from a GML file.
+
+    Parameters
+    ----------
+    fname : str
+        Path to the GML file.
+    geometry : str, optional
+        The geometry attribute to use. The default is "geometrie2dGrondvlak".
+    crs : str, optional
+        The coordinate reference system. The default is "epsg:28992".
+
+    Returns
+    -------
+    list
+        List of dictionaries containing BGT features and their geometries.
+    """
+
     def get_xy(text):
         xy = [float(val) for val in text.split()]
         xy = np.array(xy).reshape(int(len(xy) / 2), 2)
@@ -407,7 +422,7 @@ def read_bgt_gml(fname, geometry="geometrie2dGrondvlak", crs="epsg:28992"):
 
 def get_bgt_layers(timeout=1200):
     """
-    Get the layers in the Basis Registratie Grootschalige Topografie (BGT)
+    Get the layers in the Basis Registratie Grootschalige Topografie (BGT).
 
     Parameters
     ----------
@@ -454,7 +469,7 @@ def get_bronhouder_names() -> Dict[str, str]:
 
 def _update_bronhouder_json(fname):
     """
-    "Update the json-file within nlmod with bronhouder-names
+    "Update the json-file within nlmod with bronhouder-names.
 
     Parameters
     ----------

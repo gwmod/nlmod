@@ -338,7 +338,7 @@ def wcs(
     crs="EPSG:28992",
     maxsize=2000,
 ):
-    """Download data from a web coverage service (WCS)
+    """Download data from a web coverage service (WCS).
 
     Parameters
     ----------
@@ -423,8 +423,10 @@ def _split_wcs_extent(
     fmt,
     crs,
 ):
-    """There is a max height and width limit for the wcs server. This function splits
-    your extent in chunks smaller than the limit. It returns a list of Memory files.
+    """Splits your extent in chunks smaller than the limit.
+
+    There is a max height and width limit for the wcs server. It returns a list of
+    Memory files.
 
     Parameters
     ----------
@@ -476,7 +478,8 @@ def _split_wcs_extent(
                 end_y = start_y + maxsize * res
             subextent = [start_x, end_x, start_y, end_y]
             logger.debug(
-                f"segment x {tx + 1} of {x_segments}, segment y {ty + 1} of {y_segments}"
+                f"segment x {tx + 1} of {x_segments}, "
+                f"segment y {ty + 1} of {y_segments}"
             )
 
             memfile = _download_wcs(subextent, res, url, identifier, version, fmt, crs)
@@ -563,6 +566,7 @@ def _download_wcs(extent, res, url, identifier, version, fmt, crs):
 
 
 def get_temporary_certificate(cert_url):
+    """Download an intermediate certificate and combine it with the certifi bundle."""
     import tempfile
 
     import certifi

@@ -55,7 +55,7 @@ def __create3D(data, fobj, column="q", node="node"):
     """
     out = np.ma.zeros(fobj.nnodes, dtype=np.float32)
     out.mask = True
-    for n, q in zip(data[node], data[column]):
+    for n, q in zip(data[node], data[column], strict=False):
         idx = n - 1
         out.data[idx] += q
         out.mask[idx] = False

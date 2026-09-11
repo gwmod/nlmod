@@ -307,6 +307,64 @@ def animate_map(
     save=False,
     fname=None,
 ):
+    """Animate a map over time.
+
+    Parameters
+    ----------
+    arr : np.ndarray or xr.DataArray
+        Array to animate with shape (time, layer, y, x).
+    times : list
+        List of time values for each frame.
+    gwf : flopy ModflowGwf
+        Groundwater flow model object.
+    ilay : int, optional
+        Layer index to plot. The default is 0.
+    extent : tuple, optional
+        Extent for the plot. The default is None.
+    ax : matplotlib Axes, optional
+        Axes to plot on. The default is None.
+    title : str, optional
+        Plot title. The default is "".
+    xlabel : str, optional
+        X-axis label. The default is "X [km RD]".
+    ylabel : str, optional
+        Y-axis label. The default is "Y [km RD]".
+    datefmt : str, optional
+        Date format string. The default is "%Y-%m".
+    norm : matplotlib.colors.Normalize, optional
+        Color normalization. The default is None.
+    vmin : float, optional
+        Minimum value for color scale. The default is None.
+    vmax : float, optional
+        Maximum value for color scale. The default is None.
+    levels : list, optional
+        Contour levels. The default is None.
+    cmap : str, optional
+        Colormap name. The default is "viridis".
+    alpha : float, optional
+        Transparency. The default is 1.0.
+    colorbar : bool, optional
+        Show colorbar. The default is True.
+    colorbar_label : str, optional
+        Colorbar label. The default is "".
+    plot_grid : bool, optional
+        Plot grid. The default is True.
+    add_to_plot : callable, optional
+        Function to add additional elements to the plot. The default is None.
+    background : bool, optional
+        Use background. The default is False.
+    figsize : tuple, optional
+        Figure size. The default is (9.24, 10.042).
+    save : bool, optional
+        Save animation. The default is False.
+    fname : str, optional
+        Filename for saved animation. The default is None.
+
+    Returns
+    -------
+    FuncAnimation
+        matplotlib animation object.
+    """
     # get data
     if isinstance(arr, xr.DataArray):
         arr = arr.values
@@ -409,6 +467,52 @@ def facet_plot(
     plot_bc=None,
     plot_grid=False,
 ):
+    """Create a facet plot for model results.
+
+    Parameters
+    ----------
+    gwf : flopy ModflowGwf
+        Groundwater flow model object.
+    arr : np.ndarray
+        Array to plot with shape (time, layer, y, x) or (layer, y, x).
+    lbl : str, optional
+        Label for colorbar. The default is "".
+    plot_dim : str, optional
+        Dimension to plot ("layer" or "time"). The default is "layer".
+    layer : int, optional
+        Layer index to plot. The default is None (all layers).
+    period : int, optional
+        Stress period to plot. The default is None (all periods).
+    cmap : str, optional
+        Colormap name. The default is "viridis".
+    scale_cbar : bool, optional
+        Scale colorbar. The default is True.
+    vmin : float, optional
+        Minimum value for color scale. The default is None.
+    vmax : float, optional
+        Maximum value for color scale. The default is None.
+    norm : matplotlib.colors.Normalize, optional
+        Color normalization. The default is None.
+    xlim : tuple, optional
+        X-axis limits. The default is None.
+    ylim : tuple, optional
+        Y-axis limits. The default is None.
+    grid : bool, optional
+        Show grid. The default is False.
+    figsize : tuple, optional
+        Figure size. The default is (10, 8).
+    plot_bc : callable, optional
+        Function to plot boundary conditions. The default is None.
+    plot_grid : bool, optional
+        Plot grid. The default is False.
+
+    Returns
+    -------
+    fig : matplotlib Figure
+        Figure object.
+    axes : list
+        List of Axes objects.
+    """
     if arr.ndim == 4 and plot_dim == "layer":
         nplots = arr.shape[1]
     elif arr.ndim == 4 and plot_dim == "time":

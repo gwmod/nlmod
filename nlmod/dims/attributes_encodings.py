@@ -127,9 +127,10 @@ encoding_requirements = {
 def get_encodings(
     ds, set_encoding_inplace=True, allowed_to_read_data_vars_for_minmax=True
 ):
-    """Get the encoding for the data_vars. Based on the minimum values and maximum
-    values set in `dim_attrs` and the maximum allowed difference from
-    `encoding_requirements`.
+    """Get the encoding for the data_vars.
+
+    Based on the minimum values and maximum values set in `dim_attrs` and the maximum
+    allowed difference from `encoding_requirements`.
 
     If a loss of data resolution is allowed floats can also be stored at int16, halfing
     the space required for storage. The maximum acceptabel loss in resolution

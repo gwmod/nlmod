@@ -20,10 +20,13 @@ logger = logging.getLogger(__name__)
 
 
 class DatasetCrossSection:
-    # assumes:
-    # x and y are 1d-vectors
-    # x is increasing, y is decreasing
-    # the layers are ordered from the top down
+    """Create a cross section from a dataset.
+
+    Assumes:
+    - x and y are 1d-vectors
+    - x is increasing, y is decreasing
+    - the layers are ordered from the top down
+    """
 
     def __init__(
         self,
@@ -124,7 +127,7 @@ class DatasetCrossSection:
             self.ax.axis(extent)
 
     def get_grid_edges(self):
-        """Get the x and y values of all gridcell edges
+        """Get the x and y values of all gridcell edges.
 
         Returns
         -------
@@ -141,6 +144,18 @@ class DatasetCrossSection:
         return x, y
 
     def coordinates_in_dataset(self, xy):
+        """Check if coordinates are within the dataset extent.
+
+        Parameters
+        ----------
+        xy : tuple
+            x, y coordinates to check.
+
+        Returns
+        -------
+        bool
+            True if coordinates are within the dataset extent.
+        """
         return (
             xy[0] > self.xedge.min()
             and xy[1] > self.yedge.min()
@@ -150,6 +165,17 @@ class DatasetCrossSection:
 
     @staticmethod
     def add_intersections(gr_line, cs_line, points):
+        """Add intersection points between grid line and cross section line.
+
+        Parameters
+        ----------
+        gr_line : LineString
+            Grid line.
+        cs_line : LineString
+            Cross section line.
+        points : list
+            List to which intersection points will be appended.
+        """
         intersection = cs_line.intersection(gr_line)
         if intersection.geom_type == "Point":
             points.append(intersection)
@@ -158,17 +184,29 @@ class DatasetCrossSection:
                 points.append(point)
 
     def line_intersect_grid(self, cs_line):
+        """Find intersection points between cross section line and grid.
+
+        Parameters
+        ----------
+        cs_line : LineString
+            Cross section line.
+
+        Returns
+        -------
+        xys : np.ndarray
+            Array of x, y, distance-along-line for intersection points.
+        """
         points = []
         # add the starting point
         if self.coordinates_in_dataset(cs_line.coords[0]):
             points.append(Point(cs_line.coords[0]))
         # add all intersections with yedge
         for y in self.yedge:
-            gr_line = LineString(zip(self.xedge[[0, -1]], [y, y]))
+            gr_line = LineString(zip(self.xedge[[0, -1]], [y, y], strict=False))
             self.add_intersections(gr_line, cs_line, points)
         # add all intersections with xedge
         for x in self.xedge:
-            gr_line = LineString(zip([x, x], self.yedge[[0, -1]]))
+            gr_line = LineString(zip([x, x], self.yedge[[0, -1]], strict=False))
             self.add_intersections(gr_line, cs_line, points)
         # add the ending point
         if self.coordinates_in_dataset(cs_line.coords[-1]):
@@ -193,6 +231,28 @@ class DatasetCrossSection:
         ha="center",
         **kwargs,
     ):
+        """Plot layers in the cross section.
+
+        Parameters
+        ----------
+        colors : list, str, pd.DataFrame, pd.Series, dict, optional
+            Colors for each layer. The default is None, which uses tab20 colormap.
+        min_label_area : float, optional
+            Minimum area for layer labels. The default is np.inf.
+        fontsize : float, optional
+            Font size for labels. The default is None.
+        only_labels : bool, optional
+            Only plot labels, not polygons. The default is False.
+        ha : str, optional
+            Horizontal alignment for labels. The default is "center".
+        **kwargs : dict
+            Additional keyword arguments passed to matplotlib PatchCollection.
+
+        Returns
+        -------
+        polygons : list
+            List of matplotlib Polygon objects.
+        """
         if colors is None:
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i) for i in range(len(self.layer))]
@@ -218,7 +278,7 @@ class DatasetCrossSection:
                 tots.append(z_not_nan[x] + 1)
                 vans.append(z_not_nan[x + 1])
             tots.append(z_not_nan[-1] + 1)
-            for van, tot in zip(vans, tots):
+            for van, tot in zip(vans, tots, strict=False):
                 t = self.top[i, van:tot]
                 b = self.bot[i, van:tot]
                 n = tot - van
@@ -231,7 +291,7 @@ class DatasetCrossSection:
                         b[sorted(list(range(n)) * 2, reverse=True)],
                     )
                 )
-                xy = list(zip(x, y))
+                xy = list(zip(x, y, strict=False))
                 # xy = np.vstack((x, y)).T
                 color = colors[i]
                 pol = matplotlib.patches.Polygon(xy, facecolor=color, **kwargs)
@@ -268,6 +328,19 @@ class DatasetCrossSection:
         return polygons
 
     def label_layers(self, min_label_area=None):
+        """Plot labels for layers in the cross section.
+
+        Parameters
+        ----------
+        min_label_area : float, optional
+            Minimum area for layer labels. The default is None, which uses
+            line.length * 1 (layers with average thickness of 1 meter).
+
+        Returns
+        -------
+        polygons : list
+            List of matplotlib Text objects.
+        """
         if min_label_area is None:
             # plot labels of layers with an average thickness of 1 meter
             # in entire cross-section
@@ -283,6 +356,28 @@ class DatasetCrossSection:
         ilayers=None,
         **kwargs,
     ):
+        """Plot grid lines in the cross section.
+
+        Parameters
+        ----------
+        edgecolor : str, optional
+            Edge color for grid lines. The default is "k".
+        facecolor : str, optional
+            Face color for grid cells. The default is "none".
+        horizontal : bool, optional
+            Plot horizontal grid lines. The default is True.
+        vertical : bool, optional
+            Plot vertical grid lines. The default is True.
+        ilayers : list, optional
+            List of layer indices to plot. The default is None (all layers).
+        **kwargs : dict
+            Additional keyword arguments passed to matplotlib Line2D.
+
+        Returns
+        -------
+        lines : list
+            List of matplotlib Line2D objects.
+        """
         lines = []
         if ilayers is None:
             ilayers = range(self.top.shape[0])
@@ -391,7 +486,10 @@ class DatasetCrossSection:
         return ax
 
     def iterate_active_cells(self, zcs):
-        """Iterate over the cell indices of the cells in an array that are visible in the cross section and active in the model.
+        """Iterate over the cell indices of the cells in an array.
+
+        Iterate over the cells in an array that are visible in the cross section
+        and active in the model.
 
         Parameters
         ----------
@@ -473,6 +571,22 @@ class DatasetCrossSection:
             return z[:, self.rows, self.cols]
 
     def plot_array(self, z, head=None, **kwargs):
+        """Plot an array on the cross section.
+
+        Parameters
+        ----------
+        z : np.ndarray or xr.DataArray
+            Array to plot with dimensions (layer, y, x) or (layer, cellid).
+        head : np.ndarray or xr.DataArray, optional
+            Head array for clipping. The default is None.
+        **kwargs : dict
+            Additional keyword arguments passed to matplotlib pcolormesh.
+
+        Returns
+        -------
+        QuadMesh
+            matplotlib QuadMesh object.
+        """
         zcs = self.array_on_cs(z)
 
         if head is not None:
@@ -492,6 +606,24 @@ class DatasetCrossSection:
         return patch_collection
 
     def hatch_layers(self, layers, color="k", hatch="/", **kwargs):
+        """Add hatch patterns to specified layers.
+
+        Parameters
+        ----------
+        layers : list
+            List of layer names to hatch.
+        color : str, optional
+            Hatch color. The default is "k".
+        hatch : str, optional
+            Hatch pattern. The default is "/".
+        **kwargs : dict
+            Additional keyword arguments passed to matplotlib Polygon.
+
+        Returns
+        -------
+        polygons : list
+            List of matplotlib Polygon objects.
+        """
         polygons = []
         fc = kwargs.pop("facecolor", "none")
         ec = kwargs.pop("edgecolor", "none")
@@ -508,7 +640,7 @@ class DatasetCrossSection:
                     tots.append(z_not_nan[x] + 1)
                     vans.append(z_not_nan[x + 1])
                 tots.append(z_not_nan[-1] + 1)
-                for van, tot in zip(vans, tots):
+                for van, tot in zip(vans, tots, strict=False):
                     t = self.top[i, van:tot]
                     b = self.bot[i, van:tot]
                     n = tot - van
@@ -521,7 +653,7 @@ class DatasetCrossSection:
                             b[sorted(list(range(n)) * 2, reverse=True)],
                         )
                     )
-                    xy = list(zip(x, y))
+                    xy = list(zip(x, y, strict=False))
                     pol = matplotlib.patches.Polygon(
                         xy, facecolor=fc, edgecolor=ec, hatch=hatch, **kwargs
                     )
@@ -531,6 +663,20 @@ class DatasetCrossSection:
         return polygons
 
     def plot_surface(self, z, **kwargs):
+        """Plot a surface on the cross section.
+
+        Parameters
+        ----------
+        z : np.ndarray or xr.DataArray
+            Surface elevation array.
+        **kwargs : dict
+            Additional keyword arguments passed to matplotlib plot.
+
+        Returns
+        -------
+        Line2D
+            matplotlib Line2D object.
+        """
         if isinstance(z, xr.DataArray):
             z = z.data
         # check if z has the same dimensions as ds
@@ -567,7 +713,7 @@ class DatasetCrossSection:
         filter_rect_kwargs=None,
         tubeline_kwargs=None,
     ):
-        """Plot filter screens in cross section from a DataFrame
+        """Plot filter screens in cross section from a DataFrame.
 
         Parameters
         ----------
@@ -757,6 +903,20 @@ class DatasetCrossSection:
         return patch_collection
 
     def get_top_and_bot(self, top, bot):
+        """Get top and bottom arrays for the cross section.
+
+        Parameters
+        ----------
+        top : str or np.ndarray
+            Top elevation data variable name or array.
+        bot : str or np.ndarray
+            Bottom elevation data variable name or array.
+
+        Returns
+        -------
+        tuple
+            (top, bot) arrays for the cross section.
+        """
         # then determine the top and botm of each cell
         if isinstance(top, str):
             top = self.ds[top].data

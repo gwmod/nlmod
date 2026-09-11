@@ -302,7 +302,8 @@ def _get_flopy_data_object(
             if gwml is None:
                 msg = f"Load the {var}s using either ds, {ml_name} or fname"
                 raise (ValueError(msg))
-            # return gwf.output.head(), gwf.output.budget() or gwt.output.concentration()
+            # return gwf.output.head(), gwf.output.budget() or
+            # gwt.output.concentration()
             return getattr(gwml.output, var)()
         fname = os.path.join(ds.model_ws, ds.model_name + extension)
     if grb_file is None and ds is not None:
@@ -324,7 +325,7 @@ def _get_flopy_data_object(
     else:
         if modelgrid is None:
             logger.warning(msg)
-            warnings.warn(msg)
+            warnings.warn(msg, stacklevel=2)
         return flopy.utils.HeadFile(fname, text=var, modelgrid=modelgrid, **kwargs)
 
 

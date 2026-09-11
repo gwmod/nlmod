@@ -223,9 +223,11 @@ def get_ahn(
     """
     if ds is None:
         warnings.warn(
-            "calling 'get_ahn' with ds=None is deprecated and will raise an error in the "
-            "future. Use 'nlmod.read.ahn.download_ahn' to get the ahn within an extent",
+            "calling 'get_ahn' with ds=None is deprecated and will raise an error "
+            "in the future. Use 'nlmod.read.ahn.download_ahn' to get the ahn "
+            "within an extent",
             DeprecationWarning,
+            stacklevel=2,
         )
 
     if extent is None and ds is not None:
@@ -275,9 +277,11 @@ def get_ahn_at_point(
         Resturn the mean of all non-nan pixels within buffer. Return the center pixel
         when False. The default is False.
     identifier : str, optional
-        The identifier passed onto download_latest_ahn_from_wcs. The default is "dsm_05m".
+        The identifier passed onto download_latest_ahn_from_wcs.
+        The default is "dsm_05m".
     res : float, optional
-        The resolution that is passed onto download_latest_ahn_from_wcs. The default is 0.5.
+        The resolution that is passed onto download_latest_ahn_from_wcs.
+        The default is 0.5.
     **kwargs : dict
         kwargs are passed onto the method download_latest_ahn_from_wcs.
 
@@ -290,6 +294,7 @@ def get_ahn_at_point(
         "'get_ahn_at_point' is deprecated and will eventually be removed, "
         "please use nlmod.read.ahn.download_ahn_at_point() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_ahn_at_point(
@@ -323,9 +328,11 @@ def download_ahn_at_point(
         Resturn the mean of all non-nan pixels within buffer. Return the center pixel
         when False. The default is False.
     identifier : str, optional
-        The identifier passed onto download_latest_ahn_from_wcs. The default is "dsm_05m".
+        The identifier passed onto download_latest_ahn_from_wcs.
+        The default is "dsm_05m".
     res : float, optional
-        The resolution that is passed onto download_latest_ahn_from_wcs. The default is 0.5.
+        The resolution that is passed onto download_latest_ahn_from_wcs.
+        The default is 0.5.
     **kwargs : dict
         kwargs are passed onto the method download_latest_ahn_from_wcs.
 
@@ -392,6 +399,7 @@ def get_ahn_along_line(
         "'get_ahn_along_line' is deprecated and will eventually be removed, "
         "please use nlmod.read.ahn.download_ahn_along_line() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_ahn_along_line(line, ahn, dx, num, method, plot)
@@ -444,7 +452,7 @@ def download_ahn_along_line(
             dx = float(ahn.x[1] - ahn.x[0])
         s = np.arange(0.0, line.length, dx)
 
-    x, y = zip(*[p.xy for p in line.interpolate(s)])
+    x, y = zip(*[p.xy for p in line.interpolate(s)], strict=False)
 
     x = np.array(x)[:, 0]
     y = np.array(y)[:, 0]
@@ -515,6 +523,7 @@ def get_latest_ahn_from_wcs(
         "'get_latest_ahn_from_wcs' is deprecated and will eventually be removed, "
         "please use 'nlmod.read.ahn.download_latest_ahn_from_wcs()' in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_latest_ahn_from_wcs(
@@ -690,6 +699,7 @@ def get_ahn1(
         "'get_ahn1' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.ahn.download_ahn1' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
     return download_ahn1(extent, identifier, as_data_array, **kwargs)
 
@@ -765,6 +775,7 @@ def get_ahn2(
         "'get_ahn2' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.ahn.download_ahn2' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
     return download_ahn2(extent, identifier, as_data_array, **kwargs)
 
@@ -847,6 +858,7 @@ def get_ahn3(
         "'get_ahn3' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.ahn.download_ahn3' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
     return download_ahn3(extent, identifier, as_data_array, **kwargs)
 
@@ -928,6 +940,7 @@ def get_ahn4(
         "'get_ahn4' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.ahn.download_ahn4' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
     return download_ahn4(extent, identifier, as_data_array, **kwargs)
 
@@ -1008,6 +1021,7 @@ def get_ahn5(
         "'get_ahn5' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.ahn.download_ahn5' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
     return download_ahn5(extent, identifier, **kwargs)
 
@@ -1168,7 +1182,7 @@ def _download_and_save_json_file(url, fname, timeout=120.0):
 
 
 def get_configuration():
-    """Get the location of json-files with positions of map tiles with AHN-data
+    """Get the location of json-files with positions of map tiles with AHN-data.
 
     Returns
     -------
@@ -1391,7 +1405,8 @@ def _download_tiles_hwh(
     except KeyError as e:
         raise KeyError(f"Data not available for {version}: {e}") from e
     if url.startswith("http"):
-        # write the tiles to a TemporaryDirectory, as direct read from url fails for large files
+        # write the tiles to a TemporaryDirectory, as direct read from url
+        # fails for large files
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_file = os.path.join(tmpdir, "data.json")
             _download_and_save_json_file(url, tmp_file, timeout=timeout)

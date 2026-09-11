@@ -123,12 +123,13 @@ def discretize_knmi(
         When True, only use data from the station that is most common in the model
         area. The default is True
     add_stn_dimensions : bool, optional
-        When True, add the dimension `time` to the variable `recharge` (and `evaporation`
-        when `method='seperate'`). When True, add dimension `stn_RD` and `stn_EV24` to
-        the variable `recharge` and `evaporation`, and add variables "recharge_stn" and
-        "evaporation_stn" that specify for every grid cell which KNMI-stations are used.
-        When `add_stn_dimensions` is False, specify recharge (and evaporation when
-        `method='seperate'`) for every gridcell. The default is False.
+        When True, add the dimension `time` to the variable `recharge` (and
+        `evaporation` when `method='seperate'`). When True, add dimension `stn_RD` and
+        `stn_EV24` to the variable `recharge` and `evaporation`, and add variables
+        "recharge_stn" and "evaporation_stn" that specify for every grid cell which
+        KNMI-stations are used. When `add_stn_dimensions` is False, specify recharge
+        (and evaporation when `method='seperate'`) for every gridcell. The default is
+        False.
     to_model_time : bool, optional
         When True, resample the recharge and evaporation to the dimension `time` in ds.
         When False, save the original times of the KNMI-data in variables `time_RD` and
@@ -382,7 +383,7 @@ def _get_locations_structured(ds):
         # transform coordinates into real-world coordinates
         affine = get_affine_mod_to_world(ds)
         x, y = affine * (x, y)
-    layers = [fal.data[row, col] for row, col in zip(rows, columns)]
+    layers = [fal.data[row, col] for row, col in zip(rows, columns, strict=False)]
     hpd = util.import_hydropandas()
     locations = hpd.ObsCollection(
         pd.DataFrame(
@@ -403,8 +404,7 @@ def download_knmi(
     end=None,
     most_common_station=False,
 ):
-    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
-    cells.
+    """Get precipitation (RD) and evaporation (EV24) data from KNMI at the grid cells.
 
     Parameters
     ----------
@@ -448,8 +448,7 @@ def download_knmi(
 
 
 def get_knmi(ds, most_common_station=False, start=None, end=None):
-    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the grid
-    cells.
+    """Get precipitation (RD) and evaporation (EV24) data from KNMI at the grid cells.
 
     .. deprecated:: 0.10.0
         `get_knmi` will be removed in nlmod 1.0.0, it is replaced by
@@ -477,6 +476,7 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
         "'get_knmi' is deprecated and will raise an error in the "
         "future. Use 'nlmod.read.knmi.download_knmi' to get knmi data for your model",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     if start is None:
@@ -490,8 +490,9 @@ def get_knmi(ds, most_common_station=False, start=None, end=None):
 
 
 def get_locations(ds, oc_knmi=None, most_common_station=False):
-    """Get the locations of the active grid cells in ds and the nearest (or most common)
-    precipitation and evaporation station.
+    """Get the locations the nearest (or most common) prec and evap stations.
+
+    Uses the active grid cells in ds.
 
     Parameters
     ----------
@@ -553,7 +554,7 @@ def get_locations(ds, oc_knmi=None, most_common_station=False):
 
 
 def _download_knmi_at_locations(locations, start=None, end=None):
-    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
+    """Get precipitation (RD) and evaporation (EV24) data from KNMI at the locations.
 
     Parameters
     ----------
@@ -597,7 +598,7 @@ def _download_knmi_at_locations(locations, start=None, end=None):
 
 
 def get_knmi_at_locations(locations, ds=None, start=None, end=None):
-    """Get precipitation (RD) and evaporation (EV24) data from the knmi at the locations
+    """Get precipitation (RD) and evaporation (EV24) data from KNMI at the locations.
 
     .. deprecated:: 0.10.0
         `get_knmi_at_locations` will be removed in nlmod 1.0.0, it is replaced by
@@ -625,6 +626,7 @@ def get_knmi_at_locations(locations, ds=None, start=None, end=None):
         "'get_knmi_at_locations' is deprecated and will raise an error in the "
         "future. Use 'nlmod.read.knmi._download_knmi_at_locations' to get knmi data",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     if start is None:

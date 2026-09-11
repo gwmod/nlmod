@@ -723,12 +723,12 @@ def get_ds(
 
     dims = ["layer", "y", "x"]
     ds = xr.Dataset(
-        data_vars=dict(
-            top=(dims[1:], top),
-            botm=(dims, botm),
-            kh=(dims, kh),
-            kv=(dims, kv),
-        ),
+        data_vars={
+            "top": (dims[1:], top),
+            "botm": (dims, botm),
+            "kh": (dims, kh),
+            "kv": (dims, kv),
+        },
         coords=coords,
         attrs=attrs,
     )

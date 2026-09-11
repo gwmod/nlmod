@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
-    """Write modflow files and run the model. Extra options include writing the model
-    dataset to a netcdf file in the model workspace and copying the modelscript to the
-    model workspace.
+    """Write modflow files and run the model.
+
+    Extra options include writing the model dataset to a netcdf file in the model
+    workspace and copying the modelscript to the model workspace.
 
     Parameters
     ----------
@@ -76,7 +77,7 @@ def write_and_run(sim, ds, write_ds=True, script_path=None, silent=False):
 
 
 def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
-    """Get tdis_perioddata from ds.
+    r"""Get tdis_perioddata from ds.
 
     Parameters
     ----------
@@ -107,7 +108,7 @@ def get_tdis_perioddata(ds, nstp="nstp", tsmult="tsmult"):
     if isinstance(tsmult, float):
         tsmult = [tsmult] * len(perlen)
 
-    tdis_perioddata = list(zip(perlen, nstp, tsmult))
+    tdis_perioddata = list(zip(perlen, nstp, tsmult, strict=False))
 
     return tdis_perioddata
 
@@ -256,14 +257,36 @@ def ems(sim, pname="ems", model=None, **kwargs):
 
 
 def register_ims_package(sim, model, ims):
+    """Register an ims package with the simulation."""
     sim.register_ims_package(ims, [model.name])
 
 
 def register_solution_package(sim, model, solver):
+    """Register a solution package with the simulation."""
     sim.register_solution_package(solver, [model.name])
 
 
 def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
+    """Get geodataframe with shared faces between parent and child model grids.
+
+    Parameters
+    ----------
+    ds_parent : xarray.Dataset
+        dataset with model data for the parent model.
+    ds_child : xarray.Dataset
+        dataset with model data for the child model.
+    boundnames : str, optional
+        column to use as a boundname for modflow, default is 'angledegx', which will
+        convert the angle between the parent and child cell centroids to a compass
+        direction. If None, no boundnames will be used.
+
+    Returns
+    -------
+    shared_faces : geopandas.GeoDataFrame
+        geodataframe with shared faces between parent and child model grids, with
+        columns for parent and child cell ids, shared face geometry, and exchange
+        variables (cl1, cl2, hwva, angldegx, boundnames if applicable).
+    """
     gdf_parent = modelgrid_from_ds(ds_parent).to_geodataframe()
     gdf_child = modelgrid_from_ds(ds_child).to_geodataframe()
 
@@ -328,9 +351,14 @@ def get_parent_child_exchange_gdf(ds_parent, ds_child, boundnames="angldegx"):
 
         shared_faces["boundnames"] = shared_faces["angldegx"].apply(angle_to_compass)
         shared_faces = shared_faces.sort_values(by="angldegx")
-    elif boundnames:
-        shared_faces["boundnames"] = boundnames
+    elif boundnames in shared_faces.columns:
+        shared_faces["boundnames"] = shared_faces[boundnames]
         shared_faces = shared_faces.sort_values(by="boundnames")
+    else:
+        # not sure how this would work, since you don't really know the number of
+        # shared faces a priori and the order they would appear in... But maybe if
+        # you build multiple exchanges?
+        shared_faces["boundnames"] = boundnames
 
     return shared_faces
 

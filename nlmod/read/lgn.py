@@ -78,7 +78,11 @@ LGN_COLOR_DICT = {
     },
     29: {"color": "#000000", "rgb": (0, 0, 0), "label": "zonneparken"},
     30: {"color": "#b03060", "rgb": (176, 48, 96), "label": "kwelders"},
-    31: {"color": "#e6fb00", "rgb": (230, 251, 0), "label": "open zand in kustgebied"},
+    31: {
+        "color": "#e6fb00",
+        "rgb": (230, 251, 0),
+        "label": "open zand in kustgebied",
+    },
     32: {
         "color": "#89d42b",
         "rgb": (137, 212, 43),
@@ -112,7 +116,11 @@ LGN_COLOR_DICT = {
         "rgb": (182, 182, 57),
         "label": "natuurlijk beheerde agrarische graslanden",
     },
-    46: {"color": "#f5e10f", "rgb": (245, 225, 15), "label": "gras in het kustgebied"},
+    46: {
+        "color": "#f5e10f",
+        "rgb": (245, 225, 15),
+        "label": "gras in het kustgebied",
+    },
     47: {"color": "#969639", "rgb": (150, 150, 57), "label": "overig gras"},
     61: {"color": "#ffb3a8", "rgb": (255, 179, 168), "label": "boomkwekerijen"},
     62: {"color": "#e3ff70", "rgb": (227, 255, 112), "label": "fruitkwekerijen"},
@@ -124,7 +132,10 @@ LGN_COLOR_DICT = {
     252: {
         "color": "#b02300",
         "rgb": (176, 35, 0),
-        "label": "halfverharde wegen, infrastructuur langzaam verkeer en overige infrastructuur",
+        "label": (
+            "halfverharde wegen, infrastructuur langzaam verkeer en overige"
+            " infrastructuur"
+        ),
     },
     253: {"color": "#a80000", "rgb": (168, 0, 0), "label": "smalle wegen"},
     321: {
@@ -232,18 +243,17 @@ def remap_lgn(lgn: xr.DataArray, mappings: dict, fill_value=-999):
 def download_lgn():
     """Download LGN data from the LGN website."""
     print("Download LGN data from: https://lgn.nl/bestanden")
-    return
 
 
-def load_lgn_within_extent(extent, lgn_tif_path: str | Path):
+def load_lgn_within_extent(lgn_tif_path: str | Path, extent: list):
     """Load LGN tif file and subset to the given extent.
 
     Parameters
     ----------
-    extent : list
-        list of [xmin, xmax, ymin, ymax]
     lgn_tif_path : str or Path
         Path to the LGN tiff file.
+    extent : list
+        list of [xmin, xmax, ymin, ymax]
 
     Returns
     -------
@@ -257,13 +267,14 @@ def load_lgn_within_extent(extent, lgn_tif_path: str | Path):
     return lgnsel.sel(band=1, drop=True)
 
 
-def get_lgn_cmap_norm(lgn_color_dict=LGN_COLOR_DICT):
-    """Builds a ListedColormap and BoundaryNorm covering the exact pixel codes.
+def get_lgn_cmap_norm(lgn_color_dict=None):
+    """Builds a ListedColormap and BoundaryNorm for LGN.
 
     Parameters
     ----------
-    lgn_color_dict : dict
-        Dictionary mapping LGN codes to color and label information.
+    lgn_color_dict : dict, optional
+        Dictionary mapping LGN codes to color and label information. Defaults to
+        predefined LGN_COLOR_DICT derived from default QGIS symbology.
 
     Returns
     -------
@@ -272,6 +283,9 @@ def get_lgn_cmap_norm(lgn_color_dict=LGN_COLOR_DICT):
     norm : matplotlib.colors.BoundaryNorm
         Normalization for LGN codes.
     """
+    if lgn_color_dict is None:
+        lgn_color_dict = LGN_COLOR_DICT
+
     max_code = max(lgn_color_dict.keys())
 
     # Default unmapped values to fully transparent white (#FFFFFF00)
@@ -328,6 +342,9 @@ def lgn_to_grid(
 ) -> gpd.GeoDataFrame:
     """Compute area fractions per model cell from LGN.
 
+    Requires xrspatial or exactextract to be installed. Install with
+    `pip install nlmod[lgn]`.
+
     Parameters
     ----------
     lgn : xr.DataArray
@@ -336,7 +353,7 @@ def lgn_to_grid(
         Model dataset.
     engine : str, optional
         Engine to use for mapping. Options are "xrspatial" or "exactextract".
-        Default is "xrspatial". `xrspatial.zonal_crosstab` is faster but only counts
+        Defaults to "xrspatial". `xrspatial.zonal_crosstab` is faster but only counts
         pixels, while `exact_extract.exactextract` calculates area fractions.
 
     Returns

@@ -79,7 +79,7 @@ def test_download_level_areas(
         else:
             raise (Exception(f"Unknown data_kind: {data_kind}"))
         # plot the winter_stage and summer_stage
-        for column, label in zip(columns, labels):
+        for column, label in zip(columns, labels, strict=False):
             f, ax = nlmod.plot.get_map([9000, 279000, 304000, 623000], base=100000)
             waterboards.plot(edgecolor="k", facecolor="none", ax=ax)
             norm = matplotlib.colors.Normalize(-10.0, 20.0)

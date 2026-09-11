@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_pickle
 def get_gdf_surface_water(ds=None, extent=None):
-    """Read a shapefile with surface water as a geodataframe, cut by the extent of the
-    model.
+    """Read a shapefile with surface water as a geodataframe, cut by model extent.
 
     Parameters
     ----------
@@ -83,8 +82,10 @@ def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     """
     warnings.warn(
         "'get_surface_water' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.rws.discretize_surface_water' to project the surface water on the model grid",
+        "Use 'nlmod.read.rws.discretize_surface_water' to project the surface water "
+        "on the model grid",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     if gdf is None:
@@ -177,8 +178,10 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
     """
     warnings.warn(
         "'get_northsea' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.rws.discretize_northsea' to project the northsea on the model grid",
+        "Use 'nlmod.read.rws.discretize_northsea' to project the northsea on the "
+        "model grid",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return discretize_northsea(ds, gdf, da_name)
@@ -380,8 +383,10 @@ def get_bathymetry_gdf(
     """
     warnings.warn(
         "'get_bathymetry_gdf' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.rws.download_bathymetry_gdf' to project the buisdrainage on the model grid",
+        "Use 'nlmod.read.rws.download_bathymetry_gdf' to project the buisdrainage "
+        "on the model grid",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_bathymetry_gdf(resolution, extent, config)
@@ -471,6 +476,7 @@ def get_bathymetry(
         "'get_bathymetry' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.rws.download_bathymetry' to download bathymetry data",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_bathymetry(extent, resolution, res, method, chunks, config)

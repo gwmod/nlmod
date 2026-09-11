@@ -22,6 +22,7 @@ try:
 except ImportError:
     # fallback: generate a dummy method with the same interface
     def tqdm(iterable=None, **_kwargs):
+        """Dummy tqdm."""
         return iterable if iterable is not None else []
 
 
@@ -89,9 +90,10 @@ def check_da_dims_coords(da, ds):
 
 
 def get_model_dirs(model_ws):
-    """Creates a new model workspace directory, if it does not exists yet. Within the
-    model workspace directory a few subdirectories are created (if they don't exist
-    yet):
+    """Creates a new model workspace directory, if it does not exists yet.
+
+    Within the model workspace directory a few subdirectories are created
+    (if they don't exist yet):
 
     - figure
     - cache
@@ -621,7 +623,7 @@ def compare_model_extents(extent1, extent2):
 
 
 def extent_to_polygon(extent):
-    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])
+    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax]).
 
     Parameters
     ----------
@@ -1257,7 +1259,7 @@ def zonal_statistics(
         gc["values"] = da
         gc = gc.set_coords("index")
         groups = gc.groupby("index")
-        for stat, column in zip(statistics, columns):
+        for stat, column in zip(statistics, columns, strict=False):
             if stat == "min":
                 values = groups.min()
             elif stat == "max":
@@ -1300,7 +1302,7 @@ def zonal_statistics(
                 all_touched=all_touched,
                 progress=progressbar,
             )
-        for stat, column in zip(statistics, columns):
+        for stat, column in zip(statistics, columns, strict=False):
             geometry[column] = [x[stat] for x in stats]
 
     else:

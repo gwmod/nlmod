@@ -18,7 +18,7 @@ maintainers = [
     { name = "R.J. Calje", email = "r.calje@artesia-water.nl" },
     { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
 ]
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 dependencies = [
     "flopy @ git+https://github.com/modflowpy/flopy.git@develop", # HFB utility from flopy#2745, to be released in flopy>3.10.0
     "xarray>=0.16.1",
@@ -130,6 +130,10 @@ ignore = [
 ]
 extend-select = ["I"]
 pydocstyle.convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D103", "D205", "E501", "E722", "PT011", "PT028", "PT030"]
+"docs/**" = ["D103", "E402", "E501"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0 --cov-report xml:coverage.xml --cov nlmod -v"

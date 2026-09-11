@@ -202,6 +202,26 @@ def fmi(ds, prt, packagedata=None, **kwargs):
 
 
 def oc(ds, prt, save_budget=True, print_budget=False, **kwargs):
+    """Create output control package for particle tracking model.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset with model data.
+    prt : ModflowPrt
+        modflow particle tracking object
+    save_budget : bool, optional
+        save budget. The default is True.
+    print_budget : bool, optional
+        print budget. The default is False.
+    **kwargs : dict
+        additional keyword arguments passed to ModflowPrtoc.
+
+    Returns
+    -------
+    oc : flopy ModflowPrtoc
+        output control package.
+    """
     logger.info("creating mf6 OC")
 
     budget_filerecord = kwargs.pop("budget_filerecord", [f"{ds.model_name}_prt.cbc"])
@@ -229,7 +249,8 @@ def read_pathlines(path: str | Path, icell2d: int | None = None) -> DataFrame:
     - kper: stress period number
     - kstp: time step number
     - imdl: number of the model the particle originated in
-    - iprp: number of the particle release point (PRP) package the particle originated in
+    - iprp: number of the particle release point (PRP) package
+      the particle originated in
     - irpt: release point number
     - ilay: layer number
     - icell: cell number

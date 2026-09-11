@@ -114,6 +114,7 @@ def get_bathymetry(
             "error in the future. Use 'nlmod.read.jarkus.download_bathymetry' to get "
             "the bathymetry data within an extent",
             DeprecationWarning,
+            stacklevel=2,
         )
 
     if extent is None and ds is not None:
@@ -206,8 +207,10 @@ def discretize_bathymetry(
 
 @cache.cache_netcdf()
 def get_dataset_jarkus(extent, kind="jarkus", return_tiles=False, time=-1):
-    """Get bathymetry from Jarkus within a certain extent. If return_tiles is False, the
-    following actions are performed:
+    """Get bathymetry from Jarkus within a certain extent.
+
+    If return_tiles is False, the following actions are performed:
+
     1. find Jarkus tiles within the extent
     2. download netcdf files of Jarkus tiles
     3. read Jarkus tiles and combine the 'z' parameter of the last time step of each

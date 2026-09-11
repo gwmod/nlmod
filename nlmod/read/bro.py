@@ -41,6 +41,7 @@ def get_bro(*args, **kwargs):
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.bro.download_bro_groundwater() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_bro_groundwater(*args, **kwargs)
@@ -129,7 +130,8 @@ def download_bro_groundwater(
                         oc_list.append(oc)
                     except Exception as e:
                         logger.error(
-                            f"could not download BRO data in extent {xmin}, {xmax}, {ymin}, {ymax}"
+                            f"could not download BRO data in extent "
+                            f"{xmin}, {xmax}, {ymin}, {ymax}"
                         )
                         logger.error(e)
                 else:
@@ -163,7 +165,7 @@ def download_bro_groundwater(
 
 @cache.cache_pickle
 def _get_bro_within_extent(extent, name, ignore_max_obs, epsg, **kwargs):
-    """Get bro groundwater measurements within extent
+    """Get bro groundwater measurements within extent.
 
     Parameters
     ----------

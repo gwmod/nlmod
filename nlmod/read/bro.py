@@ -185,5 +185,5 @@ def _get_bro_within_extent(extent, name, ignore_max_obs, epsg, **kwargs):
     """
     hpd = util.import_hydropandas(method="nlmod.read.bro.download_bro_groundwater()")
     return hpd.read_bro(
-        extent, name=name, ignore_max_obs=ignore_max_obs, epsg=epsg, **kwargs
+        extent, name=name, ignore_max_obs=ignore_max_obs, crs=epsg, **kwargs
     )

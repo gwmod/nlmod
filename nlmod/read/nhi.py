@@ -121,12 +121,12 @@ def add_buisdrainage(
         The model dataset with added variables with the names `cond_var` and
         `depth_var`.
     """
-
     warnings.warn(
         "'add_buisdrainage' is deprecated and will be removed in a future version. "
         "Use 'ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))' to project the "
         "buisdrainage on the model grid",
         DeprecationWarning,
+        stacklevel=2,
     )
     ds_out = discretize_buisdrainage(
         ds,
@@ -295,6 +295,7 @@ def get_gwo_wells(
         "'get_gwo_wells' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.nhi.download_gwo_wells' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_gwo_wells(
@@ -461,6 +462,7 @@ def get_gwo_measurements(
         "'get_gwo_measurements' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.nhi.download_gwo_measurements' instead",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_gwo_measurements(

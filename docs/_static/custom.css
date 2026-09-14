@@ -1,13 +1,91 @@
-/* --- Make pandas DataFrames scrollable --- */
-.dataframe {
-    max-width: 100%;      /* Prevent table from exceeding container width */
-    display: block;       /* Enables scrolling */
-    overflow-x: auto;     /* Horizontal scroll for wide tables */
+/* ---------------------------------------------
+   Documentation-style pandas dataframe tables
+   Compatible with Sphinx RTD theme + MyST-NB
+--------------------------------------------- */
+
+table.dataframe {
+  border-collapse: collapse;
+  border: none;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  font-size: 0.7em;
+  margin-top: 0.4em;
+  margin-bottom: 0.6em;
 }
 
-/* make text smaller so more fits */
-.dataframe td, 
-.dataframe th {
-    font-size: 0.7em;
-    padding: 0.3em 0.5em;
+/* Column headers */
+table.dataframe thead th {
+  text-align: right;
+  padding: 4px 8px;
+  font-weight: bold;
+  border: none;
+  border-bottom: 2px solid #888; /* single horizontal line */
+  background: transparent;
+  white-space: nowrap;
+  vertical-align: bottom;
+  line-height: 1.2;
+}
+
+/* Remove empty header cells from multi-index (top-left corner) */
+table.dataframe thead th:empty {
+  padding: 0;
+  border: none;
+}
+
+/* Index columns */
+table.dataframe tbody th {
+  text-align: right;
+  padding: 4px 8px;
+  font-weight: bold;
+  border: none; /* remove all vertical borders */
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Only the rightmost index column gets the vertical line */
+table.dataframe tbody th:last-of-type {
+  border-right: 1px solid #bbb;
+}
+
+/* Data cells */
+table.dataframe td {
+  text-align: right;
+  padding: 4px 8px;
+  border: none;
+  line-height: 1.2;
+}
+
+/* Zebra striping */
+table.dataframe tbody tr:nth-child(odd) {
+  background-color: #f5f5f5;
+}
+
+table.dataframe tbody tr:nth-child(even) {
+  background-color: transparent;
+}
+
+/* Hover highlight */
+table.dataframe tbody tr:hover {
+  background-color: #dcdcdc;
+}
+
+/* Multi-index column headers: only bottom row gets horizontal line */
+table.dataframe thead tr:not(:last-child) th {
+  border-bottom: none;
+}
+table.dataframe thead tr:last-child th {
+  border-bottom: 2px solid #888;
+}
+
+/* Notebook-like output container */
+div.output_area table.dataframe {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Space around notebook outputs */
+div.output_area {
+  padding: 0.35em 0;
 }

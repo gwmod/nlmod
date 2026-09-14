@@ -12,9 +12,6 @@
 #
 import os
 import sys
-import tqdm
-import tqdm.auto
-import tqdm.notebook
 
 from nlmod import __version__
 
@@ -88,7 +85,7 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = [
-    'custom.css',
+    "custom.css",
 ]
 
 # add a logo

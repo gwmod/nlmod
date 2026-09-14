@@ -3,18 +3,23 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 import test_001_model
+import util
+import xarray as xr
 from pandas import DataFrame
 from shapely.geometry import LineString
 
 import nlmod
 from nlmod.plot import DatasetCrossSection
 
+MODEL_DATA_ENV_VAR = "NLMOD_TEST_MODEL_DATA_DIR"
+
 
 def get_regis_horstermeer(cachedir=None, cachename="regis_horstermeer"):
     extent = [131000, 136800, 471500, 475700]
     if cachedir is None:
-        cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+        cachedir = os.path.join(util.get_model_data_dir(), "regis_cache")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
     regis = nlmod.read.download_regis(extent, cachedir=cachedir, cachename=cachename)
@@ -23,7 +28,7 @@ def get_regis_horstermeer(cachedir=None, cachename="regis_horstermeer"):
 
 def get_regis_unstructured():
     regis = get_regis_horstermeer()
-    cachedir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+    cachedir = os.path.join(util.get_model_data_dir(), "regis_cache")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
     return nlmod.grid.refine(regis, cachedir)
@@ -398,3 +403,83 @@ def test_get_modellayers_indexer():
     idxfull = nlmod.layers.get_modellayers_indexer(ds, df, full_output=True)
     assert (idxfull["modellayer_top"] == np.array([1, 4, 0])).all()
     assert (idxfull["modellayer_bot"] == np.array([2, 4, 4])).all()
+
+
+@pytest.mark.parametrize(
+    "func",
+    [
+        nlmod.layers.get_isosurface_1d,
+        nlmod.layers._get_isosurface_1d_numpy,
+        nlmod.layers._get_isosurface_1d_numba,
+    ],
+)
+def test_isosurface_1d(func):
+    left = np.nan
+    right = np.nan
+    # monotonic increasing with duplicates
+    da = np.array([10, 20, 30, 30, 40])
+    z = np.array([-1, -2, -3, -4, -5])
+    value = 30
+    elev = func(da, z, value, left=left, right=right)
+    assert elev == -3.0
+
+    # non-monotonic with duplicates
+    da = np.array([10, 20, 30, 30, 10])
+    z = np.array([-1, -2, -3, -4, -5])
+    value = 25
+    elev = func(da, z, value, left=left, right=right)
+    assert elev == -2.5
+
+    # negative of previous
+    elev = func(-da, -z, -value, left=left, right=right)
+    assert elev == 2.5
+
+    # check left and right limits
+    da = -np.array([10, 11, 10])
+    z = -np.array([-1, -2, -3])
+    value = 25
+    left = 999
+    right = -999
+    elev = func(da, z, value, left=left, right=right)
+    assert elev == right
+
+    da = -np.array([10, 11, 10])
+    z = -np.array([-1, -2, -3])
+    value = -25
+    elev = func(da, z, value, left=left, right=right)
+    assert elev == left
+
+
+def test_get_isosurface_numpy_with_broadcast_z_dims():
+    layer = [0, 1, 2]
+    y = [0]
+    x = [0]
+    time = [0, 1]
+
+    # z has no time dimension
+    z = xr.DataArray(
+        np.array([[[-1.0, -2.0, -3.0]]]),
+        dims=("y", "x", "layer"),
+        coords={"y": y, "x": x, "layer": layer},
+    )
+
+    # da has time dimension and crosses value=15 between first two layers
+    da = xr.DataArray(
+        np.array(
+            [
+                [[[10.0, 20.0, 30.0]]],
+                [[[10.0, 20.0, 30.0]]],
+            ]
+        ),
+        dims=("time", "y", "x", "layer"),
+        coords={"time": time, "y": y, "x": x, "layer": layer},
+    )
+
+    iso = nlmod.layers.get_isosurface(da, z, 15.0, method="numpy")
+
+    expected = xr.DataArray(
+        np.array([[[-1.5]], [[-1.5]]]),
+        dims=("time", "y", "x"),
+        coords={"time": time, "y": y, "x": x},
+    )
+    xr.testing.assert_allclose(iso, expected)

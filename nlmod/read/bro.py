@@ -3,7 +3,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pyproj import Transformer
+import pyproj
 
 from .. import cache, util
 
@@ -79,7 +79,7 @@ def download_bro_groundwater(
     """
     # convert extent to epsg 4326
     if epsg != 4326:
-        transformer = Transformer.from_crs(epsg, 4326)
+        transformer = pyproj.Transformer.from_crs(epsg, 4326)
         lat1, lon1 = transformer.transform(extent[0], extent[2])
         lat2, lon2 = transformer.transform(extent[1], extent[3])
         extent = (lon1, lon2, lat1, lat2)
@@ -146,6 +146,7 @@ def download_bro_groundwater(
                     )
                     oc_list.append(oc)
         oc = pd.concat(oc_list)
+        oc.set_crs(4326)  # crs info is lost after pd.concat operation
     else:
         name = "BRO_" + "_".join(map(str, extent))
         oc = _get_bro_within_extent(
@@ -159,6 +160,9 @@ def download_bro_groundwater(
         )
     if oc.empty:
         logger.warning("no observation wells within extent")
+
+    if oc.crs != pyproj.CRS(epsg):
+        oc = oc.to_crs(epsg)
 
     return oc
 

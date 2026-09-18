@@ -202,10 +202,10 @@ def discretize_buisdrainage(
     """
     if fix_crs is None:
         logger.warning(
-            "`fix_crs` was not specified and defaults to False. "
-            "Set `fix_crs=True` to fix the ~100 m coordinate shift (to the northeast) "
-            "in the original NHI buisdrainage dataset caused by a missing datum transformation "
-            "in the source dataset."
+            "`fix_crs` was not specified and defaults to False. Set `fix_crs=True` to "
+            "fix the ~100 m coordinate shift (to the northeast) in the original NHI "
+            "buisdrainage dataset caused by a missing datum transformation in the "
+            "source dataset."
         )
         fix_crs = False
 

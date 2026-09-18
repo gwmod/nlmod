@@ -340,9 +340,9 @@ def get_gdr_configuration() -> dict:
     config["bodemhoogte_1m"] = {
         "url": (
             "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/"
-            "bodemhoogte_index/FeatureServer"
+            "bodemhoogte_index/MapServer"
         ),
-        "layer": 1,
+        "layer": 1,  # bodemhoogte_1mtr
     }
     # NOTE: the 20m resolution is no longer available from the GDR service via a
     # geodataframe containing the url.

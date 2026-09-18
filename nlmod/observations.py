@@ -243,7 +243,7 @@ def interpolate_to_points(
         return interp_da["interpolated"]
 
 
-def obs(
+def build_obs(
     ds,
     gwf_or_gwt,
     df,
@@ -255,7 +255,7 @@ def obs(
     screen_top="screen_top",
     screen_bottom="screen_bottom",
 ):
-    """Add observation package to a MODFLOW 6 model.
+    """Get observations from dataframe for a MODFLOW 6 model.
 
     Parameters
     ----------
@@ -285,13 +285,18 @@ def obs(
     screen_bottom : str, optional
         Name of the column in df containing the bottom of the screen, default is
         "screen_bottom", only used if z is not provided
+    pname : str, optional
+        Name of the observation package, default is None, which will create a package
+        named "obs_{obs_type}" with a maximum length of 16 characters. If pname is
+        provided, it will be truncated to 16 characters if necessary.
+    **kwargs : additional keyword arguments
+        Additional keyword arguments to pass to the flopy.mf6.ModflowUtlobs constructor.
 
     Returns
     -------
     obs : flopy.mf6.ModflowUtlobs
         MODFLOW 6 observation package object
     """
-    logger.info("creating mf6 OBS")
     # store observations at locations of measurements
     if z not in df.columns:
         df[z] = df.loc[:, [screen_top, screen_bottom]].mean(axis=1)
@@ -329,12 +334,51 @@ def obs(
 
     if fname is None:
         fname = f"{obs_type}_obs.csv"
-    continuous = {fname: continuous}
-    obs = fp.mf6.ModflowUtlobs(
+    return {fname: continuous}
+
+
+def obs(
+    gwf_or_gwt,
+    continuous: list | dict,
+    pname=None,
+    **kwargs,
+):
+    """Add observation package to a MODFLOW 6 model.
+
+    Parameters
+    ----------
+    gwf_or_gwt : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        MODFLOW 6 groundwater flow or transport model object
+    continuous : list or dict
+        List of dictionaries containing observation information, e.g.
+        [{"file1": [(name, obs_type, icellid), ...], "file2": [...]}]. Also accepts
+        a single dictionary.
+    pname : str, optional
+        Name of the observation package, default is None, which will create a package
+        named "obs_{obs_type}" with a maximum length of 16 characters. If pname is
+        provided, it will be truncated to 16 characters if necessary.
+    **kwargs : additional keyword arguments
+        Additional keyword arguments to pass to the flopy.mf6.ModflowUtlobs constructor.
+
+    Returns
+    -------
+    obs : flopy.mf6.ModflowUtlobs
+        MODFLOW 6 observation package object
+
+    See Also
+    --------
+    nlmod.build.build_observations
+        Build observation package for a MODFLOW 6 model from a dataframe containing
+        observation locations. This function returns the `continuous` variable
+        that can be passed into this function.
+    """
+    logger.info("creating mf6 OBS")
+
+    return fp.mf6.ModflowUtlobs(
         gwf_or_gwt,
         digits=10,
         print_input=True,
         continuous=continuous,
-        pname=f"{obs_type}_obs",
+        pname=pname,
+        **kwargs,
     )
-    return obs

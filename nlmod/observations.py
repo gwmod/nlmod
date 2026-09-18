@@ -6,9 +6,10 @@ import pandas as pd
 import xarray as xr
 from geopandas import GeoDataFrame, points_from_xy
 from scipy.spatial import Delaunay
-from tqdm import tqdm
 
 from nlmod.dims import grid
+
+from .util import tqdm
 
 logger = logging.getLogger(__name__)
 

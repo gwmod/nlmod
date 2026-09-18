@@ -832,7 +832,7 @@ def ds_to_gridprops(ds_in, gridprops, method="nearest", icvert_nodata=-1):
             )
     if is_rotated(ds_out):
         affine = get_affine_mod_to_world(ds_out)
-        ds_out["xc"], ds_out["yc"] = affine * (ds_out.x, ds_out.y)
+        ds_out["xc"], ds_out["yc"] = affine @ (ds_out.x, ds_out.y)
 
     if "area" in gridprops:
         if "area" in ds_out:
@@ -2553,7 +2553,7 @@ def get_affine_mod_to_world(ds):
     xorigin = attrs["xorigin"]
     yorigin = attrs["yorigin"]
     angrot = attrs["angrot"]
-    return Affine.translation(xorigin, yorigin) * Affine.rotation(angrot)
+    return Affine.translation(xorigin, yorigin) @ Affine.rotation(angrot)
 
 
 def get_affine_world_to_mod(ds):
@@ -2562,7 +2562,7 @@ def get_affine_world_to_mod(ds):
     xorigin = attrs["xorigin"]
     yorigin = attrs["yorigin"]
     angrot = attrs["angrot"]
-    return Affine.rotation(-angrot) * Affine.translation(-xorigin, -yorigin)
+    return Affine.rotation(-angrot) @ Affine.translation(-xorigin, -yorigin)
 
 
 def get_affine(ds, sx=None, sy=None):
@@ -2588,10 +2588,10 @@ def get_affine(ds, sx=None, sy=None):
         yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
         return (
             Affine.translation(xoff, yoff)
-            * Affine.scale(sx, sy)
-            * Affine.rotation(angrot)
+            @ Affine.scale(sx, sy)
+            @ Affine.rotation(angrot)
         )
     else:
         xoff = attrs["extent"][0]
         yoff = attrs["extent"][3]
-        return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)
+        return Affine.translation(xoff, yoff) @ Affine.scale(sx, sy)

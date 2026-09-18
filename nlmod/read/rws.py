@@ -7,6 +7,7 @@ from typing import Callable, Literal, Optional, Union
 import geopandas as gpd
 import numpy as np
 import xarray as xr
+from rasterio.env import Env
 from rioxarray.merge import merge_arrays
 
 from .. import NLMOD_DATADIR, cache, dims, util
@@ -340,9 +341,9 @@ def get_gdr_configuration() -> dict:
     config["bodemhoogte_1m"] = {
         "url": (
             "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/"
-            "bodemhoogte_index/FeatureServer"
+            "bodemhoogte_index/MapServer"
         ),
-        "layer": 1,
+        "layer": 1,  # bodemhoogte_1mtr
     }
     # NOTE: the 20m resolution is no longer available from the GDR service via a
     # geodataframe containing the url.
@@ -529,34 +530,38 @@ def download_bathymetry(
     xmin, xmax, ymin, ymax = extent
     dataarrays = []
 
-    for _, row in tqdm(
-        gdf.iterrows(), desc="Downloading bathymetry", total=gdf.index.size
-    ):
-        url = row["geotiff"]
-        ds = xr.open_dataset(url, engine="rasterio")
-        ds = ds.assign_coords({"y": ds["y"].round(0), "x": ds["x"].round(0)})
-        da = (
-            ds["band_data"]
-            .sel(band=1, x=slice(xmin, xmax), y=slice(ymax, ymin))
-            .drop_vars("band")
-        )
-        if chunks:
-            da = da.chunk(chunks)
-        dataarrays.append(da)
-
-    if len(dataarrays) > 1:
-        da = merge_arrays(
-            dataarrays,
-            bounds=[xmin, ymin, xmax, ymax],
-            res=res,
-            method=method,
-        )
-    else:
-        da = dataarrays[0]
-        if res is not None:
-            da = da.rio.reproject(
-                da.rio.crs,
-                res=res,
-                resampling=method,
+    rasterio_env = {
+        "GDAL_DISABLE_READDIR_ON_OPEN": "YES",
+    }
+    with Env(**rasterio_env):
+        for _, row in tqdm(
+            gdf.iterrows(), desc="Downloading bathymetry", total=gdf.index.size
+        ):
+            url = row["geotiff"]
+            ds = xr.open_dataset(url, engine="rasterio")
+            ds = ds.assign_coords({"y": ds["y"].round(0), "x": ds["x"].round(0)})
+            da = (
+                ds["band_data"]
+                .sel(band=1, x=slice(xmin, xmax), y=slice(ymax, ymin))
+                .drop_vars("band")
             )
+            if chunks:
+                da = da.chunk(chunks)
+            dataarrays.append(da)
+
+        if len(dataarrays) > 1:
+            da = merge_arrays(
+                dataarrays,
+                bounds=[xmin, ymin, xmax, ymax],
+                res=res,
+                method=method,
+            )
+        else:
+            da = dataarrays[0]
+            if res is not None:
+                da = da.rio.reproject(
+                    da.rio.crs,
+                    res=res,
+                    resampling=method,
+                )
     return da

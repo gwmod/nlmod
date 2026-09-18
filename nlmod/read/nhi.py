@@ -86,6 +86,7 @@ def add_buisdrainage(
     depth_var="buisdrain_depth",
     cond_method="average",
     depth_method="mode",
+    fix_crs=None,
 ):
     """Add data about the buisdrainage to the model Dataset.
 
@@ -114,6 +115,11 @@ def add_buisdrainage(
     depth_method : str, optional
         The method to transform the depth of buisdrainage to the model Dataset. The
         default is "mode".
+    fix_crs : bool, optional
+        Fix the coordinate shift (~100 m to the northeast) in the original NHI
+        buisdrainage dataset caused by a missing datum transformation (Bessel 1841 to
+        WGS84) in the source dataset. If None, a warning is issued and fix_crs
+        defaults to False to preserve backwards compatibility. The default is None.
 
     Returns
     -------
@@ -130,11 +136,12 @@ def add_buisdrainage(
     )
     ds_out = discretize_buisdrainage(
         ds,
-        pathname,
-        cond_var,
-        depth_var,
-        cond_method,
-        depth_method,
+        pathname=pathname,
+        cond_var=cond_var,
+        depth_var=depth_var,
+        cond_method=cond_method,
+        depth_method=depth_method,
+        fix_crs=fix_crs,
     )
     ds.update(ds_out)
     return ds
@@ -147,6 +154,7 @@ def discretize_buisdrainage(
     depth_var="buisdrain_depth",
     cond_method="average",
     depth_method="mode",
+    fix_crs=None,
 ):
     """Add data about the buisdrainage to the model Dataset.
 
@@ -180,6 +188,12 @@ def discretize_buisdrainage(
     depth_method : str, optional
         The method to transform the depth of buisdrainage to the model Dataset. The
         default is "mode".
+    fix_crs : bool, optional
+        Fix the coordinate shift (~100 m to the northeast) in the original NHI
+        buisdrainage dataset caused by a missing datum transformation (Bessel 1841 to
+        WGS84) in the source dataset. If None, a warning is issued and fix_crs
+        defaults to False to preserve backwards compatibility. For more information, see
+        https://github.com/gwmod/nlmod/pull/598. The default is None.
 
     Returns
     -------
@@ -187,6 +201,15 @@ def discretize_buisdrainage(
         The model dataset with added variables with the names `cond_var` and
         `depth_var`.
     """
+    if fix_crs is None:
+        logger.warning(
+            "`fix_crs` was not specified and defaults to False. Set `fix_crs=True` to "
+            "fix the ~100 m coordinate shift (to the northeast) in the original NHI "
+            "buisdrainage dataset caused by a missing datum transformation in the "
+            "source dataset."
+        )
+        fix_crs = False
+
     if pathname is None:
         pathname = ds.cachedir
     # download files if needed
@@ -198,10 +221,17 @@ def discretize_buisdrainage(
 
     ds_out = get_ds_empty(ds, keep_coords=("y", "x"))
 
+    src_crs = (
+        "+proj=longlat +ellps=bessel "
+        "+towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +no_defs"
+    )
+
     # use cond_methd for conductance
     # (default is "average" to account for locations without pipe drainage, where the
     # conductance is 0)
     buisdrain_c = rioxarray.open_rasterio(fname_c, mask_and_scale=True)[0]
+    if fix_crs:
+        buisdrain_c = buisdrain_c.rio.write_crs(src_crs)
     # calculate a conductance (per m2) from a resistance
     cond = 1 / buisdrain_c
     # set conductance to 0 where resistance is infinite or 0
@@ -216,6 +246,8 @@ def discretize_buisdrainage(
     # (default is "mode" for depth that occurs most in each cell)
     mask_and_scale = False
     buisdrain_d = rioxarray.open_rasterio(fname_d, mask_and_scale=mask_and_scale)[0]
+    if fix_crs:
+        buisdrain_d = buisdrain_d.rio.write_crs(src_crs)
     if mask_and_scale:
         nodata = np.nan
     else:

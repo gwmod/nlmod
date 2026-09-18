@@ -688,7 +688,7 @@ def get_ds(
     coords = {"x": x, "y": y, "layer": layer}
     if angrot != 0.0:
         affine = grid.get_affine_mod_to_world(attrs)
-        xc, yc = affine * np.meshgrid(x, y)
+        xc, yc = affine @ np.meshgrid(x, y)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)
 

@@ -2588,10 +2588,10 @@ def get_affine(ds, sx=None, sy=None):
         yoff = yorigin + dy * np.cos(angrot * np.pi / 180)
         return (
             Affine.translation(xoff, yoff)
-            * Affine.scale(sx, sy)
-            * Affine.rotation(angrot)
+            @ Affine.scale(sx, sy)
+            @ Affine.rotation(angrot)
         )
     else:
         xoff = attrs["extent"][0]
         yoff = attrs["extent"][3]
-        return Affine.translation(xoff, yoff) * Affine.scale(sx, sy)
+        return Affine.translation(xoff, yoff) @ Affine.scale(sx, sy)

@@ -84,7 +84,6 @@ rtd = [
     "nbconvert",
     "openpyxl",
     "numpy<2.5.0", # until there is a new version of netCDF4 (now 1.7.4) this solves "Setting the shape on a NumPy array has been deprecated"
-    "affine<3.1.0", # until there are newer versions of rasterio (now 1.5.1) and rioxarray (now 0.23.0), this solves "Use @ matmul instead of * mul operator for matrix multiplication"
 ]
 lgn = ["xarray-spatial", "exactextract"]
 

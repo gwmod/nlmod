@@ -7,8 +7,8 @@ from typing import Callable, Literal, Optional, Union
 import geopandas as gpd
 import numpy as np
 import xarray as xr
-from rioxarray.merge import merge_arrays
 from rasterio.env import Env
+from rioxarray.merge import merge_arrays
 
 from .. import NLMOD_DATADIR, cache, dims, util
 from ..util import tqdm

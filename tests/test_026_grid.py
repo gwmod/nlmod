@@ -3,10 +3,10 @@ import os
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-import util
 import xarray as xr
 
 import nlmod
+import util
 
 model_ws = os.path.join(util.get_model_data_dir(), "test_grid")
 extent = [98000.0, 99000.0, 489000.0, 490000.0]
@@ -84,18 +84,14 @@ def get_vertex_model_ds_rotated(bgt=None):
 
 def test_get_ds_rotated():
     ds0 = get_structured_model_ds_rotated()
-    assert ds0.extent[0] == 0
-    assert ds0.extent[2] == 0
-    assert ds0.xorigin == extent[0]
-    assert ds0.yorigin == extent[2]
+    assert ds0.extent[0] == 0 and ds0.extent[2] == 0
+    assert ds0.xorigin == extent[0] and ds0.yorigin == extent[2]
 
     # test refine method, by refining in all cells that contain surface water polygons
     ds = get_vertex_model_ds_rotated()
     assert len(ds.area) > np.prod(ds0.area.shape)
-    assert ds.extent[0] == 0
-    assert ds.extent[2] == 0
-    assert ds.xorigin == extent[0]
-    assert ds.yorigin == extent[2]
+    assert ds.extent[0] == 0 and ds.extent[2] == 0
+    assert ds.xorigin == extent[0] and ds.yorigin == extent[2]
 
     f0, ax0 = plt.subplots()
     nlmod.plot.modelgrid(ds0, ax=ax0)

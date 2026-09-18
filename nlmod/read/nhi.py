@@ -192,7 +192,8 @@ def discretize_buisdrainage(
         Fix the coordinate shift (~100 m to the northeast) in the original NHI
         buisdrainage dataset caused by a missing datum transformation (Bessel 1841 to
         WGS84) in the source dataset. If None, a warning is issued and fix_crs
-        defaults to False to preserve backwards compatibility. The default is None.
+        defaults to False to preserve backwards compatibility. For more information, see
+        https://github.com/gwmod/nlmod/pull/598. The default is None.
 
     Returns
     -------

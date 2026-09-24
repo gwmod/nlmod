@@ -9,6 +9,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import util
+import xarray as xr
 from flopy.utils import make_hfb_array
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
@@ -25,22 +26,12 @@ def _normalize_spd(spd):
 
 
 def _expected_partial_hydchr(ds, cellid1, cellid2, hydchr, frac):
-    # Mirrors the parallel-path equivalent of nlmod.gwf.hfb._append_partial_hydchr.
-    # The physics of that equivalent is validated independently in
-    # test_get_hfb_spd_partial_penetration_matches_resolved_barrier.
-    x = ds["x"].values
-    y = ds["y"].values
-    if len(cellid1) == 3:
-        x1, y1 = x[cellid1[2]], y[cellid1[1]]
-        x2, y2 = x[cellid2[2]], y[cellid2[1]]
-    else:
-        x1, y1 = x[cellid1[1]], y[cellid1[1]]
-        x2, y2 = x[cellid2[1]], y[cellid2[1]]
-    distance = float(np.hypot(x1 - x2, y1 - y2))
+    # negative HYDCHR factor for a layer penetrated over frac
+    d1, d2 = nlmod.gwf.hfb._center_to_face_distances(ds, cellid1, cellid2)
     kh1 = ds["kh"].values[cellid1]
     kh2 = ds["kh"].values[cellid2]
-    open_face_conductance = 2.0 * kh1 * kh2 / ((kh1 + kh2) * distance)
-    return float((hydchr + (1.0 - frac) * open_face_conductance) / frac)
+    conductance = 1.0 / (d1 / kh1 + d2 / kh2)
+    return -float((1.0 - frac) + frac * hydchr / (conductance + hydchr))
 
 
 def _structured_diagonal_expected_spd(ds, hydchr=1 / 100.0):
@@ -239,7 +230,7 @@ def test_hfb_from_df_vertex():
     expected_spd = [
         [cellid1, cellid2, float(hydchr)]
         for cellid1, cellid2, hydchr in expected_spd
-        if float(hydchr) > 0
+        if float(hydchr) != 0
     ]
     actual_spd = [
         [row[0], row[1], float(row[2])] for row in hfb.stress_period_data.data[0]
@@ -341,7 +332,7 @@ def test_hfb_from_df_accepts_scalar_values():
     expected_spd = [
         [cellid1, cellid2, float(hydchr)]
         for cellid1, cellid2, hydchr in expected_spd
-        if float(hydchr) > 0
+        if float(hydchr) != 0
     ]
     actual_spd = [
         [row[0], row[1], float(row[2])] for row in hfb.stress_period_data.data[0]
@@ -382,7 +373,7 @@ def test_hfb_from_df_scalar_values_apply_to_all_features():
     expected_spd = [
         [cellid1, cellid2, float(hydchr)]
         for cellid1, cellid2, hydchr in expected_spd
-        if float(hydchr) > 0
+        if float(hydchr) != 0
     ]
     actual_spd = [
         [row[0], row[1], float(row[2])] for row in hfb.stress_period_data.data[0]
@@ -420,7 +411,7 @@ def test_hfb_from_df_accepts_custom_column_names():
     expected_spd = [
         [cellid1, cellid2, float(hydchr)]
         for cellid1, cellid2, hydchr in expected_spd
-        if float(hydchr) > 0
+        if float(hydchr) != 0
     ]
     actual_spd = [
         [row[0], row[1], float(row[2])] for row in hfb.stress_period_data.data[0]
@@ -488,7 +479,7 @@ def test_hfb_from_df_accepts_scalar_elevation():
     expected_spd = [
         [cellid1, cellid2, float(hydchr)]
         for cellid1, cellid2, hydchr in expected_spd
-        if float(hydchr) > 0
+        if float(hydchr) != 0
     ]
     actual_spd = [
         [row[0], row[1], float(row[2])] for row in hfb.stress_period_data.data[0]
@@ -642,3 +633,105 @@ def test_get_hfb_spd_partial_penetration_matches_resolved_barrier(tmp_path):
         hfb_spd=[[(0, 0, 0), (0, 0, 1), 1 / 100.0]],
     )
     assert q_equivalent == pytest.approx(q_reference, rel=0.01)
+
+
+def _partial_hfb_ds(grid):
+    """One 10-m layer with kh varying in space, so kh differs across every face."""
+    if grid == "quadtree":
+        # gridgen quadtree: 20-m cells refined to 10 m around a short line, so the
+        # diagonal wall crosses faces between coarse and fine cells
+        ds = util.get_ds_vertex(
+            extent=[0, 100, 0, 100],
+            line=[(40, 40), (60, 60)],
+            model_name="hfb_face",
+            delr=20.0,
+            top=10.0,
+            botm=[0.0],
+            kh=10.0,
+            kv=1.0,
+        )
+        wall = LineString([(0, 100), (100, 0)])
+    else:
+        delr = np.array([40.0, 40.0]) if grid == "uniform" else np.array([40.0, 200.0])
+        ds = util.get_ds_structured(
+            extent=[0, float(delr.sum()), 0, 10],
+            model_name="hfb_face",
+            delr=delr,
+            delc=np.array([10.0]),
+            top=10.0,
+            botm=[0.0],
+            kh=10.0,
+            kv=1.0,
+        )
+        wall = LineString([(40, 0), (40, 10)])
+    if grid != "uniform":
+        ds["kh"] = ds["kh"] * (0.1 + 0.02 * ds["x"] + 0.01 * ds["y"])
+    return nlmod.time.set_ds_time(ds, "2023", time="2024"), wall
+
+
+def _face_conductances(ds, ws, hfb_spd):
+    """MF6 face conductance |Q / dh| per connection, with every cell a CHD."""
+    ds.attrs["model_ws"] = str(ws)
+    sim = nlmod.sim.sim(ds)
+    nlmod.sim.tdis(ds, sim)
+    nlmod.sim.ims(sim, complexity="simple")
+    gwf = nlmod.gwf.gwf(ds, sim)
+    nlmod.gwf.dis(ds, gwf)
+    nlmod.gwf.npf(ds, gwf, icelltype=0, save_flows=True)
+    nlmod.gwf.ic(ds, gwf, starting_head=0.0)
+    x, y = xr.broadcast(ds["x"], ds["y"])
+    head = (x + 0.37 * y).transpose(*ds["kh"].dims[1:]).values.ravel()
+    shape = ds["kh"].shape[1:]
+    chd_spd = [
+        [(0, *np.unravel_index(node, shape)), float(head[node])]
+        for node in range(head.size)
+    ]
+    flopy.mf6.ModflowGwfchd(gwf, stress_period_data=chd_spd)
+    if hfb_spd:
+        flopy.mf6.ModflowGwfhfb(gwf, stress_period_data={0: hfb_spd})
+    nlmod.gwf.oc(ds, gwf)
+    nlmod.sim.write_and_run(sim, ds, write_ds=False, silent=True)
+    grb = flopy.mf6.utils.MfGrdFile(next(str(p) for p in ws.glob("*.grb")))
+    flowja = gwf.output.budget().get_data(text="FLOW-JA-FACE")[0].ravel()
+    return {
+        (node, int(grb.ja[k])): abs(flowja[k] / (head[node] - head[grb.ja[k]]))
+        for node in range(grb.nodes)
+        for k in range(grb.ia[node] + 1, grb.ia[node + 1])
+    }
+
+
+@pytest.mark.parametrize("grid", ["uniform", "unequal", "quadtree"])
+@pytest.mark.parametrize("hydchr", [1e-6, 0.01, 1.0])
+@pytest.mark.parametrize("depth", [3.0, 8.0])
+def test_get_hfb_spd_partial_face_conductance(tmp_path, grid, hydchr, depth):
+    # The walled part of the face (depth / thickness) is the barrier in series with the
+    # aquifer; the open part below it keeps the full conductance. The face conductance
+    # MF6 uses must equal that parallel combination.
+    ds, wall = _partial_hfb_ds(grid)
+    spd = nlmod.gwf.hfb.get_hfb_spd(
+        ds, gpd.GeoDataFrame(geometry=[wall]), hydchr=hydchr, depth=depth
+    )
+    spd = [[cellid1, cellid2, float(value)] for cellid1, cellid2, value in spd]
+    assert spd
+
+    modelgrid = modelgrid_from_ds(ds)
+    shape = ds["kh"].shape[1:]
+    c_open = _face_conductances(ds, tmp_path / "open", [])
+    c_wall = _face_conductances(ds, tmp_path / "wall", spd)
+    frac = depth / 10.0
+    area_ratios = []
+    for cellid1, cellid2, _ in spd:
+        node1 = int(np.ravel_multi_index(cellid1[1:], shape))
+        node2 = int(np.ravel_multi_index(cellid2[1:], shape))
+        poly1 = Polygon(modelgrid.get_cell_vertices(*cellid1[1:]))
+        poly2 = Polygon(modelgrid.get_cell_vertices(*cellid2[1:]))
+        area_ratios.append(poly1.area / poly2.area)
+        face_area = poly1.intersection(poly2).length * 10.0
+        conductance = c_open[node1, node2] / face_area
+        expected = c_open[node1, node2] * (
+            (1.0 - frac) + frac * hydchr / (conductance + hydchr)
+        )
+        assert c_wall[node1, node2] == pytest.approx(expected, rel=1e-6)
+    if grid == "quadtree":
+        # the wall crosses faces between cells of different refinement levels
+        assert any(not np.isclose(ratio, 1.0) for ratio in area_ratios)

@@ -5,7 +5,6 @@ from pathlib import Path
 from xarray import Dataset
 
 from nlmod.read import knmi_data_platform
-import os
 
 
 def test_download_multiple_nc_files(tmp_path) -> None:

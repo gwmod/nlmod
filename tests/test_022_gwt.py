@@ -1,10 +1,10 @@
 import os
 
 import pandas as pd
+import util
 import xarray as xr
 
 import nlmod
-import util
 
 
 def test_gwt_model():
@@ -41,7 +41,9 @@ def test_gwt_model():
     ds["sea"] = nlmod.read.rws.calculate_sea_coverage(ahn, ds=ds, method="average")
 
     # download knmi recharge data
-    knmi_ds = nlmod.read.knmi.get_recharge(ds, method="separate")
+    knmi_ds = nlmod.read.knmi.get_recharge(
+        ds, method="separate", hourly_precision=False
+    )
 
     # update model dataset
     ds.update(knmi_ds)
@@ -136,7 +138,7 @@ def test_gwt_model():
 
     # test isosurface: first elevation where 10_000 mg/l is reached
     z = nlmod.dims.layers.get_zcellcenters(ds)
-    nlmod.layers.get_isosurface(c, z, 10_000.0)
+    nlmod.layers.get_isosurface(c, z, 10_000.0, method="numpy")
 
     # Convert calculated heads to equivalent freshwater heads, and vice versa
     hf = nlmod.gwt.output.freshwater_head(ds, h, c)

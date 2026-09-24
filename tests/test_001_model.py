@@ -3,10 +3,10 @@ import os
 import numpy as np
 import pandas as pd
 import pytest
+import util
 import xarray as xr
 
 import nlmod
-import util
 
 
 def _get_model_data_path(name):

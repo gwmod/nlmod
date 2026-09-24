@@ -4,9 +4,9 @@ import flopy
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import util
 
 import nlmod
-import util
 
 
 def get_ds_and_gdf():

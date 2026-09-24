@@ -17,6 +17,18 @@ GEOTOP_URL = "https://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
 
 
 def get_lithok_props(rgb_colors=True):
+    """Get lithok properties from GeoTOP.
+
+    Parameters
+    ----------
+    rgb_colors : bool, optional
+        If True, add RGB color values to the DataFrame. The default is True.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with lithok properties.
+    """
     fname = os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv")
     df = pd.read_csv(fname, index_col=0)
     if rgb_colors:
@@ -25,6 +37,13 @@ def get_lithok_props(rgb_colors=True):
 
 
 def get_lithok_colors():
+    """Get RGB color values for lithok classes.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping lithok class values to RGB color tuples (normalized to 0-1).
+    """
     colors = {
         0: (200, 200, 200),
         1: (157, 78, 64),
@@ -41,6 +60,13 @@ def get_lithok_colors():
 
 
 def get_strat_props():
+    """Get stratigraphic properties from GeoTOP.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with stratigraphic properties including code, name, and color.
+    """
     fname = os.path.join(NLMOD_DATADIR, "geotop", "REF_GTP_STR_UNIT.csv")
     df = pd.read_csv(fname, keep_default_na=False, na_values="")
     # rename the columns to previously used values
@@ -63,6 +89,19 @@ def get_strat_props():
 
 
 def get_kh_kv_table(kind="Brabant"):
+    """Get the table with hydraulic conductivities and vertical anisotropy for GeoTOP.
+
+    Parameters
+    ----------
+    kind : str, optional
+        The kind of table to return. The default is "Brabant".
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns "strat", "kh", "kv" and "vani".
+        The index is the stratigraphic unit code.
+    """
     if kind == "Brabant":
         fname = os.path.join(
             NLMOD_DATADIR,
@@ -76,7 +115,9 @@ def get_kh_kv_table(kind="Brabant"):
 
 
 def split_layers_on_geul(strat, units_no_geul, geulen):
-    """Modifies the stratigraphic data from geotop in such a way that every stratigraphic
+    """Insert paleochannels (geulen) into the stratigraphic data.
+
+    Modifies the stratigraphic data from geotop in such a way that every stratigraphic
     unit is completely above or completely below any other unit (and never both above
     and below the same unit). This is useful for creating a layer model from the
     stratigraphic units.
@@ -118,7 +159,8 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
 
     if not np.unique(strat.z.diff(dim="z")) == -0.5:
         raise ValueError(
-            "this function assumes a layer thickness of 0.5 m, please check the z values of the strat DataArray"
+            "this function assumes a layer thickness of 0.5 m, "
+            "please check the z values of the strat DataArray"
         )
 
     z = (
@@ -210,7 +252,8 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             == (top_lay_geul < 0) & (top_lay_geul > -100)
         ).all():
             raise ValueError(
-                "unexpected geulen configuration, probably because a geul is cut by another stratigraphic unit."
+                "unexpected geulen configuration, probably because a geul is cut by "
+                "another stratigraphic unit."
             )
 
         # 3 decide where to add the geul layer
@@ -282,7 +325,7 @@ def split_layers_on_geul(strat, units_no_geul, geulen):
             ::-1
         ]  # sort absolute values in descending order
         layers_ordered = [
-            -l if (-l in layers) else l for l in layers_abs
+            -ilay if (-ilay in layers) else ilay for ilay in layers_abs
         ]  # use negative value if available
 
         for geul_lay_count, lay in enumerate(layers_ordered):
@@ -406,7 +449,8 @@ def to_model_layers(
     if method_geulen == "split_layers":
         # remove geulen from units
         logger.warning(
-            "the 'split_layers' method for geulen is still experimental and not yet thoroughly tested."
+            "the 'split_layers' method for geulen is still experimental and not "
+            "yet thoroughly tested."
         )
         units_no_geul = [unit for unit in units if unit < 6000]
         geulen = [unit for unit in units if unit >= 6000]
@@ -426,7 +470,7 @@ def to_model_layers(
     layers = []
     geulen = geulen if method_geulen == "split_layers" else []
     uc = np.unique([str(u)[-4:] for u in units], return_counts=True)
-    split_unit_counter = {int(unit): count for unit, count in zip(*uc)}
+    split_unit_counter = {int(unit): count for unit, count in zip(*uc, strict=False)}
     for layer, unit in enumerate(units):
         mask = strat.values == unit
         # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
@@ -494,7 +538,8 @@ def to_model_layers(
                 # idomain = get_idomain(ds)
                 # fal = get_last_active_layer_from_idomain(idomain)
                 logger.warning(
-                    f"Geul {geul} is at the bottom of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                    f"Geul {geul} is at the bottom of the GeoTOP-dataset in "
+                    f"{int(todo.sum())} cells, where it is ignored"
                 )
 
     elif method_geulen == "add_to_layer_above":
@@ -520,7 +565,8 @@ def to_model_layers(
                 # idomain = get_idomain(ds)
                 # fal = get_first_active_layer_from_idomain(idomain)
                 logger.warning(
-                    f"Geul {geul} is at the top of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                    f"Geul {geul} is at the top of the GeoTOP-dataset in "
+                    f"{int(todo.sum())} cells, where it is ignored"
                 )
     else:
         raise (ValueError(f"Unknown method to deal with geulen: '{method_geulen}'"))
@@ -547,9 +593,10 @@ def to_model_layers(
 
 
 def get_geotop(*args, **kwargs):
-    """Get a slice of the geotop netcdf url within the extent, set the x and y
-    coordinates to match the cell centers and keep only the strat and lithok data
-    variables.
+    """Get a slice of the geotop netcdf url within the extent.
+
+    Set the x and y coordinates to match the cell centers and keep only the strat and
+    lithok data variables.
 
     .. deprecated:: 0.10.0
         `get_geotop` will be removed in nlmod 1.0.0, it is replaced by
@@ -575,15 +622,17 @@ def get_geotop(*args, **kwargs):
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.geotop.download_geotop() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
     return download_geotop(*args, **kwargs)
 
 
 @cache.cache_netcdf()
 def download_geotop(extent, url=None, probabilities=False, chunks="auto"):
-    """Get a slice of the geotop netcdf url within the extent, set the x and y
-    coordinates to match the cell centers and keep only the strat and lithok data
-    variables.
+    """Get a slice of the geotop netcdf url within the extent.
+
+    Set the x and y coordinates to match the cell centers and keep only the strat and
+    lithok data variables.
 
     Parameters
     ----------
@@ -909,8 +958,9 @@ def _handle_nans_in_stochastic_approach(kh, kv, kh_method, kv_method):
 def aggregate_to_ds(
     gt, ds, kh="kh", kv="kv", kd="kD", c="c", kh_gt="kh", kv_gt="kv", add_kd_and_c=False
 ):
-    """Aggregate voxels from GeoTOP to layers in a model DataSet with top and botm, to
-    calculate kh and kv.
+    """Aggregate voxels from GeoTOP to layers in a model DataSet.
+
+    Uses top and botm, to calculate kh and kv.
 
     Parameters
     ----------
@@ -944,7 +994,8 @@ def aggregate_to_ds(
     ds : xr.Dataset
         The Dataset ds, with added variables kh and kv (and optionally kd and c).
     """
-    assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
+    assert (ds.x == gt.x).all()
+    assert (ds.y == gt.y).all()
     msg = "Please add '{}' to geotop-Dataset first, using add_kh_and_kv()"
     if kh_gt not in gt:
         raise (MissingValueError(msg.format(kh_gt)))
@@ -995,7 +1046,9 @@ def aggregate_to_ds(
 
 def _save_excel_files_as_csv():
     """
-    This method takes the files REF_GTP_STR_UNIT.xlsx and REF_GTP_LITHO_CLASS.xlsx that
+    Convert REGIS AND GeoTOP Excel files to CSV format.
+
+    Takes the files REF_GTP_STR_UNIT.xlsx and REF_GTP_LITHO_CLASS.xlsx that
     are taken from the GeoTOP 1.6 zipfile downloaded from DINOloket, and saves them as
     csv-files. In this way version-control can better process the changes in future
     versions of GeoTOP.

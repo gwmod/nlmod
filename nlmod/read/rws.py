@@ -7,6 +7,7 @@ from typing import Callable, Literal, Optional, Union
 import geopandas as gpd
 import numpy as np
 import xarray as xr
+from rasterio.env import Env
 from rioxarray.merge import merge_arrays
 
 from .. import NLMOD_DATADIR, cache, dims, util
@@ -18,8 +19,7 @@ logger = logging.getLogger(__name__)
 
 @cache.cache_pickle
 def get_gdf_surface_water(ds=None, extent=None):
-    """Read a shapefile with surface water as a geodataframe, cut by the extent of the
-    model.
+    """Read a shapefile with surface water as a geodataframe, cut by model extent.
 
     Parameters
     ----------
@@ -54,7 +54,7 @@ def get_gdf_surface_water(ds=None, extent=None):
 
 @cache.cache_netcdf(coords_3d=True)
 def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
-    """Create 3 data-arrays from the shapefile with surface water:
+    """Create 3 data-arrays from the shapefile with surface water.
 
     .. deprecated:: 0.10.0
         `get_surface_water` will be removed in nlmod 1.0.0, it is replaced by
@@ -81,11 +81,12 @@ def get_surface_water(ds, gdf=None, da_basename="rws_oppwater"):
     ds : xarray.Dataset
         dataset with modelgrid data.
     """
-
     warnings.warn(
         "'get_surface_water' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.rws.discretize_surface_water' to project the surface water on the model grid",
+        "Use 'nlmod.read.rws.discretize_surface_water' to project the surface water "
+        "on the model grid",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     if gdf is None:
@@ -178,8 +179,10 @@ def get_northsea(ds, gdf=None, da_name="northsea"):
     """
     warnings.warn(
         "'get_northsea' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.rws.discretize_northsea' to project the northsea on the model grid",
+        "Use 'nlmod.read.rws.discretize_northsea' to project the northsea on the "
+        "model grid",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return discretize_northsea(ds, gdf, da_name)
@@ -338,9 +341,9 @@ def get_gdr_configuration() -> dict:
     config["bodemhoogte_1m"] = {
         "url": (
             "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/"
-            "bodemhoogte_index/FeatureServer"
+            "bodemhoogte_index/MapServer"
         ),
-        "layer": 1,
+        "layer": 1,  # bodemhoogte_1mtr
     }
     # NOTE: the 20m resolution is no longer available from the GDR service via a
     # geodataframe containing the url.
@@ -381,8 +384,10 @@ def get_bathymetry_gdf(
     """
     warnings.warn(
         "'get_bathymetry_gdf' is deprecated and will be removed in a future version. "
-        "Use 'nlmod.read.rws.download_bathymetry_gdf' to project the buisdrainage on the model grid",
+        "Use 'nlmod.read.rws.download_bathymetry_gdf' to project the buisdrainage "
+        "on the model grid",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_bathymetry_gdf(resolution, extent, config)
@@ -472,6 +477,7 @@ def get_bathymetry(
         "'get_bathymetry' is deprecated and will be removed in a future version. "
         "Use 'nlmod.read.rws.download_bathymetry' to download bathymetry data",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_bathymetry(extent, resolution, res, method, chunks, config)
@@ -524,34 +530,38 @@ def download_bathymetry(
     xmin, xmax, ymin, ymax = extent
     dataarrays = []
 
-    for _, row in tqdm(
-        gdf.iterrows(), desc="Downloading bathymetry", total=gdf.index.size
-    ):
-        url = row["geotiff"]
-        ds = xr.open_dataset(url, engine="rasterio")
-        ds = ds.assign_coords({"y": ds["y"].round(0), "x": ds["x"].round(0)})
-        da = (
-            ds["band_data"]
-            .sel(band=1, x=slice(xmin, xmax), y=slice(ymax, ymin))
-            .drop_vars("band")
-        )
-        if chunks:
-            da = da.chunk(chunks)
-        dataarrays.append(da)
-
-    if len(dataarrays) > 1:
-        da = merge_arrays(
-            dataarrays,
-            bounds=[xmin, ymin, xmax, ymax],
-            res=res,
-            method=method,
-        )
-    else:
-        da = dataarrays[0]
-        if res is not None:
-            da = da.rio.reproject(
-                da.rio.crs,
-                res=res,
-                resampling=method,
+    rasterio_env = {
+        "GDAL_DISABLE_READDIR_ON_OPEN": "YES",
+    }
+    with Env(**rasterio_env):
+        for _, row in tqdm(
+            gdf.iterrows(), desc="Downloading bathymetry", total=gdf.index.size
+        ):
+            url = row["geotiff"]
+            ds = xr.open_dataset(url, engine="rasterio")
+            ds = ds.assign_coords({"y": ds["y"].round(0), "x": ds["x"].round(0)})
+            da = (
+                ds["band_data"]
+                .sel(band=1, x=slice(xmin, xmax), y=slice(ymax, ymin))
+                .drop_vars("band")
             )
+            if chunks:
+                da = da.chunk(chunks)
+            dataarrays.append(da)
+
+        if len(dataarrays) > 1:
+            da = merge_arrays(
+                dataarrays,
+                bounds=[xmin, ymin, xmax, ymax],
+                res=res,
+                method=method,
+            )
+        else:
+            da = dataarrays[0]
+            if res is not None:
+                da = da.rio.reproject(
+                    da.rio.crs,
+                    res=res,
+                    resampling=method,
+                )
     return da

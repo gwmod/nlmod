@@ -1,7 +1,7 @@
 import warnings
 
-from . import waterboard, webservices
 from .. import cache
+from . import waterboard, webservices
 
 
 def get_municipalities(*args, **kwargs):
@@ -28,8 +28,10 @@ def get_municipalities(*args, **kwargs):
     """
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_municipalities_gdf() in the future.",
+        "please use nlmod.read.administrative.download_municipalities_gdf() "
+        "in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_municipalities_gdf(*args, **kwargs)
@@ -97,11 +99,11 @@ def get_provinces(*args, **kwargs):
     gpd.GeoDataFrame
         polygons of provinces
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.administrative.download_provinces_gdf() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_provinces_gdf(*args, **kwargs)
@@ -160,11 +162,12 @@ def get_netherlands(*args, **kwargs):
     gpd.GeoDataFrame
         polygons of the Netherlands
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_netherlands_gdf() in the future.",
+        "please use nlmod.read.administrative.download_netherlands_gdf() "
+        "in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_netherlands_gdf(*args, **kwargs)
@@ -221,8 +224,10 @@ def get_waterboards(**kwargs):
     """
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_waterboards_gdf() in the future.",
+        "please use nlmod.read.administrative.download_waterboards_gdf() "
+        "in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return waterboard.download_polygons(**kwargs)

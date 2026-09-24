@@ -1,5 +1,3 @@
-import os
-
 import flopy
 import test_001_model
 

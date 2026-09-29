@@ -3,11 +3,12 @@ import os
 from glob import glob
 
 import nbformat
-import nlmod
 from nbconvert.preprocessors import (
-    ClearOutputPreprocessor,
     ClearMetadataPreprocessor,
+    ClearOutputPreprocessor,
 )
+
+import nlmod
 
 logger = nlmod.util.get_color_logger("INFO")
 

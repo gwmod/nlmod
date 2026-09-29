@@ -17,6 +17,18 @@ GEOTOP_URL = "https://www.dinodata.nl/opendap/GeoTOP/geotop.nc"
 
 
 def get_lithok_props(rgb_colors=True):
+    """Get lithok properties from GeoTOP.
+
+    Parameters
+    ----------
+    rgb_colors : bool, optional
+        If True, add RGB color values to the DataFrame. The default is True.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with lithok properties.
+    """
     fname = os.path.join(NLMOD_DATADIR, "geotop", "litho_eenheden.csv")
     df = pd.read_csv(fname, index_col=0)
     if rgb_colors:
@@ -25,6 +37,13 @@ def get_lithok_props(rgb_colors=True):
 
 
 def get_lithok_colors():
+    """Get RGB color values for lithok classes.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping lithok class values to RGB color tuples (normalized to 0-1).
+    """
     colors = {
         0: (200, 200, 200),
         1: (157, 78, 64),
@@ -41,6 +60,13 @@ def get_lithok_colors():
 
 
 def get_strat_props():
+    """Get stratigraphic properties from GeoTOP.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with stratigraphic properties including code, name, and color.
+    """
     fname = os.path.join(NLMOD_DATADIR, "geotop", "REF_GTP_STR_UNIT.csv")
     df = pd.read_csv(fname, keep_default_na=False, na_values="")
     # rename the columns to previously used values
@@ -63,6 +89,19 @@ def get_strat_props():
 
 
 def get_kh_kv_table(kind="Brabant"):
+    """Get the table with hydraulic conductivities and vertical anisotropy for GeoTOP.
+
+    Parameters
+    ----------
+    kind : str, optional
+        The kind of table to return. The default is "Brabant".
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns "strat", "kh", "kv" and "vani".
+        The index is the stratigraphic unit code.
+    """
     if kind == "Brabant":
         fname = os.path.join(
             NLMOD_DATADIR,
@@ -73,6 +112,277 @@ def get_kh_kv_table(kind="Brabant"):
     else:
         raise (ValueError(f"Unknown kind in get_kh_kv_table: '{kind}'"))
     return df
+
+
+def split_layers_on_geul(strat, units_no_geul, geulen):
+    """Insert paleochannels (geulen) into the stratigraphic data.
+
+    Modifies the stratigraphic data from geotop in such a way that every stratigraphic
+    unit is completely above or completely below any other unit (and never both above
+    and below the same unit). This is useful for creating a layer model from the
+    stratigraphic units.
+
+    This function splits the geulen over multiple layers and splits other layers
+    locally when a geul is partly above and partly below that layer.
+
+    Some extra logic is added to minimize the number of geul layers by finding the
+    most efficient layer to add the geul to.
+
+    Parameters
+    ----------
+    strat : xarray DataArray
+        with dimensions z, y and x, with values corresponding to the stratigraphic
+        unit in each voxel.
+    units_no_geul : list
+        Ordered list of stratigraphic units without geulen.
+    geulen : list
+        Ordered list of geulen units.
+
+    Returns
+    -------
+    strat : xarray DataArray
+        Modified stratigraphic data, including all the new geul units and the non-geul
+        units that are split because the geul was in between them.
+    new_unit_order : list
+        Ordered list with new stratigraphic units, including all the new geul units
+        and the non-geul units that are split because the geul was in between them.
+
+    Notes
+    -----
+    the new stratigraphic data contains more unit numbers than the original
+    stratigraphic data. When a layer is split by a geul, the part of the layer
+    below the geul gets a new unit number. The same goes for the geul itself when it
+    occurs across multiple layers.
+    """
+    unit_order = units_no_geul.copy()
+    strat = strat.copy()
+
+    if not np.unique(strat.z.diff(dim="z")) == -0.5:
+        raise ValueError(
+            "this function assumes a layer thickness of 0.5 m, "
+            "please check the z values of the strat DataArray"
+        )
+
+    z = (
+        strat["z"]
+        .data[:, np.newaxis, np.newaxis]
+        .repeat(len(strat.y), 1)
+        .repeat(len(strat.x), 2)
+    )
+
+    for ilay_geul, geul in enumerate(geulen):
+        # 1 get top/bot units
+
+        # a. get top/bot for this geul
+        mask = strat == geul
+        maxz = np.max(np.where(mask, z, -np.inf), axis=0)
+        minz = np.min(np.where(mask, z, np.inf), axis=0)
+
+        top_geul = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
+        bot_geul = np.where(np.isfinite(minz), minz - 0.25, np.nan)
+
+        # b. get top and bottom height (m NAP) of all other stratographic layers
+        # top layer is a dummy layer in order to obtain a different value for the
+        # case where no maximum is found (0) and the case where the maximum is found
+        # in the top layer (1).
+        shape_no_geul = (len(unit_order) + 1, len(strat.y), len(strat.x))
+        top = np.full(shape_no_geul, np.nan)
+        bot = np.full(shape_no_geul, np.nan)
+
+        for layer, unit in enumerate(unit_order):
+            mask = strat == unit
+            # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
+            maxz = np.max(np.where(mask, z, -np.inf), axis=0)
+            minz = np.min(np.where(mask, z, np.inf), axis=0)
+            top[layer + 1] = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
+            bot[layer + 1] = np.where(np.isfinite(minz), minz - 0.25, np.nan)
+
+        # c. get top and bottom height of the model
+        lay_top = (np.isfinite(strat)).argmax(dim="z").values
+        z_top = (
+            np.take_along_axis(z, lay_top[np.newaxis, ...], axis=0).squeeze(axis=0)
+            + 0.25
+        )  # z value of top layer
+        lay_bot = (np.isfinite(strat[::-1])).argmax(dim="z").values
+        z_bot = (
+            np.take_along_axis(z[::-1], lay_bot[np.newaxis, ...], axis=0).squeeze(
+                axis=0
+            )
+            - 0.25
+        )  # z value of bottom layer (nearly always -50.25)
+
+        # 2 find units above and below the geul
+        # a find for each cell the layer on top of the geul
+        top_lay_geul = (top_geul == bot).argmax(
+            axis=0
+        )  # index (+1) of unit directly above the geul
+        top_lay_geul[
+            np.isnan(top_geul)
+        ] = -999  # -999 if geul is not present in vertical
+        geul_between_lay = ((top_geul < top) & (top_geul > bot)).argmax(axis=0)
+        top_lay_geul = np.where(
+            geul_between_lay != 0, -geul_between_lay, top_lay_geul
+        )  # -index if geul is in between a unit.
+        top_lay_geul[top_lay_geul == 0] = -888  # -888 if layer above geul is also geul.
+        top_lay_geul[top_geul == z_top] = 0  # 0 if geul is the top layer
+
+        # b find for each cell the layer below the geul
+        bot_lay_geul = (bot_geul == top).argmax(
+            axis=0
+        )  # index (+1) of unit directly below the geul
+        bot_lay_geul[
+            np.isnan(bot_geul)
+        ] = -999  # -999 if geul is not present in vertical
+        bot_lay_geul[bot_lay_geul == 0] = -888  # -888 if layer below geul is also geul.
+        bot_lay_geul[bot_geul == z_bot] = (
+            len(unit_order) + 1
+        )  # 999 if geul is the bottom layer
+
+        bot_lay_geul = np.where(
+            bot_lay_geul == -888, (bot_geul > bot).argmax(axis=0), bot_lay_geul
+        )  # if layer below geul is also geul, take the first non-geul layer.
+        geul_between_lay = ((bot_geul > bot) & (bot_geul < top)).argmax(axis=0)
+        bot_lay_geul = np.where(
+            geul_between_lay != 0, -geul_between_lay, bot_lay_geul
+        )  # -index if geul is in between a unit.
+
+        # check assumption if geul is in both arrays in between a unit
+        if not (
+            (bot_lay_geul < 0) & (bot_lay_geul > -100)
+            == (top_lay_geul < 0) & (top_lay_geul > -100)
+        ).all():
+            raise ValueError(
+                "unexpected geulen configuration, probably because a geul is cut by "
+                "another stratigraphic unit."
+            )
+
+        # 3 decide where to add the geul layer
+        # create an empty array to store for each cell the index number of the unit.
+        # The geul will be added right below this unit.
+        lay_geul = np.ones_like(top_lay_geul) * np.nan
+
+        # Get the layers where the geul is in between a unit.
+        layers, counts = np.unique(
+            bot_lay_geul[(bot_lay_geul < 0) & (bot_lay_geul != -999)],
+            return_counts=True,
+        )
+        if len(layers) == 0:  # a. The geul is never in between a unit.
+            layers, counts = np.unique(
+                [top_lay_geul, bot_lay_geul - 1], return_counts=True
+            )
+            layers = layers[np.argsort(counts)][::-1]
+            layers = [lay for lay in layers if lay >= 0]
+            for lay in layers:
+                mask = np.isnan(lay_geul) & (~np.isnan(top_geul))
+                if (~mask).all():
+                    break  # all cells have a layer assigned
+                lay_geul = np.where(
+                    mask & (top_lay_geul <= lay) & (bot_lay_geul - 1 >= lay),
+                    lay,
+                    lay_geul,
+                )  # assign geul to unit
+        else:  # b. In some places the geul is in between a unit.
+            layers = layers[np.argsort(counts)]
+            for lay in layers:
+                # Assign geul where it is in between a unit
+                lay_geul[lay == top_lay_geul] = lay
+                # Assign geul to same unit wherever that is possible
+                lay_geul[(abs(lay) >= top_lay_geul) & (abs(lay) <= bot_lay_geul)] = abs(
+                    lay
+                )
+
+            # c. In some places the geul is still not assigned to a unit.
+            # In those cases, assign the geul to the layer closest to the in
+            # between unit.
+
+            # absolute difference between possible top and in between unit
+            dif_top = np.ones((len(layers), *top_geul.shape)) * np.nan
+            # absolute difference between possible bottom and in between unit
+            dif_bot = np.ones((len(layers), *top_geul.shape)) * np.nan
+            for i, lay in enumerate(layers):
+                lay = abs(lay)
+                dif_top[i] = np.abs(np.abs(top_lay_geul) - lay)
+                dif_bot[i] = np.abs(np.abs(bot_lay_geul) - 1 - lay)
+
+            top_min = np.min(
+                dif_top, axis=0
+            )  # minimal difference between possible top and in between unit
+            bot_min = np.min(
+                dif_bot, axis=0
+            )  # minimal difference between possible bottom and in between unit
+            topbot_min = np.argmin((top_min, bot_min), axis=0)
+            # closest possible layer to inbetween unit
+            closest_lay = np.where(topbot_min == 1, bot_lay_geul - 1, top_lay_geul)
+
+            # assign geul to closest layer where it is not yet assigned
+            mask = np.isnan(lay_geul) & (~np.isnan(top_geul))
+            lay_geul = np.where(mask, closest_lay, lay_geul)
+
+        # 4. Modify strat in such a way that the geul is inserted as separate layers.
+        new_unit_order = unit_order.copy()
+        layers = np.unique(lay_geul)
+        layers_abs = np.unique(np.abs(layers))[
+            ::-1
+        ]  # sort absolute values in descending order
+        layers_ordered = [
+            -ilay if (-ilay in layers) else ilay for ilay in layers_abs
+        ]  # use negative value if available
+
+        for geul_lay_count, lay in enumerate(layers_ordered):
+            if np.isnan(lay):
+                continue
+
+            geul_subset = geul + (10000 * (geul_lay_count + 1))
+
+            if lay == 0:  # geul is the top layer
+                logger.debug(f"adding geul {geul} on top of model as {geul_subset}")
+                new_unit_order = [geul_subset] + new_unit_order
+                mask1 = np.abs(lay_geul) == np.abs(lay)
+                mask4 = strat == geul
+                strat = xr.where(mask4 & mask1, geul_subset, strat)
+                continue
+
+            ilay = abs(int(lay)) - 1  # correction for dummy layer
+            unit = unit_order[ilay]
+
+            # Add new geul units to strat and add the geul units to the ordered units.
+            if lay < 0:  # geul is in between a unit
+                logger.debug(f"geul {geul} below and above unit {unit}")
+                unit_above = unit + (10000 * (ilay_geul + 1))
+                logger.debug(f"split {unit}, part above geul is {unit_above}")
+                mask2 = strat == unit  # 3d mask of where unit is present
+                mask3 = z > bot_geul  # 3d mask of where z value is above geul
+                strat = xr.where(
+                    (mask2 & mask3), unit_above, strat
+                )  # add unit above geul
+                logger.debug(
+                    f"adding geul {geul} below unit {unit_above} as {geul_subset}"
+                )
+                mask1 = np.abs(lay_geul) == np.abs(
+                    lay
+                )  # 2d mask of where geul can be added to this layer
+                mask4 = strat == geul  # 3d mask of where geul is present
+                strat = xr.where(mask4 & mask1, geul_subset, strat)  # add geul
+                new_unit_order = (
+                    new_unit_order[:ilay]
+                    + [unit_above, geul_subset]
+                    + new_unit_order[ilay:]
+                )  # update order with (part of) unit above geul and geul
+            else:
+                # add geul below unit
+                logger.debug(f"adding geul {geul} below unit {unit} as {geul_subset}")
+                mask1 = np.abs(lay_geul) == np.abs(lay)
+                mask4 = strat == geul
+                strat = xr.where(mask4 & mask1, geul_subset, strat)
+                new_unit_order = (
+                    new_unit_order[: ilay + 1]
+                    + [geul_subset]
+                    + new_unit_order[ilay + 1 :]
+                )
+        logger.debug(f"new order of units: {new_unit_order}")
+        unit_order = new_unit_order.copy()
+
+    return strat, new_unit_order
 
 
 @cache.cache_netcdf()
@@ -105,7 +415,8 @@ def to_model_layers(
         the 'geul'. The method "add_as_layer" tries to add the 'geulen' as one or more
         layers, which can fail if a 'geul' is locally both below the top and above the
         bottom of another layer (splitting the layer in two, which is not supported).
-        The default is "add_to_layer_below".
+        The method "split_layers" splits layers when a 'geul' is both below the top and
+        above the bottom of another layer. The default is "add_to_layer_below".
     drop_layer_dim_from_top : bool, optional
         When True, fill NaN values in top and botm and drop the layer dimension from
         top. This will transform top and botm to the data model in MODFLOW. An advantage
@@ -123,10 +434,9 @@ def to_model_layers(
         strat_props = get_strat_props()
 
     # get all strat-units in Dataset
-    strat = geotop_ds["strat"].values
+    strat = geotop_ds["strat"]
     units = np.unique(strat)
     units = units[~np.isnan(units)].astype(int)
-    shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
     if "SEQ_NR" in strat_props.columns:
         # sort units based on SEQ_NR in strat_props
@@ -135,6 +445,17 @@ def to_model_layers(
         # stratigraphy unit (geo eenheid) 2000 is above 1130
         if (2000 in units) and (1130 in units):
             units[(units == 2000) + (units == 1130)] = [2000, 1130]
+
+    if method_geulen == "split_layers":
+        # remove geulen from units
+        logger.warning(
+            "the 'split_layers' method for geulen is still experimental and not "
+            "yet thoroughly tested."
+        )
+        units_no_geul = [unit for unit in units if unit < 6000]
+        geulen = [unit for unit in units if unit >= 6000]
+        strat, units = split_layers_on_geul(strat, units_no_geul, geulen)
+    shape = (len(units), len(geotop_ds.y), len(geotop_ds.x))
 
     # fill top and bot
     top = np.full(shape, np.nan)
@@ -147,25 +468,45 @@ def to_model_layers(
         .repeat(len(geotop_ds.x), 2)
     )
     layers = []
-    geulen = []
+    geulen = geulen if method_geulen == "split_layers" else []
+    uc = np.unique([str(u)[-4:] for u in units], return_counts=True)
+    split_unit_counter = {int(unit): count for unit, count in zip(*uc, strict=False)}
     for layer, unit in enumerate(units):
-        mask = strat == unit
-        top[layer] = np.nanmax(np.where(mask, z, np.nan), 0) + 0.25
-        bot[layer] = np.nanmin(np.where(mask, z, np.nan), 0) - 0.25
+        mask = strat.values == unit
+        # Use finite sentinels to avoid all-NaN slice warnings for empty cells.
+        maxz = np.max(np.where(mask, z, -np.inf), axis=0)
+        minz = np.min(np.where(mask, z, np.inf), axis=0)
+        top[layer] = np.where(np.isfinite(maxz), maxz + 0.25, np.nan)
+        bot[layer] = np.where(np.isfinite(minz), minz - 0.25, np.nan)
         if int(unit) in strat_props.index:
             layers.append(strat_props.at[unit, "code"])
         else:
-            logger.warning(f"Unknown strat-value: {unit}")
-            layers.append(str(unit))
-        if unit >= 6000:
+            str_unit = str(int(unit))
+            if method_geulen == "split_layers" and len(str_unit) > 4:
+                unit = int(str_unit[-4:])
+                if unit in split_unit_counter:
+                    split_unit_counter[unit] -= 1
+                else:
+                    logger.warning(f"Unknown strat-value: {str_unit}")
+                subset = split_unit_counter[unit]
+                if unit in strat_props.index:
+                    layers.append(f"{strat_props.at[unit, 'code']}_{subset}")
+                else:
+                    logger.warning(f"Unknown strat-value: {unit}")
+                    layers.append(unit)
+            else:
+                logger.warning(f"Unknown strat-value: {unit}")
+                layers.append(unit)
+        if unit >= 6000 and method_geulen != "split_layers":
             geulen.append(layers[-1])
 
     dims = ("layer", "y", "x")
     coords = {"layer": layers, "y": geotop_ds.y, "x": geotop_ds.x}
     ds = xr.Dataset({"top": (dims, top), "botm": (dims, bot)}, coords=coords)
 
-    if method_geulen is None:
+    if method_geulen is None or method_geulen == "split_layers":
         pass
+
     elif method_geulen == "add_as_layer":
         top = ds["top"].copy(deep=True)
         bot = ds["botm"].copy(deep=True)
@@ -173,6 +514,7 @@ def to_model_layers(
             ds = remove_layer(ds, geul)
         for geul in geulen:
             ds = insert_layer(ds, geul, top.loc[geul], bot.loc[geul])
+
     elif method_geulen == "add_to_layer_below":
         top = ds["top"].copy(deep=True)
         bot = ds["botm"].copy(deep=True)
@@ -196,7 +538,8 @@ def to_model_layers(
                 # idomain = get_idomain(ds)
                 # fal = get_last_active_layer_from_idomain(idomain)
                 logger.warning(
-                    f"Geul {geul} is at the bottom of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                    f"Geul {geul} is at the bottom of the GeoTOP-dataset in "
+                    f"{int(todo.sum())} cells, where it is ignored"
                 )
 
     elif method_geulen == "add_to_layer_above":
@@ -222,7 +565,8 @@ def to_model_layers(
                 # idomain = get_idomain(ds)
                 # fal = get_first_active_layer_from_idomain(idomain)
                 logger.warning(
-                    f"Geul {geul} is at the top of the GeoTOP-dataset in {int(todo.sum())} cells, where it is ignored"
+                    f"Geul {geul} is at the top of the GeoTOP-dataset in "
+                    f"{int(todo.sum())} cells, where it is ignored"
                 )
     else:
         raise (ValueError(f"Unknown method to deal with geulen: '{method_geulen}'"))
@@ -249,9 +593,10 @@ def to_model_layers(
 
 
 def get_geotop(*args, **kwargs):
-    """Get a slice of the geotop netcdf url within the extent, set the x and y
-    coordinates to match the cell centers and keep only the strat and lithok data
-    variables.
+    """Get a slice of the geotop netcdf url within the extent.
+
+    Set the x and y coordinates to match the cell centers and keep only the strat and
+    lithok data variables.
 
     .. deprecated:: 0.10.0
         `get_geotop` will be removed in nlmod 1.0.0, it is replaced by
@@ -277,15 +622,17 @@ def get_geotop(*args, **kwargs):
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.geotop.download_geotop() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
     return download_geotop(*args, **kwargs)
 
 
 @cache.cache_netcdf()
 def download_geotop(extent, url=None, probabilities=False, chunks="auto"):
-    """Get a slice of the geotop netcdf url within the extent, set the x and y
-    coordinates to match the cell centers and keep only the strat and lithok data
-    variables.
+    """Get a slice of the geotop netcdf url within the extent.
+
+    Set the x and y coordinates to match the cell centers and keep only the strat and
+    lithok data variables.
 
     Parameters
     ----------
@@ -530,13 +877,33 @@ def add_kh_and_kv(
                 kv_ar = kv_ar + (probability / kvi)
             probability_total += probability
         if kh_method == "arithmetic_mean":
-            kh_ar = kh_ar / probability_total
+            kh_ar = np.divide(
+                kh_ar,
+                probability_total,
+                out=np.full_like(kh_ar, np.nan),
+                where=probability_total > 0,
+            )
         else:
-            kh_ar = probability_total / kh_ar
+            kh_ar = np.divide(
+                probability_total,
+                kh_ar,
+                out=np.full_like(kh_ar, np.nan),
+                where=kh_ar != 0,
+            )
         if kv_method == "arithmetic_mean":
-            kv_ar = kv_ar / probability_total
+            kv_ar = np.divide(
+                kv_ar,
+                probability_total,
+                out=np.full_like(kv_ar, np.nan),
+                where=probability_total > 0,
+            )
         else:
-            kv_ar = probability_total / kv_ar
+            kv_ar = np.divide(
+                probability_total,
+                kv_ar,
+                out=np.full_like(kv_ar, np.nan),
+                where=kv_ar != 0,
+            )
     else:
         raise (ValueError(f"Unsupported value for stochastic: '{stochastic}'"))
 
@@ -591,8 +958,9 @@ def _handle_nans_in_stochastic_approach(kh, kv, kh_method, kv_method):
 def aggregate_to_ds(
     gt, ds, kh="kh", kv="kv", kd="kD", c="c", kh_gt="kh", kv_gt="kv", add_kd_and_c=False
 ):
-    """Aggregate voxels from GeoTOP to layers in a model DataSet with top and botm, to
-    calculate kh and kv.
+    """Aggregate voxels from GeoTOP to layers in a model DataSet.
+
+    Uses top and botm, to calculate kh and kv.
 
     Parameters
     ----------
@@ -626,7 +994,8 @@ def aggregate_to_ds(
     ds : xr.Dataset
         The Dataset ds, with added variables kh and kv (and optionally kd and c).
     """
-    assert (ds.x == gt.x).all() and (ds.y == gt.y).all()
+    assert (ds.x == gt.x).all()
+    assert (ds.y == gt.y).all()
     msg = "Please add '{}' to geotop-Dataset first, using add_kh_and_kv()"
     if kh_gt not in gt:
         raise (MissingValueError(msg.format(kh_gt)))
@@ -677,7 +1046,9 @@ def aggregate_to_ds(
 
 def _save_excel_files_as_csv():
     """
-    This method takes the files REF_GTP_STR_UNIT.xlsx and REF_GTP_LITHO_CLASS.xlsx that
+    Convert REGIS AND GeoTOP Excel files to CSV format.
+
+    Takes the files REF_GTP_STR_UNIT.xlsx and REF_GTP_LITHO_CLASS.xlsx that
     are taken from the GeoTOP 1.6 zipfile downloaded from DINOloket, and saves them as
     csv-files. In this way version-control can better process the changes in future
     versions of GeoTOP.

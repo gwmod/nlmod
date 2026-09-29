@@ -13,6 +13,7 @@ def test_dcs_structured():
     dcs.label_layers()
     dcs.plot_array(ds["kh"], alpha=0.5)
     dcs.plot_grid()
+    dcs.hatch_layers(ds.layer[::2])
 
 
 def test_dcs_cs_model():
@@ -35,6 +36,7 @@ def test_dcs_vertex():
     dcs.label_layers()
     dcs.plot_array(ds["kh"], alpha=0.5)
     dcs.plot_grid(vertical=False)
+    dcs.hatch_layers(ds.layer[::2])
 
 
 def test_cross_section_utils():

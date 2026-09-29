@@ -11,7 +11,7 @@ from xarray import DataArray
 
 
 class MeteobaseType(Enum):
-    """Enum class to couple folder names to observation type (from in LEESMIJ.txt)"""
+    """Enum class to couple folder names to observation type (from in LEESMIJ.txt)."""
 
     NEERSLAG = "Neerslagradargegevens in Arc/Info-formaat."
     MAKKINK = "Verdampingsgegevens volgens Makkink."
@@ -55,7 +55,13 @@ def read_leesmij(fo: FileIO) -> Dict[str, Dict[str, str]]:
 
 
 def get_timestamp_from_fname(fname: str) -> Timestamp:
-    """Get the Timestamp from a filename (with some assumptions about the formatting)"""
+    """Get the Timestamp from a filename (with some assumptions about the formatting).
+
+    Parameters
+    ----------
+    fname : str
+        Filename with date and hour in the format YYYYMMDD_HH
+    """
     datestr = re.search("([0-9]{8})", fname)  # assumes YYYYMMDD
     if datestr is not None:
         match = datestr.group(0)

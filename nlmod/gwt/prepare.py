@@ -56,5 +56,5 @@ def set_default_transport_parameters(ds, transport_type):
 
     else:
         raise ValueError("Only 'chloride' and 'tracer' transport types are defined.")
-
+    ds.attrs["transport"] = 1  # set transport flag to 1
     return ds

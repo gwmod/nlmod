@@ -1,14 +1,14 @@
 import os
-import tempfile
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import util
 import xarray as xr
 
 import nlmod
 
-model_ws = os.path.join(tempfile.gettempdir(), "test_grid")
+model_ws = os.path.join(util.get_model_data_dir(), "test_grid")
 extent = [98000.0, 99000.0, 489000.0, 490000.0]
 
 
@@ -33,7 +33,7 @@ def get_regis():
 
 
 def get_structured_model_ds():
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_structured")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_structured")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -44,7 +44,7 @@ def get_structured_model_ds():
 
 
 def get_structured_model_ds_rotated():
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_structured_rotated")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_structured_rotated")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -55,7 +55,7 @@ def get_structured_model_ds_rotated():
 
 
 def get_vertex_model_ds(bgt=None):
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -69,7 +69,7 @@ def get_vertex_model_ds(bgt=None):
 
 
 def get_vertex_model_ds_rotated(bgt=None):
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex_rotated")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex_rotated")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -84,14 +84,18 @@ def get_vertex_model_ds_rotated(bgt=None):
 
 def test_get_ds_rotated():
     ds0 = get_structured_model_ds_rotated()
-    assert ds0.extent[0] == 0 and ds0.extent[2] == 0
-    assert ds0.xorigin == extent[0] and ds0.yorigin == extent[2]
+    assert ds0.extent[0] == 0
+    assert ds0.extent[2] == 0
+    assert ds0.xorigin == extent[0]
+    assert ds0.yorigin == extent[2]
 
     # test refine method, by refining in all cells that contain surface water polygons
     ds = get_vertex_model_ds_rotated()
     assert len(ds.area) > np.prod(ds0.area.shape)
-    assert ds.extent[0] == 0 and ds.extent[2] == 0
-    assert ds.xorigin == extent[0] and ds.yorigin == extent[2]
+    assert ds.extent[0] == 0
+    assert ds.extent[2] == 0
+    assert ds.xorigin == extent[0]
+    assert ds.yorigin == extent[2]
 
     f0, ax0 = plt.subplots()
     nlmod.plot.modelgrid(ds0, ax=ax0)
@@ -380,7 +384,7 @@ def test_update_ds_from_layer_ds():
     assert len(np.unique(ds["top"])) > 1
 
     # test for a vertex grid
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex_200")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex_200")
     ds = nlmod.grid.refine(ds, model_ws=model_ws, refinement_features=[(bgt, 1)])
     ds = nlmod.grid.update_ds_from_layer_ds(ds, regis, method="nearest")
     assert len(np.unique(ds["top"])) > 1
@@ -395,7 +399,7 @@ def test_update_ds_from_layer_ds():
     assert len(np.unique(ds["top"])) > 1
 
     # test for a rotated vertex grid
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex_200_rotated")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex_200_rotated")
     ds = nlmod.grid.refine(ds, model_ws=model_ws, refinement_features=[(bgt, 2)])
     ds = nlmod.grid.update_ds_from_layer_ds(ds, regis, method="nearest")
     assert len(np.unique(ds["top"])) > 1

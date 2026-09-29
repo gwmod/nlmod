@@ -1,7 +1,7 @@
 import warnings
 
-from . import waterboard, webservices
 from .. import cache
+from . import waterboard, webservices
 
 
 def get_municipalities(*args, **kwargs):
@@ -28,8 +28,10 @@ def get_municipalities(*args, **kwargs):
     """
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_municipalities_gdf() in the future.",
+        "please use nlmod.read.administrative.download_municipalities_gdf() "
+        "in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_municipalities_gdf(*args, **kwargs)
@@ -97,11 +99,11 @@ def get_provinces(*args, **kwargs):
     gpd.GeoDataFrame
         polygons of provinces
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.administrative.download_provinces_gdf() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_provinces_gdf(*args, **kwargs)
@@ -160,11 +162,12 @@ def get_netherlands(*args, **kwargs):
     gpd.GeoDataFrame
         polygons of the Netherlands
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_netherlands_gdf() in the future.",
+        "please use nlmod.read.administrative.download_netherlands_gdf() "
+        "in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_netherlands_gdf(*args, **kwargs)
@@ -221,8 +224,10 @@ def get_waterboards(**kwargs):
     """
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
-        "please use nlmod.read.administrative.download_waterboards_gdf() in the future.",
+        "please use nlmod.read.administrative.download_waterboards_gdf() "
+        "in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return waterboard.download_polygons(**kwargs)
@@ -243,3 +248,23 @@ def download_waterboards_gdf(**kwargs):
         polygons of the Netherlands
     """
     return waterboard.download_polygons(**kwargs)
+
+
+def download_kadaster_percelen(extent):
+    """Download percelen (cadastral parcels) from the Dutch Kadaster.
+
+    Parameters
+    ----------
+    extent : list, tuple or np.array
+        The extent to be downloaded, consisting of 4 floats: xmin, xmax, ymin, ymax.
+
+    Returns
+    -------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame with polygons of the parcels
+
+    """
+    url = "https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?service=WFS"
+    layer = "kadastralekaartv5:perceel"
+    gdf = webservices.wfs(url, layer, extent)
+    return gdf

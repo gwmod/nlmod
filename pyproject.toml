@@ -25,7 +25,6 @@ dependencies = [
     "netcdf4>=1.7.2",
     "rasterio>=1.1.0",
     "rioxarray",
-    "affine>=0.3.1",
     "geopandas",
     "shapely>=2.0.0",
     "matplotlib",

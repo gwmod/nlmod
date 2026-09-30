@@ -1,5 +1,5 @@
 import logging
-import shutil
+import tempfile
 import warnings
 import zipfile
 from io import BytesIO
@@ -17,9 +17,8 @@ logger = logging.getLogger(__name__)
 def get_gdf_bofek(*args, **kwargs):
     """Get geodataframe of bofek 2020 wihtin the extent of the model.
 
-    It does so by downloading a zip file (> 100 MB) and extracting the relevant
-    geodatabase. Therefore the function can be slow, ~35 seconds depending on your
-    internet connection.
+    It does so by downloading a zip file and reading the included shapefile.
+    Therefore the function can be slow depending on your internet connection.
 
     .. deprecated:: 0.10.0
         `get_gdf_bofek` will be removed in nlmod 1.0.0, it is replaced by
@@ -44,9 +43,7 @@ def get_gdf_bofek(*args, **kwargs):
 
     Notes
     -----
-    An attempt was made to read the geodatabase in memory from the zip file wihtout
-    writing data to disk, but this was not successful. Mainly because of the difficulty
-    to read the geodatabase in memory.
+    The shapefile is extracted temporarily before reading it.
     """
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
@@ -62,9 +59,8 @@ def get_gdf_bofek(*args, **kwargs):
 def download_bofek_gdf(extent, dirname, timeout=3600):
     """Get geodataframe of bofek 2020 wihtin the extent of the model.
 
-    It does so by downloading a zip file (> 100 MB) and extracting the relevant
-    geodatabase. Therefore the function can be slow, ~35 seconds depending on your
-    internet connection.
+    It does so by downloading a zip file and reading the included shapefile.
+    Therefore the function can be slow depending on your internet connection.
 
     Parameters
     ----------
@@ -84,21 +80,15 @@ def download_bofek_gdf(extent, dirname, timeout=3600):
 
     Notes
     -----
-    An attempt was made to read the geodatabase in memory from the zip file wihtout
-    writing data to disk, but this was not successful. Mainly because of the difficulty
-    to read the geodatabase in memory.
+    The shapefile is extracted temporarily before reading it.
     """
-    import py7zr
-
-    # set paths
     dirname = Path(dirname)
-    fname_bofek_gdb = dirname / "GIS" / "BOFEK2020_bestanden" / "BOFEK2020.gdb"
 
     # create directories if they do not exist
     dirname.mkdir(exist_ok=True, parents=True)
 
     # url
-    bofek_zip_url = "https://www.wur.nl/nl/show/bofek-2020-gis-1.htm"
+    bofek_zip_url = "https://bodemdata.nl/files/download/BOFEK_2020_Shape.zip"
 
     # download zip
     logger.info("Downloading BOFEK2020 GIS data (~35 seconds)")
@@ -116,24 +106,14 @@ def download_bofek_gdf(extent, dirname, timeout=3600):
             progress_bar.update(len(data))
             file_unzipped.write(data)
 
-    # extract geodatabase from 7z
-    with zipfile.ZipFile(file_unzipped, mode="r") as zf:
-        with py7zr.SevenZipFile(BytesIO(zf.read(zf.filelist[0])), mode="r") as z:
-            z.extract(
-                targets=["GIS/BOFEK2020_bestanden/BOFEK2020.gdb"],
-                path=dirname,
-                recursive=True,
+    with tempfile.TemporaryDirectory(dir=dirname) as extract_dir:
+        with zipfile.ZipFile(file_unzipped, mode="r") as zf:
+            zf.extractall(
+                path=extract_dir,
+                members=[f"BOFEK_2020.{ext}" for ext in ("shp", "shx", "dbf", "prj", "cpg")],
             )
 
-    # read geodatabase
-    logger.debug("convert geodatabase to geojson")
-    gdf_bofek = gpd.read_file(fname_bofek_gdb)
-
-    # slice to extent
-    gdf_bofek = util.gdf_within_extent(gdf_bofek, extent)
-
-    # clean up
-    logger.debug("Remove geodatabase")
-    shutil.rmtree(fname_bofek_gdb)
+        gdf_bofek = gpd.read_file(Path(extract_dir) / "BOFEK_2020.shp")
+        gdf_bofek = util.gdf_within_extent(gdf_bofek, extent)
 
     return gdf_bofek

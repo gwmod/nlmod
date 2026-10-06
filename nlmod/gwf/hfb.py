@@ -13,6 +13,8 @@ from shapely.geometry import MultiLineString, Point, Polygon
 from ..dims.grid import (
     gdf_to_da,
     gdf_to_grid,
+    get_delc,
+    get_delr,
     get_node_structured,
     is_structured,
     is_vertex,
@@ -150,7 +152,7 @@ def _clean_hfb_spd(spd):
     return [
         [cellid1, cellid2, hydchr_float]
         for cellid1, cellid2, hydchr in spd
-        if (hydchr_float := float(hydchr)) > 0
+        if (hydchr_float := float(hydchr)) != 0
     ]
 
 
@@ -195,6 +197,12 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     thickness at the cell interface is just the average of the thicknesses of the two
     cells.
 
+    For the layer that contains the bottom of the barrier, a negative HYDCHR is used.
+    MODFLOW 6 then multiplies its own conductance between the two cells by that
+    factor. The factor combines the open part of the face (below the barrier) with the
+    walled part, so a barrier that barely penetrates a layer leaves the face nearly
+    open. For an impermeable barrier the factor is simply the open fraction.
+
     Parameters
     ----------
     ds : xr.Dataset
@@ -228,6 +236,8 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
     tops = np.concatenate((ds["top"].values[np.newaxis], ds["botm"].values))
     cells = _get_hfb_cells_from_linestrings(ds, linestrings, idomain)
 
+    kh = ds["kh"].values
+
     spd = []
     for cellid1, cellid2 in cells:
         if idomain.values[cellid1] <= 0:
@@ -256,7 +266,9 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
                 if not 0 <= hydchr_frac <= 1:
                     raise RuntimeError("HFB depth fraction is outside [0, 1]")
 
-                spd.append([cellid1, cellid2, hydchr * hydchr_frac])
+                _append_partial_hydchr(
+                    spd, ds, cellid1, cellid2, hydchr, hydchr_frac, kh
+                )
 
         elif topi[ilay + 1] >= elevation:
             # hfb spans the entire cell
@@ -268,9 +280,61 @@ def get_hfb_spd(ds, linestrings, hydchr, depth=None, elevation=None):
             if not 0 <= hydchr_frac <= 1:
                 raise RuntimeError("HFB elevation fraction is outside [0, 1]")
 
-            spd.append([cellid1, cellid2, hydchr * hydchr_frac])
+            _append_partial_hydchr(spd, ds, cellid1, cellid2, hydchr, hydchr_frac, kh)
 
     return spd
+
+
+def _append_partial_hydchr(spd, ds, cellid1, cellid2, hydchr, frac, kh):
+    """Append the HYDCHR for a layer that the barrier penetrates over ``frac``.
+
+    The face consists of an open strip over ``1 - frac`` in parallel with a walled
+    strip over ``frac``, where the barrier ``b = hydchr`` is in series with the
+    aquifer. MF6 multiplies its own cell-to-cell conductance by ``-HYDCHR`` when
+    HYDCHR is negative; the factor is ``(1 - frac) + frac * b / (c + b)``, which is
+    ``1 - frac`` for an impermeable barrier.
+    ``c = 1 / (d1 / k1 + d2 / k2)`` is the aquifer conductance per unit face area,
+    with ``d`` the distance from each cell center to the shared face. When kh is not
+    positive, only the open-strip factor ``1 - frac`` is used.
+    """
+    if frac == 0:
+        # the layer is not penetrated; leave the face open
+        return
+    kh1 = kh[cellid1]
+    kh2 = kh[cellid2]
+    if np.isfinite(kh1) and np.isfinite(kh2) and kh1 > 0 and kh2 > 0:
+        d1, d2 = _center_to_face_distances(ds, cellid1, cellid2)
+        c = 1.0 / (d1 / kh1 + d2 / kh2)
+        walled = hydchr / (c + hydchr)
+    else:
+        walled = 0.0
+    spd.append([cellid1, cellid2, -float((1.0 - frac) + frac * walled)])
+
+
+def _center_to_face_distances(ds, cellid1, cellid2):
+    """Return the distances from both cell centers to their shared face."""
+    if is_structured(ds):
+        if cellid1[1] == cellid2[1]:
+            delr = get_delr(ds)
+            return delr[cellid1[2]] / 2, delr[cellid2[2]] / 2
+        delc = get_delc(ds)
+        return delc[cellid1[1]] / 2, delc[cellid2[1]] / 2
+
+    icvert = ds["icvert"].values
+    nodata = ds["icvert"].attrs.get("nodata", -1)
+
+    def vertices(icell2d):
+        return {int(iv) for iv in icvert[icell2d] if np.isfinite(iv) and iv != nodata}
+
+    shared = sorted(vertices(cellid1[1]) & vertices(cellid2[1]))
+    xa, ya = ds["xv"].values[shared[0]], ds["yv"].values[shared[0]]
+    xb, yb = ds["xv"].values[shared[-1]], ds["yv"].values[shared[-1]]
+    length = np.hypot(xb - xa, yb - ya)
+    distances = []
+    for icell2d in (cellid1[1], cellid2[1]):
+        x, y = ds["x"].values[icell2d], ds["y"].values[icell2d]
+        distances.append(abs((xb - xa) * (ya - y) - (xa - x) * (yb - ya)) / length)
+    return tuple(distances)
 
 
 def line2hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):

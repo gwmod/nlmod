@@ -4,7 +4,9 @@ import flopy
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pytest
 import util
+from shapely.geometry import box
 
 import nlmod
 
@@ -133,3 +135,82 @@ def test_aggregate():
         assert not celldata.isna().any(axis=None)
         riv_spd = nlmod.gwf.surface_water.build_spd(celldata, "RIV", ds)
         flopy.mf6.ModflowGwfriv(gwf, stress_period_data=riv_spd)
+
+
+def _get_lake_model(model_name):
+    model_ws = os.path.join(util.get_model_data_dir(), model_name)
+    ds = nlmod.get_ds(
+        [170000, 171000, 550000, 551000], model_ws=model_ws, model_name=model_name
+    )
+    ds = nlmod.time.set_ds_time(ds, time=[1], start=pd.Timestamp.today())
+    ds = nlmod.dims.refine(ds)
+
+    sim = nlmod.sim.sim(ds)
+    nlmod.sim.tdis(ds, sim)
+    nlmod.sim.ims(sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    nlmod.gwf.dis(ds, gwf)
+    return ds, gwf
+
+
+def test_lake_from_gdf_aggregates_pieces_per_cell():
+    """Multiple pieces of a lake in one cell merge into a single connection.
+
+    A lake commonly intersects a grid cell in multiple polygon pieces (e.g. after
+    nlmod.grid.gdf_to_grid). Each piece should contribute conductance for its own
+    area, and the pieces should collapse to a single lake-GWF connection per cell,
+    like nlmod.gwf.surface_water.aggregate already does for RIV/DRN celldata.
+    """
+    ds, gwf = _get_lake_model("lp")
+
+    # lake_0 covers cell 14 with two pieces (6000 m2 at clake=10 and 2000 m2 at
+    # clake=20) and cell 15 with one piece (10000 m2, the full cell, at clake=10)
+    gdf_lake = gpd.GeoDataFrame(
+        {
+            "name": ["lake_0", "lake_0", "lake_0"],
+            "strt": [1.0, 1.0, 1.0],
+            "clake": [10.0, 20.0, 10.0],
+        },
+        geometry=[
+            box(0, 0, 100, 60),
+            box(0, 60, 50, 100),
+            box(100, 0, 200, 100),
+        ],
+        index=[14, 14, 15],
+    )
+
+    lak = nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name")
+
+    conns = lak.connectiondata.array
+    assert len(conns) == 2, "pieces within a cell should merge to one connection"
+    bedleak = {
+        cellid[-1]: bl
+        for (_, _, cellid, *_), bl in zip(
+            conns.tolist(), conns["bedleak"], strict=False
+        )
+    }
+    # bedleak * cell_area == sum(piece_area / clake), cell area is 10000 m2
+    assert bedleak[14] == pytest.approx((6000.0 / 10.0 + 2000.0 / 20.0) / 10000.0)
+    assert bedleak[15] == pytest.approx((10000.0 / 10.0) / 10000.0)
+    assert lak.packagedata.array[0][2] == 2  # nlakeconn counts cells, not pieces
+
+
+def test_lake_from_gdf_accepts_floating_point_strt_noise():
+    """Float-level noise in per-cell strt values is accepted as a single value.
+
+    Aggregated inputs (e.g. area-weighted stages per cell) carry float-level noise;
+    a single-value check with exact equality rejects them for no physical reason.
+    """
+    ds, gwf = _get_lake_model("ln")
+
+    gdf_lake = gpd.GeoDataFrame(
+        {
+            "name": ["lake_0", "lake_0"],
+            "strt": [1.0, 1.0 + 1e-12],
+            "clake": [10.0, 10.0],
+        },
+        index=[14, 15],
+    )
+
+    lak = nlmod.gwf.lake_from_gdf(gwf, gdf_lake, ds, boundname_column="name")
+    assert lak.packagedata.array[0][1] == pytest.approx(1.0)

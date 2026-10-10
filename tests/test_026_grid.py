@@ -1,10 +1,12 @@
 import os
 
+import flopy
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import util
 import xarray as xr
+from shapely.geometry import LineString
 
 import nlmod
 
@@ -416,3 +418,15 @@ def test_gdf_area_per_index_to_da():
     ds = get_vertex_model_ds()
     ds["bgt"] = nlmod.grid.gdf_area_to_da(bgt, ds)
     assert (ds["bgt"].sum("index") > 0).any()
+
+
+def test_gdf_to_grid_line_length():
+    modelgrid = flopy.discretization.StructuredGrid(
+        delc=np.full(10, 100.0), delr=np.full(10, 100.0), xoff=98000.0, yoff=489000.0
+    )
+    ix = flopy.utils.GridIntersect(modelgrid)
+    line = LineString([(98050.0, 489550.0), (98950.0, 489550.0)])
+    gdf = gpd.GeoDataFrame(geometry=[line], crs=28992)
+    gdfg = nlmod.grid.gdf_to_grid(gdf, ix=ix, silent=True)
+    assert "length" in gdfg.columns
+    assert np.isclose(gdfg["length"].sum(), line.length)

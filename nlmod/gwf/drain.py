@@ -35,6 +35,11 @@ def drain_from_df(
     **kwargs,
 ):
     """Add a Drain (DRN) package based on input from a (Geo)DataFrame.
+    
+    The `df` may contain a combination of point, line, and polygon geometries. Where
+    point geometries require the integrated conductance to be specified in the ``cond`` 
+    column, line geometries use ``conductance_per_length``, and polygon geometries use
+    ``conductance_per_area``.
 
     Parameters
     ----------

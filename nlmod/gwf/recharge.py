@@ -67,7 +67,7 @@ def ds_to_rch(
         gwf,
         filename=f"{gwf.name}.rch",
         pname=pname,
-        fixed_cell=False,
+        fixed_cell=kwargs.pop("fixed_cell", False),
         auxiliary="CONCENTRATION" if auxiliary is not None else None,
         maxbound=len(spd),
         stress_period_data={0: spd},
@@ -174,7 +174,7 @@ def ds_to_evt(
         gwf,
         filename=f"{gwf.name}.evt",
         pname=pname,
-        fixed_cell=False,
+        fixed_cell=kwargs.pop("fixed_cell", False),
         auxiliary="CONCENTRATION" if auxiliary is not None else None,
         maxbound=len(spd),
         nseg=nseg,
@@ -378,7 +378,8 @@ def ds_to_uzf(
     # then use bfill to accont for inactive cells in the layer below, and set nans to -1
     ivertcon = ivertcon.where(ivertcon >= 0).bfill("layer").fillna(-1).astype(int)
 
-    # packagedata : [iuzno, cellid, landflag, ivertcon, surfdep, vks, thtr, thts, thti, eps, boundname]
+    # packagedata : [iuzno, cellid, landflag, ivertcon, surfdep, vks,
+    #  thtr, thts, thti, eps, boundname]
     packagedata = cols_to_reclist(
         ds,
         cellids,
@@ -425,7 +426,8 @@ def ds_to_uzf(
         extwc = thtr
         if simulate_et and unsat_etwc:
             logger.info(
-                f"Setting evapotranspiration extinction water content (extwc) to {extwc}"
+                f"Setting evapotranspiration extinction water content (extwc) "
+                f"to {extwc}"
             )
     if ha is None:
         ha = 0.0
@@ -470,7 +472,7 @@ def ds_to_uzf(
         iuzno_obs_vals = np.unique(iuzno_obs[~np.isnan(iuzno_obs)]).astype(int)
 
         # get cell ids of observations
-        cellids_obs = list(zip(*np.where(mask_obs)))
+        cellids_obs = list(zip(*np.where(mask_obs), strict=False))
         cellid_str = ["_".join(map(str, x)) for x in cellids_obs]
 
         # account for surfdep, as this decreases the height of the top of the upper cell
@@ -617,7 +619,9 @@ def _get_meteo_da_from_input(recharge, ds, pname, stn_var):
             use_ts = True
 
             ts_name = f"{pname}_0"
-            rch_unique_df = pd.DataFrame(recharge, columns=[ts_name])
+            rch_unique_df = recharge.to_dataframe().rename(
+                columns={"recharge": ts_name}
+            )
             dims = ds["top"].dims
             coords = ds["top"].coords
             shape = [ds.sizes[dim] for dim in dims]
@@ -658,7 +662,7 @@ def _get_meteo_da_from_input(recharge, ds, pname, stn_var):
         mask_recharge = fal != fal.attrs["nodata"]
         use_ts = False
     else:
-        raise NotImplementedError("Type {type(recharge)} not supported for recharge")
+        raise NotImplementedError(f"Type {type(recharge)} not supported for recharge")
 
     return recharge, mask_recharge, rch_unique_df
 

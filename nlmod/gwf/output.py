@@ -137,6 +137,7 @@ def get_budget_da(
     fname=None,
     grb_file=None,
     column="q",
+    pname=None,
     delayed=False,
     chunked=False,
     precision="auto",
@@ -161,6 +162,10 @@ def get_budget_da(
     column : str
         name of column in rec-array to read, default is 'q' which contains the fluxes
         for most budget datasets.
+    pname : str, optional
+        mf6 package name to get data for, useful when multiple packages of
+        same type exist in the model. If None, then all packages of the same type will
+        be read and added together.
     delayed : bool, optional
         if delayed is True, do not load output data into memory, default is False.
     chunked : bool, optional
@@ -178,7 +183,7 @@ def get_budget_da(
     cbcobj = get_cellbudgetfile(
         ds=ds, gwf=gwf, fname=fname, grb_file=grb_file, precision=precision
     )
-    da = _get_budget_da(cbcobj, text, column=column, **kwargs)
+    da = _get_budget_da(cbcobj, text, column=column, pname=pname, **kwargs)
     da.attrs["units"] = "m3/d"
 
     # set time index if ds/gwt are provided
@@ -199,8 +204,9 @@ def get_budget_da(
 
 
 def get_gwl_from_wet_cells(head, layer="layer", botm=None):
-    """Get the groundwater level from a multi-dimensional head array where dry cells are
-    NaN. This methods finds the most upper non-nan-value of each cell or timestep.
+    """Get groundwater level from multi-dimensional head array with dry cells as NaN.
+
+    This method finds the most upper non-nan-value of each cell or timestep.
 
     Parameters
     ----------
@@ -260,8 +266,8 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
         The location of the grb-file. grb_file is determied from ds when None. The
         default is None.
     kstpkper : tuple of 2 ints, optional
-        The index of the timestep and the stress period to include in the result. Include
-        all data in the budget-file when None. The default is None.
+        The index of the timestep and the stress period to include in the result.
+        Include all data in the budget-file when None. The default is None.
 
     Returns
     -------
@@ -298,7 +304,13 @@ def get_flow_residuals(ds, gwf=None, fname=None, grb_file=None, kstpkper=None):
 
 
 def get_flow_lower_face(
-    ds, gwf=None, fname=None, grb_file=None, kstpkper=None, lays=None
+    ds,
+    gwf=None,
+    fname=None,
+    grb_file=None,
+    kstpkper=None,
+    lays=None,
+    precision="auto",
 ):
     """Get the flow over the lower face of all model cells.
 
@@ -318,11 +330,14 @@ def get_flow_lower_face(
         The location of the grb-file. grb_file is determied from ds when None. The
         default is None.
     kstpkper : tuple of 2 ints, optional
-        The index of the timestep and the stress period to include in the result. Include
-        all data in the budget-file when None. The default is None.
+        The index of the timestep and the stress period to include in the result.
+        Include all data in the budget-file when None. The default is None.
     lays : int or list of ints, optional
         The layers to include in the result. When lays is None, all layers are included.
         The default is None.
+    precision : str, optional
+        precision of floating point data in the budget-file. Accepted values are 'auto',
+        'single' or 'double'.
 
     Returns
     -------
@@ -331,7 +346,9 @@ def get_flow_lower_face(
     """
     if grb_file is None:
         grb_file = _get_grb_file(ds)
-    cbf = get_cellbudgetfile(ds=ds, gwf=gwf, fname=fname, grb_file=grb_file)
+    cbf = get_cellbudgetfile(
+        ds=ds, gwf=gwf, fname=fname, grb_file=grb_file, precision=precision
+    )
     flowja = cbf.get_data(text="FLOW-JA-FACE", kstpkper=kstpkper)
 
     if ds.gridtype == "vertex":
@@ -497,7 +514,8 @@ def _calculate_gxg(
     gxg_years = gxg_data.count("bimonth") == 24
     gxg_data = gxg_data.where(gxg_years)
 
-    # First compute LG3 and HG3 per hydrological year, then compute the mean over the total.
+    # First compute LG3 and HG3 per hydrological year, then compute the mean
+    # over the total.
     if gxg_data.chunks is not None:
         # If data is lazily loaded/chunked, process data of one year at a time.
         gxg_data = gxg_data.chunk({"hydroyear": 1})
@@ -529,7 +547,7 @@ def _calculate_gxg(
 def calculate_gxg(
     head: xr.DataArray,
     below_surfacelevel: bool = False,
-    tolerance: pd.Timedelta = pd.Timedelta(days=7),
+    tolerance: pd.Timedelta = None,
 ) -> xr.DataArray:
     """Calculate GxG groundwater characteristics from head time series.
 
@@ -556,7 +574,7 @@ def calculate_gxg(
     below_surfacelevel : boolean, optional, default: False.
         False (default) if heads are relative to a datum (e.g. sea level). If
         True, heads are taken as m below surface level.
-    tolerance: pd.Timedelta, default: 7 days.
+    tolerance: pd.Timedelta, optional, default: 7 days.
         Maximum time window allowed when searching for dates around the 14th
         and 28th of every month.
 
@@ -576,6 +594,8 @@ def calculate_gxg(
     >>> head = nlmod.gwf.get_heads_da(ds)
     >>> gxg = nlmod.gwf.output.calculate_gxg(head)
     """
+    if tolerance is None:
+        tolerance = pd.Timedelta(days=7)
     # if not head.dims == ("time", "y", "x"):
     #    raise ValueError('Dimensions must be ("time", "y", "x")')
     if not np.issubdtype(head["time"].dtype, np.datetime64):

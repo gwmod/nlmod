@@ -1,7 +1,7 @@
 import os
-import tempfile
 
 import pandas as pd
+import util
 import xarray as xr
 
 import nlmod
@@ -10,9 +10,8 @@ import nlmod
 def test_gwt_model():
     extent = [103700, 106700, 527500, 528500]
 
-    tmpdir = tempfile.gettempdir()
     model_name = "trnsprt_tst"
-    model_ws = os.path.join(tmpdir, model_name)
+    model_ws = os.path.join(util.get_model_data_dir(), model_name)
 
     layer_model = nlmod.read.download_regis(extent, botm_layer="MSz1")
     # create a model ds
@@ -42,7 +41,9 @@ def test_gwt_model():
     ds["sea"] = nlmod.read.rws.calculate_sea_coverage(ahn, ds=ds, method="average")
 
     # download knmi recharge data
-    knmi_ds = nlmod.read.knmi.get_recharge(ds, method="separate")
+    knmi_ds = nlmod.read.knmi.get_recharge(
+        ds, method="separate", hourly_precision=False
+    )
 
     # update model dataset
     ds.update(knmi_ds)
@@ -136,12 +137,8 @@ def test_gwt_model():
     nlmod.gwt.get_concentration_at_gw_surface(c)
 
     # test isosurface: first elevation where 10_000 mg/l is reached
-    z = xr.DataArray(
-        gwf.modelgrid.zcellcenters,
-        coords={"layer": c.layer, "y": c.y, "x": c.x},
-        dims=("layer", "y", "x"),
-    )
-    nlmod.layers.get_isosurface(c, z, 10_000.0)
+    z = nlmod.dims.layers.get_zcellcenters(ds)
+    nlmod.layers.get_isosurface(c, z, 10_000.0, method="numpy")
 
     # Convert calculated heads to equivalent freshwater heads, and vice versa
     hf = nlmod.gwt.output.freshwater_head(ds, h, c)

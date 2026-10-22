@@ -41,7 +41,7 @@ def test_get_time_step_length():
 
 def test_time_options():
     """Attempt to list all the variations of start, time and perlen
-    caling the nlmod.dims.set_ds_time functions
+    caling the nlmod.dims.set_ds_time functions.
     """
     ds = nlmod.get_ds([0, 1000, 2000, 3000])
 
@@ -91,7 +91,7 @@ def test_time_options():
 
 
 def test_time_out_of_bounds():
-    """Related to this issue: https://github.com/gwmod/nlmod/issues/374
+    """Related to this issue: https://github.com/gwmod/nlmod/issues/374.
 
     pandas timestamps can only do computations with dates between the years 1678 and 2262.
     """

@@ -24,6 +24,15 @@ LAKE_KWDS = [
     "ROUGH",
 ]
 
+LAKE_GWT_KWDS = [
+    "GWT_STATUS",
+    "GWT_CONCENTRATION",
+    "GWT_RAINFALL",
+    "GWT_EVAPORATION",
+    "GWT_RUNOFF",
+    "GWT_EXT-INFLOW",
+]
+
 # order of dictionary matters!
 OUTLET_DEFAULT = {
     "couttype": "WEIR",
@@ -62,16 +71,21 @@ def lake_from_gdf(
             lakeno : with the number of the lake
             strt : with the starting head of the lake
             clake : with the bed resistance of the lake
+        A single lake may have multiple elements (polygon pieces) in one cell, e.g.
+        straight from nlmod.grid.gdf_to_grid. Pieces are combined into one lake-GWF
+        connection per cell with an area-weighted bed resistance (see
+        _aggregate_connections_per_cell), like nlmod.gwf.surface_water.aggregate
+        already does for RIV/DRN celldata.
             optional columns are 'STATUS', 'STAGE', 'RAINFALL', 'EVAPORATION',
             'RUNOFF', 'INFLOW', 'WITHDRAWAL', 'AUXILIARY', 'RATE', 'INVERT',
             'WIDTH', 'SLOPE', 'ROUGH'. These columns should contain the name
             of a dataarray in ds with the dimension time.
-        if the lake has any outlets they should be specified in the column
-            lakeout : the lake number of the outlet, if this is -1 the water
-            is removed from the model.
-            optinal columns are 'couttype', 'outlet_invert', 'outlet_width',
-            'outlet_rough' and 'outlet_slope'. These columns should contain a
-            unique value for each outlet.
+        If the lake has any outlets they should be specified in the column 'lakeout'.
+        This is the lake number or boundname of the lake to which the outlet flows. If
+        lakeout is -1 the water is removed from the model.
+        Optional columns are 'couttype', 'outlet_invert', 'outlet_width',
+        'outlet_rough' and 'outlet_slope'. These columns should contain a
+        unique value for each outlet.
     ds : xr.Dataset
         dataset containing relevant model grid and time information
     rainfall : int, float, str, np.array or pd.DataFrame, optional
@@ -146,6 +160,12 @@ def lake_from_gdf(
     if gwt is not None:
         packagedata_gwt = []
         perioddata_gwt = {0: []}
+        for iper in range(ds.sizes["time"]):
+            perioddata_gwt[iper] = []
+
+        lake_gwt_settings = [
+            setting for setting in LAKE_GWT_KWDS if setting in gdf.columns
+        ]
 
     lake_settings = [setting for setting in LAKE_KWDS if setting in gdf.columns]
 
@@ -158,6 +178,8 @@ def lake_from_gdf(
         gdf = add_lakeno_to_gdf(gdf, boundname_column)
 
     for lakeno, lake_gdf in gdf.groupby("lakeno"):
+        if lake_gdf.index.duplicated().any():
+            lake_gdf = _aggregate_connections_per_cell(lake_gdf, ds)
         nlakeconn = lake_gdf.shape[0]
         if "strt" in lake_gdf:
             strt = _get_and_check_single_value(lake_gdf, "strt")
@@ -208,6 +230,13 @@ def lake_from_gdf(
         ):
             lakeout = _get_and_check_single_value(lake_gdf, "lakeout")
             if isinstance(lakeout, str):
+                try:
+                    # an integer lakeout could have been converted to a string
+                    # after saving gdf to disk
+                    lakeout = int(lakeout)
+                except ValueError:
+                    pass
+            if isinstance(lakeout, str):
                 # when lakeout is a string, it represents the boundname
                 # we need to find the lakeno that belongs to this boundname
                 boundnameout = lakeout
@@ -219,7 +248,8 @@ def lake_from_gdf(
                 lakeout = gdf.loc[mask, "lakeno"].iloc[0]
                 if not (gdf.loc[mask, "lakeno"] == lakeout).all():
                     raise ValueError(
-                        f"expected single value of lakeno for lakeout {boundnameout}, got {gdf.loc[mask, 'lakeno']}"
+                        f"expected single value of lakeno for lakeout {boundnameout}, "
+                        f"got {gdf.loc[mask, 'lakeno']}"
                     )
             assert lakeno != lakeout, "lakein and lakeout cannot be the same"
 
@@ -227,7 +257,8 @@ def lake_from_gdf(
             for outset, default_value in OUTLET_DEFAULT.items():
                 if outset not in lake_gdf.columns:
                     logger.debug(
-                        f"no value specified for {outset} and lake no {lakeno}, using default value {default_value}"
+                        f"no value specified for {outset} and lake no {lakeno}, "
+                        f"using default value {default_value}"
                     )
                     setval = default_value
                 else:
@@ -235,12 +266,14 @@ def lake_from_gdf(
                     if pd.notna(setval):
                         if not (lake_gdf[outset] == setval).all():
                             raise ValueError(
-                                f"expected single data variable for {outset} and lake number {lakeno}, got {lake_gdf[outset]}"
+                                f"expected single data variable for {outset} and lake "
+                                f"number {lakeno}, got {lake_gdf[outset]}"
                             )
                     else:  # setval is nan or None
                         setval = default_value
                         logger.debug(
-                            f"no value specified for {outset} and lake no {lakeno}, using default value {default_value}"
+                            f"no value specified for {outset} and lake no {lakeno}, "
+                            f"using default value {default_value}"
                         )
                 if outset == "outlet_invert" and isinstance(setval, str):
                     # setval can be the name of a timeseries
@@ -271,9 +304,18 @@ def lake_from_gdf(
                 if pd.isna(datavar) or datavar == "":  # None or nan or ""
                     logger.debug(f"no {lake_setting} given for lake no {lakeno}")
                     continue
-                perioddata[iper].append(
-                    [lakeno, lake_setting, ds[datavar].values[iper]]
-                )
+                if datavar in ds:
+                    da = ds[datavar]
+                    if len(da.dims) > 1:
+                        if boundname_column is not None:
+                            da = da.loc[:, boundname]
+                        else:
+                            da = da.loc[:, lakeno]
+                    value = da.values[iper]
+                else:
+                    value = datavar
+
+                perioddata[iper].append([lakeno, lake_setting, value])
         if gwt is not None:
             if "strt_concentration" in lake_gdf.columns:
                 strt = _get_and_check_single_value(lake_gdf, "strt_concentration")
@@ -286,14 +328,43 @@ def lake_from_gdf(
                 packagedata_gwt.append([lakeno, strt, boundname])
             else:
                 packagedata_gwt.append([lakeno, strt])
-            if rainfall is not None:
-                perioddata_gwt[0].append([lakeno, "rainfall", rainfall_concentration])
-            if evaporation is not None:
-                perioddata_gwt[0].append(
-                    [lakeno, "evaporation", evaporation_concentration]
-                )
+            for iper in range(ds.sizes["time"]):
+                if rainfall is not None and (
+                    "GWT_RAINFALL" not in lake_gdf.columns
+                    or lake_gdf["GWT_RAINFALL"].isna().all()
+                    or lake_gdf["GWT_RAINFALL"].eq("").all()
+                ):
+                    perioddata_gwt[iper].append(
+                        [lakeno, "rainfall", rainfall_concentration]
+                    )
+                if evaporation is not None and (
+                    "GWT_EVAPORATION" not in lake_gdf.columns
+                    or lake_gdf["GWT_EVAPORATION"].isna().all()
+                    or lake_gdf["GWT_EVAPORATION"].eq("").all()
+                ):
+                    perioddata_gwt[iper].append(
+                        [lakeno, "evaporation", evaporation_concentration]
+                    )
+                for lake_setting in lake_gwt_settings:
+                    datavar = _get_and_check_single_value(lake_gdf, lake_setting)
+                    if pd.isna(datavar) or datavar == "":  # None or nan or ""
+                        logger.debug(f"no {lake_setting} given for lake no {lakeno}")
+                        continue
+                    if datavar in ds:
+                        da = ds[datavar]
+                        if len(da.dims) > 1:
+                            if boundname_column is not None:
+                                da = da.loc[:, boundname]
+                            else:
+                                da = da.loc[:, lakeno]
+                        value = da.values[iper]
+                    else:
+                        value = datavar
+                    perioddata_gwt[iper].append([lakeno, lake_setting[4:], value])
 
-    if boundname_column is not None:
+    if "observations" in kwargs:
+        observations = kwargs.pop("observations")
+    elif boundname_column is not None:
         observations = {}
         if isinstance(obs_type, str):
             obs_type = [obs_type]
@@ -349,9 +420,38 @@ def lake_from_gdf(
     return lak
 
 
+def _aggregate_connections_per_cell(lake_gdf, ds):
+    """Combine multiple pieces of one lake within a grid cell into one connection.
+
+    A lake polygon commonly intersects a grid cell in more than one piece (e.g.
+    after nlmod.grid.gdf_to_grid). MODFLOW 6 applies each VERTICAL lake-GWF
+    connection over the full cell area, so per-piece rows would multiply-count the
+    exchange. Each piece therefore contributes conductance for its own area: the
+    combined bed resistance is clake = cell_area / sum(piece_area / clake), so
+    that the connection conductance cell_area / clake equals the summed piece
+    conductance — the same area-weighted aggregation nlmod.gwf.surface_water
+    .aggregate applies to RIV/DRN celldata. All other columns take the value of
+    the first piece per cell.
+    """
+    if "geometry" not in lake_gdf.columns or lake_gdf.geometry.isna().any():
+        raise ValueError(
+            "found multiple elements of one lake in a single cell; provide polygon "
+            "geometries of the lake to aggregate these elements"
+        )
+    cond = (lake_gdf.geometry.area / lake_gdf["clake"]).groupby(level=0).sum()
+    agg = lake_gdf.groupby(level=0).first()
+    agg["clake"] = ds["area"].data[agg.index] / cond
+    return agg
+
+
 def _get_and_check_single_value(lake_gdf, column):
     value = lake_gdf[column].iloc[0]
     if lake_gdf[column].isna().all() or lake_gdf[column].eq("").all():
+        return value
+    if pd.api.types.is_numeric_dtype(lake_gdf[column]):
+        # aggregated inputs (e.g. area-weighted stages) carry float-level noise
+        if not np.allclose(lake_gdf[column], value, rtol=1e-8, atol=0.0):
+            raise AssertionError(f"A single lake should have a single {column}")
         return value
     if not (lake_gdf[column] == value).all():
         raise (AssertionError(f"A single lake should have a single {column}"))
@@ -362,10 +462,12 @@ def _parse_laksetting_value(value, ds, key, iper):
     if isinstance(value, (float, int, str)):
         return value
     elif isinstance(value, pd.Series):
-        assert len(value.index) == len(ds.time) and (value.index == ds.time).all()
+        assert len(value.index) == len(ds.time)
+        assert (value.index == ds.time).all()
         return value.iloc[iper]
     elif isinstance(value, pd.DataFrame):
-        assert len(value.index) == len(ds.time) and (value.index == ds.time).all()
+        assert len(value.index) == len(ds.time)
+        assert (value.index == ds.time).all()
         return value[key].iloc[iper]
     else:
         assert len(value) == len(ds.time)
@@ -373,6 +475,20 @@ def _parse_laksetting_value(value, ds, key, iper):
 
 
 def add_lakeno_to_gdf(gdf, boundname_column):
+    """Add a lakeno column to a GeoDataFrame based on unique boundnames.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame to add lakeno column to.
+    boundname_column : str
+        Name of the column containing boundnames.
+
+    Returns
+    -------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame with added lakeno column.
+    """
     if boundname_column not in gdf.columns:
         raise (KeyError(f"Cannot find column {boundname_column} in gdf"))
     names = gdf[boundname_column].unique()
@@ -414,8 +530,15 @@ def _copy_da_from_ds(gdf, ds, variable, boundname_column=None, set_to_0_in_ds=Fa
 def copy_meteorological_data_from_ds(
     gdf, ds, boundname_column=None, set_to_0_in_ds=False
 ):
-    """
-    Copy meteorlogical data from the model dataset, and return rainfall and evaporation.
+    """Copy meteorological data from the model dataset.
+
+    Returns rainfall and evaporation DataFrames.
+
+    This method retrieves the values of rainfall and evaporation from a model Dataset.
+    It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
+    returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
+    each of the lakes. The columns of this DataFrame are either the boundnames (when
+    boundname_column is specified) or the lake-number (lakeno).
     This method retrieves the values of rainfall and evaporation from a model Dataset.
     It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
     returns a rainfall- and evaporation-DataFrame. These dataframes contain input for
@@ -479,8 +602,10 @@ def clip_meteorological_data_from_ds(
     ds,
     boundname_column=None,
 ):
-    """
-    Clip meteorlogical data from the model dataset, and return rainfall and evaporation.
+    """Clip meteorological data from the model dataset.
+
+    Returns rainfall and evaporation DataFrames.
+
     This method retrieves the values of rainfall and evaporation from a model Dataset.
     It uses the 'recharge'variable, and optionally the 'evaporation'-variable, and
     returns a rainfall- and evaporation-DataFrame. These dataframes contain input for

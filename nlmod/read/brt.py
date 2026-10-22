@@ -72,6 +72,7 @@ def get_brt(*args, **kwargs):
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.brt.download_brt_gdf() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_brt_gdf(*args, **kwargs)

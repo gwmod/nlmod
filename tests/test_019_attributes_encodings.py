@@ -17,10 +17,10 @@ def test_encodings_float_as_int16():
     por_data[1] = np.nan
 
     ds = xr.Dataset(
-        data_vars=dict(
-            heads=xr.DataArray(data=heads_data),
-            porosity=xr.DataArray(data=por_data),
-        )
+        data_vars={
+            "heads": xr.DataArray(data=heads_data),
+            "porosity": xr.DataArray(data=por_data),
+        }
     )
     encodings = get_encodings(
         ds, set_encoding_inplace=False, allowed_to_read_data_vars_for_minmax=True
@@ -30,8 +30,8 @@ def test_encodings_float_as_int16():
     assert encodings["porosity"]["dtype"] == "int16", "dtype should be int16"
 
     # test writing to temporary netcdf file
-    with TemporaryDirectory() as tmpdir:
-        fp_test = os.path.join(tmpdir, "test2.nc")
+    with TemporaryDirectory() as tmp_path:
+        fp_test = os.path.join(tmp_path, "test2.nc")
         ds.to_netcdf(fp_test, encoding=encodings)
 
         with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
@@ -48,7 +48,7 @@ def test_encodings_float_as_int16():
     data = np.arange(1.0, 1e6)
     data[1] = np.nan
 
-    ds = xr.Dataset(data_vars=dict(heads=xr.DataArray(data=data)))
+    ds = xr.Dataset(data_vars={"heads": xr.DataArray(data=data)})
     encodings = get_encodings(
         ds, set_encoding_inplace=False, allowed_to_read_data_vars_for_minmax=True
     )
@@ -62,7 +62,7 @@ def test_encondings_inplace():
     data = np.arange(1.0, 5.0)
     data[1] = np.nan
 
-    ds = xr.Dataset(data_vars=dict(heads=xr.DataArray(data=data)))
+    ds = xr.Dataset(data_vars={"heads": xr.DataArray(data=data)})
     ds_inplace = ds.copy(deep=True)
 
     encodings = get_encodings(
@@ -75,14 +75,14 @@ def test_encondings_inplace():
     )
 
     # test writing to temporary netcdf file
-    with TemporaryDirectory() as tmpdir:
-        fp_test = os.path.join(tmpdir, "test2.nc")
+    with TemporaryDirectory() as tmp_path:
+        fp_test = os.path.join(tmp_path, "test2.nc")
         ds.to_netcdf(fp_test, encoding=encodings)
 
         with xr.open_dataset(fp_test, mask_and_scale=True) as ds2:
             ds2.load()
 
-        fp_test_inplace = os.path.join(tmpdir, "test_inplace.nc")
+        fp_test_inplace = os.path.join(tmp_path, "test_inplace.nc")
         ds_inplace.to_netcdf(fp_test_inplace)
 
         with xr.open_dataset(fp_test_inplace, mask_and_scale=True) as ds_inplace2:

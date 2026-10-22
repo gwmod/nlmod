@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 def clear_cache(cachedir, prompt=True):
-    """Clears the cache in a given cache directory by removing all .pklz and
-    corresponding .nc files.
+    """Clears the cache in a given cache directory.
+
+    Removes all .pklz and corresponding .nc files.
 
     Parameters
     ----------
@@ -74,12 +75,14 @@ def cache_netcdf(
     attrs=None,
     nc_hash=True,
 ):
-    """Decorator to read/write the result of a function from/to a file to speed up
-    function calls with the same arguments. Should only be applied to functions that:
+    """Decorator to read/write the result of a function from/to a file.
+
+    Speeds up function calls with the same arguments. Should only be applied to
+    functions that:
         - return an Xarray Dataset
         - have no more than one xarray dataset as function argument
         - have functions arguments of types that can be checked using the
-        _is_valid_cache functions
+        _is_valid_cache functions.
 
     1. The directory and filename of the cache should be defined by the person
     calling a function with this decorator. If not defined no cache is
@@ -381,8 +384,9 @@ def cache_netcdf(
 
 
 def cache_pickle(func):
-    """Decorator to read/write the result of a function from/to a file to speed
-    up function calls with the same arguments. Should only be applied to
+    """Decorator to read/write the result of a function from/to a file.
+
+    Speeds up function calls with the same arguments. Should only be applied to
     functions that:
 
         - return a picklable object
@@ -467,7 +471,8 @@ def cache_pickle(func):
                     func_args_dic["_pklz_hash"] = joblib.hash(cached_pklz)
                 except ImportError:
                     logger.warning(
-                        "joblib is not installed, cannot add dataframe hash to function arguments"
+                        "joblib is not installed, cannot add dataframe hash to "
+                        "function arguments"
                     )
 
                 # check if cache was created with same function arguments as
@@ -499,7 +504,8 @@ def cache_pickle(func):
                 func_args_dic["_pklz_hash"] = joblib.hash(temp)
             except ImportError:
                 logger.warning(
-                    "joblib is not installed, cannot add dataframe hash to function arguments"
+                    "joblib is not installed, cannot add dataframe hash to "
+                    "function arguments"
                 )
 
             # pickle function arguments
@@ -566,7 +572,8 @@ def _same_function_arguments(func_args_dic, func_args_dic_cache):
 
         # check if cache and function call have same argument values
         if item is None:
-            # Value of None type is always None so the check happens in previous if statement
+            # Value of None type is always None so the check happens in
+            # previous if statement
             pass
         elif isinstance(
             item, (numbers.Number, bool, str, bytes, list, tuple, pathlib.PurePath)
@@ -685,8 +692,7 @@ def _get_modification_time(func):
 
 
 def _update_docstring_and_signature(func):
-    """Add function arguments 'cachedir' and 'cachename' to the docstring and signature
-    of a function.
+    """Add function arguments 'cachedir' and 'cachename' to the docstring and signature.
 
     The function arguments are added before the "Returns" header in the
     docstring. If the function has no Returns header in the docstring, the function
@@ -747,8 +753,9 @@ def _update_docstring_and_signature(func):
 
 
 def _check_for_data_array(ds):
-    """Check if the saved NetCDF-file represents a DataArray or a Dataset, and return
-    this data-variable.
+    """Check if the saved NetCDF-file represents a DataArray or a Dataset.
+
+    Returns this data-variable.
 
     The file contains a DataArray when a variable called "__xarray_dataarray_variable__"
     is present in the Dataset. If so, return a DataArray, otherwise return the Dataset.
@@ -846,7 +853,8 @@ def ds_contains(
             datavars.append("icvert")
 
         if "angrot" in ds.attrs:
-            # set by `nlmod.base.to_model_ds()` and `nlmod.dims.resample._set_angrot_attributes()`
+            # set by `nlmod.base.to_model_ds()` and
+            # `nlmod.dims.resample._set_angrot_attributes()`
             attrs_angrot_required = ["angrot", "xorigin", "yorigin"]
             attrs.extend(attrs_angrot_required)
 
@@ -965,6 +973,18 @@ class NumpyEncoder(json.JSONEncoder):
     """Special json encoder for numpy types."""
 
     def default(self, o):
+        """Encode numpy types to standard Python types.
+
+        Parameters
+        ----------
+        o : object
+            The object to encode.
+
+        Returns
+        -------
+        object
+            The encoded object.
+        """
         if isinstance(o, np.integer):
             return int(o)
         elif isinstance(o, np.floating):

@@ -147,14 +147,18 @@ nlmod/bin/*
 !nlmod/bin/mp7_2_002_provisional
 nlmod/data/bofek/*
 
-tests/data/*
-!tests/data/**/
-tests/data/mfoutput/*
-!tests/data/mfoutput/vertex/*
-!tests/data/mfoutput/structured/*
-
 docs/examples/*/
 !docs/examples/data/
 !docs/examples/data/chloride_hbossche.nc
 
 docs/data_sources/*
+
+docs/advanced_stress_packages/01_lake/
+docs/advanced_stress_packages/model17/
+
+# Notebook-generated model directories (named like notebook stems, e.g. 01_lake)
+docs/advanced_stress_packages/[0-9][0-9]_*/
+docs/data_sources/[0-9][0-9]_*/
+docs/examples/[0-9][0-9]_*/
+docs/utilities/[0-9][0-9]_*/
+docs/workflows/[0-9][0-9]_*/

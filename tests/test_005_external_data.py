@@ -263,8 +263,6 @@ def test_get_bofek(tmp_path):
     ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add knmi recharge to the model dataset
-    gdf_bofek = nlmod.read.bofek.download_bofek_gdf(
-        nlmod.grid.get_extent(ds), tmp_path
-    )
+    gdf_bofek = nlmod.read.bofek.download_bofek_gdf(nlmod.grid.get_extent(ds), tmp_path)
 
     assert not gdf_bofek.empty, "Bofek geodataframe is empty"

@@ -110,7 +110,9 @@ def download_bofek_gdf(extent, dirname, timeout=3600):
         with zipfile.ZipFile(file_unzipped, mode="r") as zf:
             zf.extractall(
                 path=extract_dir,
-                members=[f"BOFEK_2020.{ext}" for ext in ("shp", "shx", "dbf", "prj", "cpg")],
+                members=[
+                    f"BOFEK_2020.{ext}" for ext in ("shp", "shx", "dbf", "prj", "cpg")
+                ],
             )
 
         gdf_bofek = gpd.read_file(Path(extract_dir) / "BOFEK_2020.shp")

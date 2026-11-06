@@ -48,11 +48,11 @@ def get_gdf_bofek(*args, **kwargs):
     writing data to disk, but this was not successful. Mainly because of the difficulty
     to read the geodatabase in memory.
     """
-
     warnings.warn(
         "this function is deprecated and will eventually be removed, "
         "please use nlmod.read.bofek.download_bofek_gdf() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_bofek_gdf(*args, **kwargs)

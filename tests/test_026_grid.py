@@ -1,14 +1,16 @@
 import os
-import tempfile
 
+import flopy
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import util
 import xarray as xr
+from shapely.geometry import LineString
 
 import nlmod
 
-model_ws = os.path.join(tempfile.gettempdir(), "test_grid")
+model_ws = os.path.join(util.get_model_data_dir(), "test_grid")
 extent = [98000.0, 99000.0, 489000.0, 490000.0]
 
 
@@ -33,7 +35,7 @@ def get_regis():
 
 
 def get_structured_model_ds():
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_structured")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_structured")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -44,7 +46,7 @@ def get_structured_model_ds():
 
 
 def get_structured_model_ds_rotated():
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_structured_rotated")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_structured_rotated")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -55,7 +57,7 @@ def get_structured_model_ds_rotated():
 
 
 def get_vertex_model_ds(bgt=None):
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -69,7 +71,7 @@ def get_vertex_model_ds(bgt=None):
 
 
 def get_vertex_model_ds_rotated(bgt=None):
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex_rotated")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex_rotated")
     fname = os.path.join(model_ws, "ds.nc")
     if not os.path.isfile(fname):
         if not os.path.isdir(model_ws):
@@ -84,14 +86,18 @@ def get_vertex_model_ds_rotated(bgt=None):
 
 def test_get_ds_rotated():
     ds0 = get_structured_model_ds_rotated()
-    assert ds0.extent[0] == 0 and ds0.extent[2] == 0
-    assert ds0.xorigin == extent[0] and ds0.yorigin == extent[2]
+    assert ds0.extent[0] == 0
+    assert ds0.extent[2] == 0
+    assert ds0.xorigin == extent[0]
+    assert ds0.yorigin == extent[2]
 
     # test refine method, by refining in all cells that contain surface water polygons
     ds = get_vertex_model_ds_rotated()
     assert len(ds.area) > np.prod(ds0.area.shape)
-    assert ds.extent[0] == 0 and ds.extent[2] == 0
-    assert ds.xorigin == extent[0] and ds.yorigin == extent[2]
+    assert ds.extent[0] == 0
+    assert ds.extent[2] == 0
+    assert ds.xorigin == extent[0]
+    assert ds.yorigin == extent[2]
 
     f0, ax0 = plt.subplots()
     nlmod.plot.modelgrid(ds0, ax=ax0)
@@ -380,7 +386,7 @@ def test_update_ds_from_layer_ds():
     assert len(np.unique(ds["top"])) > 1
 
     # test for a vertex grid
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex_200")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex_200")
     ds = nlmod.grid.refine(ds, model_ws=model_ws, refinement_features=[(bgt, 1)])
     ds = nlmod.grid.update_ds_from_layer_ds(ds, regis, method="nearest")
     assert len(np.unique(ds["top"])) > 1
@@ -395,7 +401,7 @@ def test_update_ds_from_layer_ds():
     assert len(np.unique(ds["top"])) > 1
 
     # test for a rotated vertex grid
-    model_ws = os.path.join(tempfile.gettempdir(), "test_grid_vertex_200_rotated")
+    model_ws = os.path.join(util.get_model_data_dir(), "test_grid_vertex_200_rotated")
     ds = nlmod.grid.refine(ds, model_ws=model_ws, refinement_features=[(bgt, 2)])
     ds = nlmod.grid.update_ds_from_layer_ds(ds, regis, method="nearest")
     assert len(np.unique(ds["top"])) > 1
@@ -412,3 +418,15 @@ def test_gdf_area_per_index_to_da():
     ds = get_vertex_model_ds()
     ds["bgt"] = nlmod.grid.gdf_area_to_da(bgt, ds)
     assert (ds["bgt"].sum("index") > 0).any()
+
+
+def test_gdf_to_grid_line_length():
+    modelgrid = flopy.discretization.StructuredGrid(
+        delc=np.full(10, 100.0), delr=np.full(10, 100.0), xoff=98000.0, yoff=489000.0
+    )
+    ix = flopy.utils.GridIntersect(modelgrid)
+    line = LineString([(98050.0, 489550.0), (98950.0, 489550.0)])
+    gdf = gpd.GeoDataFrame(geometry=[line], crs=28992)
+    gdfg = nlmod.grid.gdf_to_grid(gdf, ix=ix, silent=True)
+    assert "length" in gdfg.columns
+    assert np.isclose(gdfg["length"].sum(), line.length)

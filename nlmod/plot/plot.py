@@ -1,17 +1,14 @@
 import logging
-import warnings
 from functools import partial
 
-import flopy as fp
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.collections import PatchCollection
-from matplotlib.colors import ListedColormap, Normalize, LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap, Normalize
 from matplotlib.patches import Patch
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ..dims.grid import (
     get_affine_mod_to_world,
@@ -35,6 +32,22 @@ logger = logging.getLogger(__name__)
 
 
 def surface_water(model_ds, ax=None, **kwargs):
+    """Plot surface water from model dataset.
+
+    Parameters
+    ----------
+    model_ds : xarray.Dataset
+        Model dataset containing surface water data.
+    ax : matplotlib Axes, optional
+        Axes to plot on. The default is None.
+    **kwargs : dict
+        Additional keyword arguments passed to GeoDataFrame.plot.
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        Axes with surface water plotted.
+    """
     surf_water = rws.get_gdf_surface_water(model_ds)
 
     if ax is None:
@@ -45,6 +58,24 @@ def surface_water(model_ds, ax=None, **kwargs):
 
 
 def modelgrid(ds, ax=None, rotated=False, **kwargs):
+    """Plot model grid from dataset.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Model dataset.
+    ax : matplotlib Axes, optional
+        Axes to plot on. The default is None.
+    rotated : bool, optional
+        Whether the grid is rotated. The default is False.
+    **kwargs : dict
+        Additional keyword arguments passed to modelgrid.plot.
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        Axes with model grid plotted.
+    """
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 10))
         ax.set_aspect("auto")
@@ -97,112 +128,120 @@ def modelextent(ds, dx=None, ax=None, rotated=False, **kwargs):
 
 
 def facet_plot(
-    gwf,
     ds,
-    plot_var,
-    plot_time=None,
-    plot_bc=None,
-    color="k",
-    grid=False,
-    xlim=None,
-    ylim=None,
+    da,
+    dim="layer",
+    selection=None,
+    cmap="turbo",
+    rotated=True,
+    figsize=(10, 10),
+    layout=None,
+    show_titles=True,
+    show_ticks=True,
+    base=10_000,
+    fmt_base=1_000,
+    fmt="{:.0f}",
+    colorbar=True,
+    **kwargs,
 ):
-    """Make a 2d plot of every modellayer, store them in a grid.
+    """Plot a facet grid of maps for each layer in the dataset.
 
     Parameters
     ----------
-    gwf : Groundwater flow
-        Groundwaterflow model.
-    ds : xr.DataSet
-        model dataset.
-    figdir : str
-        file path figures.
-    plot_var : str
-        variable in ds
-    plot_time : int, optional
-        time step if plot_var is time variant. The default is None.
-    plot_bc : list of str, optional
-        name of packages of which boundary conditions are plot. The default
-        is ['CHD'].
-    color : str, optional
-        color. The default is 'k'.
-    grid : bool, optional
-        if True a grid is plotted. The default is False.
-    xlim : tuple, optional
-        xlimits. The default is None.
-    ylim : tuple, optional
-        ylimits. The default is None.
+    ds : xarray.Dataset
+        The dataset containing the data to be plotted. Must contain a "layer" dimension.
+    da : str or xarray.DataArray
+        The name of the DataArray in ds to be plotted, or the DataArray itself.
+    dim : str, optional
+        The dimension along which to facet the plots. Default is "layer".
+    selection : list, optional
+        A list of dimension names i.e. layer names or timestamps to select from the
+        dataset before plotting. Default is None, which plots all layers.
+    cmap : str or Colormap, optional
+        The colormap to be used for the plots. Default is "turbo".
+    rotated : bool, optional
+        When True, plot the data in real-world coordinates for rotated grids.
+        The default is True, which plots the data in local coordinates.
+    figsize : tuple, optional
+        The size of the figure in inches. Default is (10, 10).
+    layout : str or None, optional
+        Matplotlib subplot layout mode passed to get_map. The default is None,
+        which avoids the overhead of constrained layout during batch rendering.
+    show_titles : bool, optional
+        When True, draw a title inside each facet. Default is True.
+    show_ticks : bool, optional
+        When True, draw axis ticks using base and fmt_base. Set to False for
+        faster batch rendering. Default is True.
+    base : int, optional
+        The base for the axis tick formatting. Default is 1,000.
+    fmt_base : int, optional
+        The base for the tick labels formatting. Default is 1,000.
+    fmt : str, optional
+        The format string for the tick labels. Default is "{:.0f}".
+    **kwargs
+        Additional keyword arguments to be passed to the data_array function for
+        plotting.
 
     Returns
     -------
-    fig : TYPE
-        DESCRIPTION.
-    axes : TYPE
-        DESCRIPTION.
+    axes : numpy.ndarray
+        An array of matplotlib.axes.Axes objects corresponding to each layer plotted.
     """
-    warnings.warn(
-        "this function is out of date and will probably be removed in a future version",
-        DeprecationWarning,
-    )
+    if isinstance(da, str):
+        da = ds[da]
 
-    if plot_bc is not None:
-        for key in plot_bc:
-            if key not in gwf.get_package_list():
-                raise ValueError(
-                    f"cannot plot boundary condition {key} "
-                    "because it is not in the package list"
-                )
+    if selection is None:
+        selection = da[dim].values
 
-    nlay = len(ds.layer)
+    nselection = len(selection)
+    if nselection == 0:
+        raise ValueError("selection must contain at least one value")
 
-    plots_per_row = int(np.ceil(np.sqrt(nlay)))
-    plots_per_col = nlay // plots_per_row + 1
+    ndim = np.sqrt(nselection)
+    nrows = np.floor(ndim).astype(int)
+    ncols = np.ceil(ndim).astype(int)
+    if nrows * ncols < nselection:
+        nrows += 1
 
-    fig, axes = plt.subplots(
-        plots_per_col,
-        plots_per_row,
-        figsize=(11, 10),
+    f, axes = get_map(
+        get_extent(ds, rotated=rotated),
+        figsize=figsize,
+        nrows=nrows,
+        ncols=ncols,
         sharex=True,
         sharey=True,
-        dpi=150,
+        base=base if show_ticks else None,
+        fmt_base=fmt_base,
+        fmt=fmt,
+        layout=layout,
     )
-    if plot_time is None:
-        plot_arr = ds[plot_var]
-    else:
-        plot_arr = ds[plot_var][plot_time]
 
-    vmin = plot_arr.min()
-    vmax = plot_arr.max()
-    for ilay in range(nlay):
-        iax = axes.flat[ilay]
-        mp = fp.plot.PlotMapView(model=gwf, layer=ilay, ax=iax)
-        # mp.plot_grid()
-        qm = mp.plot_array(plot_arr[ilay].values, cmap="viridis", vmin=vmin, vmax=vmax)
-        # qm = mp.plot_array(hf[-1], cmap="viridis", vmin=-0.1, vmax=0.1)
-        # mp.plot_ibound()
-        # plt.colorbar(qm)
-        if plot_bc is not None:
-            for bc_var in plot_bc:
-                mp.plot_bc(bc_var, color=color, kper=0)
+    plot_ds = ds
+    if "icell2d" in da.dims:
+        plot_ds = get_patches(ds, rotated=rotated)
 
-        iax.set_aspect("equal", adjustable="box")
-        iax.set_title(f"Layer {ilay}")
-
-        iax.grid(grid)
-        if xlim is not None:
-            iax.set_xlim(xlim)
-        if ylim is not None:
-            iax.set_ylim(ylim)
-
-    for iax in axes.flat[nlay:]:
-        iax.set_visible(False)
-
-    cb = fig.colorbar(qm, ax=axes, shrink=1.0)
-    cb.set_label(f"{plot_var}", rotation=270)
-    fig.suptitle(f"{plot_var} Time = {(ds.nper * ds.perlen) / 365} year")
-    fig.tight_layout()
-
-    return fig, axes
+    qm = None  # please linter
+    for i, isel in enumerate(selection):
+        iax = axes.flat[i] if isinstance(axes, np.ndarray) else axes
+        qm = data_array(
+            da.loc[{dim: isel}],
+            plot_ds,
+            ax=iax,
+            cmap=cmap,
+            rotated=rotated,
+            **kwargs,
+        )
+        if show_titles:
+            if isinstance(isel, np.datetime64):
+                isel = pd.Timestamp(isel)
+            title_inside(f"{isel}", ax=iax)
+    if isinstance(axes, np.ndarray):
+        for j in range(nselection, len(axes.flat)):
+            axes.flat[j].set_visible(False)
+    if qm is not None and colorbar:
+        cbar = f.colorbar(qm, ax=axes)
+        cbar.set_label(f"{da.name} [{da.attrs.get('units', '')}]")
+    return axes
 
 
 def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
@@ -274,6 +313,64 @@ def data_array(da, ds=None, ax=None, rotated=False, edgecolor=None, **kwargs):
         return ax.pcolormesh(x, y, da, shading=shading, edgecolor=edgecolor, **kwargs)
 
 
+def geotop_strat_in_cross_section(
+    line,
+    gt=None,
+    ax=None,
+    legend=True,
+    legend_loc=None,
+    strat_props=None,
+    alpha=None,
+    **kwargs,
+):
+    """Plot the stratigraphic-data of GeoTOP in a cross-section.
+
+    Parameters
+    ----------
+    line : shapely.LineString
+        The line along which the GeoTOP data is plotted
+    gt : xr.Dataset, optional
+        The voxel-dataset from GeoTOP. It is downloaded with the method
+        `nlmod.read.geotop.get_geotop()` if None. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes in which the cross-section is plotted. Will default to the current axes
+        if None. The default is None.
+    legend : bool, optional
+        When True, add a legend to the plot with the lithology-classes. The default is
+        True.
+    legend_loc : None or str, optional
+        The location of the legend. See matplotlib documentation. The default is None.
+    strat_props : pd.DataFrame, optional
+        A DataFrame containing the properties of the stratigraphic classes.
+        Will call nlmod.read.geotop.get_strat_props() when None. The default is None.
+    alpha : float, optional
+        Opacity for plot_array function, The default is None.
+    **kwargs : dict
+        kwargs are passed onto DatasetCrossSection.
+
+    Returns
+    -------
+    cs : DatasetCrossSection
+        The instance of DatasetCrossSection that is used to plot the cross-section.
+    """
+    if strat_props is None:
+        strat_props = geotop.get_strat_props()
+
+    cs = geotop_var_in_cross_section(
+        line,
+        "strat",
+        gt=gt,
+        ax=ax,
+        legend=legend,
+        legend_loc=legend_loc,
+        var_props=strat_props,
+        alpha=alpha,
+        label_col="code",
+        **kwargs,
+    )
+    return cs
+
+
 def geotop_lithok_in_cross_section(
     line,
     gt=None,
@@ -316,6 +413,71 @@ def geotop_lithok_in_cross_section(
     cs : DatasetCrossSection
         The instance of DatasetCrossSection that is used to plot the cross-section.
     """
+    if lithok_props is None:
+        lithok_props = geotop.get_lithok_props()
+
+    cs = geotop_var_in_cross_section(
+        line,
+        "lithok",
+        gt=gt,
+        ax=ax,
+        legend=legend,
+        legend_loc=legend_loc,
+        var_props=lithok_props,
+        alpha=alpha,
+        **kwargs,
+    )
+    return cs
+
+
+def geotop_var_in_cross_section(
+    line,
+    var,
+    gt=None,
+    ax=None,
+    legend=True,
+    legend_loc=None,
+    var_props=None,
+    alpha=None,
+    label_col="name",
+    **kwargs,
+):
+    """Plot a variable (lithoclass or stratigraphy) from GeoTOP in a cross-section.
+
+    Parameters
+    ----------
+    line : shapely.LineString
+        The line along which the GeoTOP data is plotted
+    var : str
+        The variable in the GeoTOP dataset to plot in the cross-section. Can be
+        'lithok' or 'strat'
+    gt : xr.Dataset, optional
+        The voxel-dataset from GeoTOP. It is downloaded with the method
+        `nlmod.read.geotop.get_geotop()` if None. The default is None.
+    ax : matplotlib.Axes, optional
+        The axes in which the cross-section is plotted. Will default to the current axes
+        if None. The default is None.
+    legend : bool, optional
+        When True, add a legend to the plot with the lithology-classes. The default is
+        True.
+    legend_loc : None or str, optional
+        The location of the legend. See matplotlib documentation. The default is None.
+    var_props : pd.DataFrame, optional
+        A DataFrame containing the properties of the variable (lithoclasses or
+        stratigraphy). Will call nlmod.read.geotop.get_{var}_props() when None.
+        The default is None.
+    alpha : float, optional
+        Opacity for plot_array function, The default is None.
+    label_col : str, optional
+        column in the var_props dataframe to use a a label. The default is 'name'.
+    **kwargs : dict
+        kwargs are passed onto DatasetCrossSection.
+
+    Returns
+    -------
+    cs : DatasetCrossSection
+        The instance of DatasetCrossSection that is used to plot the cross-section.
+    """
     if ax is None:
         ax = plt.gca()
 
@@ -329,16 +491,25 @@ def geotop_lithok_in_cross_section(
     if "top" not in gt or "botm" not in gt:
         gt = geotop.add_top_and_botm(gt)
 
-    if lithok_props is None:
-        lithok_props = geotop.get_lithok_props()
+    if var_props is None:
+        if var == "lithok":
+            var_props = geotop.get_lithok_props()
+        elif var == "strat":
+            var_props = geotop.get_strat_props()
+        else:
+            raise ValueError(
+                f"Variable {var} not recognized. Can only be 'lithok' or 'strat'."
+            )
 
     cs = DatasetCrossSection(gt, line, layer="z", ax=ax, **kwargs)
-    array, cmap, norm = _get_geotop_cmap_and_norm(gt["lithok"], lithok_props)
+    array, cmap, norm = _get_geotop_cmap_and_norm(gt[var], var_props)
     cs.plot_array(array, norm=norm, cmap=cmap, alpha=alpha)
 
     if legend:
         # make a legend with dummy handles
-        _add_geotop_lithok_legend(lithok_props, ax, lithok=gt["lithok"], loc=legend_loc)
+        _add_geotop_var_legend(
+            var_props, ax, var=gt[var], label_col=label_col, loc=legend_loc
+        )
 
     return cs
 
@@ -390,21 +561,21 @@ def geotop_lithok_on_map(
     qm = ax.pcolormesh(lithok.x, lithok.y, array, norm=norm, cmap=cmap, **kwargs)
     if legend:
         # make a legend with dummy handles
-        _add_geotop_lithok_legend(lithok_props, ax, lithok=lithok, loc=legend_loc)
+        _add_geotop_var_legend(lithok_props, ax, var=lithok, loc=legend_loc)
     return qm
 
 
-def _add_geotop_lithok_legend(lithok_props, ax, lithok=None, **kwargs):
-    """Add a legend with lithok-data."""
+def _add_geotop_var_legend(var_props, ax, var=None, label_col="name", **kwargs):
+    """Add a legend with lithok- or strat-data."""
     handles = []
-    if lithok is None:
-        lithoks = lithok_props.index
+    if var is None:
+        unique_vals = var_props.index
     else:
-        lithoks = np.unique(lithok)
-        lithoks = lithoks[~np.isnan(lithoks)]
-    for index in lithoks:
-        color = lithok_props.at[index, "color"]
-        label = lithok_props.at[int(index), "name"]
+        unique_vals = np.unique(var)
+        unique_vals = unique_vals[~np.isnan(unique_vals)]
+    for index in unique_vals:
+        color = var_props.at[index, "color"]
+        label = var_props.at[int(index), label_col]
         handles.append(Patch(facecolor=color, label=label))
     return ax.legend(handles=handles, **kwargs)
 
@@ -450,9 +621,7 @@ def _get_figure(ax=None, da=None, ds=None, figsize=None, rotated=False, extent=N
             fmt = "{:.1f}"
         else:
             fmt = "{:.0f}"
-        f, ax = get_map(
-            extent, base=base, figsize=figsize, tight_layout=False, layout=None, fmt=fmt
-        )
+        f, ax = get_map(extent, base=base, figsize=figsize, layout=None, fmt=fmt)
         ax.set_aspect("equal", adjustable="box")
     return f, ax
 
@@ -484,6 +653,66 @@ def map_array(
     animate=False,
     **kwargs,
 ):
+    """Plot a map of a data array from a model dataset.
+
+    Parameters
+    ----------
+    da : str, xr.DataArray, or np.ndarray
+        Data array or variable name to plot.
+    ds : xarray.Dataset
+        Model dataset.
+    ilay : int, optional
+        Layer index to plot. The default is 0.
+    iper : int, optional
+        Stress period index to plot. The default is 0.
+    extent : tuple, optional
+        Extent for the plot. The default is None.
+    ax : matplotlib Axes, optional
+        Axes to plot on. The default is None.
+    title : str, optional
+        Plot title. The default is "".
+    xlabel : str, optional
+        X-axis label. The default is "X [km RD]".
+    ylabel : str, optional
+        Y-axis label. The default is "Y [km RD]".
+    date_fmt : str, optional
+        Date format string. The default is "%Y-%m-%d".
+    norm : matplotlib.colors.Normalize, optional
+        Color normalization. The default is None.
+    vmin : float, optional
+        Minimum value for color scale. The default is None.
+    vmax : float, optional
+        Maximum value for color scale. The default is None.
+    levels : list, optional
+        Contour levels. The default is None.
+    cmap : str, optional
+        Colormap name. The default is "viridis".
+    alpha : float, optional
+        Transparency. The default is 1.0.
+    colorbar : bool, optional
+        Show colorbar. The default is True.
+    colorbar_label : str, optional
+        Colorbar label. The default is "".
+    plot_grid : bool, optional
+        Plot grid. The default is True.
+    rotated : bool, optional
+        Whether the grid is rotated. The default is False.
+    add_to_plot : callable, optional
+        Function to add additional elements to the plot. The default is None.
+    background : bool, optional
+        Use background. The default is False.
+    figsize : tuple, optional
+        Figure size. The default is None.
+    animate : bool, optional
+        Animate the plot. The default is False.
+    **kwargs : dict
+        Additional keyword arguments passed to matplotlib imshow.
+
+    Returns
+    -------
+    ax : matplotlib Axes
+        Axes with the array plotted.
+    """
     # get data
     if isinstance(da, str):
         da = ds[da]
@@ -527,7 +756,6 @@ def map_array(
     else:
         t = None
 
-    fig_tight_layout = ax is None
     f, ax = _get_figure(
         ax=ax, da=da, ds=ds, figsize=figsize, rotated=rotated, extent=extent
     )
@@ -573,15 +801,13 @@ def map_array(
     ax.set(**axprops)
 
     # colorbar
-    divider = make_axes_locatable(ax)
     if colorbar:
-        cax = divider.append_axes("right", size="5%", pad=0.1)
-        cbar = f.colorbar(pc, cax=cax, extend=kwargs.pop("extend", "neither"))
+        cbar = f.colorbar(
+            pc, ax=ax, extend=kwargs.pop("extend", "neither"), fraction=0.046, pad=0.04
+        )
         if levels is not None:
             cbar.set_ticks(levels)
         cbar.set_label(colorbar_label)
-
-    _ = f.tight_layout() if fig_tight_layout else None
 
     if animate:
         return f, ax, pc
@@ -802,7 +1028,8 @@ def get_ahn_colormap(name="ahn", N=256):
     Notes
     -----
     The color progression is as follows:
-    dark blue → medium blue → light blue → dark green → light green → yellow → orange → light red → dark red
+    dark blue → medium blue → light blue → dark green → light green →
+    yellow → orange → light red → dark red
     """
     colors = np.array(
         [

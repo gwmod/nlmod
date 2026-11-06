@@ -688,7 +688,7 @@ def get_ds(
     coords = {"x": x, "y": y, "layer": layer}
     if angrot != 0.0:
         affine = grid.get_affine_mod_to_world(attrs)
-        xc, yc = affine * np.meshgrid(x, y)
+        xc, yc = affine @ np.meshgrid(x, y)
         coords["xc"] = (("y", "x"), xc)
         coords["yc"] = (("y", "x"), yc)
 
@@ -723,12 +723,12 @@ def get_ds(
 
     dims = ["layer", "y", "x"]
     ds = xr.Dataset(
-        data_vars=dict(
-            top=(dims[1:], top),
-            botm=(dims, botm),
-            kh=(dims, kh),
-            kv=(dims, kv),
-        ),
+        data_vars={
+            "top": (dims[1:], top),
+            "botm": (dims, botm),
+            "kh": (dims, kh),
+            "kv": (dims, kv),
+        },
         coords=coords,
         attrs=attrs,
     )

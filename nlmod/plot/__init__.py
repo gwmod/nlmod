@@ -7,11 +7,12 @@ from .plot import (
     facet_plot,
     geotop_lithok_in_cross_section,
     geotop_lithok_on_map,
+    geotop_strat_in_cross_section,
+    get_ahn_colormap,
     map_array,
     modelextent,
     modelgrid,
     surface_water,
-    get_ahn_colormap,
 )
 from .plotutil import (
     add_background_map,

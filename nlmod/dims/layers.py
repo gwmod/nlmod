@@ -3,6 +3,14 @@ import warnings
 
 import flopy
 import numpy as np
+
+try:
+    import numba
+
+    _NUMBA_AVAILABLE = True
+except ImportError:
+    numba = None
+    _NUMBA_AVAILABLE = False
 import xarray as xr
 from geopandas import GeoSeries, points_from_xy
 
@@ -51,7 +59,8 @@ def calculate_thickness(ds, top="top", bot="botm"):
         else:
             raise ValueError("2d top should have same last dimension as bot")
 
-    # subtracting floats can result in rounding errors. Mainly anoying for zero thickness layers.
+    # subtracting floats can result in rounding errors. Mainly anoying for zero
+    # thickness layers.
     thickness = thickness.where(~np.isclose(thickness, 0.0), 0.0)
 
     if isinstance(ds[bot], xr.DataArray):
@@ -72,8 +81,7 @@ def calculate_thickness(ds, top="top", bot="botm"):
 def calculate_transmissivity(
     ds, kh="kh", thickness="thickness", top="top", botm="botm"
 ):
-    """Calculate the transmissivity (T) as the product of the horizontal conductance
-    (kh) and the thickness (D).
+    """Calculate the transmissivity (T) as the product of the kh and thickness.
 
     Parameters
     ----------
@@ -83,14 +91,14 @@ def calculate_transmissivity(
     kh : str, optional
         name of data variable containing horizontal conductivity, by default 'kh'
     thickness : str, optional
-        name of data variable containing thickness, if this data variable does not exists
-        thickness is calculated using top and botm. By default 'thickness'
+        name of data variable containing thickness, if this data variable does not
+        exists thickness is calculated using top and botm. By default 'thickness'
     top : str, optional
         name of data variable containing tops, only used to calculate thickness if not
         available in dataset. By default "top"
     botm : str, optional
-        name of data variable containing bottoms, only used to calculate thickness if not
-        available in dataset. By default "botm"
+        name of data variable containing bottoms, only used to calculate thickness if
+        not available in dataset. By default "botm"
 
     Returns
     -------
@@ -127,8 +135,7 @@ def calculate_transmissivity(
 def calculate_resistance(
     ds, kv="kv", thickness="thickness", top="top", botm="botm", between_layers=None
 ):
-    """Calculate vertical resistance (c) of model layers from the vertical conductivity
-    (kv) and the thickness.
+    """Calculate resistance (c) of model layers from kv and layer thickness.
 
     Parameters
     ----------
@@ -138,14 +145,14 @@ def calculate_resistance(
     kv : str, optional
         name of data variable containing vertical conductivity, by default 'kv'
     thickness : str, optional
-        name of data variable containing thickness, if this data variable does not exists
-        thickness is calculated using top and botm. By default 'thickness'
+        name of data variable containing thickness, if this data variable does not
+        exists thickness is calculated using top and botm. By default 'thickness'
     top : str, optional
         name of data variable containing tops, only used to calculate thickness if not
         available in dataset. By default "top"
     botm : str, optional
-        name of data variable containing bottoms, only used to calculate thickness if not
-        available in dataset. By default "botm"
+        name of data variable containing bottoms, only used to calculate thickness if
+        not available in dataset. By default "botm"
     between_layers : bool, optional
         If True, calculate the resistance between the layers, which MODFLOW uses to
         calculate the flow. The resistance between two layers is then assigned to the
@@ -273,9 +280,9 @@ def split_layers_ds(
             split_dict[lay0] = [1 / split_dict[lay0]] * split_dict[lay0]
         elif hasattr(split_dict[lay0], "__iter__"):
             # make sure the fractions add up to 1
-            assert np.isclose(
-                np.sum(split_dict[lay0]), 1
-            ), f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            assert np.isclose(np.sum(split_dict[lay0]), 1), (
+                f"Fractions for splitting layer '{lay0}' do not add up to 1."
+            )
             split_dict[lay0] = split_dict[lay0] / np.sum(split_dict[lay0])
         else:
             raise ValueError(
@@ -285,7 +292,10 @@ def split_layers_ds(
     logger.info(f"Splitting layers {list(split_dict)}")
 
     if "layer" in ds["top"].dims:
-        msg = "Top in ds has a layer dimension. split_layers_ds will remove the layer dimension from top in ds."
+        msg = (
+            "Top in ds has a layer dimension. split_layers_ds will remove the "
+            "layer dimension from top in ds."
+        )
         logger.warning(msg)
     else:
         ds = ds.copy()
@@ -325,7 +335,7 @@ def split_layers_ds(
 
     if return_reindexer:
         # determine reindexer
-        reindexer = dict(zip(layers, layers_org))
+        reindexer = dict(zip(layers, layers_org, strict=False))
         for lay0 in split_dict:
             reindexer.pop(lay0)
         return ds, reindexer
@@ -545,10 +555,14 @@ def kveq_combined_layers(kv, thickness, reindexer):
     da_kv = _get_empty_layered_da(kv, nlay=list(reindexer.keys())[-1] + 1)
     for k, v in reindexer.items():
         if isinstance(v, tuple):
-            kveq = np.nansum(thickness.data[v, ...], axis=0) / np.nansum(
-                thickness.data[v, ...] / kv.data[v, ...], axis=0
+            numerator = np.nansum(thickness.data[v, ...], axis=0)
+            denominator = np.nansum(thickness.data[v, ...] / kv.data[v, ...], axis=0)
+            kveq = np.divide(
+                numerator,
+                denominator,
+                out=np.full_like(numerator, np.nan),
+                where=denominator != 0,
             )
-            kveq[np.isinf(kveq)] = np.nan
         else:
             kveq = kv.data[v]
         da_kv.data[k] = kveq
@@ -663,7 +677,27 @@ def combine_layers_ds(
 
     if isinstance(combine_layers, dict):
         # remove single layer entries if they exist:
+        combine_layers = dict(combine_layers.items())
+        rename_layers = {v[0]: k for k, v in combine_layers.items() if len(v) == 1}
+        # remove missing layers
+        for k, v in combine_layers.items():
+            missing = []
+            for i in v:
+                if i not in ds.layer:
+                    missing.append(i)
+            if len(missing) > 0:
+                logger.warning(
+                    "Layer(s) %s not found in dataset, will be "
+                    "removed from combine_layers.",
+                    missing,
+                )
+                # Preserve original layer order while removing missing entries.
+                combine_layers[k] = [i for i in v if i not in missing]
+
+        # Groups can become empty or single-layer after removing missing layers.
+        # Keep only true merge groups to avoid reindex/name mismatches downstream.
         combine_layers = {k: v for k, v in combine_layers.items() if len(v) > 1}
+
         new_layer_names = combine_layers.keys()
         combine_layers_integer = [
             tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x
@@ -672,6 +706,7 @@ def combine_layers_ds(
     else:
         # remove single layer entries if they exist:
         combine_layers = [x for x in combine_layers if len(x) > 1]
+        rename_layers = None
         combine_layers_integer = [
             tuple(np.where(ds.layer.isin(x))[0]) if isinstance(x[0], str) else x
             for x in combine_layers
@@ -697,7 +732,7 @@ def combine_layers_ds(
             f"Only consecutive layers can be combined. Check input: {msg}"
         )
     # set new layer name dictionary
-    new_layer_names = dict(zip(combine_layers_integer, new_layer_names))
+    new_layer_names = dict(zip(combine_layers_integer, new_layer_names, strict=False))
 
     # collection for data arrays
     da_dict = {}
@@ -749,6 +784,11 @@ def combine_layers_ds(
     # remove layer dimension from top
     ds_combine = remove_layer_dim_from_top(ds_combine, inconsistency_threshold=0.001)
 
+    if rename_layers is not None:
+        ds_combine = ds_combine.assign_coords(
+            layer=[rename_layers.get(lay, lay) for lay in ds_combine["layer"].data]
+        )
+
     if return_reindexer:
         return ds_combine, reindexer
     return ds_combine
@@ -787,8 +827,10 @@ def add_kh_kv_from_ml_layer_to_ds(
     are ignored at the moment
     """
     warnings.warn(
-        "add_kh_kv_from_ml_layer_to_ds is deprecated. Please use nlmod.grid.update_ds_from_layer_ds instead.",
+        "add_kh_kv_from_ml_layer_to_ds is deprecated. "
+        "Please use nlmod.grid.update_ds_from_layer_ds instead.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     ds.attrs["anisotropy"] = anisotropy
@@ -923,9 +965,33 @@ def set_layer_thickness(ds, layer, thickness, change="botm", copy=True):
     return ds
 
 
+def get_zcellcenters(ds):
+    """Calculate the z-coordinates of cell centers.
+
+    Equivalent of modelgrid.zcellcenters in flopy.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        dataset containing information about layers, including top and botm
+
+    Returns
+    -------
+    zcellcenters : xarray.DataArray
+        data array containing the z-coordinates of cell centers
+    """
+    if "layer" in ds["top"].dims:
+        top = ds["top"]
+    else:
+        top = ds["botm"] + calculate_thickness(ds)
+    return (top + ds["botm"]) / 2
+
+
 def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm", copy=True):
-    """Make sure layer has a minimum thickness by lowering the botm of the layer where
-    neccesary.
+    """Make sure layer has a minimum thickness.
+
+    By lowering the botm of the layer where neccesary.
+
     """
     assert layer in ds.layer
     assert change == "botm", "Only change=botm allowed for now"
@@ -948,17 +1014,17 @@ def set_minimum_layer_thickness(ds, layer, min_thickness, change="botm", copy=Tr
 def remove_thin_layers(
     ds, min_thickness=0.1, update_thickness_every_layer=False, copy=True
 ):
-    """Remove cells with a thickness less than min_thickness (setting the thickness to
-    0)
+    """Remove cells with a thickness less than min_thickness.
 
-    The thickness of the removed cells is added to the first active layer below
+    Sets the thickness to 0. The thickness of the removed cells is added to the first
+    active layer below
 
     Parameters
     ----------
     ds : xr,Dataset
         Dataset containing information about layers.
     min_thickness : float, optional
-        THe minimum thickness of a layer. The default is 0.1.
+        The minimum thickness of a layer. The default is 0.1.
     update_thickness_every_layer : bool, optional
         If True, loop over the layers, from the top down, and remove thin layers, adding
         the thickness to the first active layer below. If the thickness of this layer is
@@ -1018,8 +1084,10 @@ def remove_thin_layers(
 
 
 def get_kh_kv(kh, kv, anisotropy, fill_value_kh=1.0, fill_value_kv=0.1, idomain=None):
-    """Create kh and kv grid data for flopy from existing kh, kv and anistropy grids with
-    nan values (typically from REGIS).
+    """Create kh and kv grid data.
+
+    From from existing kh, kv and anistropy grids with nan values (typically from
+    REGIS).
 
     fill nans in kh grid in these steps:
     1. take kv and multiply by anisotropy, if this is nan:
@@ -1608,6 +1676,7 @@ def update_idomain_from_thickness(idomain, thickness, mask):
     warnings.warn(
         "update_idomain_from_thickness is deprecated. Please use get_idomain instead.",
         DeprecationWarning,
+        stacklevel=2,
     )
     for ilay, thick in enumerate(thickness):
         if ilay == 0:
@@ -1628,7 +1697,9 @@ def update_idomain_from_thickness(idomain, thickness, mask):
     return idomain
 
 
-def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
+def aggregate_by_weighted_mean_to_ds(
+    ds, source_ds, var_name, source_top_name="top", source_botm_name="botm"
+):
     """Aggregate source data to a model dataset using the weighted mean.
 
     The weighted average per model layer is calculated for the variable in the
@@ -1640,6 +1711,10 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
         model dataset containing layer information (x, y, top, botm)
     source_ds : xr.Dataset
         dataset containing x, y, top, botm and a data variable to aggregate.
+    source_top_name : str
+        name of the top variable in source_ds
+    source_botm_name : str
+        name of the botm variable in source_ds
     var_name : str
         name of the data array to aggregate
 
@@ -1658,7 +1733,11 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
     nlmod.read.geotop.aggregate_to_ds
     """
     msg = "x and/or y coordinates do not match between 'ds' and 'source_ds'"
-    assert (ds.x == source_ds.x).all() and (ds.y == source_ds.y).all(), msg
+    assert (ds.x == source_ds.x).all(), msg
+    assert (ds.y == source_ds.y).all(), msg
+
+    assert "top" in ds, "'ds' must contain 'top' variable"
+    assert "botm" in ds, "'ds' must contain 'botm' variable"
 
     if "layer" in ds["top"].dims:
         # make sure there is no layer dimension in top
@@ -1669,6 +1748,17 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
 
     agg_ar = []
 
+    n_src = len(source_ds.layer)
+    if "layer" in source_ds[source_top_name].dims:
+        source_ds_tops = source_ds[source_top_name]
+    else:
+        source_ds_tops = [
+            source_ds[source_top_name]
+            .expand_dims(dim="layer")
+            .assign_coords({"layer": [-1]})
+        ] + [source_ds[source_botm_name].isel(layer=i) for i in range(n_src - 1)]
+        source_ds_tops = xr.concat(source_ds_tops, dim="layer")
+
     for ilay in range(len(ds.layer)):
         if ilay == 0:
             top = ds["top"]
@@ -1676,8 +1766,8 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
             top = ds["botm"][ilay - 1].drop_vars("layer")
         bot = ds["botm"][ilay].drop_vars("layer")
 
-        s_top = source_ds.top
-        s_bot = source_ds.bottom
+        s_top = source_ds_tops
+        s_bot = source_ds[source_botm_name]
         s_top = s_top.where(s_top < top, top)
         s_top = s_top.where(s_top > bot, bot)
         s_bot = s_bot.where(s_bot < top, top)
@@ -1693,30 +1783,39 @@ def aggregate_by_weighted_mean_to_ds(ds, source_ds, var_name):
 
 
 def check_elevations_consistency(ds):
+    """Check if the top and bottom elevations of layers are consistent.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The model Dataset.
+    """
     if "layer" in ds["top"].dims:
         tops = ds["top"].data
         top_ref = np.full(tops.shape[1:], np.nan)
-        for lay, layer in zip(range(tops.shape[0]), ds.layer.data):
+        for lay, layer in zip(range(tops.shape[0]), ds.layer.data, strict=False):
             top = tops[lay]
             mask = ~np.isnan(top)
             higher = top[mask] > top_ref[mask]
             if np.any(higher):
                 n = int(higher.sum())
                 logger.warning(
-                    f"The top of layer {layer} is higher than the top of a previous layer in {n} cells"
+                    f"The top of layer {layer} is higher than the top of a "
+                    f"previous layer in {n} cells"
                 )
             top_ref[mask] = top[mask]
 
     bots = ds["botm"].data
     bot_ref = np.full(bots.shape[1:], np.nan)
-    for lay, layer in zip(range(bots.shape[0]), ds.layer.data):
+    for lay, layer in zip(range(bots.shape[0]), ds.layer.data, strict=False):
         bot = bots[lay]
         mask = ~np.isnan(bot)
         higher = bot[mask] > bot_ref[mask]
         if np.any(higher):
             n = int(higher.sum())
             logger.warning(
-                f"The bottom of layer {layer} is higher the bottom of a previous layer in {n} cells"
+                f"The bottom of layer {layer} is higher the bottom of a "
+                f"previous layer in {n} cells"
             )
         bot_ref[mask] = bot[mask]
 
@@ -1795,7 +1894,10 @@ def insert_layer(ds, name, top, bot, kh=None, kv=None, copy=True):
         # make a copy, so we are sure we do not alter the original DataSet
         ds = ds.copy(deep=True)
     if "layer" in ds["top"].dims:
-        msg = "Top in ds has a layer dimension. insert_layer will remove the layer dimension from top in ds."
+        msg = (
+            "Top in ds has a layer dimension. insert_layer will remove the layer "
+            "dimension from top in ds."
+        )
         logger.warning(msg)
     else:
         ds["top"] = ds["botm"] + calculate_thickness(ds)
@@ -1962,11 +2064,16 @@ def remove_layer(ds, layer):
     return ds
 
 
-def get_isosurface_1d(da, z, value):
-    """Linear interpolation to get the elevation corresponding to value.
+def get_isosurface_1d(da, z, value, left=np.nan, right=np.nan):
+    """Linear interpolation to get the first elevation corresponding to value.
 
     This function interpolates linearly along z, if da crosses the given interpolation
     value at multiple depths, the first elevation is returned.
+
+    Note
+    ----
+    This function is no longer used in nlmod, but is kept for backward compatibility,
+    and as a reference for the implementations in get_isosurface.
 
     Parameters
     ----------
@@ -1976,17 +2083,257 @@ def get_isosurface_1d(da, z, value):
         array of elevations
     value : float
         value for which to compute the elevations corresponding to value
+    left : float, optional
+        value to return when value is below the minimum of da. The default is np.nan.
+    right : float, optional
+        value to return when value is above the maximum of da. The default is np.nan.
 
     Returns
     -------
     float
         first elevation at which data crosses value
+
+    See Also
+    --------
+    get_isosurface : generalization of this function to 3D and 4D DataArrays, with
+    support for numba and numpy implementations.
+    _get_isosurface_1d_numpy : vectorized numpy implementation of this function
+    _get_isosurface_1d_numba : numba implementation of this function
     """
-    mask = np.invert(np.isnan(da))
-    return np.interp(value, da[mask].squeeze(), z[mask].squeeze())
+    mask_valid = np.isfinite(da)
+    z, da = z[mask_valid], da[mask_valid]
+    f = da - value
+    if len(z) < 2:
+        return np.nan
+
+    # exact first hit
+    idx0 = np.flatnonzero(f == 0)
+    if idx0.size:
+        return z[idx0[0]]
+
+    # first sign change interval
+    s = f[:-1] * f[1:]
+    idx = np.flatnonzero(s < 0)
+    # no crossing
+    if not idx.size:
+        if value < da.min():
+            return left
+        elif value > da.max():
+            return right
+        else:
+            return np.nan
+    i = idx[0]
+    return z[i] + (value - da[i]) * (z[i + 1] - z[i]) / (da[i + 1] - da[i])
 
 
-def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwargs):
+def _get_isosurface_1d_numpy(da_arr, z_arr, value, left=np.nan, right=np.nan):
+    """
+    Vectorized numpy implementation of get_isosurface_1d.
+
+    da_arr, z_arr: ndarrays with layer as the LAST axis. When called via
+    xr.apply_ufunc with input_core_dims=[["layer"], ["layer"], []], xarray
+    automatically moves the layer dimension to the last axis before calling
+    this function.
+
+    Returns array of shape da_arr.shape[:-1].
+    """
+    # apply_ufunc may pass z without broadcast-only dims present in da (e.g. time).
+    # take_along_axis requires equal rank, so align z to da explicitly.
+    if z_arr.ndim != da_arr.ndim:
+        z_arr = np.broadcast_to(z_arr, da_arr.shape)
+
+    valid = np.isfinite(da_arr)
+    f = np.where(valid, da_arr - value, np.nan)
+
+    # --- exact hits ---
+    exact = f == 0.0
+    has_exact = exact.any(axis=-1)
+    idx_exact = np.argmax(exact, axis=-1)
+    z_exact = np.take_along_axis(z_arr, idx_exact[..., np.newaxis], axis=-1)[..., 0]
+
+    # --- first sign change between adjacent valid pairs ---
+    sc = (f[..., :-1] * f[..., 1:] < 0) & valid[..., :-1] & valid[..., 1:]
+    has_sc = sc.any(axis=-1)
+    idx_sc = np.argmax(sc, axis=-1)
+
+    z_i = np.take_along_axis(z_arr, idx_sc[..., np.newaxis], axis=-1)[..., 0]
+    z_i1 = np.take_along_axis(z_arr, (idx_sc + 1)[..., np.newaxis], axis=-1)[..., 0]
+    da_i = np.take_along_axis(da_arr, idx_sc[..., np.newaxis], axis=-1)[..., 0]
+    da_i1 = np.take_along_axis(da_arr, (idx_sc + 1)[..., np.newaxis], axis=-1)[..., 0]
+    interp = z_i + (value - da_i) * (z_i1 - z_i) / (da_i1 - da_i)
+
+    # --- out-of-bounds ---
+    da_min = np.nanmin(da_arr, axis=-1)
+    da_max = np.nanmax(da_arr, axis=-1)
+
+    out = np.full(da_arr.shape[:-1], np.nan)
+    out = np.where(has_exact, z_exact, out)
+    out = np.where(~has_exact & has_sc, interp, out)
+    out = np.where(~has_exact & ~has_sc & (value < da_min), left, out)
+    out = np.where(~has_exact & ~has_sc & (value > da_max), right, out)
+    return out
+
+
+if _NUMBA_AVAILABLE:
+
+    @numba.guvectorize(
+        ["(float64[:], float64[:], float64, float64, float64, float64[:])"],
+        "(n),(n),(),(),()->()",
+        nopython=True,
+        target="parallel",  # or "cpu" for single-threaded
+        cache=True,
+    )
+    def _get_isosurface_1d_gufunc_numba(da, z, value, left, right, out):  # numba impl
+        """Numba implementation of get_isosurface_1d.
+
+        This is some wizardry that automatically returns an out variable without
+        having to specify that in the call. The signature of the gufunc is specified
+        in the decorator.
+
+        Parameters
+        ----------
+        da : 1d-array
+            array of values, e.g. concentration, pressure, etc.
+        z : 1d-array
+            array of elevations
+        value : float
+            value for which to compute the elevations corresponding to value
+        left : float
+            value to return when value is below the minimum of da.
+        right : float
+            value to return when value is above the maximum of da.
+
+        Returns
+        -------
+        out : float
+            first elevation at which data crosses value
+        """
+        # collect valid entries
+        n_valid = 0
+        for i in range(len(da)):
+            if np.isfinite(da[i]):
+                n_valid += 1
+        if n_valid < 2:
+            out[0] = np.nan
+            return
+
+        z_v = np.empty(n_valid)
+        da_v = np.empty(n_valid)
+        j = 0
+        for i in range(len(da)):
+            if np.isfinite(da[i]):
+                z_v[j] = z[i]
+                da_v[j] = da[i]
+                j += 1
+
+        f0 = da_v[0] - value
+        da_min = da_v[0]
+        da_max = da_v[0]
+
+        # exact first hit
+        if f0 == 0.0:
+            out[0] = z_v[0]
+            return
+
+        for i in range(1, n_valid):
+            fi = da_v[i] - value
+            if fi == 0.0:
+                out[0] = z_v[i]
+                return
+            if da_v[i] < da_min:
+                da_min = da_v[i]
+            if da_v[i] > da_max:
+                da_max = da_v[i]
+
+        # first sign change
+        fp = da_v[0] - value
+        for i in range(1, n_valid):
+            fc = da_v[i] - value
+            if fp * fc < 0.0:
+                out[0] = z_v[i - 1] + (value - da_v[i - 1]) * (z_v[i] - z_v[i - 1]) / (
+                    da_v[i] - da_v[i - 1]
+                )
+                return
+            fp = fc
+
+        # no crossing
+        if value < da_min:
+            out[0] = left
+        elif value > da_max:
+            out[0] = right
+        else:
+            out[0] = np.nan
+
+    def _get_isosurface_1d_numba(
+        da: np.ndarray,
+        z: np.ndarray,
+        value: float,
+        left: float,
+        right: float,
+    ) -> np.ndarray:
+        """Typed wrapper so linters see the correct signature."""
+        return _get_isosurface_1d_gufunc_numba(da, z, value, left, right)  # pylint: disable=no-value-for-parameter
+
+    def _get_isosurface_numba(da, z, value, left=np.nan, right=np.nan, **kwargs):
+        """Wrapper for numba implementation of get_isosurface_1d.
+
+        This wrapper is needed to move the layer dimension to the last position, as
+        required by the gufunc, and to move the result back to an xarray DataArray with
+        the correct dimensions and coordinates.
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            3D or 4D DataArray with values, e.g. concentration, pressure
+        z : xr.DataArray
+            3D DataArray with elevations
+        value : float
+            value at which to compute the elevations of the isosurface
+        left : float, optional
+            value to return when value is above the maximum of da. The default is
+            np.nan.
+        right : float, optional
+            value to return when value is below the minimum of da. The default is
+            np.nan.
+        kwargs : dict
+            additional arguments passed to xarray.apply_ufunc, not used in this
+            function but included for consistency with get_isosurface.
+
+        Returns
+        -------
+        xr.DataArray
+            2D/3D DataArray with elevations of the isosurface
+        """
+        # move layer axis to last position
+        layer_dim = next(d for d in da.dims if d not in {"time", "x", "y", "icell2d"})
+        da_t = da.transpose(..., layer_dim)
+        z_t = z.transpose(..., layer_dim)
+        result_np = _get_isosurface_1d_numba(
+            da_t.values,
+            z_t.values,
+            np.float64(value),
+            np.float64(left),
+            np.float64(right),
+        )
+        dims = [d for d in da.dims if d != layer_dim]
+        return xr.DataArray(
+            result_np,
+            dims=dims,
+            coords={d: da.coords[d] for d in dims if d in da.coords},
+        )
+
+
+def get_isosurface(
+    da,
+    z,
+    value,
+    left=np.nan,
+    right=np.nan,
+    method="numba",
+    input_core_dims=None,
+    exclude_dims=None,
+    **kwargs,
+):
     """Linear interpolation to compute the elevation of an isosurface.
 
     Currently only supports linear interpolation.
@@ -1999,6 +2346,15 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
         3D DataArray with elevations
     value : float
         value at which to compute the elevations of the isosurface
+    left : float, optional
+        value to return when value is above the maximum of da. The default is np.nan.
+    right : float, optional
+        value to return when value is below the minimum of da. The default is np.nan.
+    method : str, optional
+        method to compute the isosurface. The default is "numba".
+        Other option is "numpy". The numba method is usually faster than the
+        numpy method, but the numpy method can be faster for small datasets, and does
+        not require numba to be installed.
     input_core_dims : list of lists, optional
         list of core dimensions for each input, if not provided assumes core dimensions
         are any dimensions that are not x, y or icell2d. Example input_core_dims for
@@ -2018,24 +2374,42 @@ def get_isosurface(da, z, value, input_core_dims=None, exclude_dims=None, **kwar
     xr.DataArray
         2D/3D DataArray with elevations of the isosurface
     """
-    if input_core_dims is None:
-        dims_da = set(da.dims) - {"time", "x", "y", "icell2d"}
-        dims_z = set(z.dims) - {"x", "y", "icell2d"}
-        input_core_dims = [list(dims_da), list(dims_z), []]
-    if exclude_dims is None:
-        exclude_dims = {"layer"}
+    if method == "numba":
+        if not _NUMBA_AVAILABLE:
+            logger.warning(
+                "numba is not installed, falling back to numpy method for "
+                "get_isosurface."
+            )
+            method = "numpy"
+        else:
+            return _get_isosurface_numba(
+                da,
+                z,
+                value,
+                left=left,
+                right=right,
+                **kwargs,
+            )
+    if method == "numpy":
+        if input_core_dims is None:
+            dims_da = set(da.dims) - {"time", "x", "y", "icell2d"}
+            dims_z = set(z.dims) - {"x", "y", "icell2d"}
+            input_core_dims = [list(dims_da), list(dims_z), []]
+        if exclude_dims is None:
+            exclude_dims = {"layer"}
 
-    return xr.apply_ufunc(
-        get_isosurface_1d,
-        da,
-        z,
-        value,
-        vectorize=True,  # loop over time dimension
-        input_core_dims=input_core_dims,
-        exclude_dims=exclude_dims,
-        dask="forbidden",
-        **kwargs,
-    )
+        return xr.apply_ufunc(
+            _get_isosurface_1d_numpy,
+            da,
+            z,
+            value,
+            input_core_dims=input_core_dims,
+            exclude_dims=exclude_dims,
+            dask="parallelized",
+            output_dtypes=[float],
+            kwargs={"right": right, "left": left},
+            **kwargs,
+        )
 
 
 def add_bathymetry_to_layer_model(
@@ -2405,6 +2779,8 @@ def get_modellayers_indexer(
             obs_ds["modellayer"].astype(int)
         ].values
     elif drop_nan_layers:
+        nan_mask = obs_ds["modellayer"].isnull()
+        pts = pts.loc[~nan_mask.values]
         obs_ds = obs_ds.dropna(dim, subset=["modellayer"])
         obs_ds["modellayer"].values = ds["layer"][
             obs_ds["modellayer"].astype(int)
@@ -2443,9 +2819,7 @@ def get_modellayers_indexer(
     # add local x, y coords of observation points if structured grid is rotated
     if full_output and grid.is_rotated(ds) and grid.is_structured(ds):
         affine = grid.get_affine_world_to_mod(ds)
-        pts_local = pts.loc[obs_ds["name"].values.tolist()].affine_transform(
-            affine.to_shapely()
-        )
+        pts_local = pts.affine_transform(affine.to_shapely())
         obs_ds["x_obs_local"] = (dim,), pts_local.x.values
         obs_ds["y_obs_local"] = (dim,), pts_local.y.values
 

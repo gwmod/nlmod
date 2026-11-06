@@ -22,6 +22,7 @@ try:
 except ImportError:
     # fallback: generate a dummy method with the same interface
     def tqdm(iterable=None, **_kwargs):
+        """Dummy tqdm."""
         return iterable if iterable is not None else []
 
 
@@ -36,6 +37,21 @@ class LayerError(Exception):
 
 class MissingValueError(Exception):
     """Generic error when an expected value is not defined."""
+
+
+def _get_dim_coord_for_comparison(da_ds, dim):
+    """Get a normalized 1D coordinate for dimension comparison.
+
+    Bare xarray dimensions behave like ``range(size)`` when indexed, but they are not
+    registered as coordinates or indexes. Normalize both implicit and explicit
+    dimension coordinates to the same explicit representation before comparing.
+    """
+    if dim in da_ds.coords:
+        values = da_ds[dim].values
+    else:
+        values = np.arange(da_ds.sizes[dim])
+
+    return xr.DataArray(values, dims=(dim,), coords={dim: values}, name=dim)
 
 
 def check_da_dims_coords(da, ds):
@@ -63,7 +79,10 @@ def check_da_dims_coords(da, ds):
     shared_dims = set(da.dims) & set(ds.dims)
     for dim in shared_dims:
         try:
-            xr.testing.assert_identical(da[dim], ds[dim])
+            xr.testing.assert_identical(
+                _get_dim_coord_for_comparison(da, dim),
+                _get_dim_coord_for_comparison(ds, dim),
+            )
         except AssertionError as e:
             logger.error(f"da '{da.name}' coordinates do not match ds!")
             raise e
@@ -71,9 +90,10 @@ def check_da_dims_coords(da, ds):
 
 
 def get_model_dirs(model_ws):
-    """Creates a new model workspace directory, if it does not exists yet. Within the
-    model workspace directory a few subdirectories are created (if they don't exist
-    yet):
+    """Creates a new model workspace directory, if it does not exists yet.
+
+    Within the model workspace directory a few subdirectories are created
+    (if they don't exist yet):
 
     - figure
     - cache
@@ -397,7 +417,7 @@ def get_flopy_bin_directories(version_tag=None, repo="executables"):
     return path_list
 
 
-def download_mfbinaries(bindir=None, version_tag="latest", repo="executables"):
+def download_mfbinaries(bindir=None, version_tag="latest", repo="modflow6"):
     """Download and unpack platform-specific modflow binaries.
 
     Source: USGS
@@ -603,7 +623,7 @@ def compare_model_extents(extent1, extent2):
 
 
 def extent_to_polygon(extent):
-    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax])
+    """Generate a shapely Polygon from an extent ([xmin, xmax, ymin, ymax]).
 
     Parameters
     ----------
@@ -1239,7 +1259,7 @@ def zonal_statistics(
         gc["values"] = da
         gc = gc.set_coords("index")
         groups = gc.groupby("index")
-        for stat, column in zip(statistics, columns):
+        for stat, column in zip(statistics, columns, strict=False):
             if stat == "min":
                 values = groups.min()
             elif stat == "max":
@@ -1282,7 +1302,7 @@ def zonal_statistics(
                 all_touched=all_touched,
                 progress=progressbar,
             )
-        for stat, column in zip(statistics, columns):
+        for stat, column in zip(statistics, columns, strict=False):
             geometry[column] = [x[stat] for x in stats]
 
     else:

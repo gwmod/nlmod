@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 def write_and_run(mpf, remove_prev_output=True, script_path=None, silent=False):
-    """Write modpath files and run the model. Extra options include removing previous
-    output and copying the modelscript to the model workspace.
+    """Write modpath files and run the model.
+
+    Extra options include removing previous output and copying the modelscript
+    to the model workspace.
 
     Parameters
     ----------
@@ -131,6 +133,7 @@ def package_to_nodes(gwf, package_name, mpf=None, ibound=None):
             "The 'mpf' parameter is deprecated and will be removed in a future version."
             " Please pass 'ibound' directly.",
             DeprecationWarning,
+            stacklevel=2,
         )
         ibound = mpf.ib
     gwf_package = gwf.get_package(package_name)
@@ -290,8 +293,10 @@ def bas(mpf, porosity=0.3, **kwargs):
 
 
 def remove_output(mpf):
-    """Remove the output of a previous modpath run. Commonly used before starting a new
-    modpath run to avoid loading the wrong data when a modpath run has failed.
+    """Remove the output of a previous modpath run.
+
+    Commonly used before starting a new modpath run to avoid loading the wrong
+    data when a modpath run has failed.
 
     Parameters
     ----------
@@ -354,7 +359,8 @@ def load_pathline_data(
     if mpf is None:
         if modelname is None:
             raise ValueError(
-                "if no mpf model is provided a modelname should be provided to load pathline data"
+                "if no mpf model is provided a modelname should be provided "
+                "to load pathline data"
             )
         fpth = os.path.join(model_ws, f"{modelname}.mppth")
     else:
@@ -395,7 +401,8 @@ def pg_from_fdt(nodes, divisions=3):
         Particle group.
     """
     logger.info(
-        f"particle group with {divisions**2} particle per cell face, {6 * divisions**2} particles per cell"
+        f"particle group with {divisions**2} particle per cell face, "
+        f"{6 * divisions**2} particles per cell"
     )
     sd = flopy.modpath.FaceDataType(
         drape=0,

@@ -620,7 +620,7 @@ def _get_meteo_da_from_input(recharge, ds, pname, stn_var):
 
             ts_name = f"{pname}_0"
             rch_unique_df = recharge.to_dataframe().rename(
-                columns={"recharge": ts_name}
+                columns={recharge.name: ts_name}
             )
             dims = ds["top"].dims
             coords = ds["top"].coords

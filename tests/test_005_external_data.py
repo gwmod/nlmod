@@ -113,7 +113,7 @@ def test_add_recharge_as_float():
 def test_add_recharge_as_ts():
     ds = nlmod.get_ds(
         [100000, 110000, 420000, 430000],
-        model_ws=os.path.join("models", "test_add_recharge_as_float"),
+        model_ws=os.path.join("models", "test_add_recharge_as_ts"),
         model_name="test",
     )
     time = pd.date_range("2024", "2025")
@@ -126,13 +126,16 @@ def test_add_recharge_as_ts():
     _ = nlmod.gwf.dis(ds, gwf)
 
     # test with recharge as time series
-    ds["recharge"] = xr.full_like(ds["time"], 0.7e-3, dtype=float)
-    _ = nlmod.gwf.rch(ds, gwf)
+    ds["precipitation"] = xr.full_like(ds["time"], 0.7e-3, dtype=float)
+    _ = nlmod.gwf.rch(ds, gwf, recharge="precipitation")
 
     spd = gwf.rch.stress_period_data.data
     assert len(spd) == 1
     assert len(spd[0]) == 10000
     assert spd[0]["recharge"].dtype == object
+
+    ts = gwf.rch.ts[0]
+    assert spd[0]["recharge"][0] in pd.DataFrame(ts.time_series_namerecord.array).values
 
 
 def test_ahn_within_extent():

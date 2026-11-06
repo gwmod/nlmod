@@ -2044,7 +2044,7 @@ def gdf_to_grid(
             shpn = shp.copy()
             shpn["cellid"] = row["cellids"]
             shpn[geometry] = row["geometry"]
-            if shp[geometry].geom_type == ["LineString", "MultiLineString"]:
+            if shp[geometry].geom_type in ["LineString", "MultiLineString"]:
                 shpn["length"] = row["lengths"]
             elif shp[geometry].geom_type in ["Polygon", "MultiPolygon"]:
                 shpn["area"] = row["areas"]

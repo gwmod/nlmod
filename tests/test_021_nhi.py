@@ -10,19 +10,23 @@ import requests
 import nlmod
 
 
+
 @pytest.mark.slow
 def test_buisdrainage(tmp_path):
-    model_ws = os.path.join(tmp_path, "buidrain")
-    ds = nlmod.get_ds([110_000, 130_000, 435_000, 445_000], model_ws=model_ws)
-    ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))
+    try:
+        model_ws = os.path.join(tmp_path, "buisdrain")
+        ds = nlmod.get_ds([110_000, 130_000, 435_000, 445_000], model_ws=model_ws)
+        ds.update(nlmod.read.nhi.discretize_buisdrainage(ds))
 
-    # assert that all locations with a specified depth also have a positive conductance
-    mask = ~ds["buisdrain_depth"].isnull()
-    assert np.all(ds["buisdrain_cond"].data[mask] > 0)
+        # assert that all locations with a specified depth also have a positive conductance
+        mask = ~ds["buisdrain_depth"].isnull()
+        assert np.all(ds["buisdrain_cond"].data[mask] > 0)
 
-    # assert that all locations with a positive conductance also have a specified depth
-    mask = ds["buisdrain_cond"] > 0
-    assert np.all(~np.isnan(ds["buisdrain_depth"].data[mask]))
+        # assert that all locations with a positive conductance also have a specified depth
+        mask = ds["buisdrain_cond"] > 0
+        assert np.all(~np.isnan(ds["buisdrain_depth"].data[mask]))
+    except requests.exceptions.RequestException as e:
+        pytest.skip(f"Buisdrainage URL unavailable: {e}")
 
 
 @pytest.mark.skip("NHI GWO Database is down until further notice.")

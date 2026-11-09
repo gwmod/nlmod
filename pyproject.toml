@@ -20,7 +20,7 @@ maintainers = [
 ]
 requires-python = ">= 3.11"
 dependencies = [
-    "flop>=3.10.0",
+    "flopy>=3.10.0",
     "xarray>=0.16.1",
     "netcdf4>=1.7.2",
     "rasterio>=1.1.0",

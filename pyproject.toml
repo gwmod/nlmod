@@ -20,7 +20,7 @@ maintainers = [
 ]
 requires-python = ">= 3.11"
 dependencies = [
-    "flopy @ git+https://github.com/modflowpy/flopy.git@develop", # HFB utility from flopy#2745, to be released in flopy>3.10.0
+    "flop>=3.10.0",
     "xarray>=0.16.1",
     "netcdf4>=1.7.2",
     "rasterio>=1.1.0",
@@ -82,8 +82,8 @@ rtd = [
     "sphinx_rtd_theme",
     "nbconvert",
     "openpyxl",
-    "numpy<2.5.0", # until there is a new version of netCDF4 (now 1.7.4) this solves "Setting the shape on a NumPy array has been deprecated"
-    "affine<3.0.1", # until there are newer versions of rasterio (now 1.5.1) and rioxarray (now 0.23.0), this solves "Use @ matmul instead of * mul operator for matrix multiplication"
+    "numpy<2.5.0",      # until there is a new version of netCDF4 (now 1.7.4) this solves "Setting the shape on a NumPy array has been deprecated"
+    "affine<3.0.1",     # until there are newer versions of rasterio (now 1.5.1) and rioxarray (now 0.23.0), this solves "Use @ matmul instead of * mul operator for matrix multiplication"
 ]
 lgn = ["xarray-spatial", "exactextract"]
 

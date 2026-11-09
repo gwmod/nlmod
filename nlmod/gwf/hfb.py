@@ -450,7 +450,7 @@ def line_to_hfb(gdf, ds=None, gwf=None, prevent_rings=True, plot=False):
         cell2d.columns = ["icell2d", "xc", "yc", "ncvert"] + [
             f"icvert_{i}" for i in range(cell2d.columns.size - 4)
         ]
-        cell2d.set_index("icell2d", inplace=True)
+        cell2d = cell2d.set_index("icell2d")
         vertices = pd.DataFrame(
             index=np.arange(mgrid.nvert),
             data=mgrid.verts,

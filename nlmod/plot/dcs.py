@@ -846,7 +846,7 @@ class DatasetCrossSection:
 
         # sort on distance along line
         if sort_by_dist:
-            df.sort_values("s", inplace=True)
+            df = df.sort_values("s")
 
         rectangles = []
         legend_handles = {}

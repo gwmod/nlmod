@@ -1435,9 +1435,7 @@ def gdf_to_data_array_struc(
     else:
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[field]]
-        gdf_agg.set_index(
-            pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
-        )
+        gdf_agg = gdf_agg.set_index(pd.MultiIndex.from_tuples(gdf_cellid.cellid.values))
 
     for ind, row in gdf_agg.iterrows():
         da.values[ind[0], ind[1]] = row[field]
@@ -1513,11 +1511,11 @@ def gdf_to_da(
         # aggregation not neccesary
         gdf_agg = gdf_cellid[[column]]
         if isinstance(gdf_cellid.cellid.iloc[0], tuple):
-            gdf_agg.set_index(
-                pd.MultiIndex.from_tuples(gdf_cellid.cellid.values), inplace=True
+            gdf_agg = gdf_agg.set_index(
+                pd.MultiIndex.from_tuples(gdf_cellid.cellid.values)
             )
         else:
-            gdf_agg.set_index(gdf_cellid.cellid.values, inplace=True)
+            gdf_agg = gdf_agg.set_index(gdf_cellid.cellid.values)
 
     if ds.gridtype == "structured":
         ixs, iys = zip(*gdf_agg.index.values, strict=False)

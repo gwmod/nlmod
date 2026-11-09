@@ -551,7 +551,7 @@ def read_gleg(fname):
         na_filter=False,
     )
     leg["naam"] = leg["naam"].str.replace("-", "")
-    leg.set_index("naam", inplace=True)
+    leg = leg.set_index("naam")
     clrs = np.array(leg.loc[:, ["r", "g", "b"]])
     clrs = [tuple(rgb / 255.0) for rgb in clrs]
     leg["color"] = clrs
@@ -567,7 +567,7 @@ def read_voleg(fname):
         header=None,
         names=["code", "naam", "r", "g", "b", "a", "beschrijving"],
     )
-    leg.set_index("code", inplace=True)
+    leg = leg.set_index("code")
     clrs = np.array(leg.loc[:, ["r", "g", "b"]])
     clrs = [tuple(rgb / 255.0) for rgb in clrs]
     leg["color"] = clrs

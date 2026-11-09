@@ -279,8 +279,16 @@ def oc(
     conc_filerecord = [concfile]
     budgetfile = f"{gwt.name}.cbc"
     budget_filerecord = [budgetfile]
-    saverecord = _set_record(save_concentration, save_budget, output="concentration")
-    printrecord = _set_record(print_concentration, print_budget, output="concentration")
+    saverecord = kwargs.pop("saverecord", None)
+    if saverecord is None:
+        saverecord = _set_record(
+            save_concentration, save_budget, output="concentration"
+        )
+    printrecord = kwargs.pop("printrecord", None)
+    if printrecord is None:
+        printrecord = _set_record(
+            print_concentration, print_budget, output="concentration"
+        )
 
     oc = flopy.mf6.ModflowGwtoc(
         gwt,

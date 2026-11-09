@@ -963,8 +963,12 @@ def oc(
     head_filerecord = [headfile]
     budgetfile = f"{ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
-    saverecord = _set_record(save_head, save_budget, output="head")
-    printrecord = _set_record(print_head, print_budget, output="head")
+    saverecord = kwargs.pop("saverecord", None)
+    if saverecord is None:
+        saverecord = _set_record(save_head, save_budget, output="head")
+    printrecord = kwargs.pop("printrecord", None)
+    if printrecord is None:
+        printrecord = _set_record(print_head, print_budget, output="head")
 
     oc = flopy.mf6.ModflowGwfoc(
         gwf,

@@ -105,19 +105,23 @@ def get_configuration():
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://maps.waternet.nl/arcgis/rest/services/Publiek/GW_GPG/MapServer",
-            "layer": 5,  # Vigerende peilgebieden
-            "index": "GPGIDENT",
-            "summer_stage": [
-                "GPGZMRPL",
-                "IWS_BOVENGRENS_ZOMERPEIL",
-                "IWS_GPGVASTP",
-            ],
-            "winter_stage": [
-                "GPGWNTPL",
-                "OPVAFWWP",
-                "IWS_GPGVASTP",
-            ],
+            "url": "https://services-eu1.arcgis.com/nN7Fv7YeT1qPGzBX/arcgis/rest/services/DAMO_BEHEERREGISTER_PEILGEBIEDEN_VIGEREND/FeatureServer",
+            "layer": 0,  # Peilgebied vigerend
+            "index": "code",
+            # "summer_stage": [
+            #    "GPGZMRPL",
+            #    "IWS_BOVENGRENS_ZOMERPEIL",
+            #    "IWS_GPGVASTP",
+            # ],
+            # "winter_stage": [
+            #    "GPGWNTPL",
+            #    "OPVAFWWP",
+            #    "IWS_GPGVASTP",
+            # ],
+        },
+        "culverts": {
+            "url": "https://services-eu1.arcgis.com/nN7Fv7YeT1qPGzBX/ArcGIS/rest/services/agol_legger_duikersifonhevel_actueel/FeatureServer",
+            "layer": 2,
         },
     }
 
@@ -246,27 +250,27 @@ def get_configuration():
     config["Fryslân"] = {
         "bgt_code": "W0653",
         "watercourses": {
-            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/BeheerregisterWaterlopen/MapServer",
-            "layer": 0,  # # Wateren (primair, secundair)
-            "index": "OVKIDENT",
-            "bottom_height": "AVVBODH",
-            "water_depth": "AVVDIEPT",
-            # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Legger_vastgesteld__2019/MapServer",
-            # "layer": 604,  # Wateren legger
-            # "index": "BLAEU.LEG_VL_GW_OVK.OVKIDENT",
-            # "bottom_height": "BLAEU.LEG_VL_GW_OVK.AVVBODH",
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 11,  # Waterloop
+            "index": "Code",
+            "bottom_height": "Bodemhoogte_legger_mNAP",
         },
         "level_areas": {
-            # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilbelsuit_Friese_boezem/MapServer",
-            # "index": "BLAEU_WFG_GPG_BEHEER_PBHIDENT",
-            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilen/MapServer",
-            # "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
-            "layer": 4,  # Peilgebied praktijk
-            "index": "PBHIDENT",
-            # "layer": 4,  # Peilbesluitenkaart
-            # "index": "GPGIDENT",
-            "summer_stage": "HOOGPEIL",
-            "winter_stage": "LAAGPEIL",
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 5,  # Peilen_actueel
+            "index": "Code",
+            "summer_stage": "Hoogpeil_mNAP",
+            "winter_stage": "Laagpeil_mNAP",
+        },
+        "weirs": {
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 7,
+            "index": "Code",
+        },
+        "culverts": {
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 2,
+            "index": "Code",
         },
     }
 
@@ -313,17 +317,21 @@ def get_configuration():
         "bgt_code": "W0655",
         "watercourses": {
             # "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Geoportaal/Legger2014waterbeheersing_F_transparant/FeatureServer",
-            "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Watersysteem/MapServer",
-            "layer": 15,  # Waterlopen
+            # "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Watersysteem/MapServer",
+            # "layer": 15,  # Waterlopen
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_HydroObject_(obv_type)_(extern)/FeatureServer",
+            "layer": 0,
             "bottom_height": [
                 ["BODEMHOOGTE_BOVENSTROOMS", "BODEMHOOGTE_BENEDENSTROOMS"]
             ],
             "bottom_width": "BODEMBREEDTE",
         },
         "level_areas": {
-            "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Peilgebieden/MapServer",
-            "layer": 31,
-            "f": "json",
+            # "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Peilgebieden/MapServer",
+            # "layer": 31,
+            # "f": "json",
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_Peilgebied_vigerend_(extern)/FeatureServer",
+            "layer": 3,
             "summer_stage": [
                 "REKENPEIL_ZOMER",
                 "BOVENGRENS_BEHEERMARGE_ZOMER",
@@ -334,6 +342,14 @@ def get_configuration():
                 "BOVENGRENS_BEHEERMARGE_WINTER",
                 "ONDERGRENS_BEHEERMARGE_WINTER",
             ],
+        },
+        "weirs": {
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_Stuw_(extern)_/FeatureServer",
+            "layer": 1,
+        },
+        "culverts": {
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_Duiker_Sifon_Hevel__Persleiding__lijn_extern/FeatureServer",
+            "layer": 3,
         },
     }
 
@@ -373,18 +389,15 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
-            # "layer": 0,  # Primair
+            "url": "https://geo.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
+            "layer": 0,  # Primair
             # "layer": 1,  # Secundair
             # "layer": 2,  # Tertiair
-            "url": "https://services2.arcgis.com/ppcrd5oBNPEvV1T3/ArcGIS/rest/services/Normatieve_afmetingen/FeatureServer",
-            "layer": 1,  # Normatieve afmetingen
-            "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
-            "bottom_width": "AVVBODDR",
-            "index": "OVKIDENT",
+            "bottom_width": "DAMO_W.HydroObject.BREEDTE",
+            "index": "OBJECTID",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebied/MapServer/",
+            "url": "https://geo.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebied/MapServer",
             "layer": 3,
             "index": "WS_CODE",
             "summer_stage": [

@@ -57,7 +57,7 @@ def get_gdf_bofek(*args, **kwargs):
 
 @cache.cache_pickle
 def download_bofek_gdf(extent, dirname, timeout=3600):
-    """Get geodataframe of bofek 2020 wihtin the extent of the model.
+    """Get geodataframe of bofek 2020 within the extent of the model.
 
     It does so by downloading a zip file and reading the included shapefile.
     Therefore the function can be slow depending on your internet connection.

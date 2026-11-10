@@ -77,10 +77,30 @@ def set_ds_attrs(
 
     # add some directories
     if model_ws is not None:
-        figdir, cachedir = util.get_model_dirs(model_ws)
-        ds.attrs["model_ws"] = model_ws
-        ds.attrs["figdir"] = figdir
-        ds.attrs["cachedir"] = cachedir
+        ds = set_model_ws(ds, model_ws)
+
+    return ds
+
+
+def set_model_ws(ds, model_ws):
+    """Set the model workspace of a model dataset.
+
+    Parameters
+    ----------
+    ds : xarray dataset
+        An existing model dataset
+    model_ws : str
+        workspace of the model. This is where modeldata is saved to.
+
+    Returns
+    -------
+    ds : xarray dataset
+        model dataset with updated model workspace.
+    """
+    figdir, cachedir = util.get_model_dirs(model_ws)
+    ds.attrs["model_ws"] = model_ws
+    ds.attrs["figdir"] = figdir
+    ds.attrs["cachedir"] = cachedir
 
     return ds
 

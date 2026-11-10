@@ -52,7 +52,7 @@ def surface_water(model_ds, ax=None, **kwargs):
 
     if ax is None:
         _, ax = plt.subplots()
-    surf_water.plot(ax=ax, **kwargs)
+    surf_water.plot(ax=ax, add_labels=kwargs.pop("add_labels", False), **kwargs)
 
     return ax
 

@@ -903,13 +903,15 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_color_logger(level="INFO", logger_name=None):
+def get_color_logger(level="INFO", logger_name="nlmod"):
     """Get a logger with colored output.
 
     Parameters
     ----------
     level : str, optional
         The logging level to set for the logger. Default is "INFO".
+    logger_name : str, optional
+        The name of the logger. Default is "nlmod".
 
     Returns
     -------

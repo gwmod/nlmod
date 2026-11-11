@@ -24,7 +24,11 @@ def test_get_recharge_most_common():
     ds = nlmod.time.set_ds_time(ds, start="2021", time=pd.date_range("2022", "2023"))
 
     # add knmi recharge to the model dataset
-    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True, most_common_station=True))
+    ds.update(
+        nlmod.read.knmi.get_recharge(
+            ds, hourly_precision=True, most_common_station=True
+        )
+    )
 
 
 def test_get_recharge_steady_state():
@@ -58,7 +62,9 @@ def test_get_recharge_add_stn_dimensions():
     ds["active_domain"].data[0, 0] = False
     time = pd.date_range("2024", "2025")
     ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
-    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True, add_stn_dimensions=True))
+    ds.update(
+        nlmod.read.knmi.get_recharge(ds, hourly_precision=True, add_stn_dimensions=True)
+    )
 
     # create simulation
     sim = nlmod.sim.sim(ds)

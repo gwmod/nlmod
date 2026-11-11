@@ -202,9 +202,14 @@ def get_configuration():
     config["De Stichtse Rijnlanden"] = {
         "bgt_code": "W0636",
         "watercourses": {
-            "url": "https://services1.arcgis.com/1lWKHMyUIR3eKHKD/ArcGIS/rest/services/Keur_2020/FeatureServer",
-            "layer": 39,  # Leggervak
-            # "layer": 43, # Leggervak droge sloot
+            "url": "https://services1.arcgis.com/1lWKHMyUIR3eKHKD/arcgis/rest/services/Profielenlegger_2025/FeatureServer",
+            # "layer": 0,  # Dwarsprofiel
+            # "layer": 1,  # Referentielijn met lengteprofiel
+            "layer": 8,  # Leggervak
+            # "layer": 9,  # Watervlak
+            # "layer": 10,  # Kernzone
+            # "layer": 11, # Leggervak droge sloot
+            # "layer": 12,  # Droog profiel droge sloot
         },
         "level_areas": {
             "url": "https://geoservices.hdsr.nl/arcgis/rest/services/Extern/PeilbesluitenExtern_damo24/FeatureServer",
@@ -212,6 +217,15 @@ def get_configuration():
             "index": "WS_PGID",
             "summer_stage": ["WS_ZP", "WS_BP", "WS_OP", "WS_VP"],
             "winter_stage": ["WS_WP", "WS_OP", "WS_BP", "WS_VP"],
+        },
+        "weirs": {
+            "url": "https://services1.arcgis.com/1lWKHMyUIR3eKHKD/arcgis/rest/services/Profielenlegger_2025/FeatureServer",
+            "layer": 3,  # Stuw
+        },
+        "culverts": {
+            "url": "https://services1.arcgis.com/1lWKHMyUIR3eKHKD/arcgis/rest/services/Profielenlegger_2025/FeatureServer",
+            # "layer": 5, # Stuwende Duiker
+            "layer": 6,  # Duiker
         },
     }
 

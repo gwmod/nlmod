@@ -12,10 +12,10 @@ import nlmod
 
 def test_get_recharge():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add knmi recharge to the model dataset
-    ds.update(nlmod.read.knmi.get_recharge(ds))
+    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True))
 
 
 def test_get_recharge_most_common():
@@ -24,19 +24,23 @@ def test_get_recharge_most_common():
     ds = nlmod.time.set_ds_time(ds, start="2021", time=pd.date_range("2022", "2023"))
 
     # add knmi recharge to the model dataset
-    ds.update(nlmod.read.knmi.get_recharge(ds, most_common_station=True))
+    ds.update(
+        nlmod.read.knmi.get_recharge(
+            ds, hourly_precision=True, most_common_station=True
+        )
+    )
 
 
 def test_get_recharge_steady_state():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # modify mtime
     ds = ds.drop_dims("time")
     ds = nlmod.time.set_ds_time(ds, time=[3650], start="2000-1-1")
 
     # add knmi recharge to the model dataset
-    ds.update(nlmod.read.knmi.get_recharge(ds))
+    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True))
 
 
 def test_get_recharge_not_available():
@@ -44,7 +48,7 @@ def test_get_recharge_not_available():
     time = [pd.Timestamp.now().normalize()]
     ds = nlmod.time.set_ds_time(ds, start=time[0] - pd.Timedelta(days=21), time=time)
     with pytest.raises((ValueError)):
-        ds.update(nlmod.read.knmi.get_recharge(ds))
+        ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True))
 
 
 def test_get_recharge_add_stn_dimensions():
@@ -58,7 +62,9 @@ def test_get_recharge_add_stn_dimensions():
     ds["active_domain"].data[0, 0] = False
     time = pd.date_range("2024", "2025")
     ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
-    ds.update(nlmod.read.knmi.get_recharge(ds, add_stn_dimensions=True))
+    ds.update(
+        nlmod.read.knmi.get_recharge(ds, hourly_precision=True, add_stn_dimensions=True)
+    )
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -100,12 +106,42 @@ def test_add_recharge_as_float():
     gwf = nlmod.gwf.gwf(ds, sim)
     _ = nlmod.sim.ims(sim)
     _ = nlmod.gwf.dis(ds, gwf)
+
+    # test with single recharge value
     _ = nlmod.gwf.rch(ds, gwf, recharge=0.1)
 
     spd = gwf.rch.stress_period_data.data
     assert len(spd) == 1
     assert len(spd[0]) == 10000
     assert (spd[0]["recharge"] == 0.1).all()
+
+
+def test_add_recharge_as_ts():
+    ds = nlmod.get_ds(
+        [100000, 110000, 420000, 430000],
+        model_ws=os.path.join("models", "test_add_recharge_as_ts"),
+        model_name="test",
+    )
+    time = pd.date_range("2024", "2025")
+    ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
+
+    sim = nlmod.sim.sim(ds)
+    _ = nlmod.sim.tdis(ds, sim)
+    gwf = nlmod.gwf.gwf(ds, sim)
+    _ = nlmod.sim.ims(sim)
+    _ = nlmod.gwf.dis(ds, gwf)
+
+    # test with recharge as time series
+    ds["precipitation"] = xr.full_like(ds["time"], 0.7e-3, dtype=float)
+    _ = nlmod.gwf.rch(ds, gwf, recharge="precipitation")
+
+    spd = gwf.rch.stress_period_data.data
+    assert len(spd) == 1
+    assert len(spd[0]) == 10000
+    assert spd[0]["recharge"].dtype == object
+
+    ts = gwf.rch.ts[0]
+    assert spd[0]["recharge"][0] in pd.DataFrame(ts.time_series_namerecord.array).values
 
 
 def test_ahn_within_extent():
@@ -170,7 +206,7 @@ def test_download_ahn6():
 
 def test_get_ahn():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add ahn data to the model dataset
     ahn_ds = nlmod.read.ahn.get_ahn(ds)
@@ -197,7 +233,7 @@ def test_check_ahn_files_up_to_date():
 
 def test_get_surface_water_ghb():
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # create simulation
     sim = nlmod.sim.sim(ds)
@@ -214,7 +250,14 @@ def test_get_surface_water_ghb():
     nlmod.gwf.dis(ds, gwf)
 
     # add surface water levels to the model dataset
-    ds.update(nlmod.read.rws.get_surface_water(ds, da_basename="surface_water"))
+    gdf_surface_water = nlmod.read.rws.get_gdf_surface_water(ds)
+    ds.update(
+        nlmod.read.rws.discretize_surface_water(
+            ds,
+            gdf_surface_water,
+            da_basename="surface_water",
+        )
+    )
 
 
 def test_get_brp():
@@ -224,11 +267,11 @@ def test_get_brp():
 
 # disable because slow (~35 seconds depending on internet connection)
 @pytest.mark.skip(reason="slow")
-def test_get_bofek():
+def test_get_bofek(tmp_path):
     # model with sea
-    ds = test_001_model.get_ds_from_cache("basic_sea_model")
+    ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add knmi recharge to the model dataset
-    gdf_bofek = nlmod.read.bofek.download_bofek_gdf(ds)
+    gdf_bofek = nlmod.read.bofek.download_bofek_gdf(nlmod.grid.get_extent(ds), tmp_path)
 
     assert not gdf_bofek.empty, "Bofek geodataframe is empty"

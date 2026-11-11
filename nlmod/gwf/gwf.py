@@ -113,7 +113,7 @@ def _dis(ds, model, length_units="METERS", pname="dis", **kwargs):
         yorigin = ds.extent[2]
         angrot = 0.0
 
-    idomain = get_idomain(ds).data
+    idomain = kwargs.pop("idomain", get_idomain(ds).data)
     if model.model_type == "gwf6":
         filename = f"{ds.model_name}.dis"
         klass = flopy.mf6.ModflowGwfdis
@@ -257,8 +257,8 @@ def npf(
         vertical hydraulic conductivity, when passed as string, the array
         is obtained from ds. By default assumes data is stored as "kv".
     save_flows : bool, optional
-        value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by
-        cell flows should be saved to the cbb file. Default is False
+        Value is passed to flopy.mf6.ModflowGwfnpf() to determine if cell by
+        cell flows should be saved to the budget file. The default is False.
     pname : str, optional
         package name
 
@@ -301,6 +301,7 @@ def ghb(
     pname="ghb",
     auxiliary=None,
     layer=None,
+    save_flows=True,
     **kwargs,
 ):
     """Create general head boundary from model dataset.
@@ -324,6 +325,9 @@ def ghb(
     layer : int or None
         The layer in which the boundary is added. It is added to the first active layer
         when layer is None. The default is None.
+    save_flows : bool, optional
+        Value is passed to flopy.mf6.ModflowGwfghb() to determine if flows should be
+        saved to the budget file. The default is True.
 
     Raises
     ------
@@ -358,7 +362,7 @@ def ghb(
             auxiliary="CONCENTRATION" if auxiliary is not None else None,
             maxbound=len(ghb_rec),
             stress_period_data=ghb_rec,
-            save_flows=True,
+            save_flows=save_flows,
             pname=pname,
             **kwargs,
         )
@@ -382,6 +386,7 @@ def drn(
     cond="drn_cond",
     pname="drn",
     layer=None,
+    save_flows=True,
     **kwargs,
 ):
     """Create drain from model dataset.
@@ -407,6 +412,9 @@ def drn(
     layer : int or None
         The layer in which the boundary is added. It is added to the first active layer
         when layer is None. The default is None.
+    save_flows : bool, optional
+        Value is passed to flopy.mf6.ModflowGwfdrn() to determine if flows should be
+        saved to the budget file. The default is True.
 
     Returns
     -------
@@ -434,7 +442,7 @@ def drn(
             gwf,
             maxbound=len(drn_rec),
             stress_period_data=drn_rec,
-            save_flows=True,
+            save_flows=save_flows,
             pname=pname,
             **kwargs,
         )
@@ -455,6 +463,7 @@ def riv(
     pname="riv",
     auxiliary=None,
     layer=None,
+    save_flows=True,
     **kwargs,
 ):
     """Create river package from model dataset.
@@ -484,6 +493,9 @@ def riv(
     layer : int or None
         The layer in which the boundary is added. It is added to the first active layer
         when layer is None. The default is None.
+    save_flows : bool, optional
+        Value is passed to flopy.mf6.ModflowGwfriv() to determine if flows should be
+        saved to the budget file. The default is True.
 
     Returns
     -------
@@ -514,7 +526,7 @@ def riv(
             maxbound=len(riv_rec),
             stress_period_data=riv_rec,
             auxiliary="CONCENTRATION" if auxiliary is not None else None,
-            save_flows=True,
+            save_flows=save_flows,
             pname=pname,
             **kwargs,
         )
@@ -538,6 +550,7 @@ def chd(
     pname="chd",
     auxiliary=None,
     layer=0,
+    save_flows=True,
     **kwargs,
 ):
     """Create constant head package from model dataset.
@@ -561,6 +574,9 @@ def chd(
     layer : int or None
         The layer in which the boundary is added. It is added to the first active layer
         when layer is None. The default is 0.
+    save_flows : bool, optional
+        Value is passed to flopy.mf6.ModflowGwfchd() to determine if flows should be
+        saved to the budget file. The default is True.
     chd : str, optional
         deprecated, the new argument is 'mask'
 
@@ -575,6 +591,7 @@ def chd(
         warnings.warn(
             "the 'chd' kwarg has been renamed to 'mask'!",
             DeprecationWarning,
+            stacklevel=2,
         )
         mask = kwargs.pop("chd")
 
@@ -599,7 +616,7 @@ def chd(
             pname=pname,
             maxbound=len(chd_rec),
             stress_period_data=chd_rec,
-            save_flows=True,
+            save_flows=save_flows,
             **kwargs,
         )
         if (auxiliary is not None) and (ds.transport == 1):
@@ -674,8 +691,8 @@ def sto(
     iconvert : int, optional
         See description in ModflowGwfsto. The default is 1 (differs from FloPY).
     save_flows : bool, optional
-        value is passed to flopy.mf6.ModflowGwfsto() to determine if flows
-        should be saved to the cbb file. Default is False
+        Value is passed to flopy.mf6.ModflowGwfsto() to determine if flows
+        should be saved to the budget file. The default is False.
     pname : str, optional
         package name
 
@@ -710,7 +727,9 @@ def sto(
         return sto
 
 
-def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs):
+def surface_drain_from_ds(
+    ds, gwf, resistance, elev="ahn", pname="drn", save_flows=True, **kwargs
+):
     """Create surface level drain (maaivelddrainage in Dutch) from the model dataset.
 
     Parameters
@@ -728,6 +747,9 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
         the elevation data is stored under "ahn".
     pname : str, optional
         package name
+    save_flows : bool, optional
+        Value is passed to flopy.mf6.ModflowGwfdrn() to determine if flows
+        should be saved to the budget file. The default is True.
 
     Returns
     -------
@@ -755,7 +777,7 @@ def surface_drain_from_ds(ds, gwf, resistance, elev="ahn", pname="drn", **kwargs
         pname=pname,
         maxbound=len(drn_rec),
         stress_period_data={0: drn_rec},
-        save_flows=True,
+        save_flows=save_flows,
         **kwargs,
     )
 
@@ -941,8 +963,8 @@ def oc(
         default is True.
     print_head : bool or str
         Prints the head to the list-file. If print_head is a string, it needs to be
-        "all", "first" or "last". If print_head is True, it is set to "last". The default
-        is False.
+        "all", "first" or "last". If print_head is True, it is set to "last".
+        The default is False.
     print_budget : bool or str
         Prints the budgets to the list-file. If print_budget is a string, it needs to be
         "all", "first" or "last". If print_budget is True, it is set to "last". The
@@ -962,8 +984,12 @@ def oc(
     head_filerecord = [headfile]
     budgetfile = f"{ds.model_name}.cbc"
     budget_filerecord = [budgetfile]
-    saverecord = _set_record(save_head, save_budget, output="head")
-    printrecord = _set_record(print_head, print_budget, output="head")
+    saverecord = kwargs.pop("saverecord", None)
+    if saverecord is None:
+        saverecord = _set_record(save_head, save_budget, output="head")
+    printrecord = kwargs.pop("printrecord", None)
+    if printrecord is None:
+        printrecord = _set_record(print_head, print_budget, output="head")
 
     oc = flopy.mf6.ModflowGwfoc(
         gwf,

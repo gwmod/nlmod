@@ -1,8 +1,17 @@
+import logging
+
+import flopy as fp
 import numpy as np
+import pandas as pd
 import xarray as xr
+from geopandas import GeoDataFrame, points_from_xy
 from scipy.spatial import Delaunay
 
 from nlmod.dims import grid
+
+from .util import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 def _compute_interpolation_weights(xy, uv, d=2):
@@ -233,3 +242,144 @@ def interpolate_to_points(
         return interp_da  # also returns vertices and weights
     else:
         return interp_da["interpolated"]
+
+
+def build_obs(
+    ds,
+    gwf_or_gwt,
+    df,
+    obs_type="head",
+    fname=None,
+    x="x",
+    y="y",
+    z="z",
+    screen_top="screen_top",
+    screen_bottom="screen_bottom",
+):
+    """Get observations from dataframe for a MODFLOW 6 model.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset containing model grid and other model information
+    gwf_or_gwt : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        MODFLOW 6 groundwater flow or transport model object
+    df : pd.DataFrame or geopandas.GeoDataFrame
+        DataFrame containing observation locations and optionally the
+        layer of the observation. If a GeoDataFrame is provided, the
+        geometry column must contain Point geometries.
+    obs_type : str, optional
+        Type of observation, default is "head"
+    fname : str, optional
+        Name of the observation file, default is None, which will create
+        a file named "{obs_type}_obs.csv"
+    x : str, optional
+        Name of the column in df containing x-coordinates, default is "x"
+    y : str, optional
+        Name of the column in df containing y-coordinates, default is "y"
+    z : str, optional
+        Name of the column in df containing z-coordinates, default is "z". If
+        z is not provided, the mean of screen_top and screen_bottom will be used.
+    screen_top : str, optional
+        Name of the column in df containing the top of the screen, default is
+        "screen_top", only used if z is not provided
+    screen_bottom : str, optional
+        Name of the column in df containing the bottom of the screen, default is
+        "screen_bottom", only used if z is not provided
+    pname : str, optional
+        Name of the observation package, default is None, which will create a package
+        named "obs_{obs_type}" with a maximum length of 16 characters. If pname is
+        provided, it will be truncated to 16 characters if necessary.
+    **kwargs : additional keyword arguments
+        Additional keyword arguments to pass to the flopy.mf6.ModflowUtlobs constructor.
+
+    Returns
+    -------
+    obs : flopy.mf6.ModflowUtlobs
+        MODFLOW 6 observation package object
+    """
+    # store observations at locations of measurements
+    if z not in df.columns:
+        df[z] = df.loc[:, [screen_top, screen_bottom]].mean(axis=1)
+    if isinstance(df, pd.DataFrame):
+        pts = points_from_xy(*df.loc[:, [x, y, z]].values.T)
+    elif isinstance(df, GeoDataFrame):
+        pts = df.geometry
+    else:
+        raise ValueError("df must be a pandas DataFrame or a GeoDataFrame")
+    ix = fp.utils.GridIntersect(gwf_or_gwt.modelgrid)
+    r = ix.points_to_cellids(np.asarray(pts), handle_z=True)
+    continuous = []
+    for i, name in tqdm(
+        enumerate(df.index),
+        desc="Adding head observations",
+        total=df.index.size,
+    ):
+        if pd.isna(r["layer"].iloc[i]):
+            continue
+        if grid.is_structured(ds):
+            icellid = (
+                int(r["layer"].iloc[i]),
+                int(r["row"].iloc[i]),
+                int(r["col"].iloc[i]),
+            )
+        elif grid.is_vertex(ds):
+            icellid = (
+                int(r["layer"].iloc[i]),
+                int(r["cellid"].iloc[i]),
+            )
+        else:
+            icellid = None
+        if icellid is not None:
+            continuous.append((name, obs_type, icellid))
+
+    if fname is None:
+        fname = f"{obs_type}_obs.csv"
+    return {fname: continuous}
+
+
+def obs(
+    gwf_or_gwt,
+    continuous: list | dict,
+    pname=None,
+    **kwargs,
+):
+    """Add observation package to a MODFLOW 6 model.
+
+    Parameters
+    ----------
+    gwf_or_gwt : flopy.mf6.ModflowGwf or flopy.mf6.ModflowGwt
+        MODFLOW 6 groundwater flow or transport model object
+    continuous : list or dict
+        List of dictionaries containing observation information, e.g.
+        [{"file1": [(name, obs_type, icellid), ...], "file2": [...]}]. Also accepts
+        a single dictionary.
+    pname : str, optional
+        Name of the observation package, default is None, which will create a package
+        named "obs_{obs_type}" with a maximum length of 16 characters. If pname is
+        provided, it will be truncated to 16 characters if necessary.
+    **kwargs : additional keyword arguments
+        Additional keyword arguments to pass to the flopy.mf6.ModflowUtlobs constructor.
+
+    Returns
+    -------
+    obs : flopy.mf6.ModflowUtlobs
+        MODFLOW 6 observation package object
+
+    See Also
+    --------
+    nlmod.build.build_observations
+        Build observation package for a MODFLOW 6 model from a dataframe containing
+        observation locations. This function returns the `continuous` variable
+        that can be passed into this function.
+    """
+    logger.info("creating mf6 OBS")
+
+    return fp.mf6.ModflowUtlobs(
+        gwf_or_gwt,
+        digits=10,
+        print_input=True,
+        continuous=continuous,
+        pname=pname,
+        **kwargs,
+    )

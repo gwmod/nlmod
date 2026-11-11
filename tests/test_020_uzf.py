@@ -13,7 +13,9 @@ def test_uzf_structured():
     time = pd.date_range("2022", "2023", freq="D")
     ds = nlmod.time.set_ds_time(ds, start="2021", time=time)
 
-    ds.update(nlmod.read.knmi.get_recharge(ds, method="separate"))
+    ds.update(
+        nlmod.read.knmi.get_recharge(ds, hourly_precision=True, method="separate")
+    )
 
     # generate sim and gwf
     # create simulation

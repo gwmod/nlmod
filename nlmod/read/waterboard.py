@@ -18,11 +18,11 @@ def get_polygons(**kwargs):
         https://github.com/gwmod/nlmod/issues/47
 
     """
-
     warnings.warn(
         "get_polygons is deprecated and will eventually be removed, "
         "please use nlmod.read.waterboard.download_polygons() in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_polygons(**kwargs)
@@ -42,8 +42,16 @@ def download_polygons(**kwargs):
     ws["waterschap"] = ws["waterschap"].str.replace("HH van ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("HHS van ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("HH ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Hoogheemraadschap van ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Hoogheemraadschap ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Administratieve grens ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace(" 2018", "")
+    ws["waterschap"] = ws["waterschap"].str.replace(" (INSPIRE-grens)", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("Beheergebied waterschap ", "")
+    ws["waterschap"] = ws["waterschap"].str.replace("WS ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("Waterschap ", "")
     ws["waterschap"] = ws["waterschap"].str.replace("Wetterskip ", "")
+
     ws = ws.set_index("waterschap")
 
     return ws
@@ -97,19 +105,23 @@ def get_configuration():
             "index": "OVKIDENT",
         },
         "level_areas": {
-            "url": "https://maps.waternet.nl/arcgis/rest/services/Publiek/GW_GPG/MapServer",
-            "layer": 5,  # Vigerende peilgebieden
-            "index": "GPGIDENT",
-            "summer_stage": [
-                "GPGZMRPL",
-                "IWS_BOVENGRENS_ZOMERPEIL",
-                "IWS_GPGVASTP",
-            ],
-            "winter_stage": [
-                "GPGWNTPL",
-                "OPVAFWWP",
-                "IWS_GPGVASTP",
-            ],
+            "url": "https://services-eu1.arcgis.com/nN7Fv7YeT1qPGzBX/arcgis/rest/services/DAMO_BEHEERREGISTER_PEILGEBIEDEN_VIGEREND/FeatureServer",
+            "layer": 0,  # Peilgebied vigerend
+            "index": "code",
+            # "summer_stage": [
+            #    "GPGZMRPL",
+            #    "IWS_BOVENGRENS_ZOMERPEIL",
+            #    "IWS_GPGVASTP",
+            # ],
+            # "winter_stage": [
+            #    "GPGWNTPL",
+            #    "OPVAFWWP",
+            #    "IWS_GPGVASTP",
+            # ],
+        },
+        "culverts": {
+            "url": "https://services-eu1.arcgis.com/nN7Fv7YeT1qPGzBX/ArcGIS/rest/services/agol_legger_duikersifonhevel_actueel/FeatureServer",
+            "layer": 2,
         },
     }
 
@@ -170,16 +182,20 @@ def get_configuration():
             "index": "Nieuw_Dommel_ID",
         },
         "culverts": {
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Duiker_V/FeatureServer"
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Duiker_V/FeatureServer",
+            "index": "Lokaal_ID",
         },
         "weirs": {
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Stuw_V/FeatureServer"
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/arcgis/rest/services/LWW_2023_Stuw_V/FeatureServer",
+            "index": "Lokaal_ID",
         },
         "profile_lines": {
-            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profiellijn_V/FeatureServer"
+            "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profiellijn_V/FeatureServer",
+            "index": "Dommel_ID",
         },
         "profile_points": {
             "url": "https://services8.arcgis.com/dmR647kStmcYa6EN/ArcGIS/rest/services/LWW_2023_A_water_profielpunt_V/FeatureServer",
+            "index": "Dommel_ID",
         },
     }
 
@@ -234,27 +250,27 @@ def get_configuration():
     config["Fryslân"] = {
         "bgt_code": "W0653",
         "watercourses": {
-            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/BeheerregisterWaterlopen/MapServer",
-            "layer": 0,  # # Wateren (primair, secundair)
-            "index": "OVKIDENT",
-            "bottom_height": "AVVBODH",
-            "water_depth": "AVVDIEPT",
-            # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Legger_vastgesteld__2019/MapServer",
-            # "layer": 604,  # Wateren legger
-            # "index": "BLAEU.LEG_VL_GW_OVK.OVKIDENT",
-            # "bottom_height": "BLAEU.LEG_VL_GW_OVK.AVVBODH",
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 11,  # Waterloop
+            "index": "Code",
+            "bottom_height": "Bodemhoogte_legger_mNAP",
         },
         "level_areas": {
-            # "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilbelsuit_Friese_boezem/MapServer",
-            # "index": "BLAEU_WFG_GPG_BEHEER_PBHIDENT",
-            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilen/MapServer",
-            # "layer": 1,  # PeilenPeilenbeheerkaart - Peilen
-            "layer": 4,  # Peilgebied praktijk
-            "index": "PBHIDENT",
-            # "layer": 4,  # Peilbesluitenkaart
-            # "index": "GPGIDENT",
-            "summer_stage": "HOOGPEIL",
-            "winter_stage": "LAAGPEIL",
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 5,  # Peilen_actueel
+            "index": "Code",
+            "summer_stage": "Hoogpeil_mNAP",
+            "winter_stage": "Laagpeil_mNAP",
+        },
+        "weirs": {
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 7,
+            "index": "Code",
+        },
+        "culverts": {
+            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
+            "layer": 2,
+            "index": "Code",
         },
     }
 
@@ -301,17 +317,21 @@ def get_configuration():
         "bgt_code": "W0655",
         "watercourses": {
             # "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Geoportaal/Legger2014waterbeheersing_F_transparant/FeatureServer",
-            "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Watersysteem/MapServer",
-            "layer": 15,  # Waterlopen
+            # "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Watersysteem/MapServer",
+            # "layer": 15,  # Waterlopen
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_HydroObject_(obv_type)_(extern)/FeatureServer",
+            "layer": 0,
             "bottom_height": [
                 ["BODEMHOOGTE_BOVENSTROOMS", "BODEMHOOGTE_BENEDENSTROOMS"]
             ],
             "bottom_width": "BODEMBREEDTE",
         },
         "level_areas": {
-            "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Peilgebieden/MapServer",
-            "layer": 31,
-            "f": "json",
+            # "url": "https://geoportaal.wshd.nl/arcgis/rest/services/Watersysteem/Peilgebieden/MapServer",
+            # "layer": 31,
+            # "f": "json",
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_Peilgebied_vigerend_(extern)/FeatureServer",
+            "layer": 3,
             "summer_stage": [
                 "REKENPEIL_ZOMER",
                 "BOVENGRENS_BEHEERMARGE_ZOMER",
@@ -322,6 +342,14 @@ def get_configuration():
                 "BOVENGRENS_BEHEERMARGE_WINTER",
                 "ONDERGRENS_BEHEERMARGE_WINTER",
             ],
+        },
+        "weirs": {
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_Stuw_(extern)_/FeatureServer",
+            "layer": 1,
+        },
+        "culverts": {
+            "url": "https://services1.arcgis.com/kuOZuNSbAumsw8wc/arcgis/rest/services/WSHD_Duiker_Sifon_Hevel__Persleiding__lijn_extern/FeatureServer",
+            "layer": 3,
         },
     }
 
@@ -361,18 +389,15 @@ def get_configuration():
     config["Noorderzijlvest"] = {
         "bgt_code": "W0647",
         "watercourses": {
-            # "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
-            # "layer": 0,  # Primair
+            "url": "https://geo.noorderzijlvest.nl/server/rest/services/Waterkwantiteit/Watergang/MapServer",
+            "layer": 0,  # Primair
             # "layer": 1,  # Secundair
             # "layer": 2,  # Tertiair
-            "url": "https://services2.arcgis.com/ppcrd5oBNPEvV1T3/ArcGIS/rest/services/Normatieve_afmetingen/FeatureServer",
-            "layer": 1,  # Normatieve afmetingen
-            "bottom_height": [["IWS_AVVHOBOS_L", "IWS_AVVHOBES_L"]],
-            "bottom_width": "AVVBODDR",
-            "index": "OVKIDENT",
+            "bottom_width": "DAMO_W.HydroObject.BREEDTE",
+            "index": "OBJECTID",
         },
         "level_areas": {
-            "url": "https://arcgis.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebied/MapServer/",
+            "url": "https://geo.noorderzijlvest.nl/server/rest/services/Peilbeheer/Peilgebied/MapServer",
             "layer": 3,
             "index": "WS_CODE",
             "summer_stage": [
@@ -452,12 +477,12 @@ def get_configuration():
             # "layer": 70,  # Profiellijnen
         },
         "weirs": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
-            "layer": 8,  # Stuw beheer (9)
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Watersysteem/Legger_en_Werkingsgebieden_Wateren_Vastgesteld/MapServer",
+            "layer": 11,  # Stuw
         },
         "culverts": {
-            "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Watersysteem_beheerregister/MapServer",
-            "layer": 5,  # Duiker sifon hevel beheer (5)
+            "url": "https://portal.wsrl.nl/kaarten/rest/services/Watersysteem/Legger_en_Werkingsgebieden_Wateren_Vastgesteld/MapServer",
+            "layer": 7,  # Duiker, sifon, hevel
         },
         "level_areas": {
             # "url": "https://kaarten.wsrl.nl/arcgis/rest/services/Kaarten/Peilgebieden_praktijk/FeatureServer",
@@ -645,11 +670,11 @@ def get_data(wb, data_kind, extent=None, max_record_count=None, config=None, **k
         A GeoDataFrame containing data from the waterboard (polygons for
         level_areas/level_deviations and lines for watercourses).
     """
-
     warnings.warn(
         "'get_data' is deprecated and will eventually be removed, "
         "please use 'nlmod.read.waterboard.download_data()' in the future.",
         DeprecationWarning,
+        stacklevel=2,
     )
 
     return download_data(wb, data_kind, extent, max_record_count, config, **kwargs)
@@ -768,11 +793,41 @@ def download_data(
 
 
 def _set_column_from_columns(gdf, set_column, from_columns, nan_values=None):
-    """Retrieve values from one or more Geo)DataFrame-columns and set these values as
-    another column.
+    """Populate a target column from one or more source columns.
+
+    The function creates ``set_column`` and fills missing values by iterating over
+    ``from_columns`` in order. Each source can be either a single column name or a
+    list of column names. For a list input, the row-wise mean of available values is
+    used. Existing values in ``set_column`` are preserved once filled.
+
+    Parameters
+    ----------
+    gdf : pandas.DataFrame or geopandas.GeoDataFrame
+        Input table that contains the source columns.
+    set_column : str
+        Name of the column that will be created and filled.
+    from_columns : str or list, optional
+        Source definition used to populate ``set_column``. Supported entries are:
+        - ``str``: copy values from this column.
+        - ``list[str]``: use row-wise mean of these columns.
+        - ``list`` containing a mix of the above: processed in order until all
+          possible values are filled.
+    nan_values : float, int or list, optional
+        Value or values that should be interpreted as missing and replaced by
+        ``np.nan`` in the resulting ``set_column``.
+
+    Returns
+    -------
+    pandas.DataFrame or geopandas.GeoDataFrame
+        ``gdf`` with the newly created ``set_column``.
+
+    Raises
+    ------
+    ValueError
+        If ``set_column`` already exists in ``gdf``.
     """
     if set_column in gdf.columns:
-        raise (Exception(f"Column {set_column} allready exists"))
+        raise (ValueError(f"Column {set_column} allready exists"))
     gdf[set_column] = np.nan
     if from_columns is None:
         return gdf

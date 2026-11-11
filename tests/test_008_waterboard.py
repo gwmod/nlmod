@@ -1,9 +1,9 @@
 import os
-import tempfile
 
 import matplotlib
 import numpy as np
 import pytest
+import util
 
 import nlmod
 
@@ -25,29 +25,11 @@ def test_bgt_waterboards():
     bgt = nlmod.gwf.surface_water.add_stages_from_waterboards(bgt, la=la)
 
 
-def get_ahn_colormap(name="ahn", N=256):
-    colors = np.array(
-        [
-            [0, 98, 177],  # dark blue
-            [0, 156, 224],  # medium blue
-            [115, 216, 255],  # light blue
-            [128, 137, 0],  # dark green
-            [164, 221, 0],  # light green: center
-            [252, 220, 0],  # yellow
-            [251, 158, 0],  # orange
-            [211, 49, 21],  # light red
-            [159, 5, 0],  # dark red
-        ]
-    )
-    cmap = matplotlib.colors.LinearSegmentedColormap.from_list(name, colors / 255, N=N)
-    return cmap
-
-
 @pytest.mark.skip("too slow")
 def test_download_level_areas(
     data_kind="level_areas", plot=True, save=True, figdir=r"..\docs\_static"
 ):
-    cachedir = os.path.join(tempfile.tempdir, "test_download_level_areas")
+    cachedir = os.path.join(util.get_model_data_dir(), "test_download_level_areas")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
 
@@ -60,7 +42,12 @@ def test_download_level_areas(
             # xmin, ymin, xmax, ymax = waterboards.at[wb, "geometry"].bounds
             # extent = [xmin, xmax, ymin, ymax]
             gdf[wb] = nlmod.read.waterboard.download_data(
-                wb, data_kind, max_record_count=1000, cachedir=cachedir, cachename=wb
+                wb,
+                data_kind,
+                max_record_count=1000,
+                cachedir=cachedir,
+                cachename=wb,
+                # verify=False,
             )
         except Exception as e:
             if str(e) == f"{data_kind} not available for {wb}":
@@ -79,11 +66,11 @@ def test_download_level_areas(
         else:
             raise (Exception(f"Unknown data_kind: {data_kind}"))
         # plot the winter_stage and summer_stage
-        for column, label in zip(columns, labels):
+        for column, label in zip(columns, labels, strict=False):
             f, ax = nlmod.plot.get_map([9000, 279000, 304000, 623000], base=100000)
             waterboards.plot(edgecolor="k", facecolor="none", ax=ax)
             norm = matplotlib.colors.Normalize(-10.0, 20.0)
-            cmap = get_ahn_colormap()
+            cmap = nlmod.plot.get_ahn_colormap()
             for wb in waterboards.index:
                 if wb in gdf:
                     try:
@@ -123,7 +110,7 @@ def test_download_watercourses(plot=True):
         #    extent = [57000, 58000, 378000, 379000]
         return extent
 
-    cachedir = os.path.join(tempfile.tempdir, "test_download_watercourses")
+    cachedir = os.path.join(util.get_model_data_dir(), "test_download_watercourses")
     if not os.path.isdir(cachedir):
         os.makedirs(cachedir)
 

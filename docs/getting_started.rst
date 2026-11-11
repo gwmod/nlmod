@@ -109,7 +109,6 @@ On top of that there are some optional dependecies:
 - rasterstats (used in nlmod.util.zonal_statistics)
 - contextily (nlmod.plot.add_background_map)
 - scikit-image (used in nlmod.read.rws.calculate_sea_coverage)
-- py7zr (used in nlmod.read.bofek.download_bofek_gdf)
 - joblib (used in nlmod.cache)
 - tqdm (used for showing progress in long-running methods)
 - hydropandas (used in nlmod.read.knmi and nlmod.read.bro)

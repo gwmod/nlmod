@@ -250,27 +250,35 @@ def get_configuration():
     config["Fryslân"] = {
         "bgt_code": "W0653",
         "watercourses": {
-            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
-            "layer": 11,  # Waterloop
+            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Legger_vastgesteld/MapServer",
+            "layer": 623,  # Hoofdwateren (legger)
             "index": "Code",
             "bottom_height": "Bodemhoogte_legger_mNAP",
         },
         "level_areas": {
-            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
-            "layer": 5,  # Peilen_actueel
-            "index": "Code",
-            "summer_stage": "Hoogpeil_mNAP",
-            "winter_stage": "Laagpeil_mNAP",
+            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilen/MapServer",
+            "layer": 2,  # Peilgebied vigerend
+            "index": "BLAEU.GW_GPG.GPGIDENT",
+            "summer_stage": [
+                "BLAEU.GW_GPG.GPGZMRPL",
+                "BLAEU.GW_GPG.IWS_GPGBOVP",
+                "BLAEU.GW_GPG.IWS_GPGVASTP",
+            ],
+            "winter_stage": [
+                "BLAEU.GW_GPG.GPGWNTPL",
+                "BLAEU.GW_GPG.IWS_GPGONDP",
+                "BLAEU.GW_GPG.IWS_GPGVASTP",
+            ],
         },
         "weirs": {
-            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
-            "layer": 7,
-            "index": "Code",
+            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Legger_vastgesteld/MapServer",
+            "layer": 601,  # Stuw (legger)
+            "index": "BLAEU.LEG_VL_GW_KST.KSTIDENT",
         },
         "culverts": {
-            "url": "https://services1.arcgis.com/I0drYBaRsGebHGKb/ArcGIS/rest/services/Watersysteem_Wetterskip_Frysl%C3%A2n/FeatureServer",
-            "layer": 2,
-            "index": "Code",
+            "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Legger_vastgesteld/MapServer",
+            "layer": 595,  # Duiker (legger)
+            "index": "BLAEU.LEG_VL_GW_KDU.KDUIDENT",
         },
     }
 

@@ -217,7 +217,7 @@ def _build_sea_model():
     _ = nlmod.gwf.chd(ds, gwf, mask="edge_mask", head="starting_head")
 
     # add knmi recharge to the model datasets
-    ds.update(nlmod.read.knmi.get_recharge(ds))
+    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True))
     # create recharge package
     _ = nlmod.gwf.rch(ds, gwf)
 

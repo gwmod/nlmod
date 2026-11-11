@@ -15,7 +15,7 @@ def test_get_recharge():
     ds = test_001_model.get_ds_from_cache("sea_model_grid_only")
 
     # add knmi recharge to the model dataset
-    ds.update(nlmod.read.knmi.get_recharge(ds))
+    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True))
 
 
 def test_get_recharge_most_common():
@@ -24,7 +24,7 @@ def test_get_recharge_most_common():
     ds = nlmod.time.set_ds_time(ds, start="2021", time=pd.date_range("2022", "2023"))
 
     # add knmi recharge to the model dataset
-    ds.update(nlmod.read.knmi.get_recharge(ds, most_common_station=True))
+    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True, most_common_station=True))
 
 
 def test_get_recharge_steady_state():
@@ -36,7 +36,7 @@ def test_get_recharge_steady_state():
     ds = nlmod.time.set_ds_time(ds, time=[3650], start="2000-1-1")
 
     # add knmi recharge to the model dataset
-    ds.update(nlmod.read.knmi.get_recharge(ds))
+    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True))
 
 
 def test_get_recharge_not_available():
@@ -44,7 +44,7 @@ def test_get_recharge_not_available():
     time = [pd.Timestamp.now().normalize()]
     ds = nlmod.time.set_ds_time(ds, start=time[0] - pd.Timedelta(days=21), time=time)
     with pytest.raises((ValueError)):
-        ds.update(nlmod.read.knmi.get_recharge(ds))
+        ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True))
 
 
 def test_get_recharge_add_stn_dimensions():
@@ -58,7 +58,7 @@ def test_get_recharge_add_stn_dimensions():
     ds["active_domain"].data[0, 0] = False
     time = pd.date_range("2024", "2025")
     ds = nlmod.time.set_ds_time(ds, start="2023", time=time)
-    ds.update(nlmod.read.knmi.get_recharge(ds, add_stn_dimensions=True))
+    ds.update(nlmod.read.knmi.get_recharge(ds, hourly_precision=True, add_stn_dimensions=True))
 
     # create simulation
     sim = nlmod.sim.sim(ds)

@@ -1,5 +1,6 @@
 # ruff: noqa: F401 F403
-from . import hfb, output, surface_water, wells
+from . import drain, hfb, output, surface_water, wells
+from .drain import *
 from .gwf import *
 from .hfb import *
 from .lake import *

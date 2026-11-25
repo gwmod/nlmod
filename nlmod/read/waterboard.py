@@ -266,8 +266,8 @@ def get_configuration():
         "watercourses": {
             "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Legger_vastgesteld/MapServer",
             "layer": 623,  # Hoofdwateren (legger)
-            "index": "Code",
-            "bottom_height": "Bodemhoogte_legger_mNAP",
+            "index": "BLAEU.LEG_VL_GW_OVK.OVKIDENT",
+            "bottom_height": "BLAEU.LEG_VL_GW_OVK.AVVBODH",
         },
         "level_areas": {
             "url": "https://gis.wetterskipfryslan.nl/arcgis/rest/services/Peilen/MapServer",
